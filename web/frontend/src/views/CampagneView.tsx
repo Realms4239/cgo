@@ -10,6 +10,38 @@ export default function CampagneView() {
   const [profiles, setProfiles] = useState<string[]>(['P2'])
   const [reps, setReps] = useState(3)
   const [msg, setMsg] = useState('')
+  const [auditMsg, setAuditMsg] = useState('')
+  const [auditSite, setAuditSite] = useState('Département X')
+  const [auditLink, setAuditLink] = useState('5g')
+  const [importMsg, setImportMsg] = useState('')
+
+  const startAudit = () => {
+    setAuditMsg('audit en cours…')
+    fetch('/api/audit/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site: auditSite, link_type: auditLink, duration: 30 }) })
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+      .then(() => {
+        const poll = setInterval(() => {
+          fetch('/api/audit/status').then(r=>r.json()).then(j=>{
+            if (!j.running) {
+              clearInterval(poll)
+              setAuditMsg(j.last ? `audit terminé — p95 ${Number(j.last.rtt_idle_p95_ms).toFixed(1)} ms` : 'audit terminé')
+            }
+          }).catch(()=>clearInterval(poll))
+        }, 2000)
+      })
+      .catch(e => setAuditMsg('échec: ' + e.message))
+  }
+
+  const importProfile = () => {
+    const id = prompt('Identifiant du profil (ex. P3):')
+    if (!id) return
+    const cap = parseFloat(prompt('Capacité Mbit/s:', '20') || '20')
+    const delay = parseFloat(prompt('RTT ms:', '100') || '100')
+    fetch('/api/profile/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, capacity_mbps: cap, delay_ms: delay }) })
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+      .then(() => setImportMsg(`profil ${id} importé`))
+      .catch(e => setImportMsg('échec: ' + e.message))
+  }
 
   const start = async () => {
     setMsg('démarrage…')
@@ -73,6 +105,33 @@ export default function CampagneView() {
               <span className="gate-state mono">{g===null?'—':g?'PASS':'FAIL'}</span>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">Audit lien accessible (non intrusif)</div>
+        <div className="form-row">
+          <label>Site</label>
+          <input value={auditSite} onChange={e=>setAuditSite(e.target.value)} style={{flex:1}} />
+        </div>
+        <div className="form-row">
+          <label>Type de lien</label>
+          <select value={auditLink} onChange={e=>setAuditLink(e.target.value)} style={{background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)'}}>
+            {['fiber','5g','4g','vsat','other'].map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="form-row" style={{gap:8}}>
+          <ArmButton label="LANCER AUDIT" confirmLabel="CONFIRMER AUDIT" onConfirm={startAudit} />
+          <span className="mono muted">{auditMsg}</span>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">Profil personnalisé</div>
+        <p className="mono muted" style={{fontSize:12}}>Importer un profil réel mesuré par l'audit (LIEN III.IV — Import profile).</p>
+        <div className="form-row" style={{gap:8}}>
+          <ArmButton label="IMPORTER PROFIL" confirmLabel="CONFIRMER IMPORT" onConfirm={importProfile} />
+          <span className="mono muted">{importMsg}</span>
         </div>
       </div>
     </div>
