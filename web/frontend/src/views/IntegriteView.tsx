@@ -10,9 +10,12 @@ export default function IntegriteView() {
   const [data, setData] = useState<Integrity|null>(null)
   const [err, setErr] = useState<string|null>(null)
   const [msg, setMsg] = useState('')
+  const [replayRuns, setReplayRuns] = useState<string[]>([])
+  const [regenOk, setRegenOk] = useState(false)
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
+    fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(j.runs||[])).catch(()=>{})
   }
   useEffect(()=>{ load() }, [])
 
@@ -21,6 +24,12 @@ export default function IntegriteView() {
     const r = await fetch('/api/integrity')
     const j = await r.json()
     setData(j); setMsg(j.available ? 'intégrité vérifiée' : j.reason)
+  }
+  const regen = async () => {
+    setMsg('génération…')
+    const r = await fetch('/api/figures/regen', {method:'POST'})
+    if (r.ok) { setMsg('figures régénérées'); setRegenOk(true) }
+    else setMsg('échec: '+r.status)
   }
 
   if (err) return <div className="card"><h1 className="view-title">Intégrité</h1><p className="mono muted">{err}</p></div>
@@ -56,8 +65,30 @@ export default function IntegriteView() {
       </div>
       <div className="card">
         <div className="card-head">Figures</div>
-        <p className="mono muted" style={{fontSize:12, lineHeight:'1.6'}}>Générées par <span className="mono" style={{color:'var(--text-primary)'}}>make figures</span> depuis les CSV gelés. Re-génération via API prévue jalon M2.3 (SVG).</p>
-        <button className="btn" disabled style={{marginTop:8, opacity:.45}}>Régénérer (M2.3)</button>
+        <p className="mono muted" style={{fontSize:12, lineHeight:'1.6'}}>Générées par <span className="mono" style={{color:'var(--text-primary)'}}>make figures</span> depuis les CSV gelés.</p>
+        <div style={{display:'flex', gap:8, marginTop:8}}>
+          <button className="btn btn-primary" onClick={regen}>Régénérer</button>
+          <span className="mono muted">{regenOk ? '✓ disponible' : ''}</span>
+        </div>
+        {regenOk && (
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
+            <img src="/api/figures/small_p95.svg" alt="small p95" style={{width:'100%', border:'1px solid var(--hairline)'}} />
+            <img src="/api/figures/scatter.svg" alt="scatter" style={{width:'100%', border:'1px solid var(--hairline)'}} />
+          </div>
+        )}
+      </div>
+      <div className="card">
+        <div className="card-head">Replay</div>
+        {replayRuns.length===0 ? <p className="mono muted">aucun run à rejouer</p> :
+          <ul style={{listStyle:'none', padding:0, margin:0}}>
+            {replayRuns.map(id=>(
+              <li key={id} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}}>
+                <span>{id}</span>
+                <a href={`/api/replay/stream?run=${id}`} target="_blank" rel="noreferrer" style={{color:'var(--t-live)'}}>stream</a>
+              </li>
+            ))}
+          </ul>
+        }
       </div>
     </div>
   )

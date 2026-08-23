@@ -9,11 +9,17 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
+
+	"github.com/Realms4239/cgo/pkg/figures"
 )
 
 func main() {
@@ -36,8 +42,25 @@ func main() {
 			fmt.Fprintln(os.Stderr, "serve:", err)
 			os.Exit(1)
 		}
-	case "audit", "run", "verify", "figures":
-		fmt.Fprintf(os.Stderr, "%s: not implemented until M1/M2/M3\n", os.Args[1])
+	case "figures":
+		if err := figures.Generate("data/runs", "data/figures"); err != nil {
+			fmt.Fprintln(os.Stderr, "figures:", err)
+			os.Exit(1)
+		}
+		fmt.Println("figures générées dans data/figures")
+	case "verify":
+		ok, err := verifyManifests("data/runs")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "verify:", err)
+			os.Exit(1)
+		}
+		if !ok {
+			fmt.Fprintln(os.Stderr, "verify: échec — manifeste incohérent")
+			os.Exit(1)
+		}
+		fmt.Println("verify: ok — tous les manifests valides")
+	case "audit", "run":
+		fmt.Fprintf(os.Stderr, "%s: not implemented until M3 (audit) / use API POST /api/run/start\n", os.Args[1])
 		os.Exit(2)
 	default:
 		usage()
@@ -52,4 +75,35 @@ func usage() {
        cgo verify
        cgo figures
 `)
+}
+
+func verifyManifests(dataDir string) (bool, error) {
+	runs, _ := filepath.Glob(filepath.Join(dataDir, "*", "manifest.json"))
+	if len(runs) == 0 {
+		return true, nil // no runs yet -> ok
+	}
+	for _, mf := range runs {
+		raw, err := os.ReadFile(mf)
+		if err != nil {
+			return false, err
+		}
+		var doc struct {
+			Files []struct{ File, Sha256 string } `json:"files"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			return false, err
+		}
+		dir := filepath.Dir(mf)
+		for _, f := range doc.Files {
+			b, err := os.ReadFile(filepath.Join(dir, f.File))
+			if err != nil {
+				return false, err
+			}
+			sum := sha256.Sum256(b)
+			if hex.EncodeToString(sum[:]) != f.Sha256 {
+				return false, fmt.Errorf("sha mismatch %s", f.File)
+			}
+		}
+	}
+	return true, nil
 }

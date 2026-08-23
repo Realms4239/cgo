@@ -1,13 +1,16 @@
 package api
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	frontend "github.com/Realms4239/cgo/web/frontend"
+	"github.com/Realms4239/cgo/pkg/figures"
 	"github.com/Realms4239/cgo/pkg/results"
 )
 
@@ -110,6 +113,65 @@ func New(d Deps) http.Handler {
 				mark = "★"
 			}
 			w.Write([]byte(fmt.Sprintf("| %s | %s | %s | %d | %.1f | %.1f | %.1f | %d | %s |\n", g.Profile, g.Qdisc, g.CC, g.Count, g.Smallp95Median, g.RTTp95Median, g.GoodputMedian, g.Quarantined, mark)))
+		}
+	})
+
+	mux.HandleFunc("POST /api/figures/regen", func(w http.ResponseWriter, _ *http.Request) {
+		if err := figures.Generate("data/runs", "data/figures"); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{"ok": true})
+	})
+	mux.Handle("/api/figures/", http.StripPrefix("/api/figures/", http.FileServer(http.Dir("data/figures"))))
+	mux.HandleFunc("GET /api/replay/list", func(w http.ResponseWriter, _ *http.Request) {
+		runs, _ := filepath.Glob("data/runs/*")
+		var ids []string
+		for _, p := range runs {
+			if st, err := os.Stat(filepath.Join(p, "aqm_eval.csv")); err == nil && !st.IsDir() {
+				ids = append(ids, filepath.Base(p))
+			}
+		}
+		writeJSON(w, map[string]any{"runs": ids})
+	})
+	mux.HandleFunc("GET /api/replay/stream", func(w http.ResponseWriter, r *http.Request) {
+		run := r.URL.Query().Get("run")
+		if run == "" {
+			http.Error(w, "run required", http.StatusBadRequest)
+			return
+		}
+		f, err := os.Open(filepath.Join("data/runs", run, "aqm_eval.csv"))
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		defer f.Close()
+		rd := csv.NewReader(f)
+		rows, _ := rd.ReadAll()
+		if len(rows) <= 1 {
+			http.Error(w, "no data", http.StatusNotFound)
+			return
+		}
+		fl, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "stream unsupported", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		for i, row := range rows[1:] {
+			select {
+			case <-r.Context().Done():
+				return
+			default:
+			}
+			payload, _ := json.Marshal(map[string]string{
+				"run_id": row[0], "event_id": row[1], "profile": row[2], "qdisc": row[3], "cc": row[4],
+			})
+			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", i+1, payload)
+			fl.Flush()
+			time.Sleep(200 * time.Millisecond)
 		}
 	})
 
