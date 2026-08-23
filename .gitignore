@@ -6,7 +6,7 @@ deploy/deploy.env
 
 # deps/build
 node_modules/
-dist/
+web/frontend/dist/*
 out/
 bin/
 cgo-linux
@@ -25,3 +25,4 @@ Thumbs.db
 
 # legacy thesis doc: stays on disk untracked, not part of the LIEN project
 CONGESTION.md
+!web/frontend/dist/.gitkeep

@@ -1,0 +1,93 @@
+package campagne
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"github.com/Realms4239/cgo/pkg/model"
+)
+
+// Matrix drives the full LIEN experiment matrix (Tableau 3):
+// profiles × qdiscs × CC × repetitions = 36 events (18 when reduced to P2).
+type Matrix struct {
+	mu      sync.Mutex
+	cancel  context.CancelFunc
+	Running bool
+
+	RunID string
+	Total int
+	Done  int
+}
+
+// Start launches the matrix in the background; progress lands in Live.
+func StartMatrix(base context.Context, profiles []string, reps int,
+	deps Deps, live *Live, dataDir string) (*Matrix, error) {
+	if len(profiles) == 0 {
+		return nil, fmt.Errorf("no profiles")
+	}
+	if reps <= 0 {
+		reps = 3
+	}
+
+	m := &Matrix{RunID: newRunID()}
+	total := 0
+	for range profiles {
+		total += len(model.AllQdiscs) * len(model.AllCC) * reps
+	}
+	m.Total = total
+
+	w, err := OpenRun(dataDir + "/" + m.RunID)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithCancel(base)
+	m.cancel = cancel
+	m.Running = true
+
+	go func() {
+		defer func() { w.Freeze("config"); m.mu.Lock(); m.Running = false; m.mu.Unlock() }()
+		id := 1
+		for _, pid := range profiles {
+			prof, ok := model.Profiles[pid]
+			if !ok {
+				continue
+			}
+			for _, q := range model.AllQdiscs {
+				for _, cc := range model.AllCC {
+					for rep := 1; rep <= reps; rep++ {
+						select {
+						case <-ctx.Done():
+							return
+						default:
+						}
+						ev := model.Event{
+							RunID: m.RunID, EventID: id, Profile: pid,
+							Qdisc: q, CC: cc, Repetition: rep,
+						}
+						done, err := RunEvent(ctx, ev, prof, deps)
+						if err == nil {
+							_ = w.Append(done)
+							m.Done = id
+						}
+						id++
+					}
+				}
+			}
+		}
+	}()
+	return m, nil
+}
+
+func (m *Matrix) Stop() {
+	m.mu.Lock()
+	c := m.cancel
+	m.mu.Unlock()
+	if c != nil {
+		c()
+	}
+}
+
+func newRunID() string {
+	return fmt.Sprintf("run-%d", nowUnix())
+}
