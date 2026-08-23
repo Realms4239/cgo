@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -212,7 +213,8 @@ func New(d Deps) http.Handler {
 		go func() {
 			defer func() { auditMu.Lock(); auditRunning = false; auditMu.Unlock() }()
 			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target}
-			res, err := audit.Run(r.Context(), p, audit.Deps{})
+			// detached ctx: the audit must outlive this HTTP request
+			res, err := audit.Run(context.Background(), p, audit.Deps{})
 			if err != nil {
 				return
 			}
