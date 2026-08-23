@@ -62,10 +62,10 @@ export default function App() {
       </aside>
 
       <main id="main">
-        <section id="v-campagne" className={'view' + (panel==='campagne'?' on':'')}><CampagneView /></section>
-        <section id="v-live" className={'view' + (panel==='live'?' on':'')}><LiveView /></section>
-        <section id="v-resultats" className={'view' + (panel==='resultats'?' on':'')}><ResultatsView /></section>
-        <section id="v-integrite" className={'view' + (panel==='integrite'?' on':'')}><IntegriteView /></section>
+        {panel==='campagne' && <section id="v-campagne" className="view on"><CampagneView /></section>}
+        {panel==='live' && <section id="v-live" className="view on"><LiveView /></section>}
+        {panel==='resultats' && <section id="v-resultats" className="view on"><ResultatsView /></section>}
+        {panel==='integrite' && <section id="v-integrite" className="view on"><IntegriteView /></section>}
       </main>
 
       <footer>
