@@ -18,7 +18,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
+	"github.com/Realms4239/cgo/pkg/audit"
 	"github.com/Realms4239/cgo/pkg/figures"
 )
 
@@ -59,8 +61,32 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("verify: ok — tous les manifests valides")
-	case "audit", "run":
-		fmt.Fprintf(os.Stderr, "%s: not implemented until M3 (audit) / use API POST /api/run/start\n", os.Args[1])
+	case "audit":
+		fs := flag.NewFlagSet("audit", flag.ExitOnError)
+		linkType := fs.String("link-type", "5g", "link_type: fiber, 5g, 4g, vsat, other")
+		site := fs.String("site", "Site X", "site / département")
+		provider := fs.String("provider", "", "provider")
+		duration := fs.Int("duration", 60, "duration seconds")
+		target := fs.String("target", "8.8.8.8", "ping target")
+		_ = fs.Parse(os.Args[2:])
+		p := audit.Params{
+			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
+			Site: *site, LinkType: *linkType, Provider: *provider,
+			Duration: *duration, Target: *target,
+		}
+		fmt.Printf("audit %s — %s %s %ds → %s\n", p.AuditID, p.LinkType, p.Site, p.Duration, p.Target)
+		res, err := audit.Run(context.Background(), p, audit.Deps{})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "audit:", err)
+			os.Exit(1)
+		}
+		if err := audit.AppendLinkAudit("data", res); err != nil {
+			fmt.Fprintln(os.Stderr, "audit write:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("audit ok — p50 %.1f p95 %.1f small %.1f → data/link_audit.csv\n", res.RTTIdleP50, res.RTTIdleP95, res.HTTPSmallP95)
+	case "run":
+		fmt.Fprintln(os.Stderr, "run: use API POST /api/run/start {profiles,reps} (CLI run direct en M3+)")
 		os.Exit(2)
 	default:
 		usage()

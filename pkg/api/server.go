@@ -7,10 +7,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	frontend "github.com/Realms4239/cgo/web/frontend"
+	"github.com/Realms4239/cgo/pkg/audit"
 	"github.com/Realms4239/cgo/pkg/figures"
+	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/pkg/profile"
 	"github.com/Realms4239/cgo/pkg/results"
 )
 
@@ -20,6 +24,10 @@ type Deps struct {
 	StartFn  func(profiles []string, reps int) error
 	StopFn   func()
 }
+
+var auditMu sync.Mutex
+var lastAudit *audit.Result
+var auditRunning bool
 
 // New builds the full handler with SPA fallback.
 func New(d Deps) http.Handler {
@@ -173,6 +181,101 @@ func New(d Deps) http.Handler {
 			fl.Flush()
 			time.Sleep(200 * time.Millisecond)
 		}
+	})
+
+	mux.HandleFunc("POST /api/audit/start", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Site     string `json:"site"`
+			LinkType string `json:"link_type"`
+			Provider string `json:"provider"`
+			Duration int    `json:"duration"`
+			Target   string `json:"target"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		if body.Duration <= 0 {
+			body.Duration = 30
+		}
+		if body.Target == "" {
+			body.Target = "8.8.8.8"
+		}
+		auditMu.Lock()
+		if auditRunning {
+			auditMu.Unlock()
+			http.Error(w, "audit already running", http.StatusConflict)
+			return
+		}
+		auditRunning = true
+		auditMu.Unlock()
+		go func() {
+			defer func() { auditMu.Lock(); auditRunning = false; auditMu.Unlock() }()
+			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target}
+			res, err := audit.Run(r.Context(), p, audit.Deps{})
+			if err != nil {
+				return
+			}
+			auditMu.Lock()
+			lastAudit = res
+			auditMu.Unlock()
+			_ = audit.AppendLinkAudit("data", res)
+		}()
+		writeJSON(w, map[string]any{"started": true})
+	})
+	mux.HandleFunc("GET /api/audit/status", func(w http.ResponseWriter, _ *http.Request) {
+		auditMu.Lock()
+		defer auditMu.Unlock()
+		writeJSON(w, map[string]any{"running": auditRunning, "last": lastAudit})
+	})
+	mux.HandleFunc("GET /api/audit/list", func(w http.ResponseWriter, _ *http.Request) {
+		// read link_audit.csv
+		f, err := os.Open("data/link_audit.csv")
+		if err != nil {
+			writeJSON(w, map[string]any{"audits": []any{}})
+			return
+		}
+		defer f.Close()
+		rd := csv.NewReader(f)
+		rows, _ := rd.ReadAll()
+		if len(rows) <= 1 {
+			writeJSON(w, map[string]any{"audits": []any{}})
+			return
+		}
+		var out []map[string]string
+		hdr := rows[0]
+		for _, row := range rows[1:] {
+			m := map[string]string{}
+			for i, h := range hdr {
+				if i < len(row) {
+					m[h] = row[i]
+				}
+			}
+			out = append(out, m)
+		}
+		writeJSON(w, map[string]any{"audits": out})
+	})
+	mux.HandleFunc("POST /api/profile/import", func(w http.ResponseWriter, r *http.Request) {
+		var p model.Profile
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&p); err != nil {
+			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		if p.ID == "" {
+			http.Error(w, "id required", http.StatusBadRequest)
+			return
+		}
+		if err := profile.Import(p); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// also update in-memory
+		model.Profiles[p.ID] = p
+		writeJSON(w, map[string]any{"ok": true, "profile": p})
+	})
+	mux.HandleFunc("GET /api/profile/list", func(w http.ResponseWriter, _ *http.Request) {
+		profile.Load()
+		writeJSON(w, model.Profiles)
 	})
 
 	mux.Handle("GET /api/stream", http.HandlerFunc(hub.SSE))
