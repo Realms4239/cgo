@@ -140,7 +140,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	var bulkBytes uint64
 	collect := func(secs int) (rtt, small []float64) {
 		if secs <= 0 { // instant window: single synthetic pass (tests)
-			return d.Ping(ctx, d.Target, 5), nil
+			rtt = d.Ping(ctx, d.Target, 5)
+			if v, err := d.Small(ctx); err == nil {
+				small = append(small, v)
+			}
+			return rtt, small
 		}
 		deadline := d.Now().Add(time.Duration(secs) * time.Second)
 		for d.Now().Before(deadline) {
