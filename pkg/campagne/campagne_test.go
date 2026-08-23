@@ -1,0 +1,77 @@
+package campagne
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/Realms4239/cgo/pkg/model"
+)
+
+func fastDeps() Deps {
+	return Deps{
+		TC: &fakeTC{}, CliIf: "veth-c", ShaperIf: "veth-s",
+		Target: "10.0.0.1", SmallURL: "http://127.0.0.1/obj", BulkAddr: "127.0.0.1:5201",
+		Ping: func(context.Context, string, int) []float64 { return []float64{20, 21, 22, 23, 24} },
+		Small: func(context.Context) (float64, error) { return 25, nil },
+		Bulk: func(ctx context.Context, _ string) (uint64, error) { return 2_500_000, nil }, // ≈20 Mbit/s over the ≥1 s window
+		CPU:  func() float64 { return 30 },
+		BaselineSec: -1, ChargeSec: -1, RecupSec: -1, // instant windows in tests
+	}
+}
+
+type fakeTC struct{}
+
+func (fakeTC) Run(args ...string) ([]byte, error) { return nil, nil }
+
+func TestRunEventHappyPath(t *testing.T) {
+	ev := model.Event{RunID: "r1", EventID: 1, Profile: "P2", Qdisc: model.FqCodel, CC: model.Cubic, Repetition: 1}
+	got, err := RunEvent(context.Background(), ev, model.Profiles["P2"], fastDeps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GateStatus != model.GatePass {
+		t.Fatalf("status=%s want valid (gates=%v)", got.GateStatus, got.RTTp95Ms)
+	}
+	if got.BulkGoodputMbps <= 0 || got.RTTp95Ms == 0 {
+		t.Fatalf("metrics not filled: %+v", got)
+	}
+}
+
+func TestRunEventQuarantinesWhenBulkFails(t *testing.T) {
+	d := fastDeps()
+	d.Bulk = func(ctx context.Context, _ string) (uint64, error) { return 0, nil } // G1 fails → invalid
+	ev := model.Event{RunID: "r1", EventID: 2, Profile: "P2", Qdisc: model.Cake, CC: model.BBR, Repetition: 1}
+	got, err := RunEvent(context.Background(), ev, model.Profiles["P2"], d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GateStatus != model.GateInvalid {
+		t.Fatalf("status=%s want invalid", got.GateStatus)
+	}
+}
+
+func TestWriterAppendAndFreeze(t *testing.T) {
+	dir := t.TempDir()
+	w, err := OpenRun(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := model.Event{RunID: "run9", EventID: 3, Profile: "P1", Qdisc: model.Cake, CC: model.Cubic, Repetition: 2,
+		RTTp50Ms: 20, RTTp95Ms: 24, Smallp95Ms: 26, DeadlineOKPct: 99, BulkGoodputMbps: 79.5,
+		WastedBytes: 1024, CostARPerH: 0, CPUPct: 31, GateStatus: model.GatePass}
+	if err := w.Append(ev); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Append(ev); err == nil || !strings.Contains(err.Error(), "duplicate") {
+		t.Fatalf("G5 not enforced: %v", err)
+	}
+	if err := w.Freeze("cfgsha"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "manifest.json")); err != nil {
+		t.Fatal("manifest missing")
+	}
+}
