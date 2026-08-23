@@ -3,6 +3,8 @@ import { useUIStore, PANELS } from './store/ui';
 import { connectSSE, disconnectSSE } from './lib/sse';
 import CampagneView from './views/CampagneView';
 import LiveView from './views/LiveView';
+import ResultatsView from './views/ResultatsView';
+import IntegriteView from './views/IntegriteView';
 
 export default function App() {
   const panel = useUIStore((s) => s.panel);
@@ -62,14 +64,8 @@ export default function App() {
       <main id="main">
         <section id="v-campagne" className={'view' + (panel==='campagne'?' on':'')}><CampagneView /></section>
         <section id="v-live" className={'view' + (panel==='live'?' on':'')}><LiveView /></section>
-        <section id="v-resultats" className={'view' + (panel==='resultats'?' on':'')}>
-          <h1 className="view-title">Résultats</h1>
-          <div className="card"><p className="mono muted">disponible après gel — jalon M2</p></div>
-        </section>
-        <section id="v-integrite" className={'view' + (panel==='integrite'?' on':'')}>
-          <h1 className="view-title">Intégrité</h1>
-          <div className="card"><p className="mono muted">disponible après gel — jalon M2</p></div>
-        </section>
+        <section id="v-resultats" className={'view' + (panel==='resultats'?' on':'')}><ResultatsView /></section>
+        <section id="v-integrite" className={'view' + (panel==='integrite'?' on':'')}><IntegriteView /></section>
       </main>
 
       <footer>
