@@ -26,3 +26,6 @@ Thumbs.db
 # legacy thesis doc: stays on disk untracked, not part of the LIEN project
 CONGESTION.md
 !web/frontend/dist/.gitkeep
+
+web/frontend/test-results/
+web/frontend/playwright-report/
