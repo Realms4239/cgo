@@ -1,0 +1,107 @@
+// Package model — LIEN domain types (docs/SPEC.md §2.2–2.3).
+// CSV column order matches LIEN Tableau 7 exactly via csvFieldOrder.
+package model
+
+// Profile — LIEN Tableau 2. Values are defaults, overridable by imported profiles.
+type Profile struct {
+	ID          string  // P1 | P2
+	CapacityMbps float64
+	DelayMs     float64
+	JitterMs    float64
+	LossPct     float64
+}
+
+var Profiles = map[string]Profile{
+	"P1": {ID: "P1", CapacityMbps: 80, DelayMs: 20, JitterMs: 2, LossPct: 0},
+	"P2": {ID: "P2", CapacityMbps: 20, DelayMs: 100, JitterMs: 15, LossPct: 0.5},
+}
+
+type Qdisc string
+
+const (
+	PfifoFast Qdisc = "pfifo_fast"
+	FqCodel   Qdisc = "fq_codel"
+	Cake      Qdisc = "cake"
+)
+
+var AllQdiscs = []Qdisc{PfifoFast, FqCodel, Cake}
+
+type CC string
+
+const (
+	Cubic CC = "cubic"
+	BBR   CC = "bbr"
+)
+
+var AllCC = []CC{Cubic, BBR}
+
+// Gate G0–G7 per SPEC §2.2.
+type Gate int
+
+const (
+	G0TargetReachable Gate = iota
+	G1BulkStarted
+	G2ProbesProducing
+	G3LatencyPlausible
+	G4ThroughputCoherent
+	G5NoDuplicateRows
+	G6BaselineStable
+	G7CPUNotSaturated
+)
+
+var GateCount = 8 // number of gates
+
+// gate_status values (aqm_eval.csv).
+const (
+	GatePass     = "valid"
+	GateDegraded = "degraded"
+	GateInvalid  = "invalid"
+)
+
+// Event phases (LIEN III.III.5) and durations in seconds.
+const (
+	PhaseBaseline = "baseline"
+	PhaseCharge   = "charge"
+	PhaseRecup    = "recup"
+
+	BaselineSec = 30
+	ChargeSec   = 120
+	RecupSec    = 30
+)
+
+// Event is one matrix cell execution.
+type Event struct {
+	RunID      string  `json:"run_id"`
+	EventID    int     `json:"event_id"`
+	Profile    string  `json:"profile"`
+	Qdisc      Qdisc   `json:"qdisc"`
+	CC         CC      `json:"cc"`
+	Repetition int     `json:"repetition"`
+
+	RTTp50Ms       float64 `csv:"rtt_p50_ms"        json:"rtt_p50_ms"`
+	RTTp95Ms       float64 `csv:"rtt_p95_ms"        json:"rtt_p95_ms"`
+	Smallp95Ms     float64 `csv:"small_p95_ms"      json:"small_p95_ms"`
+	DeadlineOKPct  float64 `csv:"deadline_ok_pct"   json:"deadline_ok_pct"`
+	BulkGoodputMbps float64 `csv:"bulk_goodput_mbps" json:"bulk_goodput_mbps"`
+	Drops          uint64  `csv:"drops"             json:"drops"`
+	Retransmissions uint64 `csv:"retransmissions"   json:"retransmissions"`
+	WastedBytes    uint64  `csv:"wasted_bytes"      json:"wasted_bytes"`
+	CostARPerH     float64 `csv:"cost_ar_per_h"     json:"cost_ar_per_h"`
+	CPUPct         float64 `csv:"cpu_pct"           json:"cpu_pct"`
+	GateStatus     string  `csv:"gate_status"       json:"gate_status"`
+}
+
+// AQMEvalHeader — Tableau 7 column order (after the identity columns).
+var AQMEvalHeader = []string{
+	"run_id", "event_id", "profile", "qdisc", "cc", "repetition",
+	"rtt_p50_ms", "rtt_p95_ms", "small_p95_ms", "deadline_ok_pct",
+	"bulk_goodput_mbps", "drops", "retransmissions", "wasted_bytes",
+	"cost_ar_per_h", "cpu_pct", "gate_status",
+}
+
+// LinkAuditHeader — Tableau 6 column order.
+var LinkAuditHeader = []string{
+	"audit_id", "timestamp", "site", "link_type", "provider",
+	"rtt_idle_p50_ms", "rtt_idle_p95_ms", "rtt_loaded_p50_ms", "rtt_loaded_p95_ms",
+	"throughput_mbps", "loss_pct", "http_small_p95_ms", "data_used_mb", "notes",
+}
