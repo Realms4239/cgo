@@ -30,6 +30,23 @@ func OpenRun(dir string) (*Writer, error) {
 	exists := false
 	if st, err := os.Stat(path); err == nil && st.Size() > 0 {
 		exists = true
+		// populate seen for resume (G5) — read existing rows
+		if data, err := os.ReadFile(path); err == nil {
+			lines := splitLines(string(data))
+			for i, ln := range lines {
+				if i == 0 {
+					continue // header
+				}
+				if ln == "" {
+					continue
+				}
+				parts := splitCSV(ln)
+				if len(parts) < 2 {
+					continue
+				}
+				w.seen[parts[0]+"/"+parts[1]] = true
+			}
+		}
 	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -43,6 +60,38 @@ func OpenRun(dir string) (*Writer, error) {
 		}
 	}
 	return w, nil
+}
+
+func splitLines(s string) []string {
+	var out []string
+	cur := ""
+	for _, r := range s {
+		if r == '\n' {
+			out = append(out, cur)
+			cur = ""
+		} else if r != '\r' {
+			cur += string(r)
+		}
+	}
+	out = append(out, cur)
+	return out
+}
+
+func splitCSV(s string) []string { return splitOn(s, ',') }
+
+func splitOn(s string, sep rune) []string {
+	var out []string
+	cur := ""
+	for _, r := range s {
+		if r == sep {
+			out = append(out, cur)
+			cur = ""
+		} else {
+			cur += string(r)
+		}
+	}
+	out = append(out, cur)
+	return out
 }
 
 func joinRow(cols []string) string {

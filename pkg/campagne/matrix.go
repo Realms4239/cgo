@@ -23,6 +23,11 @@ type Matrix struct {
 // Start launches the matrix in the background; progress lands in Live.
 func StartMatrix(base context.Context, profiles []string, reps int,
 	deps Deps, live *Live, dataDir string) (*Matrix, error) {
+	return StartMatrixWithID(base, newRunID(), profiles, reps, deps, live, dataDir)
+}
+
+func StartMatrixWithID(base context.Context, runID string, profiles []string, reps int,
+	deps Deps, live *Live, dataDir string) (*Matrix, error) {
 	if len(profiles) == 0 {
 		return nil, fmt.Errorf("no profiles")
 	}
@@ -30,7 +35,7 @@ func StartMatrix(base context.Context, profiles []string, reps int,
 		reps = 3
 	}
 
-	m := &Matrix{RunID: newRunID()}
+	m := &Matrix{RunID: runID}
 	total := 0
 	for range profiles {
 		total += len(model.AllQdiscs) * len(model.AllCC) * reps
@@ -41,6 +46,7 @@ func StartMatrix(base context.Context, profiles []string, reps int,
 	if err != nil {
 		return nil, err
 	}
+	m.Done = len(w.seen)
 	ctx, cancel := context.WithCancel(base)
 	m.cancel = cancel
 	m.Running = true
@@ -60,6 +66,12 @@ func StartMatrix(base context.Context, profiles []string, reps int,
 						case <-ctx.Done():
 							return
 						default:
+						}
+						key := fmt.Sprintf("%s/%d", m.RunID, id)
+						if w.seen[key] {
+							m.Done = id
+							id++
+							continue
 						}
 						ev := model.Event{
 							RunID: m.RunID, EventID: id, Profile: pid,

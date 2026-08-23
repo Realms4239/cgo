@@ -171,7 +171,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	defer cancel()
 	done := make(chan uint64, 1)
 	go func() { b, _ := d.Bulk(chgCtx, d.BulkAddr); done <- b }()
-	time.Sleep(300 * time.Millisecond) // let the flood connect
+	if d.ChargeSec > 0 {
+		time.Sleep(300 * time.Millisecond) // let the flood connect
+	}
 	chgRTT, chgSmall = collect(d.ChargeSec)
 	cancel()
 	bulkBytes = <-done
