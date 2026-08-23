@@ -24,7 +24,11 @@ func main() {
 	switch os.Args[1] {
 	case "--serve":
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
-		addr := fs.String("addr", ":9090", "listen address")
+		def := os.Getenv("CGO_DASHBOARD__ADDR")
+		if def == "" {
+			def = ":9090"
+		}
+		addr := fs.String("addr", def, "listen address")
 		_ = fs.Parse(os.Args[2:])
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
