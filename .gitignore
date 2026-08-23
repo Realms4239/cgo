@@ -1,0 +1,27 @@
+# machine-local
+deploy/cgo-vm.yaml
+deploy/deploy-vm.env
+deploy/deploy.env
+*.local
+
+# deps/build
+node_modules/
+dist/
+out/
+bin/
+cgo-linux
+cgo-linux.new
+
+# data produced by the instrument (frozen archives are committed deliberately,
+# never generated noise)
+data/runs/
+data/logs/
+*.csv.tmp
+
+# editor/os
+.DS_Store
+Thumbs.db
+.worktrees/
+
+# legacy thesis doc: stays on disk untracked, not part of the LIEN project
+CONGESTION.md
