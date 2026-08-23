@@ -1,0 +1,33 @@
+// live — mutable 10 Hz ring buffers (SPEC §2.4). Not in Zustand.
+export type Pt = [number, number]
+export type Ring = Pt[]
+
+export const live = {
+  rtt50: [] as Ring,
+  rtt95: [] as Ring,
+  small: [] as Ring,
+  goodput: [] as Ring,
+  max: 600, // 60s @10Hz
+  ts: 0,
+}
+
+function push(r: Ring, ts: number, v: number | null) {
+  if (v == null || !Number.isFinite(v)) r.push([ts, 0])
+  else r.push([ts, v])
+  if (r.length > live.max) r.shift()
+}
+
+export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: number; small_p95_ms?: number; bulk_goodput_mbps?: number }) {
+  live.ts = ts
+  push(live.rtt50, ts, f.rtt_p50_ms ?? null)
+  push(live.rtt95, ts, f.rtt_p95_ms ?? null)
+  push(live.small, ts, f.small_p95_ms ?? null)
+  push(live.goodput, ts, f.bulk_goodput_mbps ?? null)
+}
+
+export function clearLive() {
+  live.rtt50.length = 0
+  live.rtt95.length = 0
+  live.small.length = 0
+  live.goodput.length = 0
+}

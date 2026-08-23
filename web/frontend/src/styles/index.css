@@ -62,6 +62,27 @@ main { grid-area: main; overflow-y: auto; position: relative; }
 footer { grid-area: ft; display: flex; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-4); border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 var(--fs-micro) var(--font-mono); color: var(--text-faint); }
 footer .fill { margin-left: auto; }
 
+/* ── campagne / live additions — ponytail minimal, impeccable-operate disciplined ── */
+.panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 960px; }
+.card { border: 1px solid var(--hairline); background: var(--surface-card); padding: var(--sp-4); }
+.card-head { font: 700 11px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-3); }
+.form-row { display: flex; align-items: center; gap: var(--sp-3); padding: 6px 0; border-bottom: 1px solid var(--hairline-faint); }
+.form-row label { width: 110px; font: 500 12px var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.check-row { display: flex; gap: var(--sp-3); }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.muted { color: var(--text-muted); }
+.kv { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--hairline-faint); font: 400 12px var(--font-mono); color: var(--text-muted); }
+.kv b { color: var(--text-primary); }
+.gates-detail { display: flex; flex-direction: column; gap: 2px; }
+.gate-row { display: flex; gap: var(--sp-3); padding: 3px 0; border-bottom: 1px solid var(--hairline-faint); font: 400 11px var(--font-mono); }
+.gate-row.ok .gate-state { color: var(--t-ok); }
+.gate-row.fail .gate-state { color: var(--t-danger); }
+.banner { padding: 6px 10px; border: 1px solid var(--hairline); background: var(--surface-elevated); font: 700 11px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.btn { padding: 7px 16px; border: 1px solid var(--hairline); font: 700 11px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+.btn-primary { background: var(--text-primary); color: #000; border-color: var(--text-primary); }
+.btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+.btn-danger { background: var(--t-danger); color: #fff; border-color: var(--t-danger); }
+
 @media (max-width: 899px) {
   #shell { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr 28px; grid-template-areas: "hd" "side" "main" "ft"; }
   aside.sidebar { flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); overflow-x: auto; }
