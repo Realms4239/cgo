@@ -1,0 +1,70 @@
+/* CGO observatory tokens — LIEN instrument (docs/SPEC.md §3.3).
+   Near-black canvas, hairlines, sharp geometry; M tricolor identity-only;
+   semantic telemetry colors separate from brand. */
+
+@font-face { font-family: 'JetBrains Mono'; src: url('/fonts/jetbrains-mono-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'JetBrains Mono'; src: url('/fonts/jetbrains-mono-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/inter-var.woff2') format('woff2-variations'); }
+@font-face { font-family: 'Cormorant Garamond'; src: url('/fonts/cormorant-garamond-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Cormorant Garamond'; src: url('/fonts/cormorant-garamond-600.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+
+:root {
+  /* surfaces */
+  --canvas: #070707;
+  --surface-soft: #0b0b0c;
+  --surface-card: #101012;
+  --surface-elevated: #161618;
+  --hairline: #26262a;
+  --hairline-strong: #3a3a40;
+  --hairline-faint: #141416;
+
+  /* text */
+  --text-primary: #f2f2f4;
+  --text-body-strong: #d6d8dd;
+  --text-body: #a9aeb6;
+  --text-muted: #8b9099;
+  --text-faint: #767b84;
+
+  /* identity only — never data, never buttons */
+  --brand-1: #0066b1;
+  --brand-2: #1c69d4;
+  --brand-3: #e22718;
+
+  /* semantic telemetry */
+  --t-live: #5ad3e3;      /* cyan — primary/live series */
+  --t-threshold: #f4b400; /* amber — thresholds/caution */
+  --t-danger: #e22718;    /* red — drops/errors/failed */
+  --t-ok: #1fa348;        /* green — passed/safe */
+  --t-bbr: #b48ae0;       /* violet — BBR series */
+  --t-neutral: #9aa3ad;   /* steel — neutral series */
+
+  --live-dim: rgba(90, 211, 227, 0.12);
+  --ok-dim: rgba(31, 163, 72, 0.10);
+  --danger-dim: rgba(226, 39, 24, 0.10);
+
+  /* type */
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --fs-micro: 10px;
+  --fs-tag: 11px;
+  --fs-cap: 12px;
+  --fs-body: 13px;
+  --fs-head: 20px;
+
+  /* spacing (4px base) */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+
+  /* layout */
+  --sidebar-w: 232px;
+  --sidebar-min: 56px;
+
+  /* motion */
+  --dur-fast: 80ms; --dur-base: 150ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 1ms; --dur-base: 1ms; --ease: linear; }
+}
