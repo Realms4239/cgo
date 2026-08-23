@@ -4,11 +4,11 @@ package model
 
 // Profile — LIEN Tableau 2. Values are defaults, overridable by imported profiles.
 type Profile struct {
-	ID          string  // P1 | P2
-	CapacityMbps float64
-	DelayMs     float64
-	JitterMs    float64
-	LossPct     float64
+	ID           string  `json:"id"`
+	CapacityMbps float64 `json:"capacity_mbps"`
+	DelayMs      float64 `json:"delay_ms"`
+	JitterMs     float64 `json:"jitter_ms"`
+	LossPct      float64 `json:"loss_pct"`
 }
 
 var Profiles = map[string]Profile{
