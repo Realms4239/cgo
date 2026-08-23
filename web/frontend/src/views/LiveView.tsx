@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import * as echarts from 'echarts'
+import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries } from '../lib/chartGrammar'
 import { live } from '../lib/live'
 import { useUIStore } from '../store/ui'
@@ -48,10 +48,15 @@ export default function LiveView() {
     : liveSnap.phase === 'baseline' ? 'BASELINE'
     : liveSnap.phase === 'recup' ? 'RÉCUPÉRATION'
     : 'IDLE'
+  const bannerColor = !liveSnap ? 'var(--t-danger)'
+    : banner.startsWith('CHARGE') ? 'var(--t-threshold)'
+    : banner === 'BASELINE' ? 'var(--t-live)'
+    : banner === 'RÉCUPÉRATION' ? 'var(--t-ok)'
+    : 'var(--text-faint)'
 
   return (
     <div className="panel-stack">
-      <div className="banner mono">{banner} · SSE 10 Hz</div>
+      <div className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · SSE 10 Hz</div>
       <div className="card"><div ref={rtt.ref} style={{height:220}} /></div>
       <div className="card"><div ref={small.ref} style={{height:180}} /></div>
       <div className="card"><div ref={goodput.ref} style={{height:180}} /></div>
