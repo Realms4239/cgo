@@ -80,7 +80,7 @@ func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64
 			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs))
 		return err
 	case model.FqCodel:
-		if _, err := r.Run("qdisc", "replace", "dev", iface, "root", "tbf",
+		if _, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
 			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err != nil {
 			return err
 		}

@@ -20,7 +20,7 @@ func TestApplyShaperArgVectors(t *testing.T) {
 	}
 	want := [][]string{
 		{"qdisc", "replace", "dev", "veth-s", "root", "cake", "bandwidth", "20mbit", "rtt", "100ms"},
-		{"qdisc", "replace", "dev", "veth-s", "root", "tbf", "rate", "20mbit", "burst", "256kbit", "latency", "400ms"},
+		{"qdisc", "replace", "dev", "veth-s", "root", "handle", "1:", "tbf", "rate", "20mbit", "burst", "256kbit", "latency", "400ms"},
 		{"qdisc", "add", "dev", "veth-s", "parent", "1:1", "handle", "2:", "fq_codel"},
 		{"qdisc", "replace", "dev", "veth-s", "root", "tbf", "rate", "80mbit", "burst", "256kbit", "latency", "400ms"},
 	}
