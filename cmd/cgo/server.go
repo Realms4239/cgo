@@ -21,6 +21,7 @@ func runServer(ctx context.Context, addr string) error {
 			mtx.Stop()
 		}
 		deps := campagne.ProdDeps()
+		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
 		m, err := campagne.StartMatrix(ctx, profiles, reps, deps, live, "data/runs")
 		if err != nil {
 			return err
