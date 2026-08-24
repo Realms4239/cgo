@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ArmButton } from '../components/ArmButton'
+import { Timeline } from '../components/Timeline'
 import { useUIStore } from '../store/ui'
 
 const ALL_QDISCS = ['pfifo_fast','fq_codel','cake'] as const
@@ -59,9 +60,14 @@ export default function CampagneView() {
 
   const gates = live?.gates ?? Array(8).fill(null)
   const phase = live?.phase ?? 'idle'
+  const [timeline] = useState(() => {
+    const n = Date.now()
+    return { baselineStart: n - 90000, chargeStart: n - 60000, chargeEnd: n - 15000, recupEnd: n + 15000 }
+  })
 
   return (
     <div className="panel-stack">
+      <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />
       <div className="card">
         <div className="card-head">Campagne</div>
         <div className="form-row">

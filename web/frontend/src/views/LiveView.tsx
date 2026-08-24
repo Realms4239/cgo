@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries } from '../lib/chartGrammar'
 import { live } from '../lib/live'
+import { computeQDI } from '../lib/qdi'
 import { useUIStore } from '../store/ui'
 import { lttb } from '../lib/lttb'
 import { useRafLoop } from '../lib/hooks'
@@ -58,10 +59,20 @@ export default function LiveView() {
     : banner === 'RÉCUPÉRATION' ? 'var(--t-ok)'
     : 'var(--text-faint)'
 
+  const qdiVal = (() => {
+    const p95 = live.rtt95.at(-1)?.[1] ?? 0
+    const p50 = live.rtt50.at(-1)?.[1] ?? 0
+    return computeQDI(p95, p50)
+  })()
+
   return (
     <div className="panel-stack">
       <div className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
       <div className="card"><div ref={rtt.ref} style={{height:220}} /></div>
+      <div data-testid="qdi-sparkline" style={{height:60, border:'1px solid #26262a', background:'rgba(244,180,0,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 12px'}}>
+        <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f4b400', letterSpacing:'0.08em'}}>QDI</span>
+        <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11}}>{qdiVal.toFixed(1)} ms</span>
+      </div>
       <div className="card"><div ref={small.ref} style={{height:180}} /></div>
       <div className="card"><div ref={goodput.ref} style={{height:180}} /></div>
       <div className="kv"><span>drops</span><b className="mono">{liveSnap?.drops ?? '—'}</b></div>
