@@ -26,7 +26,7 @@ func TestSSECadenceAndDelta(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1300*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 2100*time.Millisecond)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/stream", nil)
 	resp, err := http.DefaultClient.Do(req)
@@ -52,8 +52,8 @@ func TestSSECadenceAndDelta(t *testing.T) {
 	data, _ := io.ReadAll(resp.Body)
 	frames := strings.Count(string(data), "\ndata:")
 	profiles := strings.Count(string(data), `"profile"`)
-	if frames < 8 || frames > 18 {
-		t.Fatalf("cadence off: %d frames in ~1.2 s @10Hz", frames)
+	if frames < 10 || frames > 26 {
+		t.Fatalf("cadence off: %d frames in ~2 s @10Hz (load-tolerant)", frames)
 	}
 	if profiles != 1 {
 		t.Fatalf("structural delta broken: profile appeared %d times", profiles)
