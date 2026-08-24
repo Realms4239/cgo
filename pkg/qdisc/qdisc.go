@@ -75,23 +75,38 @@ func ApplyNetem(r TCRunner, iface string, delayMs, jitterMs, lossPct float64) er
 
 // ApplyShaper configures capacity + AQM on the shaping hop, stacked as child
 // of the netem at 1: so both delay and rate apply to the same egress.
+// If the parent 1: does not exist (e.g. veth-s has no netem), fall back to root.
 func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64) error {
 	switch q {
 	case model.Cake:
-		// cake as child of netem at 1: -> handle 10:
-		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "cake",
+		if _, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "cake",
+			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs)); err == nil {
+			return nil
+		}
+		_, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "cake",
 			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs))
 		return err
 	case model.FqCodel:
-		// tbf as child of netem at 1: -> handle 10:, fq_codel as child of tbf at 10:1 -> handle 20:
 		if _, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "tbf",
 			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err != nil {
-			return err
+			if _, err2 := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
+				"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err2 != nil {
+				return err
+			}
 		}
 		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "10:1", "handle", "20:", "fq_codel")
+		if err == nil {
+			return nil
+		}
+		// fallback: tbf was at root 1:, so fq_codel parent is 1:1
+		_, err = r.Run("qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "20:", "fq_codel")
 		return err
 	default: // pfifo_fast cell: tbf as child of netem
-		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "tbf",
+		if _, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "tbf",
+			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err == nil {
+			return nil
+		}
+		_, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
 			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")
 		return err
 	}

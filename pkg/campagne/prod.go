@@ -15,14 +15,29 @@ func ProdDeps() Deps {
 	small := env("CGO_SMALL_URL", "http://10.200.0.1:8081/small")
 	bulk := env("CGO_BULK_ADDR", "10.200.0.1:5201")
 	ns := env("CGO_NS", "cgo-srv")
+	cliIf := env("CGO_CLI_IF", "veth-c")
+	shaperIf := env("CGO_SHAPER_IF", "veth-s")
 	return Deps{
 		TC:       qdisc.ExecRunner{},            // netem on veth-c (main ns)
 		TCShaper: qdisc.NsRunner{Ns: ns},        // tbf/cake on veth-s (inside ns)
-		CliIf:    env("CGO_CLI_IF", "veth-c"),
-		ShaperIf: env("CGO_SHAPER_IF", "veth-s"),
+		CliIf:    cliIf,
+		ShaperIf: shaperIf,
 		Target:   target,
 		SmallURL: small,
 		BulkAddr: bulk,
+		StatsFn: func() []qdisc.Stats {
+			// poll both hops for drops/bytes delta
+			sts1, err1 := qdisc.PollStats(qdisc.ExecRunner{}, cliIf)
+			sts2, err2 := qdisc.PollStats(qdisc.NsRunner{Ns: ns}, shaperIf)
+			var all []qdisc.Stats
+			if err1 == nil {
+				all = append(all, sts1...)
+			}
+			if err2 == nil {
+				all = append(all, sts2...)
+			}
+			return all
+		},
 	}
 }
 

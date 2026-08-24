@@ -30,6 +30,9 @@ type Deps struct {
 	Bulk  func(ctx context.Context, addr string) (uint64, error) // one charge-window flood
 	CPU   func() float64
 	Now   func() time.Time
+	// StatsFn returns per-qdisc stats for drops/bytes delta measurement.
+	// nil ⇒ no tc -s polling (drops stay 0, goodput from sender only).
+	StatsFn func() []qdisc.Stats
 
 	BaselineSec int
 	ChargeSec   int
@@ -174,6 +177,15 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	push(model.PhaseCharge)
 	chgCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	// snapshot tc -s counters at charge start for drops/goodput delta
+	var startDrops, startBytes uint64
+	if d.StatsFn != nil {
+		sts := d.StatsFn()
+		startDrops = qdisc.SumDrops(sts)
+		startBytes = qdisc.SumBytes(sts)
+	}
+
 	bulkFn := d.Bulk
 	if bulkFn == nil {
 		cc := string(ev.CC)
@@ -192,7 +204,20 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	set(model.G1BulkStarted, bulkBytes > 0)
 	set(model.G2ProbesProducing, len(chgRTT) > 0 && len(chgSmall) > 0)
 	chargeDur := float64(maxVal(float64(d.ChargeSec), 1)) // ≥1 s denominator
+
+	// goodput: prefer tc -s receiver-side delta over sender-side bytes
 	goodput := float64(bulkBytes) * 8 / 1e6 / chargeDur
+	if d.StatsFn != nil {
+		sts := d.StatsFn()
+		endDrops := qdisc.SumDrops(sts)
+		endBytes := qdisc.SumBytes(sts)
+		ev.Drops = endDrops - startDrops
+		rxBytes := endBytes - startBytes
+		if rxBytes > 0 {
+			goodput = float64(rxBytes) * 8 / 1e6 / chargeDur
+		}
+	}
+
 	sumC := metrics.Summarize(chgRTT)
 	ev.RTTp50Ms = round1(sumC.Median)
 	ev.RTTp95Ms = round1(sumC.P95)
@@ -202,6 +227,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.BulkGoodputMbps = round1(goodput)
 	cpuAvg := d.CPU()
 	ev.CPUPct = round1(cpuAvg)
+	// wasted bytes: retransmitted segments × MSS (approx 1448 for veth MTU 1500)
+	ev.WastedBytes = ev.Drops * 1448
+	ev.CostARPerH = round1(metrics.CostARPerH(ev.WastedBytes))
 	set(model.G3LatencyPlausible, ev.RTTp95Ms < prof.DelayMs*10+200)
 	set(model.G4ThroughputCoherent, goodput >= prof.CapacityMbps*.5 && goodput <= prof.CapacityMbps*1.1+.5)
 	set(model.G7CPUNotSaturated, cpuAvg < 90)
