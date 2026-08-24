@@ -8,6 +8,7 @@ build: frontend
 
 test:
 	$(GO) test ./...
+	cd $(FRONTEND) && bunx vitest run && npx playwright test
 
 vet:
 	$(GO) vet ./...
