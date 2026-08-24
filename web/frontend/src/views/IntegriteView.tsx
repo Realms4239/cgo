@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { startReplay, stopReplay } from '../lib/replay'
 import { useUIStore } from '../store/ui'
+import { EmptyState } from '../components/ui/EmptyState'
+import { Provenance } from '../components/ui/Provenance'
 
 type Integrity = {
   available: boolean; reason?: string
@@ -36,9 +38,9 @@ export default function IntegriteView() {
     else setMsg('échec: '+r.status)
   }
 
-  if (err) return <div className="card"><h1 className="view-title">Intégrité</h1><p className="mono muted">{err}</p></div>
-  if (!data) return <div className="card"><h1 className="view-title">Intégrité</h1><p className="mono muted">chargement…</p></div>
-  if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><p className="mono muted">{data.reason}</p><button className="btn btn-primary" style={{marginTop:12}} onClick={load}>Réessayer</button></div>
+  if (err) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="error" hint={err} /></div>
+  if (!data) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="loading" hint="vérification des archives" /></div>
+  if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary" style={{marginTop:12}} onClick={load}>Réessayer</button></div>
 
   return (
     <div className="panel-stack">
@@ -81,6 +83,7 @@ export default function IntegriteView() {
           </div>
         )}
       </div>
+      <Provenance source="data/runs/*/manifest.json" state="live" />
       <div className="card">
         <div className="card-head">Replay {replayRunning && <span className="mono" style={{color:'var(--t-live)', marginLeft:8}}>● en cours</span>}</div>
         {replayRunning ? (

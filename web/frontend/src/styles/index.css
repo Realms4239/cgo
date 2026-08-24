@@ -90,3 +90,5 @@ footer .fill { margin-left: auto; }
   .nav-btn { width: auto; padding: 8px 12px; }
   .side-status { margin: 0 0 0 auto; border-top: none; padding: 0 12px; white-space: nowrap; }
 }
+
+@import './components.css';

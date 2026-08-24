@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { EmptyState } from '../components/ui/EmptyState'
+import { Provenance } from '../components/ui/Provenance'
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -18,8 +20,8 @@ export default function ResultatsView() {
     }).catch(e=>setErr(String(e)))
   }, [])
 
-  if (err) return <div className="card"><h1 className="view-title">Résultats</h1><p className="mono muted">{err}</p></div>
-  if (!groups) return <div className="card"><h1 className="view-title">Résultats</h1><p className="mono muted">chargement…</p></div>
+  if (err) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="error" hint={err} /></div>
+  if (!groups) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="loading" hint="agrégation des réplications" /></div>
 
   return (
     <div className="panel-stack">
@@ -51,6 +53,7 @@ export default function ResultatsView() {
         <a className="btn" href="/api/report/export?format=md" download style={{border:'1px solid var(--hairline)', padding:'7px 16px'}}>Exporter MD</a>
         <span className="mono muted" style={{marginLeft:8}}>médianes sur réplications — ★ = meilleur small p95 par profil</span>
       </div>
+      <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${groups.length} groupes`} />
     </div>
   )
 }

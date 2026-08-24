@@ -6,6 +6,7 @@ import LiveView from './views/LiveView';
 import ResultatsView from './views/ResultatsView';
 import IntegriteView from './views/IntegriteView';
 import Toasts from './components/Toasts';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   const panel = useUIStore((s) => s.panel);
@@ -31,6 +32,7 @@ export default function App() {
   }, [setPanel]);
 
   return (
+    <ErrorBoundary>
     <div id="shell">
       <a className="skip-link" href="#main">Aller au contenu</a>
       <header>
@@ -76,5 +78,6 @@ export default function App() {
       </footer>
       <Toasts />
     </div>
+    </ErrorBoundary>
   );
 }
