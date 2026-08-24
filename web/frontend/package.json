@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "animejs": "^4.5.0",
     "d3": "^7.9.0",
     "echarts": "^5.5.0",
     "react": "^19.0.0",

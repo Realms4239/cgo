@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
+import { animateBar } from '../lib/anime'
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -19,6 +20,14 @@ export default function ResultatsView() {
       else setErr(j.reason || 'pas de résultats')
     }).catch(e=>setErr(String(e)))
   }, [])
+
+  useEffect(() => {
+    if (!groups) return
+    const id = requestAnimationFrame(() => {
+      document.querySelectorAll('.leader-bar').forEach((el) => animateBar(el))
+    })
+    return () => cancelAnimationFrame(id)
+  }, [groups])
 
   if (err) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="error" hint={err} /></div>
   if (!groups) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="loading" hint="agrégation des réplications" /></div>
@@ -44,8 +53,8 @@ export default function ResultatsView() {
                   <td>{g.qdisc}</td><td>{g.cc}</td><td>{g.count}</td>
                   <td>
                     <div style={{display:'flex', alignItems:'center', gap:8}}>
-                      <div style={{flex:1, height:6, background:'var(--hairline-faint)', position:'relative', minWidth:80}}>
-                        <div style={{position:'absolute', left:0, top:0, bottom:0, width:`${pct}%`, background:barColor, boxShadow: g.best ? `0 0 6px ${barColor}` : 'none', transition:'width 0.6s ease'}} />
+                      <div style={{flex:1, height:6, background:'var(--hairline-faint)', position:'relative', minWidth:80, borderRadius:2, overflow:'hidden'}}>
+                        <div className="leader-bar" style={{position:'absolute', left:0, top:0, bottom:0, width:`${pct}%`, background:barColor, boxShadow: g.best ? `0 0 6px ${barColor}` : 'none', transformOrigin:'left center', borderRadius:2, filter: g.best ? `drop-shadow(0 0 4px ${barColor})` : 'none'}} />
                       </div>
                       <span style={{minWidth:45, textAlign:'right', fontVariantNumeric:'tabular-nums'}}>{g.small_p95_median.toFixed(1)}</span>
                     </div>

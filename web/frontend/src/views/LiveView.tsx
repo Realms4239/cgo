@@ -6,6 +6,7 @@ import { computeQDI } from '../lib/qdi'
 import { useUIStore } from '../store/ui'
 import { lttb } from '../lib/lttb'
 import { useRafLoop } from '../lib/hooks'
+import { animateBannerPulse, animateLiveEnter } from '../lib/anime'
 
 function useChart(title:string, unit:string) {
   const ref = useRef<HTMLDivElement>(null)
@@ -32,6 +33,7 @@ export default function LiveView() {
   const liveSnap = useUIStore(s=>s.live)
   const replayRunning = useUIStore(s=>s.replayRunning)
   const replayRunId = useUIStore(s=>s.replayRunId)
+  const bannerRef = useRef<HTMLDivElement>(null)
 
   const lastRef = useRef(0)
   useRafLoop((ts) => {
@@ -65,9 +67,17 @@ export default function LiveView() {
     return computeQDI(p95, p50)
   })()
 
+  useEffect(() => {
+    if (bannerRef.current) animateBannerPulse(bannerRef.current)
+  }, [banner])
+
+  useEffect(() => {
+    animateLiveEnter()
+  }, [])
+
   return (
     <div className="panel-stack">
-      <div className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
+      <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
       <div className="card"><div ref={rtt.ref} style={{height:220}} /></div>
       <div data-testid="qdi-sparkline" style={{height:60, border:'1px solid #26262a', background:'rgba(244,180,0,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 12px'}}>
         <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f4b400', letterSpacing:'0.08em'}}>QDI</span>

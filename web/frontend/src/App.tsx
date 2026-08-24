@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useUIStore, PANELS } from './store/ui';
 import { connectSSE, disconnectSSE } from './lib/sse';
+import { animateViewEnter } from './lib/anime';
 import CampagneView from './views/CampagneView';
 import LiveView from './views/LiveView';
 import ResultatsView from './views/ResultatsView';
@@ -19,6 +20,10 @@ export default function App() {
     connectSSE();
     return () => disconnectSSE();
   }, []);
+
+  useEffect(() => {
+    animateViewEnter();
+  }, [panel]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
