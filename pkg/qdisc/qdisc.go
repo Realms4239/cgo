@@ -27,7 +27,8 @@ type TCRunner interface {
 type ExecRunner struct{}
 
 func (ExecRunner) Run(args ...string) ([]byte, error) {
-	return exec.Command("tc", args...).CombinedOutput()
+	// VM requires sudo for tc (NOPASSWD in /etc/sudoers.d/cgo-network)
+	return exec.Command("sudo", append([]string{"tc"}, args...)...).CombinedOutput()
 }
 
 // NsRunner runs tc inside a network namespace (ip netns exec NS tc …).
@@ -35,7 +36,7 @@ type NsRunner struct{ Ns string }
 
 func (r NsRunner) Run(args ...string) ([]byte, error) {
 	full := append([]string{"netns", "exec", r.Ns, "tc"}, args...)
-	return exec.Command("ip", full...).CombinedOutput()
+	return exec.Command("sudo", append([]string{"ip"}, full...)...).CombinedOutput()
 }
 
 // FakeRunner records invocations; Run always succeeds.
