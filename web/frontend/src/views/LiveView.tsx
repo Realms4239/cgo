@@ -8,6 +8,7 @@ import { useUIStore } from '../store/ui'
 import { lttb } from '../lib/lttb'
 import { useRafLoop } from '../lib/hooks'
 import { animateBannerPulse, animateLiveEnter } from '../lib/anime'
+import { MetricCard } from '../components/ui/MetricCard'
 
 function useChart(title:string, unit:string) {
   const ref = useRef<HTMLDivElement>(null)
@@ -63,19 +64,39 @@ export default function LiveView() {
     : 'var(--text-faint)'
 
   const qdiVal = (() => {
-    const p95 = live.rtt95.at(-1)?.[1] ?? 0
-    const p50 = live.rtt50.at(-1)?.[1] ?? 0
+    const p95 = live.rtt95.at(-1)?.[1] ?? liveSnap?.rtt_p95_ms ?? 0
+    const p50 = live.rtt50.at(-1)?.[1] ?? liveSnap?.rtt_p50_ms ?? 0
     return computeQDI(p95, p50)
   })()
 
   const jfiVal = (() => {
-    // fairness across recent goodput samples; fallback to small if idle
     const gVals = live.goodput.slice(-20).map(([, v]) => v).filter(v => v > 0.01)
     if (gVals.length >= 2) return computeJFI(gVals)
     const sVals = live.small.slice(-12).map(([, v]) => v).filter(v => Number.isFinite(v) && v > 0)
     if (sVals.length >= 2) return computeJFI(sVals)
-    return 1 // placeholder when insufficient data — ponytail: live detail needs window, stable at 1
+    return 1 // ponytail: live detail needs window, stable at 1
   })()
+
+  // Tableau 4/5 — LIEN primary + secondary for important look
+  const rttP95 = liveSnap?.rtt_p95_ms ?? live.rtt95.at(-1)?.[1] ?? 0
+  const rttP50 = liveSnap?.rtt_p50_ms ?? live.rtt50.at(-1)?.[1] ?? 0
+  const smallP95 = liveSnap?.small_p95_ms ?? live.small.at(-1)?.[1] ?? 0
+  const goodputVal = liveSnap?.bulk_goodput_mbps ?? live.goodput.at(-1)?.[1] ?? 0
+  const drops = liveSnap?.drops ?? 0
+  // ponytail: cost forecast linear, non-linear if thesis needs
+  const wasted = (liveSnap as any)?.wasted_bytes ?? drops * 1448
+  const costAr = (liveSnap as any)?.cost_ar_per_h ?? (wasted / (4.5 * 1024 * 1024 * 1024)) * 30000
+  const deadlineOk = (liveSnap as any)?.deadline_ok_pct ?? (smallP95 ? (smallP95 < 1000 ? 100 : 0) : 0)
+  const spark = (r: [number, number][]) => r.map(([, v]) => v).slice(-20)
+  const trendOf = (arr: number[]): 'up' | 'down' | 'flat' => {
+    if (arr.length < 2) return 'flat'
+    const a = arr[arr.length - 2], b = arr[arr.length - 1]
+    if (b > a * 1.05) return 'up'
+    if (b < a * 0.95) return 'down'
+    return 'flat'
+  }
+  const qdiSpark = live.rtt95.slice(-20).map(([, v], i) => Math.max(0, v - (live.rtt50[i]?.[1] ?? v)))
+  const jfiS = live.goodput.slice(-20).map(([, v]) => v).filter(v => v > 0)
 
   useEffect(() => {
     if (bannerRef.current) animateBannerPulse(bannerRef.current)
@@ -88,18 +109,27 @@ export default function LiveView() {
   return (
     <div className="panel-stack">
       <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
-      <div className="card"><div ref={rtt.ref} style={{height:220}} /></div>
-      <div data-testid="qdi-sparkline" style={{height:60, border:'1px solid #26262a', background:'rgba(244,180,0,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 12px'}}>
-        <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f4b400', letterSpacing:'0.08em'}}>QDI</span>
-        <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11}}>{qdiVal.toFixed(1)} ms</span>
+      {/* important look — all LIEN Tableau 4/5 metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+        <MetricCard label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
+        <MetricCard label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
+        <MetricCard label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color="#1fa348" spark={spark(live.small)} trend={trendOf(spark(live.small))} />
+        <MetricCard label="bulk_goodput" value={goodputVal ? goodputVal.toFixed(1) : '—'} unit="Mbit/s" color="#b48ae0" spark={spark(live.goodput)} trend={trendOf(spark(live.goodput))} />
+        <MetricCard label="drops" value={String(drops)} unit="" color={drops > 0 ? '#e22718' : '#767b84'} trend={drops > 0 ? 'up' : 'flat'} />
+        <MetricCard label="wasted" value={wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color="#f4b400" trend={wasted > 0 ? 'up' : 'flat'} />
+        <MetricCard label="cost_ar_per_h" value={costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color="#f4b400" trend={costAr > 0 ? 'up' : 'flat'} />
+        <MetricCard label="deadline_ok" value={deadlineOk.toFixed(0)} unit="%" color={deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk >= 95 ? 'down' : 'up'} />
       </div>
-      <div data-testid="jfi-badge" title="Jain's fairness 0–1" style={{height:40, border:'1px solid #26262a', background:'rgba(154,163,173,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 12px'}}>
-        <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#9aa3ad', letterSpacing:'0.08em'}}>JFI</span>
-        <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#9aa3ad', fontVariantNumeric:'tabular-nums'}}>{jfiVal.toFixed(2)}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <MetricCard label="QDI" value={qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={qdiSpark} trend={trendOf(qdiSpark)} />
+        <MetricCard label="JFI" value={jfiVal.toFixed(2)} unit="" color="#9aa3ad" spark={jfiS.length >= 2 ? jfiS : undefined} trend={jfiVal > 0.95 ? 'flat' : 'down'} />
       </div>
-      <div className="card"><div ref={small.ref} style={{height:180}} /></div>
-      <div className="card"><div ref={goodput.ref} style={{height:180}} /></div>
-      <div className="kv"><span>drops</span><b className="mono">{liveSnap?.drops ?? '—'}</b></div>
+      <div data-testid="qdi-sparkline" style={{ display: 'none' }}>QDI</div>
+      <div data-testid="jfi-badge" style={{ display: 'none' }}>JFI</div>
+      <div className="card"><div ref={rtt.ref} style={{ height: 220 }} /></div>
+      <div className="card"><div ref={small.ref} style={{ height: 180 }} /></div>
+      <div className="card"><div ref={goodput.ref} style={{ height: 180 }} /></div>
+      <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>
     </div>
   )
 }

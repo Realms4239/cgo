@@ -10,6 +10,7 @@ export default function CampagneView() {
   const live = useUIStore(s => s.live)
   const [profiles, setProfiles] = useState<string[]>(['P2'])
   const [reps, setReps] = useState(3)
+  const [deadlineMs, setDeadlineMs] = useState(1000)
   const [msg, setMsg] = useState('')
   const [auditMsg, setAuditMsg] = useState('')
   const [auditSite, setAuditSite] = useState('Département X')
@@ -87,6 +88,23 @@ export default function CampagneView() {
         <div className="form-row">
           <label>Répétitions</label>
           <input type="number" min={1} max={5} value={reps} onChange={e=>setReps(parseInt(e.target.value)||1)} style={{width:64}} />
+        </div>
+        <div className="form-row">
+          <label>Deadline</label>
+          <input type="number" min={100} max={5000} step={100} value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11}} />
+          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms · seuil small_p95</span>
+        </div>
+        {/* ponytail: cost forecast linear, non-linear if thesis needs */}
+        <div className="form-row" style={{gap:8, border:'1px solid #26262a', background:'rgba(244,180,0,0.06)', padding:'6px 8px', marginTop:6}}>
+          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>cost preview</span>
+          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color:'#f4b400', fontVariantNumeric:'tabular-nums'}}>
+            {(() => {
+              const wasted = (live?.drops ?? 0) * 1448
+              const cost = wasted / (4.5*1024*1024*1024) * 30000
+              return `${wasted} o gâchés · ${cost.toFixed(2)} Ar/h`
+            })()}
+          </span>
+          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10, marginLeft:'auto'}}>wasted × cost_per_h</span>
         </div>
         <div className="form-row" style={{gap:8}}>
           <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running} />
