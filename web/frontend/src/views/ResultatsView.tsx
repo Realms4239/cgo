@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { animateBar } from '../lib/anime'
+import { computeJFI } from '../lib/jfi'
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -40,13 +41,15 @@ export default function ResultatsView() {
         <table style={{width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:12}}>
           <thead>
             <tr style={{color:'var(--text-muted)', textAlign:'left', borderBottom:'1px solid var(--hairline)'}}>
-              <th style={{padding:'6px 8px'}}>profil</th><th>qdisc</th><th>cc</th><th>n</th><th style={{minWidth:140}}>small p95</th><th>rtt p95</th><th>goodput</th><th>quar.</th><th>best</th>
+              <th style={{padding:'6px 8px'}}>profil</th><th>qdisc</th><th>cc</th><th>n</th><th style={{minWidth:140}}>small p95</th><th>rtt p95</th><th>goodput</th><th title="Jain's fairness 0–1" style={{width:52, fontSize:11, fontFamily:'JetBrains Mono', color:'#9aa3ad'}}>JFI</th><th>quar.</th><th>best</th>
             </tr>
           </thead>
           <tbody>
             {groups.map((g,i)=>{
               const pct = (g.small_p95_median / maxSmall) * 100
               const barColor = g.best ? 'var(--t-ok)' : g.qdisc==='cake' ? 'var(--t-bbr)' : g.qdisc==='fq_codel' ? 'var(--t-live)' : 'var(--text-faint)'
+              // ponytail: per-rep JFI needs detail=1 API, add when backend provides
+              const jfi = computeJFI(Array.from({ length: g.count }, () => g.small_p95_median))
               return (
                 <tr key={i} style={{borderBottom:'1px solid var(--hairline-faint)', background: g.best ? 'rgba(31,163,72,0.08)' : 'transparent'}}>
                   <td style={{padding:'6px 8px', fontWeight:g.best?700:400}}>{g.profile}</td>
@@ -61,6 +64,7 @@ export default function ResultatsView() {
                   </td>
                   <td>{g.rtt_p95_median.toFixed(1)}</td>
                   <td>{g.goodput_median.toFixed(1)}</td>
+                  <td style={{width:52, fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: jfi > 0.95 ? '#1fa348' : '#9aa3ad', textAlign:'right'}}>{jfi.toFixed(2)}</td>
                   <td>{g.quarantined}</td>
                   <td>{g.best ? '★' : ''}</td>
                 </tr>

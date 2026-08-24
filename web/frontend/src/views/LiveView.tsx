@@ -3,6 +3,7 @@ import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries } from '../lib/chartGrammar'
 import { live } from '../lib/live'
 import { computeQDI } from '../lib/qdi'
+import { computeJFI } from '../lib/jfi'
 import { useUIStore } from '../store/ui'
 import { lttb } from '../lib/lttb'
 import { useRafLoop } from '../lib/hooks'
@@ -67,6 +68,15 @@ export default function LiveView() {
     return computeQDI(p95, p50)
   })()
 
+  const jfiVal = (() => {
+    // fairness across recent goodput samples; fallback to small if idle
+    const gVals = live.goodput.slice(-20).map(([, v]) => v).filter(v => v > 0.01)
+    if (gVals.length >= 2) return computeJFI(gVals)
+    const sVals = live.small.slice(-12).map(([, v]) => v).filter(v => Number.isFinite(v) && v > 0)
+    if (sVals.length >= 2) return computeJFI(sVals)
+    return 1 // placeholder when insufficient data — ponytail: live detail needs window, stable at 1
+  })()
+
   useEffect(() => {
     if (bannerRef.current) animateBannerPulse(bannerRef.current)
   }, [banner])
@@ -82,6 +92,10 @@ export default function LiveView() {
       <div data-testid="qdi-sparkline" style={{height:60, border:'1px solid #26262a', background:'rgba(244,180,0,0.08)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 12px'}}>
         <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f4b400', letterSpacing:'0.08em'}}>QDI</span>
         <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11}}>{qdiVal.toFixed(1)} ms</span>
+      </div>
+      <div data-testid="jfi-badge" title="Jain's fairness 0–1" style={{height:40, border:'1px solid #26262a', background:'rgba(154,163,173,0.06)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 12px'}}>
+        <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#9aa3ad', letterSpacing:'0.08em'}}>JFI</span>
+        <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#9aa3ad', fontVariantNumeric:'tabular-nums'}}>{jfiVal.toFixed(2)}</span>
       </div>
       <div className="card"><div ref={small.ref} style={{height:180}} /></div>
       <div className="card"><div ref={goodput.ref} style={{height:180}} /></div>
