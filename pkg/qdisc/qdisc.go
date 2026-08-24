@@ -60,8 +60,9 @@ func Reset(r TCRunner, iface string) error {
 }
 
 // ApplyNetem puts delay/jitter/loss as the root qdisc of the latency hop.
+// It uses handle 1: so that a shaper can be stacked as child 1:1.
 func ApplyNetem(r TCRunner, iface string, delayMs, jitterMs, lossPct float64) error {
-	args := []string{"qdisc", "replace", "dev", iface, "root", "netem",
+	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
 		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs)}
 	if lossPct > 0 {
 		args = append(args, "loss", fmt.Sprintf("%g%%", lossPct))
@@ -72,22 +73,25 @@ func ApplyNetem(r TCRunner, iface string, delayMs, jitterMs, lossPct float64) er
 	return nil
 }
 
-// ApplyShaper configures capacity + AQM on the shaping hop.
+// ApplyShaper configures capacity + AQM on the shaping hop, stacked as child
+// of the netem at 1: so both delay and rate apply to the same egress.
 func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64) error {
 	switch q {
 	case model.Cake:
-		_, err := r.Run("qdisc", "replace", "dev", iface, "root", "cake",
+		// cake as child of netem at 1: -> handle 10:
+		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "cake",
 			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs))
 		return err
 	case model.FqCodel:
-		if _, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
+		// tbf as child of netem at 1: -> handle 10:, fq_codel as child of tbf at 10:1 -> handle 20:
+		if _, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "tbf",
 			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err != nil {
 			return err
 		}
-		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "2:", "fq_codel")
+		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "10:1", "handle", "20:", "fq_codel")
 		return err
-	default: // pfifo_fast cell: tbf + default fifo
-		_, err := r.Run("qdisc", "replace", "dev", iface, "root", "tbf",
+	default: // pfifo_fast cell: tbf as child of netem
+		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "tbf",
 			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")
 		return err
 	}
