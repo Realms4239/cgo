@@ -53,9 +53,15 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 		}
 	}()
 	log.Printf("testbedsrv http=%s bulk=%s obj=%s", httpAddr, bulkAddr, obj)
+	go func() {
+		if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("http: %v", err)
+		}
+	}()
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	<-sig
+	ln.Close()
 	return hs.Close()
 }
 
