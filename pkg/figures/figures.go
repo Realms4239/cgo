@@ -1,9 +1,13 @@
 package figures
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"time"
 
 	"github.com/Realms4239/cgo/pkg/results"
 )
@@ -21,17 +25,36 @@ func Generate(dataDir, outDir string) error {
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return err
 	}
+	meta := provenanceMeta(dataDir)
 	// bar: small_p95 per group
-	if err := writeBar(filepath.Join(outDir, "small_p95.svg"), groups); err != nil {
+	if err := writeBar(filepath.Join(outDir, "small_p95.svg"), groups, meta); err != nil {
 		return err
 	}
-	if err := writeScatter(filepath.Join(outDir, "scatter.svg"), groups); err != nil {
+	if err := writeScatter(filepath.Join(outDir, "scatter.svg"), groups, meta); err != nil {
 		return err
 	}
 	return nil
 }
 
-func writeBar(path string, groups []results.Group) error {
+func provenanceMeta(dataDir string) string {
+	runs, _ := filepath.Glob(filepath.Join(dataDir, "*", "aqm_eval.csv"))
+	if len(runs) == 0 {
+		return ""
+	}
+	sort.Strings(runs)
+	latest := runs[len(runs)-1]
+	b, err := os.ReadFile(latest)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(b)
+	sha := hex.EncodeToString(sum[:])
+	src := filepath.ToSlash(latest)
+	date := time.Now().UTC().Format(time.RFC3339)
+	return fmt.Sprintf(`<metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:source>%s</dc:source><dc:identifier>sha256:%s</dc:identifier><dc:date>%s</dc:date><dc:creator>CGO LIEN</dc:creator></rdf:Description></rdf:RDF></metadata>`, src, sha, date)
+}
+
+func writeBar(path string, groups []results.Group, meta string) error {
 	maxVal := 0.0
 	for _, g := range groups {
 		if g.Smallp95Median > maxVal {
@@ -46,6 +69,7 @@ func writeBar(path string, groups []results.Group) error {
 	usableW := w - ml - mr
 	barW := usableW / (len(groups)*2 + 1)
 	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, w, h, w, h)
+	svg += meta
 	svg += fmt.Sprintf(`<rect width="100%%" height="100%%" fill="#070707"/><text x="%d" y="24" fill="#f2f2f4" font-family="Cormorant Garamond" font-size="16" font-weight="600">small p95 par configuration</text>`, w/2-100)
 	for i, g := range groups {
 		x := ml + barW + i*2*barW
@@ -67,7 +91,7 @@ func writeBar(path string, groups []results.Group) error {
 	return os.WriteFile(path, []byte(svg), 0644)
 }
 
-func writeScatter(path string, groups []results.Group) error {
+func writeScatter(path string, groups []results.Group, meta string) error {
 	maxX, maxY := 0.0, 0.0
 	for _, g := range groups {
 		if g.GoodputMedian > maxX {
@@ -86,6 +110,7 @@ func writeScatter(path string, groups []results.Group) error {
 	w, h := 800, 400
 	ml, mr, mt, mb := 60, 20, 40, 60
 	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, w, h, w, h)
+	svg += meta
 	svg += `<rect width="100%" height="100%" fill="#070707"/>`
 	svg += fmt.Sprintf(`<text x="%d" y="24" fill="#f2f2f4" font-family="Cormorant Garamond" font-size="16" font-weight="600">compromis latence / débit</text>`, w/2-90)
 	for _, g := range groups {

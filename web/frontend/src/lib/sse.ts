@@ -13,6 +13,7 @@ export function connectSSE() {
 
   es.onmessage = (ev) => {
     try {
+      if (store.getState().replayRunning) return // pause live during replay
       const data = JSON.parse(ev.data) as Partial<LiveFrame>
       // delta: retain last structural + sparse values (SPEC §2.4)
       let structural = false

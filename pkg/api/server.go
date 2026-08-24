@@ -175,12 +175,16 @@ func New(d Deps) http.Handler {
 				return
 			default:
 			}
-			payload, _ := json.Marshal(map[string]string{
+			// row order per model.AQMEvalHeader
+			payload, _ := json.Marshal(map[string]any{
 				"run_id": row[0], "event_id": row[1], "profile": row[2], "qdisc": row[3], "cc": row[4],
+				"repetition": row[5], "rtt_p50_ms": row[6], "rtt_p95_ms": row[7], "small_p95_ms": row[8],
+				"bulk_goodput_mbps": row[10], "drops": row[11], "gate_status": row[16],
+				"ts": time.Now().UnixMilli(), "running": true, "phase": "replay",
 			})
 			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", i+1, payload)
 			fl.Flush()
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(400 * time.Millisecond)
 		}
 	})
 

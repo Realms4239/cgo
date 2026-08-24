@@ -29,6 +29,8 @@ export default function LiveView() {
   const small = useChart('Petits objets p95 (ms)', 'ms')
   const goodput = useChart('Bulk goodput (Mbit/s)', 'Mbit/s')
   const liveSnap = useUIStore(s=>s.live)
+  const replayRunning = useUIStore(s=>s.replayRunning)
+  const replayRunId = useUIStore(s=>s.replayRunId)
 
   const lastRef = useRef(0)
   useRafLoop((ts) => {
@@ -43,12 +45,14 @@ export default function LiveView() {
     goodput.setData([ lineSeries('goodput', d(live.goodput as any), '#b48ae0', true) ])
   })
 
-  const banner = !liveSnap ? 'OFFLINE — en attente du flux'
+  const banner = replayRunning ? `REPLAY — ${replayRunId}`
+    : !liveSnap ? 'OFFLINE — en attente du flux'
     : liveSnap.load_status === 'bulk-on' ? 'CHARGE — bulk actif'
     : liveSnap.phase === 'baseline' ? 'BASELINE'
     : liveSnap.phase === 'recup' ? 'RÉCUPÉRATION'
     : 'IDLE'
-  const bannerColor = !liveSnap ? 'var(--t-danger)'
+  const bannerColor = replayRunning ? 'var(--t-live)'
+    : !liveSnap ? 'var(--t-danger)'
     : banner.startsWith('CHARGE') ? 'var(--t-threshold)'
     : banner === 'BASELINE' ? 'var(--t-live)'
     : banner === 'RÉCUPÉRATION' ? 'var(--t-ok)'
@@ -56,7 +60,7 @@ export default function LiveView() {
 
   return (
     <div className="panel-stack">
-      <div className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · SSE 10 Hz</div>
+      <div className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
       <div className="card"><div ref={rtt.ref} style={{height:220}} /></div>
       <div className="card"><div ref={small.ref} style={{height:180}} /></div>
       <div className="card"><div ref={goodput.ref} style={{height:180}} /></div>

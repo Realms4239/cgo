@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { startReplay, stopReplay } from '../lib/replay'
+import { useUIStore } from '../store/ui'
 
 type Integrity = {
   available: boolean; reason?: string
@@ -12,6 +14,8 @@ export default function IntegriteView() {
   const [msg, setMsg] = useState('')
   const [replayRuns, setReplayRuns] = useState<string[]>([])
   const [regenOk, setRegenOk] = useState(false)
+  const replayRunning = useUIStore(s=>s.replayRunning)
+  const setPanel = useUIStore(s=>s.setPanel)
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
@@ -78,13 +82,19 @@ export default function IntegriteView() {
         )}
       </div>
       <div className="card">
-        <div className="card-head">Replay</div>
-        {replayRuns.length===0 ? <p className="mono muted">aucun run à rejouer</p> :
+        <div className="card-head">Replay {replayRunning && <span className="mono" style={{color:'var(--t-live)', marginLeft:8}}>● en cours</span>}</div>
+        {replayRunning ? (
+          <div style={{display:'flex', gap:8, alignItems:'center'}}>
+            <span className="mono muted">replay actif — voir Temps réel</span>
+            <button className="btn" onClick={()=>stopReplay()} style={{marginLeft:'auto'}}>Arrêter</button>
+            <button className="btn btn-primary" onClick={()=>setPanel('live')}>Voir Live</button>
+          </div>
+        ) : replayRuns.length===0 ? <p className="mono muted">aucun run à rejouer</p> :
           <ul style={{listStyle:'none', padding:0, margin:0}}>
             {replayRuns.map(id=>(
               <li key={id} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}}>
                 <span>{id}</span>
-                <a href={`/api/replay/stream?run=${id}`} target="_blank" rel="noreferrer" style={{color:'var(--t-live)'}}>stream</a>
+                <button className="btn btn-primary" onClick={()=>{ startReplay(id); setPanel('live')}} style={{padding:'4px 10px', fontSize:11}}>Rejouer</button>
               </li>
             ))}
           </ul>

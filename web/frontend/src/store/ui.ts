@@ -20,6 +20,7 @@ interface UIState {
   connected: boolean; setConnected: (v: boolean) => void
   sseStatus: string; setSseStatus: (s: string) => void
   toasts: ToastItem[]; pushToast: (msg: string, cls?: ToastKind) => void; dropToast: (id: number) => void
+  replayRunning: boolean; replayRunId: string | null; setReplay: (running: boolean, id: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -34,4 +35,5 @@ export const useUIStore = create<UIState>((set) => ({
     return { toasts: [...s.toasts, { id, msg, cls }] }
   }),
   dropToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  replayRunning: false, replayRunId: null, setReplay: (replayRunning, replayRunId) => set({ replayRunning, replayRunId }),
 }));
