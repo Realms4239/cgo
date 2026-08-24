@@ -57,10 +57,13 @@ export default function App() {
           <div><span>événement</span><b className="mono">{live?.event_id ? '#'+live.event_id : '—'}</b></div>
           <div><span>SSE</span><b className="mono">{sseStatus}</b></div>
           <div className="gates" role="img" aria-label="Portes G0 à G7">
-            {(live?.gates ?? Array(8).fill(null)).map((g: boolean|null, i:number) => (
-              <span key={i} className={'gate ' + (g===null?'':g?'ok':'fail')} data-gate={i} title={'G'+i} />
-            ))}
+            {(live?.gates ?? Array(8).fill(null)).map((g: boolean|null, i:number) => {
+              const labels = ['G0 cible','G1 bulk','G2 sondes','G3 latence','G4 débit','G5 doublon','G6 baseline','G7 CPU']
+              const title = `${labels[i]}: ${g===null?'—':g?'PASS':'FAIL'}`
+              return <span key={i} className={'gate ' + (g===null?'':g?'ok':'fail')} data-gate={i} title={title} aria-label={title} />
+            })}
           </div>
+          <div className="mono muted" style={{fontSize:10, marginTop:6, opacity:.7}}>1–4 nav · double-confirm = arm</div>
         </div>
       </aside>
 

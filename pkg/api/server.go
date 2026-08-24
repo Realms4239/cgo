@@ -283,6 +283,15 @@ func New(d Deps) http.Handler {
 		profile.Load()
 		writeJSON(w, model.Profiles)
 	})
+	mux.HandleFunc("GET /api/diagnostics", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"hub": "ok", "time": time.Now().UTC().Format(time.RFC3339)})
+	})
+	// JSON 404 for unknown /api/* — must be before "/" SPA catch-all
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": "not found", "path": r.URL.Path})
+	})
 
 	mux.Handle("GET /api/stream", http.HandlerFunc(hub.SSE))
 	hub.Serve(func() any { return d.GetSnap() })
