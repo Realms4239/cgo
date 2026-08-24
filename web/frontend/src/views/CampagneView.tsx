@@ -43,14 +43,18 @@ export default function CampagneView() {
       .catch(e => setImportMsg('échec: ' + e.message))
   }
 
+  const pushToast = useUIStore(s=>s.pushToast)
   const start = async () => {
     setMsg('démarrage…')
     const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps }) })
-    setMsg(r.ok ? 'campagne lancée' : 'échec: ' + r.status)
+    const ok = r.ok
+    setMsg(ok ? 'campagne lancée' : 'échec: ' + r.status)
+    pushToast(ok ? 'Campagne lancée' : 'Échec démarrage', ok ? 'ok' : 'err')
   }
   const stop = async () => {
     await fetch('/api/run/stop', { method: 'POST' })
     setMsg('arrêt demandé')
+    pushToast('Arrêt demandé', 'blue')
   }
 
   const gates = live?.gates ?? Array(8).fill(null)

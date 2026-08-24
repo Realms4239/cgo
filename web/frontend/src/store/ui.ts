@@ -10,11 +10,16 @@ export const PANELS = [
 
 export type PanelId = (typeof PANELS)[number]['id'];
 
+type ToastKind = '' | 'ok' | 'err' | 'blue'
+export interface ToastItem { id: number; msg: string; cls: ToastKind }
+let toastSeq = 1
+
 interface UIState {
   panel: PanelId; setPanel: (p: PanelId) => void
   live: LiveFrame | null; setLive: (f: LiveFrame) => void
   connected: boolean; setConnected: (v: boolean) => void
   sseStatus: string; setSseStatus: (s: string) => void
+  toasts: ToastItem[]; pushToast: (msg: string, cls?: ToastKind) => void; dropToast: (id: number) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -22,4 +27,11 @@ export const useUIStore = create<UIState>((set) => ({
   live: null, setLive: (live) => set({ live }),
   connected: false, setConnected: (connected) => set({ connected }),
   sseStatus: 'déconnecté', setSseStatus: (sseStatus) => set({ sseStatus }),
+  toasts: [],
+  pushToast: (msg, cls = '') => set((s) => {
+    const id = toastSeq++
+    setTimeout(() => useUIStore.getState().dropToast(id), 3200)
+    return { toasts: [...s.toasts, { id, msg, cls }] }
+  }),
+  dropToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 }));

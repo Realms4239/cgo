@@ -5,6 +5,7 @@ import CampagneView from './views/CampagneView';
 import LiveView from './views/LiveView';
 import ResultatsView from './views/ResultatsView';
 import IntegriteView from './views/IntegriteView';
+import Toasts from './components/Toasts';
 
 export default function App() {
   const panel = useUIStore((s) => s.panel);
@@ -73,6 +74,7 @@ export default function App() {
         <span className="fill" />
         <span id="ft-sse" className="mono">SSE : {sseStatus}</span>
       </footer>
+      <Toasts />
     </div>
   );
 }
