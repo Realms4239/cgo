@@ -84,7 +84,7 @@ func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64
 			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err != nil {
 			return err
 		}
-		_, err := r.Run("qdisc", "add", "dev", iface, "parent", "1:1", "handle", "2:", "fq_codel")
+		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "2:", "fq_codel")
 		return err
 	default: // pfifo_fast cell: tbf + default fifo
 		_, err := r.Run("qdisc", "replace", "dev", iface, "root", "tbf",
