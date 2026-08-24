@@ -9,12 +9,13 @@
 @font-face { font-family: 'Cormorant Garamond'; src: url('/fonts/cormorant-garamond-600.woff2') format('woff2'); font-weight: 600; font-display: swap; }
 
 :root {
-  /* surfaces */
-  --canvas: #070707;
+  /* surfaces — high-fidelity */
+  --canvas: radial-gradient(ellipse at 50% -10%, rgba(90,211,227,0.04) 0%, transparent 50%), radial-gradient(ellipse at 100% 100%, rgba(180,138,224,0.03) 0%, transparent 40%), #070707;
   --surface-soft: #0b0b0c;
-  --surface-card: #101012;
+  --surface-card: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%), #101012;
   --surface-elevated: #161618;
   --hairline: #26262a;
+  --hairline-fade: linear-gradient(90deg, transparent, #26262a 20%, #26262a 80%, transparent);
   --hairline-strong: #3a3a40;
   --hairline-faint: #141416;
 
@@ -63,6 +64,22 @@
   /* motion */
   --dur-fast: 80ms; --dur-base: 150ms;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* high-fidelity overlays */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: url('/textures/noise.png'), repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.01) 1px, transparent 2px);
+  opacity: 0.015;
+  mix-blend-mode: overlay;
+  z-index: -1;
+}
+.card {
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
 }
 
 @media (prefers-reduced-motion: reduce) {
