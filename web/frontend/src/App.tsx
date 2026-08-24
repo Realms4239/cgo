@@ -50,8 +50,8 @@ export default function App() {
           </button>
         ))}
         <div className="side-status">
-          <div><span>phase</span><b className="mono">{live?.phase ?? '—'}</b></div>
-          <div><span>événement</span><b className="mono">{live ? `#${live.event_id}` : '—'}</b></div>
+          <div><span>phase</span><b className="mono">{live?.phase || '—'}</b></div>
+          <div><span>événement</span><b className="mono">{live?.event_id ? '#'+live.event_id : '—'}</b></div>
           <div><span>SSE</span><b className="mono">{sseStatus}</b></div>
           <div className="gates" role="img" aria-label="Portes G0 à G7">
             {(live?.gates ?? Array(8).fill(null)).map((g: boolean|null, i:number) => (
@@ -69,7 +69,7 @@ export default function App() {
       </main>
 
       <footer>
-        <span id="ft-prov">source : {live?.profile ?? '—'} · {live?.qdisc ?? '—'} · {live?.cc ?? '—'}</span>
+        <span id="ft-prov">source : {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
         <span className="fill" />
         <span id="ft-sse" className="mono">SSE : {sseStatus}</span>
       </footer>

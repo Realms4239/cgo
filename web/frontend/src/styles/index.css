@@ -78,7 +78,8 @@ footer .fill { margin-left: auto; }
 .gate-row.ok .gate-state { color: var(--t-ok); }
 .gate-row.fail .gate-state { color: var(--t-danger); }
 .banner { padding: 6px 10px; border: 1px solid var(--hairline); background: var(--surface-elevated); font: 700 11px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
-.btn { padding: 7px 16px; border: 1px solid var(--hairline); font: 700 11px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+.btn { padding: 7px 16px; border: 1px solid var(--hairline); font: 700 11px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-body); text-decoration: none; display: inline-block; }
+.btn:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
 .btn-primary { background: var(--text-primary); color: #000; border-color: var(--text-primary); }
 .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
 .btn-danger { background: var(--t-danger); color: #fff; border-color: var(--t-danger); }

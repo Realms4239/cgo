@@ -14,21 +14,22 @@ export function connectSSE() {
   es.onmessage = (ev) => {
     try {
       const data = JSON.parse(ev.data) as Partial<LiveFrame>
-      // delta: retain last structural values (SPEC §2.4)
+      // delta: retain last structural + sparse values (SPEC §2.4)
       let structural = false
-      for (const k of ['profile','qdisc','cc','phase','load_status','running'] as const) {
+      for (const k of ['profile','qdisc','cc','phase','load_status','running',
+                       'event_id','repetition','drops','gates'] as const) {
         if (data[k] === undefined && last[k] !== undefined) (data as any)[k] = last[k]
         if (data[k] !== undefined && data[k] !== last[k]) structural = true
         if (data[k] !== undefined) (last as any)[k] = data[k]
       }
-      if (data.ts) pushFrame(data.ts, data as any)
-      // ponytail: React sees ~2 Hz snapshots (charts read rings at full 10 Hz);
-      // structural changes flush immediately.
+      // truth boundary: idle frames carry no measurement — never fabricate 0s
+      if (data.ts && data.running) pushFrame(data.ts, data as any)
       frameCount++
       if (structural || frameCount % 5 === 0) {
         store.getState().setLive(data as LiveFrame)
       }
       store.getState().setConnected(true)
+      store.getState().setSseStatus('connecté')
     } catch {}
   }
   es.addEventListener('backpressure', () => {
