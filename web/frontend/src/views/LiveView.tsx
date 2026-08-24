@@ -3,6 +3,8 @@ import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries } from '../lib/chartGrammar'
 import { live } from '../lib/live'
 import { useUIStore } from '../store/ui'
+import { lttb } from '../lib/lttb'
+import { useRafLoop } from '../lib/hooks'
 
 function useChart(title:string, unit:string) {
   const ref = useRef<HTMLDivElement>(null)
@@ -28,20 +30,18 @@ export default function LiveView() {
   const goodput = useChart('Bulk goodput (Mbit/s)', 'Mbit/s')
   const liveSnap = useUIStore(s=>s.live)
 
-  useEffect(() => {
-    let raf=0
-    const tick = () => {
-      rtt.setData([
-        lineSeries('p50', live.rtt50 as any, '#5ad3e3'),
-        lineSeries('p95', live.rtt95 as any, '#1fa348'),
-      ])
-      small.setData([ lineSeries('small p95', live.small as any, '#f4b400') ])
-      goodput.setData([ lineSeries('goodput', live.goodput as any, '#b48ae0', true) ])
-      raf = requestAnimationFrame(tick)
-    }
-    const id = setInterval(tick, 250)
-    return () => { clearInterval(id); cancelAnimationFrame(raf) }
-  }, [])
+  const lastRef = useRef(0)
+  useRafLoop((ts) => {
+    if (ts - lastRef.current < 250) return
+    lastRef.current = ts
+    const d = (r: [number,number][]) => r.length > 400 ? lttb(r, 400) : r
+    rtt.setData([
+      lineSeries('p50', d(live.rtt50 as any), '#5ad3e3'),
+      lineSeries('p95', d(live.rtt95 as any), '#1fa348'),
+    ])
+    small.setData([ lineSeries('small p95', d(live.small as any), '#f4b400') ])
+    goodput.setData([ lineSeries('goodput', d(live.goodput as any), '#b48ae0', true) ])
+  })
 
   const banner = !liveSnap ? 'OFFLINE — en attente du flux'
     : liveSnap.load_status === 'bulk-on' ? 'CHARGE — bulk actif'
