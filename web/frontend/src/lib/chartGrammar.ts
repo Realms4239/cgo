@@ -22,7 +22,8 @@ export function baseOption(title: string, unit: string): EChartsOption {
 
 export function lineSeries(name: string, data: [number, number][], color: string, area = false) {
   return {
-    name, type: 'line', showSymbol: false, smooth: 0.2, lineStyle: { width: 1.5, color }, data,
-    ...(area ? { areaStyle: { color: color + '18', opacity: 0.25 } } : {}),
+    name, type: 'line', showSymbol: false, smooth: 0.3, lineStyle: { width: 1.8, color, shadowBlur: 8, shadowColor: color + '60' }, data,
+    ...(area ? { areaStyle: { color: color + '18', opacity: 0.3 } } : {}),
+    emphasis: { focus: 'series', lineStyle: { width: 2.5 } },
   }
 }

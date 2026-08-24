@@ -37,8 +37,8 @@ export default function App() {
       <a className="skip-link" href="#main">Aller au contenu</a>
       <header>
         <span className="stripe" aria-hidden="true"><i /><i /><i /></span>
-        <span className="wordmark">CGO</span>
-        <span className="hd-sub">LIEN — trafic critique · AQM/BBR</span>
+        <span className="wordmark" style={{textShadow: '0 0 12px rgba(90,211,227,0.4)'}}>MadaLink</span>
+        <span className="hd-sub">LIEN — trafic critique · AQM/BBR · Mada</span>
         <div className="hd-right">
           <span className="mono" style={{color: connected ? 'var(--t-ok)' : 'var(--t-danger)'}}>{connected ? '● connecté' : '○ déconnecté'}</span>
           <span id="hd-state" className="mono">{live?.phase ?? 'idle'}</span>
