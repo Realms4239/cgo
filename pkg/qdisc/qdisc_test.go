@@ -19,10 +19,10 @@ func TestApplyShaperArgVectors(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := [][]string{
-		{"qdisc", "replace", "dev", "veth-s", "root", "cake", "bandwidth", "20mbit", "rtt", "100ms"},
-		{"qdisc", "replace", "dev", "veth-s", "root", "handle", "1:", "tbf", "rate", "20mbit", "burst", "256kbit", "latency", "400ms"},
-		{"qdisc", "replace", "dev", "veth-s", "parent", "1:1", "handle", "2:", "fq_codel"},
-		{"qdisc", "replace", "dev", "veth-s", "root", "tbf", "rate", "80mbit", "burst", "256kbit", "latency", "400ms"},
+		{"qdisc", "replace", "dev", "veth-s", "parent", "1:", "handle", "10:", "cake", "bandwidth", "20mbit", "rtt", "100ms"},
+		{"qdisc", "replace", "dev", "veth-s", "parent", "1:", "handle", "10:", "tbf", "rate", "20mbit", "burst", "256kbit", "latency", "400ms"},
+		{"qdisc", "replace", "dev", "veth-s", "parent", "10:1", "handle", "20:", "fq_codel"},
+		{"qdisc", "replace", "dev", "veth-s", "parent", "1:", "handle", "10:", "tbf", "rate", "80mbit", "burst", "256kbit", "latency", "400ms"},
 	}
 	if !reflect.DeepEqual(r.Calls, want) {
 		t.Fatalf("got %v\nwant %v", r.Calls, want)
@@ -38,7 +38,7 @@ func TestApplyNetemLossOmittedWhenZero(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := r.Calls
-	if len(got) != 2 || got[0][9] != "loss" || len(got[1]) != 9 {
+	if len(got) != 2 || got[0][11] != "loss" || len(got[1]) != 11 {
 		t.Fatalf("unexpected vectors: %v", got)
 	}
 }
