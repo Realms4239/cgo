@@ -15,10 +15,19 @@ import (
 // manifest. G5 (no duplicate event rows) is enforced here, at the only
 // write path.
 type Writer struct {
-	Dir   string
-	seen  map[string]bool
-	fh    *os.File
-	dupes int
+	Dir        string
+	seen       map[string]bool
+	fh         *os.File
+	dupes      int
+	quarantine []quarantineEntry
+}
+
+type quarantineEntry struct {
+	EventID int    `json:"event_id"`
+	Profile string `json:"profile"`
+	Qdisc   string `json:"qdisc"`
+	CC      string `json:"cc"`
+	Status  string `json:"gate_status"`
 }
 
 func OpenRun(dir string) (*Writer, error) {
@@ -113,6 +122,11 @@ func (w *Writer) Append(ev model.Event) error {
 		return fmt.Errorf("duplicate event row %s", key)
 	}
 	w.seen[key] = true
+	if ev.GateStatus != model.GatePass {
+		w.quarantine = append(w.quarantine, quarantineEntry{
+			EventID: ev.EventID, Profile: string(ev.Profile), Qdisc: string(ev.Qdisc), CC: string(ev.CC), Status: ev.GateStatus,
+		})
+	}
 	row := fmt.Sprintf("%s,%d,%s,%s,%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%.2f,%.1f,%s",
 		ev.RunID, ev.EventID, ev.Profile, ev.Qdisc, ev.CC, ev.Repetition,
 		ev.RTTp50Ms, ev.RTTp95Ms, ev.Smallp95Ms, ev.DeadlineOKPct,
@@ -122,10 +136,16 @@ func (w *Writer) Append(ev model.Event) error {
 	return err
 }
 
-// Freeze closes the CSV and writes manifest.json with SHA-256 of every file.
+// Freeze closes the CSV and writes manifest.json with SHA-256 of every file
+// plus quarantine.json for degraded/invalid events.
 func (w *Writer) Freeze(cfgHash string) error {
 	if err := w.fh.Close(); err != nil {
 		return err
+	}
+	// quarantine
+	if len(w.quarantine) > 0 {
+		qb, _ := json.MarshalIndent(w.quarantine, "", "  ")
+		_ = os.WriteFile(filepath.Join(w.Dir, "quarantine.json"), qb, 0644)
 	}
 	type entry struct{ File, Sha256 string }
 	var files []entry
@@ -133,6 +153,7 @@ func (w *Writer) Freeze(cfgHash string) error {
 		if err != nil || info.IsDir() || filepath.Base(p) == "manifest.json" {
 			return err
 		}
+		// include quarantine.json in manifest hash
 		b, err := os.ReadFile(p)
 		if err != nil {
 			return err
