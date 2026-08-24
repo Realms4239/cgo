@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+// BulkSendTo dials addr with cc and floods zeros until ctx done.
+func BulkSendTo(ctx context.Context, addr, cc string) (uint64, error) {
+	conn, err := DialWithCC(ctx, addr, cc)
+	if err != nil {
+		return 0, err
+	}
+	return BulkSend(ctx, conn)
+}
+
 // BulkSend floods conn with zeros until ctx is done; returns bytes sent.
 func BulkSend(ctx context.Context, conn net.Conn) (uint64, error) {
 	buf := make([]byte, 64*1024) // zeros

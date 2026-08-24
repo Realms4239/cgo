@@ -30,6 +30,14 @@ func (ExecRunner) Run(args ...string) ([]byte, error) {
 	return exec.Command("tc", args...).CombinedOutput()
 }
 
+// NsRunner runs tc inside a network namespace (ip netns exec NS tc …).
+type NsRunner struct{ Ns string }
+
+func (r NsRunner) Run(args ...string) ([]byte, error) {
+	full := append([]string{"netns", "exec", r.Ns, "tc"}, args...)
+	return exec.Command("ip", full...).CombinedOutput()
+}
+
 // FakeRunner records invocations; Run always succeeds.
 type FakeRunner struct{ Calls [][]string }
 

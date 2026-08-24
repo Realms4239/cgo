@@ -17,12 +17,13 @@ import (
 )
 
 type Deps struct {
-	TC       qdiscRunner
-	CliIf    string // latency-hop iface (netem root)
-	ShaperIf string // shaping+aqm iface
-	Target   string // ping target reached through the constrained path
-	SmallURL string // small-object URL through the constrained path
-	BulkAddr string // host:port where the bulk sender connects
+	TC       qdiscRunner // netem hop (main ns)
+	TCShaper qdiscRunner // shaping+aqm hop; nil ⇒ TC
+	CliIf    string      // latency-hop iface (netem root)
+	ShaperIf string      // shaping+aqm iface
+	Target   string      // ping target reached through the constrained path
+	SmallURL string      // small-object URL through the constrained path
+	BulkAddr string      // host:port where the bulk sender connects
 
 	Ping  func(ctx context.Context, target string, n int) []float64 // sorted ms
 	Small func(ctx context.Context) (float64, error)
@@ -123,7 +124,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	if err := qdisc.ApplyNetem(d.TC, d.CliIf, prof.DelayMs, prof.JitterMs, prof.LossPct); err != nil {
 		return ev, fmt.Errorf("netem: %w", err)
 	}
-	if err := qdisc.ApplyShaper(d.TC, d.ShaperIf, ev.Qdisc, prof.CapacityMbps, prof.DelayMs); err != nil {
+	shaper := qdiscRunner(d.TC)
+	if d.TCShaper != nil {
+		shaper = d.TCShaper
+	}
+	if err := qdisc.ApplyShaper(shaper, d.ShaperIf, ev.Qdisc, prof.CapacityMbps, prof.DelayMs); err != nil {
 		return ev, fmt.Errorf("shaper: %w", err)
 	}
 
@@ -165,12 +170,19 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	sumB := metrics.Summarize(baseRTT)
 	set(model.G6BaselineStable, len(baseRTT) > 4 && sumB.P95-sumB.Median < maxVal(5, .2*sumB.Median))
 
-	// charge
+	// charge — bulk flood with the cell's congestion control (real CC matrix)
 	push(model.PhaseCharge)
 	chgCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	bulkFn := d.Bulk
+	if bulkFn == nil {
+		cc := string(ev.CC)
+		bulkFn = func(c context.Context, addr string) (uint64, error) {
+			return probe.BulkSendTo(c, addr, cc)
+		}
+	}
 	done := make(chan uint64, 1)
-	go func() { b, _ := d.Bulk(chgCtx, d.BulkAddr); done <- b }()
+	go func() { b, _ := bulkFn(chgCtx, d.BulkAddr); done <- b }()
 	if d.ChargeSec > 0 {
 		time.Sleep(300 * time.Millisecond) // let the flood connect
 	}

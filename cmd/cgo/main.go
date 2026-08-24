@@ -61,6 +61,15 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("verify: ok — tous les manifests valides")
+	case "testbedsrv":
+		fs := flag.NewFlagSet("testbedsrv", flag.ExitOnError)
+		httpAddr := fs.String("http", "10.200.0.1:8081", "small-object http listen")
+		bulkAddr := fs.String("bulk", "10.200.0.1:5201", "bulk sink listen")
+		_ = fs.Parse(os.Args[2:])
+		if err := testbedSrvFn(*httpAddr, *bulkAddr); err != nil {
+			fmt.Fprintln(os.Stderr, "testbedsrv:", err)
+			os.Exit(1)
+		}
 	case "audit":
 		fs := flag.NewFlagSet("audit", flag.ExitOnError)
 		linkType := fs.String("link-type", "5g", "link_type: fiber, 5g, 4g, vsat, other")
@@ -100,6 +109,7 @@ func usage() {
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify
        cgo figures
+       cgo testbedsrv --http 10.200.0.1:8081 --bulk 10.200.0.1:5201
 `)
 }
 
