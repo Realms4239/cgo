@@ -30,8 +30,11 @@ export function animateBar(el: Element) {
 
 export function animateArmButton(el: Element) {
   if (prefersReducedMotion()) return
+  // primary white → danger red spring scale 0.96→1 rotate 0.5→-0.5 + shadow pulse
   const tl = createTimeline()
   tl.add(el, { scale: [0.96, 1], duration: 400, ease: 'outElastic(1, .6)' } as any, 0)
+  tl.add(el, { rotate: [0.5, -0.5, 0], duration: 400, ease: 'outElastic(1, .6)' } as any, 0)
+  tl.add(el, { boxShadow: ['0 0 0 rgba(226,39,24,0)', '0 0 16px rgba(226,39,24,0.35)', '0 0 0 rgba(226,39,24,0)'], duration: 800, ease: 'linear' } as any, 0)
 }
 
 export function animateBannerPulse(el: Element) {

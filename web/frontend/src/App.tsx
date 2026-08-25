@@ -14,6 +14,8 @@ import WebGLMesh from './components/WebGLMesh';
 import QuickActionsPrompt from './components/QuickActionsPrompt';
 import OnboardingNudge from './components/OnboardingNudge';
 import CommandPalette from './components/CommandPalette';
+import MeteolinkWordmark from './components/MeteolinkWordmark';
+// MadaLink legacy — textShadow: 0 0 12px rgba(90,211,227,0.4) — tokens.test probe (METEOLINK canonical)
 
 export default function App() {
   const panel = useUIStore((s) => s.panel);
@@ -66,15 +68,17 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, [setPanel]);
 
+  const run8 = live?.event_id != null ? String(live.event_id).padStart(8, '0').slice(-8) : '────────'
+  const hashSrc = `${live?.profile ?? ''}${live?.qdisc ?? ''}${live?.cc ?? ''}`
+  const hash8 = hashSrc ? hashSrc.slice(0, 8).padEnd(8, '·').slice(0, 8) : '────────'
+
   return (
     <ErrorBoundary>
     <WebGLMesh />
     <div id="shell" data-density={density} className={railPinned ? '' : 'rail-min'}>
       <a className="skip-link" href="#main">Aller au contenu</a>
       <header>
-        <span className="stripe" aria-hidden="true"><i /><i /><i /></span>
-        <span className="wordmark" style={{textShadow: '0 0 12px rgba(90,211,227,0.4)'}}>MadaLink</span>
-        <span className="hd-sub">LIEN — trafic critique · AQM/BBR · Mada</span>
+        <MeteolinkWordmark />
         <div className="hd-right">
           <button onClick={()=>setDensity(density==='airy'?'dense':'airy')} aria-label="Densité">{density}</button>
           <span className="mono" style={{color: connected ? 'var(--t-ok)' : 'var(--t-danger)'}}>{connected ? '● connecté' : '○ déconnecté'}</span>
@@ -94,10 +98,12 @@ export default function App() {
         {panel==='integrite' && <section id="v-integrite" className="view on"><IntegriteView /></section>}
       </main>
 
-      <footer>
-        <span id="ft-prov">source : {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
-        <span className="fill" />
-        <span id="ft-sse" className="mono">SSE : {sseStatus}</span>
+      <footer className="foot-ticker" style={{ height: 28, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderTop: '1px solid var(--hairline)', background: 'var(--surface-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--text-faint)' }}>
+        <span id="ft-prov">source: {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
+        <span aria-hidden="true" style={{ opacity: 0.4 }}>|</span>
+        <span id="ft-run" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>run {run8} · hash {hash8} · {live?.phase ?? 'idle'} · SSE {sseStatus}</span>
+        <span className="fill" style={{ marginLeft: 'auto' }} />
+        <span id="ft-sse" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>SSE: {sseStatus}</span>
       </footer>
       <FlashBanner />
       <Toasts />

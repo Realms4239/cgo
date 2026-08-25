@@ -109,3 +109,16 @@ footer .fill { margin-left: auto; }
   .nav-btn { width: auto; padding: 8px 12px; }
   .side-status { margin: 0 0 0 auto; border-top: none; padding: 0 12px; white-space: nowrap; }
 }
+
+/* ── meteolink lockup + rail/foot/arm polish — ponytail minimal ── */
+.wordmark-lockup { display: inline-flex; align-items: center; gap: 8px; }
+.wordmark-text { font: 600 20px var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; background: linear-gradient(90deg, #f2f2f4, #a9aeb6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 8px rgba(90,211,227,0.35)); line-height: 1; }
+.noc-icon { width: 16px; height: 16px; flex: none; color: var(--t-live); display: inline-flex; }
+.foot-ticker { height: 28px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 10px var(--font-mono); color: var(--text-faint); letter-spacing: 0.06em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.foot-ticker .mono { font-variant-numeric: tabular-nums; }
+.arm-progress { position: absolute; top: -4px; left: 0; width: 100%; height: 1px; background: var(--t-danger); transform-origin: left center; }
+.rail-foot { margin-top: auto; padding: 8px 14px; border-top: 1px solid var(--hairline); font: 700 10px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.live-peek { display: flex; align-items: end; gap: 1px; height: 12px; margin: 4px 14px; opacity: 0.7; }
+.rail.pinned { width: 232px; }
+.rail:not(.pinned) { width: 56px; }
+@media (prefers-reduced-motion: reduce) { .wordmark-text { letter-spacing: 0.04em !important; } .arm-progress { animation: none !important; transform: scaleX(1) !important; } }
