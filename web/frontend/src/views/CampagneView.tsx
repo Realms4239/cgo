@@ -124,7 +124,9 @@ export default function CampagneView() {
   }
 
   const gates = live?.gates ?? Array(8).fill(null)
-  const phase = live?.phase ?? 'idle'
+  const phase = live?.phase || 'idle'
+  // ponytail: backend idle phase is '' not 'idle' — gate on data flowed, not string
+  const hasData = !!(live?.running || liveRing.small.length > 0)
   const [timeline] = useState(() => {
     const n = Date.now()
     return { baselineStart: n - 90000, chargeStart: n - 60000, chargeEnd: n - 15000, recupEnd: n + 15000 }
@@ -143,7 +145,7 @@ export default function CampagneView() {
           <div className="mono" style={{fontSize:10, color:'#f4b400', marginTop:4}}>{peek.data.at(-1)?.toFixed(1) ?? '—'} ms</div>
         </PeekPopover>
       )}
-      {phase !== 'idle' && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
+      {hasData && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
       <div className="card">
         <div className="card-head">Campagne</div>
         <div className="form-row">
