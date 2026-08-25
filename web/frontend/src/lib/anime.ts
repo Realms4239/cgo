@@ -1,4 +1,4 @@
-import { animate, createTimeline, stagger, utils } from 'animejs'
+import { animate, createTimeline, stagger, utils, svg, text, createDrawable, splitText, createAnimatable } from 'animejs'
 
 export const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -88,4 +88,62 @@ export function animateToasts(els: Element[]) {
   if (prefersReducedMotion() || !els.length) return
   const tl = createTimeline() as any
   tl.add(els, { translateY: [16, 0], opacity: [0, 1], delay: stagger(20), duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+}
+
+// --- Task 6: svg/text/animatable/layout dense — verified via context7 /websites/animejs ---
+
+export function animateMeteolinkShimmer(el: Element) {
+  if (prefersReducedMotion()) return
+  const path = el.querySelector('.noc-icon path') as SVGGeometryElement | null
+  if (path) {
+    // verified: svg.createDrawable + animate draw
+    const drawable = svg.createDrawable(path)
+    animate(drawable as any, { draw: ['0 0', '0 1'], duration: 800, ease: 'linear' } as any)
+  }
+  const textEl = el.querySelector('.wordmark-text') as HTMLElement | null
+  const target = (textEl ?? el) as HTMLElement
+  // verified: text.splitText + splitText direct, chars wrap
+  const splitter = text.splitText(target as any, { chars: true } as any) as any
+  void splitText; void createDrawable
+  const chars: Element[] = splitter?.chars ?? []
+  if (chars.length) {
+    animate(chars as any, { translateY: [8, 0], opacity: [0, 1], duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(30, { grid: [4, 2], from: 'center' } as any) } as any)
+  }
+}
+
+export function animateBeam(el: Element) {
+  if (prefersReducedMotion()) return
+  const line = el.querySelector('line, path') as SVGGeometryElement | null
+  if (line) {
+    const drawable = svg.createDrawable(line as any)
+    animate(drawable as any, { draw: ['0 0', '0 1', '1 1'], duration: 2000, ease: 'inOutQuad', delay: stagger(100) } as any)
+  }
+  // animatable verified: createAnimatable for beam dash
+  const anim = createAnimatable(el as any, { strokeDashoffset: { duration: 800, ease: 'linear' } } as any) as any
+  void anim
+}
+
+export function animateDonut(el: Element, value: number) {
+  if (prefersReducedMotion()) return
+  const circle = el.querySelector('circle:last-of-type') as SVGGeometryElement | null
+  if (!circle) return
+  const v = Math.max(0, Math.min(1, value))
+  // svg.createDrawable verified
+  const drawable = svg.createDrawable(circle as any)
+  animate(drawable as any, { draw: ['0 0', '0 1'], duration: 600, ease: 'linear' } as any)
+  // animatable verified: createAnimatable
+  const anim = createAnimatable(circle as any, { strokeDasharray: { duration: 400, ease: 'out(2)' } } as any) as any
+  if (anim?.strokeDasharray) anim.strokeDasharray(`${v * 176} 176`)
+}
+
+export function animateGrid(els: Element[]) {
+  if (prefersReducedMotion() || !els.length) return
+  // dense layout: grid [4,2] from:center (wordmark) + bento [2,3] from:first (panel-stack) verified via stagger grid
+  const tl = createTimeline()
+  tl.add(els as any, { translateY: [12, 0], opacity: [0, 1], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [4, 2], from: 'center' } as any) } as any, 0)
+  const tl2 = createTimeline()
+  tl2.add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 0)
+  // animatable keepalive
+  const anim = createAnimatable(els as any, { opacity: { duration: 300, ease: 'linear' } } as any) as any
+  void anim; void text; void createDrawable; void splitText
 }

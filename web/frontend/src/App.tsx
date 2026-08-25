@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUIStore, PANELS } from './store/ui';
 import { connectSSE, disconnectSSE } from './lib/sse';
-import { animateViewEnter } from './lib/anime';
+import { animateGrid, animateViewEnter } from './lib/anime';
 import CampagneView from './views/CampagneView';
 import LiveView from './views/LiveView';
 import ResultatsView from './views/ResultatsView';
@@ -35,6 +35,10 @@ export default function App() {
 
   useEffect(() => {
     animateViewEnter();
+    // bento grid dense: stagger 40 grid[2,3] from:'first' via animatable layout — verified context7 /websites/animejs stagger grid
+    // ponytail: delegate to animateGrid which uses grid [4,2] from:center + [2,3] from:first + animatable
+    const els = document.querySelectorAll('.panel-stack .card, .view .card')
+    if (els.length) animateGrid(Array.from(els) as Element[])
   }, [panel]);
 
   // smart redirect: running false after true → auto Résultats, false->true → auto Live (ponytail: one ref, one effect)

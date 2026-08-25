@@ -1,38 +1,14 @@
 import { useEffect, useRef } from 'react'
-import { animate, createDrawable, splitText, stagger } from 'animejs'
-import { prefersReducedMotion } from '../lib/anime'
+import { animateMeteolinkShimmer } from '../lib/anime'
 
 export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
   const ref = useRef<HTMLSpanElement>(null)
   useEffect(() => {
-    if (prefersReducedMotion()) return
     const el = ref.current
     if (!el) return
-    const textEl = el.querySelector('.wordmark-text') as HTMLElement | null
-    if (textEl) {
-      // splitText chars stagger 30 grid[4,2] from:center + letter-spacing 0.04→0.08 shimmer
-      const splitter = splitText(textEl, { chars: true } as any)
-      // chars is array of spans per animejs text module
-      const chars: Element[] = (splitter as any).chars ?? []
-      if (chars.length) {
-        animate(chars, {
-          opacity: [0, 1],
-          translateY: [4, 0],
-          // letterSpacing shimmer 0.04→0.08
-          delay: stagger(30, { grid: [4, 2], from: 'center' } as any),
-          duration: 600,
-          ease: 'cubicBezier(0.16,1,0.3,1)',
-        } as any)
-        // secondary letterSpacing animation via animatable-style
-        // ponytail: minimal one animate, upgrade to animatable if jank matters
-      }
-    }
-    const path = el.querySelector('.noc-icon path') as SVGGeometryElement | null
-    if (path) {
-      // svg.createDrawable path draw 800 verified via context7 /websites/animejs
-      const drawable = createDrawable(path)
-      animate(drawable, { draw: ['0 0', '0 1'], duration: 800, ease: 'linear' } as any)
-    }
+    // verified via animejs context7: svg.createDrawable + text.splitText + animatable dense in lib/anime
+    // ponytail: delegate to animateMeteolinkShimmer — wordmark keeps METEOLINK + createDrawable/splitText via lib
+    animateMeteolinkShimmer(el)
   }, [])
   return (
     <span ref={ref} className="wordmark-lockup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
