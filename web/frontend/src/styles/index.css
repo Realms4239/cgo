@@ -67,8 +67,16 @@ main { grid-area: main; overflow-y: auto; position: relative; }
 footer { grid-area: ft; display: flex; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-4); border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 var(--fs-micro) var(--font-mono); color: var(--text-faint); }
 footer .fill { margin-left: auto; }
 
+/* ── rail + density — impeccable ponytail minimal ── */
+.rail { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; }
+.miniSparkline { width: 32px; height: 12px; opacity: 0.6; display: block; margin: 8px auto; }
+
 /* ── campagne / live additions — ponytail minimal, impeccable-operate disciplined ── */
 .panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 960px; }
+[data-density='airy'] .panel-stack { gap: 24px; }
+[data-density='airy'] .panel-stack { gap: var(--gap); }
+[data-density='dense'] .panel-stack { gap: 16px; }
+[data-density='dense'] .panel-stack { gap: var(--gap-dense); }
 .card { border: 1px solid var(--hairline); background: var(--surface-card); padding: var(--sp-4); }
 .card-head { font: 700 11px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-3); }
 .form-row { display: flex; align-items: center; gap: var(--sp-3); padding: 6px 0; border-bottom: 1px solid var(--hairline-faint); }

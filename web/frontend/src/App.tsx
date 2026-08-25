@@ -8,6 +8,7 @@ import ResultatsView from './views/ResultatsView';
 import IntegriteView from './views/IntegriteView';
 import Toasts from './components/Toasts';
 import ErrorBoundary from './components/ErrorBoundary';
+import Rail from './components/Rail';
 
 export default function App() {
   const panel = useUIStore((s) => s.panel);
@@ -15,6 +16,8 @@ export default function App() {
   const live = useUIStore((s) => s.live);
   const connected = useUIStore((s) => s.connected);
   const sseStatus = useUIStore((s) => s.sseStatus);
+  const density = useUIStore((s) => s.density);
+  const railPinned = useUIStore((s) => s.railPinned);
 
   useEffect(() => {
     connectSSE();
@@ -38,7 +41,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-    <div id="shell">
+    <div id="shell" data-density={density} className={railPinned ? '' : 'rail-min'}>
       <a className="skip-link" href="#main">Aller au contenu</a>
       <header>
         <span className="stripe" aria-hidden="true"><i /><i /><i /></span>
@@ -50,27 +53,7 @@ export default function App() {
         </div>
       </header>
 
-      <aside className="sidebar" aria-label="Navigation">
-        {PANELS.map((p) => (
-          <button key={p.id} className={'nav-btn' + (panel === p.id ? ' on' : '')} data-panel={p.id} onClick={() => setPanel(p.id)}>
-            <span className="nav-lbl">{p.label}</span>
-            <span className="nav-key">{p.key}</span>
-          </button>
-        ))}
-        <div className="side-status">
-          <div><span>phase</span><b className="mono">{live?.phase || '—'}</b></div>
-          <div><span>événement</span><b className="mono">{live?.event_id ? '#'+live.event_id : '—'}</b></div>
-          <div><span>SSE</span><b className="mono">{sseStatus}</b></div>
-          <div className="gates" role="img" aria-label="Portes G0 à G7">
-            {(live?.gates ?? Array(8).fill(null)).map((g: boolean|null, i:number) => {
-              const labels = ['G0 cible','G1 bulk','G2 sondes','G3 latence','G4 débit','G5 doublon','G6 baseline','G7 CPU']
-              const title = `${labels[i]}: ${g===null?'—':g?'PASS':'FAIL'}`
-              return <span key={i} className={'gate ' + (g===null?'':g?'ok':'fail')} data-gate={i} title={title} aria-label={title} />
-            })}
-          </div>
-          <div className="mono muted" style={{fontSize:10, marginTop:6, opacity:.7}}>1–4 nav · double-confirm = arm</div>
-        </div>
-      </aside>
+      <Rail />
 
       <main id="main">
         {panel==='campagne' && <section id="v-campagne" className="view on"><CampagneView /></section>}

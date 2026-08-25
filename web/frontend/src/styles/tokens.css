@@ -60,6 +60,10 @@
   /* layout */
   --sidebar-w: 232px;
   --sidebar-min: 56px;
+  --rail-w: 56px;
+  --rail-w-pinned: 232px;
+  --gap: 24px;
+  --gap-dense: 16px;
 
   /* motion */
   --dur-fast: 80ms; --dur-base: 150ms;
