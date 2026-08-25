@@ -56,11 +56,11 @@ aside.sidebar { grid-area: side; display: flex; flex-direction: column; border-r
 
 /* ── main / panels ── */
 main { grid-area: main; overflow-y: auto; position: relative; }
-.view { display: none; height: 100%; padding: var(--sp-5); animation: fadeIn 0.35s ease; }
+.view { display: none; height: 100%; padding: var(--sp-5); animation: fadeIn 0.35s ease; view-transition-name: panel; }
 .view.on { display: block; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .view-title { font: 600 var(--fs-head) var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary); margin-bottom: var(--sp-4); }
-.card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.card { transition: border-color 0.2s ease, box-shadow 0.2s ease; container-type: inline-size; }
 .card:hover { border-color: var(--hairline-strong); box-shadow: 0 0 0 1px var(--live-dim), 0 4px 20px rgba(0,0,0,0.35); }
 .nav-btn.on { box-shadow: inset 0 0 12px rgba(90,211,227,0.12); }
 

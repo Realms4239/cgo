@@ -62,6 +62,7 @@ const (
 )
 
 // JFI — Jain's fairness index (Σx)² / (n·Σx²), 0..1 (1 = perfectly fair).
+// ponytail: unused until detail=1 API exposes per-rep values — frontend computeJFI covers current need
 func JFI(values []float64) float64 {
 	if len(values) == 0 {
 		return 0

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArmButton } from '../components/ArmButton'
 import { Timeline } from '../components/Timeline'
 import { useUIStore } from '../store/ui'
@@ -17,19 +17,23 @@ export default function CampagneView() {
   const [auditLink, setAuditLink] = useState('5g')
   const [importMsg, setImportMsg] = useState('')
 
+  const auditPollRef = useRef<number | null>(null)
+  useEffect(() => () => { if (auditPollRef.current) clearInterval(auditPollRef.current) }, [])
   const startAudit = () => {
     setAuditMsg('audit en cours…')
     fetch('/api/audit/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site: auditSite, link_type: auditLink, duration: 30 }) })
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(() => {
-        const poll = setInterval(() => {
+        const poll = window.setInterval(() => {
           fetch('/api/audit/status').then(r=>r.json()).then(j=>{
             if (!j.running) {
               clearInterval(poll)
+              auditPollRef.current = null
               setAuditMsg(j.last ? `audit terminé — p95 ${Number(j.last.rtt_idle_p95_ms).toFixed(1)} ms` : 'audit terminé')
             }
-          }).catch(()=>clearInterval(poll))
+          }).catch(()=>{ clearInterval(poll); auditPollRef.current = null })
         }, 2000)
+        auditPollRef.current = poll
       })
       .catch(e => setAuditMsg('échec: ' + e.message))
   }
@@ -62,13 +66,14 @@ export default function CampagneView() {
   const gates = live?.gates ?? Array(8).fill(null)
   const phase = live?.phase ?? 'idle'
   const [timeline] = useState(() => {
+    // ponytail: fabricated window — derive from real phase timestamps when API exposes them
     const n = Date.now()
     return { baselineStart: n - 90000, chargeStart: n - 60000, chargeEnd: n - 15000, recupEnd: n + 15000 }
   })
 
   return (
     <div className="panel-stack">
-      <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />
+      {phase !== 'idle' && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
       <div className="card">
         <div className="card-head">Campagne</div>
         <div className="form-row">

@@ -4,14 +4,11 @@ import { echarts } from './echarts'
 // ponytail: observatory grammar in ~60 lines, not a chart framework.
 export function baseOption(title: string, unit: string): EChartsOption {
   return {
-    useDirtyRect: true,
     backgroundColor: 'transparent',
     textStyle: { fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099' },
-    animationDuration: 900,
-    animationDurationUpdate: 600,
-    animationEasing: 'cubicInOut' as unknown as string,
-    animationDelay: (idx: number) => idx * 15,
-    animationThreshold: 2000,
+    animation: false,
+    animationDuration: 0,
+    animationDurationUpdate: 0,
     title: { text: title, left: 8, top: 4, textStyle: { color: '#f2f2f4', fontFamily: 'Cormorant Garamond', fontSize: 13, fontWeight: 600 } },
     tooltip: {
       trigger: 'axis',
@@ -71,11 +68,7 @@ export function baseOption(title: string, unit: string): EChartsOption {
       { type: 'text', left: 'center', top: 12, style: { text: 'MadaLink \u00B7 LIEN \u2014 observatoire', fill: 'rgba(255,255,255,0.025)', font: '600 56px Cormorant Garamond', textAlign: 'center' }, silent: true },
       { type: 'image', left: 'center', top: 'center', style: { image: 'data:image/svg+xml;base64,PHN2Zz4=', width: 400, height: 400, opacity: 0.015 }, silent: true },
     ] as unknown as EChartsOption['graphic'],
-    markArea: {
-      itemStyle: { color: 'rgba(244,180,0,0.04)', borderColor: 'rgba(244,180,0,0.12)', borderWidth: 1, borderType: 'dashed' },
-      label: { color: '#f4b400', fontFamily: 'JetBrains Mono', fontSize: 10, position: 'insideTop', padding: [4, 8] as unknown as number, backgroundColor: 'rgba(244,180,0,0.08)', borderRadius: 0 },
-      data: [[{ xAxis: 0 }, { xAxis: 0 }]],
-    } as unknown as EChartsOption['markArea'],
+    // ponytail: markArea at option root is inert — per-series markArea with real charge window when available
   } as unknown as EChartsOption
 }
 

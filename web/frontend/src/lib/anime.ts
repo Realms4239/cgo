@@ -13,6 +13,7 @@ export function animateViewEnter() {
 }
 
 export function animateCardStagger() {
+  // ponytail: unused — animateViewEnter covers card stagger; keep for isolated card grids if needed
   if (prefersReducedMotion()) return
   const tl = createTimeline()
   tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)

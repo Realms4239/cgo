@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import type { EChartsOption } from 'echarts'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries } from '../lib/chartGrammar'
 import { live } from '../lib/live'
@@ -15,15 +16,15 @@ function useChart(title:string, unit:string) {
   const chart = useRef<echarts.ECharts | null>(null)
   useEffect(() => {
     if(!ref.current) return
-    const c = echarts.init(ref.current, undefined, { renderer: 'canvas' })
+    const c = echarts.init(ref.current, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
     chart.current = c
     const ro = new ResizeObserver(()=>c.resize())
     ro.observe(ref.current)
     return () => { ro.disconnect(); c.dispose() }
   }, [])
-  const setData = (series:any[]) => {
+  const setData = (series:ReturnType<typeof lineSeries>[]) => {
     if(!chart.current) return
-    chart.current.setOption({ ...baseOption(title, unit), series } as any)
+    chart.current.setOption({ ...baseOption(title, unit), series } as EChartsOption)
   }
   return { ref, setData }
 }
@@ -126,13 +127,12 @@ export default function LiveView() {
         <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <MetricCard label="QDI" value={qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={qdiSpark} trend={trendOf(qdiSpark)} />
+        <MetricCard label="QDI" value={!liveSnap ? '—' : qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={qdiSpark} trend={trendOf(qdiSpark)} />
         <div title={jfiVal === null ? "JFI requiert détail par répétition (detail=1)" : undefined}>
           <MetricCard label="JFI" value={jfiVal === null ? '—' : jfiVal.toFixed(2)} unit="" color={jfiVal === null ? '#767b84' : '#9aa3ad'} spark={jfiS.length >= 2 ? jfiS : undefined} trend={jfiVal === null ? 'flat' : jfiVal > 0.95 ? 'flat' : 'down'} />
         </div>
       </div>
-      <div data-testid="qdi-sparkline" style={{ display: 'none' }}>QDI</div>
-      <div data-testid="jfi-badge" style={{ display: 'none' }}>JFI</div>
+      {/* ponytail: hidden stubs removed — real sparkline in Task 3 card */}
       <div className="card"><div ref={rtt.ref} style={{ height: 220 }} /></div>
       <div className="card"><div ref={small.ref} style={{ height: 180 }} /></div>
       <div className="card"><div ref={goodput.ref} style={{ height: 180 }} /></div>

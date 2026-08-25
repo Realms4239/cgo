@@ -85,3 +85,52 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-fast: 1ms; --dur-base: 1ms; --ease: linear; }
 }
+
+/* ponytail: donor aliases — canonical tokens above */
+:root {
+  /* weight */
+  --tw-400: 400;
+  --tw-700: 700;
+  /* tracking */
+  --tt-06: 0.06em;
+  --tt-08: 0.08em;
+  --tt-10: 0.10em;
+  --tt-1p5: 0.15em;
+  --tt-neg-02: -0.02em;
+  /* leading */
+  --tl-1p1: 1.1;
+  --tl-1p3: 1.3;
+  --tl-1p4: 1.4;
+  --tl-1p5: 1.5;
+  --tl-1p55: 1.55;
+  /* text transform */
+  --tx-upper: uppercase;
+  /* radii */
+  --radius-0: 0;
+  --radius-pip: 50%;
+  /* semantic aliases */
+  --danger: var(--t-danger);
+  --warning: var(--t-threshold);
+  --success: var(--t-ok);
+  --series-1: var(--t-live);
+  --series-3: var(--t-bbr);
+  --accent: var(--t-neutral);
+  --accent-dim: rgba(154,163,173,0.12);
+  /* motion alias */
+  --ease-standard: var(--ease);
+  /* type aliases */
+  --fs-base: var(--fs-body);
+  --fs-num: var(--fs-head);
+  /* surfaces */
+  --surface-raised: var(--surface-elevated);
+  /* state tokens (faint backgrounds) */
+  --state-loading-bg: var(--live-dim);
+  --state-loading-text: var(--text-muted);
+  --state-error-bg: var(--danger-dim);
+  --state-error-text: var(--t-danger);
+  --state-success-bg: var(--ok-dim);
+  --state-empty-text: var(--text-faint);
+  --state-disabled-bg: var(--surface-soft);
+  --state-disabled-text: var(--text-faint);
+  --state-disabled-opacity: 0.5;
+}
