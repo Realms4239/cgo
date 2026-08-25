@@ -3,7 +3,6 @@ package campagne
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/Realms4239/cgo/pkg/model"
@@ -82,10 +81,6 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 						if err == nil {
 							_ = w.Append(done)
 							m.Done = id
-						} else {
-							fmt.Printf("[DEBUG-m8] RunEvent failed id=%d profile=%s qdisc=%s cc=%s rep=%d err=%v\n", id, pid, q, cc, rep, err)
-							// also log to file for diagnosis
-							_ = func() error { f, _ := os.OpenFile("/tmp/cgo-campagne-debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); if f != nil { defer f.Close(); _, _ = fmt.Fprintf(f, "[DEBUG-m8] %d %s %s %s %d %v\n", id, pid, q, cc, rep, err) }; return nil }()
 						}
 						id++
 					}
