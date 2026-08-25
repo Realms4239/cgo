@@ -61,8 +61,10 @@ export default function ResultatsView() {
             {groups.map((g,i)=>{
               const pct = (g.small_p95_median / maxSmall) * 100
               const barColor = g.best ? 'var(--t-ok)' : g.qdisc==='cake' ? 'var(--t-bbr)' : g.qdisc==='fq_codel' ? 'var(--t-live)' : 'var(--text-faint)'
-              // ponytail: per-rep JFI needs detail=1 API, add when backend provides
-              const jfi = computeJFI(Array.from({ length: g.count }, () => g.small_p95_median))
+              // ponytail: JFI degenerate guard — identical medians or n<2 → — until detail=1 provides per-rep values
+              const jfiVals = Array.from({ length: g.count }, () => g.small_p95_median)
+              const jfiDegenerate = g.count < 2 || jfiVals.every(v => v === jfiVals[0])
+              const jfi: number | null = jfiDegenerate ? null : computeJFI(jfiVals)
               // ponytail: wasted/cost fallback linear, non-linear if thesis needs
               const wasted = (g as any).wasted_median ?? (g as any).wasted_bytes ?? g.quarantined * 1448
               const cost = (g as any).cost_median ?? (g as any).cost_ar_per_h ?? (wasted / (4.5*1024*1024*1024))*30000
@@ -81,7 +83,7 @@ export default function ResultatsView() {
                   </td>
                   <td>{g.rtt_p95_median.toFixed(1)}</td>
                   <td>{g.goodput_median.toFixed(1)}</td>
-                  <td style={{width:52, fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: jfi > 0.95 ? '#1fa348' : '#9aa3ad', textAlign:'right'}}>{jfi.toFixed(2)}</td>
+                  <td title={jfi===null ? "JFI requiert détail par répétition (detail=1)" : undefined} style={{width:52, fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: jfi===null ? '#767b84' : jfi > 0.95 ? '#1fa348' : '#9aa3ad', textAlign:'right'}}>{jfi===null ? '—' : jfi.toFixed(2)}</td>
                   {showCosts && <>
                     <td style={{fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: deadlineOk >=95 ? '#1fa348' : '#f4b400', textAlign:'right'}}>{typeof deadlineOk==='number' ? deadlineOk.toFixed(0)+'%' : '—'}</td>
                     <td style={{fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: wasted>0 ? '#e22718' : '#767b84', textAlign:'right'}}>{wasted ? (wasted>1024*1024 ? (wasted/1024/1024).toFixed(1)+'M' : String(wasted)) : '0'}</td>

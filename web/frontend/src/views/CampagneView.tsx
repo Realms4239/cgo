@@ -89,16 +89,18 @@ export default function CampagneView() {
           <label>Répétitions</label>
           <input type="number" min={1} max={5} value={reps} onChange={e=>setReps(parseInt(e.target.value)||1)} style={{width:64}} />
         </div>
+        {/* ponytail: Deadline input disabled until server.go threads it */}
         <div className="form-row">
           <label>Deadline</label>
-          <input type="number" min={100} max={5000} step={100} value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11}} />
-          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms · seuil small_p95</span>
+          <input disabled title="paramètre fixe 1000 ms côté engine (thread campagne.go:226) — contrôle retiré" type="number" min={100} max={5000} step={100} value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11, opacity:0.5}} />
+          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms · seuil small_p95 (fixe)</span>
         </div>
         {/* ponytail: cost forecast linear, non-linear if thesis needs */}
         <div className="form-row" style={{gap:8, border:'1px solid #26262a', background:'rgba(244,180,0,0.06)', padding:'6px 8px', marginTop:6}}>
           <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>cost preview</span>
           <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color:'#f4b400', fontVariantNumeric:'tabular-nums'}}>
             {(() => {
+              if (!live) return '—'
               const wasted = (live?.drops ?? 0) * 1448
               const cost = wasted / (4.5*1024*1024*1024) * 30000
               return `${wasted} o gâchés · ${cost.toFixed(2)} Ar/h`

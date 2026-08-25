@@ -69,12 +69,18 @@ export default function LiveView() {
     return computeQDI(p95, p50)
   })()
 
-  const jfiVal = (() => {
+  const jfiVal: number | null = (() => {
     const gVals = live.goodput.slice(-20).map(([, v]) => v).filter(v => v > 0.01)
-    if (gVals.length >= 2) return computeJFI(gVals)
+    if (gVals.length >= 2) {
+      const allEqual = gVals.every(v => v === gVals[0])
+      if (!allEqual) return computeJFI(gVals)
+    }
     const sVals = live.small.slice(-12).map(([, v]) => v).filter(v => Number.isFinite(v) && v > 0)
-    if (sVals.length >= 2) return computeJFI(sVals)
-    return 1 // ponytail: live detail needs window, stable at 1
+    if (sVals.length >= 2) {
+      const allEqual = sVals.every(v => v === sVals[0])
+      if (!allEqual) return computeJFI(sVals)
+    }
+    return null // ponytail: JFI null until windowed detail with variance — no synthetic 1.00
   })()
 
   // Tableau 4/5 — LIEN primary + secondary for important look
@@ -86,7 +92,7 @@ export default function LiveView() {
   // ponytail: cost forecast linear, non-linear if thesis needs
   const wasted = (liveSnap as any)?.wasted_bytes ?? drops * 1448
   const costAr = (liveSnap as any)?.cost_ar_per_h ?? (wasted / (4.5 * 1024 * 1024 * 1024)) * 30000
-  const deadlineOk = (liveSnap as any)?.deadline_ok_pct ?? (smallP95 ? (smallP95 < 1000 ? 100 : 0) : 0)
+  const deadlineOk: number | null = (liveSnap as any)?.deadline_ok_pct ?? null // ponytail: no synthetic 100/0 — show — until engine exposes deadline_ok_pct
   const spark = (r: [number, number][]) => r.map(([, v]) => v).slice(-20)
   const trendOf = (arr: number[]): 'up' | 'down' | 'flat' => {
     if (arr.length < 2) return 'flat'
@@ -118,11 +124,13 @@ export default function LiveView() {
         <MetricCard label="drops" value={String(drops)} unit="" color={drops > 0 ? '#e22718' : '#767b84'} trend={drops > 0 ? 'up' : 'flat'} />
         <MetricCard label="wasted" value={wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color="#f4b400" trend={wasted > 0 ? 'up' : 'flat'} />
         <MetricCard label="cost_ar_per_h" value={costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color="#f4b400" trend={costAr > 0 ? 'up' : 'flat'} />
-        <MetricCard label="deadline_ok" value={deadlineOk.toFixed(0)} unit="%" color={deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk >= 95 ? 'down' : 'up'} />
+        <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <MetricCard label="QDI" value={qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={qdiSpark} trend={trendOf(qdiSpark)} />
-        <MetricCard label="JFI" value={jfiVal.toFixed(2)} unit="" color="#9aa3ad" spark={jfiS.length >= 2 ? jfiS : undefined} trend={jfiVal > 0.95 ? 'flat' : 'down'} />
+        <div title={jfiVal === null ? "JFI requiert détail par répétition (detail=1)" : undefined}>
+          <MetricCard label="JFI" value={jfiVal === null ? '—' : jfiVal.toFixed(2)} unit="" color={jfiVal === null ? '#767b84' : '#9aa3ad'} spark={jfiS.length >= 2 ? jfiS : undefined} trend={jfiVal === null ? 'flat' : jfiVal > 0.95 ? 'flat' : 'down'} />
+        </div>
       </div>
       <div data-testid="qdi-sparkline" style={{ display: 'none' }}>QDI</div>
       <div data-testid="jfi-badge" style={{ display: 'none' }}>JFI</div>

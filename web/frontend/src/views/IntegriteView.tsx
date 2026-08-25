@@ -42,7 +42,7 @@ export default function IntegriteView() {
   if (!data) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="loading" hint="vérification des archives" /></div>
   if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary" style={{marginTop:12}} onClick={load}>Réessayer</button></div>
 
-  const quarantineRows = (data.run_ids||[]).slice(0,5).map((id,i)=>({ run_id: id, gate: `G${i%8}`, status: i%3===0 ? 'invalid' : i%3===1 ? 'degraded' : 'valid', reason: i%3===0 ? 'G1 bulk' : i%3===1 ? 'G6 baseline' : '—' }))
+  // ponytail: synthetic quarantine removed — render real gate_status from Scan when available
   return (
     <div className="panel-stack">
       <h1 className="view-title">Intégrité — archives gelées</h1>
@@ -65,9 +65,16 @@ export default function IntegriteView() {
         </div>
         <div style={{display:'flex', flexDirection:'column', gap:6}}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>sha256 manifest</div>
-          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color:'#f2f2f4', background:'#070707', border:'1px solid #26262a', padding:'8px 10px', fontVariantNumeric:'tabular-nums', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
-            sha256:{'a3f9c2e1b4d8f6a0c7e5b9d2f1a8c3e6b0d4f7a9c2e5b8d1f0a3c6e9b2d5f8a1'}
-          </div>
+          {/* ponytail: fake sha removed — wire real manifest hash when /api/integrity exposes it */}
+          {(data as any).sha256 ? (
+            <div data-testid="provenance-hash" className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f2f2f4', background:'#070707', border:'1px solid #26262a', padding:'8px 10px', fontVariantNumeric:'tabular-nums', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+              sha256:{(data as any).sha256}
+            </div>
+          ) : (
+            <div title="empreinte SHA non exposée par /api/integrity — afficher le manifest gelé">
+              <EmptyState kind="empty" hint="empreinte SHA non exposée par /api/integrity — afficher le manifest gelé" />
+            </div>
+          )}
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84'}}>source: data/runs/*/manifest.json · quarantine.json · aqm_eval.csv</div>
           <div style={{display:'flex', gap:8, marginTop:4}}>
             <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'2px 6px', border:'1px solid #26262a', color:'#5ad3e3'}}>RDF • LIEN Tableau 7</span>
@@ -90,26 +97,14 @@ export default function IntegriteView() {
       </div>
       <div className="card">
         <div className="card-head">quarantine — table de quarantaine</div>
-        <div style={{overflowX:'auto'}}>
-          <table style={{width:'100%', borderCollapse:'collapse', fontFamily:'JetBrains Mono', fontSize:11}}>
-            <thead>
-              <tr style={{color:'#8b9099', textAlign:'left', borderBottom:'1px solid #26262a', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase'}}>
-                <th style={{padding:'6px 8px'}}>run_id</th><th>gate</th><th>status</th><th>raison</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quarantineRows.length===0 ? <tr><td colSpan={4} className="mono muted" style={{padding:'8px', textAlign:'center'}}>aucune entrée en quarantaine</td></tr> :
-                quarantineRows.map(r=>(
-                  <tr key={r.run_id} style={{borderBottom:'1px solid #141416'}}>
-                    <td style={{padding:'6px 8px', color:'#f2f2f4'}}>{r.run_id}</td>
-                    <td style={{color:'#8b9099'}}>{r.gate}</td>
-                    <td><span className="mono" style={{fontSize:10, padding:'2px 6px', border:'1px solid #26262a', background: r.status==='invalid' ? 'rgba(226,39,24,0.12)' : r.status==='degraded' ? 'rgba(244,180,0,0.12)' : 'rgba(31,163,72,0.12)', color: r.status==='invalid' ? '#e22718' : r.status==='degraded' ? '#f4b400' : '#1fa348'}}>{r.status}</span></td>
-                    <td style={{color:'#767b84'}}>{r.reason}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        {/* ponytail: synthetic quarantine removed — render real gate_status from Scan when available */}
+        {(data.quarantined||0)===0 ? (
+          <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="aucune mise en quarantaine (gate_status=valid)" /></div>
+        ) : (
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color:'#f4b400', padding:'8px 10px', border:'1px solid #26262a', background:'rgba(244,180,0,0.06)'}}>
+            {data.quarantined} événement(s) en quarantaine — détail gate_status via /api/results
+          </div>
+        )}
         <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', marginTop:8}}>source: quarantine.json · gate_status != valid</div>
       </div>
       <div className="card">
