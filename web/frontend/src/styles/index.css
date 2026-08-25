@@ -122,7 +122,7 @@ footer .fill { margin-left: auto; }
 .rail.pinned { width: 232px; }
 .rail:not(.pinned) { width: 56px; }
 /* ── prompt progress line — amber 1px bottom drain 6s pause on hover — ponytail minimal ── */
-@keyframes promptDrain { from{width:100%} to{width:0%} }
+@keyframes promptDrain { from{transform:scaleX(1)} to{transform:scaleX(0)} }
 .prompt-progress{position:absolute;bottom:0;left:0;height:1px;background:#f4b400}
 @keyframes beamDash { from{stroke-dashoffset:0} to{stroke-dashoffset:-40} }
 /* snap-effect handle 16px on Timeline + donut/beam helpers — ponytail minimal */

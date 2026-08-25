@@ -57,6 +57,8 @@ export default function LiveView() {
   const replayRunId = useUIStore(s=>s.replayRunId)
   const bannerRef = useRef<HTMLDivElement>(null)
   const [peek, setPeek] = useState<{ rect: DOMRect; value: number } | null>(null)
+  const [wallGroups, setWallGroups] = useState<{ qdisc:string; profile:string; small_p95_median:number; best?:boolean }[]|null>(null)
+  useEffect(()=>{ fetch('/api/results').then(r=>r.json()).then(j=>{ if(j.available) setWallGroups(j.groups)}).catch(()=>{}) }, [liveSnap?.running, replayRunning])
 
   const lastRef = useRef(0)
   useRafLoop((ts) => {
@@ -181,6 +183,24 @@ export default function LiveView() {
       <div className="card" onMouseEnter={e=>{ const v=live.small.at(-1)?.[1] ?? smallP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); small.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.small.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={small.ref} style={{ height: 180 }} /></div>
       <div className="card" onMouseEnter={e=>{ const v=live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); goodput.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.goodput.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={goodput.ref} style={{ height: 180 }} /></div>
       <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>
+      {/* Live wall overlay baseline grey dashed vs CAKE cyan/green solid — groups driven, always visible for A/B */}
+      {(() => {
+        const baseline = wallGroups?.find(g=>g.qdisc==='pfifo_fast')
+        const cake = wallGroups?.find(g=>g.qdisc==='cake' && g.best) ?? wallGroups?.find(g=>g.qdisc==='cake') ?? wallGroups?.find(g=>g.best)
+        return (
+          <div className="live-wall-overlay card" data-testid="live-wall-overlay" style={{border:'1px solid #26262a', padding:12, background:'var(--surface-card)'}}>
+            <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099', marginBottom:8}}>Live wall — baseline vs CAKE</div>
+            <svg width="100%" height={48} style={{display:'block'}} aria-label="baseline vs CAKE overlay">
+              <line x1={0} y1={14} x2="100%" y2={14} stroke="#767b84" strokeWidth={2} strokeDasharray="6 4" opacity={0.9} />
+              <text x={4} y={10} fontFamily="JetBrains Mono" fontSize={8} fill="#767b84">baseline pfifo_fast — gris pointillé {baseline ? `(${baseline.small_p95_median.toFixed(1)} ms)` : '(—)'}</text>
+              <line x1={0} y1={34} x2="100%" y2={34} stroke="#5ad3e3" strokeWidth={2} />
+              <line x1={0} y1={34} x2="100%" y2={34} stroke="#1fa348" strokeWidth={1} strokeDasharray="12 6" opacity={0.7} />
+              <text x={4} y={30} fontFamily="JetBrains Mono" fontSize={8} fill="#5ad3e3">CAKE — cyan/green solide {cake ? `(${cake.small_p95_median.toFixed(1)} ms · ${cake.qdisc})` : '(—)'}</text>
+            </svg>
+            <div className="mono" style={{fontSize:10, color:'#767b84', marginTop:4}}>overlay: baseline gris pointillé vs CAKE cyan/vert continu — groupes {wallGroups?.length ?? 0} · {wallGroups ? 'données live' : 'en attente'}</div>
+          </div>
+        )
+      })()}
       {liveSnap?.running && <Beam />}
     </div>
   )

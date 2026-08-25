@@ -13,7 +13,7 @@ type Group = {
   goodput_median: number
   deadline_median?: number; deadline_ok_pct?: number
   wasted_median?: number; cost_median?: number; wasted_bytes?: number; cost_ar_per_h?: number
-  best?: boolean
+  best?: boolean; hardware_recommendation?: string
 }
 
 export default function ResultatsView() {
@@ -86,6 +86,29 @@ export default function ResultatsView() {
         </PeekPopover>
       )}
       <h1 className="view-title">Résultats — comparaison AQM/BBR</h1>
+      {/* A/B bento diff badge — baseline grey dashed vs CAKE cyan/green solid */}
+      {(() => {
+        const best = groups.find(g=>g.best) ?? groups[0]
+        const baseline = groups.find(g=>g.qdisc==='pfifo_fast' && g.profile===best.profile) ?? [...groups].sort((a,b)=>b.small_p95_median-a.small_p95_median)[0]
+        const diff = baseline && best && baseline.small_p95_median>0 ? Math.round(((baseline.small_p95_median - best.small_p95_median)/baseline.small_p95_median*100)) : null
+        return (
+          <div className="ab-bento card" data-testid="ab-bento" style={{display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:12, alignItems:'center', border:'1px solid #26262a', background:'var(--surface-card)'}}>
+            <div>
+              <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>Avant — baseline</div>
+              <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:14, fontWeight:700, color:'#767b84', fontVariantNumeric:'tabular-nums'}}>{baseline.qdisc} {baseline.small_p95_median.toFixed(1)} ms</div>
+              <svg width="100%" height={4} style={{display:'block', marginTop:4}} aria-hidden><line x1={0} y1={2} x2="100%" y2={2} stroke="#767b84" strokeWidth={2} strokeDasharray="6 4"/></svg>
+              <div className="mono" style={{fontSize:10, color:'#767b84', marginTop:2}}>pfifo_fast — gris pointillé</div>
+            </div>
+            <div>
+              <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#5ad3e3'}}>Après — CAKE</div>
+              <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:14, fontWeight:700, color:'#1fa348', fontVariantNumeric:'tabular-nums'}}>{best.qdisc} {best.small_p95_median.toFixed(1)} ms</div>
+              <svg width="100%" height={4} style={{display:'block', marginTop:4}} aria-hidden><line x1={0} y1={2} x2="100%" y2={2} stroke="#5ad3e3" strokeWidth={2}/><line x1={0} y1={2} x2="100%" y2={2} stroke="#1fa348" strokeWidth={1} strokeDasharray="12 6" opacity={0.7}/></svg>
+              <div className="mono" style={{fontSize:10, color:'#5ad3e3', marginTop:2}}>CAKE — cyan/vert continu</div>
+            </div>
+            {diff!=null && <div className="diff-badge mono" style={{background: diff>0?'rgba(31,163,72,0.12)':'rgba(226,39,24,0.12)', border:'1px solid '+(diff>0?'#1fa348':'#e22718'), color: diff>0?'#1fa348':'#e22718', padding:'6px 10px', fontSize:16, fontWeight:700, fontVariantNumeric:'tabular-nums'}}>{diff>0?`-${diff}%`:`${diff}%`}</div>}
+          </div>
+        )
+      })()}
       <div className="form-row" style={{justifyContent:'flex-end', gap:8, marginBottom:8}}>
         <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>affichage</span>
         <button className="btn" onClick={()=>setShowCosts(v=>!v)} style={{border:'1px solid #26262a', padding:'4px 10px', font:'700 10px JetBrains Mono', letterSpacing:'0.08em', textTransform:'uppercase', background: showCosts ? 'rgba(90,211,227,0.08)' : 'transparent', color: showCosts ? '#5ad3e3' : '#8b9099'}}>
@@ -150,7 +173,7 @@ export default function ResultatsView() {
         <a className="btn" href="/api/report/export?format=md" download style={{border:'1px solid var(--hairline)', padding:'7px 16px'}}>Exporter MD</a>
         <span className="mono muted" style={{marginLeft:8}}>médianes — ★ meilleur small p95 par profil · barres relatives au max</span>
       </div>
-      <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${groups.length} groupes · max small ${maxSmall.toFixed(1)} ms`} />
+      <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${groups.length} groupes · max small ${maxSmall.toFixed(1)} ms · hardware_recommendation ${groups.find(g=>g.best)?.hardware_recommendation ?? groups[0]?.hardware_recommendation ?? '—'}`} />
     </div>
   )
 }
