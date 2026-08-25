@@ -7,8 +7,9 @@ build: frontend
 	$(GO) build -o bin/cgo$(shell go env GOEXE) ./cmd/cgo
 
 test:
+	$(GO) vet ./...
 	$(GO) test ./...
-	cd $(FRONTEND) && bunx vitest run && npx playwright test
+	cd $(FRONTEND) && bun run typecheck && bun run build && bunx vitest run && npx playwright test
 
 vet:
 	$(GO) vet ./...

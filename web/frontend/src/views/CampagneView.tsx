@@ -207,7 +207,7 @@ export default function CampagneView() {
         <div className="card-head">Audit lien accessible (non intrusif)</div>
         <div ref={auditFormRef} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <InlineField label="Site" error={auditValidation.errors.site} helper={!auditSite ? 'requis' : undefined}>
-            <input value={auditSite} onChange={e=>setAuditSite(e.target.value)} style={{ flex:1, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+            <input name="site" value={auditSite} onChange={e=>setAuditSite(e.target.value)} style={{ flex:1, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
           </InlineField>
           <InlineField label="Type de lien" error={auditValidation.errors.link_type}>
             <select value={auditLink} onChange={e=>setAuditLink(e.target.value)} style={{ width:'100%', background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }}>

@@ -29,17 +29,16 @@ export default function Rail(){
     {PANELS.map(p=><button key={p.id} className={'nav-btn'+(panel===p.id?' on':'')} data-panel={p.id} onClick={()=>setPanel(p.id)}><span className="nav-lbl">{p.label}</span>{pinned&&<span className="nav-key">{p.key}</span>}</button>)}
     <button onClick={()=>setPinned(!pinned)} aria-label="Épingler" className="nav-btn" style={{marginTop:8, borderTop:'1px solid var(--hairline)', justifyContent:'center'}}>{pinned?'◀':'▶'}</button>
     <canvas ref={canvasRef} className="miniSparkline" width={32} height={12} aria-hidden="true" />
+    <div className="gates" role="img" aria-label="Portes G0 à G7">
+      {(live?.gates ?? Array(8).fill(null)).map((g: boolean|null, i:number) => {
+        const titles=['G0 cible','G1 bulk','G2 sondes','G3 latence','G4 débit','G5 doublon','G6 baseline','G7 CPU']
+        return <span key={i} className={'gate '+(g===null?'':g?'ok':'fail')} data-gate={i} title={titles[i]+': '+(g===null?'—':g?'PASS':'FAIL')} />
+      })}
+    </div>
     {pinned && <div className="side-status">
       <div><span>phase</span><b className="mono">{live?.phase || '—'}</b></div>
       <div><span>événement</span><b className="mono">{live?.event_id ? '#'+live.event_id : '—'}</b></div>
       <div><span>SSE</span><b className="mono">{sseStatus}</b></div>
-      <div className="gates" role="img" aria-label="Portes G0 à G7">
-        {(live?.gates ?? Array(8).fill(null)).map((g: boolean|null, i:number) => {
-          const labels=['G0 cible','G1 bulk','G2 sondes','G3 latence','G4 débit','G5 doublon','G6 baseline','G7 CPU']
-          const title=`${labels[i]}: ${g===null?'—':g?'PASS':'FAIL'}`
-          return <span key={i} className={'gate '+(g===null?'':g?'ok':'fail')} data-gate={i} title={title} aria-label={title} />
-        })}
-      </div>
     </div>}
   </aside>
 }

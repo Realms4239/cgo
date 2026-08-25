@@ -155,7 +155,7 @@ export default function LiveView() {
         <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <MetricCard label="QDI" value={!liveSnap ? '—' : qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={qdiSpark} trend={trendOf(qdiSpark)} />
+        <div data-testid="qdi-sparkline"><MetricCard label="QDI" value={!liveSnap ? '—' : qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={qdiSpark} trend={trendOf(qdiSpark)} /></div>
         <div title={jfiVal === null ? "JFI requiert détail par répétition (detail=1)" : undefined}>
           <MetricCard label="JFI" value={jfiVal === null ? '—' : jfiVal.toFixed(2)} unit="" color={jfiVal === null ? '#767b84' : '#9aa3ad'} spark={jfiS.length >= 2 ? jfiS : undefined} trend={jfiVal === null ? 'flat' : jfiVal > 0.95 ? 'flat' : 'down'} />
         </div>

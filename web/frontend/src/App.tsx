@@ -62,7 +62,7 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if((e.metaKey||e.ctrlKey)&&e.key==='k'){ e.preventDefault(); setPaletteOpen((o:boolean)=>!o); return }
+      if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); setPaletteOpen((o:boolean)=>!o); return }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       const hit = PANELS.find((p) => p.key === e.key);
