@@ -37,7 +37,9 @@ function useChart(title:string, unit:string) {
     if(!chart.current) return
     // ponytail: brush toolbox rect minimal — full toolbox if UX needs
     const brush = { toolbox: ['rect'], brushType: 'rect' as const, xAxisIndex: 'all' as const, brushMode: 'single' as const }
-    chart.current.setOption({ animation: false, ...baseOption(title, unit), brush, ...extra, series } as unknown as EChartsOption)
+    // hide scrubber when empty — grey slider on no data reads broken, not idle (strict look)
+    const zoom = series.some(s => (s.data as unknown[]).length > 1) ? { dataZoom: baseOption(title, unit).dataZoom } : {}
+    chart.current.setOption({ animation: false, ...baseOption(title, unit), ...zoom, brush, ...extra, series } as unknown as EChartsOption)
   }
   return { ref, setData, chart }
 }

@@ -27,11 +27,11 @@ export default function OnboardingNudge(){
   },[open])
 
   if(!open) return null
-  return <div ref={ref} role="dialog" aria-label="Bienvenue" style={{position:'fixed', top:56, left:'50%', transform:'translateX(-50%)', background:'rgba(16,16,18,0.96)', border:'1px solid rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', borderRadius:10, padding:'14px 16px', display:'flex', gap:12, alignItems:'center', zIndex:450, boxShadow:'0 8px 32px rgba(0,0,0,0.4)'}}>
+  return <div ref={ref} role="dialog" aria-label="Bienvenue" style={{position:'fixed', top:56, right:16, background:'rgba(16,16,18,0.96)', border:'1px solid rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', borderRadius:0, padding:'14px 16px', display:'flex', gap:12, alignItems:'center', zIndex:450, boxShadow:'0 8px 32px rgba(0,0,0,0.4)'}}>
     {STEPS.map(s=> <div key={s.k} className="nudge-step" style={{display:'flex', flexDirection:'column', gap:2, minWidth:90, borderRight:'1px solid #1e1e22', paddingRight:12}}>
       <span style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#5ad3e3'}}>{s.k}</span>
       <span style={{fontFamily:'Inter var', fontSize:11, color:'#9aa3ad'}}>{s.desc}</span>
     </div>)}
-    <button onClick={()=>{ setOpen(false); try{ localStorage.setItem('nudge_seen','2026-08-26') }catch{} }} aria-label="Fermer" style={{marginLeft:4, padding:'6px 8px', background:'transparent', border:'1px solid #26262a', borderRadius:6, color:'#9aa3ad', fontSize:11, cursor:'pointer'}}>Fermer</button>
+    <button onClick={()=>{ setOpen(false); try{ localStorage.setItem('nudge_seen','2026-08-26') }catch{} }} aria-label="Fermer" style={{marginLeft:4, padding:'6px 8px', background:'transparent', border:'1px solid #26262a', borderRadius:0, color:'#9aa3ad', fontSize:11, cursor:'pointer'}}>Fermer</button>
   </div>
 }
