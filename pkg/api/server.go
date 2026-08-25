@@ -286,6 +286,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/diagnostics", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"hub": "ok", "time": time.Now().UTC().Format(time.RFC3339)})
 	})
+	mux.HandleFunc("GET /api/hardware/translate", HandleTranslate)
 	// JSON 404 for unknown /api/* — must be before "/" SPA catch-all
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

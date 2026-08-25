@@ -4,6 +4,7 @@ import { useUIStore } from '../store/ui'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { PeekPopover } from '../components/PeekPopover'
+import { hardwareRecommendation } from '../lib/hardware'
 
 type Integrity = {
   available: boolean; reason?: string
@@ -125,6 +126,67 @@ export default function IntegriteView() {
           </div>
         )}
         <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', marginTop:8}}>source: quarantine.json · gate_status != valid</div>
+      </div>
+      <div className="card" style={{ border:'1px solid #26262a' }}>
+        <div className="card-head">Recommandations — Traduction Matérielle</div>
+        <p className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, lineHeight:'1.6', color:'#9aa3ad', marginBottom:12}}>
+          Transposition du principe Linux prouvé en lab vers matériel DSI — sans réécrire l'infra. <span style={{color:'#5ad3e3'}}>Client-side observé, pas contrôleur réseau</span>.
+        </p>
+        <div style={{overflowX:'auto', marginBottom:12}}>
+          <table style={{width:'100%', borderCollapse:'collapse', fontFamily:'JetBrains Mono', fontSize:11}}>
+            <thead>
+              <tr style={{textAlign:'left', color:'#8b9099', borderBottom:'1px solid #26262a'}}>
+                <th style={{padding:'6px 8px', fontWeight:600}}>Principe Linux</th>
+                <th style={{padding:'6px 8px', fontWeight:600}}>MikroTik</th>
+                <th style={{padding:'6px 8px', fontWeight:600}}>ISP / mini-PC gateway</th>
+              </tr>
+            </thead>
+            <tbody style={{color:'#f2f2f4'}}>
+              <tr style={{borderBottom:'1px solid #1a1a1e'}}>
+                <td style={{padding:'6px 8px'}}>pfifo_fast <span style={{color:'#767b84'}}>baseline FIFO</span></td>
+                <td style={{padding:'6px 8px'}}>— ne pas reproduire</td>
+                <td style={{padding:'6px 8px'}}>— ne pas reproduire</td>
+              </tr>
+              <tr style={{borderBottom:'1px solid #1a1a1e'}}>
+                <td style={{padding:'6px 8px'}}>fq_codel <span style={{color:'#1fa348'}}>prouvé lab</span></td>
+                <td style={{padding:'6px 8px'}}>Queue Tree PCQ / CAKE RouterOS v7+</td>
+                <td style={{padding:'6px 8px'}}>mini-PC transparent bridge CAKE en amont CPE</td>
+              </tr>
+              <tr>
+                <td style={{padding:'6px 8px'}}>cake <span style={{color:'#1fa348'}}>prouvé lab</span></td>
+                <td style={{padding:'6px 8px'}}>CAKE RouterOS v7+ Queue Tree</td>
+                <td style={{padding:'6px 8px'}}>mini-PC gateway CAKE transparent</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {groups && groups.filter((g:any)=>g.best).length>0 && (
+          <div style={{marginBottom:12, display:'flex', flexDirection:'column', gap:6}}>
+            <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>Traduction matérielle par profil (depuis Scan ★ best)</div>
+            {groups.filter((g:any)=>g.best).slice(0,4).map((g:any)=>(
+              <div key={`${g.profile}-${g.qdisc}`} className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, padding:'6px 8px', background:'#070707', border:'1px solid #26262a', color:'#f2f2f4'}}>
+                <span style={{color:'#5ad3e3'}}>{g.profile}</span> · {g.qdisc} → {g.hardware_recommendation || hardwareRecommendation(g.qdisc, g.profile)}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{display:'grid', gap:10, fontSize:12, lineHeight:'1.6'}}>
+          <div style={{padding:'8px 10px', background:'rgba(90,211,227,0.06)', border:'1px solid #26262a'}}>
+            <b style={{color:'#f2f2f4'}}>Kit de Diagnostic Portable DSI</b> <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#5ad3e3', border:'1px solid #26262a', padding:'1px 4px', marginLeft:6}}>5-min branch</span>
+            <div style={{color:'#9aa3ad', marginTop:4}}>Branchement sans <code style={{color:'#f2f2f4'}}>tc</code> : laptop → Yas/Telma 4G → <code style={{color:'#f2f2f4'}}>1.1.1.1</code> ping 5 Hz + Small 4–32 K + bulk GRIB. Zéro install, client-side observé depuis les locaux — pas contrôleur réseau.</div>
+          </div>
+          <div style={{padding:'8px 10px', background:'rgba(244,180,0,0.06)', border:'1px solid #26262a'}}>
+            <b style={{color:'#f2f2f4'}}>Pilote isolé</b> <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f4b400', border:'1px solid #26262a', padding:'1px 4px', marginLeft:6}}>1 site → 1 département 4G</span>
+            <div style={{color:'#9aa3ad', marginTop:4}}>Un seul site 4G à la fois, mesure avant/après. Si CAKE prouvé en lab réduit <code style={{color:'#1fa348'}}>small_p95 738 → 20 ms</code>, alors seulement généraliser. Pas de déploiement global sans pilote.</div>
+          </div>
+          <div style={{padding:'8px 10px', background:'#070707', border:'1px solid #26262a'}}>
+            <b style={{color:'#f2f2f4'}}>Why Go: zero-dependency vs Flent</b>
+            <div style={{color:'#9aa3ad', marginTop:4}}>Un seul binaire <code style={{color:'#f2f2f4'}}>cgo</code> posable sur laptop DSI — pas de Python, pas de netperf, pas de dépendance. Flent exige stack complète et lab ; <code style={{color:'#5ad3e3'}}>Go 1.25</code> embarque <code style={{color:'#f2f2f4'}}>embed dist</code> + csv/metrics/probe campagne en un fichier. Reproductible offline, <code style={{color:'#767b84'}}>manifest.json sha256 + quarantine.json</code> vérifiable.</div>
+          </div>
+        </div>
+        <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', marginTop:8}}>
+          API: <a href="/api/hardware/translate?profile=P2" target="_blank" rel="noreferrer" style={{color:'#5ad3e3'}}>GET /api/hardware/translate?profile=P2 → {'{"recommendation"}'}</a> · source: results.Scan hardware_recommendation
+        </div>
       </div>
       <div className="card">
         <div className="card-head">Figures</div>

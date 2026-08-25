@@ -2,6 +2,7 @@ package results
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -26,6 +27,7 @@ type Group struct {
 	WastedMedian float64 `json:"wasted_median"`
 	CostMedian   float64 `json:"cost_median"`
 	Best           bool    `json:"best,omitempty"`
+	HardwareRecommendation string `json:"hardware_recommendation"`
 }
 
 // Scan aggregates all aqm_eval.csv under dataDir (latest run if multiple, else all).
@@ -117,7 +119,17 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			out[idx].Best = true
 		}
 	}
+	for i := range out {
+		out[i].HardwareRecommendation = hardwareRecommendation(out[i].Qdisc, out[i].Profile)
+	}
 	return out, nil
+}
+
+func hardwareRecommendation(bestQdisc, profile string) string {
+	if bestQdisc == "fq_codel" || bestQdisc == "cake" {
+		return fmt.Sprintf("Si MikroTik: Queue Tree PCQ/CAKE RouterOS v7+ pour %s — %s prouvé en lab", profile, bestQdisc)
+	}
+	return fmt.Sprintf("Si ISP/mini-PC gateway: transparent bridge CAKE en amont du CPE pour %s — pilote isolé d'abord", profile)
 }
 
 func readCSV(path string) ([][]string, error) {
