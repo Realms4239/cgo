@@ -56,7 +56,7 @@ aside.sidebar { grid-area: side; display: flex; flex-direction: column; border-r
 
 /* ── main / panels ── */
 main { grid-area: main; overflow-y: auto; position: relative; }
-.view { display: none; height: 100%; padding: var(--sp-5); animation: fadeIn 0.35s ease; view-transition-name: panel; }
+.view { display: none; height: 100%; padding: var(--sp-5); animation: fadeIn 0.35s ease; view-transition-name: main; }
 .view.on { display: block; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .view-title { font: 600 var(--fs-head) var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary); margin-bottom: var(--sp-4); }
@@ -74,10 +74,9 @@ footer .fill { margin-left: auto; }
 /* ── campagne / live additions — ponytail minimal, impeccable-operate disciplined ── */
 .panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 960px; }
 [data-density='airy'] .panel-stack { gap: 24px; }
-[data-density='airy'] .panel-stack { gap: var(--gap); }
 [data-density='dense'] .panel-stack { gap: 16px; }
-[data-density='dense'] .panel-stack { gap: var(--gap-dense); }
 .card { border: 1px solid var(--hairline); background: var(--surface-card); padding: var(--sp-4); }
+@container (min-width: 600px) { .card { padding: 24px; } }
 .card-head { font: 700 11px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-3); }
 .form-row { display: flex; align-items: center; gap: var(--sp-3); padding: 6px 0; border-bottom: 1px solid var(--hairline-faint); }
 .form-row label { width: 110px; font: 500 12px var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }

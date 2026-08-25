@@ -9,6 +9,7 @@ import IntegriteView from './views/IntegriteView';
 import Toasts from './components/Toasts';
 import ErrorBoundary from './components/ErrorBoundary';
 import Rail from './components/Rail';
+import WebGLMesh from './components/WebGLMesh';
 
 export default function App() {
   const panel = useUIStore((s) => s.panel);
@@ -41,6 +42,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+    <WebGLMesh />
     <div id="shell" data-density={density} className={railPinned ? '' : 'rail-min'}>
       <a className="skip-link" href="#main">Aller au contenu</a>
       <header>
