@@ -10,9 +10,10 @@ for (const [name, vp] of [
   test(`capture ${name}`, async ({ page }) => {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto('/');
-    await page.waitForTimeout(2500); // SSE connect + first frames
-    for (const [panel, key] of [['campagne','1'],['live','2'],['resultats','3'],['integrite','4']] as const) {
-      await page.keyboard.press(key);
+    await page.waitForTimeout(2500); // SSE connect + first frames + fonts
+    await page.waitForSelector('[data-panel="campagne"]', { timeout: 10000 });
+    for (const panel of ['campagne','live','resultats','integrite'] as const) {
+      await page.locator(`[data-panel="${panel}"]`).click({ timeout: 5000 });
       await page.waitForTimeout(900);
       await page.screenshot({ path: `${shots}/${name}-${panel}.png`, animations: 'disabled' });
     }
