@@ -1,12 +1,14 @@
 import { createPortal } from 'react-dom'
 // ponytail: single popover not tour — 160×60 fixed portal, no lib
 export function PeekPopover({ rect, children }: { rect: DOMRect; children: React.ReactNode }) {
+  const left = rect.right + 168 > window.innerWidth ? rect.left - 168 : rect.right + 8
+  const top = Math.min(rect.top, window.innerHeight - 68)
   return createPortal(
     <div
       style={{
         position: 'fixed',
-        left: rect.right + 8,
-        top: rect.top,
+        left,
+        top,
         width: 160,
         height: 60,
         background: 'var(--surface-card)',

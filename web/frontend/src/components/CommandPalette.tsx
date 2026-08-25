@@ -14,6 +14,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
   const [q,setQ]=useState('')
   const inputRef=useRef<HTMLInputElement>(null)
   const listRef=useRef<HTMLUListElement>(null)
+  const prevFocusRef=useRef<HTMLElement|null>(null)
   const setPanel=useUIStore((s:any)=>s.setPanel)
 
   const items = [...PANELS.map(p=>({label:p.label, panel:p.id})), ...QUICK]
@@ -32,13 +33,31 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
 
   useEffect(()=>{
     if(!open) return
-    const onKey=(e:KeyboardEvent)=>{ if(e.key==='Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return()=>document.removeEventListener('keydown', onKey)
+    prevFocusRef.current=document.activeElement as HTMLElement
+    const modal=document.getElementById('shell') as HTMLElement | null
+    if(modal) (modal as any).inert=true
+    const first=document.querySelector('#palette input') as HTMLElement | null
+    first?.focus()
+    const onKey=(e:KeyboardEvent)=>{
+      if(e.key==='Tab'){
+        const els=[...document.querySelectorAll('#palette [tabindex], #palette button, #palette input')] as HTMLElement[]
+        if(!els.length) return
+        const idx=els.indexOf(document.activeElement as HTMLElement)
+        if(e.shiftKey){ if(idx===0){ els[els.length-1].focus(); e.preventDefault() } } else { if(idx===els.length-1){ els[0].focus(); e.preventDefault() } }
+      }
+      if(e.key==='Escape') onClose()
+    }
+    document.addEventListener('keydown',onKey)
+    return()=>{
+      document.removeEventListener('keydown',onKey)
+      if(modal) (modal as any).inert=false
+      ;(document.activeElement as HTMLElement)?.blur()
+      prevFocusRef.current?.focus()
+    }
   },[open, onClose])
 
   if(!open) return null
-  return <div role="dialog" aria-modal="true" aria-label="Palette de commandes" onClick={onClose} style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:120, zIndex:600}}>
+  return <div id="palette" role="dialog" aria-modal="true" aria-label="Palette de commandes" onClick={onClose} style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:120, zIndex:600}}>
     <div onClick={e=>e.stopPropagation()} style={{width:480, maxWidth:'90vw', background:'#101012', border:'1px solid #26262a', borderRadius:12, overflow:'hidden', boxShadow:'0 16px 48px rgba(0,0,0,0.6)'}}>
       <div style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderBottom:'1px solid #1e1e22'}}>
         <span style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#9aa3ad', border:'1px solid #26262a', padding:'2px 6px', borderRadius:4}}>Cmd-K</span>

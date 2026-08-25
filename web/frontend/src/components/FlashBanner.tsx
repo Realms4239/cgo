@@ -5,12 +5,13 @@ import { animateFlash } from '../lib/anime'
 export default function FlashBanner() {
   const flash = useUIStore((s: any) => s.flash)
   const ref = useRef<HTMLDivElement>(null)
+  const genRef = useRef(0)
   useEffect(() => {
-    if (flash && ref.current) {
-      animateFlash(ref.current)
-      const id = window.setTimeout(() => useUIStore.getState().setFlash(null), 2500)
-      return () => clearTimeout(id)
-    }
+    if (!flash) return
+    const gen = ++genRef.current
+    if (ref.current) animateFlash(ref.current)
+    const id = window.setTimeout(() => { if (gen === genRef.current) useUIStore.getState().setFlash(null) }, 2500)
+    return () => clearTimeout(id)
   }, [flash])
   if (!flash) return null
   const bg =
