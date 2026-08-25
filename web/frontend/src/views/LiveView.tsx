@@ -114,8 +114,8 @@ export default function LiveView() {
   const smallP95 = liveSnap?.small_p95_ms ?? live.small.at(-1)?.[1] ?? 0
   const goodputVal = liveSnap?.bulk_goodput_mbps ?? live.goodput.at(-1)?.[1] ?? 0
   const drops = liveSnap?.drops ?? 0
-  // idle snapshots carry engine zeros — deadline 0% red reads as SLA breach; '—' is honest when idle
-  const idle = !!liveSnap && liveSnap.phase === 'idle' && !liveSnap.running
+  // idle snapshots carry engine zeros — deadline 0% red reads as SLA breach; '—' is honest when no data has flowed
+  const idle = !liveSnap?.running && live.rtt95.length === 0 && live.small.length === 0
   const wasted: number | null = idle ? null : liveSnap?.wasted_bytes ?? null
   const costAr: number | null = idle ? null : liveSnap?.cost_ar_per_h ?? null
   const deadlineOk: number | null = idle ? null : liveSnap?.deadline_ok_pct ?? null
