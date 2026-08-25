@@ -3,6 +3,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { animateBar } from '../lib/anime'
 import { computeJFI } from '../lib/jfi'
+import { PeekPopover } from '../components/PeekPopover'
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -18,6 +19,7 @@ export default function ResultatsView() {
   const [groups, setGroups] = useState<Group[]|null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [showCosts, setShowCosts] = useState(true)
+  const [peek, setPeek] = useState<{ rect: DOMRect; g: Group } | null>(null)
 
   useEffect(() => {
     fetch('/api/results').then(r=>r.json()).then(j=>{
@@ -39,7 +41,19 @@ export default function ResultatsView() {
 
   const maxSmall = Math.max(...groups.map(g=>g.small_p95_median), 1)
   return (
-    <div className="panel-stack">
+    <div className="panel-stack" style={{position:'relative'}}>
+      {peek && (
+        <PeekPopover rect={peek.rect}>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099'}}>{peek.g.profile} · {peek.g.qdisc} · {peek.g.cc}</div>
+          <div style={{display:'flex', gap:6, marginTop:4, alignItems:'end'}}>
+            <span className="mono" style={{fontSize:10, color:'#5ad3e3'}}>{peek.g.small_p95_median.toFixed(1)} ms</span>
+            <span className="mono" style={{fontSize:10, color:'#767b84'}}>n={peek.g.count}</span>
+            <div style={{flex:1, height:4, background:'var(--hairline-faint)', borderRadius:2, overflow:'hidden'}}>
+              <div style={{width:`${(peek.g.small_p95_median/maxSmall)*100}%`, height:'100%', background: peek.g.best ? 'var(--t-ok)' : '#5ad3e3'}} />
+            </div>
+          </div>
+        </PeekPopover>
+      )}
       <h1 className="view-title">Résultats — comparaison AQM/BBR</h1>
       <div className="form-row" style={{justifyContent:'flex-end', gap:8, marginBottom:8}}>
         <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>affichage</span>
@@ -69,7 +83,7 @@ export default function ResultatsView() {
               const cost: number | null = g.cost_median ?? g.cost_ar_per_h ?? null
               const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
               return (
-                <tr key={i} style={{borderBottom:'1px solid var(--hairline-faint)', background: g.best ? 'rgba(31,163,72,0.08)' : 'transparent'}}>
+                <tr key={i} style={{borderBottom:'1px solid var(--hairline-faint)', background: g.best ? 'rgba(31,163,72,0.08)' : 'transparent'}} onMouseEnter={e=>setPeek({rect:e.currentTarget.getBoundingClientRect(), g})} onMouseLeave={()=>setPeek(null)}>
                   <td style={{padding:'6px 8px', fontWeight:g.best?700:400}}>{g.profile}</td>
                   <td>{g.qdisc}</td><td>{g.cc}</td><td>{g.count}</td>
                   <td>

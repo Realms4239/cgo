@@ -5,6 +5,8 @@ import { useUIStore } from '../store/ui'
 import { InlineField } from '../components/InlineField'
 import { validate } from '../lib/validation'
 import { animateShake } from '../lib/anime'
+import { PeekPopover } from '../components/PeekPopover'
+import { live as liveRing } from '../lib/live'
 
 const ALL_QDISCS = ['pfifo_fast','fq_codel','cake'] as const
 const ALL_CC = ['cubic','bbr'] as const
@@ -20,6 +22,7 @@ export default function CampagneView() {
   const [auditLink, setAuditLink] = useState('5g')
   const [auditDuration, setAuditDuration] = useState(30)
   const [importMsg, setImportMsg] = useState('')
+  const [peek, setPeek] = useState<{ rect: DOMRect; data: number[] } | null>(null)
 
   const auditPollRef = useRef<number | null>(null)
   const auditFormRef = useRef<HTMLDivElement>(null)
@@ -102,6 +105,11 @@ export default function CampagneView() {
     const ok = r.ok
     setMsg(ok ? 'campagne lancée' : 'échec: ' + r.status)
     pushToast(ok ? 'Campagne lancée' : 'Échec démarrage', ok ? 'ok' : 'err')
+    if (ok) {
+      const st = useUIStore.getState()
+      st.setPanel('live')
+      st.setFlash({ type: 'success', msg: 'CHARGE — campagne lancée' })
+    }
   }
   const stop = async () => {
     await fetch('/api/run/stop', { method: 'POST' })
@@ -117,7 +125,18 @@ export default function CampagneView() {
   })
 
   return (
-    <div className="panel-stack">
+    <div className="panel-stack" style={{position:'relative'}}>
+      {peek && (
+        <PeekPopover rect={peek.rect}>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>live small — 20 pts</div>
+          <div style={{display:'flex', alignItems:'end', gap:1, height:28}}>
+            {peek.data.map((v,i)=>(
+              <i key={i} style={{flex:1, height: `${Math.max(2, Math.min(28, (v/200)*28))}px`, background: '#f4b400', borderRadius:1, opacity: 0.7 + (i/peek.data.length)*0.3}} />
+            ))}
+          </div>
+          <div className="mono" style={{fontSize:10, color:'#f4b400', marginTop:4}}>{peek.data.at(-1)?.toFixed(1) ?? '—'} ms</div>
+        </PeekPopover>
+      )}
       {phase !== 'idle' && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
       <div className="card">
         <div className="card-head">Campagne</div>
@@ -144,7 +163,7 @@ export default function CampagneView() {
           <input disabled title="paramètre fixe 1000 ms côté engine (thread campagne.go:226) — contrôle retiré" type="number" min={100} max={5000} step={100} value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11, opacity:0.5}} />
           <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms · seuil small_p95 (fixe)</span>
         </div>
-        <div className="form-row" style={{gap:8, border:'1px solid #26262a', background:'rgba(244,180,0,0.06)', padding:'6px 8px', marginTop:6}}>
+        <div className="form-row" style={{gap:8, border:'1px solid #26262a', background:'rgba(244,180,0,0.06)', padding:'6px 8px', marginTop:6}} onMouseEnter={e=>setPeek({rect:e.currentTarget.getBoundingClientRect(), data: liveRing.small.slice(-20).map(([,v]:[number,number])=>v)})} onMouseLeave={()=>setPeek(null)}>
           <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>cost preview</span>
           <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color: live?.wasted_bytes != null ? '#f4b400' : '#767b84', fontVariantNumeric:'tabular-nums'}}>
             {(() => {

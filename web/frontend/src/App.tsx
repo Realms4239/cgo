@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUIStore, PANELS } from './store/ui';
 import { connectSSE, disconnectSSE } from './lib/sse';
 import { animateViewEnter } from './lib/anime';
@@ -33,6 +33,32 @@ export default function App() {
   useEffect(() => {
     animateViewEnter();
   }, [panel]);
+
+  // smart redirect: running false after true → auto Résultats
+  const wasRunningRef = useRef(!!live?.running)
+  useEffect(() => {
+    const running = !!live?.running
+    if (wasRunningRef.current && !running) {
+      setPanel('resultats')
+      useUIStore.getState().setFlash({ type: 'success', msg: 'Campagne terminée' })
+      useUIStore.getState().pushToast('Campagne terminée', 'ok')
+    }
+    wasRunningRef.current = running
+  }, [live?.running, setPanel])
+
+  // smart redirect: Démarrer success → auto Live (wasRunning false -> true)
+  const wasRunning2Ref = useRef(!!live?.running)
+  useEffect(() => {
+    const running = !!live?.running
+    if (!wasRunning2Ref.current && running) {
+      const cur = useUIStore.getState().panel
+      if (cur === 'campagne') {
+        setPanel('live')
+        useUIStore.getState().setFlash({ type: 'success', msg: 'CHARGE — campagne lancée' })
+      }
+    }
+    wasRunning2Ref.current = running
+  }, [live?.running, setPanel])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

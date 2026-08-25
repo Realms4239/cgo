@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries } from '../lib/chartGrammar'
@@ -10,6 +10,7 @@ import { lttb } from '../lib/lttb'
 import { useRafLoop } from '../lib/hooks'
 import { animateBannerPulse, animateLiveEnter } from '../lib/anime'
 import { MetricCard } from '../components/ui/MetricCard'
+import { PeekPopover } from '../components/PeekPopover'
 
 function useChart(title:string, unit:string) {
   const ref = useRef<HTMLDivElement>(null)
@@ -26,7 +27,7 @@ function useChart(title:string, unit:string) {
     if(!chart.current) return
     chart.current.setOption({ ...baseOption(title, unit), series } as EChartsOption)
   }
-  return { ref, setData }
+  return { ref, setData, chart }
 }
 
 export default function LiveView() {
@@ -37,6 +38,7 @@ export default function LiveView() {
   const replayRunning = useUIStore(s=>s.replayRunning)
   const replayRunId = useUIStore(s=>s.replayRunId)
   const bannerRef = useRef<HTMLDivElement>(null)
+  const [peek, setPeek] = useState<{ rect: DOMRect; value: number } | null>(null)
 
   const lastRef = useRef(0)
   useRafLoop((ts) => {
@@ -113,7 +115,16 @@ export default function LiveView() {
   }, [])
 
   return (
-    <div className="panel-stack">
+    <div className="panel-stack" style={{position:'relative'}}>
+      {peek && (
+        <PeekPopover rect={peek.rect}>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099'}}>live p95 — point</div>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:14, color:'#5ad3e3'}}>{peek.value.toFixed(1)} ms</div>
+          <div style={{display:'flex', alignItems:'end', gap:1, height:20, marginTop:4}}>
+            {live.rtt95.slice(-20).map(([,v]:[number,number],i:number)=><i key={i} style={{flex:1, height:`${Math.max(2, Math.min(20,(v/300)*20))}px`, background:'#5ad3e3', borderRadius:1, opacity:0.6+i*0.02}} />)}
+          </div>
+        </PeekPopover>
+      )}
       <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
       {/* important look — all LIEN Tableau 4/5 metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
@@ -133,9 +144,9 @@ export default function LiveView() {
         </div>
       </div>
       {/* ponytail: hidden stubs removed — real sparkline in Task 3 card */}
-      <div className="card"><div ref={rtt.ref} style={{ height: 220 }} /></div>
-      <div className="card"><div ref={small.ref} style={{ height: 180 }} /></div>
-      <div className="card"><div ref={goodput.ref} style={{ height: 180 }} /></div>
+      <div className="card" onMouseEnter={e=>{ const v=live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); rtt.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.rtt95.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={rtt.ref} style={{ height: 220 }} /></div>
+      <div className="card" onMouseEnter={e=>{ const v=live.small.at(-1)?.[1] ?? smallP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); small.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.small.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={small.ref} style={{ height: 180 }} /></div>
+      <div className="card" onMouseEnter={e=>{ const v=live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); goodput.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.goodput.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={goodput.ref} style={{ height: 180 }} /></div>
       <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>
     </div>
   )
