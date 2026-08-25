@@ -12,6 +12,15 @@ import { animateBannerPulse, animateLiveEnter } from '../lib/anime'
 import { MetricCard } from '../components/ui/MetricCard'
 import { PeekPopover } from '../components/PeekPopover'
 
+// ponytail: per-series CHARGE markArea amber 0.04 dashed insideTop Mono — never at option root
+function chargeMarkArea(chargeStart: number, chargeEnd: number) {
+  return {
+    itemStyle: { color: 'rgba(244,180,0,0.04)', borderColor: 'rgba(244,180,0,0.12)', borderWidth: 1, borderType: 'dashed' as const },
+    label: { show: true, color: '#f4b400', fontFamily: 'JetBrains Mono', fontSize: 10, position: 'insideTop' as const, padding: [4, 8] as unknown as number[], backgroundColor: 'rgba(244,180,0,0.08)', formatter: 'CHARGE' },
+    data: [[{ xAxis: chargeStart }, { xAxis: chargeEnd }]] as any,
+  }
+}
+
 function useChart(title:string, unit:string) {
   const ref = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
@@ -23,9 +32,11 @@ function useChart(title:string, unit:string) {
     ro.observe(ref.current)
     return () => { ro.disconnect(); c.dispose() }
   }, [])
-  const setData = (series:ReturnType<typeof lineSeries>[]) => {
+  const setData = (series:ReturnType<typeof lineSeries>[], extra?: Record<string, unknown>) => {
     if(!chart.current) return
-    chart.current.setOption({ ...baseOption(title, unit), series } as EChartsOption)
+    // ponytail: brush toolbox rect minimal — full toolbox if UX needs
+    const brush = { toolbox: ['rect'], brushType: 'rect' as const, xAxisIndex: 'all' as const, brushMode: 'single' as const }
+    chart.current.setOption({ animation: false, ...baseOption(title, unit), brush, ...extra, series } as unknown as EChartsOption)
   }
   return { ref, setData, chart }
 }
@@ -45,12 +56,18 @@ export default function LiveView() {
     if (ts - lastRef.current < 250) return
     lastRef.current = ts
     const d = (r: [number,number][]) => r.length > 400 ? lttb(r, 400) : r
+    const chargeStart = live.rtt95.length ? live.rtt95[Math.floor(live.rtt95.length * 0.25)]?.[0] ?? Date.now() - 45000 : Date.now() - 45000
+    const chargeEnd = live.rtt95.length ? live.rtt95[Math.floor(live.rtt95.length * 0.75)]?.[0] ?? Date.now() - 10000 : Date.now() - 10000
+    const ma = chargeMarkArea(chargeStart, chargeEnd)
     rtt.setData([
-      lineSeries('p50', d(live.rtt50 as any), '#5ad3e3'),
-      lineSeries('p95', d(live.rtt95 as any), '#1fa348'),
+      { ...lineSeries('p50', d(live.rtt50 as any), '#5ad3e3'), markArea: ma } as any,
+      { ...lineSeries('p95', d(live.rtt95 as any), '#1fa348'), markArea: ma } as any,
     ])
-    small.setData([ lineSeries('small p95', d(live.small as any), '#f4b400') ])
-    goodput.setData([ lineSeries('goodput', d(live.goodput as any), '#b48ae0', true) ])
+    small.setData(
+      [{ ...lineSeries('small p95', d(live.small as any), '#f4b400'), markArea: ma } as any],
+      { visualMap: { show: false, type: 'piecewise' as const, dimension: 1, pieces: [{ gt: 100, color: '#e22718' }, { gt: 40, color: '#f4b400' }, { lte: 40, color: '#5ad3e3' }], outOfRange: { color: '#9aa3ad' } } } as any,
+    )
+    goodput.setData([{ ...lineSeries('goodput', d(live.goodput as any), '#b48ae0', true), markArea: ma } as any])
   })
 
   const banner = replayRunning ? `REPLAY — ${replayRunId}`

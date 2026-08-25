@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { animateBar } from '../lib/anime'
 import { computeJFI } from '../lib/jfi'
 import { PeekPopover } from '../components/PeekPopover'
+import { echarts } from '../lib/echarts'
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -20,6 +21,7 @@ export default function ResultatsView() {
   const [err, setErr] = useState<string | null>(null)
   const [showCosts, setShowCosts] = useState(true)
   const [peek, setPeek] = useState<{ rect: DOMRect; g: Group } | null>(null)
+  const scatterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch('/api/results').then(r=>r.json()).then(j=>{
@@ -34,6 +36,35 @@ export default function ResultatsView() {
       document.querySelectorAll('.leader-bar').forEach((el) => animateBar(el))
     })
     return () => cancelAnimationFrame(id)
+  }, [groups])
+
+  // ponytail: scatter brush toolbox rect minimal — star 12 for best, clipPath deferred if perf matters
+  useEffect(() => {
+    if (!groups || !scatterRef.current) return
+    const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
+    const ro = new ResizeObserver(() => c.resize())
+    ro.observe(scatterRef.current)
+    c.setOption({
+      animation: false,
+      grid: { left: 48, right: 16, top: 24, bottom: 32, containLabel: true },
+      brush: { toolbox: ['rect'], brushType: 'rect' as const, xAxisIndex: 'all', yAxisIndex: 'all', brushMode: 'single' as const },
+      toolbox: { feature: { brush: { type: ['rect'] } } },
+      xAxis: { type: 'value' as const, name: 'goodput (Mbit/s)', axisLabel: { fontSize: 10, fontFamily: 'JetBrains Mono' } },
+      yAxis: { type: 'value' as const, name: 'small p95 (ms)', axisLabel: { fontSize: 10, fontFamily: 'JetBrains Mono' } },
+      tooltip: { trigger: 'item' as const },
+      series: [{
+        type: 'scatter' as const,
+        data: groups.map(g => [g.goodput_median, g.small_p95_median]),
+        symbolSize: (_val: any, params: any) => {
+          const g = groups[(params as any).dataIndex]
+          return g?.best ? 12 : 8
+        },
+        symbol: 'circle' as const,
+        itemStyle: { color: '#5ad3e3' },
+        emphasis: { itemStyle: { color: '#f4b400' } },
+      }],
+    } as any)
+    return () => { ro.disconnect(); c.dispose() }
   }, [groups])
 
   if (err) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="error" hint={err} /></div>
@@ -109,6 +140,10 @@ export default function ResultatsView() {
             })}
           </tbody>
         </table>
+      </div>
+      <div className="card" style={{ padding: 12 }}>
+        <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099', marginBottom: 6 }}>goodput vs small — brush rect pour comparer</div>
+        <div ref={scatterRef} style={{ height: 220 }} />
       </div>
       <div className="form-row" style={{gap:8}}>
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
