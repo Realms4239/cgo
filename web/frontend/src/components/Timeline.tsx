@@ -40,9 +40,16 @@ export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, curr
         const b = (x.invert as any)(e.selection[1]).getTime()
         const span = Math.abs(b - a)
         live.max = Math.max(60, Math.min(600, Math.round(span / 100)))
+      } else {
+        live.max = 600
       }
     })
-    svg.append('g').attr('class', 'brush').call(brush as any)
+    const gBrush = svg.append('g').attr('class', 'brush').call(brush as any)
+    return () => {
+      // cleanup brush listeners on unmount or deps change
+      try { (d3 as any).select(gBrush.node()).on('.brush', null) } catch {}
+      d3.select(ref.current!).selectAll('*').remove()
+    }
   }, [baselineStart, chargeStart, chargeEnd, recupEnd, currentPhase])
   return <div ref={ref} style={{height:48, border: '1px solid #26262a'}} data-testid="timeline" aria-label={`timeline ${currentPhase}`} />
 }

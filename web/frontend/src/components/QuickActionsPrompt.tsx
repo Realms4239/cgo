@@ -9,13 +9,31 @@ export default function QuickActionsPrompt(){
   const [isHoverPaused,setIsHoverPaused]=useState(false)
   const ref=useRef<HTMLDivElement>(null)
   const reappearRef=useRef<ReturnType<typeof setTimeout>|null>(null)
+  const startRef=useRef<number>(0)
+  const remainRef=useRef<number>(6000)
+  const timeoutRef=useRef<ReturnType<typeof setTimeout>|null>(null)
 
   useEffect(()=>{ if(!ref.current) return; if(open) animatePromptEnter(ref.current) },[open])
 
+  // ponytail: track remaining so CSS pause (animationPlayState) and JS timeout stay in sync
   useEffect(()=>{
-    if(!open || isHoverPaused) return
-    const id = setTimeout(()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) },6000)
-    return()=> clearTimeout(id)
+    if(!open) return
+    if(isHoverPaused){
+      if(timeoutRef.current) clearTimeout(timeoutRef.current)
+      remainRef.current = Math.max(0, remainRef.current - (Date.now() - startRef.current))
+      return
+    }
+    startRef.current = Date.now()
+    timeoutRef.current = setTimeout(()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) }, remainRef.current)
+    return()=>{ if(timeoutRef.current) clearTimeout(timeoutRef.current) }
+  },[open, isHoverPaused])
+
+  useEffect(()=>{
+    if(isHoverPaused) return
+    if(!open) return
+    // reset remaining when freshly opened
+    remainRef.current = 6000
+    startRef.current = Date.now()
   },[open, isHoverPaused])
 
   useEffect(()=>{

@@ -138,12 +138,10 @@ export function animateDonut(el: Element, value: number) {
 
 export function animateGrid(els: Element[]) {
   if (prefersReducedMotion() || !els.length) return
-  // dense layout: grid [4,2] from:center (wordmark) + bento [2,3] from:first (panel-stack) verified via stagger grid
+  // dense layout: single timeline sequential — fixes double-timeline jank (was two createTimeline on same els)
   const tl = createTimeline()
   tl.add(els as any, { translateY: [12, 0], opacity: [0, 1], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [4, 2], from: 'center' } as any) } as any, 0)
-  const tl2 = createTimeline()
-  tl2.add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 0)
-  // animatable keepalive
-  const anim = createAnimatable(els as any, { opacity: { duration: 300, ease: 'linear' } } as any) as any
-  void anim; void text; void createDrawable; void splitText
+   .add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 200)
+  // ponytail: keepalive animatable only if needed — tl handles it
+  return () => { try { (tl as any).pause?.() } catch {} }
 }
