@@ -81,6 +81,8 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 						if err == nil {
 							_ = w.Append(done)
 							m.Done = id
+						} else {
+							fmt.Printf("[DEBUG-m8] RunEvent failed id=%d profile=%s qdisc=%s cc=%s rep=%d err=%v\n", id, pid, q, cc, rep, err)
 						}
 						id++
 					}
