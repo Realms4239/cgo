@@ -65,8 +65,9 @@ export function baseOption(title: string, unit: string): EChartsOption {
       outOfRange: { color: '#9aa3ad' },
     } as unknown as EChartsOption['visualMap'],
     graphic: [
-      { type: 'text', left: 'center', top: 12, style: { text: 'MadaLink \u00B7 LIEN \u2014 observatoire', fill: 'rgba(255,255,255,0.025)', font: '600 56px Cormorant Garamond', textAlign: 'center' }, silent: true },
-      { type: 'image', left: 'center', top: 'center', style: { image: 'data:image/svg+xml;base64,PHN2Zz4=', width: 400, height: 400, opacity: 0.015 }, silent: true },
+      // ponytail: 28px fits 2-col bento cards — 56px clipped ("daLink · LIEN — o")
+      { type: 'text', left: 'center', top: 10, style: { text: 'MadaLink \u00B7 LIEN', fill: 'rgba(255,255,255,0.03)', font: '600 28px Cormorant Garamond', textAlign: 'center' }, silent: true },
+      { type: 'image', left: 'center', top: 'center', style: { image: 'data:image/svg+xml;base64,PHN2Zz4=', width: 300, height: 300, opacity: 0.015 }, silent: true },
     ] as unknown as EChartsOption['graphic'],
     // ponytail: markArea at option root is inert — per-series markArea with real charge window when available
   } as unknown as EChartsOption

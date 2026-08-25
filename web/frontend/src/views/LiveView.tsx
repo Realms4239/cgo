@@ -37,9 +37,11 @@ function useChart(title:string, unit:string) {
     if(!chart.current) return
     // ponytail: brush toolbox rect minimal — full toolbox if UX needs
     const brush = { toolbox: ['rect'], brushType: 'rect' as const, xAxisIndex: 'all' as const, brushMode: 'single' as const }
-    // hide scrubber when empty — grey slider on no data reads broken, not idle (strict look)
-    const zoom = series.some(s => (s.data as unknown[]).length > 1) ? { dataZoom: baseOption(title, unit).dataZoom } : {}
-    chart.current.setOption({ animation: false, ...baseOption(title, unit), ...zoom, brush, ...extra, series } as unknown as EChartsOption)
+    // hide scrubber when empty — dataZoom lives in baseOption, clear it explicitly (merge semantics)
+    const empty = !series.some(s => ((s.data as unknown[]) ?? []).length > 1)
+    const base = baseOption(title, unit)
+    const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), brush, ...extra, series } as unknown as EChartsOption
+    chart.current.setOption(opt)
   }
   return { ref, setData, chart }
 }
@@ -112,9 +114,11 @@ export default function LiveView() {
   const smallP95 = liveSnap?.small_p95_ms ?? live.small.at(-1)?.[1] ?? 0
   const goodputVal = liveSnap?.bulk_goodput_mbps ?? live.goodput.at(-1)?.[1] ?? 0
   const drops = liveSnap?.drops ?? 0
-  const wasted: number | null = liveSnap?.wasted_bytes ?? null
-  const costAr: number | null = liveSnap?.cost_ar_per_h ?? null
-  const deadlineOk: number | null = liveSnap?.deadline_ok_pct ?? null
+  // idle snapshots carry engine zeros — deadline 0% red reads as SLA breach; '—' is honest when idle
+  const idle = !!liveSnap && liveSnap.phase === 'idle' && !liveSnap.running
+  const wasted: number | null = idle ? null : liveSnap?.wasted_bytes ?? null
+  const costAr: number | null = idle ? null : liveSnap?.cost_ar_per_h ?? null
+  const deadlineOk: number | null = idle ? null : liveSnap?.deadline_ok_pct ?? null
   const spark = (r: [number, number][]) => r.map(([, v]) => v).slice(-20)
   const trendOf = (arr: number[]): 'up' | 'down' | 'flat' => {
     if (arr.length < 2) return 'flat'

@@ -192,7 +192,7 @@ export default function CampagneView() {
         <div className="kv"><span>profil</span><b className="mono">{live?.profile ?? '—'}</b></div>
         <div className="kv"><span>qdisc</span><b className="mono">{live?.qdisc ?? '—'}</b></div>
         <div className="kv"><span>cc</span><b className="mono">{live?.cc ?? '—'}</b></div>
-        <div className="kv"><span>événement</span><b className="mono">{live ? `#${live.event_id} · rép ${live.repetition}` : '—'}</b></div>
+        <div className="kv"><span>événement</span><b className="mono">{live?.event_id != null ? `#${live.event_id} · rép ${live.repetition ?? 0}` : '—'}</b></div>
         <div className="kv"><span>charge</span><b className="mono">{live?.load_status ?? '—'}</b></div>
       </div>
 
