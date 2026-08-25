@@ -16,12 +16,16 @@ type ToastKind = '' | 'ok' | 'err' | 'blue'
 export interface ToastItem { id: number; msg: string; cls: ToastKind }
 let toastSeq = 1
 
+export type FlashType = 'success' | 'danger' | 'info'
+export interface FlashItem { type: FlashType; msg: string }
+
 interface UIState {
   panel: PanelId; setPanel: (p: PanelId) => void
   live: LiveFrame | null; setLive: (f: LiveFrame) => void
   connected: boolean; setConnected: (v: boolean) => void
   sseStatus: string; setSseStatus: (s: string) => void
   toasts: ToastItem[]; pushToast: (msg: string, cls?: ToastKind) => void; dropToast: (id: number) => void
+  flash: FlashItem | null; setFlash: (f: FlashItem | null) => void
   replayRunning: boolean; replayRunId: string | null; setReplay: (running: boolean, id: string | null) => void
   railPinned: boolean; density: Density; setRailPinned: (v: boolean) => void; setDensity: (d: Density) => void
 }
@@ -41,6 +45,7 @@ export const useUIStore = create<UIState>((set) => ({
     return { toasts: [...s.toasts, { id, msg, cls }] }
   }),
   dropToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  flash: null, setFlash: (flash) => set({ flash }),
   replayRunning: false, replayRunId: null, setReplay: (replayRunning, replayRunId) => set({ replayRunning, replayRunId }),
   railPinned: getRailPinned(), density: getDensity(),
   setRailPinned: (railPinned) => { try { localStorage.setItem('railPinned', railPinned ? '1' : '0') } catch {} ; set({ railPinned }) },

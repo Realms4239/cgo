@@ -7,6 +7,7 @@ import LiveView from './views/LiveView';
 import ResultatsView from './views/ResultatsView';
 import IntegriteView from './views/IntegriteView';
 import Toasts from './components/Toasts';
+import FlashBanner from './components/FlashBanner';
 import ErrorBoundary from './components/ErrorBoundary';
 import Rail from './components/Rail';
 import WebGLMesh from './components/WebGLMesh';
@@ -77,6 +78,7 @@ export default function App() {
         <span className="fill" />
         <span id="ft-sse" className="mono">SSE : {sseStatus}</span>
       </footer>
+      <FlashBanner />
       <Toasts />
     </div>
     </ErrorBoundary>

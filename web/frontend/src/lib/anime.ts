@@ -70,3 +70,19 @@ export function animatePromptExit(el: Element): Promise<void> {
     setTimeout(resolve, 300)
   })
 }
+
+export function animateShake(el: Element) {
+  if (prefersReducedMotion()) return
+  animate(el as HTMLElement, { translateX: [-4, 4, 0], duration: 400, ease: 'outElastic(1, .6)' } as any)
+}
+
+export function animateFlash(el: Element) {
+  if (prefersReducedMotion()) return
+  animate(el as HTMLElement, { translateY: [-16, 0], opacity: [0, 1], duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any)
+}
+
+export function animateToasts(els: Element[]) {
+  if (prefersReducedMotion() || !els.length) return
+  const tl = createTimeline() as any
+  tl.add(els, { translateY: [16, 0], opacity: [0, 1], delay: stagger(20), duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+}
