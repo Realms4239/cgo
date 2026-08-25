@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useUIStore, PANELS } from './store/ui';
 import { connectSSE, disconnectSSE } from './lib/sse';
 import { animateViewEnter } from './lib/anime';
@@ -10,6 +10,9 @@ import Toasts from './components/Toasts';
 import ErrorBoundary from './components/ErrorBoundary';
 import Rail from './components/Rail';
 import WebGLMesh from './components/WebGLMesh';
+import QuickActionsPrompt from './components/QuickActionsPrompt';
+import OnboardingNudge from './components/OnboardingNudge';
+import CommandPalette from './components/CommandPalette';
 
 export default function App() {
   const panel = useUIStore((s) => s.panel);
@@ -19,6 +22,7 @@ export default function App() {
   const sseStatus = useUIStore((s) => s.sseStatus);
   const density = useUIStore((s) => s.density);
   const railPinned = useUIStore((s) => s.railPinned);
+  const [paletteOpen,setPaletteOpen]=useState(false);
 
   useEffect(() => {
     connectSSE();
@@ -31,6 +35,7 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if((e.metaKey||e.ctrlKey)&&e.key==='k'){ e.preventDefault(); setPaletteOpen((o:boolean)=>!o); return }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       const hit = PANELS.find((p) => p.key === e.key);
@@ -56,6 +61,9 @@ export default function App() {
       </header>
 
       <Rail />
+      <CommandPalette open={paletteOpen} onClose={()=>setPaletteOpen(false)} />
+      <QuickActionsPrompt />
+      <OnboardingNudge />
 
       <main id="main">
         {panel==='campagne' && <section id="v-campagne" className="view on"><CampagneView /></section>}

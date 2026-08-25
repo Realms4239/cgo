@@ -53,3 +53,20 @@ export function animateRail(el: Element, pinned: boolean) {
   const tl = createTimeline({ defaults: { duration: 400, ease: 'cubicBezier(0.4,0,0.2,1)' } } as any)
   tl.add(el, { width: [pinned ? 56 : 232, pinned ? 232 : 56], duration: 400, ease: 'cubicBezier(0.4,0,0.2,1)' } as any, 0)
 }
+
+export function animatePromptEnter(el: Element) {
+  if (prefersReducedMotion()) return
+  const tl = createTimeline({ defaults: { duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } } as any)
+  tl.add(el, { translateY: [12, 0], opacity: [0, 1], filter: ['blur(4px)', 'blur(0)'], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+  const btns = (el as HTMLElement).querySelectorAll('button')
+  if (btns.length) tl.add(btns, { translateY: [8, 0], opacity: [0, 1], delay: stagger(40, { start: 60 }), duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+}
+
+export function animatePromptExit(el: Element): Promise<void> {
+  if (prefersReducedMotion()) return Promise.resolve()
+  return new Promise((resolve) => {
+    const tl = createTimeline() as any
+    tl.add(el, { translateY: [0, 12], opacity: [1, 0], duration: 300, ease: 'cubicBezier(0.4,0,0.2,1)' } as any, 0)
+    setTimeout(resolve, 300)
+  })
+}
