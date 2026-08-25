@@ -22,6 +22,7 @@ export default function App() {
   const connected = useUIStore((s) => s.connected);
   const sseStatus = useUIStore((s) => s.sseStatus);
   const density = useUIStore((s) => s.density);
+  const setDensity = useUIStore((s) => s.setDensity);
   const railPinned = useUIStore((s) => s.railPinned);
   const [paletteOpen,setPaletteOpen]=useState(false);
 
@@ -34,7 +35,7 @@ export default function App() {
     animateViewEnter();
   }, [panel]);
 
-  // smart redirect: running false after true → auto Résultats
+  // smart redirect: running false after true → auto Résultats, false->true → auto Live (ponytail: one ref, one effect)
   const wasRunningRef = useRef(!!live?.running)
   useEffect(() => {
     const running = !!live?.running
@@ -43,21 +44,14 @@ export default function App() {
       useUIStore.getState().setFlash({ type: 'success', msg: 'Campagne terminée' })
       useUIStore.getState().pushToast('Campagne terminée', 'ok')
     }
-    wasRunningRef.current = running
-  }, [live?.running, setPanel])
-
-  // smart redirect: Démarrer success → auto Live (wasRunning false -> true)
-  const wasRunning2Ref = useRef(!!live?.running)
-  useEffect(() => {
-    const running = !!live?.running
-    if (!wasRunning2Ref.current && running) {
+    if (!wasRunningRef.current && running) {
       const cur = useUIStore.getState().panel
       if (cur === 'campagne') {
         setPanel('live')
         useUIStore.getState().setFlash({ type: 'success', msg: 'CHARGE — campagne lancée' })
       }
     }
-    wasRunning2Ref.current = running
+    wasRunningRef.current = running
   }, [live?.running, setPanel])
 
   useEffect(() => {
@@ -82,6 +76,7 @@ export default function App() {
         <span className="wordmark" style={{textShadow: '0 0 12px rgba(90,211,227,0.4)'}}>MadaLink</span>
         <span className="hd-sub">LIEN — trafic critique · AQM/BBR · Mada</span>
         <div className="hd-right">
+          <button onClick={()=>setDensity(density==='airy'?'dense':'airy')} aria-label="Densité">{density}</button>
           <span className="mono" style={{color: connected ? 'var(--t-ok)' : 'var(--t-danger)'}}>{connected ? '● connecté' : '○ déconnecté'}</span>
           <span id="hd-state" className="mono">{live?.phase ?? 'idle'}</span>
         </div>

@@ -108,7 +108,7 @@ export default function CampagneView() {
     if (ok) {
       const st = useUIStore.getState()
       st.setPanel('live')
-      st.setFlash({ type: 'success', msg: 'CHARGE — campagne lancée' })
+      // ponytail: flash handled by App wasRunning redirect — avoid duplicate
     }
   }
   const stop = async () => {

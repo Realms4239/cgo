@@ -6,27 +6,30 @@ export default function QuickActionsPrompt(){
   const live=useUIStore((s:any)=>s.live), setPanel=useUIStore((s:any)=>s.setPanel)
   const [open,setOpen]=useState(true)
   const ref=useRef<HTMLDivElement>(null)
+  const reappearRef=useRef<ReturnType<typeof setTimeout>|null>(null)
 
   useEffect(()=>{ if(!ref.current) return; if(open) animatePromptEnter(ref.current) },[open])
 
   useEffect(()=>{
     if(!open) return
-    let id = setTimeout(()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) },6000)
+    const id = setTimeout(()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) },6000)
     const el=ref.current
     const onEnter=()=>clearTimeout(id)
-    const onLeave=()=>{
-      clearTimeout(id)
-      id=setTimeout(()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) },6000)
-    }
     el?.addEventListener('mouseenter',onEnter)
-    el?.addEventListener('mouseleave',onLeave)
-    return()=>{ clearTimeout(id); el?.removeEventListener('mouseenter',onEnter); el?.removeEventListener('mouseleave',onLeave) }
+    return()=>{ clearTimeout(id); el?.removeEventListener('mouseenter',onEnter) }
   },[open])
 
   useEffect(()=>{
-    // ponytail: idle 8s interval not rAF loop
-    const id=setInterval(()=>{ if(!open) setOpen(true) },8000)
-    return()=>clearInterval(id)
+    if(open) return
+    reappearRef.current=setTimeout(()=>setOpen(true),8000)
+    return()=>{ if(reappearRef.current) clearTimeout(reappearRef.current) }
+  },[open])
+
+  useEffect(()=>{
+    if(!open) return
+    const onKey=(e:KeyboardEvent)=>{ if(e.key==='Escape'){ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) } }
+    document.addEventListener('keydown', onKey)
+    return()=>document.removeEventListener('keydown', onKey)
   },[open])
 
   const actions = !live ? [{label:'Démarrer',panel:'campagne'}, {label:'Audit',panel:'campagne'}] : live.running ? [{label:'Temps réel',panel:'live'}] : [{label:'Résultats',panel:'resultats'}, {label:'Rejouer',panel:'integrite'}]

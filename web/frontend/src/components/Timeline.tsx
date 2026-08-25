@@ -1,7 +1,6 @@
 import * as d3 from 'd3'
 import { useEffect, useRef } from 'react'
 import { live } from '../lib/live'
-import { useUIStore } from '../store/ui'
 
 // ponytail: full d3 — switch to d3-scale/d3-selection if bundle exceeds 450KB
 // ponytail: brushX global live.max — per-phase brush if selection throughput matters
@@ -33,13 +32,13 @@ export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, curr
         .style('filter', isCurrent ? 'drop-shadow(0 0 6px rgba(255,255,255,0.25))' : 'none')
     }
     // brushX — extent [[0,0],[w,48]] sets live.max from selection width
+    // ponytail: live.max is mutable ring, don't corrupt Zustand — use live.max directly
     const brush = (d3 as any).brushX().extent([[0, 0], [w, 48]]).on('end', (e: any) => {
       if (e.selection) {
         const a = (x.invert as any)(e.selection[0]).getTime()
         const b = (x.invert as any)(e.selection[1]).getTime()
         const span = Math.abs(b - a)
         live.max = Math.max(60, Math.min(600, Math.round(span / 100)))
-        try { (useUIStore.getState() as any).setLive({ max: span } as any) } catch {}
       }
     })
     svg.append('g').attr('class', 'brush').call(brush as any)
