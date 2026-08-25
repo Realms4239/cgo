@@ -89,10 +89,9 @@ export default function LiveView() {
   const smallP95 = liveSnap?.small_p95_ms ?? live.small.at(-1)?.[1] ?? 0
   const goodputVal = liveSnap?.bulk_goodput_mbps ?? live.goodput.at(-1)?.[1] ?? 0
   const drops = liveSnap?.drops ?? 0
-  // ponytail: cost forecast linear, non-linear if thesis needs
-  const wasted = (liveSnap as any)?.wasted_bytes ?? drops * 1448
-  const costAr = (liveSnap as any)?.cost_ar_per_h ?? (wasted / (4.5 * 1024 * 1024 * 1024)) * 30000
-  const deadlineOk: number | null = (liveSnap as any)?.deadline_ok_pct ?? null // ponytail: no synthetic 100/0 — show — until engine exposes deadline_ok_pct
+  const wasted: number | null = liveSnap?.wasted_bytes ?? null
+  const costAr: number | null = liveSnap?.cost_ar_per_h ?? null
+  const deadlineOk: number | null = liveSnap?.deadline_ok_pct ?? null
   const spark = (r: [number, number][]) => r.map(([, v]) => v).slice(-20)
   const trendOf = (arr: number[]): 'up' | 'down' | 'flat' => {
     if (arr.length < 2) return 'flat'
@@ -122,8 +121,8 @@ export default function LiveView() {
         <MetricCard label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color="#1fa348" spark={spark(live.small)} trend={trendOf(spark(live.small))} />
         <MetricCard label="bulk_goodput" value={goodputVal ? goodputVal.toFixed(1) : '—'} unit="Mbit/s" color="#b48ae0" spark={spark(live.goodput)} trend={trendOf(spark(live.goodput))} />
         <MetricCard label="drops" value={String(drops)} unit="" color={drops > 0 ? '#e22718' : '#767b84'} trend={drops > 0 ? 'up' : 'flat'} />
-        <MetricCard label="wasted" value={wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color="#f4b400" trend={wasted > 0 ? 'up' : 'flat'} />
-        <MetricCard label="cost_ar_per_h" value={costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color="#f4b400" trend={costAr > 0 ? 'up' : 'flat'} />
+        <MetricCard label="wasted" value={wasted == null ? '—' : wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color={wasted == null ? '#767b84' : '#f4b400'} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} />
+        <MetricCard label="cost_ar_per_h" value={costAr == null ? '—' : costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color={costAr == null ? '#767b84' : '#f4b400'} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} />
         <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

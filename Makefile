@@ -15,7 +15,7 @@ vet:
 
 # Real gates (tc/netem/BBR) — run INSIDE the VM only.
 test-real:
-	$(GO) test -tags=real ./pkg/qdisc/... ./pkg/campaign/...
+	$(GO) test -tags=real ./pkg/qdisc/... ./pkg/campagne/...
 
 figures: build
 	./bin/cgo figures

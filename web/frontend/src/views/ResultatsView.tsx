@@ -65,10 +65,9 @@ export default function ResultatsView() {
               const jfiVals = Array.from({ length: g.count }, () => g.small_p95_median)
               const jfiDegenerate = g.count < 2 || jfiVals.every(v => v === jfiVals[0])
               const jfi: number | null = jfiDegenerate ? null : computeJFI(jfiVals)
-              // ponytail: wasted/cost fallback linear, non-linear if thesis needs
-              const wasted = (g as any).wasted_median ?? (g as any).wasted_bytes ?? g.quarantined * 1448
-              const cost = (g as any).cost_median ?? (g as any).cost_ar_per_h ?? (wasted / (4.5*1024*1024*1024))*30000
-              const deadlineOk = (g as any).deadline_median ?? (g as any).deadline_ok_pct ?? 100
+              const wasted: number | null = g.wasted_median ?? g.wasted_bytes ?? null
+              const cost: number | null = g.cost_median ?? g.cost_ar_per_h ?? null
+              const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
               return (
                 <tr key={i} style={{borderBottom:'1px solid var(--hairline-faint)', background: g.best ? 'rgba(31,163,72,0.08)' : 'transparent'}}>
                   <td style={{padding:'6px 8px', fontWeight:g.best?700:400}}>{g.profile}</td>
@@ -85,9 +84,9 @@ export default function ResultatsView() {
                   <td>{g.goodput_median.toFixed(1)}</td>
                   <td title={jfi===null ? "JFI requiert détail par répétition (detail=1)" : undefined} style={{width:52, fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: jfi===null ? '#767b84' : jfi > 0.95 ? '#1fa348' : '#9aa3ad', textAlign:'right'}}>{jfi===null ? '—' : jfi.toFixed(2)}</td>
                   {showCosts && <>
-                    <td style={{fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: deadlineOk >=95 ? '#1fa348' : '#f4b400', textAlign:'right'}}>{typeof deadlineOk==='number' ? deadlineOk.toFixed(0)+'%' : '—'}</td>
-                    <td style={{fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: wasted>0 ? '#e22718' : '#767b84', textAlign:'right'}}>{wasted ? (wasted>1024*1024 ? (wasted/1024/1024).toFixed(1)+'M' : String(wasted)) : '0'}</td>
-                    <td style={{fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: cost>0 ? '#f4b400' : '#767b84', textAlign:'right'}}>{cost ? cost.toFixed(0) : '0'}</td>
+                    <td style={{fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: deadlineOk == null ? '#767b84' : deadlineOk >=95 ? '#1fa348' : '#f4b400', textAlign:'right'}}>{deadlineOk == null ? '—' : deadlineOk.toFixed(0)+'%'}</td>
+                    <td style={{fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: wasted == null ? '#767b84' : wasted>0 ? '#e22718' : '#767b84', textAlign:'right'}}>{wasted == null ? '—' : wasted ? (wasted>1024*1024 ? (wasted/1024/1024).toFixed(1)+'M' : String(wasted)) : '0'}</td>
+                    <td style={{fontFamily:'JetBrains Mono', fontSize:11, fontVariantNumeric:'tabular-nums', color: cost == null ? '#767b84' : cost>0 ? '#f4b400' : '#767b84', textAlign:'right'}}>{cost == null ? '—' : cost ? cost.toFixed(0) : '0'}</td>
                   </>}
                   <td>{g.quarantined}</td>
                   <td>{g.best ? '★' : ''}</td>

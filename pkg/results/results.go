@@ -23,6 +23,8 @@ type Group struct {
 	Smallp95Median float64 `json:"small_p95_median"`
 	GoodputMedian  float64 `json:"goodput_median"`
 	DeadlineMedian float64 `json:"deadline_median"`
+	WastedMedian float64 `json:"wasted_median"`
+	CostMedian   float64 `json:"cost_median"`
 	Best           bool    `json:"best,omitempty"`
 }
 
@@ -38,7 +40,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		return nil, nil
 	}
 	type bucket struct {
-		rtts, smalls, goodputs, deadlines []float64
+		rtts, smalls, goodputs, deadlines, wasteds, costs []float64
 		quarantined int
 		count int
 		profile, qdisc, cc string
@@ -72,6 +74,12 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			if v, err := strconv.ParseFloat(r[9], 64); err == nil {
 				b.deadlines = append(b.deadlines, v)
 			}
+			if v, err := strconv.ParseFloat(r[13], 64); err == nil {
+				b.wasteds = append(b.wasteds, v)
+			}
+			if v, err := strconv.ParseFloat(r[14], 64); err == nil {
+				b.costs = append(b.costs, v)
+			}
 		}
 	}
 	var out []Group
@@ -80,11 +88,14 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		ss := metrics.Summarize(b.smalls)
 		gs := metrics.Summarize(b.goodputs)
 		ds := metrics.Summarize(b.deadlines)
+		ws := metrics.Summarize(b.wasteds)
+		cs := metrics.Summarize(b.costs)
 		out = append(out, Group{
 			Profile: b.profile, Qdisc: b.qdisc, CC: b.cc,
 			Count: b.count, Quarantined: b.quarantined,
 			RTTp95Median: rs.Median, RTTp95IQR: [2]float64{rs.IQRLow, rs.IQRHigh},
 			Smallp95Median: ss.Median, GoodputMedian: gs.Median, DeadlineMedian: ds.Median,
+			WastedMedian: ws.Median, CostMedian: cs.Median,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
