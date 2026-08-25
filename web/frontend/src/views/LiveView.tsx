@@ -10,6 +10,7 @@ import { lttb } from '../lib/lttb'
 import { useRafLoop } from '../lib/hooks'
 import { animateBannerPulse, animateLiveEnter } from '../lib/anime'
 import { MetricCard } from '../components/ui/MetricCard'
+import { EmptyState } from '../components/ui/EmptyState'
 import { PeekPopover } from '../components/PeekPopover'
 
 // ponytail: per-series CHARGE markArea amber 0.04 dashed insideTop Mono — never at option root
@@ -143,6 +144,7 @@ export default function LiveView() {
         </PeekPopover>
       )}
       <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
+      {!liveSnap && live.rtt95.length===0 && <div className="card" style={{border:'1px dashed var(--hairline)', background:'rgba(255,255,255,0.02)', textAlign:'center'}}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
       {/* important look — all LIEN Tableau 4/5 metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
         <MetricCard label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />

@@ -70,9 +70,11 @@ footer .fill { margin-left: auto; }
 /* ── rail + density — impeccable ponytail minimal ── */
 .rail { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; }
 .miniSparkline { width: 32px; height: 12px; opacity: 0.6; display: block; margin: 8px auto; }
+.nav-icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; flex-shrink: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 /* ── campagne / live additions — ponytail minimal, impeccable-operate disciplined ── */
-.panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 960px; }
+.panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 1280px; width: 100%; margin: 0 auto; }
 [data-density='airy'] .panel-stack { gap: 24px; }
 [data-density='dense'] .panel-stack { gap: 16px; }
 .card { border: 1px solid var(--hairline); background: var(--surface-card); padding: var(--sp-4); }
