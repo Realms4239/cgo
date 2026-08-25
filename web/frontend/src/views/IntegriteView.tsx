@@ -22,6 +22,7 @@ export default function IntegriteView() {
   const replayRunning = useUIStore(s=>s.replayRunning)
   const setPanel = useUIStore(s=>s.setPanel)
   const [groups, setGroups] = useState<any[]|null>(null)
+  const [peekGroups, setPeekGroups] = useState<any[]|null>(null)
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
@@ -29,6 +30,11 @@ export default function IntegriteView() {
     fetch('/api/results').then(r=>r.json()).then(j=>setGroups(j.groups??null)).catch(()=>setGroups(null))
   }
   useEffect(()=>{ load() }, [])
+  useEffect(()=>{
+    if (!peek) return
+    setPeekGroups(null)
+    fetch(`/api/results?run=${encodeURIComponent(peek.run)}`).then(r=>r.json()).then(j=>setPeekGroups(j.groups??j??[])).catch(()=>setPeekGroups(groups))
+  },[peek?.run])
 
   const verify = async () => {
     setMsg('vérification…')
@@ -54,9 +60,12 @@ export default function IntegriteView() {
         <PeekPopover rect={peek.rect}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>run — {peek.run}</div>
           {(() => {
-            const gs = (groups ?? []).filter((g: any) => peek.run.includes(g.profile ?? ''))
-            if (!gs.length) return <div className="mono" style={{fontSize:10, color:'#767b84'}}>aucun groupe — gel d'abord</div>
-            return gs.slice(0, 4).map((g: any, i: number) => (
+            const src = peekGroups ?? groups
+            if (!src || src.length===0) return <div className="mono" style={{fontSize:10, color:'#767b84'}}>aucun groupe — gel d'abord</div>
+            // ponytail: show best per profile for this run, fallback to first 4
+            const bests = src.filter((g:any)=>g.best)
+            const show = bests.length ? bests.slice(0,4) : src.slice(0,4)
+            return show.map((g: any, i: number) => (
               <div key={i} style={{display:'flex', justifyContent:'space-between', gap:12, fontFamily:'JetBrains Mono', fontSize:10}}>
                 <span style={{color:'#9aa3ad'}}>{g.profile}·{g.qdisc}·{g.cc}</span>
                 <span style={{color: g.best ? '#1fa348' : '#f2f2f4', fontVariantNumeric:'tabular-nums'}}>{g.best ? '★ ' : ''}{Number(g.small_p95_median ?? 0).toFixed(1)} ms</span>

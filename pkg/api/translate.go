@@ -2,26 +2,21 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/Realms4239/cgo/pkg/results"
 )
 
 func hardwareRecommendation(bestQdisc, profile string) string {
-	if bestQdisc == "fq_codel" || bestQdisc == "cake" {
-		return fmt.Sprintf("Si MikroTik: Queue Tree PCQ/CAKE RouterOS v7+ pour %s — %s prouvé en lab", profile, bestQdisc)
-	}
-	return fmt.Sprintf("Si ISP/mini-PC gateway: transparent bridge CAKE en amont du CPE pour %s — pilote isolé d'abord", profile)
+	return results.HardwareRecommendation(bestQdisc, profile)
 }
 
-// HandleTranslate GET /api/hardware/translate?profile=P2 -> {recommendation}
+// HandleTranslate GET /api/hardware/translate?profile=P2 -> {recommendation} or {available:false}
 func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 	profile := r.URL.Query().Get("profile")
 	if profile == "" {
 		profile = "P2"
 	}
-	// try to find best qdisc from Scan if data exists
 	bestQdisc := "fq_codel"
 	if profile == "P1" {
 		bestQdisc = "cake"
@@ -33,8 +28,14 @@ func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
+	} else {
+		// F8: no data yet — honest empty, not synthetic success
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{"available": false, "reason": "aucune donnée — lancez campagne"})
+		return
 	}
-	rec := hardwareRecommendation(bestQdisc, profile)
+	rec := results.HardwareRecommendation(bestQdisc, profile)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"recommendation": rec})
 }

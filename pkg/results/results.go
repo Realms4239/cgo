@@ -2,7 +2,6 @@ package results
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -119,17 +118,21 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			out[idx].Best = true
 		}
 	}
+	// hardware recommendation per profile best (not per row) — deduped source pkg/results/hardware.go
+	bestQdiscForProfile := map[string]string{}
+	for _, g := range out {
+		if g.Best {
+			bestQdiscForProfile[g.Profile] = g.Qdisc
+		}
+	}
 	for i := range out {
-		out[i].HardwareRecommendation = hardwareRecommendation(out[i].Qdisc, out[i].Profile)
+		if best, ok := bestQdiscForProfile[out[i].Profile]; ok {
+			out[i].HardwareRecommendation = HardwareRecommendation(best, out[i].Profile)
+		} else {
+			out[i].HardwareRecommendation = HardwareRecommendation(out[i].Qdisc, out[i].Profile)
+		}
 	}
 	return out, nil
-}
-
-func hardwareRecommendation(bestQdisc, profile string) string {
-	if bestQdisc == "fq_codel" || bestQdisc == "cake" {
-		return fmt.Sprintf("Si MikroTik: Queue Tree PCQ/CAKE RouterOS v7+ pour %s — %s prouvé en lab", profile, bestQdisc)
-	}
-	return fmt.Sprintf("Si ISP/mini-PC gateway: transparent bridge CAKE en amont du CPE pour %s — pilote isolé d'abord", profile)
 }
 
 func readCSV(path string) ([][]string, error) {
