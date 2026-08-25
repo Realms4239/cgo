@@ -124,4 +124,9 @@ footer .fill { margin-left: auto; }
 /* ── prompt progress line — amber 1px bottom drain 6s pause on hover — ponytail minimal ── */
 @keyframes promptDrain { from{width:100%} to{width:0%} }
 .prompt-progress{position:absolute;bottom:0;left:0;height:1px;background:#f4b400}
+@keyframes beamDash { from{stroke-dashoffset:0} to{stroke-dashoffset:-40} }
+/* snap-effect handle 16px on Timeline + donut/beam helpers — ponytail minimal */
+.snap-effect{width:16px;height:16px}
+.brush .handle{width:16px;fill:rgba(90,211,227,0.25);stroke:rgba(90,211,227,0.6)}
+.brush .selection{fill:rgba(90,211,227,0.08);stroke:rgba(90,211,227,0.4)}
 @media (prefers-reduced-motion: reduce) { .wordmark-text { letter-spacing: 0.04em !important; } .arm-progress { animation: none !important; transform: scaleX(1) !important; } .prompt-progress{animation:none !important;width:0 !important} }

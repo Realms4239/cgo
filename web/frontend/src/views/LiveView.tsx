@@ -12,6 +12,8 @@ import { animateBannerPulse, animateLiveEnter } from '../lib/anime'
 import { MetricCard } from '../components/ui/MetricCard'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PeekPopover } from '../components/PeekPopover'
+import { Beam } from '../components/Beam'
+import { DonutJFI } from '../components/DonutJFI'
 
 // ponytail: per-series CHARGE markArea amber 0.04 dashed insideTop Mono — never at option root
 function chargeMarkArea(chargeStart: number, chargeEnd: number) {
@@ -128,7 +130,6 @@ export default function LiveView() {
     return 'flat'
   }
   const qdiSpark = live.rtt95.slice(-20).map(([, v], i) => Math.max(0, v - (live.rtt50[i]?.[1] ?? v)))
-  const jfiS = live.goodput.slice(-20).map(([, v]) => v).filter(v => v > 0)
 
   useEffect(() => {
     if (bannerRef.current) animateBannerPulse(bannerRef.current)
@@ -157,15 +158,22 @@ export default function LiveView() {
         <MetricCard label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
         <MetricCard label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color="#1fa348" spark={spark(live.small)} trend={trendOf(spark(live.small))} />
         <MetricCard label="bulk_goodput" value={goodputVal ? goodputVal.toFixed(1) : '—'} unit="Mbit/s" color="#b48ae0" spark={spark(live.goodput)} trend={trendOf(spark(live.goodput))} />
-        <MetricCard label="drops" value={String(drops)} unit="" color={drops > 0 ? '#e22718' : '#767b84'} trend={drops > 0 ? 'up' : 'flat'} />
-        <MetricCard label="wasted" value={wasted == null ? '—' : wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color={wasted == null ? '#767b84' : '#f4b400'} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} />
-        <MetricCard label="cost_ar_per_h" value={costAr == null ? '—' : costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color={costAr == null ? '#767b84' : '#f4b400'} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} />
-        <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} />
+        <MetricCard label="drops" value={String(drops)} unit="" color={drops > 0 ? '#e22718' : '#767b84'} trend={drops > 0 ? 'up' : 'flat'} spark={spark(live.rtt95)} />
+        <MetricCard label="wasted" value={wasted == null ? '—' : wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color={wasted == null ? '#767b84' : '#f4b400'} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
+        <MetricCard label="cost_ar_per_h" value={costAr == null ? '—' : costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color={costAr == null ? '#767b84' : '#f4b400'} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
+        <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} spark={spark(live.small)} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div data-testid="qdi-sparkline"><MetricCard label="QDI" value={!liveSnap ? '—' : qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={qdiSpark} trend={trendOf(qdiSpark)} /></div>
-        <div title={jfiVal === null ? "JFI requiert détail par répétition (detail=1)" : undefined}>
-          <MetricCard label="JFI" value={jfiVal === null ? '—' : jfiVal.toFixed(2)} unit="" color={jfiVal === null ? '#767b84' : '#9aa3ad'} spark={jfiS.length >= 2 ? jfiS : undefined} trend={jfiVal === null ? 'flat' : jfiVal > 0.95 ? 'flat' : 'down'} />
+        <div title={jfiVal === null ? "JFI requiert détail par répétition (detail=1)" : undefined} style={{ border: '1px solid #26262a', background: 'var(--surface-card)', padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>JFI</span>
+            <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, padding: '2px 6px', border: '1px solid #26262a', background: (jfiVal === null ? '#767b84' : jfiVal > 0.95 ? '#1fa348' : '#9aa3ad') + '14', color: jfiVal === null ? '#767b84' : jfiVal > 0.95 ? '#1fa348' : '#9aa3ad', lineHeight: 1 }}>{jfiVal === null ? '—' : jfiVal > 0.95 ? '—' : '↘'}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 20, fontWeight: 700, color: '#f2f2f4', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{jfiVal === null ? '—' : jfiVal.toFixed(2)}</span>
+            <DonutJFI value={jfiVal} />
+          </div>
         </div>
       </div>
       {/* ponytail: hidden stubs removed — real sparkline in Task 3 card */}
@@ -173,6 +181,7 @@ export default function LiveView() {
       <div className="card" onMouseEnter={e=>{ const v=live.small.at(-1)?.[1] ?? smallP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); small.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.small.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={small.ref} style={{ height: 180 }} /></div>
       <div className="card" onMouseEnter={e=>{ const v=live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); goodput.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.goodput.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={goodput.ref} style={{ height: 180 }} /></div>
       <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>
+      {liveSnap?.running && <Beam />}
     </div>
   )
 }

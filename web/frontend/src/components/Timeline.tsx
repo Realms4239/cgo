@@ -33,7 +33,8 @@ export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, curr
     }
     // brushX — extent [[0,0],[w,48]] sets live.max from selection width
     // ponytail: live.max is mutable ring, don't corrupt Zustand — use live.max directly
-    const brush = (d3 as any).brushX().extent([[0, 0], [w, 48]]).on('end', (e: any) => {
+    // snap-effect handle 16px — ponytail: 16px grab area keeps brush usable on touch
+    const brush = (d3 as any).brushX().extent([[0, 0], [w, 48]]).handleSize(16).on('end', (e: any) => {
       if (e.selection) {
         const a = (x.invert as any)(e.selection[0]).getTime()
         const b = (x.invert as any)(e.selection[1]).getTime()

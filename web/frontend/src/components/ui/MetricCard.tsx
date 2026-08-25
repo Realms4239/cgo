@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
+import { lttb } from '../../lib/lttb'
 
 type Trend = 'up' | 'down' | 'flat'
 
@@ -19,13 +20,19 @@ export function MetricCard({
 }) {
   const trendColor = trend === 'up' ? '#e22718' : trend === 'down' ? '#1fa348' : '#767b84'
   const trendSym = trend === 'up' ? '↗' : trend === 'down' ? '↘' : '—'
-  // ponytail: sparkline is div polyline, D3 upgrade if thesis needs detail
+  const clipId = useId().replace(/:/g, '-')
+  // ponytail: HD 60×12 clipPath rx4 + lttb40 downsample — D3 area if thesis needs fill
   const path = useMemo(() => {
     if (!spark || spark.length < 2) return ''
-    const w = 96, h = 24
-    const min = Math.min(...spark), max = Math.max(...spark)
+    let data = spark
+    if (spark.length > 40) {
+      const tmp = spark.map((v, i) => [i, v] as [number, number])
+      data = lttb(tmp, 40).map(([, v]) => v)
+    }
+    const w = 60, h = 12
+    const min = Math.min(...data), max = Math.max(...data)
     const rng = max - min || 1
-    return spark.map((v, i) => `${(i / (spark.length - 1)) * w},${h - ((v - min) / rng) * h}`).join(' ')
+    return data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / rng) * h}`).join(' ')
   }, [spark])
   return (
     <div className="card" style={{ padding: 12, border: '1px solid #26262a', background: 'var(--surface-card)', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -38,11 +45,12 @@ export function MetricCard({
         {unit ? <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#767b84' }}>{unit}</span> : null}
       </div>
       {path ? (
-        <svg width={96} height={24} style={{ display: 'block', marginTop: 2 }} aria-hidden>
-          <polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" points={path} style={{ filter: `drop-shadow(0 0 4px ${color}66)` }} />
+        <svg width={60} height={12} style={{ display: 'block', marginTop: 2 }} aria-hidden>
+          <defs><clipPath id={clipId}><rect width={60} height={12} rx={4} /></clipPath></defs>
+          <g clipPath={`url(#${clipId})`}><polyline fill="none" stroke={color} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" points={path} style={{ filter: `drop-shadow(0 0 4px ${color}66)` }} /></g>
         </svg>
       ) : (
-        <div style={{ height: 24, borderTop: '1px solid #1a1a1e', marginTop: 2, opacity: 0.4 }} />
+        <div style={{ height: 12, borderTop: '1px solid #1a1a1e', marginTop: 2, opacity: 0.4 }} />
       )}
     </div>
   )
