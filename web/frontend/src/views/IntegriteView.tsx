@@ -3,6 +3,7 @@ import { startReplay, stopReplay } from '../lib/replay'
 import { useUIStore } from '../store/ui'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
+import { PeekPopover } from '../components/PeekPopover'
 
 type Integrity = {
   available: boolean; reason?: string
@@ -16,12 +17,15 @@ export default function IntegriteView() {
   const [msg, setMsg] = useState('')
   const [replayRuns, setReplayRuns] = useState<string[]>([])
   const [regenOk, setRegenOk] = useState(false)
+  const [peek, setPeek] = useState<{ rect: DOMRect; run: string } | null>(null)
   const replayRunning = useUIStore(s=>s.replayRunning)
   const setPanel = useUIStore(s=>s.setPanel)
+  const [groups, setGroups] = useState<any[]|null>(null)
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
     fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(j.runs||[])).catch(()=>{})
+    fetch('/api/results').then(r=>r.json()).then(j=>setGroups(j.groups??null)).catch(()=>setGroups(null))
   }
   useEffect(()=>{ load() }, [])
 
@@ -44,7 +48,22 @@ export default function IntegriteView() {
 
   // ponytail: synthetic quarantine removed — render real gate_status from Scan when available
   return (
-    <div className="panel-stack">
+    <div className="panel-stack" style={{position:'relative'}}>
+      {peek && (
+        <PeekPopover rect={peek.rect}>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>run — {peek.run}</div>
+          {(() => {
+            const gs = (groups ?? []).filter((g: any) => peek.run.includes(g.profile ?? ''))
+            if (!gs.length) return <div className="mono" style={{fontSize:10, color:'#767b84'}}>aucun groupe — gel d'abord</div>
+            return gs.slice(0, 4).map((g: any, i: number) => (
+              <div key={i} style={{display:'flex', justifyContent:'space-between', gap:12, fontFamily:'JetBrains Mono', fontSize:10}}>
+                <span style={{color:'#9aa3ad'}}>{g.profile}·{g.qdisc}·{g.cc}</span>
+                <span style={{color: g.best ? '#1fa348' : '#f2f2f4', fontVariantNumeric:'tabular-nums'}}>{g.best ? '★ ' : ''}{Number(g.small_p95_median ?? 0).toFixed(1)} ms</span>
+              </div>
+            ))
+          })()}
+        </PeekPopover>
+      )}
       <h1 className="view-title">Intégrité — archives gelées</h1>
       <div className="card">
         <div className="kv"><span>runs</span><b className="mono">{data.runs}</b></div>
@@ -87,7 +106,7 @@ export default function IntegriteView() {
         {(data.run_ids||[]).length===0 ? <p className="mono muted">aucun run</p> :
           <ul style={{listStyle:'none', padding:0, margin:0}}>
             {(data.run_ids||[]).map(id=>(
-              <li key={id} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}}>
+              <li key={id} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}} onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:id})} onMouseLeave={()=>setPeek(null)}>
                 <span>{id}</span>
                 <a href={`/api/results?run=${id}`} target="_blank" rel="noreferrer" style={{color:'var(--t-live)'}}>résultats</a>
               </li>

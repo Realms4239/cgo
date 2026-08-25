@@ -22,6 +22,10 @@ export default function CampagneView() {
   const [auditLink, setAuditLink] = useState('5g')
   const [auditDuration, setAuditDuration] = useState(30)
   const [importMsg, setImportMsg] = useState('')
+  const [importForm, setImportForm] = useState(false)
+  const [impId, setImpId] = useState('')
+  const [impCap, setImpCap] = useState(20)
+  const [impDelay, setImpDelay] = useState(100)
   const [peek, setPeek] = useState<{ rect: DOMRect; data: number[] } | null>(null)
 
   const auditPollRef = useRef<number | null>(null)
@@ -87,15 +91,17 @@ export default function CampagneView() {
     }
   }
 
+  const importValidation = validate(
+    { id: impId, capacity: impCap, delay: impDelay },
+    { id: { required: true }, capacity: { min: 0.1 }, delay: { min: 1 } }
+  )
+
   const importProfile = () => {
-    const id = prompt('Identifiant du profil (ex. P3):')
-    if (!id) return
-    const cap = parseFloat(prompt('Capacité Mbit/s:', '20') || '20')
-    const delay = parseFloat(prompt('RTT ms:', '100') || '100')
-    fetch('/api/profile/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, capacity_mbps: cap, delay_ms: delay }) })
+    if (!importValidation.valid) return
+    fetch('/api/profile/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: impId, capacity_mbps: impCap, delay_ms: impDelay }) })
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
-      .then(() => setImportMsg(`profil ${id} importé`))
-      .catch(e => setImportMsg('échec: ' + e.message))
+      .then(() => { setImportMsg(`profil ${impId} importé`); useUIStore.getState().pushToast(`Profil ${impId} importé`, 'ok'); setImportForm(false) })
+      .catch(e => { setImportMsg('échec: ' + e.message); useUIStore.getState().pushToast('Échec import: ' + e.message, 'err') })
   }
 
   const pushToast = useUIStore((s: any)=>s.pushToast)
@@ -227,10 +233,29 @@ export default function CampagneView() {
       <div className="card">
         <div className="card-head">Profil personnalisé</div>
         <p className="mono muted" style={{fontSize:12}}>Importer un profil réel mesuré par l'audit (LIEN III.IV — Import profile).</p>
-        <div className="form-row" style={{gap:8}}>
-          <ArmButton label="IMPORTER PROFIL" confirmLabel="CONFIRMER IMPORT" onConfirm={importProfile} />
-          <span className="mono muted">{importMsg}</span>
-        </div>
+        {!importForm ? (
+          <div className="form-row" style={{gap:8}}>
+            <button className="btn" onClick={()=>setImportForm(true)}>IMPORTER PROFIL</button>
+            <span className="mono muted">{importMsg}</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            <InlineField label="Identifiant" error={importValidation.errors.id} helper="ex. P3">
+              <input name="import-id" value={impId} onChange={e=>setImpId(e.target.value)} placeholder="P3" style={{ background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+            </InlineField>
+            <InlineField label="Capacité (Mbit/s)" error={importValidation.errors.capacity} helper="> 0">
+              <input type="number" min={0.1} step={0.1} value={impCap} onChange={e=>setImpCap(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+            </InlineField>
+            <InlineField label="RTT (ms)" error={importValidation.errors.delay} helper="> 0">
+              <input type="number" min={1} value={impDelay} onChange={e=>setImpDelay(parseInt(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+            </InlineField>
+            <div className="form-row" style={{gap:8}}>
+              <ArmButton label="CONFIRMER IMPORT" onConfirm={importProfile} disabled={!importValidation.valid} />
+              <button className="btn" onClick={()=>setImportForm(false)}>ANNULER</button>
+              <span className="mono muted">{importMsg}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
