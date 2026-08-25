@@ -1,23 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import { useUIStore } from '../store/ui'
 import { animatePromptEnter, animatePromptExit } from '../lib/anime'
+import { PromptProgressLine } from './PromptProgressLine'
 
 export default function QuickActionsPrompt(){
   const live=useUIStore((s:any)=>s.live), setPanel=useUIStore((s:any)=>s.setPanel)
   const [open,setOpen]=useState(true)
+  const [isHoverPaused,setIsHoverPaused]=useState(false)
   const ref=useRef<HTMLDivElement>(null)
   const reappearRef=useRef<ReturnType<typeof setTimeout>|null>(null)
 
   useEffect(()=>{ if(!ref.current) return; if(open) animatePromptEnter(ref.current) },[open])
 
   useEffect(()=>{
-    if(!open) return
+    if(!open || isHoverPaused) return
     const id = setTimeout(()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) },6000)
-    const el=ref.current
-    const onEnter=()=>clearTimeout(id)
-    el?.addEventListener('mouseenter',onEnter)
-    return()=>{ clearTimeout(id); el?.removeEventListener('mouseenter',onEnter) }
-  },[open])
+    return()=> clearTimeout(id)
+  },[open, isHoverPaused])
 
   useEffect(()=>{
     if(open) return
@@ -34,9 +33,10 @@ export default function QuickActionsPrompt(){
 
   const actions = !live ? [{label:'Démarrer',panel:'campagne'}, {label:'Audit',panel:'campagne'}] : live.running ? [{label:'Temps réel',panel:'live'}] : [{label:'Résultats',panel:'resultats'}, {label:'Rejouer',panel:'integrite'}]
   if(!open) return null
-  return <div ref={ref} role="dialog" aria-modal="true" aria-label="Actions rapides" style={{position:'fixed', bottom:40, left:'50%', transform:'translateX(-50%)', display:'flex', gap:8, padding:'10px 14px', background:'rgba(16,16,18,0.92)', border:'1px solid rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', borderRadius:0, zIndex:400, boxShadow:'0 8px 32px rgba(0,0,0,0.4)'}}>
+  return <div ref={ref} role="dialog" aria-modal="true" aria-label="Actions rapides" onMouseEnter={()=>setIsHoverPaused(true)} onMouseLeave={()=>setIsHoverPaused(false)} style={{position:'fixed', bottom:40, left:'50%', transform:'translateX(-50%)', display:'flex', gap:8, padding:'10px 14px', background:'rgba(16,16,18,0.92)', border:'1px solid rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', borderRadius:0, zIndex:400, boxShadow:'0 8px 32px rgba(0,0,0,0.4)', overflow:'hidden'}}>
     <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color:'#9aa3ad', alignSelf:'center'}}>Actions rapides</span>
     {actions.map(a=><button key={a.label} onClick={()=>setPanel(a.panel as any)} style={{padding:'6px 12px', background:'#161618', color:'#5ad3e3', border:'1px solid #26262a', borderRadius:0, fontFamily:'JetBrains Mono', fontSize:11, letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer'}}>{a.label}</button>)}
     <button aria-label="Fermer" onClick={()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) }} style={{padding:'6px 8px', background:'transparent', border:'1px solid #26262a', borderRadius:0, color:'#9aa3ad', fontSize:11, cursor:'pointer'}}>Esc</button>
+    <PromptProgressLine paused={isHoverPaused} />
   </div>
 }
