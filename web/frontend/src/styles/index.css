@@ -105,9 +105,14 @@ footer .fill { margin-left: auto; }
 
 @media (max-width: 899px) {
   #shell { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr 28px; grid-template-areas: "hd" "side" "main" "ft"; }
-  aside.sidebar { flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); overflow-x: auto; }
+  aside.sidebar, .rail { flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); overflow-x: auto; width: 100% !important; height: 48px; }
+  .rail .miniSparkline, .rail .live-peek, .rail .foot-ticker, .rail .rail-foot, .side-status { display: none; }
   .nav-btn { width: auto; padding: 8px 12px; }
   .side-status { margin: 0 0 0 auto; border-top: none; padding: 0 12px; white-space: nowrap; }
+  header { min-width: 0; }
+  .wordmark-lockup { flex: 0 0 auto; min-width: 0; }
+  .wordmark-text { white-space: nowrap; color: var(--text-primary); }
+  main { overflow-x: hidden; padding-bottom: 64px; }
 }
 
 /* ── meteolink lockup + rail/foot/arm polish — ponytail minimal ── */

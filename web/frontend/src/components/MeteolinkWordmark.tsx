@@ -31,6 +31,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
           fontSize: compact ? 14 : 20,
           letterSpacing: '0.04em',
           textTransform: 'uppercase' as const,
+          color: '#f2f2f4',
           background: 'linear-gradient(90deg, #f2f2f4, #a9aeb6)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
