@@ -91,13 +91,17 @@ func SumDrops(stats []Stats) uint64 {
 	return total
 }
 
-// SumBytes sums bytes across all qdiscs (for goodput delta measurement).
+// SumBytes returns goodput bytes as the leaf qdisc's counter.
+// Stacked shaper on same egress: netem 1: parent of tbf 10: / cake 10:
+// with fq_codel 20: as tbf's child. Same packets are counted at each
+// layer, so summing inflates goodput 2-3× (P1 80Mbit observed 231).
+// Leaf is last in tc output (fq_codel if present, else tbf/cake).
 func SumBytes(stats []Stats) uint64 {
-	var total uint64
-	for _, s := range stats {
-		total += s.Bytes
+	if len(stats) == 0 {
+		return 0
 	}
-	return total
+	// ponytail: leaf only; per-layer sum if leaf heuristic proves wrong on exotic qdiscs
+	return stats[len(stats)-1].Bytes
 }
 
 // execCmdRunner is a helper for tests.
