@@ -15,6 +15,11 @@ export default function QuickActionsPrompt(){
 
   useEffect(()=>{ if(!ref.current) return; if(open) animatePromptEnter(ref.current) },[open])
 
+  useEffect(()=>{
+    if(!open) return
+    remainRef.current = 6000
+  },[open])
+
   // ponytail: track remaining so CSS pause (animationPlayState) and JS timeout stay in sync
   useEffect(()=>{
     if(!open) return
@@ -26,14 +31,6 @@ export default function QuickActionsPrompt(){
     startRef.current = Date.now()
     timeoutRef.current = setTimeout(()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) }, remainRef.current)
     return()=>{ if(timeoutRef.current) clearTimeout(timeoutRef.current) }
-  },[open, isHoverPaused])
-
-  useEffect(()=>{
-    if(isHoverPaused) return
-    if(!open) return
-    // reset remaining when freshly opened
-    remainRef.current = 6000
-    startRef.current = Date.now()
   },[open, isHoverPaused])
 
   useEffect(()=>{
