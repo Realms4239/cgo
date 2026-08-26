@@ -42,6 +42,9 @@ type Deps struct {
 }
 
 // Snapshot composes the current broadcast frame.
+// Running is always true here — push is only called while the matrix is
+// running; the ground truth (mtx.Running) is applied by pumpSnapshots at
+// 10 Hz as the final word, avoiding pump vs push flapping.
 func (d *Deps) Snapshot(phase, load string, ev model.Event,
 	base, chg map[string]float64, bulk uint64, prof model.Profile, gates []*bool) Snapshot {
 	s := Snapshot{
@@ -51,7 +54,7 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 		RTTp50Ms: ev.RTTp50Ms, RTTp95Ms: ev.RTTp95Ms, Smallp95Ms: ev.Smallp95Ms,
 		GoodputMbps: ev.BulkGoodputMbps, Drops: ev.Drops,
 		WastedBytes: ev.WastedBytes, CostARPerH: ev.CostARPerH, DeadlineOKPct: ev.DeadlineOKPct,
-		Gates: gates, Running: phase != "",
+		Gates: gates, Running: true,
 	}
 	return s
 }
