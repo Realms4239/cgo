@@ -42,6 +42,9 @@ type Deps struct {
 }
 
 // Snapshot composes the current broadcast frame.
+// Running is always true here — push is only called while the matrix is
+// running; the ground truth (mtx.Running) is applied by pumpSnapshots at
+// 10 Hz as the final word, avoiding pump vs push flapping.
 func (d *Deps) Snapshot(phase, load string, ev model.Event,
 	base, chg map[string]float64, bulk uint64, prof model.Profile, gates []*bool) Snapshot {
 	s := Snapshot{
@@ -50,7 +53,8 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 		Repetition: ev.Repetition, EventID: ev.EventID,
 		RTTp50Ms: ev.RTTp50Ms, RTTp95Ms: ev.RTTp95Ms, Smallp95Ms: ev.Smallp95Ms,
 		GoodputMbps: ev.BulkGoodputMbps, Drops: ev.Drops,
-		Gates: gates, Running: phase != "",
+		WastedBytes: ev.WastedBytes, CostARPerH: ev.CostARPerH, DeadlineOKPct: ev.DeadlineOKPct,
+		Gates: gates, Running: true,
 	}
 	return s
 }
@@ -85,6 +89,9 @@ type Snapshot struct {
 	Smallp95Ms float64    `json:"small_p95_ms"`
 	GoodputMbps float64   `json:"bulk_goodput_mbps"`
 	Drops      uint64     `json:"drops"`
+	WastedBytes uint64    `json:"wasted_bytes"`
+	CostARPerH  float64   `json:"cost_ar_per_h"`
+	DeadlineOKPct float64 `json:"deadline_ok_pct"`
 	Gates      []*bool    `json:"gates"` // nil = not assessed
 	Running    bool       `json:"running"`
 	LastTS     int64      `json:"ts"`
@@ -234,8 +241,15 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	set(model.G4ThroughputCoherent, goodput >= prof.CapacityMbps*.5 && goodput <= prof.CapacityMbps*1.1+.5)
 	set(model.G7CPUNotSaturated, cpuAvg < 90)
 	set(model.G5NoDuplicateRows, true) // enforced by writer at freeze
+	// publish updated metrics so SSE carries truth (wasted/cost/deadline) without derivation
+	if d.OnSnap != nil {
+		d.OnSnap(d.Snapshot(model.PhaseCharge, loadFor(model.PhaseCharge), ev, nil, nil, 0, prof, gates))
+	}
 
 	// récupération
+	if d.OnSnap != nil {
+		d.OnSnap(d.Snapshot(model.PhaseRecup, loadFor(model.PhaseRecup), ev, nil, nil, 0, prof, gates))
+	}
 	recRTT, _ = collect(d.RecupSec)
 	_ = recRTT
 

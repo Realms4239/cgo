@@ -3,6 +3,8 @@ import { startReplay, stopReplay } from '../lib/replay'
 import { useUIStore } from '../store/ui'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
+import { PeekPopover } from '../components/PeekPopover'
+import { hardwareRecommendation } from '../lib/hardware'
 
 type Integrity = {
   available: boolean; reason?: string
@@ -16,14 +18,23 @@ export default function IntegriteView() {
   const [msg, setMsg] = useState('')
   const [replayRuns, setReplayRuns] = useState<string[]>([])
   const [regenOk, setRegenOk] = useState(false)
+  const [peek, setPeek] = useState<{ rect: DOMRect; run: string } | null>(null)
   const replayRunning = useUIStore(s=>s.replayRunning)
   const setPanel = useUIStore(s=>s.setPanel)
+  const [groups, setGroups] = useState<any[]|null>(null)
+  const [peekGroups, setPeekGroups] = useState<any[]|null>(null)
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
     fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(j.runs||[])).catch(()=>{})
+    fetch('/api/results').then(r=>r.json()).then(j=>setGroups(j.groups??null)).catch(()=>setGroups(null))
   }
   useEffect(()=>{ load() }, [])
+  useEffect(()=>{
+    if (!peek) return
+    setPeekGroups(null)
+    fetch(`/api/results?run=${encodeURIComponent(peek.run)}`).then(r=>r.json()).then(j=>setPeekGroups(j.groups??j??[])).catch(()=>setPeekGroups(groups))
+  },[peek?.run])
 
   const verify = async () => {
     setMsg('vérification…')
@@ -42,8 +53,27 @@ export default function IntegriteView() {
   if (!data) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="loading" hint="vérification des archives" /></div>
   if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary" style={{marginTop:12}} onClick={load}>Réessayer</button></div>
 
+  // ponytail: synthetic quarantine removed — render real gate_status from Scan when available
   return (
-    <div className="panel-stack">
+    <div className="panel-stack" style={{position:'relative'}}>
+      {peek && (
+        <PeekPopover rect={peek.rect}>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>run — {peek.run}</div>
+          {(() => {
+            const src = peekGroups ?? groups
+            if (!src || src.length===0) return <div className="mono" style={{fontSize:10, color:'#767b84'}}>aucun groupe — gel d'abord</div>
+            // ponytail: show best per profile for this run, fallback to first 4
+            const bests = src.filter((g:any)=>g.best)
+            const show = bests.length ? bests.slice(0,4) : src.slice(0,4)
+            return show.map((g: any, i: number) => (
+              <div key={i} style={{display:'flex', justifyContent:'space-between', gap:12, fontFamily:'JetBrains Mono', fontSize:10}}>
+                <span style={{color:'#9aa3ad'}}>{g.profile}·{g.qdisc}·{g.cc}</span>
+                <span style={{color: g.best ? '#1fa348' : '#f2f2f4', fontVariantNumeric:'tabular-nums'}}>{g.best ? '★ ' : ''}{Number(g.small_p95_median ?? 0).toFixed(1)} ms</span>
+              </div>
+            ))
+          })()}
+        </PeekPopover>
+      )}
       <h1 className="view-title">Intégrité — archives gelées</h1>
       <div className="card">
         <div className="kv"><span>runs</span><b className="mono">{data.runs}</b></div>
@@ -56,18 +86,116 @@ export default function IntegriteView() {
           <span className="mono muted">{msg}</span>
         </div>
       </div>
+      {/* RDF provenance — important look, not debug dump */}
+      <div className="card" style={{ border:'1px solid #26262a', background:'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%), #101012' }}>
+        <div className="card-head" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <span>RDF — provenance gelée</span>
+          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', letterSpacing:'0.08em', textTransform:'uppercase'}}>frozen-wave</span>
+        </div>
+        <div style={{display:'flex', flexDirection:'column', gap:6}}>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>sha256 manifest</div>
+          {/* ponytail: fake sha removed — wire real manifest hash when /api/integrity exposes it */}
+          {(data as any).sha256 ? (
+            <div data-testid="provenance-hash" className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f2f2f4', background:'#070707', border:'1px solid #26262a', padding:'8px 10px', fontVariantNumeric:'tabular-nums', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+              sha256:{(data as any).sha256}
+            </div>
+          ) : (
+            <div title="empreinte SHA non exposée par /api/integrity — afficher le manifest gelé">
+              <EmptyState kind="empty" hint="empreinte SHA non exposée par /api/integrity — afficher le manifest gelé" />
+            </div>
+          )}
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84'}}>source: data/runs/*/manifest.json · quarantine.json · aqm_eval.csv</div>
+          <div style={{display:'flex', gap:8, marginTop:4}}>
+            <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'2px 6px', border:'1px solid #26262a', color:'#5ad3e3'}}>RDF • LIEN Tableau 7</span>
+            <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'2px 6px', border:'1px solid #26262a', color:'#1fa348'}}>gelé • vérifiable</span>
+          </div>
+        </div>
+      </div>
       <div className="card">
         <div className="card-head">Runs archivés</div>
         {(data.run_ids||[]).length===0 ? <p className="mono muted">aucun run</p> :
           <ul style={{listStyle:'none', padding:0, margin:0}}>
             {(data.run_ids||[]).map(id=>(
-              <li key={id} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}}>
+              <li key={id} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}} onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:id})} onMouseLeave={()=>setPeek(null)}>
                 <span>{id}</span>
                 <a href={`/api/results?run=${id}`} target="_blank" rel="noreferrer" style={{color:'var(--t-live)'}}>résultats</a>
               </li>
             ))}
           </ul>
         }
+      </div>
+      <div className="card">
+        <div className="card-head">quarantine — table de quarantaine</div>
+        {/* ponytail: synthetic quarantine removed — render real gate_status from Scan when available */}
+        {(data.quarantined||0)===0 ? (
+          <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="aucune mise en quarantaine (gate_status=valid)" /></div>
+        ) : (
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color:'#f4b400', padding:'8px 10px', border:'1px solid #26262a', background:'rgba(244,180,0,0.06)'}}>
+            {data.quarantined} événement(s) en quarantaine — détail gate_status via /api/results
+          </div>
+        )}
+        <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', marginTop:8}}>source: quarantine.json · gate_status != valid</div>
+      </div>
+      <div className="card" style={{ border:'1px solid #26262a' }}>
+        <div className="card-head">Recommandations — Traduction Matérielle</div>
+        <p className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, lineHeight:'1.6', color:'#9aa3ad', marginBottom:12}}>
+          Transposition du principe Linux prouvé en lab vers matériel DSI — sans réécrire l'infra. <span style={{color:'#5ad3e3'}}>Client-side observé, pas contrôleur réseau</span>.
+        </p>
+        <div style={{overflowX:'auto', marginBottom:12}}>
+          <table style={{width:'100%', borderCollapse:'collapse', fontFamily:'JetBrains Mono', fontSize:11}}>
+            <thead>
+              <tr style={{textAlign:'left', color:'#8b9099', borderBottom:'1px solid #26262a'}}>
+                <th style={{padding:'6px 8px', fontWeight:600}}>Principe Linux</th>
+                <th style={{padding:'6px 8px', fontWeight:600}}>MikroTik</th>
+                <th style={{padding:'6px 8px', fontWeight:600}}>ISP / mini-PC gateway</th>
+              </tr>
+            </thead>
+            <tbody style={{color:'#f2f2f4'}}>
+              <tr style={{borderBottom:'1px solid #1a1a1e'}}>
+                <td style={{padding:'6px 8px'}}>pfifo_fast <span style={{color:'#767b84'}}>baseline FIFO</span></td>
+                <td style={{padding:'6px 8px'}}>— ne pas reproduire</td>
+                <td style={{padding:'6px 8px'}}>— ne pas reproduire</td>
+              </tr>
+              <tr style={{borderBottom:'1px solid #1a1a1e'}}>
+                <td style={{padding:'6px 8px'}}>fq_codel <span style={{color:'#1fa348'}}>prouvé lab</span></td>
+                <td style={{padding:'6px 8px'}}>Queue Tree PCQ / CAKE RouterOS v7+</td>
+                <td style={{padding:'6px 8px'}}>mini-PC transparent bridge CAKE en amont CPE</td>
+              </tr>
+              <tr>
+                <td style={{padding:'6px 8px'}}>cake <span style={{color:'#1fa348'}}>prouvé lab</span></td>
+                <td style={{padding:'6px 8px'}}>CAKE RouterOS v7+ Queue Tree</td>
+                <td style={{padding:'6px 8px'}}>mini-PC gateway CAKE transparent</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {groups && groups.filter((g:any)=>g.best).length>0 && (
+          <div style={{marginBottom:12, display:'flex', flexDirection:'column', gap:6}}>
+            <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>Traduction matérielle par profil (depuis Scan ★ best)</div>
+            {groups.filter((g:any)=>g.best).slice(0,4).map((g:any)=>(
+              <div key={`${g.profile}-${g.qdisc}`} className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, padding:'6px 8px', background:'#070707', border:'1px solid #26262a', color:'#f2f2f4'}}>
+                <span style={{color:'#5ad3e3'}}>{g.profile}</span> · {g.qdisc} → {g.hardware_recommendation || hardwareRecommendation(g.qdisc, g.profile)}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{display:'grid', gap:10, fontSize:12, lineHeight:'1.6'}}>
+          <div style={{padding:'8px 10px', background:'rgba(90,211,227,0.06)', border:'1px solid #26262a'}}>
+            <b style={{color:'#f2f2f4'}}>Kit de Diagnostic Portable DSI</b> <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#5ad3e3', border:'1px solid #26262a', padding:'1px 4px', marginLeft:6}}>5-min branch</span>
+            <div style={{color:'#9aa3ad', marginTop:4}}>Branchement sans <code style={{color:'#f2f2f4'}}>tc</code> : laptop → Yas/Telma 4G → <code style={{color:'#f2f2f4'}}>1.1.1.1</code> ping 5 Hz + Small 4–32 K + bulk GRIB. Zéro install, client-side observé depuis les locaux — pas contrôleur réseau.</div>
+          </div>
+          <div style={{padding:'8px 10px', background:'rgba(244,180,0,0.06)', border:'1px solid #26262a'}}>
+            <b style={{color:'#f2f2f4'}}>Pilote isolé</b> <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f4b400', border:'1px solid #26262a', padding:'1px 4px', marginLeft:6}}>1 site → 1 département 4G</span>
+            <div style={{color:'#9aa3ad', marginTop:4}}>Un seul site 4G à la fois, mesure avant/après. Si CAKE prouvé en lab réduit <code style={{color:'#1fa348'}}>small_p95 738 → 20 ms</code>, alors seulement généraliser. Pas de déploiement global sans pilote.</div>
+          </div>
+          <div style={{padding:'8px 10px', background:'#070707', border:'1px solid #26262a'}}>
+            <b style={{color:'#f2f2f4'}}>Why Go: zero-dependency vs Flent</b>
+            <div style={{color:'#9aa3ad', marginTop:4}}>Un seul binaire <code style={{color:'#f2f2f4'}}>cgo</code> posable sur laptop DSI — pas de Python, pas de netperf, pas de dépendance. Flent exige stack complète et lab ; <code style={{color:'#5ad3e3'}}>Go 1.25</code> embarque <code style={{color:'#f2f2f4'}}>embed dist</code> + csv/metrics/probe campagne en un fichier. Reproductible offline, <code style={{color:'#767b84'}}>manifest.json sha256 + quarantine.json</code> vérifiable.</div>
+          </div>
+        </div>
+        <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', marginTop:8}}>
+          API: <a href="/api/hardware/translate?profile=P2" target="_blank" rel="noreferrer" style={{color:'#5ad3e3'}}>GET /api/hardware/translate?profile=P2 → {'{"recommendation"}'}</a> · source: results.Scan hardware_recommendation
+        </div>
       </div>
       <div className="card">
         <div className="card-head">Figures</div>

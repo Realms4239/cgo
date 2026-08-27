@@ -7,14 +7,16 @@ build: frontend
 	$(GO) build -o bin/cgo$(shell go env GOEXE) ./cmd/cgo
 
 test:
+	$(GO) vet ./...
 	$(GO) test ./...
+	cd $(FRONTEND) && bun run typecheck && bun run build && bunx vitest run && npx playwright test
 
 vet:
 	$(GO) vet ./...
 
 # Real gates (tc/netem/BBR) — run INSIDE the VM only.
 test-real:
-	$(GO) test -tags=real ./pkg/qdisc/... ./pkg/campaign/...
+	$(GO) test -tags=real ./pkg/qdisc/... ./pkg/campagne/...
 
 figures: build
 	./bin/cgo figures

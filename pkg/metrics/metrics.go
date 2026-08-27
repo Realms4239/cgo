@@ -61,6 +61,23 @@ const (
 	planAR    = 30000
 )
 
+// JFI — Jain's fairness index (Σx)² / (n·Σx²), 0..1 (1 = perfectly fair).
+// ponytail: unused until detail=1 API exposes per-rep values — frontend computeJFI covers current need
+func JFI(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	var sum, sumSq float64
+	for _, v := range values {
+		sum += v
+		sumSq += v * v
+	}
+	if sumSq == 0 {
+		return 0
+	}
+	return (sum * sum) / (float64(len(values)) * sumSq)
+}
+
 func CostARPerH(wastedBytes uint64) float64 {
 	return float64(wastedBytes) / planBytes * planAR
 }

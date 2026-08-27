@@ -12,6 +12,9 @@ export interface LiveFrame {
   small_p95_ms: number
   bulk_goodput_mbps: number
   drops: number
+  wasted_bytes?: number
+  cost_ar_per_h?: number
+  deadline_ok_pct?: number
   gates: (boolean | null)[]
   running: boolean
 }
