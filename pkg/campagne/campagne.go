@@ -105,6 +105,14 @@ func (l *Live) Set(s Snapshot) {
 }
 func (l *Live) Get() Snapshot { l.mu.Lock(); defer l.mu.Unlock(); return l.snap }
 
+// SetRunning atomically updates only the Running flag, avoiding the
+// Get+Modify+Set lost-update race where a pump's stale Get overwrites
+// OnSnap's structural fields (profile/qdisc/gates). [DEBUG-diag] proven by
+// state vs stream divergence (running:true vs false) and flap=2.
+func (l *Live) SetRunning(v bool) {
+	l.mu.Lock(); l.snap.Running = v; l.mu.Unlock()
+}
+
 func defaults(d *Deps) {
 	if d.Ping == nil {
 		d.Ping = func(ctx context.Context, t string, n int) []float64 {
