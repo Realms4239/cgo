@@ -16,11 +16,12 @@ function readVis(): Vis {
 export default function PanelChooser() {
   const panel = useUIStore((s: any) => s.panel)
   const setPanel = useUIStore((s: any) => s.setPanel)
-  const [vis, setVis] = useState<Vis>(() => {
+  const [vis] = useState<Vis>(() => {
     if (typeof window === 'undefined') return { Wall: true, History: true, Archives: true }
     return readVis()
   })
 
+  // vis persisted via PanelChooser mount; no toggle on nav — wall kit keeps hero always visible
   useEffect(() => {
     try { localStorage.setItem(LS_KEY, JSON.stringify(vis)) } catch {}
   }, [vis])
@@ -42,6 +43,8 @@ export default function PanelChooser() {
     <div
       className="panel-chooser"
       data-panel-visibility={visAttr}
+      role="group"
+      aria-label="Choix du panneau — Wall, History, Archives"
       style={{
         display: 'flex',
         gap: 8,
@@ -57,12 +60,7 @@ export default function PanelChooser() {
       {KEYS.map((k) => (
         <button
           key={k}
-          onClick={() => {
-            nav(k)
-            setVis((v) => ({ ...v, [k]: !v[k] }))
-            // toggle visibility, but navigation takes precedence — re-enable on nav
-            setVis((v) => ({ ...v, [k]: true }))
-          }}
+          onClick={() => nav(k)}
           aria-pressed={isActive(k)}
           aria-label={k}
           style={{

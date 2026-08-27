@@ -51,6 +51,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
           letterSpacing: '0.04em',
           textTransform: 'uppercase' as const,
           color: '#f2f2f4',
+          // fallback solid before gradient — legibility on no-clip browsers
           background: 'linear-gradient(90deg, #f2f2f4, #a9aeb6)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
@@ -59,6 +60,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
           lineHeight: 1,
           whiteSpace: 'nowrap',
         }}
+        // fallback: ensure readable even if backgroundClip: text unsupported
       >
         METEOLINK
       </span>

@@ -17,20 +17,6 @@ func runServer(ctx context.Context, addr string) error {
 	live := campagne.NewLive()
 
 	var mtx *campagne.Matrix
-	var pumpCancel context.CancelFunc
-	var pumpMu sync.Mutex
-
-	startPump := func(parent context.Context, cur *campagne.Matrix) {
-		pumpMu.Lock()
-		if pumpCancel != nil {
-			pumpCancel()
-		}
-		pCtx, cancel := context.WithCancel(parent)
-		pumpCancel = cancel
-		pumpMu.Unlock()
-		go pumpSnapshots(pCtx, live, cur)
-	}
-
 	var mtxMu sync.Mutex
 	getMtx := func() *campagne.Matrix {
 		mtxMu.Lock()
@@ -43,6 +29,10 @@ func runServer(ctx context.Context, addr string) error {
 		mtxMu.Unlock()
 	}
 
+	// Single pump goroutine for the lifetime of the server (H1 fix):
+	// reads current mtx via getMtx each tick, no leak on restart, no flap.
+	go pumpSnapshots(ctx, live, getMtx)
+
 	startFn := func(profiles []string, reps int) error {
 		if getMtx() != nil {
 			getMtx().Stop()
@@ -54,20 +44,14 @@ func runServer(ctx context.Context, addr string) error {
 			return err
 		}
 		setMtx(m)
-		startPump(ctx, m)
 		return nil
 	}
 	stopFn := func() {
 		if getMtx() != nil {
 			getMtx().Stop()
 		}
-		pumpMu.Lock()
-		if pumpCancel != nil {
-			pumpCancel()
-			pumpCancel = nil
-		}
-		pumpMu.Unlock()
-		// ensure Live reflects stopped state immediately (no 100ms lag)
+		// pump will notice mtx.IsRunning()==false on next tick (≤100ms) and
+		// set live false atomically; we also set immediately for snappier UX.
 		live.SetRunning(false)
 	}
 	handler := api.New(api.Deps{
@@ -90,7 +74,8 @@ func runServer(ctx context.Context, addr string) error {
 
 // pumpSnapshots mirrors matrix progress into the broadcast snapshot at 10 Hz.
 // Uses Live.SetRunning atomically to avoid Get+Modify+Set lost-update race (H2).
-func pumpSnapshots(ctx context.Context, live *campagne.Live, mtx *campagne.Matrix) {
+// getMtx is a func to read the current matrix pointer under lock (single pump, H1).
+func pumpSnapshots(ctx context.Context, live *campagne.Live, getMtx func() *campagne.Matrix) {
 	tk := time.NewTicker(time.Second / 10)
 	defer tk.Stop()
 	for {
@@ -98,7 +83,7 @@ func pumpSnapshots(ctx context.Context, live *campagne.Live, mtx *campagne.Matri
 		case <-ctx.Done():
 			return
 		case <-tk.C:
-			live.SetRunning(mtxRunning(mtx))
+			live.SetRunning(mtxRunning(getMtx()))
 		}
 	}
 }
