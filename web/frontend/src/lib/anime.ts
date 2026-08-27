@@ -8,13 +8,12 @@ export const prefersReducedMotion = () =>
 export function animateViewEnter() {
   if (prefersReducedMotion()) return
   const tl = createTimeline()
-  // ponytail: as any around easing — animejs types narrow, runtime correct
+  // ponytail: as any — animejs types narrow, runtime correct
   tl.add('.view', { translateY: [8, 0], opacity: [0, 1], filter: ['blur(4px)', 'blur(0)'], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
   tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
 
 export function animateCardStagger() {
-  // ponytail: unused — animateViewEnter covers card stagger; keep for isolated card grids if needed
   if (prefersReducedMotion()) return
   const tl = createTimeline()
   tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
@@ -22,7 +21,6 @@ export function animateCardStagger() {
 
 export function animateBar(el: Element) {
   if (prefersReducedMotion()) return
-  // ponytail: simple scaleX bars, WAAPI spring if jank matters
   const h = el as HTMLElement
   h.style.transformOrigin = 'left center'
   utils.set(h, { scaleX: 0 } as any)
@@ -39,14 +37,12 @@ export function animateArmButton(el: Element) {
 
 export function animateBannerPulse(el: Element) {
   if (prefersReducedMotion()) return
-  // ponytail: opacity pulse only, not loud bounce
   const tl = createTimeline()
   tl.add(el, { opacity: [0.85, 1], duration: 700, ease: 'inOut(3)' } as any, 0)
 }
 
 export function animateLiveEnter() {
   if (prefersReducedMotion()) return
-  // ponytail: clipPath reveal simple, WAAPI if jank matters
   const tl = createTimeline()
   tl.add('.card', { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'], duration: 700, delay: stagger(50, { start: 80 }), ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
@@ -90,7 +86,7 @@ export function animateToasts(els: Element[]) {
   tl.add(els, { translateY: [16, 0], opacity: [0, 1], delay: stagger(20), duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
 
-// --- Task 6: svg/text/animatable/layout dense — verified via context7 /websites/animejs ---
+// --- dense: svg/text/animatable/layout — animejs@4.5.0 via context7 ---
 
 export function animateMeteolinkShimmer(el: Element) {
   if (prefersReducedMotion()) return
@@ -133,11 +129,9 @@ export function animateDonut(el: Element, value: number) {
 
 export function animateGrid(els: Element[]) {
   if (prefersReducedMotion() || !els.length) return
-  // exhaustive: single timeline sequential — fixes double-timeline jank (was two createTimeline on same els)
-  // grid[4,2] from:center → grid[2,3] from:first gives dense bento spread, stagger 40 keeps HD feel
+  // exhaustive single timeline sequential stagger grid[4,2] center → grid[2,3] first — fixes double-timeline jank
   const tl = createTimeline()
   tl.add(els as any, { translateY: [12, 0], opacity: [0, 1], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [4, 2], from: 'center' } as any) } as any, 0)
     .add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 200)
-  // ponytail: pause on panel change — caller should call cleanup if panel switches mid-tl
   return () => { try { (tl as any).pause?.() } catch {} }
 }
