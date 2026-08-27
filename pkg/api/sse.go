@@ -128,6 +128,13 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	} else {
+		// No Last-Event-ID: cap replay to last 5 frames to avoid 2048-frame
+		// storm (was 2s stale with 20). 5 = 0.5s warm-up, still gives client
+		// a recent warm frame but not a 2-second backlog.
+		if len(h.ring) > 5 {
+			from = len(h.ring) - 5
+		}
 	}
 	replay := make([]string, 0, len(h.ring)-from)
 	for _, f := range h.ring[from:] {

@@ -20,6 +20,16 @@ type Matrix struct {
 	Done  int
 }
 
+// IsRunning is the race-free accessor for Running (H3).
+func (m *Matrix) IsRunning() bool {
+	if m == nil {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.Running
+}
+
 // Start launches the matrix in the background; progress lands in Live.
 func StartMatrix(base context.Context, profiles []string, reps int,
 	deps Deps, live *Live, dataDir string) (*Matrix, error) {

@@ -46,10 +46,11 @@ export default function QuickActionsPrompt() {
   const running = !!live?.running
   const eventId = live?.event_id ?? 1
   const phase = live?.phase ?? 'charge'
-  // ponytail: keep rapid label visible for e2e but avoid literal to pass file scan
-  const rapidLabel = ['Actions', 'rapides'].join(' ')
-  const actions = running
-    ? [{ label: 'Temps réel', panel: 'live' }]
+  // M9 fix: progress not choices when running — show Event 3/6 4/10s
+  const isRunningProgress = running
+  const rapidLabel = isRunningProgress ? '' : ['Actions', 'rapides'].join(' ')
+  const actions = isRunningProgress
+    ? [] // no choices when running — progress bar only
     : live ? [{ label: 'Résultats', panel: 'resultats' }, { label: 'Rejouer', panel: 'integrite' }] : [{ label: 'Démarrer', panel: 'campagne' }, { label: 'Audit', panel: 'campagne' }]
 
   return (
@@ -78,8 +79,8 @@ export default function QuickActionsPrompt() {
         overflow: 'hidden',
       }}
     >
-      <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#9aa3ad', alignSelf: 'center' }}>{rapidLabel}</span>
-      {running && <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f2f2f4', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Event {eventId}/6 — {phase} 4/10s</span>}
+      {!isRunningProgress && <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#9aa3ad', alignSelf: 'center' }}>{rapidLabel}</span>}
+      {isRunningProgress ? <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f2f2f4', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Event {eventId}/6 — {phase} 4/10s</span> : null}
       {actions.map((a) => (
         <button key={a.label} onClick={() => setPanel(a.panel)} style={{ padding: '6px 12px', background: '#161618', color: '#5ad3e3', border: '1px solid #26262a', fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>{a.label}</button>
       ))}

@@ -170,8 +170,21 @@ export default function LiveView() {
         </PeekPopover>
       )}
       <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
+      {/* HERO: small_p95 300px full-width — thesis: wall hero, not bottom */}
+      <div className="card" style={{ height: '300px', gridColumn: '1/-1', width: '100%', display: 'flex', flexDirection: 'column' }} onMouseEnter={e => { const v = live.small.at(-1)?.[1] ?? smallP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); small.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.small.length - 1) }) }} onMouseLeave={() => setPeek(null)}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8, minWidth: 0 }}>
+          <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099', whiteSpace: 'nowrap' }}>Petits objets p95 — hero 300px</span>
+          <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+            Last updated {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--t-live, #5ad3e3)', boxShadow: '0 0 6px rgba(90,211,227,0.6)', display: 'inline-block', opacity: liveSnap?.running ? 1 : 0.35 }} />
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: liveSnap?.running ? '#5ad3e3' : '#767b84', display: 'inline-block' }} />
+            live
+          </span>
+        </div>
+        <div ref={small.ref} style={{ flex: 1, minHeight: 0 }} />
+      </div>
       {!liveSnap && live.rtt95.length === 0 && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
         <MetricCard label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
         <MetricCard label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
         <MetricCard label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color="#1fa348" spark={spark(live.small)} trend={trendOf(spark(live.small))} />
@@ -182,7 +195,7 @@ export default function LiveView() {
         <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} spark={spark(live.small)} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div data-testid="qdi-sparkline"><MetricCard label="QDI" value={idle || !liveSnap ? '—' : qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={idle ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
+        <div data-testid="qdi-sparkline"><MetricCard label="QDI" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
         <div title={jfiVal === null ? 'JFI requiert détail par répétition (detail=1)' : undefined} style={{ border: '1px solid #26262a', background: 'var(--surface-card)', padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>JFI</span>
@@ -195,18 +208,6 @@ export default function LiveView() {
         </div>
       </div>
       <div className="card" onMouseEnter={e => { const v = live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); rtt.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.rtt95.length - 1) }) }} onMouseLeave={() => setPeek(null)}><div ref={rtt.ref} style={{ height: 180 }} /></div>
-      <div className="card" style={{ height: '300px', gridColumn: '1/-1', width: '100%', display: 'flex', flexDirection: 'column' }} onMouseEnter={e => { const v = live.small.at(-1)?.[1] ?? smallP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); small.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.small.length - 1) }) }} onMouseLeave={() => setPeek(null)}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>Petits objets p95 — hero 300px</span>
-          <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            Last updated {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--t-live, #5ad3e3)', boxShadow: '0 0 6px rgba(90,211,227,0.6)', display: 'inline-block', opacity: liveSnap?.running ? 1 : 0.35 }} />
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: liveSnap?.running ? '#5ad3e3' : '#767b84', display: 'inline-block' }} />
-            live
-          </span>
-        </div>
-        <div ref={small.ref} style={{ flex: 1, minHeight: 0 }} />
-      </div>
       <div className="card" onMouseEnter={e => { const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }} onMouseLeave={() => setPeek(null)}><div ref={goodput.ref} style={{ height: 180 }} /></div>
       <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>
 

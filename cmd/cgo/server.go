@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/api"
@@ -16,9 +17,25 @@ func runServer(ctx context.Context, addr string) error {
 	live := campagne.NewLive()
 
 	var mtx *campagne.Matrix
+	var mtxMu sync.Mutex
+	getMtx := func() *campagne.Matrix {
+		mtxMu.Lock()
+		defer mtxMu.Unlock()
+		return mtx
+	}
+	setMtx := func(m *campagne.Matrix) {
+		mtxMu.Lock()
+		mtx = m
+		mtxMu.Unlock()
+	}
+
+	// Single pump goroutine for the lifetime of the server (H1 fix):
+	// reads current mtx via getMtx each tick, no leak on restart, no flap.
+	go pumpSnapshots(ctx, live, getMtx)
+
 	startFn := func(profiles []string, reps int) error {
-		if mtx != nil {
-			mtx.Stop()
+		if getMtx() != nil {
+			getMtx().Stop()
 		}
 		deps := campagne.ProdDeps()
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
@@ -26,16 +43,17 @@ func runServer(ctx context.Context, addr string) error {
 		if err != nil {
 			return err
 		}
-		mtx = m
-		go pumpSnapshots(ctx, live, mtx)
+		setMtx(m)
 		return nil
 	}
 	stopFn := func() {
-		if mtx != nil {
-			mtx.Stop()
+		if getMtx() != nil {
+			getMtx().Stop()
 		}
+		// pump will notice mtx.IsRunning()==false on next tick (≤100ms) and
+		// set live false atomically; we also set immediately for snappier UX.
+		live.SetRunning(false)
 	}
-
 	handler := api.New(api.Deps{
 		GetSnap: func() any { return live.Get() },
 		StartFn: startFn,
@@ -55,7 +73,9 @@ func runServer(ctx context.Context, addr string) error {
 }
 
 // pumpSnapshots mirrors matrix progress into the broadcast snapshot at 10 Hz.
-func pumpSnapshots(ctx context.Context, live *campagne.Live, mtx *campagne.Matrix) {
+// Uses Live.SetRunning atomically to avoid Get+Modify+Set lost-update race (H2).
+// getMtx is a func to read the current matrix pointer under lock (single pump, H1).
+func pumpSnapshots(ctx context.Context, live *campagne.Live, getMtx func() *campagne.Matrix) {
 	tk := time.NewTicker(time.Second / 10)
 	defer tk.Stop()
 	for {
@@ -63,18 +83,11 @@ func pumpSnapshots(ctx context.Context, live *campagne.Live, mtx *campagne.Matri
 		case <-ctx.Done():
 			return
 		case <-tk.C:
-			s := live.Get()
-			s.Running = mtxRunning(mtx)
-			live.Set(s)
+			live.SetRunning(mtxRunning(getMtx()))
 		}
 	}
 }
 
-func mtxRunning(m *campagne.Matrix) bool {
-	if m == nil {
-		return false
-	}
-	return m.Running
-}
+func mtxRunning(m *campagne.Matrix) bool { return m.IsRunning() }
 
 var _ = os.Getenv // keep os import for future env-driven config

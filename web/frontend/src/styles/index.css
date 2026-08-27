@@ -25,7 +25,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; }
 .skip-link:focus-visible { left: 8px; top: 8px; padding: 8px 12px; background: var(--surface-elevated); border: 1px solid var(--t-live); color: var(--text-primary); }
 
-/* header — well-placed, not truncated */
+/* header — well-placed, not truncated: min-width:0 + flex guard, wordmark fallback #f2f2f4 */
 header { grid-area: hd; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); min-width: 0; }
 .stripe { display: flex; flex-direction: column; width: 4px; height: 18px; gap: 2px; flex: none; }
 .stripe i { flex: 1; }
@@ -126,11 +126,31 @@ footer .fill { margin-left: auto; }
 .brush .selection { fill: rgba(90,211,227,0.08); stroke: rgba(90,211,227,0.4); }
 
 @media (max-width: 899px) {
-  #shell { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr 28px; grid-template-areas: "hd" "side" "main" "ft"; }
-  aside.sidebar, .rail { flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); overflow-x: auto; width: 100% !important; height: 48px; }
+  #shell, #shell.rail-min { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr 28px; grid-template-areas: "hd" "side" "main" "ft"; }
+  /* override inline width via class — rail becomes horizontal strip 48px */
+  .rail, .rail.pinned, .rail:not(.pinned) { flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); overflow-x: auto; width: 100% !important; height: 48px; flex-wrap: nowrap; }
   .rail .miniSparkline, .rail .live-peek, .rail .foot-ticker, .rail .rail-foot, .side-status { display: none; }
-  .nav-btn { width: auto; padding: 8px 12px; }
+  .nav-btn { width: auto; padding: 8px 10px; flex: 0 0 auto; white-space: nowrap; }
+  .gates { margin-top: 0; margin-left: auto; flex-wrap: nowrap; gap: 2px; }
+  .gate { width: 10px; }
+  /* mobile rail truncation guard: ensure icons not C… */
+  .nav-lbl { max-width: none; font-size: 11px; }
+  .nav-key { display: none; }
+  /* header wraps on 390: wordmark fallback legibility */
+  header { flex-wrap: wrap; min-width: 0; gap: 8px; padding: 6px 12px; height: auto; min-height: 48px; }
+  .wordmark-lockup { min-width: 0; flex: 1 1 auto; }
+  .wordmark-text { font-size: 16px !important; }
+  .hd-sub { display: none; }
+  .panel-chooser { flex-wrap: wrap; justify-content: center; padding: 6px 10px; gap: 6px; }
+  .panel-chooser button { padding: 4px 8px; font-size: 10px; }
+  .hd-right { flex-wrap: wrap; gap: 6px; font-size: 9px; }
   main { overflow-x: hidden; padding-bottom: 64px; }
+  .panel-stack { gap: 16px; }
+  .view { padding: 12px; }
+  /* live hero mobile: keep 300px but full width */
+  .view .card[style*="300px"] { height: 220px !important; }
+  /* metric grid mobile: 2 cols */
+  .panel-stack > div[style*="gridTemplateColumns"] { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
