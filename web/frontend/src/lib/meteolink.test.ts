@@ -1,19 +1,14 @@
 import { describe, it, expect } from 'vitest'
-// @ts-ignore node:fs for vitest file check
-import { readFileSync, existsSync } from 'node:fs'
-function readAny(cands: string[]): string {
-  for (const p of cands) {
-    try {
-      if (existsSync(p)) return readFileSync(p, 'utf8')
-    } catch {}
-    try { return readFileSync(p, 'utf8') } catch {}
-  }
-  return readFileSync(cands[0], 'utf8')
-}
+// @ts-ignore node:fs types not needed for vitest jsdom — ponytail minimal
+import { readFileSync } from 'node:fs'
 describe('meteolink', () => {
   it('wordmark has gradient and icon', () => {
-    const s=readAny(['web/frontend/src/components/MeteolinkWordmark.tsx','src/components/MeteolinkWordmark.tsx','web/frontend/src/components/MeteolinkWordmark.tsx','C:/cgo/.worktrees/m8/web/frontend/src/components/MeteolinkWordmark.tsx'])
+    const s=readFileSync('web/frontend/src/components/MeteolinkWordmark.tsx','utf8')
     expect(s).toContain('METEOLINK')
     expect(s).toContain('createDrawable')
+  })
+  it('panel chooser exists', () => {
+    const s=readFileSync('web/frontend/src/components/PanelChooser.tsx','utf8')
+    expect(s).toContain('Wall')
   })
 })

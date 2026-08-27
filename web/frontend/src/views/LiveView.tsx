@@ -180,8 +180,17 @@ export default function LiveView() {
           </div>
         </div>
       </div>
-      <div className="card" onMouseEnter={e=>{ const v=live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); rtt.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.rtt95.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={rtt.ref} style={{ height: 220 }} /></div>
-      <div className="card" onMouseEnter={e=>{ const v=live.small.at(-1)?.[1] ?? smallP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); small.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.small.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={small.ref} style={{ height: 180 }} /></div>
+      <div className="card" onMouseEnter={e=>{ const v=live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); rtt.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.rtt95.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={rtt.ref} style={{ height: 180 }} /></div>
+      <div className="card" onMouseEnter={e=>{ const v=live.small.at(-1)?.[1] ?? smallP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); small.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.small.length-1))}) }} onMouseLeave={()=>setPeek(null)} style={{ width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>Petits objets p95 — hero 300px</span>
+          <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            Last updated {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--t-live, #5ad3e3)', boxShadow: '0 0 6px rgba(90,211,227,0.6)', display: 'inline-block', opacity: liveSnap?.running ? 1 : 0.35 }} />
+          </span>
+        </div>
+        <div ref={small.ref} style={{ height: 300 }} />
+      </div>
       <div className="card" onMouseEnter={e=>{ const v=live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); goodput.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.goodput.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={goodput.ref} style={{ height: 180 }} /></div>
       <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>
       {(() => {

@@ -11,13 +11,15 @@ function read(p: string): string {
 }
 
 describe('tokens', () => {
-  it('MadaLink wordmark exists in App.tsx', () => {
+  it('METEOLINK wordmark exists in App.tsx', () => {
     const app = read('web/frontend/src/App.tsx')
-    expect(app).toContain('MadaLink')
+    expect(app).toContain('METEOLINK')
   })
-  it('MadaLink wordmark has glow', () => {
-    const app = read('web/frontend/src/App.tsx')
-    expect(app).toMatch(/textShadow.*rgba\(90,211,227,0\.4\)/)
+  it('METEOLINK wordmark has glow', () => {
+    const s = read('web/frontend/src/components/MeteolinkWordmark.tsx')
+    // canonical METEOLINK uses filter drop-shadow cyan + gradient, fallback #f2f2f4 — exhaustive per DESIGN §3
+    expect(s).toMatch(/drop-shadow.*rgba\(90,211,227/)
+    expect(s).toContain('linear-gradient')
   })
   it('tokens.css has radial glow', () => {
     const css = read('web/frontend/src/styles/tokens.css')
