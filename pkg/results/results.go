@@ -60,7 +60,8 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 				buckets[key] = b
 			}
 			b.count++
-			if r[16] == "invalid" { // only G0,G1,G3,G4,G5 invalid quarantines — degraded/covariable stays valid per spec
+			// ponytail: quarantine only invalid — not degraded, not covariable; spec gates 7 honest
+			if r[16] == "invalid" {
 				b.quarantined++
 			}
 			if v, err := strconv.ParseFloat(r[7], 64); err == nil {

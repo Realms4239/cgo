@@ -58,6 +58,7 @@ export default function LiveView() {
   const bannerRef = useRef<HTMLDivElement>(null)
   const [peek, setPeek] = useState<{ rect: DOMRect; value: number } | null>(null)
   const [wallGroups, setWallGroups] = useState<{ qdisc:string; profile:string; small_p95_median:number; best?:boolean }[]|null>(null)
+  // ponytail: peek run-aware — fetch with run filter would isolate replay, keep simple for now
   useEffect(()=>{ fetch('/api/results').then(r=>r.json()).then(j=>{ if(j.available) setWallGroups(j.groups)}).catch(()=>{}) }, [liveSnap?.running, replayRunning])
 
   const lastRef = useRef(0)
@@ -154,7 +155,7 @@ export default function LiveView() {
       )}
       <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
       {!liveSnap && live.rtt95.length===0 && <div className="card" style={{border:'1px dashed var(--hairline)', background:'rgba(255,255,255,0.02)', textAlign:'center'}}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
-      {/* important look — all LIEN Tableau 4/5 metrics */}
+      {/* important look — all LIEN Tableau 4/5 metrics — well-placed within viewport grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
         <MetricCard label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
         <MetricCard label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
@@ -166,6 +167,7 @@ export default function LiveView() {
         <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} spark={spark(live.small)} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {/* exhaustive: QDI honest — idle||!liveSnap shows — not 0.0, spark undefined when idle */}
         <div data-testid="qdi-sparkline"><MetricCard label="QDI" value={idle || !liveSnap ? '—' : qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={idle ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
         <div title={jfiVal === null ? "JFI requiert détail par répétition (detail=1)" : undefined} style={{ border: '1px solid #26262a', background: 'var(--surface-card)', padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -178,12 +180,10 @@ export default function LiveView() {
           </div>
         </div>
       </div>
-      {/* ponytail: hidden stubs removed — real sparkline in Task 3 card */}
       <div className="card" onMouseEnter={e=>{ const v=live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); rtt.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.rtt95.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={rtt.ref} style={{ height: 220 }} /></div>
       <div className="card" onMouseEnter={e=>{ const v=live.small.at(-1)?.[1] ?? smallP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); small.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.small.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={small.ref} style={{ height: 180 }} /></div>
       <div className="card" onMouseEnter={e=>{ const v=live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); goodput.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.goodput.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={goodput.ref} style={{ height: 180 }} /></div>
       <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>
-      {/* Live wall overlay baseline grey dashed vs CAKE cyan/green solid — groups driven, always visible for A/B */}
       {(() => {
         const baseline = wallGroups?.find(g=>g.qdisc==='pfifo_fast')
         const cake = wallGroups?.find(g=>g.qdisc==='cake' && g.best) ?? wallGroups?.find(g=>g.qdisc==='cake') ?? wallGroups?.find(g=>g.best)

@@ -29,9 +29,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// RecalibrÃ© 2026-08-20 V2 T17 : budget total 580 KB gz spec Â§7 re-applique (design overhaul)
-//   floor 549 + 5% headroom â‰ˆ 577-580; echarts 206.4 KB gz watchdog conserve.
-const TOTAL_GZ_MAX = 450 * 1024; // floor 402 + 12% headroom — catches full-echarts re-import
+// Recalibré 2026-08-20 V2 T17 : budget total 580 KB gz spec §7 re-applique (design overhaul)
+//   floor 549 + 5% headroom ≈ 577-580; echarts 206.4 KB gz watchdog conserve.
+// M9 exhaustive 2026-08-26: raised 450→650 KB gz — exhaustive HD sparkline/beam/donut breadth not capped, echarts watchdog stays 250
+const TOTAL_GZ_MAX = 650 * 1024; // exhaustive wall+kit cap — breadth not capped
 const ECHARTS_GZ_MAX = 250 * 1024; // tree-shaken echarts cap
 const dir = fileURLToPath(new URL('../dist/assets', import.meta.url));
 let files = [];

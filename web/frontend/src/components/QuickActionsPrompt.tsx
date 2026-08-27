@@ -4,7 +4,7 @@ import { animatePromptEnter, animatePromptExit } from '../lib/anime'
 import { PromptProgressLine } from './PromptProgressLine'
 
 export default function QuickActionsPrompt(){
-  const live=useUIStore((s:any)=>s.live), setPanel=useUIStore((s:any)=>s.setPanel)
+  const live = useUIStore((s:any)=>s.live)
   const [open,setOpen]=useState(true)
   const [isHoverPaused,setIsHoverPaused]=useState(false)
   const ref=useRef<HTMLDivElement>(null)
@@ -15,14 +15,12 @@ export default function QuickActionsPrompt(){
 
   useEffect(()=>{ if(!ref.current) return; if(open) animatePromptEnter(ref.current) },[open])
 
-  useEffect(()=>{
-    if(!open) return
-    remainRef.current = 6000
-  },[open])
+  // reset drain when re-opened or event advances
+  useEffect(()=>{ if(open) remainRef.current=6000 },[open, live?.event_id, live?.phase])
 
   // ponytail: track remaining so CSS pause (animationPlayState) and JS timeout stay in sync
   useEffect(()=>{
-    if(!open) return
+    if(!open || !live?.running) return
     if(isHoverPaused){
       if(timeoutRef.current) clearTimeout(timeoutRef.current)
       remainRef.current = Math.max(0, remainRef.current - (Date.now() - startRef.current))
@@ -31,7 +29,7 @@ export default function QuickActionsPrompt(){
     startRef.current = Date.now()
     timeoutRef.current = setTimeout(()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) }, remainRef.current)
     return()=>{ if(timeoutRef.current) clearTimeout(timeoutRef.current) }
-  },[open, isHoverPaused])
+  },[open, isHoverPaused, live?.running])
 
   useEffect(()=>{
     if(open) return
@@ -40,18 +38,47 @@ export default function QuickActionsPrompt(){
   },[open])
 
   useEffect(()=>{
-    if(!open) return
+    if(!open || !live?.running) return
     const onKey=(e:KeyboardEvent)=>{ if(e.key==='Escape'){ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) } }
     document.addEventListener('keydown', onKey)
     return()=>document.removeEventListener('keydown', onKey)
-  },[open])
+  },[open, live?.running])
 
-  const actions = !live ? [{label:'Démarrer',panel:'campagne'}, {label:'Audit',panel:'campagne'}] : live.running ? [{label:'Temps réel',panel:'live'}] : [{label:'Résultats',panel:'resultats'}, {label:'Rejouer',panel:'integrite'}]
-  if(!open) return null
-  return <div ref={ref} role="dialog" aria-modal="true" aria-label="Actions rapides" onMouseEnter={()=>setIsHoverPaused(true)} onMouseLeave={()=>setIsHoverPaused(false)} style={{position:'fixed', bottom:40, left:'50%', transform:'translateX(-50%)', display:'flex', gap:8, padding:'10px 14px', background:'rgba(16,16,18,0.92)', border:'1px solid rgba(255,255,255,0.08)', backdropFilter:'blur(12px)', borderRadius:0, zIndex:400, boxShadow:'0 8px 32px rgba(0,0,0,0.4)', overflow:'hidden'}}>
-    <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color:'#9aa3ad', alignSelf:'center'}}>Actions rapides</span>
-    {actions.map(a=><button key={a.label} onClick={()=>setPanel(a.panel as any)} style={{padding:'6px 12px', background:'#161618', color:'#5ad3e3', border:'1px solid #26262a', borderRadius:0, fontFamily:'JetBrains Mono', fontSize:11, letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer'}}>{a.label}</button>)}
-    <button aria-label="Fermer" onClick={()=>{ if(ref.current) animatePromptExit(ref.current).then(()=>setOpen(false)); else setOpen(false) }} style={{padding:'6px 8px', background:'transparent', border:'1px solid #26262a', borderRadius:0, color:'#9aa3ad', fontSize:11, cursor:'pointer'}}>Esc</button>
-    <PromptProgressLine paused={isHoverPaused} />
-  </div>
+  if (!live?.running) return null
+  if (!open) return null
+  const eventId = live.event_id ?? 1
+  const phase = live.phase ?? 'charge'
+  return (
+    <div
+      ref={ref}
+      role="status"
+      aria-live="polite"
+      aria-label="Progression campagne"
+      onMouseEnter={()=>setIsHoverPaused(true)}
+      onMouseLeave={()=>setIsHoverPaused(false)}
+      style={{
+        position:'fixed',
+        bottom:40,
+        left:'50%',
+        transform:'translateX(-50%)',
+        display:'flex',
+        alignItems:'center',
+        gap:12,
+        padding:'10px 16px 11px',
+        background:'rgba(16,16,18,0.96)',
+        border:'1px solid rgba(255,255,255,0.08)',
+        backdropFilter:'blur(12px)',
+        borderRadius:0,
+        zIndex:400,
+        boxShadow:'0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.02) inset',
+        overflow:'hidden',
+        minWidth:320,
+        justifyContent:'center',
+      }}
+    >
+      <span className="mono" style={{fontFamily:'JetBrains Mono, ui-monospace, monospace', fontSize:11, fontWeight:700, color:'#f2f2f4', letterSpacing:'0.06em', whiteSpace:'nowrap'}}>Event {eventId}/6 — {phase} 4/10s</span>
+      <span className="mono" style={{fontFamily:'JetBrains Mono, ui-monospace, monospace', fontSize:10, color:'#9aa3ad', padding:'2px 6px', border:'1px solid #26262a', background:'rgba(244,180,0,0.10)', lineHeight:1}}>6s</span>
+      <PromptProgressLine paused={isHoverPaused} />
+    </div>
+  )
 }

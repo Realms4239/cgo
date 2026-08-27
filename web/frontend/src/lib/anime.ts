@@ -8,6 +8,7 @@ export const prefersReducedMotion = () =>
 export function animateViewEnter() {
   if (prefersReducedMotion()) return
   const tl = createTimeline()
+  // ponytail: as any around easing — animejs types narrow, runtime correct
   tl.add('.view', { translateY: [8, 0], opacity: [0, 1], filter: ['blur(4px)', 'blur(0)'], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
   tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
@@ -30,7 +31,6 @@ export function animateBar(el: Element) {
 
 export function animateArmButton(el: Element) {
   if (prefersReducedMotion()) return
-  // primary white → danger red spring scale 0.96→1 rotate 0.5→-0.5 + shadow pulse
   const tl = createTimeline()
   tl.add(el, { scale: [0.96, 1], duration: 400, ease: 'outElastic(1, .6)' } as any, 0)
   tl.add(el, { rotate: [0.5, -0.5, 0], duration: 400, ease: 'outElastic(1, .6)' } as any, 0)
@@ -96,13 +96,11 @@ export function animateMeteolinkShimmer(el: Element) {
   if (prefersReducedMotion()) return
   const path = el.querySelector('.noc-icon path') as SVGGeometryElement | null
   if (path) {
-    // verified: svg.createDrawable + animate draw
     const drawable = svg.createDrawable(path)
     animate(drawable as any, { draw: ['0 0', '0 1'], duration: 800, ease: 'linear' } as any)
   }
   const textEl = el.querySelector('.wordmark-text') as HTMLElement | null
   const target = (textEl ?? el) as HTMLElement
-  // verified: text.splitText + splitText direct, chars wrap
   const splitter = text.splitText(target as any, { chars: true } as any) as any
   void splitText; void createDrawable
   const chars: Element[] = splitter?.chars ?? []
@@ -118,7 +116,6 @@ export function animateBeam(el: Element) {
     const drawable = svg.createDrawable(line as any)
     animate(drawable as any, { draw: ['0 0', '0 1', '1 1'], duration: 2000, ease: 'inOutQuad', delay: stagger(100) } as any)
   }
-  // animatable verified: createAnimatable for beam dash
   const anim = createAnimatable(el as any, { strokeDashoffset: { duration: 800, ease: 'linear' } } as any) as any
   void anim
 }
@@ -128,20 +125,19 @@ export function animateDonut(el: Element, value: number) {
   const circle = el.querySelector('circle:last-of-type') as SVGGeometryElement | null
   if (!circle) return
   const v = Math.max(0, Math.min(1, value))
-  // svg.createDrawable verified
   const drawable = svg.createDrawable(circle as any)
   animate(drawable as any, { draw: ['0 0', '0 1'], duration: 600, ease: 'linear' } as any)
-  // animatable verified: createAnimatable
   const anim = createAnimatable(circle as any, { strokeDasharray: { duration: 400, ease: 'out(2)' } } as any) as any
   if (anim?.strokeDasharray) anim.strokeDasharray(`${v * 176} 176`)
 }
 
 export function animateGrid(els: Element[]) {
   if (prefersReducedMotion() || !els.length) return
-  // dense layout: single timeline sequential — fixes double-timeline jank (was two createTimeline on same els)
+  // exhaustive: single timeline sequential — fixes double-timeline jank (was two createTimeline on same els)
+  // grid[4,2] from:center → grid[2,3] from:first gives dense bento spread, stagger 40 keeps HD feel
   const tl = createTimeline()
   tl.add(els as any, { translateY: [12, 0], opacity: [0, 1], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [4, 2], from: 'center' } as any) } as any, 0)
-   .add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 200)
-  // ponytail: keepalive animatable only if needed — tl handles it
+    .add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 200)
+  // ponytail: pause on panel change — caller should call cleanup if panel switches mid-tl
   return () => { try { (tl as any).pause?.() } catch {} }
 }

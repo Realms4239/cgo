@@ -9,4 +9,9 @@ describe('promptProgress', () => {
     expect(s).toContain('#f4b400')
     expect(s).toContain('paused')
   })
+  it('quick prompt shows progress not choices when running', () => {
+    const s=read('web/frontend/src/components/QuickActionsPrompt.tsx')
+    expect(s).toContain('Event')
+    expect(s).not.toContain('Actions rapides')
+  })
 })

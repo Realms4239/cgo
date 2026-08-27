@@ -2,13 +2,12 @@ import * as d3 from 'd3'
 import { useEffect, useRef } from 'react'
 import { live } from '../lib/live'
 
-// ponytail: full d3 — switch to d3-scale/d3-selection if bundle exceeds 450KB
+// ponytail: full d3 — switch to d3-scale/d3-selection if bundle exceeds 650KB
 // ponytail: brushX global live.max — per-phase brush if selection throughput matters
 export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, currentPhase }: { baselineStart: number, chargeStart: number, chargeEnd: number, recupEnd: number, currentPhase: string }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!ref.current) return
-    // hidden when idle — parent also guards, but keep DOM minimal
     if (currentPhase === 'idle') {
       d3.select(ref.current).html('')
       return
@@ -23,7 +22,7 @@ export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, curr
     }
     const fill: Record<string,string> = { baseline:'rgba(90,211,227,0.04)', charge:'rgba(244,180,0,0.08)', recup:'rgba(31,163,72,0.06)' }
     for (const k of ['baseline','charge','recup'] as const) {
-      const isCurrent = currentPhase === k || (k==='recup' && currentPhase==='recup') || (k==='charge' && currentPhase==='charge') || (k==='baseline' && currentPhase==='baseline')
+      const isCurrent = currentPhase === k
       svg.append('rect')
         .attr('x', rects[k].x).attr('width', rects[k].w).attr('height', h)
         .attr('fill', fill[k])
@@ -39,14 +38,15 @@ export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, curr
         const a = (x.invert as any)(e.selection[0]).getTime()
         const b = (x.invert as any)(e.selection[1]).getTime()
         const span = Math.abs(b - a)
+        // ponytail: live.max mutable — single source for ring window, 60..600 clamp
         live.max = Math.max(60, Math.min(600, Math.round(span / 100)))
       } else {
+        // reset to full window when brush cleared — prevents permanent shrink
         live.max = 600
       }
     })
     const gBrush = svg.append('g').attr('class', 'brush').call(brush as any)
     return () => {
-      // cleanup brush listeners on unmount or deps change
       try { (d3 as any).select(gBrush.node()).on('.brush', null) } catch {}
       d3.select(ref.current!).selectAll('*').remove()
     }
