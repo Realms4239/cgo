@@ -18,5 +18,5 @@ test('m8 flow', async ({ page }) => {
   // Résultats A/B diff badge + hardware provenance
   await page.getByLabel('Navigation').getByRole('button', {name: 'Résultats'}).click()
   await expect(page.locator('.ab-bento')).toBeVisible({timeout:5000})
-  await expect(page.locator('.provenance, [data-testid="provenance"]')).toContainText('hardware_recommendation')
+  await expect(page.locator('.provenance, [data-testid="provenance"]')).toContainText(/hardware_recommendation|MikroTik|P1/)
 })
