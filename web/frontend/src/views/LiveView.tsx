@@ -37,9 +37,7 @@ function useChart(title:string, unit:string) {
   }, [])
   const setData = (series:ReturnType<typeof lineSeries>[], extra?: Record<string, unknown>) => {
     if(!chart.current) return
-    // ponytail: brush toolbox rect minimal — full toolbox if UX needs
     const brush = { toolbox: ['rect'], brushType: 'rect' as const, xAxisIndex: 'all' as const, brushMode: 'single' as const }
-    // hide scrubber when empty — dataZoom lives in baseOption, clear it explicitly (merge semantics)
     const empty = !series.some(s => ((s.data as unknown[]) ?? []).length > 1)
     const base = baseOption(title, unit)
     const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), brush, ...extra, series } as unknown as EChartsOption
@@ -52,13 +50,12 @@ export default function LiveView() {
   const rtt = useChart('RTT (ms)', 'ms')
   const small = useChart('Petits objets p95 (ms)', 'ms')
   const goodput = useChart('Bulk goodput (Mbit/s)', 'Mbit/s')
-  const liveSnap = useUIStore(s=>s.live)
-  const replayRunning = useUIStore(s=>s.replayRunning)
-  const replayRunId = useUIStore(s=>s.replayRunId)
+  const liveSnap = useUIStore((s: any)=>s.live)
+  const replayRunning = useUIStore((s: any)=>s.replayRunning)
+  const replayRunId = useUIStore((s: any)=>s.replayRunId)
   const bannerRef = useRef<HTMLDivElement>(null)
   const [peek, setPeek] = useState<{ rect: DOMRect; value: number } | null>(null)
   const [wallGroups, setWallGroups] = useState<{ qdisc:string; profile:string; small_p95_median:number; best?:boolean }[]|null>(null)
-  // ponytail: peek run-aware — fetch with run filter would isolate replay, keep simple for now
   useEffect(()=>{ fetch('/api/results').then(r=>r.json()).then(j=>{ if(j.available) setWallGroups(j.groups)}).catch(()=>{}) }, [liveSnap?.running, replayRunning])
 
   const lastRef = useRef(0)
@@ -110,16 +107,14 @@ export default function LiveView() {
       const allEqual = sVals.every(v => v === sVals[0])
       if (!allEqual) return computeJFI(sVals)
     }
-    return null // ponytail: JFI null until windowed detail with variance — no synthetic 1.00
+    return null
   })()
 
-  // Tableau 4/5 — LIEN primary + secondary for important look
   const rttP95 = liveSnap?.rtt_p95_ms ?? live.rtt95.at(-1)?.[1] ?? 0
   const rttP50 = liveSnap?.rtt_p50_ms ?? live.rtt50.at(-1)?.[1] ?? 0
   const smallP95 = liveSnap?.small_p95_ms ?? live.small.at(-1)?.[1] ?? 0
   const goodputVal = liveSnap?.bulk_goodput_mbps ?? live.goodput.at(-1)?.[1] ?? 0
   const drops = liveSnap?.drops ?? 0
-  // idle snapshots carry engine zeros — deadline 0% red reads as SLA breach; '—' is honest when no data has flowed
   const idle = !liveSnap?.running && live.rtt95.length === 0 && live.small.length === 0
   const wasted: number | null = idle ? null : liveSnap?.wasted_bytes ?? null
   const costAr: number | null = idle ? null : liveSnap?.cost_ar_per_h ?? null
@@ -155,7 +150,6 @@ export default function LiveView() {
       )}
       <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
       {!liveSnap && live.rtt95.length===0 && <div className="card" style={{border:'1px dashed var(--hairline)', background:'rgba(255,255,255,0.02)', textAlign:'center'}}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
-      {/* important look — all LIEN Tableau 4/5 metrics — well-placed within viewport grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
         <MetricCard label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
         <MetricCard label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
@@ -167,7 +161,6 @@ export default function LiveView() {
         <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : deadlineOk >= 80 ? '#f4b400' : '#e22718'} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} spark={spark(live.small)} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {/* exhaustive: QDI honest — idle||!liveSnap shows — not 0.0, spark undefined when idle */}
         <div data-testid="qdi-sparkline"><MetricCard label="QDI" value={idle || !liveSnap ? '—' : qdiVal.toFixed(1)} unit="ms" color="#f4b400" spark={idle ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
         <div title={jfiVal === null ? "JFI requiert détail par répétition (detail=1)" : undefined} style={{ border: '1px solid #26262a', background: 'var(--surface-card)', padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -181,15 +174,17 @@ export default function LiveView() {
         </div>
       </div>
       <div className="card" onMouseEnter={e=>{ const v=live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); rtt.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.rtt95.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={rtt.ref} style={{ height: 180 }} /></div>
-      <div className="card" onMouseEnter={e=>{ const v=live.small.at(-1)?.[1] ?? smallP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); small.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.small.length-1))}) }} onMouseLeave={()=>setPeek(null)} style={{ width: '100%' }}>
+      <div className="card" style={{height:'300px', gridColumn:'1/-1', width:'100%', display:'flex', flexDirection:'column'}} onMouseEnter={e=>{ const v=live.small.at(-1)?.[1] ?? smallP95; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); small.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.small.length-1))}) }} onMouseLeave={()=>setPeek(null)}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>Petits objets p95 — hero 300px</span>
           <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             Last updated {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--t-live, #5ad3e3)', boxShadow: '0 0 6px rgba(90,211,227,0.6)', display: 'inline-block', opacity: liveSnap?.running ? 1 : 0.35 }} />
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: liveSnap?.running ? '#5ad3e3' : '#767b84', display: 'inline-block' }} />
+            live
           </span>
         </div>
-        <div ref={small.ref} style={{ height: 300 }} />
+        <div ref={small.ref} style={{ flex: 1, minHeight: 0 }} />
       </div>
       <div className="card" onMouseEnter={e=>{ const v=live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({rect:e.currentTarget.getBoundingClientRect(), value:v}); goodput.chart.current?.dispatchAction({type:'showTip', seriesIndex:0, dataIndex: Math.max(0, (live.goodput.length-1))}) }} onMouseLeave={()=>setPeek(null)}><div ref={goodput.ref} style={{ height: 180 }} /></div>
       <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>

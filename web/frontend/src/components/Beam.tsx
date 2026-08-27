@@ -2,7 +2,7 @@ import { useUIStore } from '../store/ui'
 
 // ponytail: fixed beam between Campagne and Live when running — CSS dashOffset -40 linear infinite
 export function Beam() {
-  const live = useUIStore((s) => s.live)
+  const live = useUIStore((s: any) => s.live)
   if (!live?.running) return null
   return (
     <svg
