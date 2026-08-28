@@ -1,12 +1,14 @@
-# CGO — machine-local VM config. Copy to cgo-vm.yaml (gitignored).
+# CGO — machine-local VM config. Copy to cgo-vm.yaml (gitignored). Kit general: hypervisor auto detects vmrun else VBoxManage.
 ssh:
   user: altfloat
   host: 192.168.174.128
   port: 22
   key: ~/.ssh/id_ed25519
 
+hypervisor: auto      # auto|vmware|virtualbox — auto tries vmrun then VBoxManage
 vm_name: ""
-vmx_path: ""
+vmx_path: ""          # VMware .vmx path (auto-filled by kit/engine.sh --action scan)
+vbox_path: ""         # VirtualBox .vbox path (auto-filled when hypervisor virtualbox)
 snapshot: ""          # optional named snapshot to revert before boot
 
 project_dir: /home/altfloat/cgo
