@@ -17,7 +17,7 @@ const gatesEqual = (a: unknown, b: unknown): boolean => {
 
 export function connectSSE() {
   if (es) return
-  // H4: server now caps replay to 20 when no Last-Event-ID (was 2048 storm);
+  // H4: server caps replay to last 5 frames when no Last-Event-ID (was 2048 storm);
   // browser auto-sends Last-Event-ID on reconnect via retry:2000
   es = new EventSource('/api/stream')
   const store = useUIStore
