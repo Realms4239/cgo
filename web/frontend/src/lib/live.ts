@@ -7,7 +7,7 @@ export const live = {
   rtt95: [] as Ring,
   small: [] as Ring,
   goodput: [] as Ring,
-  max: 600, // 60s @10Hz
+  max: 1800, // 180s one event @10Hz (Q53 B expand)
   ts: 0,
 }
 

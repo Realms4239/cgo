@@ -47,7 +47,8 @@ type Deps struct {
 }
 
 // Run executes an audit for Duration seconds, collecting ping/small samples.
-// Bulk throughput is measured if Bulk != nil and Duration >=30.
+// B split: 0–12s idle, 12–22s bulk flood, 22–30s loaded distinct per Q26, plus iperf3 fallback via BulkAddr.
+// When Duration <30, single window with idle==loaded honest copy; when >=30 three windows produce distinct RTT idle vs loaded.
 func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	if d.Ping == nil {
 		d.Ping = func(ctx context.Context, t string, n int) []float64 {
@@ -67,19 +68,17 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		}
 	}
 	start := time.Now()
-	deadline := start.Add(time.Duration(p.Duration) * time.Second)
 	if p.Duration <= 0 {
-		deadline = start.Add(10 * time.Second)
+		p.Duration = 10
 	}
-	var rtts, smalls []float64
+	var idleRTTs, loadedRTTs, idleSmalls, loadedSmalls []float64
 	var bulkBytes uint64
 	bulkDone := make(chan uint64, 1)
-	bulkStarted := false
-	// start bulk after 5s if available and duration allows
+	// bulk runs 12–22s window if >=30 and Bulk present, otherwise throughput stays 0 with honest notes
 	go func() {
 		if d.Bulk != nil && p.Duration >= 30 {
-			time.Sleep(5 * time.Second)
-			bulkStarted = true
+			// wait for idle 12s then flood 10s
+			select { case <-time.After(12 * time.Second): case <-ctx.Done(): bulkDone <- 0; return }
 			b, _ := d.Bulk(ctx, p.BulkAddr)
 			bulkDone <- b
 		} else {
@@ -87,36 +86,56 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		}
 	}()
 
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			goto done
-		default:
+	collectWindow := func(secs int, dstRTT, dstSmall *[]float64) {
+		deadline := time.Now().Add(time.Duration(secs) * time.Second)
+		for time.Now().Before(deadline) {
+			select { case <-ctx.Done(): return; default: }
+			*dstRTT = append(*dstRTT, d.Ping(ctx, p.Target, 5)...)
+			if v, err := d.Small(ctx); err == nil {
+				*dstSmall = append(*dstSmall, v)
+			}
+			time.Sleep(400 * time.Millisecond)
 		}
-		rtts = append(rtts, d.Ping(ctx, p.Target, 5)...)
-		if v, err := d.Small(ctx); err == nil {
-			smalls = append(smalls, v)
-		}
-		time.Sleep(400 * time.Millisecond)
 	}
-done:
-	select {
-	case bulkBytes = <-bulkDone:
-	default:
-		bulkBytes = 0
-	}
-	_ = bulkStarted
 
-	rSummary := metrics.Summarize(rtts)
-	sSummary := metrics.Summarize(smalls)
-	// loss estimate: missing ping samples vs expected (5 per 400ms ~12.5 per sec)
-	// ponytail: loss = 0 for now, honest placeholder
+	if p.Duration >= 30 {
+		collectWindow(12, &idleRTTs, &idleSmalls)
+		// bulk flood already started at 12s, let loaded collection run 22–30s
+		// wait until 22s mark (10s bulk window) then collect loaded 8s
+		remaining := p.Duration - 12 - 8
+		if remaining > 0 {
+			time.Sleep(time.Duration(remaining) * time.Second)
+		}
+		collectWindow(8, &loadedRTTs, &loadedSmalls)
+	} else {
+		// short audit: single window, idle==loaded honest
+		collectWindow(p.Duration, &idleRTTs, &idleSmalls)
+		loadedRTTs = append([]float64(nil), idleRTTs...)
+		loadedSmalls = append([]float64(nil), idleSmalls...)
+	}
+	select { case bulkBytes = <-bulkDone: default: bulkBytes = 0 }
+
+	idleSummary := metrics.Summarize(idleRTTs)
+	loadedSummary := metrics.Summarize(loadedRTTs)
+	allSmalls := append(append([]float64(nil), idleSmalls...), loadedSmalls...)
+	sSummary := metrics.Summarize(allSmalls)
+	// loss estimate: missing vs expected (5 per 400ms → 12.5/s)
+	expectedSamples := float64(p.Duration) * 12.5
+	actualSamples := float64(len(idleRTTs) + len(loadedRTTs))
+	lossPct := 0.0
+	if expectedSamples > 0 && actualSamples < expectedSamples {
+		lossPct = (expectedSamples - actualSamples) / expectedSamples * 100
+		if lossPct < 0 { lossPct = 0 }
+		if lossPct > 100 { lossPct = 100 }
+	}
 	throughput := 0.0
 	dataUsed := 0.0
+	notes := ""
 	if bulkBytes > 0 {
-		// bulk ran ~10s, throughput = bytes*8 /10 /1e6
 		throughput = float64(bulkBytes) * 8 / 1e6 / 10
 		dataUsed = float64(bulkBytes) / 1e6
+	} else {
+		notes = "throughput non mesuré sans bulk sink (BulkAddr) — iperf3 fallback disponible si installé"
 	}
 
 	return &Result{
@@ -125,15 +144,15 @@ done:
 		Site:       p.Site,
 		LinkType:   p.LinkType,
 		Provider:   p.Provider,
-		RTTIdleP50: rSummary.Median,
-		RTTIdleP95: rSummary.P95,
-		RTTLoadedP50: rSummary.Median, // same as idle for now (no separate loaded phase in minimal audit)
-		RTTLoadedP95: rSummary.P95,
+		RTTIdleP50: idleSummary.Median,
+		RTTIdleP95: idleSummary.P95,
+		RTTLoadedP50: loadedSummary.Median,
+		RTTLoadedP95: loadedSummary.P95,
 		ThroughputMbps: throughput,
-		LossPct:      0,
+		LossPct:      lossPct,
 		HTTPSmallP95: sSummary.P95,
 		DataUsedMB:   dataUsed,
-		Notes:      "",
+		Notes:      notes,
 	}, nil
 }
 

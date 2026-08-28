@@ -14,6 +14,7 @@ type Profile struct {
 var Profiles = map[string]Profile{
 	"P1": {ID: "P1", CapacityMbps: 80, DelayMs: 20, JitterMs: 2, LossPct: 0},
 	"P2": {ID: "P2", CapacityMbps: 20, DelayMs: 100, JitterMs: 15, LossPct: 0.5},
+	"P3": {ID: "P3", CapacityMbps: 5, DelayMs: 600, JitterMs: 30, LossPct: 1},
 }
 
 type Qdisc string

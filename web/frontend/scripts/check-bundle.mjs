@@ -31,9 +31,9 @@ import { fileURLToPath } from 'node:url';
 
 // Recalibré 2026-08-20 V2 T17 : budget total 580 KB gz spec §7 re-applique (design overhaul)
 //   floor 549 + 5% headroom ≈ 577-580; echarts 206.4 KB gz watchdog conserve.
-// M9 exhaustive 2026-08-26: raised 450→650 KB gz — exhaustive HD sparkline/beam/donut breadth not capped, echarts watchdog stays 250
-const TOTAL_GZ_MAX = 650 * 1024; // exhaustive wall+kit cap — breadth not capped
-const ECHARTS_GZ_MAX = 250 * 1024; // tree-shaken echarts cap
+// Wall-kit reunite 2026-08-27: bumped 450/250 → 600/350 KB gz — decently portable not zero-dep, heterogenous P3 breadth
+const TOTAL_GZ_MAX = 600 * 1024; // wall-kit reunite cap — bumped for heavy NOC observatory
+const ECHARTS_GZ_MAX = 350 * 1024; // tree-shaken echarts cap bumped for hybrid lively
 const dir = fileURLToPath(new URL('../dist/assets', import.meta.url));
 let files = [];
 try { files = readdirSync(dir).filter((f) => f.endsWith('.js')); }

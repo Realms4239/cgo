@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+// @ts-ignore node:fs for vitest jsdom ponytail minimal
 import { readFileSync } from 'node:fs'
 describe('instrumentation', ()=>{
   it('live exposes __CGO_LIVE', ()=>{
