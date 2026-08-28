@@ -160,12 +160,51 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 
 	var baseRTT, baseSmall, chgRTT, chgSmall, recRTT []float64
 	var bulkBytes uint64
-	collect := func(secs int) (rtt, small []float64) {
+
+	// live truth (§5): publish running measurements every probe round so the
+	// 10Hz hub carries rtt/small/goodput/drops DURING the window — not only
+	// at phase boundaries (charts flatlined at 0 mid-charge before this).
+	startDrops, startBytes := uint64(0), uint64(0)
+	if d.StatsFn != nil {
+		sts := d.StatsFn()
+		startDrops, startBytes = qdisc.SumDrops(sts), qdisc.SumBytes(sts)
+	}
+	liveLastBytes, liveLastT := startBytes, d.Now()
+	publishLive := func(phase string, rtt, small []float64) {
+		if d.OnSnap == nil {
+			return
+		}
+		live := ev
+		if len(rtt) > 0 {
+			s := metrics.Summarize(rtt)
+			live.RTTp50Ms = round1(s.Median)
+			live.RTTp95Ms = round1(s.P95)
+		}
+		if len(small) > 0 {
+			sm := metrics.Summarize(small)
+			live.Smallp95Ms = round1(sm.P95)
+			live.DeadlineOKPct = round1(metrics.DeadlineOKPct(small, 1000))
+		}
+		if d.StatsFn != nil {
+			sts := d.StatsFn()
+			nowB, nowT := qdisc.SumBytes(sts), d.Now()
+			if dt := nowT.Sub(liveLastT).Seconds(); dt > 0.2 {
+				live.BulkGoodputMbps = round1(float64(nowB-liveLastBytes) * 8 / 1e6 / dt)
+			}
+			live.Drops = qdisc.SumDrops(sts) - startDrops
+			liveLastBytes, liveLastT = nowB, nowT
+		}
+		live.WastedBytes = live.Drops * 1448
+		live.CostARPerH = round1(metrics.CostARPerH(live.WastedBytes))
+		d.OnSnap(d.Snapshot(phase, loadFor(phase), live, nil, nil, 0, prof, gates))
+	}
+	collect := func(secs int, phase string) (rtt, small []float64) {
 		if secs <= 0 { // instant window: single synthetic pass (tests)
 			rtt = d.Ping(ctx, d.Target, 5)
 			if v, err := d.Small(ctx); err == nil {
 				small = append(small, v)
 			}
+			publishLive(phase, rtt, small)
 			return rtt, small
 		}
 		deadline := d.Now().Add(time.Duration(secs) * time.Second)
@@ -174,6 +213,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			if v, err := d.Small(ctx); err == nil {
 				small = append(small, v)
 			}
+			publishLive(phase, rtt, small)
 			time.Sleep(300 * time.Millisecond)
 		}
 		return
@@ -181,7 +221,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 
 	// baseline
 	push(model.PhaseBaseline)
-	baseRTT, baseSmall = collect(d.BaselineSec)
+	baseRTT, baseSmall = collect(d.BaselineSec, model.PhaseBaseline)
 	_ = baseSmall
 	set(model.G0TargetReachable, len(baseRTT) > 0)
 	sumB := metrics.Summarize(baseRTT)
@@ -192,12 +232,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	chgCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// snapshot tc -s counters at charge start for drops/goodput delta
-	var startDrops, startBytes uint64
+	// re-baseline tc -s counters at charge start — drops/goodput delta is charge-scoped
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
-		startDrops = qdisc.SumDrops(sts)
-		startBytes = qdisc.SumBytes(sts)
+		startDrops, startBytes = qdisc.SumDrops(sts), qdisc.SumBytes(sts)
+		liveLastBytes, liveLastT = startBytes, d.Now()
 	}
 
 	bulkFn := d.Bulk
@@ -212,7 +251,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	if d.ChargeSec > 0 {
 		time.Sleep(300 * time.Millisecond) // let the flood connect
 	}
-	chgRTT, chgSmall = collect(d.ChargeSec)
+	chgRTT, chgSmall = collect(d.ChargeSec, model.PhaseCharge)
 	cancel()
 	bulkBytes = <-done
 	set(model.G1BulkStarted, bulkBytes > 0)
@@ -257,7 +296,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	if d.OnSnap != nil {
 		d.OnSnap(d.Snapshot(model.PhaseRecup, loadFor(model.PhaseRecup), ev, nil, nil, 0, prof, gates))
 	}
-	recRTT, _ = collect(d.RecupSec)
+	recRTT, _ = collect(d.RecupSec, model.PhaseRecup)
 	_ = recRTT
 
 	status := model.GatePass

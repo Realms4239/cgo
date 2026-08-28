@@ -1,6 +1,8 @@
 package campagne
 
 import (
+	"sync"
+	"time"
 	"context"
 	"os"
 	"path/filepath"
@@ -73,5 +75,65 @@ func TestWriterAppendAndFreeze(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "manifest.json")); err != nil {
 		t.Fatal("manifest missing")
+	}
+}
+
+// §5 live contract: OnSnap carries running measurements DURING the charge
+// window — boundary-only publishing starved the Wall with zeros for the
+// whole charge (charts flatlined at 0 while SSE said running).
+func TestRunEventLivePublish(t *testing.T) {
+	d := fastDeps()
+	d.BaselineSec = 1
+	d.ChargeSec = 2 // probe loop rounds at ~300ms
+	d.RecupSec = 0
+
+	release := make(chan struct{})
+	var once sync.Once
+	releaseAll := func() { once.Do(func() { close(release) }) }
+	defer releaseAll()
+	d.Bulk = func(ctx context.Context, _ string) (uint64, error) {
+		<-release // hold bulk mid-charge — collect loop must publish live regardless
+		return 2_500_000, nil
+	}
+
+	var mu sync.Mutex
+	liveNonZero := 0
+	d.OnSnap = func(s Snapshot) {
+		if s.Phase == model.PhaseCharge && s.RTTp50Ms > 0 && s.Smallp95Ms > 0 {
+			mu.Lock()
+			liveNonZero++
+			mu.Unlock()
+		}
+	}
+
+	ev := model.Event{RunID: "r1", EventID: 3, Profile: "P2", Qdisc: model.FqCodel, CC: model.Cubic, Repetition: 1}
+	done := make(chan struct{})
+	var runErr error
+	go func() {
+		_, runErr = RunEvent(context.Background(), ev, model.Profiles["P2"], d)
+		close(done)
+	}()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		mu.Lock()
+		n := liveNonZero
+		mu.Unlock()
+		if n > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no live snapshot with running measurements mid-charge")
+		}
+		select {
+		case <-done:
+			t.Fatal("RunEvent finished without any live mid-charge publish")
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	releaseAll()
+	<-done
+	if runErr != nil {
+		t.Fatal(runErr)
 	}
 }
