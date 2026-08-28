@@ -47,11 +47,7 @@ export function animateLiveEnter() {
   tl.add('.card', { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'], duration: 700, delay: stagger(50, { start: 80 }), ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
 
-export function animateRail(el: Element, pinned: boolean) {
-  if (prefersReducedMotion()) return
-  const tl = createTimeline({ defaults: { duration: 400, ease: 'cubicBezier(0.4,0,0.2,1)' } } as any)
-  tl.add(el, { width: [pinned ? 56 : 232, pinned ? 232 : 56], duration: 400, ease: 'cubicBezier(0.4,0,0.2,1)' } as any, 0)
-}
+// width animation owned by CSS var(--rail-w) transition 400ms — anime inline width would fight the var
 
 export function animatePromptEnter(el: Element) {
   if (prefersReducedMotion()) return

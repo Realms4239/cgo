@@ -42,9 +42,7 @@ header { grid-area: hd; display: flex; align-items: center; gap: 12px; padding: 
 
 /* sidebar / rail — ponytail minimal */
 aside.sidebar { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; }
-.rail { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; }
-.rail.pinned { width: 232px; }
-.rail:not(.pinned) { width: 56px; }
+.rail { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; width: var(--rail-w, 56px); transition: width 400ms var(--ease); }
 .miniSparkline { width: 32px; height: 12px; opacity: 0.6; display: block; margin: 8px auto; }
 .nav-icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; flex-shrink: 0; }
 .nav-btn { position: relative; display: flex; align-items: center; gap: var(--sp-3); width: 100%; padding: 10px 14px; color: var(--text-muted); transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease); }

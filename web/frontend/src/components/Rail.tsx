@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { useUIStore, PANELS } from '../store/ui'
-import { animateRail } from '../lib/anime'
 import { StatusPip } from './ui/StatusPip'
 
 export default function Rail(){
@@ -10,7 +9,6 @@ export default function Rail(){
   const sseStatus=useUIStore(s=>s.sseStatus)
   const ref=useRef<HTMLElement>(null)
   const canvasRef=useRef<HTMLCanvasElement>(null)
-  useEffect(()=>{ if(ref.current) animateRail(ref.current, pinned) },[pinned])
   useEffect(()=>{
     const c=canvasRef.current
     if(!c) return
@@ -27,7 +25,7 @@ export default function Rail(){
     ctx.stroke()
   },[pinned, live])
   const ICONS:Record<string,string>={campagne:'◉', live:'∼', resultats:'▦', integrite:'⬢'}
-  return <aside ref={ref} className={'rail '+(pinned?'pinned':'')} data-pinned={pinned?'1':'0'} aria-label="Navigation">
+  return <aside ref={ref} className={'rail '+(pinned?'pinned':'')} data-pinned={pinned?'1':'0'} aria-label="Navigation" style={{'--rail-w': pinned?232:56} as any}>
     {PANELS.map(p=><button key={p.id} className={'nav-btn'+(panel===p.id?' on':'')} data-panel={p.id} onClick={()=>setPanel(p.id)} title={p.label} aria-label={p.label}><span className="nav-icon" aria-hidden="true" style={{width:16,height:16,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14,lineHeight:1}}>{ICONS[p.id]||'•'}</span>{pinned?<span className="nav-lbl">{p.label}</span>:<span className="sr-only">{p.label}</span>}{pinned&&<span className="nav-key">{p.key}</span>}</button>)}
     <button onClick={()=>setPinned(!pinned)} aria-label="Épingler" className="nav-btn" style={{marginTop:8, borderTop:'1px solid var(--hairline)', justifyContent:'center'}}>{pinned?'◀':'▶'}</button>
     <canvas ref={canvasRef} className="miniSparkline" width={32} height={12} aria-hidden="true" style={{opacity:0.6}} />

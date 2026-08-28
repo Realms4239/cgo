@@ -24,6 +24,17 @@ describe('Rail', () => {
     expect(s).toContain('density')
   })
 })
+describe('Rail var(--rail-w) splatter fix', () => {
+  it('width via var(--rail-w), no anime width fight', () => {
+    const r = readAny(['web/frontend/src/components/Rail.tsx','src/components/Rail.tsx'])
+    expect(r).toContain('--rail-w')
+    expect(r).not.toContain("style={{width: pinned?")
+    const css = readAny(['web/frontend/src/styles/index.css','src/styles/index.css'])
+    expect(css).toContain('.rail { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; width: var(--rail-w, 56px); transition: width 400ms var(--ease); }')
+    expect(css).not.toMatch(/\.rail\.pinned\s*{\s*width:/)
+    expect(css).not.toMatch(/\.rail:not\(\.pinned\)\s*{\s*width:/)
+  })
+})
 describe('Rail polish', () => {
   it('Rail has icons and bento scoped', () => {
     const r=readAny(['web/frontend/src/components/Rail.tsx','src/components/Rail.tsx'])
