@@ -95,8 +95,10 @@ main { grid-area: main; overflow-y: auto; position: relative; }
 
 /* panel-stack — tidy+breathing well-placed */
 .panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 1280px; width: 100%; margin: 0 auto; }
-[data-density=airy] .panel-stack { gap: 24px; }
-[data-density=dense] .panel-stack { gap: 16px; }
+/* bento breathing — scoped to the wall (#wall), density drives --gap var (Q6 B) */
+[data-density='airy'] { --gap: 24px; }
+[data-density='dense'] { --gap: 16px; }
+#wall { gap: var(--gap); container-type: inline-size; }
 /* bento 2-col scoped to campagne/live — resultats/integrite tables stay full */
 @media (min-width: 1100px) {
   [data-density='airy'] #v-campagne .panel-stack, [data-density='airy'] #v-live .panel-stack { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }

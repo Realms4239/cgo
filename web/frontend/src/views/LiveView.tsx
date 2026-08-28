@@ -159,7 +159,7 @@ export default function LiveView() {
   const diffAB = baseline && cakeBest && baseline.small_p95_median > 0 ? Math.round(((baseline.small_p95_median - cakeBest.small_p95_median) / baseline.small_p95_median) * 100) : null
 
   return (
-    <div className="panel-stack" style={{ position: 'relative' }}>
+    <div id="wall" className="panel-stack" style={{ position: 'relative' }}>
       {peek && (
         <PeekPopover rect={peek.rect}>
           <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099' }}>live p95 — point</div>
