@@ -134,7 +134,7 @@ export default function CampagneView() {
   })
 
   return (
-    <div className="panel-stack" style={{position:'relative', maxWidth:380, backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1px solid var(--hairline)', background:'rgba(16,16,18,0.92)', padding:12}}>
+    <div className="panel-stack" style={{position:'fixed', right:0, top:48, bottom:28, width:380, zIndex:40, backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderLeft:'1px solid var(--hairline)', background:'rgba(7,7,7,0.85)', overflowY:'auto', padding:12}}>
       {peek && (
         <PeekPopover rect={peek.rect}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>live small — 20 pts</div>
