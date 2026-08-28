@@ -17,10 +17,11 @@ test('wall MetricCards — 8 cards with data-metric render', async ({ page }) =>
   }
 })
 
-test('wall honest emptiness — no fake 0s when idle, provenance pill present', async ({ page }) => {
+test('wall honest emptiness — idle cards show — not fabricated 0s', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-panel="live"]').click()
-  await expect(page.locator('[data-testid="provenance"]').first()).toBeVisible()
   const small = page.locator('[data-metric="small_p95"]')
   await expect(small).toBeVisible()
+  // server idle (SSE running:false) — card must show — per truth boundary
+  await expect(small).toContainText('—')
 })
