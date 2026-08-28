@@ -5,9 +5,12 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -262,8 +265,43 @@ func New(d Deps) http.Handler {
 		writeJSON(w, map[string]any{"audits": out})
 	})
 	mux.HandleFunc("POST /api/profile/import", func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+		if err != nil {
+			http.Error(w, "bad body", http.StatusBadRequest)
+			return
+		}
+		ct := r.Header.Get("Content-Type")
 		var p model.Profile
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&p); err != nil {
+		// CSV row (LIEN III.IV): id,capacity_mbps,delay_ms,jitter_ms,loss_pct — optional header line skipped
+		if strings.Contains(ct, "text/csv") || (len(body) > 0 && body[0] != '{') {
+			rows, err := csv.NewReader(strings.NewReader(string(body))).ReadAll()
+			if err != nil || len(rows) == 0 {
+				http.Error(w, "bad csv", http.StatusBadRequest)
+				return
+			}
+			row := rows[0]
+			if len(row) > 0 && (row[0] == "id" || row[0] == "ID") && len(rows) > 1 {
+				row = rows[1] // skip header line
+			}
+			if len(row) < 2 {
+				http.Error(w, "bad csv row", http.StatusBadRequest)
+				return
+			}
+			num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
+			p = model.Profile{ID: strings.TrimSpace(row[0])}
+			if len(row) > 1 {
+				p.CapacityMbps = num(row[1])
+			}
+			if len(row) > 2 {
+				p.DelayMs = num(row[2])
+			}
+			if len(row) > 3 {
+				p.JitterMs = num(row[3])
+			}
+			if len(row) > 4 {
+				p.LossPct = num(row[4])
+			}
+		} else if err := json.Unmarshal(body, &p); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
@@ -275,8 +313,6 @@ func New(d Deps) http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// also update in-memory
-		model.Profiles[p.ID] = p
 		writeJSON(w, map[string]any{"ok": true, "profile": p})
 	})
 	mux.HandleFunc("GET /api/profile/list", func(w http.ResponseWriter, _ *http.Request) {

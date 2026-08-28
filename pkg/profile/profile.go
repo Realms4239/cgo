@@ -10,11 +10,12 @@ import (
 
 const file = "data/profiles.json"
 
-// Import adds a custom profile and persists it.
+// Import registers a custom profile in model.Profiles AND persists it (single source).
 func Import(p model.Profile) error {
 	if p.ID == "" {
 		return nil
 	}
+	model.Profiles[p.ID] = p
 	m := map[string]model.Profile{}
 	if data, err := os.ReadFile(file); err == nil {
 		_ = json.Unmarshal(data, &m)
