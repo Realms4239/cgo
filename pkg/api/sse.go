@@ -16,12 +16,13 @@ const frameHz = 10
 // Hub broadcasts snapshots at 10 Hz with delta-compressed structural
 // fields, Last-Event-ID replay (ring 2048) and named backpressure events.
 type Hub struct {
-	mu     sync.Mutex
-	lastID uint64
-	ring   []frame // cap 2048
-	subs   map[*sub]struct{}
-	last   map[string]any // last structural values for delta
-	ticker *time.Ticker
+	mu       sync.Mutex
+	lastID   uint64
+	ring     []frame // cap 2048
+	subs     map[*sub]struct{}
+	last     map[string]any // last structural values for delta
+	lastFull string         // full snapshot json (structural included) for fresh-client sync
+	ticker   *time.Ticker
 }
 
 type frame struct {
@@ -84,6 +85,15 @@ func (h *Hub) Publish(snap any) {
 	raw, err := json.Marshal(out)
 	if err != nil {
 		return
+	}
+	// full copy (structural included) — fresh clients sync state from it
+	full := make(map[string]any, len(src)+1)
+	for k, v := range src {
+		full[k] = v
+	}
+	full["ts"] = ts
+	if fullRaw, err := json.Marshal(full); err == nil {
+		h.lastFull = string(fullRaw)
 	}
 	h.lastID++
 	f := frame{id: h.lastID, raw: string(raw)}
@@ -154,6 +164,14 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 		if _, err := fmt.Fprint(w, p); err != nil {
 			return
 		}
+	}
+	// fresh client (no Last-Event-ID): delta frames omit unchanged structural
+	// fields the client never received — sync state with one full frame first
+	h.mu.Lock()
+	lastFull := h.lastFull
+	h.mu.Unlock()
+	if r.Header.Get("Last-Event-ID") == "" && lastFull != "" {
+		fmt.Fprintf(w, "data: %s\n\n", lastFull)
 	}
 	fl.Flush()
 
