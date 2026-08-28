@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { animateBar } from '../lib/anime'
-import { computeJFI } from '../lib/jfi'
 import { PeekPopover } from '../components/PeekPopover'
 import { echarts } from '../lib/echarts'
 import { baseOption, scatterSeries } from '../lib/chartGrammar'
@@ -124,10 +123,10 @@ export default function ResultatsView() {
       </div>
 
       <div className="card" style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+        <table className='data-table' style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
           <thead>
             <tr style={{ color: 'var(--text-muted)', textAlign: 'left', borderBottom: '1px solid var(--hairline)' }}>
-              <th style={{ padding: '6px 8px' }}>profil</th><th>qdisc</th><th>cc</th><th>n</th><th style={{ minWidth: 140 }}>small p95</th><th>rtt p95</th><th>goodput</th><th title="Jain's fairness 0–1" style={{ width: 52, fontSize: 11, fontFamily: 'JetBrains Mono', color: '#9aa3ad' }}>JFI</th>
+              <th style={{ padding: '6px 8px' }}>profil</th><th>qdisc</th><th>cc</th><th>n</th><th style={{ minWidth: 140 }}>small p95</th><th>rtt p95</th><th>goodput</th>
               {showCosts && <><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#8b9099' }}>deadline_ok</th><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#8b9099' }}>wasted</th><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f4b400' }}>cost</th></>}
               <th>quar.</th><th>best</th>
             </tr>
@@ -136,9 +135,6 @@ export default function ResultatsView() {
             {groups.map((g, i) => {
               const pct = (g.small_p95_median / maxSmall) * 100
               const barColor = g.best ? 'var(--t-ok)' : g.qdisc === 'cake' ? 'var(--t-bbr)' : g.qdisc === 'fq_codel' ? 'var(--t-live)' : 'var(--text-faint)'
-              const jfiVals = Array.from({ length: g.count }, () => g.small_p95_median)
-              const jfiDegenerate = g.count < 2 || jfiVals.every(v => v === jfiVals[0])
-              const jfi: number | null = jfiDegenerate ? null : computeJFI(jfiVals)
               const wasted: number | null = g.wasted_median ?? g.wasted_bytes ?? null
               const cost: number | null = g.cost_median ?? g.cost_ar_per_h ?? null
               const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
@@ -156,10 +152,9 @@ export default function ResultatsView() {
                   </td>
                   <td>{g.rtt_p95_median.toFixed(1)}</td>
                   <td>{g.goodput_median.toFixed(1)}</td>
-                  <td title={jfi === null ? 'JFI requiert détail par répétition (detail=1)' : undefined} style={{ width: 52, fontFamily: 'JetBrains Mono', fontSize: 11, fontVariantNumeric: 'tabular-nums', color: jfi === null ? '#767b84' : jfi > 0.95 ? '#1fa348' : '#9aa3ad', textAlign: 'right' }}>{jfi === null ? '—' : jfi.toFixed(2)}</td>
                   {showCosts && <>
                     <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, fontVariantNumeric: 'tabular-nums', color: deadlineOk == null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : '#f4b400', textAlign: 'right' }}>{deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'}</td>
-                    <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, fontVariantNumeric: 'tabular-nums', color: wasted == null ? '#767b84' : wasted > 0 ? '#e22718' : '#767b84', textAlign: 'right' }}>{wasted == null ? '—' : wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + 'M' : String(wasted)) : '0'}</td>
+                    <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, fontVariantNumeric: 'tabular-nums', color: wasted == null ? '#767b84' : wasted > 0 ? '#e22718' : '#767b84', textAlign: 'right' }}>{wasted == null ? '—' : wasted >= 1048576 ? (wasted / 1048576).toFixed(1) + ' MiB' : wasted >= 1024 ? (wasted / 1024).toFixed(0) + ' KiB' : String(wasted)}</td>
                     <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, fontVariantNumeric: 'tabular-nums', color: cost == null ? '#767b84' : cost > 0 ? '#f4b400' : '#767b84', textAlign: 'right' }}>{cost == null ? '—' : cost ? cost.toFixed(0) : '0'}</td>
                   </>}
                   <td>{g.quarantined}</td>
@@ -171,7 +166,7 @@ export default function ResultatsView() {
         </table>
       </div>
       <div className="card" style={{ padding: 12 }}>
-        <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099', marginBottom: 6 }}>goodput vs small — brush rect pour comparer · hash {hash8}</div>
+        <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099', marginBottom: 6 }}>goodput vs small — compromis débit/latence · hash {hash8}</div>
         <div ref={scatterRef} style={{ height: 220 }} />
       </div>
       <div className="form-row" style={{ gap: 8 }}>
