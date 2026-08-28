@@ -36,10 +36,9 @@ func Generate(dataDir, outDir string) error {
 	return nil
 }
 
-// ProvenanceHash8 — first 8 hex chars of the latest aqm_eval.csv sha256.
-// One derivation for the triple-provenance chain (Wall/Archives/Report);
-// empty string when no run data exists.
-func ProvenanceHash8(dataDir string) string {
+// ProvenanceSHA — full sha256 of the latest aqm_eval.csv ("" when no data).
+// One derivation for the triple-provenance chain (Wall/Archives/Report).
+func ProvenanceSHA(dataDir string) string {
 	runs, _ := filepath.Glob(filepath.Join(dataDir, "*", "aqm_eval.csv"))
 	if len(runs) == 0 {
 		return ""
@@ -50,7 +49,15 @@ func ProvenanceHash8(dataDir string) string {
 		return ""
 	}
 	sum := sha256.Sum256(b)
-	return hex.EncodeToString(sum[:])[:8]
+	return hex.EncodeToString(sum[:])
+}
+
+// ProvenanceHash8 — first 8 hex chars of ProvenanceSHA.
+func ProvenanceHash8(dataDir string) string {
+	if full := ProvenanceSHA(dataDir); full != "" {
+		return full[:8]
+	}
+	return ""
 }
 
 func provenanceMeta(dataDir string) string {

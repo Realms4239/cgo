@@ -30,7 +30,8 @@ export default function ResultatsView() {
       else setErr(j.reason || 'pas de résultats')
     }).catch(e => setErr(String(e)))
     fetch('/api/integrity').then(r => r.json()).then(j => {
-      const id = j?.run_ids?.[0] ?? j?.runs?.[0] ?? ''
+      // triple-provenance: hash8 = sha256(latest aqm_eval.csv)[:8]; fallback run id when absent
+      const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
       if (id) setHash8(String(id).slice(0, 8))
     }).catch(() => {})
   }, [])

@@ -98,7 +98,7 @@ func New(d Deps) http.Handler {
 			writeJSON(w, map[string]any{"available": false, "reason": "intégrité disponible après gel (jalon M2)"})
 			return
 		}
-		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "quarantined": quarantined, "run_ids": runIDs})
+		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "quarantined": quarantined, "run_ids": runIDs, "sha256": figures.ProvenanceSHA("data/runs"), "hash8": figures.ProvenanceHash8("data/runs")})
 	})
 	mux.HandleFunc("GET /api/report/export", func(w http.ResponseWriter, r *http.Request) {
 		fmtParam := r.URL.Query().Get("format")
