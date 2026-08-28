@@ -4,7 +4,7 @@ import { echarts } from './echarts'
 // ponytail: observatory grammar in ~100 lines, not a chart framework.
 // One parameterized base + craft factories (line | bar | area | scatter) —
 // every ECharts surface in the app consumes this (GoAccess/AA multiplicity).
-export function baseOption(title: string, unit: string): EChartsOption {
+export function baseOption(title: string, unit: string, opts?: { idle?: boolean }): EChartsOption {
   return {
     backgroundColor: 'transparent',
     textStyle: { fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099' },
@@ -54,13 +54,23 @@ export function baseOption(title: string, unit: string): EChartsOption {
       ],
       outOfRange: { color: '#9aa3ad' },
     } as unknown as EChartsOption['visualMap'],
-    graphic: [
-      // ponytail: 28px fits 2-col bento cards — 56px clipped ("daLink · LIEN — o")
+    // watermark kept only when !idle (§3) — on idle charts it glares in the void
+    graphic: opts?.idle ? [] : [
       { type: 'text', left: 'center', top: 10, style: { text: 'METEOLINK \u00B7 LIEN', fill: 'rgba(255,255,255,0.03)', font: '600 28px Cormorant Garamond', textAlign: 'center' }, silent: true },
       { type: 'image', left: 'center', top: 'center', style: { image: 'data:image/svg+xml;base64,PHN2Zz4=', width: 300, height: 300, opacity: 0.015 }, silent: true },
     ] as unknown as EChartsOption['graphic'],
   } as unknown as EChartsOption
 }
+
+// craft palette — single source for every chart color (no hex in views)
+export const CRAFT = {
+  live: '#5ad3e3',
+  ok: '#1fa348',
+  threshold: '#f4b400',
+  bbr: '#b48ae0',
+  steel: '#9aa3ad',
+  danger: '#e22718',
+} as const
 
 // craft factories — markPoint is opt-in with a unit-aware formatter (clean triple: no clutter on live charts)
 export function lineSeries(name: string, data: [number, number][], color: string, area = false, maxMarkUnit?: string) {

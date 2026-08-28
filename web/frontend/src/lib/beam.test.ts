@@ -83,3 +83,24 @@ describe('chart grammar parameterized — GoAccess/AA craft (plans §3)',()=>{
     expect(lv).toContain('j?.hash8')
   })
 })
+
+describe('NOC rebuild Layer B — primitives + grammar tokens',()=>{
+  it('primitives exist and speak tokens, not hex',()=>{
+    for(const f of ['Card','CardHead','Stat','Pill','EmptyChart']){
+      const s=read(`web/frontend/src/components/ui/${f}.tsx`)
+      expect(s).toContain('export function')
+      expect(s).toContain('var(--')
+    }
+  })
+  it('grammar — watermark only when !idle + craft palette exported',()=>{
+    const g=read('web/frontend/src/lib/chartGrammar.ts')
+    expect(g).toContain('export const CRAFT')
+    expect(g).toContain('idle')
+    expect(g).not.toContain("graphic: [\n      // ponytail: 28px")
+  })
+  it('Wall — no internal spec labels in UI, hero head via CardHead',()=>{
+    const lv=read('web/frontend/src/views/LiveView.tsx')
+    expect(lv).not.toContain('hero 300px')
+    expect(lv).toContain('CardHead')
+  })
+})
