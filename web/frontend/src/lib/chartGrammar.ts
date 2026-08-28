@@ -1,5 +1,4 @@
 import type { EChartsOption } from 'echarts'
-import { echarts } from './echarts'
 
 // ponytail: observatory grammar in ~100 lines, not a chart framework.
 // One parameterized base + craft factories (line | bar | area | scatter) —
@@ -43,17 +42,8 @@ export function baseOption(title: string, unit: string, opts?: { idle?: boolean 
     dataZoom: [
       { type: 'inside', filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true },
     ] as unknown as EChartsOption['dataZoom'],
-    visualMap: {
-      show: false,
-      type: 'piecewise',
-      dimension: 1,
-      pieces: [
-        { gt: 100, color: '#e22718' },
-        { gt: 40, color: '#f4b400' },
-        { lte: 40, color: '#5ad3e3' },
-      ],
-      outOfRange: { color: '#9aa3ad' },
-    } as unknown as EChartsOption['visualMap'],
+    // semantic overload visualMap piecewise — STRIPPED per §3 clean triple
+    // (its gradient pipeline crashed LineView/getVisualGradient mid-run)
     // watermark kept only when !idle (§3) — on idle charts it glares in the void
     graphic: opts?.idle ? [] : [
       { type: 'text', left: 'center', top: 10, style: { text: 'METEOLINK \u00B7 LIEN', fill: 'rgba(255,255,255,0.03)', font: '600 28px Cormorant Garamond', textAlign: 'center' }, silent: true },
@@ -82,9 +72,9 @@ export function lineSeries(name: string, data: [number, number][], color: string
     smoothMonotone: 'x',
     sampling: 'lttb' as const,
     lineStyle: { width: 2, cap: 'round' as const, join: 'round' as const, shadowBlur: 12, shadowColor: color + '66', shadowOffsetY: 2, color },
-    areaStyle: area
-      ? { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + '26' }, { offset: 1, color: color + '00' }]), opacity: 0.8 }
-      : undefined,
+    // flat translucent area — the decorative LinearGradient crashed ECharts
+    // LineView (getVisualGradient 'coord') and is banned by the clean triple
+    areaStyle: area ? { color: color + '26', opacity: 0.8 } : undefined,
     emphasis: { focus: 'series', lineStyle: { width: 3 }, itemStyle: { borderWidth: 2 } },
     blur: { lineStyle: { opacity: 0.2 } },
     ...(maxMarkUnit ? { markPoint: { data: [{ type: 'max', label: { formatter: `max {c} ${maxMarkUnit}` } }] } } : {}),

@@ -31,55 +31,49 @@ function craftSeries(craft: Craft, name: string, data: [number, number][], color
 
 // useChart — callback ref: the ECharts instance follows whatever div React
 // mounts (re-renders at 2 Hz may replace nodes; useEffect([]) orphaned them).
-function useChart(title: string, unit: string) {
+// useChart — the surface component owns the instance lifecycle (created after
+// layout, disposed on ITS unmount). Parent re-renders at 2 Hz never touch it;
+// React 19 ref-ordering can no longer orphan or dispose the chart.
+function useChart(_title: string, _unit: string) {
   const chart = useRef<echarts.ECharts | null>(null)
-  const ro = useRef<ResizeObserver | null>(null)
-  const attach = useCallback((div: HTMLDivElement | null) => {
-    const st = new Error().stack ?? ''
-    console.log('[attach]', title, div ? `div#${(div as any).id ?? 'anon'}` : 'null', st.split('\n')[2]?.slice(0, 120) ?? '')
-    if (div) {
-      // React 19 ref ordering on remount can be [attach(new), detach(old)] — the
-      // null-detach of the OLD node must never dispose the NEW instance. The
-      // instance is retired only here, when it provably belongs to another node.
-      if (chart.current) {
-        let dom: any = null
-        try { dom = chart.current.getDom() } catch { }
-        if (dom !== div) {
-          ro.current?.disconnect()
-          try { chart.current.dispose() } catch { }
-          chart.current = null
-        }
-      }
-      if (!chart.current) {
-        chart.current = echarts.init(div, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
-        ro.current = new ResizeObserver(() => chart.current?.resize())
-        ro.current.observe(div)
-      }
-    }
-    // attach(null): no-op — disposal happens on the next attach's dom mismatch.
-  }, [])
+  const onReady = useCallback((c: echarts.ECharts | null) => { chart.current = c }, [])
   const setData = (series: ReturnType<typeof lineSeries>[], extra?: Record<string, unknown>) => {
-    if (!chart.current) return
+    if (!chart.current || chart.current.getWidth() < 10) return
     const empty = !series.some(s => ((s.data as unknown[]) ?? []).length > 1)
-    const base = baseOption(title, unit, { idle: empty })
+    const base = baseOption(_title, _unit, { idle: empty })
     const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), ...extra, series } as unknown as EChartsOption
     chart.current.setOption(opt)
   }
-  return { attach, setData, chart }
+  return { onReady, setData, chart }
 }
 
-// ChartSurface — memoized: parent re-renders at 2 Hz must never re-diff the
-// mounted chart node (a remount orphans the instance and blanks the chart).
-const ChartSurface = memo(function ChartSurface({ attach, domId, height, empty, hint }: {
-  attach: (div: HTMLDivElement | null) => void
+// ChartSurface — memoized owner: init after layout, dispose on unmount.
+const ChartSurface = memo(function ChartSurface({ title, unit, domId, height, empty, hint, onReady }: {
+  title: string
+  unit: string
   domId?: string
   height: number | string
   empty: boolean
   hint: string
+  onReady: (c: echarts.ECharts | null) => void
 }) {
+  const boxRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!boxRef.current) return
+    const c = echarts.init(boxRef.current, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
+    // prime the coordinate system BEFORE any data arrives — the first data
+    // setOption on a never-painted chart crashed LineView ('coord') and
+    // poisoned zrender's shared flush, freezing the other charts with it.
+    // The primed base is also the visible idle grid (§3 honest emptiness).
+    try { c.setOption(baseOption(title, unit, { idle: true })) } catch (e) { console.error('[chart] prime failed', e) }
+    const ro = new ResizeObserver(() => { try { c.resize() } catch { } })
+    ro.observe(boxRef.current)
+    onReady(c)
+    return () => { ro.disconnect(); try { c.dispose() } catch { }; onReady(null) }
+  }, [])
   return (
     <div style={{ position: 'relative', height }}>
-      <div ref={attach} id={domId} style={{ width: '100%', height: '100%' }} />
+      <div ref={boxRef} id={domId} style={{ width: '100%', height: '100%' }} />
       {empty && <EmptyChart hint={hint} />}
     </div>
   )
@@ -148,10 +142,7 @@ export default function LiveView() {
       { ...craftSeries(tri.chart, 'p50', d(live.rtt50 as any), CRAFT.live), markArea: ma } as any,
       { ...craftSeries(tri.chart, 'p95', d(live.rtt95 as any), CRAFT.ok) } as any,
     ])
-    small.setData(
-      [{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), CRAFT.threshold), markArea: ma } as any],
-      { visualMap: { show: false, type: 'piecewise' as const, dimension: 1, pieces: [{ gt: 100, color: CRAFT.danger }, { gt: 40, color: CRAFT.threshold }, { lte: 40, color: CRAFT.live }], outOfRange: { color: CRAFT.steel } } } as any,
-    )
+    small.setData([{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), CRAFT.threshold), markArea: ma } as any])
     goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(live.goodput as any), CRAFT.bbr), markArea: ma } as any])
   })
 
@@ -248,7 +239,7 @@ export default function LiveView() {
         onMouseLeave={() => { setHovered(false); setPeek(null) }}
       >
         <div style={{ flex: 1, minHeight: 0 }}>
-          <ChartSurface attach={small.attach} domId="chart-small" height="100%" empty={heroEmpty} hint="en attente — démarrez une campagne" />
+          <ChartSurface title="Petits objets p95" unit="ms" domId="chart-small" height="100%" empty={heroEmpty} hint="en attente — démarrez une campagne" onReady={small.onReady} />
         </div>
       </Card>
       {!liveSnap && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
@@ -277,7 +268,7 @@ export default function LiveView() {
           onMouseEnter={e => { setHovered(true); const v = live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); rtt.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.rtt95.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <ChartSurface attach={rtt.attach} domId="chart-rtt" height={180} empty={rttEmpty} hint="rtt — en attente de flux" />
+          <ChartSurface title="RTT" unit="ms" domId="chart-rtt" height={180} empty={rttEmpty} hint="rtt — en attente de flux" onReady={rtt.onReady} />
         </Card>
         <Card
           head="Bulk goodput"
@@ -285,7 +276,7 @@ export default function LiveView() {
           onMouseEnter={e => { setHovered(true); const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <ChartSurface attach={goodput.attach} domId="chart-goodput" height={180} empty={goodputEmpty} hint="goodput — en attente de flux" />
+          <ChartSurface title="Bulk goodput" unit="Mbit/s" domId="chart-goodput" height={180} empty={goodputEmpty} hint="goodput — en attente de flux" onReady={goodput.onReady} />
         </Card>
       </div>
       {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={Math.max(tRecup, now)} currentPhase={live.phase || 'idle'} />}

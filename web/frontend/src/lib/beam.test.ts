@@ -27,7 +27,7 @@ describe('beam/donut + clean triple strip',()=>{
     const g=read('web/frontend/src/lib/chartGrammar.ts')
     expect(g).not.toContain("type: 'slider'")
     expect(g).toContain("type: 'inside'")
-    expect(g).toContain('visualMap')
+    expect(g).not.toContain("type: 'piecewise'")
     const lv=read('web/frontend/src/views/LiveView.tsx')
     expect(lv).not.toContain('toolbox:')
   })
