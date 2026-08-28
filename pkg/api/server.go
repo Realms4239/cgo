@@ -132,6 +132,10 @@ func New(d Deps) http.Handler {
 			}
 			w.Write([]byte(fmt.Sprintf("| %s | %s | %s | %d | %.1f | %.1f | %.1f | %d | %s |\n", g.Profile, g.Qdisc, g.CC, g.Count, g.Smallp95Median, g.RTTp95Median, g.GoodputMedian, g.Quarantined, mark)))
 		}
+		// triple-provenance — same hash8 as Wall drawer / Archives / figures RDF
+		if hash8 := figures.ProvenanceHash8("data/runs"); hash8 != "" {
+			fmt.Fprintf(w, "\nprovenance : sha256:%s · source data/runs/*/aqm_eval.csv · généré %s\n", hash8, time.Now().UTC().Format(time.RFC3339))
+		}
 	})
 
 	mux.HandleFunc("POST /api/figures/regen", func(w http.ResponseWriter, _ *http.Request) {

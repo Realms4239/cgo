@@ -1,6 +1,8 @@
 package figures
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,5 +47,27 @@ func TestFiguresRDF(t *testing.T) {
 		if !strings.Contains(s, "rdf:RDF") || !strings.Contains(s, "sha256:") || !strings.Contains(s, "dc:creator") {
 			t.Fatalf("%s missing RDF provenance", name)
 		}
+	}
+}
+
+// ProvenanceHash8 — the 8-char sha256 of the latest aqm_eval.csv, stable
+// across Wall/Drawer/Archives/Report (triple-provenance, master ledger).
+func TestProvenanceHash8(t *testing.T) {
+	if h := ProvenanceHash8(filepath.Join(t.TempDir(), "empty")); h != "" {
+		t.Fatalf("no data expected empty hash, got %q", h)
+	}
+	run := filepath.Join(t.TempDir(), "runs", "run-x")
+	if err := os.MkdirAll(run, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	csv := strings.Join(model.AQMEvalHeader, ",") + "\nrun-x,1,P1,pfifo_fast,bbr,1,20,22.5,46.9,100,235.1,0,0,1,11.6,12,valid\n"
+	if err := os.WriteFile(filepath.Join(run, "aqm_eval.csv"), []byte(csv), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := ProvenanceHash8(filepath.Dir(run))
+	sum := sha256.Sum256([]byte(csv))
+	want := hex.EncodeToString(sum[:])[:8]
+	if h != want {
+		t.Fatalf("hash8 = %q, want %q", h, want)
 	}
 }
