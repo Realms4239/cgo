@@ -38,11 +38,17 @@ func New(d Deps) http.Handler {
 	hub := NewHub()
 	mux := http.NewServeMux()
 
+	// nil provider defaults to an idle snapshot — honest emptiness, never a nil-call panic
+	snap := d.GetSnap
+	if snap == nil {
+		snap = func() any { return map[string]any{"running": false} }
+	}
+
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"ok": true})
 	})
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, d.GetSnap())
+		writeJSON(w, snap())
 	})
 	mux.HandleFunc("POST /api/run/start", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
@@ -331,7 +337,7 @@ func New(d Deps) http.Handler {
 	})
 
 	mux.Handle("GET /api/stream", http.HandlerFunc(hub.SSE))
-	hub.Serve(func() any { return d.GetSnap() })
+	hub.Serve(func() any { return snap() })
 
 	spa := http.FileServer(http.FS(frontend.FS))
 	mux.Handle("/", spa)

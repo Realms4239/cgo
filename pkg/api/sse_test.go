@@ -16,6 +16,28 @@ type snap struct {
 	RTTp50Ms float64 `json:"rtt_p50_ms"`
 }
 
+// New(Deps{}) must not panic: nil GetSnap defaults to an idle snapshot
+// {"running":false} for both /api/state and the 10 Hz hub provider —
+// honest emptiness (truth boundary: idle frames carry no measurement).
+func TestNewZeroDepsIdle(t *testing.T) {
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/state")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), `"running":false`) {
+		t.Fatalf("idle state expected running:false, got %s", body)
+	}
+
+	// let the hub ticker fire ≥2 ticks — a nil-provider panic would crash the test binary
+	time.Sleep(250 * time.Millisecond)
+}
+
 // Publisher runs at exactly 10 Hz; the assertion covers fan-out + delta.
 func TestSSECadenceAndDelta(t *testing.T) {
 	cur := snap{Phase: "baseline", Profile: "P1", RTTp50Ms: 20}
