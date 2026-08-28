@@ -1,13 +1,13 @@
 package campagne
 
 import (
-	"sync"
-	"time"
 	"context"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/Realms4239/cgo/pkg/model"
 )
@@ -16,10 +16,10 @@ func fastDeps() Deps {
 	return Deps{
 		TC: &fakeTC{}, CliIf: "veth-c", ShaperIf: "veth-s",
 		Target: "10.0.0.1", SmallURL: "http://127.0.0.1/obj", BulkAddr: "127.0.0.1:5201",
-		Ping: func(context.Context, string, int) []float64 { return []float64{20, 21, 22, 23, 24} },
-		Small: func(context.Context) (float64, error) { return 25, nil },
-		Bulk: func(ctx context.Context, _ string) (uint64, error) { return 2_500_000, nil }, // ≈20 Mbit/s over the ≥1 s window
-		CPU:  func() float64 { return 30 },
+		Ping:        func(context.Context, string, int) []float64 { return []float64{20, 21, 22, 23, 24} },
+		Small:       func(context.Context) (float64, error) { return 25, nil },
+		Bulk:        func(ctx context.Context, _ string) (uint64, error) { return 2_500_000, nil }, // ≈20 Mbit/s over the ≥1 s window
+		CPU:         func() float64 { return 30 },
 		BaselineSec: -1, ChargeSec: -1, RecupSec: -1, // instant windows in tests
 	}
 }
@@ -85,7 +85,7 @@ func TestRunEventLivePublish(t *testing.T) {
 	d := fastDeps()
 	d.BaselineSec = 1
 	d.ChargeSec = 2 // probe loop rounds at ~300ms
-	d.RecupSec = 0
+	d.RecupSec = -1 // instant — defaults() would replace 0 with the real recup window
 
 	release := make(chan struct{})
 	var once sync.Once
