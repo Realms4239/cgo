@@ -55,7 +55,7 @@ export default function IntegriteView() {
 
   // ponytail: synthetic quarantine removed — render real gate_status from Scan when available
   return (
-    <div className="panel-stack" style={{position:'relative'}}>
+    <div className="panel-stack" style={{position:'relative', maxHeight:'calc(100vh - 48px - 28px)', overflowY:'auto'}}>
       {peek && (
         <PeekPopover rect={peek.rect}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>run — {peek.run}</div>

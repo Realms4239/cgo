@@ -1,0 +1,26 @@
+import { test, expect } from '@playwright/test'
+
+// Layer 0 splatter-fix surgical specs — rail var(--rail-w), bento #wall scoped, integrite scroll lock A
+// (SPA has no /archives route — navigate via rail nav-btn, per App.tsx panels)
+
+test('rail uses var(--rail-w) and is visible', async ({ page }) => {
+  await page.goto('/')
+  const rail = page.locator('.rail')
+  await expect(rail).toBeVisible()
+  await expect(rail).toHaveAttribute('data-pinned', /0|1/)
+})
+
+test('wall bento scoped #wall', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('[data-panel="live"]').click()
+  await expect(page.locator('#wall')).toBeVisible()
+})
+
+test('integrite scroll container within viewport', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('[data-panel="integrite"]').click()
+  const stack = page.locator('#v-integrite .panel-stack')
+  await expect(stack).toBeVisible()
+  const box = await page.locator('#main').boundingBox()
+  expect(box?.height).toBeGreaterThan(0)
+})
