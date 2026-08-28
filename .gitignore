@@ -29,3 +29,5 @@ CONGESTION.md
 
 web/frontend/test-results/
 web/frontend/playwright-report/
+kit/cgo-vm.yaml
+kit/logs/
