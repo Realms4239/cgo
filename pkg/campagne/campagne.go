@@ -209,12 +209,13 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		}
 		deadline := d.Now().Add(time.Duration(secs) * time.Second)
 		for d.Now().Before(deadline) {
+			// publish FIRST — ping+small can block seconds over a saturated
+			// link; the wall shows current truth every round, not boundary zeros
+			publishLive(phase, rtt, small)
 			rtt = append(rtt, d.Ping(ctx, d.Target, 5)...)
 			if v, err := d.Small(ctx); err == nil {
 				small = append(small, v)
 			}
-			publishLive(phase, rtt, small)
-			time.Sleep(300 * time.Millisecond)
 		}
 		return
 	}

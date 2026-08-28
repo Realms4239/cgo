@@ -38,8 +38,10 @@ export function connectSSE() {
         }
         if (data[k] !== undefined) (last as any)[k] = data[k]
       }
-      // truth boundary: idle frames carry no measurement — never fabricate 0s
-      if (data.ts && data.running) pushFrame(data.ts, data as any)
+      // truth boundary: idle frames carry no measurement — never fabricate 0s.
+      // While running, all-zero frames are boundary/pump gaps, not measurements — skip.
+      const measured = !!(data.rtt_p50_ms || data.rtt_p95_ms || data.small_p95_ms || data.bulk_goodput_mbps || data.drops)
+      if (data.ts && data.running && measured) pushFrame(data.ts, data as any)
       frameCount++
       __CGO_SSE.frameCount = frameCount
       if (typeof window !== 'undefined') (window as any).__CGO_SSE = __CGO_SSE
