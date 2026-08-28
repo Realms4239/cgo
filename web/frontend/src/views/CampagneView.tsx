@@ -134,7 +134,50 @@ export default function CampagneView() {
   })
 
   return (
-    <div className="panel-stack" style={{position:'fixed', right:0, top:48, bottom:28, width:380, zIndex:40, backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderLeft:'1px solid var(--hairline)', background:'rgba(7,7,7,0.85)', overflowY:'auto', padding:12}}>
+    <>
+      {/* main workspace — the 75% dead zone becomes the phase stepper + live state */}
+      <div className="panel-stack" style={{ flex: 1, minWidth: 0, paddingRight: 400 }}>
+        <h1 className="view-title">Campagne — pilotez la mesure</h1>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
+          {[
+            { n: '①', t: 'Auditer', d: "30 s Yas/4G sans sudo — l'état réel du lien avant toute comparaison" },
+            { n: '②', t: 'Comparer', d: 'pfifo vs CAKE en direct sur le Wall — mêmes échelles, écart en %' },
+            { n: '③', t: 'Exporter', d: 'rapport 1-page MD/CSV — la preuve chiffrée, hash signé' },
+          ].map(x => (
+            <div key={x.n} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 16 }}>
+              <span className="mono" style={{ fontSize: 18, color: 'var(--t-live, #5ad3e3)' }}>{x.n}</span>
+              <span className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-body, #f2f2f4)' }}>{x.t}</span>
+              <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted, #8b9099)', lineHeight: 1.6 }}>{x.d}</span>
+            </div>
+          ))}
+        </div>
+        {hasData && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
+        <div className="card">
+          <div className="card-head">État — flux SSE</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+            <div className="kv"><span>phase</span><b className="mono">{phase}</b></div>
+            <div className="kv"><span>profil</span><b className="mono">{live?.profile ?? '—'}</b></div>
+            <div className="kv"><span>qdisc</span><b className="mono">{live?.qdisc ?? '—'}</b></div>
+            <div className="kv"><span>cc</span><b className="mono">{live?.cc ?? '—'}</b></div>
+            <div className="kv"><span>événement</span><b className="mono">{live?.event_id != null ? `#${live.event_id} · rép ${live.repetition ?? 0}` : '—'}</b></div>
+            <div className="kv"><span>charge</span><b className="mono">{live?.load_status ?? '—'}</b></div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-head">Portes G0–G7</div>
+          <div className="gates-detail" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '2px 16px' }}>
+            {gates.map((g: boolean|null, i:number) => (
+              <div key={i} className={'gate-row ' + (g===null?'na':g?'ok':'fail')}>
+                <span className="gate mono">G{i}</span>
+                <span className="gate-lbl">{gateLabel(i)}</span>
+                <span className="gate-state mono">{g===null?'—':g?'PASS':'FAIL'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* cockpit sheet — matrix + audit + import */}
+      <aside className="panel-stack" style={{position:'fixed', right:0, top:48, bottom:28, width:380, zIndex:40, backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderLeft:'1px solid var(--hairline)', background:'rgba(7,7,7,0.85)', overflowY:'auto', padding:12}}>
       {peek && (
         <PeekPopover rect={peek.rect}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>live small — 20 pts</div>
@@ -146,10 +189,8 @@ export default function CampagneView() {
           <div className="mono" style={{fontSize:10, color:'#f4b400', marginTop:4}}>{peek.data.at(-1)?.toFixed(1) ?? '—'} ms</div>
         </PeekPopover>
       )}
-      {hasData && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
       <div className="card">
         <div className="card-head">Campagne — Kit cockpit</div>
-        <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:8, lineHeight:1.6}}>① Auditer 30s Yas 4G sans sudo → ② Comparer live pfifo vs CAKE sur Wall → ③ Exporter 1-page</div>
         <div className="form-row">
           <label>Profils</label>
           <div className="check-row">
@@ -187,29 +228,6 @@ export default function CampagneView() {
           <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running} />
           <ArmButton label="ARRÊTER" confirmLabel="CONFIRMER L'ARRÊT" onConfirm={stop} disabled={!live?.running} />
           <span className="mono muted">{msg}</span>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-head">État</div>
-        <div className="kv"><span>phase</span><b className="mono">{phase}</b></div>
-        <div className="kv"><span>profil</span><b className="mono">{live?.profile ?? '—'}</b></div>
-        <div className="kv"><span>qdisc</span><b className="mono">{live?.qdisc ?? '—'}</b></div>
-        <div className="kv"><span>cc</span><b className="mono">{live?.cc ?? '—'}</b></div>
-        <div className="kv"><span>événement</span><b className="mono">{live?.event_id != null ? `#${live.event_id} · rép ${live.repetition ?? 0}` : '—'}</b></div>
-        <div className="kv"><span>charge</span><b className="mono">{live?.load_status ?? '—'}</b></div>
-      </div>
-
-      <div className="card">
-        <div className="card-head">Portes G0–G7</div>
-        <div className="gates-detail">
-          {gates.map((g: boolean|null, i:number) => (
-            <div key={i} className={'gate-row ' + (g===null?'na':g?'ok':'fail')}>
-              <span className="gate mono">G{i}</span>
-              <span className="gate-lbl">{gateLabel(i)}</span>
-              <span className="gate-state mono">{g===null?'—':g?'PASS':'FAIL'}</span>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -261,7 +279,8 @@ export default function CampagneView() {
           </div>
         )}
       </div>
-    </div>
+      </aside>
+    </>
   )
 }
 function gateLabel(i:number){ return ['cible joignable','bulk démarré','sondes actives','latence plausible','débit cohérent','pas de doublon','baseline stable','CPU ok'][i] }
