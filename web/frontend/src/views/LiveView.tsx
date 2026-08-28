@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries, barSeries, chargeMarkArea, CRAFT } from '../lib/chartGrammar'
@@ -29,16 +29,24 @@ function craftSeries(craft: Craft, name: string, data: [number, number][], color
   return lineSeries(name, data, color, craft === 'area')
 }
 
+// useChart — callback ref: the ECharts instance follows whatever div React
+// mounts (re-renders at 2 Hz may replace nodes; useEffect([]) orphaned them).
 function useChart(title: string, unit: string) {
-  const ref = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
-  useEffect(() => {
-    if (!ref.current) return
-    const c = echarts.init(ref.current, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
-    chart.current = c
-    const ro = new ResizeObserver(() => c.resize())
-    ro.observe(ref.current)
-    return () => { ro.disconnect(); c.dispose() }
+  const ro = useRef<ResizeObserver | null>(null)
+  const attach = useCallback((div: HTMLDivElement | null) => {
+    if (div) {
+      if (!chart.current) {
+        chart.current = echarts.init(div, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
+        ro.current = new ResizeObserver(() => chart.current?.resize())
+        ro.current.observe(div)
+      }
+    } else {
+      ro.current?.disconnect()
+      ro.current = null
+      chart.current?.dispose()
+      chart.current = null
+    }
   }, [])
   const setData = (series: ReturnType<typeof lineSeries>[], extra?: Record<string, unknown>) => {
     if (!chart.current) return
@@ -48,8 +56,24 @@ function useChart(title: string, unit: string) {
     const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), brush, ...extra, series } as unknown as EChartsOption
     chart.current.setOption(opt)
   }
-  return { ref, setData, chart }
+  return { attach, setData, chart }
 }
+
+// ChartSurface — memoized: parent re-renders at 2 Hz must never re-diff the
+// mounted chart node (a remount orphans the instance and blanks the chart).
+const ChartSurface = memo(function ChartSurface({ attach, height, empty, hint }: {
+  attach: (div: HTMLDivElement | null) => void
+  height: number | string
+  empty: boolean
+  hint: string
+}) {
+  return (
+    <div style={{ position: 'relative', height }}>
+      <div ref={attach} style={{ width: '100%', height: '100%' }} />
+      {empty && <EmptyChart hint={hint} />}
+    </div>
+  )
+})
 
 type WallGroup = { qdisc: string; profile: string; small_p95_median: number; best?: boolean; hardware_recommendation?: string }
 
@@ -210,9 +234,8 @@ export default function LiveView() {
         onMouseEnter={e => { setHovered(true); const v = live.small.at(-1)?.[1] ?? smallP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); small.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.small.length - 1) }) }}
         onMouseLeave={() => { setHovered(false); setPeek(null) }}
       >
-        <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-          <div ref={small.ref} style={{ position: 'absolute', inset: 0 }} />
-          {heroEmpty && <EmptyChart hint="en attente — démarrez une campagne" />}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ChartSurface attach={small.attach} height="100%" empty={heroEmpty} hint="en attente — démarrez une campagne" />
         </div>
       </Card>
       {!liveSnap && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
@@ -241,10 +264,7 @@ export default function LiveView() {
           onMouseEnter={e => { setHovered(true); const v = live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); rtt.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.rtt95.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <div style={{ position: 'relative', height: 180 }}>
-            <div ref={rtt.ref} style={{ position: 'absolute', inset: 0 }} />
-            {rttEmpty && <EmptyChart hint="rtt — en attente de flux" />}
-          </div>
+          <ChartSurface attach={rtt.attach} height={180} empty={rttEmpty} hint="rtt — en attente de flux" />
         </Card>
         <Card
           head="Bulk goodput"
@@ -252,10 +272,7 @@ export default function LiveView() {
           onMouseEnter={e => { setHovered(true); const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <div style={{ position: 'relative', height: 180 }}>
-            <div ref={goodput.ref} style={{ position: 'absolute', inset: 0 }} />
-            {goodputEmpty && <EmptyChart hint="goodput — en attente de flux" />}
-          </div>
+          <ChartSurface attach={goodput.attach} height={180} empty={goodputEmpty} hint="goodput — en attente de flux" />
         </Card>
       </div>
       {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={Math.max(tRecup, live.rtt95.at(-1)?.[0] ?? Date.now())} currentPhase={live.phase || 'idle'} />}
