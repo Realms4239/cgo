@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -11,7 +12,17 @@ import (
 )
 
 // CSV profile import (LIEN III.IV) — one header-less row: id,capacity_mbps,delay_ms,jitter_ms,loss_pct
+// Chdir to a temp dir: profile.Import persists data/profiles.json relative to CWD — never pollute the repo.
 func TestProfileImportCSV(t *testing.T) {
+	dir := t.TempDir()
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(old) }()
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
