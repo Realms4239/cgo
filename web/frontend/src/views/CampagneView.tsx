@@ -134,9 +134,9 @@ export default function CampagneView() {
   })
 
   return (
-    <>
+    <div style={{ display: 'flex', height: '100%', minHeight: 0, minWidth: 0, paddingRight: 400, boxSizing: 'border-box' }}>
       {/* main workspace — the 75% dead zone becomes the phase stepper + live state */}
-      <div className="panel-stack" style={{ flex: 1, minWidth: 0, paddingRight: 400 }}>
+      <div className="panel-stack" style={{ flex: 1, minWidth: 0 }}>
         <h1 className="view-title">Campagne — pilotez la mesure</h1>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
           {[
@@ -280,7 +280,7 @@ export default function CampagneView() {
         )}
       </div>
       </aside>
-    </>
+    </div>
   )
 }
 function gateLabel(i:number){ return ['cible joignable','bulk démarré','sondes actives','latence plausible','débit cohérent','pas de doublon','baseline stable','CPU ok'][i] }
