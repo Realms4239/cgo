@@ -9,8 +9,18 @@ export function useRafLoop(cb: (ts: number) => void, active = true) {
   useEffect(() => {
     if (!active) return;
     let raf = 0;
+    let dead = false;
     const loop = (ts: number) => {
-      cbRef.current(ts);
+      try {
+        cbRef.current(ts);
+      } catch (e) {
+        // a bad paint frame must never kill the loop — charts would freeze forever
+        if (!dead) {
+          dead = true;
+          const st = (e as Error)?.stack ?? String(e);
+          console.error('[raf] paint failed:', st.split('\n').slice(0, 4).join(' | '));
+        }
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);

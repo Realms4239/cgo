@@ -21,7 +21,7 @@ export function Card({ head, sub, right, children, testid, style, className, onM
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {(head || right) && <CardHead label={head} sub={sub} right={right} />}
+      {(head || right) && <CardHead label={head ?? ''} sub={sub} right={right} />}
       {children}
     </div>
   )

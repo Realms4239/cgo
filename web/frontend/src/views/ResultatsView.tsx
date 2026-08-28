@@ -59,7 +59,6 @@ export default function ResultatsView() {
       xAxis: { ...base.xAxis, type: 'value' as const, name: 'goodput (Mbit/s)' },
       yAxis: { ...base.yAxis, name: 'small p95 (ms)' },
       tooltip: { ...base.tooltip, trigger: 'item' as const },
-      brush: { brushType: 'rect' as const, xAxisIndex: 'all', yAxisIndex: 'all', brushMode: 'single' as const },
       series: [scatterSeries('groupes', groups.map(g => [g.goodput_median, g.small_p95_median] as [number, number]), '#5ad3e3', bestIdx)],
     }
     c.setOption(opt as any)

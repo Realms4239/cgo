@@ -35,25 +35,34 @@ function useChart(title: string, unit: string) {
   const chart = useRef<echarts.ECharts | null>(null)
   const ro = useRef<ResizeObserver | null>(null)
   const attach = useCallback((div: HTMLDivElement | null) => {
+    const st = new Error().stack ?? ''
+    console.log('[attach]', title, div ? `div#${(div as any).id ?? 'anon'}` : 'null', st.split('\n')[2]?.slice(0, 120) ?? '')
     if (div) {
+      // React 19 ref ordering on remount can be [attach(new), detach(old)] — the
+      // null-detach of the OLD node must never dispose the NEW instance. The
+      // instance is retired only here, when it provably belongs to another node.
+      if (chart.current) {
+        let dom: any = null
+        try { dom = chart.current.getDom() } catch { }
+        if (dom !== div) {
+          ro.current?.disconnect()
+          try { chart.current.dispose() } catch { }
+          chart.current = null
+        }
+      }
       if (!chart.current) {
         chart.current = echarts.init(div, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
         ro.current = new ResizeObserver(() => chart.current?.resize())
         ro.current.observe(div)
       }
-    } else {
-      ro.current?.disconnect()
-      ro.current = null
-      chart.current?.dispose()
-      chart.current = null
     }
+    // attach(null): no-op — disposal happens on the next attach's dom mismatch.
   }, [])
   const setData = (series: ReturnType<typeof lineSeries>[], extra?: Record<string, unknown>) => {
     if (!chart.current) return
-    const brush = { brushType: 'rect' as const, xAxisIndex: 'all' as const, brushMode: 'single' as const }
     const empty = !series.some(s => ((s.data as unknown[]) ?? []).length > 1)
     const base = baseOption(title, unit, { idle: empty })
-    const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), brush, ...extra, series } as unknown as EChartsOption
+    const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), ...extra, series } as unknown as EChartsOption
     chart.current.setOption(opt)
   }
   return { attach, setData, chart }
@@ -61,15 +70,16 @@ function useChart(title: string, unit: string) {
 
 // ChartSurface — memoized: parent re-renders at 2 Hz must never re-diff the
 // mounted chart node (a remount orphans the instance and blanks the chart).
-const ChartSurface = memo(function ChartSurface({ attach, height, empty, hint }: {
+const ChartSurface = memo(function ChartSurface({ attach, domId, height, empty, hint }: {
   attach: (div: HTMLDivElement | null) => void
+  domId?: string
   height: number | string
   empty: boolean
   hint: string
 }) {
   return (
     <div style={{ position: 'relative', height }}>
-      <div ref={attach} style={{ width: '100%', height: '100%' }} />
+      <div ref={attach} id={domId} style={{ width: '100%', height: '100%' }} />
       {empty && <EmptyChart hint={hint} />}
     </div>
   )
@@ -211,10 +221,13 @@ export default function LiveView() {
   const goodputEmpty = live.goodput.length === 0
   // Timeline 48 — phase bands from live.phaseSince, hidden idle (honest)
   const hasData = live.rtt95.length > 0
-  const t0 = live.phaseSince['baseline'] ?? live.rtt95[0]?.[0] ?? Date.now() - 1000
-  const tCharge = live.phaseSince['charge'] ?? (live.phase === 'charge' ? t0 : Date.now())
-  const tRecup = live.phaseSince['recup'] ?? (live.phase === 'recup' ? live.rtt95.at(-1)?.[0] ?? Date.now() : tCharge + 1000)
+  const now = live.rtt95.at(-1)?.[0] ?? Date.now()
+  const t0 = live.phaseSince['baseline'] ?? live.rtt95[0]?.[0] ?? now - 1000
+  const tCharge = Math.max(t0 + 1, live.phaseSince['charge'] ?? (live.phase === 'charge' ? t0 + 1 : now))
+  const tRecup = Math.max(tCharge + 1, live.phaseSince['recup'] ?? (live.phase === 'recup' ? now : tCharge + 1000))
 
+  // instrumentation seam — surgical: read live option/pixels from probes
+  if (typeof window !== 'undefined') (window as any).__CGO_CHARTS = { rtt: rtt.chart.current, small: small.chart.current, goodput: goodput.chart.current }
   return (
     <div id="wall" className="panel-stack" style={{ position: 'relative' }}>
       {peek && (
@@ -235,7 +248,7 @@ export default function LiveView() {
         onMouseLeave={() => { setHovered(false); setPeek(null) }}
       >
         <div style={{ flex: 1, minHeight: 0 }}>
-          <ChartSurface attach={small.attach} height="100%" empty={heroEmpty} hint="en attente — démarrez une campagne" />
+          <ChartSurface attach={small.attach} domId="chart-small" height="100%" empty={heroEmpty} hint="en attente — démarrez une campagne" />
         </div>
       </Card>
       {!liveSnap && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
@@ -264,7 +277,7 @@ export default function LiveView() {
           onMouseEnter={e => { setHovered(true); const v = live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); rtt.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.rtt95.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <ChartSurface attach={rtt.attach} height={180} empty={rttEmpty} hint="rtt — en attente de flux" />
+          <ChartSurface attach={rtt.attach} domId="chart-rtt" height={180} empty={rttEmpty} hint="rtt — en attente de flux" />
         </Card>
         <Card
           head="Bulk goodput"
@@ -272,10 +285,10 @@ export default function LiveView() {
           onMouseEnter={e => { setHovered(true); const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <ChartSurface attach={goodput.attach} height={180} empty={goodputEmpty} hint="goodput — en attente de flux" />
+          <ChartSurface attach={goodput.attach} domId="chart-goodput" height={180} empty={goodputEmpty} hint="goodput — en attente de flux" />
         </Card>
       </div>
-      {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={Math.max(tRecup, live.rtt95.at(-1)?.[0] ?? Date.now())} currentPhase={live.phase || 'idle'} />}
+      {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={Math.max(tRecup, now)} currentPhase={live.phase || 'idle'} />}
 
       {/* live-wall-overlay: baseline grey dashed vs CAKE cyan solid same scale; source pill gates live|frozen|both */}
       <div className="live-wall-overlay card" data-testid="live-wall-overlay" style={{ gridColumn: '1 / -1', border: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>

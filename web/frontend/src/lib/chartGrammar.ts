@@ -120,11 +120,14 @@ export function scatterSeries(name: string, data: [number, number][], color: str
   }
 }
 
-// CHARGE markArea — single per chart, phase-driven only. show=false → empty data (honest hidden).
+// CHARGE markArea — single per chart, phase-driven only. Degenerate windows
+// (ce<=cs, empty rings at phase boundary) render empty — ECharts markArea
+// throws 'coord' undefined otherwise, which killed the whole paint loop.
 export function chargeMarkArea(cs: number, ce: number, show: boolean) {
+  const ok = show && Number.isFinite(cs) && Number.isFinite(ce) && ce > cs
   return {
     itemStyle: { color: 'rgba(244,180,0,0.04)', borderColor: 'rgba(244,180,0,0.12)', borderWidth: 1, borderType: 'dashed' as const },
     label: { show: true, color: '#f4b400', fontFamily: 'JetBrains Mono', fontSize: 10, position: 'insideTop' as const, padding: [4, 8] as unknown as number[], backgroundColor: 'rgba(244,180,0,0.08)', formatter: 'CHARGE' },
-    data: show ? [[{ xAxis: cs }, { xAxis: ce }]] as any : [],
+    data: ok ? [[{ xAxis: cs }, { xAxis: ce }]] as any : [],
   }
 }

@@ -6,10 +6,10 @@ function readLive(): string {
   for (const p of cands) try { return readFileSync(p, 'utf8') } catch {}
   return readFileSync('web/frontend/src/views/LiveView.tsx', 'utf8')
 }
-describe('brush', () => {
-  it('LiveView has brush and per-series markArea', () => {
+describe('clean triple', () => {
+  it('LiveView has per-series markArea, no vestigial brush chrome', () => {
     const s = readLive()
-    expect(s).toContain('brush')
+    expect(s).not.toContain('brushType')
     expect(s).toContain('markArea')
   })
 })
