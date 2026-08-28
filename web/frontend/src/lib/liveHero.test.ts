@@ -8,7 +8,7 @@ function read(p:string){
 describe('liveHero',()=>{
   it('hero 300 full-width — CHARGE markArea driven by live.phase, not estimated quartile',()=>{
     const s=read('web/frontend/src/views/LiveView.tsx')
-    expect(s).toContain("height: '300px'")
+    expect(s).toContain('height: 300')
     expect(s).toContain('live.phase')
     // live ring carries phase from SSE frames (instrumentation seam __CGO_LIVE {ringsLen,max,phase})
     const l=read('web/frontend/src/lib/live.ts')

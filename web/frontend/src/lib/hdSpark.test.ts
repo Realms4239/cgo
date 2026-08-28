@@ -15,6 +15,6 @@ describe('hdSpark', () => {
   it('Live hero small p95 full-width', () => {
     const s=read('web/frontend/src/views/LiveView.tsx')
     expect(s).toContain('small_p95')
-    expect(s).toContain('300px')
+    expect(s).toContain('height: 300')
   })
 })

@@ -93,8 +93,9 @@ export default function App() {
 
         <Rail />
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-        <QuickActionsPrompt />
-        <OnboardingNudge />
+        {/* quick actions are running-state chrome — never block an idle view */}
+        {live?.running && <QuickActionsPrompt />}
+        {panel === 'campagne' && <OnboardingNudge />}
 
         <main id="main">
           {panel === 'campagne' && <section id="v-campagne" className="view on"><CampagneView /></section>}
@@ -106,9 +107,9 @@ export default function App() {
         <footer className="foot-ticker" style={{ height: 28, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderTop: '1px solid var(--hairline)', background: 'var(--surface-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--text-faint)' }}>
           <span id="ft-prov">source: {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
           <span aria-hidden="true" style={{ opacity: 0.4 }}>|</span>
-          <span id="ft-run" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>run {run8} · hash {hash8} · {live?.phase ?? 'idle'} · SSE {sseStatus}</span>
+          <span id="ft-run" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>run {run8} · hash {hash8} · {live?.phase ?? 'idle'}</span>
           <span className="fill" style={{ marginLeft: 'auto' }} />
-          <span id="ft-sse" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>SSE: {sseStatus}</span>
+          <span id="ft-sse" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>SSE {sseStatus}</span>
         </footer>
         <FlashBanner />
         <Toasts />

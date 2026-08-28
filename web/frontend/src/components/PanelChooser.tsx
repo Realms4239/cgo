@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useUIStore } from '../store/ui'
+import { Pill } from './ui/Pill'
 
 type Vis = Record<string, boolean>
 const KEYS = ['Wall', 'History', 'Archives'] as const
@@ -98,9 +99,11 @@ export default function PanelChooser() {
         </button>
       ))}
       <span style={{width:1, height:18, background:'var(--hairline)', margin:'0 4px'}} aria-hidden />
-      <button onClick={()=>setTri(t=>({...t, metric:!t.metric}))} aria-pressed={tri.metric} title="metric groups" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'4px 6px', border:'1px solid var(--hairline)', background: tri.metric?'rgba(90,211,227,0.08)':'transparent', color: tri.metric?'var(--t-live)':'var(--text-muted)'}}>metric</button>
-      <button onClick={()=>setTri(t=>({...t, chart: t.chart==='line'?'bar':t.chart==='bar'?'area':'line'}))} aria-pressed={tri.chart!=='line'} title="chart craft line|bar|area" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'4px 6px', border:'1px solid var(--hairline)', background: tri.chart!=='line'?'rgba(90,211,227,0.08)':'transparent', color: tri.chart!=='line'?'var(--t-live)':'var(--text-muted)'}}>{tri.chart}</button>
-      <select value={tri.source} onChange={e=>setTri(t=>({...t, source:e.target.value as 'live'|'frozen'|'both'}))} aria-label="source live|frozen|both" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'4px 6px', border:'1px solid var(--hairline)', background:'var(--surface-card)', color:'var(--text-muted)'}}>
+      {/* labeled controls — the control name is always visible, no cryptic one-word chrome */}
+      <Pill label="groupes" value={tri.metric ? 'on' : 'off'} on={tri.metric} onClick={() => setTri(t => ({ ...t, metric: !t.metric }))} title="groupes de métriques on/off" />
+      <Pill label="craft" value={tri.chart} on={tri.chart !== 'line'} onClick={() => setTri(t => ({ ...t, chart: t.chart === 'line' ? 'bar' : t.chart === 'bar' ? 'area' : 'line' }))} title="chart craft line|bar|area" />
+      <Pill label="source" value={tri.source} on={tri.source !== 'live'} onClick={() => setTri(t => ({ ...t, source: t.source === 'live' ? 'frozen' : t.source === 'frozen' ? 'both' : 'live' }))} title="source live|frozen|both" />
+      <select value={tri.source} onChange={e=>setTri(t=>({...t, source:e.target.value as 'live'|'frozen'|'both'}))} aria-label="source live|frozen|both" className="sr-only" tabIndex={-1}>
         <option value="live">live</option><option value="frozen">frozen</option><option value="both">both</option>
       </select>
     </div>
