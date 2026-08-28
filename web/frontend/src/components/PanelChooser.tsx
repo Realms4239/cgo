@@ -39,9 +39,16 @@ export default function PanelChooser() {
     return false
   }
 
-  const [tri, setTri] = useState<{metric:boolean; chart:boolean; source:string}>(()=>{
-    try { const r=localStorage.getItem('panel-chooser-tri'); if(r) return JSON.parse(r)}catch{}
-    return {metric:true, chart:true, source:'both'}
+  const [tri, setTri] = useState<{metric:boolean; chart:'line'|'bar'|'area'; source:'live'|'frozen'|'both'}>(()=>{
+    try {
+      const r=localStorage.getItem('panel-chooser-tri')
+      if(r){ const p=JSON.parse(r)
+        // legacy boolean chart → craft mapping (true=line, false=bar)
+        const chart = typeof p.chart==='boolean' ? (p.chart?'line':'bar') : (p.chart||'line')
+        return {metric:!!p.metric, chart, source:p.source||'both'}
+      }
+    }catch{}
+    return {metric:true, chart:'line', source:'both'}
   })
   useEffect(()=>{ try{localStorage.setItem('panel-chooser-tri', JSON.stringify(tri))}catch{}; window.dispatchEvent(new CustomEvent('panel-chooser-tri',{detail:tri})) },[tri])
 
@@ -49,7 +56,8 @@ export default function PanelChooser() {
     <div
       className="panel-chooser"
       data-panel-visibility={visAttr}
-      data-tri={`${tri.metric?'m':''}${tri.chart?'c':''}${tri.source}`}
+      data-tri={`${tri.metric?'m':''}c${tri.source}`}
+      data-chart-craft={tri.chart}
       role="group"
       aria-label="Choix du panneau — Wall, History, Archives + tri-toggle metric/chart/source"
       style={{
@@ -91,8 +99,8 @@ export default function PanelChooser() {
       ))}
       <span style={{width:1, height:18, background:'var(--hairline)', margin:'0 4px'}} aria-hidden />
       <button onClick={()=>setTri(t=>({...t, metric:!t.metric}))} aria-pressed={tri.metric} title="metric groups" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'4px 6px', border:'1px solid var(--hairline)', background: tri.metric?'rgba(90,211,227,0.08)':'transparent', color: tri.metric?'var(--t-live)':'var(--text-muted)'}}>metric</button>
-      <button onClick={()=>setTri(t=>({...t, chart:!t.chart}))} aria-pressed={tri.chart} title="chart craft line|bar|area" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'4px 6px', border:'1px solid var(--hairline)', background: tri.chart?'rgba(90,211,227,0.08)':'transparent', color: tri.chart?'var(--t-live)':'var(--text-muted)'}}>chart</button>
-      <select value={tri.source} onChange={e=>setTri(t=>({...t, source:e.target.value}))} aria-label="source live|frozen|both" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'4px 6px', border:'1px solid var(--hairline)', background:'var(--surface-card)', color:'var(--text-muted)'}}>
+      <button onClick={()=>setTri(t=>({...t, chart: t.chart==='line'?'bar':t.chart==='bar'?'area':'line'}))} aria-pressed={tri.chart!=='line'} title="chart craft line|bar|area" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'4px 6px', border:'1px solid var(--hairline)', background: tri.chart!=='line'?'rgba(90,211,227,0.08)':'transparent', color: tri.chart!=='line'?'var(--t-live)':'var(--text-muted)'}}>{tri.chart}</button>
+      <select value={tri.source} onChange={e=>setTri(t=>({...t, source:e.target.value as 'live'|'frozen'|'both'}))} aria-label="source live|frozen|both" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'4px 6px', border:'1px solid var(--hairline)', background:'var(--surface-card)', color:'var(--text-muted)'}}>
         <option value="live">live</option><option value="frozen">frozen</option><option value="both">both</option>
       </select>
     </div>

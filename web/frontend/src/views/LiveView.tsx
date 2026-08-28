@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import { echarts } from '../lib/echarts'
-import { baseOption, lineSeries } from '../lib/chartGrammar'
+import { baseOption, lineSeries, barSeries, chargeMarkArea } from '../lib/chartGrammar'
 import { live } from '../lib/live'
 import { computeQDI } from '../lib/qdi'
 import { computeJFI } from '../lib/jfi'
@@ -14,13 +14,16 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { PeekPopover } from '../components/PeekPopover'
 import { Beam } from '../components/Beam'
 import { DonutJFI } from '../components/DonutJFI'
+import { Timeline } from '../components/Timeline'
 
-function chargeMarkArea(s: number, e: number) {
-  return {
-    itemStyle: { color: 'rgba(244,180,0,0.04)', borderColor: 'rgba(244,180,0,0.12)', borderWidth: 1, borderType: 'dashed' as const },
-    label: { show: true, color: '#f4b400', fontFamily: 'JetBrains Mono', fontSize: 10, position: 'insideTop' as const, padding: [4, 8] as unknown as number[], backgroundColor: 'rgba(244,180,0,0.08)', formatter: 'CHARGE' },
-    data: [[{ xAxis: s }, { xAxis: e }]] as any,
-  }
+type Craft = 'line' | 'bar' | 'area'
+type Tri = { metric: boolean; chart: Craft; source: 'live' | 'frozen' | 'both' }
+const DEFAULT_TRI: Tri = { metric: true, chart: 'line', source: 'both' }
+
+// craft adapter — one grammar, three chart crafts (Q4 chart pill: line|bar|area)
+function craftSeries(craft: Craft, name: string, data: [number, number][], color: string) {
+  if (craft === 'bar') return barSeries(name, data as any, color)
+  return lineSeries(name, data, color, craft === 'area')
 }
 
 function useChart(title: string, unit: string) {
@@ -58,6 +61,19 @@ export default function LiveView() {
   const [peek, setPeek] = useState<{ rect: DOMRect; value: number } | null>(null)
   const [wallGroups, setWallGroups] = useState<WallGroup[] | null>(null)
   const [wallHash, setWallHash] = useState<string>('')
+  const [hovered, setHovered] = useState(false)
+  const [tri, setTri] = useState<Tri>(DEFAULT_TRI)
+
+  // Q4 tri-toggle — PanelChooser dispatches {metric, chart: craft, source}; default both live
+  useEffect(() => {
+    const onTri = (e: Event) => {
+      const d = (e as CustomEvent).detail
+      if (!d) return
+      setTri({ metric: !!d.metric, chart: (d.chart as Craft) || 'line', source: (d.source as Tri['source']) || 'both' })
+    }
+    window.addEventListener('panel-chooser-tri', onTri)
+    return () => window.removeEventListener('panel-chooser-tri', onTri)
+  }, [])
 
   // exhaustive: wallGroups fetch from /api/results when !live.running and !replayRunning — frozen history for A/B baseline vs CAKE
   useEffect(() => {
@@ -66,9 +82,9 @@ export default function LiveView() {
     fetch('/api/results').then(r => r.json()).then(j => { if (!cancelled && j.available) setWallGroups(j.groups) }).catch(() => {})
     fetch('/api/integrity').then(r => r.json()).then(j => {
       if (cancelled) return
-      const id = j?.run_ids?.[0] ?? j?.runs?.[0] ?? ''
+      // triple-provenance: hash8 = sha256(latest aqm_eval.csv)[:8]; run-id only as fallback
+      const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
       if (id) setWallHash(String(id).slice(0, 8))
-      else if (j?.available && j?.run_ids?.length) setWallHash(String(j.run_ids[0]).slice(0, 8))
     }).catch(() => {})
     return () => { cancelled = true }
   }, [liveSnap?.running, replayRunning])
@@ -84,24 +100,20 @@ export default function LiveView() {
     if (ts - lastRef.current < 250) return
     lastRef.current = ts
     const d = (r: [number, number][]) => r.length > 400 ? lttb(r, 400) : r
-    // CHARGE markArea from live.phase (SSE delta), not estimated quartile — design §Visual: cs/ce from live.phase
-    const charge = live.phase === 'charge'
-    const cs = charge
-      ? live.rtt95[0]?.[0] ?? Date.now() - 120000
-      : live.rtt95.length ? live.rtt95[Math.floor(live.rtt95.length * 0.25)]?.[0] ?? Date.now() - 45000 : Date.now() - 45000
-    const ce = charge
-      ? live.rtt95.at(-1)?.[0] ?? Date.now() - 10000
-      : live.rtt95.length ? live.rtt95[Math.floor(live.rtt95.length * 0.75)]?.[0] ?? Date.now() - 10000 : Date.now() - 10000
-    const ma = chargeMarkArea(cs, ce)
+    // CHARGE markArea — single per chart, phase-driven only (Task 3.2). No quartile estimate.
+    const charging = live.phase === 'charge'
+    const cs = charging ? live.phaseSince['charge'] ?? live.rtt95[0]?.[0] ?? Date.now() - 1000 : 0
+    const ce = charging ? live.rtt95.at(-1)?.[0] ?? Date.now() : 0
+    const ma = chargeMarkArea(cs, ce, charging)
     rtt.setData([
-      { ...lineSeries('p50', d(live.rtt50 as any), '#5ad3e3'), markArea: ma } as any,
-      { ...lineSeries('p95', d(live.rtt95 as any), '#1fa348'), markArea: ma } as any,
+      { ...craftSeries(tri.chart, 'p50', d(live.rtt50 as any), '#5ad3e3'), markArea: ma } as any,
+      { ...craftSeries(tri.chart, 'p95', d(live.rtt95 as any), '#1fa348') } as any,
     ])
     small.setData(
-      [{ ...lineSeries('small p95', d(live.small as any), '#f4b400'), markArea: ma } as any],
+      [{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), '#f4b400'), markArea: ma } as any],
       { visualMap: { show: false, type: 'piecewise' as const, dimension: 1, pieces: [{ gt: 100, color: '#e22718' }, { gt: 40, color: '#f4b400' }, { lte: 40, color: '#5ad3e3' }], outOfRange: { color: '#9aa3ad' } } } as any,
     )
-    goodput.setData([{ ...lineSeries('goodput', d(live.goodput as any), '#b48ae0', true), markArea: ma } as any])
+    goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(live.goodput as any), '#b48ae0', ), markArea: ma } as any])
   })
 
   const banner = replayRunning ? `REPLAY — ${replayRunId}`
@@ -163,6 +175,14 @@ export default function LiveView() {
   const cakeBest = wallGroups?.find(g => g.qdisc === 'cake' && g.best) ?? wallGroups?.find(g => g.qdisc === 'cake') ?? wallGroups?.find(g => g.best) ?? null
   const maxAB = Math.max(baseline?.small_p95_median ?? 0, cakeBest?.small_p95_median ?? 0, 1)
   const diffAB = baseline && cakeBest && baseline.small_p95_median > 0 ? Math.round(((baseline.small_p95_median - cakeBest.small_p95_median) / baseline.small_p95_median) * 100) : null
+  // Q4 source pill — live|frozen|both gates which overlay half renders
+  const showLiveSrc = tri.source !== 'frozen'
+  const showFrozenSrc = tri.source !== 'live'
+  // Timeline 48 on the Wall — phase bands from live.phaseSince, hidden idle (honest)
+  const hasData = live.rtt95.length > 0
+  const t0 = live.phaseSince['baseline'] ?? live.rtt95[0]?.[0] ?? Date.now() - 1000
+  const tCharge = live.phaseSince['charge'] ?? (live.phase === 'charge' ? t0 : Date.now())
+  const tRecup = live.phaseSince['recup'] ?? (live.phase === 'recup' ? live.rtt95.at(-1)?.[0] ?? Date.now() : tCharge + 1000)
 
   return (
     <div id="wall" className="panel-stack" style={{ position: 'relative' }}>
@@ -177,7 +197,7 @@ export default function LiveView() {
       )}
       <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner} · {replayRunning ? 'replay' : 'SSE 10 Hz'}</div>
       {/* HERO: small_p95 300px full-width — thesis: wall hero, not bottom */}
-      <div className="card" style={{ height: '300px', gridColumn: '1/-1', width: '100%', display: 'flex', flexDirection: 'column' }} onMouseEnter={e => { const v = live.small.at(-1)?.[1] ?? smallP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); small.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.small.length - 1) }) }} onMouseLeave={() => setPeek(null)}>
+      <div className="card" style={{ height: '300px', gridColumn: '1/-1', width: '100%', display: 'flex', flexDirection: 'column' }} onMouseEnter={e => { setHovered(true); const v = live.small.at(-1)?.[1] ?? smallP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); small.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.small.length - 1) }) }} onMouseLeave={() => { setHovered(false); setPeek(null) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8, minWidth: 0 }}>
           <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099', whiteSpace: 'nowrap' }}>Petits objets p95 — hero 300px</span>
           <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
@@ -190,7 +210,8 @@ export default function LiveView() {
         <div ref={small.ref} style={{ flex: 1, minHeight: 0 }} />
       </div>
       {!liveSnap && live.rtt95.length === 0 && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
+      {/* Q4 metric pill — toggles the 8-card metric groups row */}
+      <div data-wall-cards="metric-groups" style={{ display: tri.metric ? 'grid' : 'none', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
         <MetricCard label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
         <MetricCard label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color="#5ad3e3" spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
         <MetricCard label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color="#1fa348" spark={spark(live.small)} trend={trendOf(spark(live.small))} />
@@ -213,49 +234,64 @@ export default function LiveView() {
           </div>
         </div>
       </div>
-      <div className="card" onMouseEnter={e => { const v = live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); rtt.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.rtt95.length - 1) }) }} onMouseLeave={() => setPeek(null)}><div ref={rtt.ref} style={{ height: 180 }} /></div>
-      <div className="card" onMouseEnter={e => { const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }} onMouseLeave={() => setPeek(null)}><div ref={goodput.ref} style={{ height: 180 }} /></div>
+      <div className="card" onMouseEnter={e => { setHovered(true); const v = live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); rtt.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.rtt95.length - 1) }) }} onMouseLeave={() => { setHovered(false); setPeek(null) }}><div ref={rtt.ref} style={{ height: 180 }} /></div>
+      <div className="card" onMouseEnter={e => { setHovered(true); const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }} onMouseLeave={() => { setHovered(false); setPeek(null) }}><div ref={goodput.ref} style={{ height: 180 }} /></div>
+      {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={Math.max(tRecup, live.rtt95.at(-1)?.[0] ?? Date.now())} currentPhase={live.phase || 'idle'} />}
       <div className="kv" style={{ border: '1px solid #26262a', padding: '8px 12px' }}><span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>drops detail</span><b className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: drops > 0 ? '#e22718' : '#f2f2f4' }}>{drops}</b></div>
 
-      {/* live-wall-overlay: baseline grey dashed vs CAKE cyan solid at same scale, diff badge -(baseline-best)/baseline*100% + hash 8-char */}
+      {/* live-wall-overlay: baseline grey dashed vs CAKE cyan solid at same scale, diff badge -(baseline-best)/baseline*100% + hash 8-char; source pill gates live|frozen|both */}
       <div className="live-wall-overlay card" data-testid="live-wall-overlay" style={{ gridColumn: '1 / -1', border: '1px solid #26262a', background: 'var(--surface-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>Live wall — baseline vs CAKE</span>
+          <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>Live wall — source {tri.source}</span>
           <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', fontVariantNumeric: 'tabular-nums' }}>hash {hash8} · provenance {wallGroups ? `${wallGroups.length} groupes` : 'en attente'}</span>
           {diffAB != null && (
             <span className="diff-badge mono" style={{ background: diffAB > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diffAB > 0 ? '#1fa348' : '#e22718'), color: diffAB > 0 ? '#1fa348' : '#e22718', padding: '4px 10px', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{diffAB > 0 ? `-${diffAB}%` : `${diffAB}%`}</span>
           )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div>
-            <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', display: 'flex', justifyContent: 'space-between' }}>
-              <span>baseline pfifo_fast — gris pointillé</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', color: '#f2f2f4' }}>{baseline ? `${baseline.small_p95_median.toFixed(1)} ms` : '—'}</span>
-            </div>
-            <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed #767b84', borderRadius: 2, overflow: 'hidden', marginTop: 4, position: 'relative' }}>
-              <div style={{ width: `${baseline ? (baseline.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: '#767b84', opacity: 0.9, transition: 'width 0.4s ease' }} />
-            </div>
-            <svg width="100%" height={2} style={{ display: 'block', marginTop: 2 }} aria-hidden><line x1={0} y1={1} x2="100%" y2={1} stroke="#767b84" strokeWidth={1} strokeDasharray="6 4" opacity={0.6} /></svg>
-            <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#8b9099', marginTop: 2 }}>baseline · pfifo_fast median small_p95 — échelle commune</div>
-          </div>
+        {showLiveSrc && (
           <div>
             <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#5ad3e3', display: 'flex', justifyContent: 'space-between' }}>
-              <span>CAKE — cyan solide</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', color: '#f2f2f4' }}>{cakeBest ? `${cakeBest.small_p95_median.toFixed(1)} ms · ${cakeBest.qdisc}${cakeBest.best ? ' ★' : ''}` : '—'}</span>
+              <span>live — cyan solide</span>
+              <span style={{ fontVariantNumeric: 'tabular-nums', color: '#f2f2f4' }}>{smallP95 ? `${smallP95.toFixed(1)} ms` : '—'}</span>
             </div>
             <div style={{ height: 10, background: 'rgba(90,211,227,0.08)', border: '1px solid #5ad3e3', borderRadius: 2, overflow: 'hidden', marginTop: 4, position: 'relative' }}>
-              <div style={{ width: `${cakeBest ? (cakeBest.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: '#5ad3e3', boxShadow: '0 0 6px rgba(90,211,227,0.5)', transition: 'width 0.4s ease' }} />
+              <div style={{ width: `${Math.min(100, (smallP95 / maxAB) * 100)}%`, height: '100%', background: '#5ad3e3', boxShadow: '0 0 6px rgba(90,211,227,0.5)', transition: 'width 0.4s ease' }} />
             </div>
-            <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#5ad3e3', marginTop: 2 }}>CAKE · best median small_p95 — même échelle que baseline</div>
+            <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#8b9099', marginTop: 2 }}>flux SSE courant — small p95 instantané, même échelle que le gelé</div>
           </div>
-        </div>
+        )}
+        {showFrozenSrc && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', display: 'flex', justifyContent: 'space-between' }}>
+                <span>baseline pfifo_fast — gris pointillé</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', color: '#f2f2f4' }}>{baseline ? `${baseline.small_p95_median.toFixed(1)} ms` : '—'}</span>
+              </div>
+              <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed #767b84', borderRadius: 2, overflow: 'hidden', marginTop: 4, position: 'relative' }}>
+                <div style={{ width: `${baseline ? (baseline.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: '#767b84', opacity: 0.9, transition: 'width 0.4s ease' }} />
+              </div>
+              <svg width="100%" height={2} style={{ display: 'block', marginTop: 2 }} aria-hidden><line x1={0} y1={1} x2="100%" y2={1} stroke="#767b84" strokeWidth={1} strokeDasharray="6 4" opacity={0.6} /></svg>
+              <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#8b9099', marginTop: 2 }}>baseline · pfifo_fast median small_p95 — échelle commune</div>
+            </div>
+            <div>
+              <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#5ad3e3', display: 'flex', justifyContent: 'space-between' }}>
+                <span>CAKE — cyan solide</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', color: '#f2f2f4' }}>{cakeBest ? `${cakeBest.small_p95_median.toFixed(1)} ms · ${cakeBest.qdisc}${cakeBest.best ? ' ★' : ''}` : '—'}</span>
+              </div>
+              <div style={{ height: 10, background: 'rgba(90,211,227,0.08)', border: '1px solid #5ad3e3', borderRadius: 2, overflow: 'hidden', marginTop: 4, position: 'relative' }}>
+                <div style={{ width: `${cakeBest ? (cakeBest.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: '#5ad3e3', boxShadow: '0 0 6px rgba(90,211,227,0.5)', transition: 'width 0.4s ease' }} />
+              </div>
+              <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#5ad3e3', marginTop: 2 }}>CAKE · best median small_p95 — même échelle que baseline</div>
+            </div>
+          </div>
+        )}
         <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#767b84', borderTop: '1px solid var(--hairline-faint)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
           <span>overlay: baseline gris pointillé vs CAKE cyan continu — même échelle</span>
           <span style={{ color: '#8b9099' }}>{wallGroups ? `données gelées · ${wallGroups.length} groupes · hash ${hash8}` : 'en attente — lancez campagne'}</span>
         </div>
       </div>
 
-      {liveSnap?.running && <Beam />}
+      {liveSnap?.running && <Beam hovered={hovered} />}
     </div>
   )
 }

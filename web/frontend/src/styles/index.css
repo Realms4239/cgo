@@ -119,8 +119,11 @@ footer .fill { margin-left: auto; }
 @keyframes promptDrain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .prompt-progress { position: absolute; bottom: 0; left: 0; height: 1px; background: #f4b400; width: 100%; transform-origin: left center; }
 
-/* beamDash + snap-effect 16px handle */
+/* beamDash + snap-effect 16px handle — beam anime guarded (Task 3.3: state changes only, reduced-motion collapses to static) */
 @keyframes beamDash { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -40; } }
+@media (prefers-reduced-motion: no-preference) {
+  .beam line { animation: beamDash 1s linear infinite; }
+}
 .snap-effect { width: 16px; height: 16px; }
 .brush .handle { width: 16px; fill: rgba(90,211,227,0.25); stroke: rgba(90,211,227,0.6); }
 .brush .selection { fill: rgba(90,211,227,0.08); stroke: rgba(90,211,227,0.4); }

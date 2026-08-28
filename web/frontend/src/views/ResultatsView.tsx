@@ -5,6 +5,7 @@ import { animateBar } from '../lib/anime'
 import { computeJFI } from '../lib/jfi'
 import { PeekPopover } from '../components/PeekPopover'
 import { echarts } from '../lib/echarts'
+import { baseOption, scatterSeries } from '../lib/chartGrammar'
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -49,26 +50,19 @@ export default function ResultatsView() {
     const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
     const ro = new ResizeObserver(() => c.resize())
     ro.observe(scatterRef.current)
-    c.setOption({
-      animation: false,
-      grid: { left: 48, right: 16, top: 24, bottom: 32, containLabel: true },
-      brush: { toolbox: ['rect'], brushType: 'rect' as const, xAxisIndex: 'all', yAxisIndex: 'all', brushMode: 'single' as const },
-      toolbox: { feature: { brush: { type: ['rect'] } } },
-      xAxis: { type: 'value' as const, name: 'goodput (Mbit/s)', axisLabel: { fontSize: 10, fontFamily: 'JetBrains Mono' } },
-      yAxis: { type: 'value' as const, name: 'small p95 (ms)', axisLabel: { fontSize: 10, fontFamily: 'JetBrains Mono' } },
-      tooltip: { trigger: 'item' as const },
-      series: [{
-        type: 'scatter' as const,
-        data: groups.map(g => [g.goodput_median, g.small_p95_median]),
-        symbolSize: (_val: any, params: any) => {
-          const g = groups[(params as any).dataIndex]
-          return g?.best ? 12 : 8
-        },
-        symbol: 'circle' as const,
-        itemStyle: { color: '#5ad3e3' },
-        emphasis: { itemStyle: { color: '#f4b400' } },
-      }],
-    } as any)
+    // through the grammar — same hairline base as the Wall, craft scatter, no chrome
+    const base = baseOption('compromis latence / débit', 'ms')
+    const bestIdx = groups.map((g, i) => g.best ? i : -1).filter(i => i >= 0)
+    const opt = {
+      ...base,
+      // value axes override (base defaults to time) — grammar hairlines kept
+      xAxis: { ...base.xAxis, type: 'value' as const, name: 'goodput (Mbit/s)' },
+      yAxis: { ...base.yAxis, name: 'small p95 (ms)' },
+      tooltip: { ...base.tooltip, trigger: 'item' as const },
+      brush: { brushType: 'rect' as const, xAxisIndex: 'all', yAxisIndex: 'all', brushMode: 'single' as const },
+      series: [scatterSeries('groupes', groups.map(g => [g.goodput_median, g.small_p95_median] as [number, number]), '#5ad3e3', bestIdx)],
+    }
+    c.setOption(opt as any)
     return () => { ro.disconnect(); c.dispose() }
   }, [groups])
 

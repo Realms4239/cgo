@@ -10,6 +10,7 @@ export const live = {
   max: 1800, // 180s one event @10Hz (Q53 B expand)
   ts: 0,
   phase: '', // baseline|charge|recup — from SSE delta, drives CHARGE markArea (not estimated)
+  phaseSince: {} as Record<string, number>, // first ts seen per phase — drives Timeline 48 phase bands
 }
 
 function push(r: Ring, ts: number, v: number | null) {
@@ -20,7 +21,10 @@ function push(r: Ring, ts: number, v: number | null) {
 
 export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: number; small_p95_ms?: number; bulk_goodput_mbps?: number; phase?: string }) {
   live.ts = ts
-  if (f.phase) live.phase = f.phase
+  if (f.phase && f.phase !== live.phase) {
+    live.phase = f.phase
+    if (!live.phaseSince[f.phase]) live.phaseSince[f.phase] = ts
+  }
   push(live.rtt50, ts, f.rtt_p50_ms ?? null)
   push(live.rtt95, ts, f.rtt_p95_ms ?? null)
   push(live.small, ts, f.small_p95_ms ?? null)
@@ -32,6 +36,7 @@ export function clearLive() {
   live.rtt95.length = 0
   live.small.length = 0
   live.goodput.length = 0
+  live.phaseSince = {}
 }
 
 // instrumentation seam 3 — surgical logs + embed analysis + playwright clip

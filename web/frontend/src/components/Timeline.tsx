@@ -38,11 +38,11 @@ export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, curr
         const a = (x.invert as any)(e.selection[0]).getTime()
         const b = (x.invert as any)(e.selection[1]).getTime()
         const span = Math.abs(b - a)
-        // ponytail: live.max mutable — single source for ring window, 60..600 clamp
-        live.max = Math.max(60, Math.min(600, Math.round(span / 100)))
+        // ponytail: live.max mutable — single source for ring window, 60..1800 clamp (rings 1800, Q53 B)
+        live.max = Math.max(60, Math.min(1800, Math.round(span / 100)))
       } else {
         // reset to full window when brush cleared — prevents permanent shrink
-        live.max = 600
+        live.max = 1800
       }
     })
     const gBrush = svg.append('g').attr('class', 'brush').call(brush as any)

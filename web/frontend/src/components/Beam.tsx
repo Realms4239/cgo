@@ -1,12 +1,14 @@
 import { useUIStore } from '../store/ui'
 
 // ponytail: fixed beam between Campagne and Live when running — CSS dashOffset -40 linear infinite
-export function Beam() {
+// hover-sync (Task 3.3): hovered = chart hover state from LiveView — beam brightens; anime guarded (CSS no-preference)
+export function Beam({ hovered = false }: { hovered?: boolean }) {
   const live = useUIStore((s: any) => s.live)
   if (!live?.running) return null
   return (
     <svg
       aria-hidden
+      className="beam"
       style={{
         position: 'fixed',
         top: 120,
@@ -15,6 +17,8 @@ export function Beam() {
         height: 2,
         pointerEvents: 'none',
         zIndex: 5,
+        opacity: hovered ? 1 : 0.55,
+        transition: 'opacity 0.3s ease',
       }}
     >
       <defs>
@@ -29,7 +33,7 @@ export function Beam() {
         x2="100%"
         y2={1}
         stroke="url(#beam-grad)"
-        strokeWidth={1}
+        strokeWidth={hovered ? 2 : 1}
         strokeDasharray="4"
         strokeDashoffset={-40}
         style={{ animation: 'beamDash 1s linear infinite' } as any}

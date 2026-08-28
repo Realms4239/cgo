@@ -1,7 +1,9 @@
 import type { EChartsOption } from 'echarts'
 import { echarts } from './echarts'
 
-// ponytail: observatory grammar in ~60 lines, not a chart framework.
+// ponytail: observatory grammar in ~100 lines, not a chart framework.
+// One parameterized base + craft factories (line | bar | area | scatter) —
+// every ECharts surface in the app consumes this (GoAccess/AA multiplicity).
 export function baseOption(title: string, unit: string): EChartsOption {
   return {
     backgroundColor: 'transparent',
@@ -57,11 +59,11 @@ export function baseOption(title: string, unit: string): EChartsOption {
       { type: 'text', left: 'center', top: 10, style: { text: 'METEOLINK \u00B7 LIEN', fill: 'rgba(255,255,255,0.03)', font: '600 28px Cormorant Garamond', textAlign: 'center' }, silent: true },
       { type: 'image', left: 'center', top: 'center', style: { image: 'data:image/svg+xml;base64,PHN2Zz4=', width: 300, height: 300, opacity: 0.015 }, silent: true },
     ] as unknown as EChartsOption['graphic'],
-    // ponytail: markArea at option root is inert — per-series markArea with real charge window when available
   } as unknown as EChartsOption
 }
 
-export function lineSeries(name: string, data: [number, number][], color: string, area = false) {
+// craft factories — markPoint is opt-in with a unit-aware formatter (clean triple: no clutter on live charts)
+export function lineSeries(name: string, data: [number, number][], color: string, area = false, maxMarkUnit?: string) {
   return {
     name,
     type: 'line',
@@ -75,7 +77,44 @@ export function lineSeries(name: string, data: [number, number][], color: string
       : undefined,
     emphasis: { focus: 'series', lineStyle: { width: 3 }, itemStyle: { borderWidth: 2 } },
     blur: { lineStyle: { opacity: 0.2 } },
-    markPoint: { data: [{ type: 'max', label: { formatter: 'max {c} ms' } }] },
+    ...(maxMarkUnit ? { markPoint: { data: [{ type: 'max', label: { formatter: `max {c} ${maxMarkUnit}` } }] } } : {}),
     data,
+  }
+}
+
+// bar craft — pareto/grouped bars (Résultats, A/B, any future panel multiplicity)
+export function barSeries(name: string, data: [string | number, number][], color: string, unit = '') {
+  return {
+    name,
+    type: 'bar',
+    barMaxWidth: 26,
+    itemStyle: { color, borderColor: '#26262a', borderWidth: 1, borderRadius: [2, 2, 0, 0] as [number, number, number, number] },
+    emphasis: { focus: 'series', itemStyle: { color, opacity: 0.85 } },
+    blur: { itemStyle: { opacity: 0.2 } },
+    ...(unit ? { markPoint: { data: [{ type: 'max', label: { formatter: `max {c} ${unit}` } }] } } : {}),
+    data,
+  }
+}
+
+// scatter craft — compromise frontier (goodput vs latency), best flagged
+export function scatterSeries(name: string, data: [number, number][], color: string, bestIndexes: number[] = []) {
+  return {
+    name,
+    type: 'scatter',
+    symbol: 'circle' as const,
+    symbolSize: (_val: unknown, params: { dataIndex: number }) => (bestIndexes.includes(params.dataIndex) ? 12 : 8),
+    itemStyle: { color, borderColor: '#f2f2f4', borderWidth: 1, shadowBlur: 8, shadowColor: color + '55' },
+    emphasis: { itemStyle: { color: '#f4b400' } },
+    blur: { itemStyle: { opacity: 0.2 } },
+    data,
+  }
+}
+
+// CHARGE markArea — single per chart, phase-driven only. show=false → empty data (honest hidden).
+export function chargeMarkArea(cs: number, ce: number, show: boolean) {
+  return {
+    itemStyle: { color: 'rgba(244,180,0,0.04)', borderColor: 'rgba(244,180,0,0.12)', borderWidth: 1, borderType: 'dashed' as const },
+    label: { show: true, color: '#f4b400', fontFamily: 'JetBrains Mono', fontSize: 10, position: 'insideTop' as const, padding: [4, 8] as unknown as number[], backgroundColor: 'rgba(244,180,0,0.08)', formatter: 'CHARGE' },
+    data: show ? [[{ xAxis: cs }, { xAxis: ce }]] as any : [],
   }
 }
