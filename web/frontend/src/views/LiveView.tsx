@@ -36,7 +36,7 @@ function useChart(title: string, unit: string) {
   }, [])
   const setData = (series: ReturnType<typeof lineSeries>[], extra?: Record<string, unknown>) => {
     if (!chart.current) return
-    const brush = { toolbox: ['rect'], brushType: 'rect' as const, xAxisIndex: 'all' as const, brushMode: 'single' as const }
+    const brush = { brushType: 'rect' as const, xAxisIndex: 'all' as const, brushMode: 'single' as const }
     const empty = !series.some(s => ((s.data as unknown[]) ?? []).length > 1)
     const base = baseOption(title, unit)
     const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), brush, ...extra, series } as unknown as EChartsOption

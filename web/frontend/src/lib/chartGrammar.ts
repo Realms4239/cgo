@@ -40,18 +40,6 @@ export function baseOption(title: string, unit: string): EChartsOption {
     } as unknown as EChartsOption['yAxis'],
     dataZoom: [
       { type: 'inside', filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true },
-      {
-        type: 'slider',
-        height: 24,
-        handleIcon: 'path://M-5,0 L5,0 L5,20 L-5,20 Z',
-        handleSize: '100%',
-        handleStyle: { color: '#f2f2f4', borderColor: '#26262a' },
-        backgroundColor: '#0b0b0c',
-        fillerColor: 'rgba(90,211,227,0.12)',
-        borderColor: 'transparent',
-        selectedDataBackground: { lineStyle: { color: '#5ad3e3' }, areaStyle: { color: 'rgba(90,211,227,0.15)' } },
-        emphasis: { handleStyle: { borderColor: '#5ad3e3' } },
-      },
     ] as unknown as EChartsOption['dataZoom'],
     visualMap: {
       show: false,
