@@ -31,3 +31,7 @@ export function clearLive() {
   live.small.length = 0
   live.goodput.length = 0
 }
+
+// instrumentation seam 3 — surgical logs + embed analysis + playwright clip
+export const __CGO_LIVE = live
+if (typeof window !== 'undefined') (window as any).__CGO_LIVE = live

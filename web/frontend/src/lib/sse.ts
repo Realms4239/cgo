@@ -5,6 +5,8 @@ import { useUIStore } from '../store/ui'
 let es: EventSource | null = null
 let last: Partial<LiveFrame> = {}
 let frameCount = 0
+export const __CGO_SSE = { lastID: 0, dropped: 0, ringLen: 0, frameCount: 0 }
+if (typeof window !== 'undefined') (window as any).__CGO_SSE = __CGO_SSE
 
 const gatesEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true
@@ -39,6 +41,8 @@ export function connectSSE() {
       // truth boundary: idle frames carry no measurement — never fabricate 0s
       if (data.ts && data.running) pushFrame(data.ts, data as any)
       frameCount++
+      __CGO_SSE.frameCount = frameCount
+      if (typeof window !== 'undefined') (window as any).__CGO_SSE = __CGO_SSE
       if (structural || frameCount % 5 === 0) {
         store.getState().setLive(data as LiveFrame)
       }
@@ -57,3 +61,4 @@ export function connectSSE() {
 export function disconnectSSE() {
   es?.close(); es = null
 }
+export const _frameCount = () => frameCount
