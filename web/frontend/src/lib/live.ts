@@ -9,6 +9,7 @@ export const live = {
   goodput: [] as Ring,
   max: 1800, // 180s one event @10Hz (Q53 B expand)
   ts: 0,
+  phase: '', // baseline|charge|recup — from SSE delta, drives CHARGE markArea (not estimated)
 }
 
 function push(r: Ring, ts: number, v: number | null) {
@@ -17,8 +18,9 @@ function push(r: Ring, ts: number, v: number | null) {
   if (r.length > live.max) r.shift()
 }
 
-export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: number; small_p95_ms?: number; bulk_goodput_mbps?: number }) {
+export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: number; small_p95_ms?: number; bulk_goodput_mbps?: number; phase?: string }) {
   live.ts = ts
+  if (f.phase) live.phase = f.phase
   push(live.rtt50, ts, f.rtt_p50_ms ?? null)
   push(live.rtt95, ts, f.rtt_p95_ms ?? null)
   push(live.small, ts, f.small_p95_ms ?? null)

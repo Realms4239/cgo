@@ -84,8 +84,14 @@ export default function LiveView() {
     if (ts - lastRef.current < 250) return
     lastRef.current = ts
     const d = (r: [number, number][]) => r.length > 400 ? lttb(r, 400) : r
-    const cs = live.rtt95.length ? live.rtt95[Math.floor(live.rtt95.length * 0.25)]?.[0] ?? Date.now() - 45000 : Date.now() - 45000
-    const ce = live.rtt95.length ? live.rtt95[Math.floor(live.rtt95.length * 0.75)]?.[0] ?? Date.now() - 10000 : Date.now() - 10000
+    // CHARGE markArea from live.phase (SSE delta), not estimated quartile — design §Visual: cs/ce from live.phase
+    const charge = live.phase === 'charge'
+    const cs = charge
+      ? live.rtt95[0]?.[0] ?? Date.now() - 120000
+      : live.rtt95.length ? live.rtt95[Math.floor(live.rtt95.length * 0.25)]?.[0] ?? Date.now() - 45000 : Date.now() - 45000
+    const ce = charge
+      ? live.rtt95.at(-1)?.[0] ?? Date.now() - 10000
+      : live.rtt95.length ? live.rtt95[Math.floor(live.rtt95.length * 0.75)]?.[0] ?? Date.now() - 10000 : Date.now() - 10000
     const ma = chargeMarkArea(cs, ce)
     rtt.setData([
       { ...lineSeries('p50', d(live.rtt50 as any), '#5ad3e3'), markArea: ma } as any,
