@@ -114,7 +114,7 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	// no manual Connection header — hop-by-hop, illegal over HTTP/2 (broke SSE behind cloudflared/CF edge)
 	fmt.Fprint(w, "retry: 2000\n")
 
 	h.mu.Lock()

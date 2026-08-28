@@ -181,7 +181,7 @@ func New(d Deps) http.Handler {
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
+		// no manual Connection header — hop-by-hop, illegal over HTTP/2 (broke SSE behind cloudflared/CF edge)
 		for i, row := range rows[1:] {
 			select {
 			case <-r.Context().Done():
