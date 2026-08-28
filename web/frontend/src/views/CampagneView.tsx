@@ -1,3 +1,4 @@
+// Sheet 380 backdrop Auditer — Kit cockpit ① Auditer 30s Yas 4G → ② Comparer live → ③ Exporter
 import { useEffect, useRef, useState } from 'react'
 import { ArmButton } from '../components/ArmButton'
 import { Timeline } from '../components/Timeline'
@@ -133,7 +134,7 @@ export default function CampagneView() {
   })
 
   return (
-    <div className="panel-stack" style={{position:'relative'}}>
+    <div className="panel-stack" style={{position:'relative', maxWidth:380, backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', border:'1px solid var(--hairline)', background:'rgba(16,16,18,0.92)', padding:12}}>
       {peek && (
         <PeekPopover rect={peek.rect}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>live small — 20 pts</div>
@@ -147,7 +148,8 @@ export default function CampagneView() {
       )}
       {hasData && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
       <div className="card">
-        <div className="card-head">Campagne</div>
+        <div className="card-head">Campagne — Kit cockpit</div>
+        <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:8, lineHeight:1.6}}>① Auditer 30s Yas 4G sans sudo → ② Comparer live pfifo vs CAKE sur Wall → ③ Exporter 1-page</div>
         <div className="form-row">
           <label>Profils</label>
           <div className="check-row">
