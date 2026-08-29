@@ -65,6 +65,33 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
     return () => { cancelled = true }
   }, [runA, runB])
 
+  // auto-find runs containing the pinned cells: pin from Résultats aggregates
+  // all runs, so the default run may not carry the cell — walk newest-first
+  // (capped at 12 probes) until a run actually containing the cell is found.
+  useEffect(() => {
+    if (!rows || !runs.length) return
+    const find = async (side: 'a' | 'b', pin: Pinned, current: string | null) => {
+      if (!current) return
+      const sideRows = side === 'a' ? rows.a : rows.b
+      if (sideRows.some(r => matches(r, pin))) return
+      const candidates = [...runs].reverse().filter(id => id !== current).slice(0, 12)
+      for (const id of candidates) {
+        try {
+          const rr = await fetch(`/api/run/rows?run=${id}`)
+          if (!rr.ok) continue
+          const jrows = ((await rr.json()).rows ?? []) as Row[]
+          if (jrows.some(r => matches(r, pin))) {
+            if (side === 'a') setRunA(id)
+            else setRunB(id)
+            return
+          }
+        } catch { /* skip unreachable run */ }
+      }
+    }
+    find('a', a, runA)
+    find('b', b, runB)
+  }, [rows, runs, a, b, runA, runB])
+
   const stats = useMemo(() => {
     if (!rows) return null
     const side = (rs: Row[], p: Pinned) =>
