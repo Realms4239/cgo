@@ -59,7 +59,12 @@ func StartWatch(base context.Context, d Deps) (stop func()) {
 					live.Drops = uint64(drp)
 				}
 			}
-			d.OnSnap(d.Snapshot("surveil", "", live, nil, nil, 0, model.Profiles["P2"], nil))
+			snap := d.Snapshot("surveil", "", live, nil, nil, 0, model.Profiles["P2"], nil)
+			// watch ≠ campagne — Running must stay false or it flaps against
+			// pumpSnapshots' ground truth and the app treats every frame as a
+			// campagne end (auto-switching panels mid-surveillance).
+			snap.Running = false
+			d.OnSnap(snap)
 			if len(rtt) > 3600 { // ~30 min window at 3 pings / 500 ms
 				rtt = rtt[len(rtt)-1800:]
 			}

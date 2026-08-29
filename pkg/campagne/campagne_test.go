@@ -189,6 +189,9 @@ func TestStartWatchPublishes(t *testing.T) {
 	d.OnSnap = func(s Snapshot) {
 		if s.Phase == "surveil" && s.RTTp50Ms > 0 {
 			mu.Lock()
+			if s.Running {
+				t.Error("watch snapshot must not claim Running — it flaps the panel")
+			}
 			n++
 			mu.Unlock()
 		}
