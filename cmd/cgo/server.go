@@ -50,9 +50,38 @@ func runServer(ctx context.Context, addr, mode string) error {
 	// reads current mtx via getMtx each tick, no leak on restart, no flap.
 	go pumpSnapshots(ctx, live, getMtx)
 
-	stopWatch := func() {}
+	// watchCtl — the surveillance toggle shared between the campagne path
+	// (startFn auto-stops watch) and the API path (POST /api/watch). Both
+	// mutate the same state; one mutex or nothing (a bare bool here raced
+	// between the two call paths).
+	watchCtl := struct {
+		mu   sync.Mutex
+		stop func()
+		on   bool
+	}{stop: func() {}}
+	watchStart := func() error {
+		watchCtl.mu.Lock()
+		defer watchCtl.mu.Unlock()
+		if watchCtl.on {
+			return nil
+		}
+		deps := campagne.ProdDeps()
+		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
+		stop := campagne.StartWatch(ctx, deps)
+		watchCtl.stop = stop
+		watchCtl.on = true
+		return nil
+	}
+	watchStop := func() {
+		watchCtl.mu.Lock()
+		defer watchCtl.mu.Unlock()
+		if watchCtl.on {
+			watchCtl.stop()
+			watchCtl.on = false
+		}
+	}
 	startFn := func(o api.RunOpts) error {
-		stopWatch() // campagne and surveillance are mutually exclusive
+		watchStop() // campagne and surveillance are mutually exclusive
 		if m := getMtx(); m != nil {
 			m.Stop()
 			// drain — the old matrix's cells may still be mid-tc-call; starting
@@ -96,8 +125,6 @@ func runServer(ctx context.Context, addr, mode string) error {
 		}
 		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(r.Qdisc), r.CapMbps, 100)
 	}
-	watching := false
-	watchMu := &sync.Mutex{}
 	handler := api.New(api.Deps{
 		GetSnap:   func() any { return live.Get() },
 		StartFn:   startFn,
@@ -111,20 +138,12 @@ func runServer(ctx context.Context, addr, mode string) error {
 			return map[string]any{"mode": m, "checks": checks}
 		},
 		WatchFn: func(on bool) error {
-			watchMu.Lock()
-			defer watchMu.Unlock()
-			if on == watching {
-				return nil
-			}
 			if on {
-				deps := campagne.ProdDeps()
-				deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
-				stop := campagne.StartWatch(ctx, deps)
-				stopWatch = func() { stop(); watching = false }
-				watching = true
+				if err := watchStart(); err != nil {
+					return err
+				}
 			} else {
-				stopWatch()
-				watching = false
+				watchStop()
 			}
 			return nil
 		},

@@ -19,7 +19,14 @@ export default function CampagneView() {
   const [allProfiles, setAllProfiles] = useState<{ id: string; imported: boolean }[]>([{ id: 'P1', imported: false }, { id: 'P2', imported: false }])
   useEffect(() => { fetch('/api/profiles').then(r => r.json()).then(j => { if (j?.profiles?.length) setAllProfiles(j.profiles.map((x: any) => ({ id: x.id, imported: !!x.imported }))) }).catch(() => { }) }, [])
   const [reps, setReps] = useState(3)
-  const [deadlineMs, setDeadlineMs] = useState(1000)
+  // Q10 — the deadline travels with the run: the input shows the operator's
+  // actual value and follows the Réglages (meteolink-settings event).
+  const [deadlineMs, setDeadlineMs] = useState(loadSettings().deadlineMs)
+  useEffect(() => {
+    const on = () => setDeadlineMs(loadSettings().deadlineMs)
+    window.addEventListener('meteolink-settings', on)
+    return () => window.removeEventListener('meteolink-settings', on)
+  }, [])
   const [msg, setMsg] = useState('')
   const [auditMsg, setAuditMsg] = useState('')
   const [auditSite, setAuditSite] = useState('Département X')
@@ -111,7 +118,7 @@ export default function CampagneView() {
   const pushToast = useUIStore((s: any)=>s.pushToast)
   const start = async () => {
     setMsg('démarrage…')
-    const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, deadline_ms: loadSettings().deadlineMs, target: loadSettings().target }) })
+    const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, deadline_ms: deadlineMs, target: loadSettings().target }) })
     const ok = r.ok
     setMsg(ok ? 'campagne lancée' : 'échec: ' + r.status)
     pushToast(ok ? 'Campagne lancée' : 'Échec démarrage', ok ? 'ok' : 'err')
@@ -144,7 +151,7 @@ export default function CampagneView() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
           {[
             { n: '①', t: 'Auditer', d: "30 s sur votre lien d'accès, sans droits administrateur — l'état réel avant toute comparaison" },
-            { n: '②', t: 'Comparer', d: 'pfifo vs CAKE en direct sur le Wall — mêmes échelles, écart en %' },
+            { n: '②', t: 'Comparer', d: 'pfifo vs CAKE en direct sur le Tableau live — mêmes échelles, écart en %' },
             { n: '③', t: 'Exporter', d: 'rapport 1-page MD/CSV — la preuve chiffrée, hash signé' },
           ].map(x => (
             <div key={x.n} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 16 }}>
@@ -214,7 +221,7 @@ export default function CampagneView() {
         </div>
         <div className="form-row">
           <label>Deadline</label>
-          <input disabled title="paramètre fixe 1000 ms côté engine (thread campagne.go:226) — contrôle retiré" type="number" min={100} max={5000} step={100} value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11, opacity:0.5}} />
+          <input title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" type="number" min={200} max={5000} step={100} value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11}} />
           <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms · seuil small_p95 (fixe)</span>
         </div>
         <div className="form-row" style={{gap:8, border:'1px solid #26262a', background:'rgba(244,180,0,0.06)', padding:'6px 8px', marginTop:6}} onMouseEnter={e=>setPeek({rect:e.currentTarget.getBoundingClientRect(), data: liveRing.small.slice(-20).map(([,v]:[number,number])=>v)})} onMouseLeave={()=>setPeek(null)}>

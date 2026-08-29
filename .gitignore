@@ -37,3 +37,6 @@ web/frontend/*.log
 
 # deepwork session state
 .slim/deepwork/
+
+# session logs
+/*.log

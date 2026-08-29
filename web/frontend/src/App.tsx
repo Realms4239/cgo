@@ -34,10 +34,14 @@ export default function App() {
 
   useEffect(() => {
     connectSSE()
-    // capability badge (Q10) — the OS decides what this host can control
-    fetch('/api/health').then(r => r.json()).then(j => setMode(j.mode ?? '')).catch(() => {})
     return () => disconnectSSE()
   }, [])
+  // capability badge (Q10) — refetched on every (re)connect, so a redeploy or
+  // a mode change on the server is picked up without a manual reload
+  useEffect(() => {
+    if (!connected) return
+    fetch('/api/health').then(r => r.json()).then(j => setMode(j.mode ?? '')).catch(() => {})
+  }, [connected])
 
   useEffect(() => {
     animateViewEnter()

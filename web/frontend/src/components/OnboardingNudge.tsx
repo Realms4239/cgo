@@ -14,9 +14,9 @@ export default function OnboardingNudge(){
   const ref=useRef<HTMLDivElement>(null)
 
   useEffect(()=>{
-    try{ if(localStorage.getItem('nudge_seen')==='2026-08-26') return }catch{}
+    try{ if(localStorage.getItem('nudge_seen')==='2026-08-29') return }catch{}
     setOpen(true)
-    const id=setTimeout(()=>{ setOpen(false); try{ localStorage.setItem('nudge_seen','2026-08-26') }catch{} },8000)
+    const id=setTimeout(()=>{ setOpen(false); try{ localStorage.setItem('nudge_seen','2026-08-29') }catch{} },8000)
     return()=>clearTimeout(id)
   },[])
 
@@ -33,6 +33,6 @@ export default function OnboardingNudge(){
       <span style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#5ad3e3'}}>{s.k}</span>
       <span style={{fontFamily:'Inter var', fontSize:11, color:'#9aa3ad'}}>{s.desc}</span>
     </div>)}
-    <button onClick={()=>{ setOpen(false); try{ localStorage.setItem('nudge_seen','2026-08-26') }catch{} }} aria-label="Fermer" style={{marginLeft:4, padding:'6px 8px', background:'transparent', border:'1px solid #26262a', borderRadius:0, color:'#9aa3ad', fontSize:11, cursor:'pointer'}}>Fermer</button>
+    <button onClick={()=>{ setOpen(false); try{ localStorage.setItem('nudge_seen','2026-08-29') }catch{} }} aria-label="Fermer" style={{marginLeft:4, padding:'6px 8px', background:'transparent', border:'1px solid #26262a', borderRadius:0, color:'#9aa3ad', fontSize:11, cursor:'pointer'}}>Fermer</button>
   </div>
 }

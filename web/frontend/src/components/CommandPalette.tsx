@@ -6,7 +6,7 @@ import { prefersReducedMotion } from '../lib/anime'
 // Cmd-K palette — filters 4 panels + 3 quick actions
 const QUICK = [
   { label: 'Démarrer campagne', panel: 'campagne' as const },
-  { label: 'Voir temps réel', panel: 'live' as const },
+  { label: 'Voir le Tableau live', panel: 'live' as const },
   { label: 'Voir résultats', panel: 'resultats' as const },
 ]
 

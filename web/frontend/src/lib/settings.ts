@@ -1,5 +1,7 @@
 // Settings utilisateur — 10 paramètres, chaque borne est un vrai choix de
 // mesure. Persistés en localStorage; les bornes serveur restent autoritaires.
+// Chaque sauvegarde diffuse `meteolink-settings` — les vues abonnées se
+// re-rendent immédiatement (les seuils de sévérité ne sont jamais périmés).
 export type Settings = {
   warnMs: number        // seuil « dégradé » latence
   critMs: number        // seuil « critique » latence
@@ -30,6 +32,7 @@ export function loadSettings(): Settings {
 
 export function saveSettings(s: Settings) {
   try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { }
+  try { window.dispatchEvent(new CustomEvent<Settings>('meteolink-settings', { detail: s })) } catch { }
 }
 
 export type Level = 'ok' | 'warn' | 'crit'

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+﻿import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries, barSeries, chargeMarkArea, CRAFT } from '../lib/chartGrammar'
@@ -19,7 +19,7 @@ import { DonutJFI } from '../components/DonutJFI'
 import { Timeline } from '../components/Timeline'
 import { CardHead } from '../components/ui/CardHead'
 import { Pill } from '../components/ui/Pill'
-import { loadSettings, latencyLevel, dropsLevel, deadlineLevel, goodputLevel, jfiLevel, LEVEL_COLOR } from '../lib/settings'
+import { loadSettings, latencyLevel, dropsLevel, deadlineLevel, goodputLevel, jfiLevel, LEVEL_COLOR, type Settings } from '../lib/settings'
 
 type Craft = 'line' | 'bar' | 'area'
 type Tri = { metric: boolean; chart: Craft; source: 'live' | 'frozen' | 'both' }
@@ -84,7 +84,14 @@ const ChartSurface = memo(function ChartSurface({ title, unit, domId, height, em
 type WallGroup = { qdisc: string; profile: string; small_p95_median: number; best?: boolean; hardware_recommendation?: string }
 
 export default function LiveView() {
-  const settings = loadSettings()
+  // settings — reactive: Réglages diffuse `meteolink-settings`, les seuils de
+  // sévérité et la capacité du bord suivent sans rechargement (stale ref bug).
+  const [settings, setSettings] = useState<Settings>(loadSettings())
+  useEffect(() => {
+    const on = () => setSettings({ ...loadSettings() })
+    window.addEventListener('meteolink-settings', on)
+    return () => window.removeEventListener('meteolink-settings', on)
+  }, [])
   const rtt = useChart('RTT', 'ms')
   const small = useChart('Petits objets p95', 'ms')
   const goodput = useChart('Bulk goodput', 'Mbit/s')
@@ -103,11 +110,12 @@ export default function LiveView() {
   })
   const lockedRingRef = useRef<[number, number][]>([])
   const [shape, setShape] = useState<{ applied: boolean; qdisc?: string; capacity_mbps?: number } | null>(null)
-  const [shapeCap, setShapeCap] = useState(20)
+  const [shapeCap, setShapeCap] = useState(settings.shapeCap)
+  // la capacité du bord suit les Réglages (le levier repart du défaut)
+  useEffect(() => { setShapeCap(settings.shapeCap) }, [settings.shapeCap])
   const [shapeMsg, setShapeMsg] = useState('')
   const [journal, setJournal] = useState<{ ts: string; kind: string; msg: string }[]>([])
   const [linkOpen, setLinkOpen] = useState(false)
-  const settingsRef = useRef(loadSettings())
   const [watching, setWatching] = useState(false)
 
   // Q4 tri-toggle — PanelChooser dispatches {metric, chart: craft, source}
@@ -260,9 +268,11 @@ export default function LiveView() {
       const r = await fetch('/api/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: !watching }) })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) { useUIStore.getState().pushToast?.(j?.error ?? 'échec surveillance', 'err'); return }
-      setWatching(!watching)
-      if (!watching) { setLocked(null); lockedRingRef.current = [] }
-      useUIStore.getState().pushToast?.(!watching ? 'surveillance active — le mur est vivant' : 'surveillance arrêtée', 'ok')
+      // the server response is the truth — a double-click or a 409 race must
+      // never desync the pill from what the backend actually runs
+      setWatching(!!j.watch)
+      if (j.watch) { setLocked(null); lockedRingRef.current = [] }
+      useUIStore.getState().pushToast?.(j.watch ? 'surveillance active — le mur est vivant' : 'surveillance arrêtée', 'ok')
     } catch (e) { useUIStore.getState().pushToast?.(String(e), 'err') }
   }
   const exportConstat = () => {
@@ -367,9 +377,9 @@ export default function LiveView() {
         </Card>
       </div>
       {/* Q2 — runbook pointer: a crit card always says what to do next */}
-      {rttP95 != null && rttP95 > settingsRef.current.critMs && (
+      {rttP95 != null && rttP95 > settings.critMs && (
         <div className="mono" data-testid="runbook-pointer" style={{ gridColumn: '1 / -1', fontSize: 10, color: 'var(--t-warn, #f4b400)', border: '1px dashed rgba(244,180,0,0.4)', padding: '6px 10px' }}>
-          bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settingsRef.current.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
+          bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
         </div>
       )}
       {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={Math.max(tRecup, now)} currentPhase={live.phase || 'idle'} />}
@@ -392,9 +402,23 @@ export default function LiveView() {
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
                 <Pill label="capacité" value={`${shapeCap} Mbit/s`} on onClick={() => setShapeCap(shapeCap >= 80 ? 5 : shapeCap * 2)} title="capacité du bord — clic pour doubler (boucle 5→80)" />
-                <Pill label="conditions" value={linkOpen ? 'masquer' : `${settingsRef.current.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
+                <Pill label="conditions" value={linkOpen ? 'masquer' : `${settings.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
+                {/* une campagne active possède le shaper — le levier répond 409 :
+                    on grise au lieu de laisser l'opérateur lever une erreur */}
                 {['none', 'fq_codel', 'cake'].map(q => (
-                  <Pill key={q} label={q === 'none' ? 'sans' : q} on={shape?.applied && shape.qdisc === q} onClick={() => applyShape(q)} title={`appliquer ${q} au bord`} />
+                  <span
+                    key={q}
+                    title={liveSnap?.running ? 'campagne active — le façonnage redevient disponible à l\'arrêt' : `appliquer ${q} au bord`}
+                    style={{ opacity: liveSnap?.running ? 0.45 : 1, cursor: liveSnap?.running ? 'not-allowed' : 'pointer' }}
+                  >
+                    <Pill
+                      key={q}
+                      label={q === 'none' ? 'sans' : q}
+                      on={shape?.applied && shape.qdisc === q}
+                      onClick={liveSnap?.running ? undefined : () => applyShape(q)}
+                      title={liveSnap?.running ? 'campagne active — arrêtez la mesure pour façonner' : `appliquer ${q} au bord`}
+                    />
+                  </span>
                 ))}
               </div>
             }

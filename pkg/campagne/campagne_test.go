@@ -2,10 +2,12 @@ package campagne
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -178,6 +180,43 @@ func (r *recTC) Run(args ...string) ([]byte, error) {
 	copy(cp, args)
 	*r.sink = append(*r.sink, cp)
 	return nil, nil
+}
+
+// Stop must be prompt: a cancelled campagne must not keep probing until the
+// phase deadline (the collect loop used to ignore ctx for up to 120 s).
+func TestStopPromptOnCancel(t *testing.T) {
+	d := fastDeps()
+	d.BaselineSec = 30 // long phase — only cancellation can end collect early
+	var calls int32
+	d.Ping = func(ctx context.Context, _ string, n int) []float64 {
+		atomic.AddInt32(&calls, 1)
+		time.Sleep(20 * time.Millisecond)
+		return []float64{20, 21}
+	}
+	d.Small = func(context.Context) (float64, error) { return 25, nil }
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	var runErr error
+	go func() {
+		_, runErr = RunEvent(ctx, model.Event{RunID: "r1", EventID: 4, Profile: "P2", Qdisc: model.Cake, CC: model.BBR, Repetition: 1}, model.Profiles["P2"], d)
+		close(done)
+	}()
+	time.Sleep(300 * time.Millisecond) // let a few rounds run
+	cancel()
+	select {
+	case <-done:
+		// returned promptly — good
+	case <-time.After(3 * time.Second):
+		t.Fatal("RunEvent ignored cancellation for >3 s mid-phase — stop is not prompt")
+	}
+	if runErr != nil && !errors.Is(runErr, context.Canceled) {
+		// RunEvent may surface the cancel or complete degraded — both fine
+		_ = runErr
+	}
+	if atomic.LoadInt32(&calls) > 40 { // 300 ms at ~20 ms/round ≈ ≤ 20; generous x2
+		t.Fatalf("probes kept running after cancel: %d rounds", calls)
+	}
 }
 
 // Surveillance continue — ping+small sans bulk (ARG.md: non-intrusif) : le

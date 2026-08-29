@@ -242,6 +242,13 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		}
 		deadline := d.Now().Add(time.Duration(secs) * time.Second)
 		for d.Now().Before(deadline) {
+			// prompt stop: a cancelled campagne must not keep probing until the
+			// phase deadline (up to 120 s of hot-spinning empty rounds)
+			select {
+			case <-ctx.Done():
+				return rtt, small
+			default:
+			}
 			// publish FIRST — ping+small can block seconds over a saturated
 			// link; the wall shows current truth every round, not boundary zeros
 			publishLive(phase, rtt, small)

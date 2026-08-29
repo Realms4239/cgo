@@ -49,7 +49,14 @@ const rows = files.map((f) => {
 }).sort((a, b) => b.gz - a.gz);
 for (const r of rows) console.log(`${(r.gz / 1024).toFixed(1)} KB gz  ${(r.raw / 1024).toFixed(1)} KB raw  ${r.f}`);
 console.log(`TOTAL gz : ${(total / 1024).toFixed(1)} KB`);
-console.log(`echarts  : ${(echartsGz / 1024).toFixed(1)} KB gz / ${(ECHARTS_GZ_MAX / 1024).toFixed(0)} KB max`);
+// echarts watchdog: only meaningful when echarts is a separate chunk. Since the
+// wall-kit reunite build (single self-contained index chunk), echarts lives
+// inside the main chunk — report that honestly instead of a fake 0.0 KB.
+if (echartsGz > 0) {
+  console.log(`echarts  : ${(echartsGz / 1024).toFixed(1)} KB gz / ${(ECHARTS_GZ_MAX / 1024).toFixed(0)} KB max`);
+} else {
+  console.log(`echarts  : in-chunk (no separate echarts-* chunk) — guarded by the TOTAL budget`);
+}
 let bad = false;
 if (echartsGz > ECHARTS_GZ_MAX) {
   console.error(`FAIL : echarts chunk ${(echartsGz / 1024).toFixed(1)} KB gz > ${(ECHARTS_GZ_MAX / 1024).toFixed(0)} KB â€” full 'echarts' import re-added?`);

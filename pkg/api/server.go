@@ -270,6 +270,16 @@ func New(d Deps) Handler {
 			http.Error(w, "reps must be 1–5", http.StatusBadRequest)
 			return
 		}
+		// Q10 bounds — the deadline travels with the run, inside the same
+		// window the Réglages drawer enforces client-side
+		if opts.DeadlineMs != 0 && (opts.DeadlineMs < 200 || opts.DeadlineMs > 5000) {
+			http.Error(w, "deadline_ms must be 200–5000", http.StatusBadRequest)
+			return
+		}
+		if len(opts.Target) > 64 {
+			http.Error(w, "target must be ≤ 64 characters", http.StatusBadRequest)
+			return
+		}
 		if len(opts.Profiles) == 0 {
 			http.Error(w, "aucun profil sélectionné", http.StatusBadRequest)
 			return

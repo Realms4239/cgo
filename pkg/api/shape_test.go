@@ -336,6 +336,26 @@ func TestValidationPrevention(t *testing.T) {
 		t.Fatalf("reps 99: %d want 400", resp3.StatusCode)
 	}
 
+	// deadline outside the 200–5000 window → 400 (Q10 bounds are server-side)
+	resp5, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"deadline_ms":99999}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp5.Body.Close()
+	if resp5.StatusCode != http.StatusBadRequest {
+		t.Fatalf("deadline 99999: %d want 400", resp5.StatusCode)
+	}
+
+	// target longer than 64 characters → 400
+	resp6, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"target":"`+strings.Repeat("a", 65)+`"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp6.Body.Close()
+	if resp6.StatusCode != http.StatusBadRequest {
+		t.Fatalf("target 65 chars: %d want 400", resp6.StatusCode)
+	}
+
 	// audit duration clamps to the 10–600 window
 	resp4, err := http.Post(srv.URL+"/api/audit/start", "application/json", bytes.NewBufferString(`{"site":"x","link_type":"5g","duration":999999}`))
 	if err != nil {
