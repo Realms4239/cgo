@@ -103,6 +103,7 @@ export default function LiveView() {
   const [shape, setShape] = useState<{ applied: boolean; qdisc?: string; capacity_mbps?: number } | null>(null)
   const [shapeCap, setShapeCap] = useState(20)
   const [shapeMsg, setShapeMsg] = useState('')
+  const [watching, setWatching] = useState(false)
   
   // Q4 tri-toggle — PanelChooser dispatches {metric, chart: craft, source}
   useEffect(() => {
@@ -168,12 +169,14 @@ export default function LiveView() {
   const banner = replayRunning ? `REPLAY — ${replayRunId}`
     : !liveSnap ? 'OFFLINE — en attente du flux'
     : liveSnap.load_status === 'bulk-on' ? 'CHARGE — bulk actif'
+    : liveSnap.phase === 'surveil' ? 'SURVEILLANCE — sondes légères'
     : liveSnap.phase === 'baseline' ? 'BASELINE'
     : liveSnap.phase === 'recup' ? 'RÉCUPÉRATION'
     : 'IDLE'
   const bannerColor = replayRunning ? 'var(--t-live)'
     : !liveSnap ? 'var(--t-danger)'
     : banner.startsWith('CHARGE') ? 'var(--t-threshold)'
+    : banner.startsWith('SURVEILLANCE') ? 'var(--t-live)'
     : banner === 'BASELINE' ? 'var(--t-live)'
     : banner === 'RÉCUPÉRATION' ? 'var(--t-ok)'
     : 'var(--text-faint)'
@@ -244,6 +247,16 @@ export default function LiveView() {
         useUIStore.getState().pushToast?.(q === 'none' ? 'façonnage retiré' : `bord façonné — ${q}`, 'ok')
       }
     } catch (e) { setShapeMsg(String(e)) }
+  }
+  const toggleWatch = async () => {
+    try {
+      const r = await fetch('/api/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: !watching }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { useUIStore.getState().pushToast?.(j?.error ?? 'échec surveillance', 'err'); return }
+      setWatching(!watching)
+      if (!watching) { setLocked(null); lockedRingRef.current = [] }
+      useUIStore.getState().pushToast?.(!watching ? 'surveillance active — le mur est vivant' : 'surveillance arrêtée', 'ok')
+    } catch (e) { useUIStore.getState().pushToast?.(String(e), 'err') }
   }
   const exportConstat = () => {
     if (locked == null || liveSmallMedian == null) return
@@ -364,6 +377,7 @@ export default function LiveView() {
             sub={shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}
             right={
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
                 <Pill label="capacité" value={`${shapeCap} Mbit/s`} on onClick={() => setShapeCap(shapeCap >= 80 ? 5 : shapeCap * 2)} title="capacité du bord — clic pour doubler (boucle 5→80)" />
                 {['none', 'fq_codel', 'cake'].map(q => (
                   <Pill key={q} label={q === 'none' ? 'sans' : q} on={shape?.applied && shape.qdisc === q} onClick={() => applyShape(q)} title={`appliquer ${q} au bord`} />
