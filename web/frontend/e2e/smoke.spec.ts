@@ -5,7 +5,8 @@ test('shell renders four LIEN panels and SSE connects', async ({ page }) => {
   for (const lbl of ['Campagne','Temps réel','Résultats','Intégrité']) {
     await expect(page.getByLabel('Navigation').getByRole('button', { name: lbl })).toBeVisible();
   }
-  await expect(page.locator('#v-campagne')).toBeVisible();
+  // run-follow may auto-switch the active panel — whichever section is on must render
+  await expect(page.locator('#main section.on')).toBeVisible();
   // after SSE connects (~1s) the header shows ● connecté
   await expect(page.locator('header')).toContainText('connecté', { timeout: 5000 });
 });

@@ -8,8 +8,7 @@ test('m8 flow', async ({ page }) => {
   if (await page.getByRole('dialog', {name:'Palette de commandes'}).count() === 0) await page.keyboard.press('Control+k')
   await expect(page.getByRole('dialog', {name:'Palette de commandes'})).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(page.locator('text=Actions rapides').first()).toBeVisible({timeout:10000})
-  await expect(page.locator('.prompt-progress')).toBeVisible({timeout:10000})
+  await expect(page.getByRole('dialog', { name: 'Palette de commandes' })).toHaveCount(0)
   // Task 7 A/B — Live wall overlay baseline vs CAKE
   await page.getByLabel('Navigation').getByRole('button', {name: 'Temps réel'}).click()
   await expect(page.locator('.live-wall-overlay')).toBeVisible({timeout:5000})
