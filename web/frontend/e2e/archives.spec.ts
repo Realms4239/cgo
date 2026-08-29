@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
 
 // Layer 5 Task 5.2 — Archives = integrite panel via PanelChooser tri (SPA has no /archives route).
+// Q11 vocabulary: the chooser's third panel is now labeled «Provenance».
 test('archives — PanelChooser nav + RDF frozen provenance card', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Archives', exact: true }).click()
+  await page.getByRole('button', { name: 'Provenance', exact: true }).click()
   await expect(page.getByText('RDF — provenance gelée')).toBeVisible()
   // honest: real sha256 pill when /api/integrity exposes it, EmptyState otherwise
   const hash = page.locator('[data-testid="provenance-hash"]')

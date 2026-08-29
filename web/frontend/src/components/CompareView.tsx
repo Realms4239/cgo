@@ -40,20 +40,27 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
     fetch('/api/replay/list').then(r => r.json()).then(j => {
       const ids: string[] = j?.runs ?? []
       setRuns(ids)
-      setRunA(ids[0] ?? null)
-      setRunB(ids[1] ?? ids[0] ?? null)
+      // the operator just ran the campagne — the most recent runs are the
+      // likeliest to contain the pinned cells (oldest runs predate them)
+      setRunA(ids[ids.length - 1] ?? null)
+      setRunB(ids[ids.length - 2] ?? ids[ids.length - 1] ?? null)
     }).catch(e => setErr(String(e)))
   }, [])
 
   useEffect(() => {
     if (!runA || !runB) return
     let cancelled = false
-    Promise.all([
-      fetch(`/api/run/rows?run=${runA}`).then(r => r.json()),
-      fetch(`/api/run/rows?run=${runB}`).then(r => r.json()),
-    ]).then(([ja, jb]) => {
+    // a campagne stopped early freezes a header-only CSV → 404 "run vide" —
+    // that run side is simply empty (amber warning), never a fatal error.
+    const load = async (id: string): Promise<Row[]> => {
+      const r = await fetch(`/api/run/rows?run=${id}`)
+      if (r.status === 404) return []
+      if (!r.ok) throw new Error(`rows ${id}: HTTP ${r.status}`)
+      return ((await r.json()).rows ?? []) as Row[]
+    }
+    Promise.all([load(runA), load(runB)]).then(([ra, rb]) => {
       if (cancelled) return
-      setRows({ a: (ja.rows ?? []) as Row[], b: (jb.rows ?? []) as Row[] })
+      setRows({ a: ra, b: rb })
     }).catch(e => setErr(String(e)))
     return () => { cancelled = true }
   }, [runA, runB])

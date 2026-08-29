@@ -32,3 +32,5 @@ web/frontend/playwright-report/
 kit/cgo-vm.yaml
 kit/logs/
 shots/
+
+web/frontend/*.log
