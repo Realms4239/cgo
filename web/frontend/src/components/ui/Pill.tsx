@@ -11,6 +11,7 @@ export function Pill({ label, value, on = true, onClick, title }: {
     <button
       onClick={onClick}
       title={title ?? `${label}${value ? `: ${value}` : ''}`}
+      aria-label={title ?? `${label}${value ? ` ${value}` : ''}`}
       aria-pressed={on}
       style={{
         fontFamily: 'var(--font-mono, JetBrains Mono)',

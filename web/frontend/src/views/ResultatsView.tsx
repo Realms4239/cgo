@@ -5,10 +5,8 @@ import { animateBar } from '../lib/anime'
 import { PeekPopover } from '../components/PeekPopover'
 import { echarts } from '../lib/echarts'
 import { baseOption, scatterSeries } from '../lib/chartGrammar'
-import CompareView from '../components/CompareView'
+import CompareView, { type Pinned } from '../components/CompareView'
 import { CRAFT } from '../lib/chartGrammar'
-
-type Pinned = { run: string; row: Record<string, string> }
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -28,7 +26,6 @@ export default function ResultatsView() {
   const [hash8, setHash8] = useState<string>('────────')
   const [pinA, setPinA] = useState<Pinned | null>(null)
   const [pinB, setPinB] = useState<Pinned | null>(null)
-  const [latestRun, setLatestRun] = useState<string>('')
   const scatterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -36,7 +33,6 @@ export default function ResultatsView() {
       if (j.available) setGroups(j.groups)
       else setErr(j.reason || 'pas de résultats')
     }).catch(e => setErr(String(e)))
-    fetch('/api/replay/list').then(r => r.json()).then(j => { const runs: string[] = j?.runs ?? []; if (runs.length) setLatestRun(runs[0]) }).catch(() => {})
     fetch('/api/integrity').then(r => r.json()).then(j => {
       // triple-provenance: hash8 = sha256(latest aqm_eval.csv)[:8]; fallback run id when absent
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
@@ -168,8 +164,15 @@ export default function ResultatsView() {
                   <td>{g.quarantined}</td>
                   <td>{g.best ? '★' : ''}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    <button className="btn" title="épingler comme A" onClick={() => setPinA({ run: latestRun, row: { profile: g.profile, qdisc: g.qdisc, cc: g.cc, small_p95_ms: String(g.small_p95_median), rtt_p95_ms: String(g.rtt_p95_median), bulk_goodput_mbps: String(g.goodput_median), drops: String(g.quarantined), cost_ar_per_h: String(g.cost_median ?? g.cost_ar_per_h ?? 0) } })} style={{ padding: '2px 6px', fontSize: 10, background: pinA?.row.qdisc === g.qdisc && pinA?.row.cc === g.cc && pinA?.row.profile === g.profile ? 'rgba(90,211,227,0.15)' : 'transparent', color: pinA?.row.qdisc === g.qdisc && pinA?.row.cc === g.cc && pinA?.row.profile === g.profile ? CRAFT.live : 'var(--text-muted)' }}>A</button>
-                    <button className="btn" title="épingler comme B" onClick={() => setPinB({ run: latestRun, row: { profile: g.profile, qdisc: g.qdisc, cc: g.cc, small_p95_ms: String(g.small_p95_median), rtt_p95_ms: String(g.rtt_p95_median), bulk_goodput_mbps: String(g.goodput_median), drops: String(g.quarantined), cost_ar_per_h: String(g.cost_median ?? g.cost_ar_per_h ?? 0) } })} style={{ padding: '2px 6px', fontSize: 10, marginLeft: 4, background: pinB?.row.qdisc === g.qdisc && pinB?.row.cc === g.cc && pinB?.row.profile === g.profile ? 'rgba(31,163,72,0.15)' : 'transparent', color: pinB?.row.qdisc === g.qdisc && pinB?.row.cc === g.cc && pinB?.row.profile === g.profile ? CRAFT.ok : 'var(--text-muted)' }}>B</button>
+                    {(() => {
+                      const pin = { profile: g.profile, qdisc: g.qdisc, cc: g.cc }
+                      const isA = pinA?.profile === g.profile && pinA?.qdisc === g.qdisc && pinA?.cc === g.cc
+                      const isB = pinB?.profile === g.profile && pinB?.qdisc === g.qdisc && pinB?.cc === g.cc
+                      return (<>
+                        <button className="btn" title="épingler comme A" onClick={() => setPinA(pin)} style={{ padding: '2px 6px', fontSize: 10, background: isA ? 'rgba(90,211,227,0.15)' : 'transparent', color: isA ? CRAFT.live : 'var(--text-muted)' }}>A</button>
+                        <button className="btn" title="épingler comme B" onClick={() => setPinB(pin)} style={{ padding: '2px 6px', fontSize: 10, marginLeft: 4, background: isB ? 'rgba(31,163,72,0.15)' : 'transparent', color: isB ? CRAFT.ok : 'var(--text-muted)' }}>B</button>
+                      </>)
+                    })()}
                   </td>
                 </tr>
               )

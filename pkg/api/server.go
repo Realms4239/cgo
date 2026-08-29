@@ -53,6 +53,10 @@ type Deps struct {
 	// RunningFn reports an active campagne — the shape lever and a running
 	// matrix fight over the same shaper, so manual shaping is refused mid-run.
 	RunningFn func() bool
+	// WatchFn toggles the non-intrusive surveillance loop (ping+small, no
+	// bulk): the wall stays alive outside a campagne. Watching does NOT
+	// conflict with shaping — that combination is the product.
+	WatchFn func(on bool) error
 }
 
 // Handler carries the hub lifecycle so hosts can stop the 10 Hz ticker on
@@ -176,6 +180,29 @@ func New(d Deps) Handler {
 		}
 		writeJSON(w, map[string]any{"applied": true, "qdisc": shapeQdisc, "capacity_mbps": shapeCap, "since": shapeSince.Format(time.RFC3339)})
 	})
+	// surveillance continue — non-intrusive, composable with the shape lever
+	mux.HandleFunc("POST /api/watch", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			On bool `json:"on"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		if d.WatchFn == nil {
+			http.Error(w, "watch engine not wired on this host", http.StatusServiceUnavailable)
+			return
+		}
+		if body.On && d.RunningFn != nil && d.RunningFn() {
+			http.Error(w, "campagne active — la surveillance se lance hors campagne", http.StatusConflict)
+			return
+		}
+		if err := d.WatchFn(body.On); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{"watch": body.On})
+	})
 	mux.HandleFunc("POST /api/shape", func(w http.ResponseWriter, r *http.Request) {
 		var req ShapeReq
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
@@ -195,6 +222,26 @@ func New(d Deps) Handler {
 		var opts RunOpts
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&opts); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		// prevention — the client is a hint, never the contract (§6); input is
+		// validated even on hosts without a wired engine
+		if opts.Reps < 1 || opts.Reps > 5 {
+			http.Error(w, "reps must be 1–5", http.StatusBadRequest)
+			return
+		}
+		if len(opts.Profiles) == 0 {
+			http.Error(w, "aucun profil sélectionné", http.StatusBadRequest)
+			return
+		}
+		var unknown []string
+		for _, id := range opts.Profiles {
+			if _, ok := model.Profiles[id]; !ok {
+				unknown = append(unknown, id)
+			}
+		}
+		if len(unknown) > 0 {
+			http.Error(w, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
 			return
 		}
 		if d.StartFn == nil {
@@ -363,6 +410,20 @@ func New(d Deps) Handler {
 		}
 		if body.Duration <= 0 {
 			body.Duration = 30
+		}
+		// prevention — clamp to the §6 window; a runaway audit is a cost
+		if body.Duration < 10 {
+			body.Duration = 10
+		}
+		if body.Duration > 600 {
+			body.Duration = 600
+		}
+		if len(body.Site) > 80 {
+			body.Site = body.Site[:80]
+		}
+		if len(body.Target) > 64 {
+			http.Error(w, "cible trop longue", http.StatusBadRequest)
+			return
 		}
 		if body.Target == "" {
 			body.Target = "8.8.8.8"

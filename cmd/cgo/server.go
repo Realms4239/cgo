@@ -35,7 +35,10 @@ func runServer(ctx context.Context, addr string) error {
 	// reads current mtx via getMtx each tick, no leak on restart, no flap.
 	go pumpSnapshots(ctx, live, getMtx)
 
+	stopWatch := func() {}
 	startFn := func(o api.RunOpts) error {
+		stopWatch() // campagne and surveillance are mutually exclusive
+		if m := getMtx(); m != nil {
 		if m := getMtx(); m != nil {
 			m.Stop()
 			// drain — the old matrix's cells may still be mid-tc-call; starting
@@ -79,12 +82,32 @@ func runServer(ctx context.Context, addr string) error {
 		}
 		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(r.Qdisc), r.CapMbps, 100)
 	}
+	watching := false
+	watchMu := &sync.Mutex{}
 	handler := api.New(api.Deps{
 		GetSnap:   func() any { return live.Get() },
 		StartFn:   startFn,
 		StopFn:    stopFn,
 		ShapeFn:   shapeFn,
 		RunningFn: func() bool { return getMtx() != nil && getMtx().IsRunning() },
+		WatchFn: func(on bool) error {
+			watchMu.Lock()
+			defer watchMu.Unlock()
+			if on == watching {
+				return nil
+			}
+			if on {
+				deps := campagne.ProdDeps()
+				deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
+				stop := campagne.StartWatch(ctx, deps)
+				stopWatch = func() { stop(); watching = false }
+				watching = true
+			} else {
+				stopWatch()
+				watching = false
+			}
+			return nil
+		},
 	})
 	srv := &http.Server{Addr: addr, Handler: handler}
 	errCh := make(chan error, 1)

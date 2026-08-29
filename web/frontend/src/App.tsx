@@ -98,10 +98,8 @@ export default function App() {
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         {/* quick actions are running-state chrome — never block an idle view */}
         {live?.running && <QuickActionsPrompt />}
-        {panel === 'campagne' && <OnboardingNudge />}
-
         <main id="main">
-          {panel === 'campagne' && <section id="v-campagne" className="view on"><CampagneView /></section>}
+          {panel === 'campagne' && <section id="v-campagne" className="view on"><OnboardingNudge /><CampagneView /></section>}
           {panel === 'live' && <section id="v-live" className="view on"><LiveView /></section>}
           {panel === 'resultats' && <section id="v-resultats" className="view on"><ResultatsView /></section>}
           {panel === 'integrite' && <section id="v-integrite" className="view on"><IntegriteView /></section>}

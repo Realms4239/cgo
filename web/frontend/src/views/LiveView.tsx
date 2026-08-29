@@ -101,12 +101,14 @@ export default function LiveView() {
   const [locked, setLocked] = useState<{ ms: number; at: string } | null>(() => {
     try { const r = localStorage.getItem('wall-baseline'); return r ? JSON.parse(r) : null } catch { return null }
   })
+  const lockedRingRef = useRef<[number, number][]>([])
   const [shape, setShape] = useState<{ applied: boolean; qdisc?: string; capacity_mbps?: number } | null>(null)
   const [shapeCap, setShapeCap] = useState(20)
   const [shapeMsg, setShapeMsg] = useState('')
   const [journal, setJournal] = useState<{ ts: string; kind: string; msg: string }[]>([])
   const [linkOpen, setLinkOpen] = useState(false)
   const settingsRef = useRef(loadSettings())
+  const [watching, setWatching] = useState(false)
 
   // Q4 tri-toggle — PanelChooser dispatches {metric, chart: craft, source}
   useEffect(() => {
@@ -157,19 +159,30 @@ export default function LiveView() {
       { ...craftSeries(tri.chart, 'p50', d(live.rtt50 as any), CRAFT.live), markArea: ma } as any,
       { ...craftSeries(tri.chart, 'p95', d(live.rtt95 as any), CRAFT.ok) } as any,
     ])
-    small.setData([{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), CRAFT.threshold), markArea: ma } as any])
+    const series: ReturnType<typeof lineSeries>[] = [{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), CRAFT.threshold), markArea: ma } as any]
+    if (locked && lockedRingRef.current.length > 1) {
+      series.unshift({
+        name: 'baseline verrouillée', type: 'line', showSymbol: false, smooth: 0.4, smoothMonotone: 'x', sampling: 'lttb' as const,
+        lineStyle: { width: 1.5, type: 'dashed' as const, color: CRAFT.steel },
+        emphasis: { focus: 'series' }, blur: { lineStyle: { opacity: 0.2 } },
+        data: d(lockedRingRef.current),
+      } as any)
+    }
+    small.setData(series)
     goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(live.goodput as any), CRAFT.bbr), markArea: ma } as any])
   })
 
   const banner = replayRunning ? `REPLAY — ${replayRunId}`
     : !liveSnap ? 'OFFLINE — en attente du flux'
     : liveSnap.load_status === 'bulk-on' ? 'CHARGE — bulk actif'
+    : liveSnap.phase === 'surveil' ? 'SURVEILLANCE — sondes légères'
     : liveSnap.phase === 'baseline' ? 'BASELINE'
     : liveSnap.phase === 'recup' ? 'RÉCUPÉRATION'
     : 'IDLE'
   const bannerColor = replayRunning ? 'var(--t-live)'
     : !liveSnap ? 'var(--t-danger)'
     : banner.startsWith('CHARGE') ? 'var(--t-threshold)'
+    : banner.startsWith('SURVEILLANCE') ? 'var(--t-live)'
     : banner === 'BASELINE' ? 'var(--t-live)'
     : banner === 'RÉCUPÉRATION' ? 'var(--t-ok)'
     : 'var(--text-faint)'
@@ -223,6 +236,7 @@ export default function LiveView() {
   const lockBaseline = () => {
     if (liveSmallMedian == null) return
     const b = { ms: Math.round(liveSmallMedian * 10) / 10, at: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }
+    lockedRingRef.current = [...live.small] // freeze the ring — the hero draws it grey dashed
     setLocked(b)
     try { localStorage.setItem('wall-baseline', JSON.stringify(b)) } catch { }
     useUIStore.getState().pushToast?.(`baseline verrouillée — ${b.ms} ms`, 'ok')
@@ -240,6 +254,16 @@ export default function LiveView() {
         useUIStore.getState().pushToast?.(q === 'none' ? 'façonnage retiré' : `bord façonné — ${q}`, 'ok')
       }
     } catch (e) { setShapeMsg(String(e)) }
+  }
+  const toggleWatch = async () => {
+    try {
+      const r = await fetch('/api/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: !watching }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { useUIStore.getState().pushToast?.(j?.error ?? 'échec surveillance', 'err'); return }
+      setWatching(!watching)
+      if (!watching) { setLocked(null); lockedRingRef.current = [] }
+      useUIStore.getState().pushToast?.(!watching ? 'surveillance active — le mur est vivant' : 'surveillance arrêtée', 'ok')
+    } catch (e) { useUIStore.getState().pushToast?.(String(e), 'err') }
   }
   const exportConstat = () => {
     if (locked == null || liveSmallMedian == null) return
@@ -360,6 +384,7 @@ export default function LiveView() {
             sub={shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}
             right={
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
                 <Pill label="capacité" value={`${shapeCap} Mbit/s`} on onClick={() => setShapeCap(shapeCap >= 80 ? 5 : shapeCap * 2)} title="capacité du bord — clic pour doubler (boucle 5→80)" />
                 <Pill label="conditions" value={linkOpen ? 'masquer' : `${settingsRef.current.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
                 {['none', 'fq_codel', 'cake'].map(q => (

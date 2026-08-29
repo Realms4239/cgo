@@ -5,10 +5,10 @@ import { CardHead } from './ui/CardHead'
 import { EmptyState } from './ui/EmptyState'
 
 // Q14 — Comparaison BBR×AQM « pin A/B » : deux cellules gelées, traces
-// phase-alignées, table d'écart (médianes, p95, pertes, coût Ariary), verdict,
-// exports JSON/CSV/MD. Alimentée par /api/run/rows (provenance figée).
+// alignées par événement, table d'écart (médianes, p95, pertes, coût Ariary),
+// verdict, exports CSV/JSON. Alimentée par /api/run/rows (provenance figée).
 type Row = Record<string, string>
-type Pinned = { run: string; row: Row }
+export type Pinned = { profile: string; qdisc: string; cc: string }
 
 const METRICS = [
   { key: 'small_p95_ms', label: 'small p95 (ms)', dir: 'down' as const },
@@ -18,35 +18,52 @@ const METRICS = [
   { key: 'cost_ar_per_h', label: 'coût (Ar/h)', dir: 'down' as const },
 ]
 
-const cellName = (r: Row) => `${r.profile}/${r.qdisc}/${r.cc}`
+const cellName = (p: Pinned) => `${p.profile}/${p.qdisc}/${p.cc}`
 const num = (r: Row, k: string) => parseFloat(r[k] ?? '0') || 0
+const matches = (r: Row, p: Pinned) => r.profile === p.profile && r.qdisc === p.qdisc && r.cc === p.cc
+
+function cellMedian(rows: Row[], p: Pinned, k: string): { med: number; n: number } {
+  const cell = rows.filter(r => matches(r, p))
+  const v = (cell.length ? cell : rows).map(r => num(r, k)).filter(x => x > 0 || k === 'drops').sort((x, y) => x - y)
+  return { med: v.length ? v[Math.floor(v.length / 2)] : 0, n: cell.length }
+}
 
 export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; onClose: () => void }) {
   const chartRef = useRef<HTMLDivElement>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [runs, setRuns] = useState<string[]>([])
+  const [runA, setRunA] = useState<string | null>(null)
+  const [runB, setRunB] = useState<string | null>(null)
   const [rows, setRows] = useState<{ a: Row[]; b: Row[] } | null>(null)
 
   useEffect(() => {
+    fetch('/api/replay/list').then(r => r.json()).then(j => {
+      const ids: string[] = j?.runs ?? []
+      setRuns(ids)
+      setRunA(ids[0] ?? null)
+      setRunB(ids[1] ?? ids[0] ?? null)
+    }).catch(e => setErr(String(e)))
+  }, [])
+
+  useEffect(() => {
+    if (!runA || !runB) return
     let cancelled = false
     Promise.all([
-      fetch(`/api/run/rows?run=${a.run}`).then(r => r.json()),
-      fetch(`/api/run/rows?run=${b.run}`).then(r => r.json()),
+      fetch(`/api/run/rows?run=${runA}`).then(r => r.json()),
+      fetch(`/api/run/rows?run=${runB}`).then(r => r.json()),
     ]).then(([ja, jb]) => {
       if (cancelled) return
       setRows({ a: (ja.rows ?? []) as Row[], b: (jb.rows ?? []) as Row[] })
     }).catch(e => setErr(String(e)))
     return () => { cancelled = true }
-  }, [a.run, b.run])
+  }, [runA, runB])
 
-  // médianes par métrique, uniquement sur les cellules épinglées
   const stats = useMemo(() => {
     if (!rows) return null
-    const med = (rs: Row[], k: string) => {
-      const v = rs.map(r => num(r, k)).filter(v => v > 0 || k === 'drops').sort((x, y) => x - y)
-      return v.length ? v[Math.floor(v.length / 2)] : 0
-    }
-    return { a: Object.fromEntries(METRICS.map(m => [m.key, med(rows.a, m.key)])), b: Object.fromEntries(METRICS.map(m => [m.key, med(rows.b, m.key)])) }
-  }, [rows])
+    const side = (rs: Row[], p: Pinned) =>
+      Object.fromEntries(METRICS.map(m => [m.key, cellMedian(rs, p, m.key)])) as Record<string, { med: number; n: number }>
+    return { a: side(rows.a, a), b: side(rows.b, b) }
+  }, [rows, a, b])
 
   useEffect(() => {
     if (!rows || !chartRef.current) return
@@ -60,8 +77,8 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
       xAxis: { ...base.xAxis, type: 'value' as const, name: 'événement' },
       legend: { textStyle: { color: '#8b9099', fontSize: 10, fontFamily: 'JetBrains Mono' }, top: 4 },
       series: [
-        { ...lineSeries(`A — ${cellName(a.row)}`, mk(rows.a), CRAFT.live), name: `A — ${cellName(a.row)}` },
-        { ...lineSeries(`B — ${cellName(b.row)}`, mk(rows.b), CRAFT.ok), name: `B — ${cellName(b.row)}` },
+        { ...lineSeries(`A — ${cellName(a)}`, mk(rows.a.filter(r => matches(r, a))), CRAFT.live), name: `A — ${cellName(a)}` },
+        { ...lineSeries(`B — ${cellName(b)}`, mk(rows.b.filter(r => matches(r, b))), CRAFT.ok), name: `B — ${cellName(b)}` },
       ],
     } as any)
     return () => { ro.disconnect(); try { c.dispose() } catch { } }
@@ -72,36 +89,49 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
   const fmt = (v: number) => v.toFixed(1)
   const verdict = (() => {
     if (!stats) return null
-    const gains = METRICS.filter(m => m.key !== 'bulk_goodput_mbps')
-      .map(m => ({ m, better: m.dir === 'down' ? stats.b[m.key] < stats.a[m.key] : stats.b[m.key] > stats.a[m.key] }))
+    const gains = METRICS.map(m => ({ m, better: m.dir === 'down' ? stats.b[m.key].med < stats.a[m.key].med : stats.b[m.key].med > stats.a[m.key].med }))
     const wins = gains.filter(g => g.better).length
-    const p95a = stats.a.small_p95_ms, p95b = stats.b.small_p95_ms
+    const p95a = stats.a.small_p95_ms.med, p95b = stats.b.small_p95_ms.med
     const pct = p95a > 0 ? Math.round(((p95a - p95b) / p95a) * 100) : 0
-    return `${wins}/${METRICS.length} métriques en faveur de B — small p95 ${pct > 0 ? `-${pct} %` : `+${Math.abs(pct)} %`}`
+    return `${wins}/${METRICS.length} métriques en faveur de B — small p95 ${pct >= 0 ? `-${pct}` : `+${Math.abs(pct)}`} %`
   })()
 
   const exportCSV = () => {
     if (!stats) return
-    const lines = ['metric,A,B,unit', ...METRICS.map(m => `${m.key},${fmt(stats.a[m.key])},${fmt(stats.b[m.key])},`)].join('\n')
+    const lines = ['metric,A,B,unite', ...METRICS.map(m => `${m.key},${fmt(stats.a[m.key].med)},${fmt(stats.b[m.key].med)},${m.label}`)].join('\n')
     const url = URL.createObjectURL(new Blob([lines], { type: 'text/csv' }))
-    const el = document.createElement('a'); el.href = url; el.download = `compare-${a.run}-${b.run}.csv`; el.click()
+    const el = document.createElement('a'); el.href = url; el.download = `comparaison-${cellName(a).replace(/\//g, '-')}-vs-${cellName(b).replace(/\//g, '-')}.csv`; el.click()
     URL.revokeObjectURL(url)
   }
   const exportJSON = () => {
     if (!stats) return
-    const payload = { A: { run: a.run, cell: cellName(a.row), ...stats.a }, B: { run: b.run, cell: cellName(b.row), ...stats.b }, verdict }
+    const payload = {
+      A: { cellule: cellName(a), ...Object.fromEntries(METRICS.map(m => [m.key, stats.a[m.key].med])) },
+      B: { cellule: cellName(b), ...Object.fromEntries(METRICS.map(m => [m.key, stats.b[m.key].med])) },
+      verdict, genere: new Date().toISOString(),
+    }
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
-    const el = document.createElement('a'); el.href = url; el.download = `compare-${a.run}-${b.run}.json`; el.click()
+    const el = document.createElement('a'); el.href = url; el.download = `comparaison-${cellName(a).replace(/\//g, '-')}-vs-${cellName(b).replace(/\//g, '-')}.json`; el.click()
     URL.revokeObjectURL(url)
   }
+
+  const runSelect = (value: string | null, set: (v: string) => void, side: string) => (
+    <select value={value ?? ''} onChange={e => set(e.target.value)} aria-label={`run ${side}`} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '4px 6px', fontFamily: 'var(--font-mono)', fontSize: 10, maxWidth: 200 }}>
+      {runs.map(r => <option key={r} value={r}>{r}</option>)}
+    </select>
+  )
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="compare-view">
       <CardHead
-        label={`Comparaison — ${cellName(a.row)} vs ${cellName(b.row)}`}
-        sub={`runs gelés : ${a.run} · ${b.run}`}
+        label={`Comparaison — ${cellName(a)} vs ${cellName(b)}`}
+        sub="cellules figées, même échelle — choisissez le run de chaque côté si la cellule est absente"
         right={<button className="btn" onClick={onClose} style={{ padding: '4px 10px', fontSize: 10 }}>FERMER</button>}
       />
+      <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <span>A : {runA ?? '—'} {stats && stats.a.small_p95_ms.n === 0 ? <b style={{ color: CRAFT.threshold }}>(cellule absente de ce run — médiane sur tout le run)</b> : null}</span>
+        <span>B : {runB ?? '—'} {stats && stats.b.small_p95_ms.n === 0 ? <b style={{ color: CRAFT.threshold }}>(cellule absente de ce run)</b> : null}</span>
+      </div>
       {verdict && (
         <div className="mono" style={{ fontSize: 12, color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '8px 12px', background: 'rgba(90,211,227,0.05)' }}>
           Verdict — {verdict}
@@ -115,7 +145,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
         <tbody>
           {METRICS.map(m => {
             if (!stats) return null
-            const va = stats.a[m.key], vb = stats.b[m.key]
+            const va = stats.a[m.key].med, vb = stats.b[m.key].med
             const better = m.dir === 'down' ? vb < va : vb > va
             const pct = va > 0 ? Math.round(((va - vb) / va) * 100) : 0
             return (
@@ -129,10 +159,13 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
           })}
         </tbody>
       </table>
-      <div className="form-row" style={{ gap: 8 }}>
-        <button className="btn" onClick={exportCSV} style={{ padding: '4px 10px', fontSize: 10 }}>CSV</button>
+      <div className="form-row" style={{ gap: 8, alignItems: 'center' }}>
+        <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>run A :</span>
+        {runSelect(runA, setRunA, 'A')}
+        <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 12 }}>run B :</span>
+        {runSelect(runB, setRunB, 'B')}
+        <button className="btn" onClick={exportCSV} style={{ padding: '4px 10px', fontSize: 10, marginLeft: 'auto' }}>CSV</button>
         <button className="btn" onClick={exportJSON} style={{ padding: '4px 10px', fontSize: 10 }}>JSON</button>
-        <span className="mono muted" style={{ fontSize: 10 }}>métrique small p95 alignée par événement — médianes sur les cellules épinglées</span>
       </div>
     </div>
   )
