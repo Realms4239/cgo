@@ -77,31 +77,36 @@ type Live struct {
 }
 
 type Snapshot struct {
-	Phase      string     `json:"phase"`
-	Profile    string     `json:"profile"`
-	Qdisc      string     `json:"qdisc"`
-	CC         string     `json:"cc"`
-	Repetition int        `json:"repetition"`
-	EventID    int        `json:"event_id"`
-	LoadStatus string     `json:"load_status"`
-	RTTp50Ms   float64    `json:"rtt_p50_ms"`
-	RTTp95Ms   float64    `json:"rtt_p95_ms"`
-	Smallp95Ms float64    `json:"small_p95_ms"`
-	GoodputMbps float64   `json:"bulk_goodput_mbps"`
-	Drops      uint64     `json:"drops"`
-	WastedBytes uint64    `json:"wasted_bytes"`
-	CostARPerH  float64   `json:"cost_ar_per_h"`
+	Phase         string  `json:"phase"`
+	Profile       string  `json:"profile"`
+	Qdisc         string  `json:"qdisc"`
+	CC            string  `json:"cc"`
+	Repetition    int     `json:"repetition"`
+	EventID       int     `json:"event_id"`
+	LoadStatus    string  `json:"load_status"`
+	RTTp50Ms      float64 `json:"rtt_p50_ms"`
+	RTTp95Ms      float64 `json:"rtt_p95_ms"`
+	Smallp95Ms    float64 `json:"small_p95_ms"`
+	GoodputMbps   float64 `json:"bulk_goodput_mbps"`
+	Drops         uint64  `json:"drops"`
+	WastedBytes   uint64  `json:"wasted_bytes"`
+	CostARPerH    float64 `json:"cost_ar_per_h"`
 	DeadlineOKPct float64 `json:"deadline_ok_pct"`
-	Gates      []*bool    `json:"gates"` // nil = not assessed
-	Running    bool       `json:"running"`
-	LastTS     int64      `json:"ts"`
+	Gates         []*bool `json:"gates"` // nil = not assessed
+	Running       bool    `json:"running"`
+	LastTS        int64   `json:"ts"`
 }
 
 func NewLive() *Live { return &Live{} }
 
 func (l *Live) Set(s Snapshot) {
-	l.mu.Lock(); l.snap = s; l.mu.Unlock()
-	select { case l.subscribe <- struct{}{}: default: }
+	l.mu.Lock()
+	l.snap = s
+	l.mu.Unlock()
+	select {
+	case l.subscribe <- struct{}{}:
+	default:
+	}
 }
 func (l *Live) Get() Snapshot { l.mu.Lock(); defer l.mu.Unlock(); return l.snap }
 
@@ -109,7 +114,9 @@ func (l *Live) Get() Snapshot { l.mu.Lock(); defer l.mu.Unlock(); return l.snap 
 // Get+Modify+Set lost-update race where a pump's stale Get overwrites
 // OnSnap's structural fields (profile/qdisc/gates).
 func (l *Live) SetRunning(v bool) {
-	l.mu.Lock(); l.snap.Running = v; l.mu.Unlock()
+	l.mu.Lock()
+	l.snap.Running = v
+	l.mu.Unlock()
 }
 
 func defaults(d *Deps) {
@@ -117,7 +124,9 @@ func defaults(d *Deps) {
 		d.Ping = func(ctx context.Context, t string, n int) []float64 {
 			ss, _ := probe.Ping(ctx, probe.ExecCmdRunner{}, t, n, 200)
 			out := make([]float64, len(ss))
-			for i, s := range ss { out[i] = s.RTTms }
+			for i, s := range ss {
+				out[i] = s.RTTms
+			}
 			return out
 		}
 	}
@@ -126,18 +135,30 @@ func defaults(d *Deps) {
 			return probe.SmallObject(ctx, httpDefault(), d.SmallURL)
 		}
 	}
-	if d.CPU == nil { d.CPU = func() float64 { return readCPUIdleGuess() } }
-	if d.Now == nil { d.Now = time.Now }
-	if d.BaselineSec == 0 { d.BaselineSec = model.BaselineSec }
-	if d.ChargeSec == 0 { d.ChargeSec = model.ChargeSec }
-	if d.RecupSec == 0 { d.RecupSec = model.RecupSec }
+	if d.CPU == nil {
+		d.CPU = func() float64 { return readCPUIdleGuess() }
+	}
+	if d.Now == nil {
+		d.Now = time.Now
+	}
+	if d.BaselineSec == 0 {
+		d.BaselineSec = model.BaselineSec
+	}
+	if d.ChargeSec == 0 {
+		d.ChargeSec = model.ChargeSec
+	}
+	if d.RecupSec == 0 {
+		d.RecupSec = model.RecupSec
+	}
 }
 
 // RunEvent executes one cell end-to-end and returns the frozen row.
 func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (model.Event, error) {
 	defaults(&d)
 
-	// configure both hops
+	// configure both hops — reset first: the shape lever (or a stale cell)
+	// can leave a foreign qdisc at root, which would fail every apply
+	_, _ = d.TC.Run("qdisc", "del", "dev", d.CliIf, "root")
 	if err := qdisc.ApplyNetem(d.TC, d.CliIf, prof.DelayMs, prof.JitterMs, prof.LossPct); err != nil {
 		return ev, fmt.Errorf("netem: %w", err)
 	}
@@ -311,11 +332,15 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 
 	status := model.GatePass
 	for g, b := range gates {
-		if b == nil { continue }
+		if b == nil {
+			continue
+		}
 		if !*b {
 			switch model.Gate(g) {
 			case model.G2ProbesProducing, model.G6BaselineStable:
-				if status == model.GatePass { status = model.GateDegraded }
+				if status == model.GatePass {
+					status = model.GateDegraded
+				}
 			default:
 				status = model.GateInvalid
 			}
@@ -325,8 +350,13 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	return ev, nil
 }
 
-func maxVal(a, b float64) float64 { if a > b { return a }; return b }
-func round1(v float64) float64   { return float64(int(v*10+0.5)) / 10 }
+func maxVal(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+func round1(v float64) float64 { return float64(int(v*10+0.5)) / 10 }
 
 func loadFor(phase string) string {
 	if phase == model.PhaseCharge {

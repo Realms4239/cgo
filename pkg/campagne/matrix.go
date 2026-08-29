@@ -3,6 +3,7 @@ package campagne
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/Realms4239/cgo/pkg/model"
@@ -91,6 +92,8 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 						if err == nil {
 							_ = w.Append(done)
 							m.Done = id
+						} else {
+							log.Printf("[campagne] cell %s failed: %v", key, err)
 						}
 						id++
 					}

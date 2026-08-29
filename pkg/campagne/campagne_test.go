@@ -137,3 +137,45 @@ func TestRunEventLivePublish(t *testing.T) {
 		t.Fatal(runErr)
 	}
 }
+
+// The shape lever (and any stale state) can leave a foreign qdisc at root —
+// RunEvent resets the hop before applying netem so cells self-heal instead of
+// failing wholesale.
+func TestRunEventResetsStaleQdisc(t *testing.T) {
+	ops := [][]string{}
+	ftc := &recTC{sink: &ops}
+	d := fastDeps()
+	d.TC = ftc
+	ev := model.Event{RunID: "r1", EventID: 9, Profile: "P2", Qdisc: model.FqCodel, CC: model.Cubic, Repetition: 1}
+	if _, err := RunEvent(context.Background(), ev, model.Profiles["P2"], d); err != nil {
+		t.Fatal(err)
+	}
+	foundDel := false
+	netemIdx, delIdx := -1, -1
+	for i, op := range ops {
+		if len(op) >= 5 && op[0] == "qdisc" && op[1] == "del" && op[4] == "root" {
+			foundDel = true
+			if delIdx < 0 {
+				delIdx = i
+			}
+		}
+		if len(op) >= 6 && op[0] == "qdisc" && op[1] == "replace" && op[4] == "root" && op[5] == "netem" && netemIdx < 0 {
+			netemIdx = i
+		}
+	}
+	if !foundDel {
+		t.Fatal("no qdisc del before apply — stale handles would break the cell")
+	}
+	if netemIdx >= 0 && delIdx > netemIdx {
+		t.Fatalf("del must precede netem replace: del@%d netem@%d", delIdx, netemIdx)
+	}
+}
+
+type recTC struct{ sink *[][]string }
+
+func (r *recTC) Run(args ...string) ([]byte, error) {
+	cp := make([]string, len(args))
+	copy(cp, args)
+	*r.sink = append(*r.sink, cp)
+	return nil, nil
+}
