@@ -493,6 +493,38 @@ func New(d Deps) Handler {
 	hub.Serve(func() any { return snap() })
 
 	spa := http.FileServer(http.FS(frontend.FS))
+	// Compare view (Q14) — raw frozen rows of one run, path-traversal safe.
+	mux.HandleFunc("GET /api/run/rows", func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("run")
+		if id == "" || strings.ContainsAny(id, `/\.`) {
+			http.Error(w, "id de run invalide", http.StatusBadRequest)
+			return
+		}
+		path := filepath.Join("data", "runs", id, "aqm_eval.csv")
+		f, err := os.Open(path)
+		if err != nil {
+			http.Error(w, "run introuvable: "+id, http.StatusNotFound)
+			return
+		}
+		defer f.Close()
+		rows, err := csv.NewReader(f).ReadAll()
+		if err != nil || len(rows) < 2 {
+			http.Error(w, "run vide: "+id, http.StatusNotFound)
+			return
+		}
+		hdr := rows[0]
+		out := make([]map[string]any, 0, len(rows)-1)
+		for _, row := range rows[1:] {
+			m := map[string]any{}
+			for i, col := range hdr {
+				if i < len(row) {
+					m[col] = row[i]
+				}
+			}
+			out = append(out, m)
+		}
+		writeJSON(w, map[string]any{"run": id, "rows": out})
+	})
 	mux.HandleFunc("GET /api/events", func(w http.ResponseWriter, _ *http.Request) {
 		eventsMu.Lock()
 		defer eventsMu.Unlock()

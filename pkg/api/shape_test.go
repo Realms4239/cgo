@@ -270,3 +270,32 @@ func TestJournal(t *testing.T) {
 		t.Fatalf("journal: %d %s", resp.StatusCode, body)
 	}
 }
+
+// Compare view — raw rows per run, path-traversal safe.
+func TestRunRows(t *testing.T) {
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/run/rows?run=..%2F..%2Fetc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("traversal: %d want 400", resp.StatusCode)
+	}
+
+	resp2, err := http.Get(srv.URL + "/api/run/rows?run=no-such-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp2.Body.Close()
+	b, _ := io.ReadAll(resp2.Body)
+	if resp2.StatusCode != http.StatusNotFound {
+		t.Fatalf("missing run: %d want 404", resp2.StatusCode)
+	}
+	if !strings.Contains(string(b), "no-such-run") {
+		t.Fatalf("404 body: %s", b)
+	}
+}
