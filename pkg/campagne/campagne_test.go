@@ -179,3 +179,43 @@ func (r *recTC) Run(args ...string) ([]byte, error) {
 	*r.sink = append(*r.sink, cp)
 	return nil, nil
 }
+
+// Surveillance continue — ping+small sans bulk (ARG.md: non-intrusif) : le
+// mur reste vivant hors campagne, le levier de façonnage devient visible.
+func TestStartWatchPublishes(t *testing.T) {
+	d := fastDeps()
+	var mu sync.Mutex
+	n := 0
+	d.OnSnap = func(s Snapshot) {
+		if s.Phase == "surveil" && s.RTTp50Ms > 0 {
+			mu.Lock()
+			n++
+			mu.Unlock()
+		}
+	}
+	d.BaselineSec = -1
+	stop := StartWatch(context.Background(), d)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		mu.Lock()
+		c := n
+		mu.Unlock()
+		if c >= 3 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no surveillance snapshots with measurements")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	stop()
+	mu.Lock()
+	after := n
+	mu.Unlock()
+	time.Sleep(600 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if n > after {
+		t.Fatalf("stop() did not stop the loop: %d → %d", after, n)
+	}
+}

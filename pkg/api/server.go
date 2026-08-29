@@ -34,6 +34,10 @@ type Deps struct {
 	// RunningFn reports an active campagne — the shape lever and a running
 	// matrix fight over the same shaper, so manual shaping is refused mid-run.
 	RunningFn func() bool
+	// WatchFn toggles the non-intrusive surveillance loop (ping+small, no
+	// bulk): the wall stays alive outside a campagne. Watching does NOT
+	// conflict with shaping — that combination is the product.
+	WatchFn func(on bool) error
 }
 
 // Handler carries the hub lifecycle so hosts can stop the 10 Hz ticker on
@@ -134,6 +138,29 @@ func New(d Deps) Handler {
 			return
 		}
 		writeJSON(w, map[string]any{"applied": true, "qdisc": shapeQdisc, "capacity_mbps": shapeCap, "since": shapeSince.Format(time.RFC3339)})
+	})
+	// surveillance continue — non-intrusive, composable with the shape lever
+	mux.HandleFunc("POST /api/watch", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			On bool `json:"on"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		if d.WatchFn == nil {
+			http.Error(w, "watch engine not wired on this host", http.StatusServiceUnavailable)
+			return
+		}
+		if body.On && d.RunningFn != nil && d.RunningFn() {
+			http.Error(w, "campagne active — la surveillance se lance hors campagne", http.StatusConflict)
+			return
+		}
+		if err := d.WatchFn(body.On); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{"watch": body.On})
 	})
 	mux.HandleFunc("POST /api/shape", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
