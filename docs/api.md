@@ -1,15 +1,18 @@
 # Référence API — Meteolink (cgo)
 
-> Vérifiée contre `pkg/api/server.go`, `sse.go` et `translate.go` (worktree
-> certify). Tout corps JSON est limité à 1 Mio (`http.MaxBytesReader`).
-> Les endpoints `/api/doctor` et `/api/watch` **n'existent pas** dans cette
-> version du handler ; le health check ne renvoie que `{"ok": true}`.
+> Vérifiée contre `pkg/api/server.go`, `sse.go` et `translate.go`. Tout corps
+> JSON est limité à 1 Mio (`http.MaxBytesReader`).
+> **Mode observation** (Windows, ou `--mode observe`) : les endpoints de
+> contrôle — `POST /api/shape`, `POST /api/run/start`, `POST /api/watch` —
+> répondent `501` avec un message pointant vers `docs/deploy.md`. L'audit et
+> la consultation restent fonctionnels.
 
 ## Santé & état
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| `/api/health` | GET | — | `{"ok": true}` | — |
+| `/api/health` | GET | — | `{"ok": true, "version": "1.0.6", "mode": "full\|observe\|\"\"}` | — |
+| `/api/doctor` | GET | — | `{"mode", "checks": [{name, status: ok\|warn\|fail, detail}]}` — mêmes capacités que `cgo doctor` (os, tc, cap_net_admin, bbr, ping) | — |
 | `/api/state` | GET | — | snapshot courant (`GetSnap`) ; `{"running": false}` si non câblé | — |
 | `/api/diagnostics` | GET | — | `{"hub":"ok","time":"<RFC3339 UTC>"}` | — |
 | `/api/stream` | GET (SSE) | — | flux 10 Hz : replay (`Last-Event-ID`, anneau 2048) puis live ; frame complète pour client frais ; event `backpressure` | `503` > 64 abonnés ; `500` flusher non supporté |
@@ -27,7 +30,13 @@
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
 | `/api/shape` | GET | — | `{"applied": false}` ou `{"applied": true, "qdisc", "capacity_mbps", "since"}` | — |
-| `/api/shape` | POST | `{qdisc, capacity_mbps, delay_ms, jitter_ms, loss_pct}` | `{"qdisc", "capacity_mbps", "since"}` + événement journal | `400` JSON invalide, qdisc hors `cake\|fq_codel\|pfifo_fast\|none`, capacité hors **1–1000**, conditions hors délai **0–600 ms** / gigue **0–100 ms** / perte **0–10 %** ; `409` campagne active ; `503` moteur de shape non câblé sur cet hôte ; `500` échec d'application tc |
+| `/api/shape` | POST | `{qdisc, capacity_mbps, delay_ms, jitter_ms, loss_pct}` | `{"qdisc", "capacity_mbps", "since"}` + événement journal | `400` JSON invalide, qdisc hors `cake\|fq_codel\|pfifo_fast\|none`, capacité hors **1–1000**, conditions hors délai **0–600 ms** / gigue **0–100 ms** / perte **0–10 %** ; `409` campagne active ; `501` mode observation ; `503` moteur de shape non câblé sur cet hôte ; `500` échec d'application tc |
+
+## Surveillance continue
+
+| Endpoint | Méthode | Corps | Réponse | Erreurs |
+|---|---|---|---|---|
+| `/api/watch` | POST | `{"on": true\|false}` | `{"watch": bool}` ; boucle non intrusive ping + petits objets (500 ms), phase `surveil` ; refusée pendant une campagne (l'inverse : la campagne auto-arrête la surveillance) | `400` JSON invalide ; `409` campagne active ; `501` mode observation ; `503` moteur non câblé ; `500` échec du moteur |
 
 ## Campagne
 
