@@ -71,8 +71,8 @@ func shapeApply(fn func(qdisc string, capMbps float64) error, q string, cap floa
 	if !valid[q] {
 		return http.StatusBadRequest, map[string]any{"error": "qdisc must be cake | fq_codel | pfifo_fast | none"}
 	}
-	if cap <= 0 {
-		return http.StatusBadRequest, map[string]any{"error": "capacity_mbps must be > 0"}
+	if cap < 1 || cap > 1000 {
+		return http.StatusBadRequest, map[string]any{"error": "capacity_mbps must be 1–1000"}
 	}
 	if err := fn(q, cap); err != nil {
 		return http.StatusInternalServerError, map[string]any{"error": err.Error()}
@@ -160,6 +160,26 @@ func New(d Deps) Handler {
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		// prevention — the client is a hint, never the contract (§6); input is
+		// validated even on hosts without a wired engine
+		if body.Reps < 1 || body.Reps > 5 {
+			http.Error(w, "reps must be 1–5", http.StatusBadRequest)
+			return
+		}
+		if len(body.Profiles) == 0 {
+			http.Error(w, "aucun profil sélectionné", http.StatusBadRequest)
+			return
+		}
+		var unknown []string
+		for _, id := range body.Profiles {
+			if _, ok := model.Profiles[id]; !ok {
+				unknown = append(unknown, id)
+			}
+		}
+		if len(unknown) > 0 {
+			http.Error(w, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
 			return
 		}
 		if d.StartFn == nil {
@@ -326,6 +346,20 @@ func New(d Deps) Handler {
 		}
 		if body.Duration <= 0 {
 			body.Duration = 30
+		}
+		// prevention — clamp to the §6 window; a runaway audit is a cost
+		if body.Duration < 10 {
+			body.Duration = 10
+		}
+		if body.Duration > 600 {
+			body.Duration = 600
+		}
+		if len(body.Site) > 80 {
+			body.Site = body.Site[:80]
+		}
+		if len(body.Target) > 64 {
+			http.Error(w, "cible trop longue", http.StatusBadRequest)
+			return
 		}
 		if body.Target == "" {
 			body.Target = "8.8.8.8"
