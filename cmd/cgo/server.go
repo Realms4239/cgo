@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,13 +11,27 @@ import (
 
 	"github.com/Realms4239/cgo/pkg/api"
 	"github.com/Realms4239/cgo/pkg/campagne"
+	"github.com/Realms4239/cgo/pkg/doctor"
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/qdisc"
 )
 
 // runServer starts dashboard+API with the campagne core attached.
-func runServer(ctx context.Context, addr string) error {
+// mode: "full" (Linux bench/edge) or "observe" (Windows workstation).
+func runServer(ctx context.Context, addr, mode string) error {
 	live := campagne.NewLive()
+
+	// quarantined cells land in the operator journal (Q13)
+	campagne.OnQuarantine = func(runID string, eventID int, profile, qdisc, cc string) {
+		api.RecordEvent("quarantaine", fmt.Sprintf("%s évènement %d %s/%s/%s — cellule invalidée par les portes", runID, eventID, profile, qdisc, cc))
+	}
+
+	if mode == "full" {
+		// startup self-check (Q18): a crashed session can leave a root qdisc
+		// behind; reset-then-apply semantics start from a clean shaper.
+		deps := campagne.ProdDeps()
+		_, _ = deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "root")
+	}
 
 	var mtx *campagne.Matrix
 	var mtxMu sync.Mutex
@@ -38,7 +53,6 @@ func runServer(ctx context.Context, addr string) error {
 	stopWatch := func() {}
 	startFn := func(o api.RunOpts) error {
 		stopWatch() // campagne and surveillance are mutually exclusive
-		if m := getMtx(); m != nil {
 		if m := getMtx(); m != nil {
 			m.Stop()
 			// drain — the old matrix's cells may still be mid-tc-call; starting
@@ -90,6 +104,12 @@ func runServer(ctx context.Context, addr string) error {
 		StopFn:    stopFn,
 		ShapeFn:   shapeFn,
 		RunningFn: func() bool { return getMtx() != nil && getMtx().IsRunning() },
+		Mode:      mode,
+		Version:   version,
+		DoctorFn: func() any {
+			m, checks := doctor.Report(mode)
+			return map[string]any{"mode": m, "checks": checks}
+		},
 		WatchFn: func(on bool) error {
 			watchMu.Lock()
 			defer watchMu.Unlock()

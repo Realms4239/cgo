@@ -17,12 +17,18 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/pkg/campagne"
+	"github.com/Realms4239/cgo/pkg/doctor"
 	"github.com/Realms4239/cgo/pkg/figures"
 )
+
+// version — overridden at release time: -X main.version={{.Version}}.
+var version = "1.0.6"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -37,13 +43,64 @@ func main() {
 			def = ":9090"
 		}
 		addr := fs.String("addr", def, "listen address")
+		mode := fs.String("mode", "auto", "observe | full | auto (défaut: OS décide — Windows observe, Linux complet)")
 		_ = fs.Parse(os.Args[2:])
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		if err := runServer(ctx, *addr); err != nil {
+		if err := runServer(ctx, *addr, doctor.Mode(*mode)); err != nil {
 			fmt.Fprintln(os.Stderr, "serve:", err)
 			os.Exit(1)
 		}
+	case "doctor":
+		doctor.Print()
+	case "version":
+		fmt.Printf("meteolink (cgo) %s — %s/%s, mode %s\n", version, runtime.GOOS, runtime.GOARCH, doctor.Mode("auto"))
+	case "shape":
+		fs := flag.NewFlagSet("shape", flag.ExitOnError)
+		restore := fs.Bool("restore", false, "supprime tous les qdiscs root posés par meteolink sur l'interface de façonnage")
+		_ = fs.Parse(os.Args[2:])
+		if !*restore {
+			fmt.Fprintln(os.Stderr, "shape: utilisez --restore (le levier complet vit dans le tableau de bord)")
+			os.Exit(2)
+		}
+		if runtime.GOOS == "windows" {
+			fmt.Fprintln(os.Stderr, "shape: le façonnage nécessite Linux (mode observation sous Windows)")
+			os.Exit(1)
+		}
+		deps := campagne.ProdDeps()
+		if _, err := deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "root"); err != nil {
+			fmt.Println("shape: rien à restaurer (ou déjà propre)")
+			return
+		}
+		fmt.Printf("shape: qdiscs root supprimés sur %s\n", deps.ShaperIf)
+	case "service":
+		if len(os.Args) < 3 || os.Args[2] != "install" {
+			fmt.Fprintln(os.Stderr, "service: utilisez `cgo service install` (Linux, root)")
+			os.Exit(2)
+		}
+		if runtime.GOOS != "linux" {
+			fmt.Fprintln(os.Stderr, "service: systemd nécessite Linux")
+			os.Exit(1)
+		}
+		const unit = `[Unit]
+Description=Meteolink — banc d'audit et de comparaison AQM/BBR
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/cgo --serve --addr 0.0.0.0:9090
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+`
+		if err := os.WriteFile("/etc/systemd/system/meteolink.service", []byte(unit), 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, "service:", err, "(lancez en root)")
+			os.Exit(1)
+		}
+		fmt.Println("service: /etc/systemd/system/meteolink.service écrit — puis:")
+		fmt.Println("  systemctl daemon-reload && systemctl enable --now meteolink")
 	case "figures":
 		if err := figures.Generate("data/runs", "data/figures"); err != nil {
 			fmt.Fprintln(os.Stderr, "figures:", err)
@@ -104,11 +161,15 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port]
+	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--mode observe|full|auto]
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify
        cgo figures
+       cgo doctor                # rapport de capacités (tc, BBR, CAP_NET_ADMIN)
+       cgo shape --restore       # retire les qdiscs root posés par meteolink
+       cgo service install       # unité systemd (Linux, root)
+       cgo version
        cgo testbedsrv --http 10.200.0.1:8081 --bulk 10.200.0.1:5201
 `)
 }

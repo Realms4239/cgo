@@ -9,6 +9,10 @@ import (
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
+// OnQuarantine — package-level hook set by the host (cmd/cgo) so quarantined
+// cells land in the operator journal (Q13). Nil ⇒ silent, tests stay quiet.
+var OnQuarantine func(runID string, eventID int, profile, qdisc, cc string)
+
 // Matrix drives the full LIEN experiment matrix (Tableau 3):
 // profiles × qdiscs × CC × repetitions = 36 events (18 when reduced to P2).
 type Matrix struct {
@@ -92,6 +96,10 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 						if err == nil {
 							_ = w.Append(done)
 							m.Done = id
+							// quarantined cells land in the operator journal (Q13)
+							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
+								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
+							}
 						} else {
 							log.Printf("[campagne] cell %s failed: %v", key, err)
 						}

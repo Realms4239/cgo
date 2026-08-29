@@ -57,7 +57,31 @@ type Deps struct {
 	// bulk): the wall stays alive outside a campagne. Watching does NOT
 	// conflict with shaping — that combination is the product.
 	WatchFn func(on bool) error
+	// Mode — observation hosts refuse the control endpoints (Q10): audit and
+	// consultation work, campagne/façonnage/surveillance answer 501. "" is full.
+	Mode string
+	// Version — stamped at build (-X main.version), surfaced by /api/health.
+	Version string
+	// DoctorFn — capability report for GET /api/doctor; nil ⇒ mode only.
+	DoctorFn func() any
 }
+
+// observeBlocked — Windows hosts observe (Q10): the audit works, the control
+// endpoints answer 501 with the pointer to the bench. True = answered.
+func (d Deps) observeBlocked(w http.ResponseWriter) bool {
+	if d.Mode != "observe" {
+		return false
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotImplemented)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error": "mode observation — campagne/façonnage/surveillance nécessitent l'hôte Linux (voir docs/deploy.md)"})
+	return true
+}
+
+// RecordEvent exports the operator journal to hosts wiring campagne
+// callbacks (quarantined cells land here from the matrix loop).
+func RecordEvent(kind, msg string) { recordEvent(kind, msg) }
 
 // Handler carries the hub lifecycle so hosts can stop the 10 Hz ticker on
 // shutdown (Server.Close alone never does).
@@ -143,7 +167,14 @@ func New(d Deps) Handler {
 	}
 
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"ok": true})
+		writeJSON(w, map[string]any{"ok": true, "version": d.Version, "mode": d.Mode})
+	})
+	mux.HandleFunc("GET /api/doctor", func(w http.ResponseWriter, _ *http.Request) {
+		if d.DoctorFn != nil {
+			writeJSON(w, d.DoctorFn())
+			return
+		}
+		writeJSON(w, map[string]any{"mode": d.Mode, "checks": []any{}})
 	})
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, snap())
@@ -182,6 +213,9 @@ func New(d Deps) Handler {
 	})
 	// surveillance continue — non-intrusive, composable with the shape lever
 	mux.HandleFunc("POST /api/watch", func(w http.ResponseWriter, r *http.Request) {
+		if d.observeBlocked(w) {
+			return
+		}
 		var body struct {
 			On bool `json:"on"`
 		}
@@ -204,6 +238,9 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"watch": body.On})
 	})
 	mux.HandleFunc("POST /api/shape", func(w http.ResponseWriter, r *http.Request) {
+		if d.observeBlocked(w) {
+			return
+		}
 		var req ShapeReq
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
@@ -219,6 +256,9 @@ func New(d Deps) Handler {
 		writeJSON(w, out)
 	})
 	mux.HandleFunc("POST /api/run/start", func(w http.ResponseWriter, r *http.Request) {
+		if d.observeBlocked(w) {
+			return
+		}
 		var opts RunOpts
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&opts); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
