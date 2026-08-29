@@ -36,8 +36,13 @@ func runServer(ctx context.Context, addr string) error {
 	go pumpSnapshots(ctx, live, getMtx)
 
 	startFn := func(profiles []string, reps int) error {
-		if getMtx() != nil {
-			getMtx().Stop()
+		if m := getMtx(); m != nil {
+			m.Stop()
+			// drain — the old matrix's cells may still be mid-tc-call; starting
+			// under them races the shaper and fails the new cells wholesale
+			for i := 0; i < 30 && m.IsRunning(); i++ {
+				time.Sleep(100 * time.Millisecond)
+			}
 		}
 		deps := campagne.ProdDeps()
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
