@@ -10,6 +10,8 @@ import (
 
 	"github.com/Realms4239/cgo/pkg/api"
 	"github.com/Realms4239/cgo/pkg/campagne"
+	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/pkg/qdisc"
 )
 
 // runServer starts dashboard+API with the campagne core attached.
@@ -54,10 +56,24 @@ func runServer(ctx context.Context, addr string) error {
 		// set live false atomically; we also set immediately for snappier UX.
 		live.SetRunning(false)
 	}
+	// ARG.md edge control — the shaping lever on the gateway's egress hop,
+	// same primitives the campagne cells use (manual mode for the DSI).
+	shapeFn := func(qdiscName string, capMbps float64) error {
+		deps := campagne.ProdDeps()
+		if qdiscName == "none" {
+			_, err := deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "root")
+			if _, err2 := deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "parent", "1:"); err2 != nil && err != nil {
+				return err
+			}
+			return nil
+		}
+		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(qdiscName), capMbps, 100)
+	}
 	handler := api.New(api.Deps{
 		GetSnap: func() any { return live.Get() },
 		StartFn: startFn,
 		StopFn:  stopFn,
+		ShapeFn: shapeFn,
 	})
 	srv := &http.Server{Addr: addr, Handler: handler}
 	errCh := make(chan error, 1)
