@@ -34,3 +34,6 @@ kit/logs/
 shots/
 
 web/frontend/*.log
+
+# deepwork session state
+.slim/deepwork/
