@@ -103,3 +103,74 @@ func TestProfilesList(t *testing.T) {
 type tcError struct{ msg string }
 
 func (e *tcError) Error() string { return e.msg }
+
+// Hardening — zero-value Deps must answer 503, never panic (the GetSnap fix's
+// contract extended to the mutating endpoints).
+func TestMutatingEndpointsNilGuards(t *testing.T) {
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("run/start nil StartFn: %d want 503", resp.StatusCode)
+	}
+
+	resp2, err := http.Post(srv.URL+"/api/run/stop", "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp2.Body.Close()
+	if resp2.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("run/stop nil StopFn: %d want 503", resp2.StatusCode)
+	}
+}
+
+// The shape lever and a running campagne fight over the same shaper — a manual
+// apply mid-run corrupts the cell's shaping (and vice versa). 409 while active.
+func TestShapeConflictWithRunningCampagne(t *testing.T) {
+	h := New(Deps{
+		ShapeFn:   func(string, float64) error { return nil },
+		RunningFn: func() bool { return true },
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	resp, err := http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":20}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusConflict || !strings.Contains(string(body), "campagne") {
+		t.Fatalf("shape during run: %d %s want 409 campagne", resp.StatusCode, body)
+	}
+}
+
+// Graceful shutdown — CloseHub stops the hub ticker; double-close is safe.
+func TestHandlerCloseHub(t *testing.T) {
+	h := New(Deps{ShapeFn: func(string, float64) error { return nil }})
+	h.CloseHub()
+	h.CloseHub() // idempotent
+}
+
+// Hub subscriber cap — beyond maxSubs streams the server sheds load with 503.
+func TestHubSubscriberCap(t *testing.T) {
+	h := NewHub()
+	for i := 0; i < maxSubs; i++ {
+		h.subs[&sub{ch: make(chan string, 1)}] = struct{}{}
+	}
+	srv := httptest.NewServer(http.HandlerFunc(h.SSE))
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/api/stream")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("cap: %d want 503", resp.StatusCode)
+	}
+}

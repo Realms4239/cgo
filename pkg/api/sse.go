@@ -122,6 +122,13 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "stream unsupported", http.StatusInternalServerError)
 		return
 	}
+	h.mu.Lock()
+	if len(h.subs) >= maxSubs {
+		h.mu.Unlock()
+		http.Error(w, "too many streams", http.StatusServiceUnavailable)
+		return
+	}
+	h.mu.Unlock()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	// no manual Connection header — hop-by-hop, illegal over HTTP/2 (broke SSE behind cloudflared/CF edge)

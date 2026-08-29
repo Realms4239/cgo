@@ -31,6 +31,23 @@ type Deps struct {
 	// ShapeFn applies an AQM + capacity to the edge gateway (ARG.md pivot:
 	// edge shaping is the lever the DSI actually controls). "none" clears.
 	ShapeFn func(qdisc string, capMbps float64) error
+	// RunningFn reports an active campagne — the shape lever and a running
+	// matrix fight over the same shaper, so manual shaping is refused mid-run.
+	RunningFn func() bool
+}
+
+// Handler carries the hub lifecycle so hosts can stop the 10 Hz ticker on
+// shutdown (Server.Close alone never does).
+type Handler struct {
+	http.Handler
+	hubClose func()
+}
+
+// CloseHub stops the hub broadcast ticker. Idempotent.
+func (h Handler) CloseHub() {
+	if h.hubClose != nil {
+		h.hubClose()
+	}
 }
 
 var auditMu sync.Mutex
@@ -43,7 +60,10 @@ var shapeQdisc string
 var shapeCap float64
 var shapeSince time.Time
 
-func shapeApply(fn func(qdisc string, capMbps float64) error, q string, cap float64) (int, any) {
+func shapeApply(fn func(qdisc string, capMbps float64) error, q string, cap float64, running func() bool) (int, any) {
+	if running != nil && running() {
+		return http.StatusConflict, map[string]any{"error": "campagne active — arrêtez la mesure avant de façonner le bord"}
+	}
 	if fn == nil {
 		return http.StatusServiceUnavailable, map[string]any{"error": "shape engine not wired on this host"}
 	}
@@ -63,8 +83,11 @@ func shapeApply(fn func(qdisc string, capMbps float64) error, q string, cap floa
 	return http.StatusOK, map[string]any{"qdisc": q, "capacity_mbps": cap, "since": shapeSince.Format(time.RFC3339)}
 }
 
-// New builds the full handler with SPA fallback.
-func New(d Deps) http.Handler {
+const maxSubs = 64
+
+// New builds the full handler with SPA fallback. The returned Handler exposes
+// CloseHub for graceful shutdown (stops the 10 Hz broadcast ticker).
+func New(d Deps) Handler {
 	hub := NewHub()
 	mux := http.NewServeMux()
 
@@ -121,7 +144,7 @@ func New(d Deps) http.Handler {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
-		code, out := shapeApply(d.ShapeFn, body.Qdisc, body.Cap)
+		code, out := shapeApply(d.ShapeFn, body.Qdisc, body.Cap, d.RunningFn)
 		if code != http.StatusOK {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)
@@ -139,6 +162,10 @@ func New(d Deps) http.Handler {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
+		if d.StartFn == nil {
+			http.Error(w, "run engine not wired on this host", http.StatusServiceUnavailable)
+			return
+		}
 		if err := d.StartFn(body.Profiles, body.Reps); err != nil {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
@@ -146,6 +173,10 @@ func New(d Deps) http.Handler {
 		writeJSON(w, map[string]any{"started": true})
 	})
 	mux.HandleFunc("POST /api/run/stop", func(w http.ResponseWriter, _ *http.Request) {
+		if d.StopFn == nil {
+			http.Error(w, "run engine not wired on this host", http.StatusServiceUnavailable)
+			return
+		}
 		d.StopFn()
 		writeJSON(w, map[string]any{"stopped": true})
 	})
@@ -425,7 +456,7 @@ func New(d Deps) http.Handler {
 
 	spa := http.FileServer(http.FS(frontend.FS))
 	mux.Handle("/", spa)
-	return mux
+	return Handler{Handler: mux, hubClose: func() { hub.Close() }}
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

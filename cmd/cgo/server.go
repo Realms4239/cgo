@@ -70,10 +70,11 @@ func runServer(ctx context.Context, addr string) error {
 		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(qdiscName), capMbps, 100)
 	}
 	handler := api.New(api.Deps{
-		GetSnap: func() any { return live.Get() },
-		StartFn: startFn,
-		StopFn:  stopFn,
-		ShapeFn: shapeFn,
+		GetSnap:   func() any { return live.Get() },
+		StartFn:   startFn,
+		StopFn:    stopFn,
+		ShapeFn:   shapeFn,
+		RunningFn: func() bool { return getMtx() != nil && getMtx().IsRunning() },
 	})
 	srv := &http.Server{Addr: addr, Handler: handler}
 	errCh := make(chan error, 1)
@@ -82,7 +83,11 @@ func runServer(ctx context.Context, addr string) error {
 	select {
 	case <-ctx.Done():
 		stopFn()
-		return srv.Close()
+		shutCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutCtx)
+		handler.CloseHub() // stop the 10 Hz broadcast ticker — Server.Close never does
+		return nil
 	case err := <-errCh:
 		return err
 	}
