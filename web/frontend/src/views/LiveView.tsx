@@ -104,7 +104,10 @@ export default function LiveView() {
   const [shape, setShape] = useState<{ applied: boolean; qdisc?: string; capacity_mbps?: number } | null>(null)
   const [shapeCap, setShapeCap] = useState(20)
   const [shapeMsg, setShapeMsg] = useState('')
-  
+  const [journal, setJournal] = useState<{ ts: string; kind: string; msg: string }[]>([])
+  const [linkOpen, setLinkOpen] = useState(false)
+  const settingsRef = useRef(loadSettings())
+
   // Q4 tri-toggle — PanelChooser dispatches {metric, chart: craft, source}
   useEffect(() => {
     const onTri = (e: Event) => {
@@ -131,6 +134,7 @@ export default function LiveView() {
       if (id) setWallHash(String(id).slice(0, 8))
     }).catch(() => {})
     fetch('/api/shape').then(r => r.json()).then(j => { if (!cancelled) setShape(j) }).catch(() => {})
+    fetch('/api/events').then(r => r.json()).then(j => { if (!cancelled && j?.events) setJournal(j.events.slice(-12).reverse()) }).catch(() => {})
     return () => { cancelled = true }
   }, [liveSnap?.running, replayRunning])
 
@@ -226,7 +230,8 @@ export default function LiveView() {
   const applyShape = async (q: string) => {
     setShapeMsg('')
     try {
-      const r = await fetch('/api/shape', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ qdisc: q, capacity_mbps: shapeCap }) })
+      const st = loadSettings()
+      const r = await fetch('/api/shape', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ qdisc: q, capacity_mbps: shapeCap, delay_ms: st.linkDelayMs, jitter_ms: st.linkJitterMs, loss_pct: st.linkLossPct }) })
       const j = await r.json()
       if (!r.ok) { setShapeMsg(j?.error ?? `erreur ${r.status}`); useUIStore.getState().pushToast?.(j?.error ?? 'échec du façonnage', 'err') }
       else {
@@ -356,6 +361,7 @@ export default function LiveView() {
             right={
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Pill label="capacité" value={`${shapeCap} Mbit/s`} on onClick={() => setShapeCap(shapeCap >= 80 ? 5 : shapeCap * 2)} title="capacité du bord — clic pour doubler (boucle 5→80)" />
+                <Pill label="conditions" value={linkOpen ? 'masquer' : `${settingsRef.current.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
                 {['none', 'fq_codel', 'cake'].map(q => (
                   <Pill key={q} label={q === 'none' ? 'sans' : q} on={shape?.applied && shape.qdisc === q} onClick={() => applyShape(q)} title={`appliquer ${q} au bord`} />
                 ))}
@@ -418,6 +424,18 @@ export default function LiveView() {
         )}
       </div>
 
+      {journal.length > 0 && (
+        <div className="card" data-testid="journal" style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <CardHead label="Journal" sub="actions et événements — 50 derniers" />
+          {journal.slice(0, 6).map((e, i) => (
+            <div key={i} className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+              <span style={{ color: 'var(--text-faint)' }}>{e.ts.slice(11, 19)}</span>
+              <span style={{ color: 'var(--t-live)', minWidth: 84 }}>{e.kind}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {liveSnap?.running && <Beam hovered={hovered} />}
     </div>
   )

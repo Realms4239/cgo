@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArmButton } from '../components/ArmButton'
 import { Timeline } from '../components/Timeline'
+import { loadSettings } from '../lib/settings'
 import { useUIStore } from '../store/ui'
 import { InlineField } from '../components/InlineField'
 import { validate } from '../lib/validation'
@@ -110,7 +111,7 @@ export default function CampagneView() {
   const pushToast = useUIStore((s: any)=>s.pushToast)
   const start = async () => {
     setMsg('démarrage…')
-    const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps }) })
+    const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, deadline_ms: loadSettings().deadlineMs, target: loadSettings().target }) })
     const ok = r.ok
     setMsg(ok ? 'campagne lancée' : 'échec: ' + r.status)
     pushToast(ok ? 'Campagne lancée' : 'Échec démarrage', ok ? 'ok' : 'err')
