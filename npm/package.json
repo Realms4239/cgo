@@ -1,0 +1,33 @@
+{
+  "name": "meteolink",
+  "version": "1.0.6",
+  "description": "Meteolink — self-contained bench for client-side link audit and AQM/BBR comparison on constrained access links",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Realms4239/cgo.git"
+  },
+  "bin": {
+    "meteolink": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "install.js"
+  ],
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "meteolink",
+    "network",
+    "aqm",
+    "bbr",
+    "link-audit",
+    "traffic-shaping",
+    "benchmark"
+  ],
+  "dependencies": {}
+}

@@ -1,0 +1,56 @@
+version: 2
+
+project_name: meteolink
+
+builds:
+  - id: cgo
+    main: ./cmd/cgo
+    binary: cgo
+    targets:
+      - linux/amd64
+      - linux/arm64
+      - darwin/amd64
+      - darwin/arm64
+      - windows/amd64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+  - id: meteolink
+    main: ./cmd/meteolink
+    binary: meteolink
+    targets:
+      - linux/amd64
+      - linux/arm64
+      - darwin/amd64
+      - darwin/arm64
+      - windows/amd64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    # tar.gz for unix platforms, zip for windows (override below).
+    formats: [tar.gz]
+    name_template: "cgo-{{ .Os }}-{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+
+release:
+  draft: false
+  header: |
+    ## Meteolink {{ .Version }}
+
+    - `cgo` — dashboard + API server
+    - `meteolink` — TUI client
+
+    Verify downloads with `checksums.txt` (SHA-256).
