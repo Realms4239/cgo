@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import type { LiveFrame } from '../lib/types';
 
 export const PANELS = [
-  { id: 'campagne', label: 'Campagne', key: '1', milestone: 1 },
-  { id: 'live', label: 'Temps réel', key: '2', milestone: 1 },
+  { id: 'campagne', label: 'Campagne de mesure', key: '1', milestone: 1 },
+  { id: 'live', label: 'Tableau live', key: '2', milestone: 1 },
   { id: 'resultats', label: 'Résultats', key: '3', milestone: 2 },
-  { id: 'integrite', label: 'Intégrité', key: '4', milestone: 2 },
+  { id: 'integrite', label: 'Provenance & archives', key: '4', milestone: 2 },
 ] as const;
 
 export type PanelId = (typeof PANELS)[number]['id'];

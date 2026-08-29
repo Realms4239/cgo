@@ -8,6 +8,7 @@ import ResultatsView from './views/ResultatsView'
 import IntegriteView from './views/IntegriteView'
 import Toasts from './components/Toasts'
 import FlashBanner from './components/FlashBanner'
+import SettingsDrawer from './components/SettingsDrawer'
 import ErrorBoundary from './components/ErrorBoundary'
 import Rail from './components/Rail'
 import WebGLMesh from './components/WebGLMesh'
@@ -28,6 +29,7 @@ export default function App() {
   const setDensity = useUIStore((s) => s.setDensity)
   const railPinned = useUIStore((s) => s.railPinned)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     connectSSE()
@@ -85,6 +87,7 @@ export default function App() {
             <PanelChooser />
           </div>
           <div className="hd-right">
+            <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
             <button onClick={() => setDensity(density === 'airy' ? 'dense' : 'airy')} aria-label="Densité">{density}</button>
             <span className="mono" style={{ color: connected ? 'var(--t-ok)' : 'var(--t-danger)' }}>{connected ? '● connecté' : '○ déconnecté'}</span>
             <span id="hd-state" className="mono">{live?.phase ?? 'idle'}</span>
@@ -111,6 +114,7 @@ export default function App() {
           <span className="fill" style={{ marginLeft: 'auto' }} />
           <span id="ft-sse" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>SSE {sseStatus}</span>
         </footer>
+        {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} />}
         <FlashBanner />
         <Toasts />
       </div>

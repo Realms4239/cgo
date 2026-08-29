@@ -3,7 +3,7 @@ import { useUIStore } from '../store/ui'
 import { Pill } from './ui/Pill'
 
 type Vis = Record<string, boolean>
-const KEYS = ['Wall', 'History', 'Archives'] as const
+const KEYS = ['Tableau live', 'Résultats', 'Provenance'] as const
 const LS_KEY = 'panel-visibility'
 
 function readVis(): Vis {
@@ -29,14 +29,14 @@ export default function PanelChooser() {
 
   const visAttr = KEYS.filter((k) => vis[k]).join(',')
   const nav = (label: string) => {
-    if (label === 'Wall') setPanel('campagne')
-    else if (label === 'History') setPanel('resultats')
-    else if (label === 'Archives') setPanel('integrite')
+    if (label === 'Tableau live') setPanel('live')
+    else if (label === 'Résultats') setPanel('resultats')
+    else if (label === 'Provenance') setPanel('integrite')
   }
   const isActive = (label: string) => {
-    if (label === 'Wall') return panel === 'campagne' || panel === 'live'
-    if (label === 'History') return panel === 'resultats'
-    if (label === 'Archives') return panel === 'integrite'
+    if (label === 'Tableau live') return panel === 'live'
+    if (label === 'Résultats') return panel === 'resultats'
+    if (label === 'Provenance') return panel === 'integrite'
     return false
   }
 
@@ -60,7 +60,7 @@ export default function PanelChooser() {
       data-tri={`${tri.metric?'m':''}c${tri.source}`}
       data-chart-craft={tri.chart}
       role="group"
-      aria-label="Choix du panneau — Wall, History, Archives + tri-toggle metric/chart/source"
+      aria-label="Choix du panneau"
       style={{
         display: 'flex',
         gap: 8,
