@@ -5,6 +5,10 @@ import { animateBar } from '../lib/anime'
 import { PeekPopover } from '../components/PeekPopover'
 import { echarts } from '../lib/echarts'
 import { baseOption, scatterSeries } from '../lib/chartGrammar'
+import CompareView from '../components/CompareView'
+import { CRAFT } from '../lib/chartGrammar'
+
+type Pinned = { run: string; row: Record<string, string> }
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -22,6 +26,9 @@ export default function ResultatsView() {
   const [showCosts, setShowCosts] = useState(true)
   const [peek, setPeek] = useState<{ rect: DOMRect; g: Group } | null>(null)
   const [hash8, setHash8] = useState<string>('────────')
+  const [pinA, setPinA] = useState<Pinned | null>(null)
+  const [pinB, setPinB] = useState<Pinned | null>(null)
+  const [latestRun, setLatestRun] = useState<string>('')
   const scatterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -29,6 +36,7 @@ export default function ResultatsView() {
       if (j.available) setGroups(j.groups)
       else setErr(j.reason || 'pas de résultats')
     }).catch(e => setErr(String(e)))
+    fetch('/api/replay/list').then(r => r.json()).then(j => { const runs: string[] = j?.runs ?? []; if (runs.length) setLatestRun(runs[0]) }).catch(() => {})
     fetch('/api/integrity').then(r => r.json()).then(j => {
       // triple-provenance: hash8 = sha256(latest aqm_eval.csv)[:8]; fallback run id when absent
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
@@ -128,7 +136,7 @@ export default function ResultatsView() {
             <tr style={{ color: 'var(--text-muted)', textAlign: 'left', borderBottom: '1px solid var(--hairline)' }}>
               <th style={{ padding: '6px 8px' }}>profil</th><th>qdisc</th><th>cc</th><th>n</th><th style={{ minWidth: 140 }}>small p95</th><th>rtt p95</th><th>goodput</th>
               {showCosts && <><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#8b9099' }}>deadline_ok</th><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#8b9099' }}>wasted</th><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f4b400' }}>cost</th></>}
-              <th>quar.</th><th>best</th>
+              <th>quar.</th><th>best</th><th style={{ padding: '6px 8px' }}>comparer</th>
             </tr>
           </thead>
           <tbody>
@@ -159,12 +167,19 @@ export default function ResultatsView() {
                   </>}
                   <td>{g.quarantined}</td>
                   <td>{g.best ? '★' : ''}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn" title="épingler comme A" onClick={() => setPinA({ run: latestRun, row: { profile: g.profile, qdisc: g.qdisc, cc: g.cc, small_p95_ms: String(g.small_p95_median), rtt_p95_ms: String(g.rtt_p95_median), bulk_goodput_mbps: String(g.goodput_median), drops: String(g.quarantined), cost_ar_per_h: String(g.cost_median ?? g.cost_ar_per_h ?? 0) } })} style={{ padding: '2px 6px', fontSize: 10, background: pinA?.row.qdisc === g.qdisc && pinA?.row.cc === g.cc && pinA?.row.profile === g.profile ? 'rgba(90,211,227,0.15)' : 'transparent', color: pinA?.row.qdisc === g.qdisc && pinA?.row.cc === g.cc && pinA?.row.profile === g.profile ? CRAFT.live : 'var(--text-muted)' }}>A</button>
+                    <button className="btn" title="épingler comme B" onClick={() => setPinB({ run: latestRun, row: { profile: g.profile, qdisc: g.qdisc, cc: g.cc, small_p95_ms: String(g.small_p95_median), rtt_p95_ms: String(g.rtt_p95_median), bulk_goodput_mbps: String(g.goodput_median), drops: String(g.quarantined), cost_ar_per_h: String(g.cost_median ?? g.cost_ar_per_h ?? 0) } })} style={{ padding: '2px 6px', fontSize: 10, marginLeft: 4, background: pinB?.row.qdisc === g.qdisc && pinB?.row.cc === g.cc && pinB?.row.profile === g.profile ? 'rgba(31,163,72,0.15)' : 'transparent', color: pinB?.row.qdisc === g.qdisc && pinB?.row.cc === g.cc && pinB?.row.profile === g.profile ? CRAFT.ok : 'var(--text-muted)' }}>B</button>
+                  </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
+      {pinA && pinB && (
+        <CompareView a={pinA} b={pinB} onClose={() => { setPinA(null); setPinB(null) }} />
+      )}
       <div className="card" style={{ padding: 12 }}>
         <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099', marginBottom: 6 }}>goodput vs small — compromis débit/latence · hash {hash8}</div>
         <div ref={scatterRef} style={{ height: 220 }} />
