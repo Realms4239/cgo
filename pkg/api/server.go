@@ -9,29 +9,59 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	frontend "github.com/Realms4239/cgo/web/frontend"
 	"github.com/Realms4239/cgo/pkg/audit"
 	"github.com/Realms4239/cgo/pkg/figures"
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/profile"
 	"github.com/Realms4239/cgo/pkg/results"
+	frontend "github.com/Realms4239/cgo/web/frontend"
 )
 
 // Deps wires the server to the campagne core.
 type Deps struct {
-	GetSnap  func() any
-	StartFn  func(profiles []string, reps int) error
-	StopFn   func()
+	GetSnap func() any
+	StartFn func(profiles []string, reps int) error
+	StopFn  func()
+	// ShapeFn applies an AQM + capacity to the edge gateway (ARG.md pivot:
+	// edge shaping is the lever the DSI actually controls). "none" clears.
+	ShapeFn func(qdisc string, capMbps float64) error
 }
 
 var auditMu sync.Mutex
 var lastAudit *audit.Result
 var auditRunning bool
+
+// shapeState — last applied edge shaping (observability of the control).
+var shapeMu sync.Mutex
+var shapeQdisc string
+var shapeCap float64
+var shapeSince time.Time
+
+func shapeApply(fn func(qdisc string, capMbps float64) error, q string, cap float64) (int, any) {
+	if fn == nil {
+		return http.StatusServiceUnavailable, map[string]any{"error": "shape engine not wired on this host"}
+	}
+	valid := map[string]bool{"cake": true, "fq_codel": true, "pfifo_fast": true, "none": true}
+	if !valid[q] {
+		return http.StatusBadRequest, map[string]any{"error": "qdisc must be cake | fq_codel | pfifo_fast | none"}
+	}
+	if cap <= 0 {
+		return http.StatusBadRequest, map[string]any{"error": "capacity_mbps must be > 0"}
+	}
+	if err := fn(q, cap); err != nil {
+		return http.StatusInternalServerError, map[string]any{"error": err.Error()}
+	}
+	shapeMu.Lock()
+	shapeQdisc, shapeCap, shapeSince = q, cap, time.Now()
+	shapeMu.Unlock()
+	return http.StatusOK, map[string]any{"qdisc": q, "capacity_mbps": cap, "since": shapeSince.Format(time.RFC3339)}
+}
 
 // New builds the full handler with SPA fallback.
 func New(d Deps) http.Handler {
@@ -49,6 +79,56 @@ func New(d Deps) http.Handler {
 	})
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, snap())
+	})
+	// ARG.md edge control — dynamic profile registry (imported profiles included)
+	mux.HandleFunc("GET /api/profiles", func(w http.ResponseWriter, _ *http.Request) {
+		ids := make([]string, 0, len(model.Profiles))
+		for id := range model.Profiles {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		type prof struct {
+			ID         string  `json:"id"`
+			Capacity   float64 `json:"capacity_mbps"`
+			DelayMs    float64 `json:"delay_ms"`
+			JitterMs   float64 `json:"jitter_ms"`
+			LossPct    float64 `json:"loss_pct"`
+			FromImport bool    `json:"imported"`
+		}
+		out := make([]prof, 0, len(ids))
+		for _, id := range ids {
+			p := model.Profiles[id]
+			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, LossPct: p.LossPct, FromImport: id != "P1" && id != "P2" && id != "P3"})
+		}
+		writeJSON(w, map[string]any{"profiles": out})
+	})
+	// ARG.md edge control — apply / observe shaping on the gateway
+	mux.HandleFunc("GET /api/shape", func(w http.ResponseWriter, _ *http.Request) {
+		shapeMu.Lock()
+		defer shapeMu.Unlock()
+		if shapeQdisc == "" {
+			writeJSON(w, map[string]any{"applied": false})
+			return
+		}
+		writeJSON(w, map[string]any{"applied": true, "qdisc": shapeQdisc, "capacity_mbps": shapeCap, "since": shapeSince.Format(time.RFC3339)})
+	})
+	mux.HandleFunc("POST /api/shape", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Qdisc string  `json:"qdisc"`
+			Cap   float64 `json:"capacity_mbps"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		code, out := shapeApply(d.ShapeFn, body.Qdisc, body.Cap)
+		if code != http.StatusOK {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(code)
+			_ = json.NewEncoder(w).Encode(out)
+			return
+		}
+		writeJSON(w, out)
 	})
 	mux.HandleFunc("POST /api/run/start", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
