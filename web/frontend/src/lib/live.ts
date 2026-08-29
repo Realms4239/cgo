@@ -28,7 +28,9 @@ export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: num
   push(live.rtt50, ts, f.rtt_p50_ms ?? null)
   push(live.rtt95, ts, f.rtt_p95_ms ?? null)
   push(live.small, ts, f.small_p95_ms ?? null)
-  push(live.goodput, ts, f.bulk_goodput_mbps ?? null)
+  // counter artifacts (qdisc replacement resets) never enter the goodput ring
+  const g = f.bulk_goodput_mbps
+  push(live.goodput, ts, g != null && g >= 0 && g <= 2500 ? g : null)
 }
 
 export function clearLive() {

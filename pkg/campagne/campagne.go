@@ -188,10 +188,19 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		if d.StatsFn != nil {
 			sts := d.StatsFn()
 			nowB, nowT := qdisc.SumBytes(sts), d.Now()
-			if dt := nowT.Sub(liveLastT).Seconds(); dt > 0.2 {
-				live.BulkGoodputMbps = round1(float64(nowB-liveLastBytes) * 8 / 1e6 / dt)
+			if nowB < liveLastBytes {
+				liveLastBytes = nowB // qdisc replaced (shape lever) — counters reset
 			}
-			live.Drops = qdisc.SumDrops(sts) - startDrops
+			if dt := nowT.Sub(liveLastT).Seconds(); dt > 0.2 {
+				g := float64(nowB-liveLastBytes) * 8 / 1e6 / dt
+				if g >= 0 && g <= 2500 { // discard counter artifacts, keep the axis sane
+					live.BulkGoodputMbps = round1(g)
+				}
+			}
+			d := int64(qdisc.SumDrops(sts)) - int64(startDrops)
+			if d >= 0 {
+				live.Drops = uint64(d)
+			}
 			liveLastBytes, liveLastT = nowB, nowT
 		}
 		live.WastedBytes = live.Drops * 1448
