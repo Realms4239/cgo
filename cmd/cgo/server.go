@@ -35,7 +35,7 @@ func runServer(ctx context.Context, addr string) error {
 	// reads current mtx via getMtx each tick, no leak on restart, no flap.
 	go pumpSnapshots(ctx, live, getMtx)
 
-	startFn := func(profiles []string, reps int) error {
+	startFn := func(o api.RunOpts) error {
 		if m := getMtx(); m != nil {
 			m.Stop()
 			// drain — the old matrix's cells may still be mid-tc-call; starting
@@ -46,7 +46,7 @@ func runServer(ctx context.Context, addr string) error {
 		}
 		deps := campagne.ProdDeps()
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
-		m, err := campagne.StartMatrix(ctx, profiles, reps, deps, live, "data/runs")
+		m, err := campagne.StartMatrix(ctx, o.Profiles, o.Reps, deps, live, "data/runs")
 		if err != nil {
 			return err
 		}
@@ -63,16 +63,21 @@ func runServer(ctx context.Context, addr string) error {
 	}
 	// ARG.md edge control — the shaping lever on the gateway's egress hop,
 	// same primitives the campagne cells use (manual mode for the DSI).
-	shapeFn := func(qdiscName string, capMbps float64) error {
+	shapeFn := func(r api.ShapeReq) error {
 		deps := campagne.ProdDeps()
 		// reset first — stale handles from a campagne cell make 'replace'
-		// fail; the lever owns a deterministic clean state (manual mode has
-		// no netem: pure AQM+bandwidth at root, that is the DSI's lever)
+		// fail; the lever owns a deterministic clean state
 		_, _ = deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "root")
-		if qdiscName == "none" {
+		if r.Qdisc == "none" {
 			return nil
 		}
-		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(qdiscName), capMbps, 100)
+		// conditions du lien (Q8): netem at root, shaper stacked as child
+		if r.DelayMs > 0 || r.JitterMs > 0 || r.LossPct > 0 {
+			if err := qdisc.ApplyNetem(deps.TCShaper, deps.ShaperIf, r.DelayMs, r.JitterMs, r.LossPct); err != nil {
+				return err
+			}
+		}
+		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(r.Qdisc), r.CapMbps, 100)
 	}
 	handler := api.New(api.Deps{
 		GetSnap:   func() any { return live.Get() },

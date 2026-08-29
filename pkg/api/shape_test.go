@@ -17,11 +17,11 @@ func TestShapeControl(t *testing.T) {
 	var mu sync.Mutex
 	var calls []string
 	h := New(Deps{
-		ShapeFn: func(qdisc string, capMbps float64) error {
+		ShapeFn: func(r ShapeReq) error {
 			mu.Lock()
 			defer mu.Unlock()
-			calls = append(calls, qdisc)
-			if capMbps == 13 {
+			calls = append(calls, r.Qdisc)
+			if r.CapMbps == 13 {
 				return &tcError{msg: "tc exited 1"}
 			}
 			return nil
@@ -134,7 +134,7 @@ func TestMutatingEndpointsNilGuards(t *testing.T) {
 // apply mid-run corrupts the cell's shaping (and vice versa). 409 while active.
 func TestShapeConflictWithRunningCampagne(t *testing.T) {
 	h := New(Deps{
-		ShapeFn:   func(string, float64) error { return nil },
+		ShapeFn:   func(ShapeReq) error { return nil },
 		RunningFn: func() bool { return true },
 	})
 	srv := httptest.NewServer(h)
@@ -152,7 +152,7 @@ func TestShapeConflictWithRunningCampagne(t *testing.T) {
 
 // Graceful shutdown — CloseHub stops the hub ticker; double-close is safe.
 func TestHandlerCloseHub(t *testing.T) {
-	h := New(Deps{ShapeFn: func(string, float64) error { return nil }})
+	h := New(Deps{ShapeFn: func(ShapeReq) error { return nil }})
 	h.CloseHub()
 	h.CloseHub() // idempotent
 }
@@ -172,5 +172,101 @@ func TestHubSubscriberCap(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("cap: %d want 503", resp.StatusCode)
+	}
+}
+
+// Q8/Q10 — the lever parameterizes the link itself (delay/jitter/loss) and the
+// campagne honors the operator's deadline + target. Bounds are server-side.
+func TestShapeLinkConditions(t *testing.T) {
+	var mu sync.Mutex
+	var last ShapeReq
+	h := New(Deps{
+		ShapeFn: func(r ShapeReq) error {
+			mu.Lock()
+			defer mu.Unlock()
+			last = r
+			return nil
+		},
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/api/shape", "application/json",
+		bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":20,"delay_ms":80,"jitter_ms":5,"loss_pct":0.5}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("apply: %d %s", resp.StatusCode, b)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if last.DelayMs != 80 || last.JitterMs != 5 || last.LossPct != 0.5 {
+		t.Fatalf("netem params lost: %+v", last)
+	}
+
+	// bounds: delay ≤ 600, jitter ≤ 100, loss ≤ 10
+	for _, bad := range []string{
+		`{"qdisc":"cake","capacity_mbps":20,"delay_ms":601}`,
+		`{"qdisc":"cake","capacity_mbps":20,"jitter_ms":101}`,
+		`{"qdisc":"cake","capacity_mbps":20,"loss_pct":11}`,
+	} {
+		r2, err := http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(bad))
+		if err != nil {
+			t.Fatal(err)
+		}
+		r2.Body.Close()
+		if r2.StatusCode != http.StatusBadRequest {
+			t.Fatalf("bounds %s: %d want 400", bad, r2.StatusCode)
+		}
+	}
+}
+
+func TestRunOptsDeadlineTarget(t *testing.T) {
+	var mu sync.Mutex
+	var got *RunOpts
+	h := New(Deps{
+		StartFn: func(o RunOpts) error {
+			mu.Lock()
+			defer mu.Unlock()
+			got = &o
+			return nil
+		},
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	resp, err := http.Post(srv.URL+"/api/run/start", "application/json",
+		bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"deadline_ms":2500,"target":"9.9.9.9"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("start: %d %s", resp.StatusCode, b)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if got == nil || got.DeadlineMs != 2500 || got.Target != "9.9.9.9" {
+		t.Fatalf("opts lost: %+v", got)
+	}
+}
+
+// Journal — operator memory: actions land in a queryable ring.
+func TestJournal(t *testing.T) {
+	h := New(Deps{ShapeFn: func(ShapeReq) error { return nil }})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	_, _ = http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":20}`))
+	resp, err := http.Get(srv.URL + "/api/events")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 || !strings.Contains(string(body), "façonnage") || !strings.Contains(string(body), "cake") {
+		t.Fatalf("journal: %d %s", resp.StatusCode, body)
 	}
 }

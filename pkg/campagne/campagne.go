@@ -33,6 +33,9 @@ type Deps struct {
 	// StatsFn returns per-qdisc stats for drops/bytes delta measurement.
 	// nil ⇒ no tc -s polling (drops stay 0, goodput from sender only).
 	StatsFn func() []qdisc.Stats
+	// DeadlineMs — small p95 objective (Q10): the operator's setting travels
+	// with the run so the exported CSV matches what was configured.
+	DeadlineMs float64
 
 	BaselineSec int
 	ChargeSec   int
@@ -204,7 +207,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		if len(small) > 0 {
 			sm := metrics.Summarize(small)
 			live.Smallp95Ms = round1(sm.P95)
-			live.DeadlineOKPct = round1(metrics.DeadlineOKPct(small, 1000))
+			live.DeadlineOKPct = round1(metrics.DeadlineOKPct(small, d.DeadlineMs))
 		}
 		if d.StatsFn != nil {
 			sts := d.StatsFn()
@@ -307,7 +310,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.RTTp95Ms = round1(sumC.P95)
 	sm := metrics.Summarize(chgSmall)
 	ev.Smallp95Ms = round1(sm.P95)
-	ev.DeadlineOKPct = round1(metrics.DeadlineOKPct(chgSmall, 1000))
+	ev.DeadlineOKPct = round1(metrics.DeadlineOKPct(chgSmall, d.DeadlineMs))
 	ev.BulkGoodputMbps = round1(goodput)
 	cpuAvg := d.CPU()
 	ev.CPUPct = round1(cpuAvg)

@@ -23,14 +23,33 @@ import (
 	frontend "github.com/Realms4239/cgo/web/frontend"
 )
 
+// ShapeReq — the full lever: file d'attente + conditions du lien (Q8).
+type ShapeReq struct {
+	Qdisc    string  `json:"qdisc"`
+	CapMbps  float64 `json:"capacity_mbps"`
+	DelayMs  float64 `json:"delay_ms"`
+	JitterMs float64 `json:"jitter_ms"`
+	LossPct  float64 `json:"loss_pct"`
+}
+
+// RunOpts — what an operator actually decides (Q10): profils, répétitions,
+// deadline small p95 et cible de mesure.
+type RunOpts struct {
+	Profiles   []string `json:"profiles"`
+	Reps       int      `json:"reps"`
+	DeadlineMs int      `json:"deadline_ms"`
+	Target     string   `json:"target"`
+}
+
 // Deps wires the server to the campagne core.
 type Deps struct {
 	GetSnap func() any
-	StartFn func(profiles []string, reps int) error
+	StartFn func(o RunOpts) error
 	StopFn  func()
-	// ShapeFn applies an AQM + capacity to the edge gateway (ARG.md pivot:
-	// edge shaping is the lever the DSI actually controls). "none" clears.
-	ShapeFn func(qdisc string, capMbps float64) error
+	// ShapeFn applies the queue discipline + link conditions to the edge
+	// gateway (ARG.md pivot: edge shaping is the lever the DSI controls).
+	// "none" clears.
+	ShapeFn func(r ShapeReq) error
 	// RunningFn reports an active campagne — the shape lever and a running
 	// matrix fight over the same shaper, so manual shaping is refused mid-run.
 	RunningFn func() bool
@@ -54,13 +73,27 @@ var auditMu sync.Mutex
 var lastAudit *audit.Result
 var auditRunning bool
 
+// Journal — mémoire opérateur (Q13): anneau des 50 derniers événements.
+var eventsMu sync.Mutex
+var eventsRing []map[string]any
+
+func recordEvent(kind, msg string) {
+	eventsMu.Lock()
+	defer eventsMu.Unlock()
+	eventsRing = append(eventsRing, map[string]any{"ts": time.Now().Format(time.RFC3339), "kind": kind, "msg": msg})
+	if len(eventsRing) > 50 {
+		eventsRing = eventsRing[len(eventsRing)-50:]
+	}
+}
+
 // shapeState — last applied edge shaping (observability of the control).
 var shapeMu sync.Mutex
 var shapeQdisc string
 var shapeCap float64
 var shapeSince time.Time
 
-func shapeApply(fn func(qdisc string, capMbps float64) error, q string, cap float64, running func() bool) (int, any) {
+func shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (int, any) {
+	q, cap := req.Qdisc, req.CapMbps
 	if running != nil && running() {
 		return http.StatusConflict, map[string]any{"error": "campagne active — arrêtez la mesure avant de façonner le bord"}
 	}
@@ -71,15 +104,23 @@ func shapeApply(fn func(qdisc string, capMbps float64) error, q string, cap floa
 	if !valid[q] {
 		return http.StatusBadRequest, map[string]any{"error": "qdisc must be cake | fq_codel | pfifo_fast | none"}
 	}
-	if cap <= 0 {
-		return http.StatusBadRequest, map[string]any{"error": "capacity_mbps must be > 0"}
+	if cap < 1 || cap > 1000 {
+		return http.StatusBadRequest, map[string]any{"error": "capacity_mbps must be 1–1000"}
 	}
-	if err := fn(q, cap); err != nil {
+	if req.DelayMs < 0 || req.DelayMs > 600 || req.JitterMs < 0 || req.JitterMs > 100 || req.LossPct < 0 || req.LossPct > 10 {
+		return http.StatusBadRequest, map[string]any{"error": "conditions du lien: délai 0–600 ms, gigue 0–100 ms, perte 0–10 %"}
+	}
+	if err := fn(req); err != nil {
 		return http.StatusInternalServerError, map[string]any{"error": err.Error()}
 	}
 	shapeMu.Lock()
 	shapeQdisc, shapeCap, shapeSince = q, cap, time.Now()
 	shapeMu.Unlock()
+	cond := ""
+	if req.DelayMs > 0 || req.JitterMs > 0 || req.LossPct > 0 {
+		cond = fmt.Sprintf(", conditions %gms/%gms/%g%%", req.DelayMs, req.JitterMs, req.LossPct)
+	}
+	recordEvent("façonnage", fmt.Sprintf("%s @ %g Mbit/s%s", q, cap, cond))
 	return http.StatusOK, map[string]any{"qdisc": q, "capacity_mbps": cap, "since": shapeSince.Format(time.RFC3339)}
 }
 
@@ -136,15 +177,12 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"applied": true, "qdisc": shapeQdisc, "capacity_mbps": shapeCap, "since": shapeSince.Format(time.RFC3339)})
 	})
 	mux.HandleFunc("POST /api/shape", func(w http.ResponseWriter, r *http.Request) {
-		var body struct {
-			Qdisc string  `json:"qdisc"`
-			Cap   float64 `json:"capacity_mbps"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+		var req ShapeReq
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
-		code, out := shapeApply(d.ShapeFn, body.Qdisc, body.Cap, d.RunningFn)
+		code, out := shapeApply(d.ShapeFn, req, d.RunningFn)
 		if code != http.StatusOK {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)
@@ -154,11 +192,8 @@ func New(d Deps) Handler {
 		writeJSON(w, out)
 	})
 	mux.HandleFunc("POST /api/run/start", func(w http.ResponseWriter, r *http.Request) {
-		var body struct {
-			Profiles []string `json:"profiles"`
-			Reps     int      `json:"reps"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+		var opts RunOpts
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&opts); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
@@ -166,10 +201,11 @@ func New(d Deps) Handler {
 			http.Error(w, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
-		if err := d.StartFn(body.Profiles, body.Reps); err != nil {
+		if err := d.StartFn(opts); err != nil {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
+		recordEvent("campagne", fmt.Sprintf("démarrée — %s ×%d, deadline %d ms, cible %s", strings.Join(opts.Profiles, "/"), opts.Reps, opts.DeadlineMs, opts.Target))
 		writeJSON(w, map[string]any{"started": true})
 	})
 	mux.HandleFunc("POST /api/run/stop", func(w http.ResponseWriter, _ *http.Request) {
@@ -178,6 +214,7 @@ func New(d Deps) Handler {
 			return
 		}
 		d.StopFn()
+		recordEvent("campagne", "arrêtée")
 		writeJSON(w, map[string]any{"stopped": true})
 	})
 	mux.HandleFunc("GET /api/results", func(w http.ResponseWriter, r *http.Request) {
@@ -349,6 +386,7 @@ func New(d Deps) Handler {
 			auditMu.Lock()
 			lastAudit = res
 			auditMu.Unlock()
+			recordEvent("audit", fmt.Sprintf("terminé — %s (%s), p95 %g ms", p.Site, p.LinkType, res.RTTIdleP95))
 			_ = audit.AppendLinkAudit("data", res)
 		}()
 		writeJSON(w, map[string]any{"started": true})
@@ -455,6 +493,13 @@ func New(d Deps) Handler {
 	hub.Serve(func() any { return snap() })
 
 	spa := http.FileServer(http.FS(frontend.FS))
+	mux.HandleFunc("GET /api/events", func(w http.ResponseWriter, _ *http.Request) {
+		eventsMu.Lock()
+		defer eventsMu.Unlock()
+		out := make([]map[string]any, len(eventsRing))
+		copy(out, eventsRing)
+		writeJSON(w, map[string]any{"events": out})
+	})
 	mux.Handle("/", spa)
 	return Handler{Handler: mux, hubClose: func() { hub.Close() }}
 }

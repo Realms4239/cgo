@@ -97,13 +97,13 @@ func usage() {
 func runServe(ctx context.Context, addr string) error {
 	live := campagne.NewLive()
 	var mtx *campagne.Matrix
-	startFn := func(profiles []string, reps int) error {
+	startFn := func(o api.RunOpts) error {
 		if mtx != nil {
 			mtx.Stop()
 		}
 		deps := campagne.ProdDeps()
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
-		m, err := campagne.StartMatrix(ctx, profiles, reps, deps, live, "data/runs")
+		m, err := campagne.StartMatrix(ctx, o.Profiles, o.Reps, deps, live, "data/runs")
 		if err != nil {
 			return err
 		}
