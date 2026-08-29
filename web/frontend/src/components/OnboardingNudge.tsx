@@ -3,9 +3,10 @@ import { createTimeline, stagger } from 'animejs'
 import { prefersReducedMotion } from '../lib/anime'
 
 const STEPS = [
-  { k: 'Audit', desc: 'Auditez votre lien avant de lancer' },
-  { k: 'Démarrer', desc: 'Lancez la campagne depuis Campagne' },
-  { k: 'Live', desc: 'Suivez en Temps réel' },
+  { k: '1 · Audit', desc: 'Auditez le lien (ça marche partout, même Windows)' },
+  { k: '2 · Banc', desc: 'Reproduisez les conditions, lancez la campagne' },
+  { k: '3 · Comparer', desc: 'Épinglez A/B, lisez le verdict mesuré' },
+  { k: '4 · Constat', desc: 'Téléchargez la preuve CSV/JSON' },
 ]
 
 export default function OnboardingNudge(){

@@ -103,12 +103,38 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
     const el = document.createElement('a'); el.href = url; el.download = `comparaison-${cellName(a).replace(/\//g, '-')}-vs-${cellName(b).replace(/\//g, '-')}.csv`; el.click()
     URL.revokeObjectURL(url)
   }
+  const prescription = (() => {
+    if (!stats) return null
+    // la prescription sort du verdict mesuré (grilling Q17) — jamais d'intuition
+    const p95a = stats.a.small_p95_ms.med, p95b = stats.b.small_p95_ms.med
+    const winner = p95b < p95a ? b : a
+    const other = p95b < p95a ? a : b
+    if (winner.qdisc === other.qdisc) return null // pas de changement à prescrire
+    const routeros: Record<string, string> = {
+      cake: '/queue type add name=cake-edges kind=cake\n/queue simple add name=edge target=<LAN> queue=cake-edges',
+      fq_codel: '/queue type add name=fqc-edges kind=fq-codel\n/queue simple add name=edge target=<LAN> queue=fqc-edges',
+      pfifo_fast: '/queue simple add name=edge target=<LAN> queue=pfifo-fast',
+    }
+    const linux: Record<string, string> = {
+      cake: 'tc qdisc replace dev <WAN> root cake bandwidth <CAP>',
+      fq_codel: 'tc qdisc replace dev <WAN> root fq_codel',
+      pfifo_fast: 'tc qdisc replace dev <WAN> root pfifo_fast',
+    }
+    return {
+      gagnant: cellName(winner),
+      queue_type: winner.qdisc,
+      mikrotik_v7: routeros[winner.qdisc] ?? null,
+      linux_tc: linux[winner.qdisc] ?? null,
+      note: 'prescription calculée depuis les médianes mesurées — appliquez, puis re-mesurez (audit + comparaison avant/après)',
+    }
+  })()
+
   const exportJSON = () => {
     if (!stats) return
     const payload = {
       A: { cellule: cellName(a), ...Object.fromEntries(METRICS.map(m => [m.key, stats.a[m.key].med])) },
       B: { cellule: cellName(b), ...Object.fromEntries(METRICS.map(m => [m.key, stats.b[m.key].med])) },
-      verdict, genere: new Date().toISOString(),
+      verdict, prescription, genere: new Date().toISOString(),
     }
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
     const el = document.createElement('a'); el.href = url; el.download = `comparaison-${cellName(a).replace(/\//g, '-')}-vs-${cellName(b).replace(/\//g, '-')}.json`; el.click()

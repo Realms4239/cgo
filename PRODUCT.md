@@ -1,10 +1,12 @@
-# Meteolink — CGO
+# PRODUCT.md
 
-**FR** — « Meteolink : le banc NOC portable qui façonne le bord, mesure le
-bufferbloat en direct, et transforme la perte de paquets en constat chiffré. »
+**Meteolink** — banc reproductible pour l'audit client-side et la comparaison des
+politiques AQM/BBR sur liens d'accès contraints, appliqué aux liens de
+Météo Madagascar.
 
-**EN** — "Meteolink: the portable NOC bench that shapes the edge, watches
-bufferbloat die in real time, and turns packet loss into a signed cost report."
+Thèse : « Conception et évaluation d'un banc reproductible pour l'audit
+client-side et la comparaison des politiques AQM/BBR sur liens d'accès
+contraints — application aux liens de Météo Madagascar ».
 
 ## Product truth
 

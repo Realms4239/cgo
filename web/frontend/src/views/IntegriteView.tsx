@@ -216,9 +216,9 @@ export default function IntegriteView() {
         <div className="card-head">Replay {replayRunning && <span className="mono" style={{color:'var(--t-live)', marginLeft:8}}>● en cours</span>}</div>
         {replayRunning ? (
           <div style={{display:'flex', gap:8, alignItems:'center'}}>
-            <span className="mono muted">replay actif — voir Temps réel</span>
+            <span className="mono muted">replay actif — voir le Tableau live</span>
             <button className="btn" onClick={()=>stopReplay()} style={{marginLeft:'auto'}}>Arrêter</button>
-            <button className="btn btn-primary" onClick={()=>setPanel('live')}>Voir Live</button>
+            <button className="btn btn-primary" onClick={()=>setPanel('live')}>Voir le Tableau live</button>
           </div>
         ) : replayRuns.length===0 ? <p className="mono muted">aucun run à rejouer</p> :
           <ul style={{listStyle:'none', padding:0, margin:0}}>

@@ -366,6 +366,12 @@ export default function LiveView() {
           <ChartSurface title="Bulk goodput" unit="Mbit/s" domId="chart-goodput" height={180} empty={goodputEmpty} hint="goodput — en attente de flux" onReady={goodput.onReady} />
         </Card>
       </div>
+      {/* Q2 — runbook pointer: a crit card always says what to do next */}
+      {rttP95 != null && rttP95 > settingsRef.current.critMs && (
+        <div className="mono" data-testid="runbook-pointer" style={{ gridColumn: '1 / -1', fontSize: 10, color: 'var(--t-warn, #f4b400)', border: '1px dashed rgba(244,180,0,0.4)', padding: '6px 10px' }}>
+          bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settingsRef.current.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
+        </div>
+      )}
       {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={Math.max(tRecup, now)} currentPhase={live.phase || 'idle'} />}
 
       {/* live-wall-overlay: baseline grey dashed vs CAKE cyan solid same scale; source pill gates live|frozen|both */}

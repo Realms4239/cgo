@@ -17,7 +17,7 @@ import OnboardingNudge from './components/OnboardingNudge'
 import CommandPalette from './components/CommandPalette'
 import MeteolinkWordmark from './components/MeteolinkWordmark'
 import PanelChooser from './components/PanelChooser'
-// METEOLINK header lockup — wordmark gradient + 16×16 NOC icon via MeteolinkWordmark
+// METEOLINK header lockup — wordmark gradient + 16×16 icon via MeteolinkWordmark
 
 export default function App() {
   const panel = useUIStore((s) => s.panel)
@@ -30,9 +30,12 @@ export default function App() {
   const railPinned = useUIStore((s) => s.railPinned)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [mode, setMode] = useState<string>('')
 
   useEffect(() => {
     connectSSE()
+    // capability badge (Q10) — the OS decides what this host can control
+    fetch('/api/health').then(r => r.json()).then(j => setMode(j.mode ?? '')).catch(() => {})
     return () => disconnectSSE()
   }, [])
 
@@ -87,6 +90,7 @@ export default function App() {
             <PanelChooser />
           </div>
           <div className="hd-right">
+            {mode === 'observe' && <span className="mono" title="Audit et consultation uniquement — campagne et façonnage vivent sur l'hôte Linux (docs/deploy.md)" style={{ color: 'var(--t-warn, #f4b400)', border: '1px solid currentColor', padding: '2px 8px', fontSize: 10, letterSpacing: '0.08em' }}>OBSERVATION</span>}
             <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
             <button onClick={() => setDensity(density === 'airy' ? 'dense' : 'airy')} aria-label="Densité">{density}</button>
             <span className="mono" style={{ color: connected ? 'var(--t-ok)' : 'var(--t-danger)' }}>{connected ? '● connecté' : '○ déconnecté'}</span>
