@@ -99,6 +99,7 @@ export default function LiveView() {
   const [locked, setLocked] = useState<{ ms: number; at: string } | null>(() => {
     try { const r = localStorage.getItem('wall-baseline'); return r ? JSON.parse(r) : null } catch { return null }
   })
+  const lockedRingRef = useRef<[number, number][]>([])
   const [shape, setShape] = useState<{ applied: boolean; qdisc?: string; capacity_mbps?: number } | null>(null)
   const [shapeCap, setShapeCap] = useState(20)
   const [shapeMsg, setShapeMsg] = useState('')
@@ -151,7 +152,16 @@ export default function LiveView() {
       { ...craftSeries(tri.chart, 'p50', d(live.rtt50 as any), CRAFT.live), markArea: ma } as any,
       { ...craftSeries(tri.chart, 'p95', d(live.rtt95 as any), CRAFT.ok) } as any,
     ])
-    small.setData([{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), CRAFT.threshold), markArea: ma } as any])
+    const series: ReturnType<typeof lineSeries>[] = [{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), CRAFT.threshold), markArea: ma } as any]
+    if (locked && lockedRingRef.current.length > 1) {
+      series.unshift({
+        name: 'baseline verrouillée', type: 'line', showSymbol: false, smooth: 0.4, smoothMonotone: 'x', sampling: 'lttb' as const,
+        lineStyle: { width: 1.5, type: 'dashed' as const, color: CRAFT.steel },
+        emphasis: { focus: 'series' }, blur: { lineStyle: { opacity: 0.2 } },
+        data: d(lockedRingRef.current),
+      } as any)
+    }
+    small.setData(series)
     goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(live.goodput as any), CRAFT.bbr), markArea: ma } as any])
   })
 
@@ -217,6 +227,7 @@ export default function LiveView() {
   const lockBaseline = () => {
     if (liveSmallMedian == null) return
     const b = { ms: Math.round(liveSmallMedian * 10) / 10, at: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }
+    lockedRingRef.current = [...live.small] // freeze the ring — the hero draws it grey dashed
     setLocked(b)
     try { localStorage.setItem('wall-baseline', JSON.stringify(b)) } catch { }
     useUIStore.getState().pushToast?.(`baseline verrouillée — ${b.ms} ms`, 'ok')
@@ -300,7 +311,7 @@ export default function LiveView() {
       </Card>
       {!liveSnap && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
       {/* Q4 metric pill — toggles the metric groups; one 5-col bento, 10 cells, no misaligned rows */}
-      <div data-wall-cards="metric-groups" className="bento-5 wall-span" style={{ display: tri.metric ? 'grid' : 'none', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
+      <div data-wall-cards="metric-groups" className={'bento-5 wall-span' + (tri.metric ? '' : ' hidden')} >
         <MetricCard label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color={CRAFT.live} spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
         <MetricCard label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color={CRAFT.live} spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
         <MetricCard label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={CRAFT.ok} spark={spark(live.small)} trend={trendOf(spark(live.small))} />
