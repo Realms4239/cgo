@@ -12,12 +12,13 @@ import { animateBannerPulse, animateLiveEnter } from '../lib/anime'
 import { MetricCard } from '../components/ui/MetricCard'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Card } from '../components/ui/Card'
-import { CardHead } from '../components/ui/CardHead'
 import { EmptyChart } from '../components/ui/EmptyChart'
 import { PeekPopover } from '../components/PeekPopover'
 import { Beam } from '../components/Beam'
 import { DonutJFI } from '../components/DonutJFI'
 import { Timeline } from '../components/Timeline'
+import { CardHead } from '../components/ui/CardHead'
+import { Pill } from '../components/ui/Pill'
 
 type Craft = 'line' | 'bar' | 'area'
 type Tri = { metric: boolean; chart: Craft; source: 'live' | 'frozen' | 'both' }
@@ -94,7 +95,14 @@ export default function LiveView() {
   const [wallHash, setWallHash] = useState<string>('')
   const [hovered, setHovered] = useState(false)
   const [tri, setTri] = useState<Tri>(DEFAULT_TRI)
-
+  // edge control — baseline lock + shaping lever (ARG.md: control and shape)
+  const [locked, setLocked] = useState<{ ms: number; at: string } | null>(() => {
+    try { const r = localStorage.getItem('wall-baseline'); return r ? JSON.parse(r) : null } catch { return null }
+  })
+  const [shape, setShape] = useState<{ applied: boolean; qdisc?: string; capacity_mbps?: number } | null>(null)
+  const [shapeCap, setShapeCap] = useState(20)
+  const [shapeMsg, setShapeMsg] = useState('')
+  
   // Q4 tri-toggle — PanelChooser dispatches {metric, chart: craft, source}
   useEffect(() => {
     const onTri = (e: Event) => {
@@ -120,6 +128,7 @@ export default function LiveView() {
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
       if (id) setWallHash(String(id).slice(0, 8))
     }).catch(() => {})
+    fetch('/api/shape').then(r => r.json()).then(j => { if (!cancelled) setShape(j) }).catch(() => {})
     return () => { cancelled = true }
   }, [liveSnap?.running, replayRunning])
 
@@ -197,6 +206,53 @@ export default function LiveView() {
   }
   const qdiSpark = live.rtt95.slice(-20).map(([, v], i) => Math.max(0, v - (live.rtt50[i]?.[1] ?? v)))
 
+  // live median of the current window — the number the comparison drives on
+  const liveSmallMedian = (() => {
+    const vals = live.small.slice(-120).map(([, v]) => v).filter(v => v > 0)
+    if (vals.length < 5) return null
+    return vals.reduce((a, b) => a + b, 0) / vals.length
+  })()
+  const liveDiff = locked && liveSmallMedian ? Math.round(((locked.ms - liveSmallMedian) / locked.ms) * 100) : null
+
+  const lockBaseline = () => {
+    if (liveSmallMedian == null) return
+    const b = { ms: Math.round(liveSmallMedian * 10) / 10, at: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }
+    setLocked(b)
+    try { localStorage.setItem('wall-baseline', JSON.stringify(b)) } catch { }
+    useUIStore.getState().pushToast?.(`baseline verrouillée — ${b.ms} ms`, 'ok')
+  }
+  const applyShape = async (q: string) => {
+    setShapeMsg('')
+    try {
+      const r = await fetch('/api/shape', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ qdisc: q, capacity_mbps: shapeCap }) })
+      const j = await r.json()
+      if (!r.ok) { setShapeMsg(j?.error ?? `erreur ${r.status}`); useUIStore.getState().pushToast?.(j?.error ?? 'échec du façonnage', 'err') }
+      else {
+        setShape({ applied: q !== 'none', qdisc: q === 'none' ? undefined : q, capacity_mbps: shapeCap })
+        setShapeMsg(q === 'none' ? 'façonnage retiré' : `${q} appliqué au bord @ ${shapeCap} Mbit/s`)
+        useUIStore.getState().pushToast?.(q === 'none' ? 'façonnage retiré' : `bord façonné — ${q}`, 'ok')
+      }
+    } catch (e) { setShapeMsg(String(e)) }
+  }
+  const exportConstat = () => {
+    if (locked == null || liveSmallMedian == null) return
+    const diff = Math.round(((locked.ms - liveSmallMedian) / locked.ms) * 100)
+    const md = [
+      '# Constat bufferbloat — Meteolink', '',
+      `- baseline verrouillée : **${locked.ms} ms** (${locked.at})`,
+      `- fenêtre courante : **${liveSmallMedian.toFixed(1)} ms**`,
+      `- écart : **${diff > 0 ? '-' : ''}${diff} %**`,
+      `- façonnage du bord : **${shape?.applied ? `${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'aucun (pfifo)'}**`,
+      `- empreinte campagne : ${hash8}`,
+      `- généré : ${new Date().toLocaleString('fr-FR')}`, '',
+      '_Kit de diagnostic portable — métrique small p95, fenêtre 180 s._',
+    ].join('\n')
+    const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }))
+    const a = document.createElement('a')
+    a.href = url; a.download = `constat-bufferbloat-${Date.now()}.md`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   useEffect(() => { if (bannerRef.current) animateBannerPulse(bannerRef.current) }, [banner])
   useEffect(() => { animateLiveEnter() }, [])
 
@@ -272,7 +328,7 @@ export default function LiveView() {
         </Card>
         <Card
           head="Bulk goodput"
-          sub="récepteur · tc -s"
+          sub="mesuré au récepteur (compteur noyau)"
           onMouseEnter={e => { setHovered(true); const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
@@ -290,6 +346,41 @@ export default function LiveView() {
             <span className="diff-badge mono" style={{ background: diffAB > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diffAB > 0 ? CRAFT.ok : CRAFT.danger), color: diffAB > 0 ? CRAFT.ok : CRAFT.danger, padding: '4px 10px', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{diffAB > 0 ? `-${diffAB}%` : `${diffAB}%`}</span>
           ) : undefined}
         />
+        {/* edge control — verrouiller la baseline, façonner le bord, constat exportable */}
+        <div style={{ border: '1px solid var(--hairline)', background: 'rgba(90,211,227,0.03)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <CardHead
+            label="Contrôle du bord — façonner et mesurer"
+            sub={shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}
+            right={
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Pill label="capacité" value={`${shapeCap} Mbit/s`} on onClick={() => setShapeCap(shapeCap >= 80 ? 5 : shapeCap * 2)} title="capacité du bord — clic pour doubler (boucle 5→80)" />
+                {['none', 'fq_codel', 'cake'].map(q => (
+                  <Pill key={q} label={q === 'none' ? 'sans' : q} on={shape?.applied && shape.qdisc === q} onClick={() => applyShape(q)} title={`appliquer ${q} au bord`} />
+                ))}
+              </div>
+            }
+          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className="btn" onClick={lockBaseline} disabled={liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 10 }}>VERROUILLER LA BASELINE{liveSmallMedian != null ? ` — ${liveSmallMedian.toFixed(1)} ms` : ''}</button>
+            {locked && <Pill label="baseline" value={`${locked.ms} ms @ ${locked.at}`} on title="baseline verrouillée — cliquer pour libérer" onClick={() => { setLocked(null); try { localStorage.removeItem('wall-baseline') } catch { } }} />}
+            <button className="btn btn-primary" onClick={exportConstat} disabled={locked == null || liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 10, marginLeft: 'auto' }}>EXPORTER LE CONSTAT</button>
+          </div>
+          {shapeMsg && <div className="mono" style={{ fontSize: 10, color: shapeMsg.includes('erreur') || shapeMsg.includes('échec') ? CRAFT.danger : CRAFT.ok }}>{shapeMsg}</div>}
+          {locked && liveSmallMedian != null && (
+            <div>
+              <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                <span>avant → maintenant, même fenêtre</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', color: liveDiff != null && liveDiff > 0 ? CRAFT.ok : CRAFT.danger }}>{liveDiff != null ? `${liveDiff > 0 ? '-' : '+'}${Math.abs(liveDiff)} %` : '—'}</span>
+              </div>
+              <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed #767b84', borderRadius: 2, overflow: 'hidden', marginTop: 4, position: 'relative' }}>
+                <div style={{ width: `${Math.min(100, (locked.ms / Math.max(locked.ms, liveSmallMedian)) * 100)}%`, height: '100%', background: '#767b84', opacity: 0.9, transition: 'width 0.4s ease' }} />
+              </div>
+              <div style={{ height: 10, background: 'rgba(90,211,227,0.08)', border: '1px solid ' + CRAFT.live, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
+                <div style={{ width: `${Math.min(100, (liveSmallMedian / Math.max(locked.ms, liveSmallMedian)) * 100)}%`, height: '100%', background: CRAFT.live, boxShadow: '0 0 6px rgba(90,211,227,0.5)', transition: 'width 0.4s ease' }} />
+              </div>
+            </div>
+          )}
+        </div>
         {showLiveSrc && (
           <div>
             <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: CRAFT.live, display: 'flex', justifyContent: 'space-between' }}>

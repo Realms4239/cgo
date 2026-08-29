@@ -194,7 +194,7 @@ export default function IntegriteView() {
           </div>
         </div>
         <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', marginTop:8}}>
-          API: <a href="/api/hardware/translate?profile=P2" target="_blank" rel="noreferrer" style={{color:'#5ad3e3'}}>GET /api/hardware/translate?profile=P2 → {'{"recommendation"}'}</a> · source: results.Scan hardware_recommendation
+          Traduction matérielle : <b className="mono" style={{color:'#f2f2f4'}}>{(() => { try { const g = (window as any).__CGO_GROUPS ?? null; return g?.best?.profile ?? 'P2' } catch { return 'P2' } })()}</b> — routeur Linux/pfSense : tc direct · MikroTik : Queue Tree PCQ/CAKE (RouterOS v7+) · accès ISP : passerelle dédiée en amont
         </div>
       </div>
       <div className="card">

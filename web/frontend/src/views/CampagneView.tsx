@@ -15,6 +15,8 @@ const ALL_CC = ['cubic','bbr'] as const
 export default function CampagneView() {
   const live = useUIStore((s: any) => s.live)
   const [profiles, setProfiles] = useState<string[]>(['P2'])
+  const [allProfiles, setAllProfiles] = useState<{ id: string; imported: boolean }[]>([{ id: 'P1', imported: false }, { id: 'P2', imported: false }])
+  useEffect(() => { fetch('/api/profiles').then(r => r.json()).then(j => { if (j?.profiles?.length) setAllProfiles(j.profiles.map((x: any) => ({ id: x.id, imported: !!x.imported }))) }).catch(() => { }) }, [])
   const [reps, setReps] = useState(3)
   const [deadlineMs, setDeadlineMs] = useState(1000)
   const [msg, setMsg] = useState('')
@@ -140,7 +142,7 @@ export default function CampagneView() {
         <h1 className="view-title">Campagne — pilotez la mesure</h1>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
           {[
-            { n: '①', t: 'Auditer', d: "30 s Yas/4G sans sudo — l'état réel du lien avant toute comparaison" },
+            { n: '①', t: 'Auditer', d: "30 s sur votre lien d'accès, sans droits administrateur — l'état réel avant toute comparaison" },
             { n: '②', t: 'Comparer', d: 'pfifo vs CAKE en direct sur le Wall — mêmes échelles, écart en %' },
             { n: '③', t: 'Exporter', d: 'rapport 1-page MD/CSV — la preuve chiffrée, hash signé' },
           ].map(x => (
@@ -194,8 +196,8 @@ export default function CampagneView() {
         <div className="form-row">
           <label>Profils</label>
           <div className="check-row">
-            {(['P1','P2'] as const).map(p => (
-              <label key={p}><input type="checkbox" checked={profiles.includes(p)} onChange={e => setProfiles(e.target.checked ? [...profiles,p] : profiles.filter(x=>x!==p))} /> {p}</label>
+            {allProfiles.map(p => (
+              <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles,p.id] : profiles.filter(x=>x!==p.id))} /> {p.id}{p.imported ? <span className="mono muted" title="profil importé d'un audit réel"> ↧</span> : null}</label>
             ))}
           </div>
         </div>
