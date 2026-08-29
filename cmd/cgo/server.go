@@ -60,11 +60,11 @@ func runServer(ctx context.Context, addr string) error {
 	// same primitives the campagne cells use (manual mode for the DSI).
 	shapeFn := func(qdiscName string, capMbps float64) error {
 		deps := campagne.ProdDeps()
+		// reset first — stale handles from a campagne cell make 'replace'
+		// fail; the lever owns a deterministic clean state (manual mode has
+		// no netem: pure AQM+bandwidth at root, that is the DSI's lever)
+		_, _ = deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "root")
 		if qdiscName == "none" {
-			_, err := deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "root")
-			if _, err2 := deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "parent", "1:"); err2 != nil && err != nil {
-				return err
-			}
 			return nil
 		}
 		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(qdiscName), capMbps, 100)
