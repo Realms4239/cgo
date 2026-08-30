@@ -42,7 +42,8 @@ export function connectSSE() {
       // En course, les frames tout-zéro sont des trous de pompe, pas des mesures — ignorer.
       // Les frames surveillance (surveil) et burst sont des mesures avec
       // running=false — elles doivent atteindre les anneaux, sinon le mur meurt.
-      const measured = !!(data.rtt_p50_ms || data.rtt_p95_ms || data.small_p95_ms || data.bulk_goodput_mbps || data.drops)
+      const has = (v: unknown) => v !== undefined && v !== null
+      const measured = has(data.rtt_p50_ms) || has(data.rtt_p95_ms) || has(data.small_p95_ms) || has(data.bulk_goodput_mbps) || has(data.drops)
       if (data.ts && (data.running || data.phase === 'surveil' || data.phase === 'burst') && measured) pushFrame(data.ts, data as any)
       frameCount++
       __CGO_SSE.frameCount = frameCount
