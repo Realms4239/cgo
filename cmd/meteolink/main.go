@@ -1,6 +1,6 @@
 // meteolink — binaire multiplateforme (go install github.com/Realms4239/cgo/cmd/meteolink@latest)
 // Usage:
-//   meteolink top [--addr http://localhost:9090] [--interval 250ms]   TUI 8 cartes, sparklines ASCII via les anneaux live
+//   meteolink top [--addr http://localhost:9090] [--interval 250ms]   TUI 8 cartes, sparklines ASCII par les anneaux live
 //   meteolink --serve [--addr :9090]                                Tableau de bord web (comme cgo --serve)
 //   meteolink serve                                                  alias de --serve
 package main
@@ -53,7 +53,7 @@ func main() {
 		return
 	}
 	fs := flag.NewFlagSet("meteolink", flag.ExitOnError)
-	tui := fs.Bool("tui", false, "TUI top (8 cards ASCII sparklines via live rings)")
+	tui := fs.Bool("tui", false, "TUI top (8 cartes ASCII sparklines par anneaux live)")
 	serve := fs.Bool("serve", false, "Web dashboard")
 	addr := fs.String("addr", ":9090", "listen address (serve) or API base (top)")
 	_ = fs.Parse(os.Args[1:])
@@ -86,7 +86,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `usage: meteolink top [--addr http://localhost:9090] [--interval 250ms]
        meteolink --serve [--addr :9090]
        meteolink --tui [--addr http://localhost:9090]
-  top   TUI 8 cards ASCII sparklines via live rings (polls /api/state 4Hz)
+   top   TUI 8 cartes ASCII sparklines par anneaux live (scrute /api/state 4Hz)
   serve Web dashboard + API (same as cgo --serve)
   go install: go install github.com/Realms4239/cgo/cmd/meteolink@latest
   npm: npm i -g meteolink  (postinstall downloads cgo-linux/macos/win from GitHub releases)

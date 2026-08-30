@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 // Spécifications chirurgicales — largeur du rail, bento scopé, verrou de défilement.
-// (SPA has no /archives route — navigate via rail nav-btn, per App.tsx panels)
+// (SPA sans route /archives — naviguer par nav-btn du rail, selon panneaux App.tsx)
 
 test('rail uses var(--rail-w) and is visible', async ({ page }) => {
   await page.goto('/')

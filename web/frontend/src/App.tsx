@@ -16,7 +16,7 @@ import QuickActionsPrompt from './components/QuickActionsPrompt'
 import CommandPalette from './components/CommandPalette'
 import MeteolinkWordmark from './components/MeteolinkWordmark'
 import PanelChooser from './components/PanelChooser'
-// METEOLINK header lockup — wordmark gradient + 16×16 icon via MeteolinkWordmark
+// En-tête METEOLINK — dégradé wordmark + icône 16×16 par MeteolinkWordmark
 
 export default function App() {
   const panel = useUIStore((s) => s.panel)
@@ -35,8 +35,8 @@ export default function App() {
     connectSSE()
     return () => disconnectSSE()
   }, [])
-  // capability badge (Q10) — refetched on every (re)connect, so a redeploy or
-  // a mode change on the server is picked up without a manual reload
+  // badge capacité (Q10) — rechargé à chaque (re)connexion, un redéploiement ou
+  // un changement de mode serveur est pris en compte sans rechargement manuel
   useEffect(() => {
     if (!connected) return
     fetch('/api/health').then(r => r.json()).then(j => setMode(j.mode ?? '')).catch(() => {})

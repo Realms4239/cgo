@@ -50,7 +50,7 @@ function useChart(_title: string, _unit: string) {
   return { onReady, setData, chart }
 }
 
-// ChartSurface — memoized owner: init after layout, dispose on unmount.
+// ChartSurface — propriétaire mémorisé : init après layout, dispose au démontage.
 const ChartSurface = memo(function ChartSurface({ title, unit, domId, height, empty, hint, onReady }: {
   title: string
   unit: string

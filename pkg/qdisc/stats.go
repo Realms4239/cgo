@@ -18,7 +18,7 @@ type Stats struct {
 }
 
 // PollStats lit `tc -s qdisc show dev <iface>` pour tous les qdiscs non défauts.
-// Fonctionne en ns principal (veth-c) et netns (veth-s) via TCRunner.
+// Fonctionne en ns principal (veth-c) et netns (veth-s) par TCRunner.
 func PollStats(r TCRunner, iface string) ([]Stats, error) {
 	out, err := r.Run("-s", "qdisc", "show", "dev", iface)
 	if err != nil {
@@ -91,7 +91,7 @@ func SumDrops(stats []Stats) uint64 {
 	return total
 }
 
-// SumBytes rend les octets via le compteur du qdisc feuille.
+// SumBytes rend les octets par le compteur du qdisc feuille.
 // Shaper empilé sur la même sortie: netem 1: parent de tbf 10: / cake 10:
 // avec fq_codel 20: enfant du tbf. Les mêmes paquets sont comptés à chaque
 // layer, so summing inflates goodput 2-3× (P1 80Mbit observed 231).

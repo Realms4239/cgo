@@ -47,7 +47,7 @@ type Deps struct {
 }
 
 // Run exécute un audit de Duration secondes, en collectant des échantillons ping/small.
-// Découpe B : 0–12 s idle, 12–22 s bulk flood, 22–30 s chargé distinct selon Q26, plus repli iperf3 via BulkAddr.
+// Découpe B : 0–12 s idle, 12–22 s bulk flood, 22–30 s chargé distinct selon Q26, plus repli iperf3 par BulkAddr.
 // Si Duration <30, fenêtre unique avec idle==loaded copie honnête ; si >=30, trois fenêtres produisent des RTT idle vs chargé distincts.
 func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	if d.Ping == nil {

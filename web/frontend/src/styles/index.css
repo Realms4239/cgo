@@ -25,7 +25,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; }
 .skip-link:focus-visible { left: 8px; top: 8px; padding: 8px 12px; background: var(--surface-elevated); border: 1px solid var(--t-live); color: var(--text-primary); }
 
-/* header — well-placed, not truncated: min-width:0 + flex guard, wordmark fallback #f2f2f4 */
+/* en-tête — bien placé, non tronqué : min-width:0 + garde flex, repli wordmark #f2f2f4 */
 header { grid-area: hd; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); min-width: 0; }
 .stripe { display: flex; flex-direction: column; width: 4px; height: 18px; gap: 2px; flex: none; }
 .stripe i { flex: 1; }
@@ -95,7 +95,7 @@ main { grid-area: main; overflow-y: auto; position: relative; }
 
 /* panel-stack — tidy+breathing well-placed */
 .panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 1280px; width: 100%; margin: 0 auto; }
-/* bento breathing — scoped to the wall (#wall), density drives --gap var (Q6 B) */
+/* respiration bento — scopée au mur (#wall), la densité pilote --gap (Q6 B) */
 [data-density='airy'] { --gap: 24px; }
 [data-density='dense'] { --gap: 16px; }
 #wall { gap: var(--gap); container-type: inline-size; }
@@ -130,13 +130,13 @@ footer .fill { margin-left: auto; }
 
 @media (max-width: 899px) {
   #shell, #shell.rail-min { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr 28px; grid-template-areas: "hd" "side" "main" "ft"; }
-  /* override inline width via class — rail becomes horizontal strip 48px */
+  /* surcharge largeur inline par classe — le rail devient bande horizontale 48px */
   .rail, .rail.pinned, .rail:not(.pinned) { flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); overflow-x: auto; width: 100% !important; height: 48px; flex-wrap: nowrap; }
   .rail .miniSparkline, .rail .live-peek, .rail .foot-ticker, .rail .rail-foot, .side-status { display: none; }
   .nav-btn { width: auto; padding: 8px 10px; flex: 0 0 auto; white-space: nowrap; }
   .gates { margin-top: 0; margin-left: auto; flex-wrap: nowrap; gap: 2px; }
   .gate { width: 10px; }
-  /* mobile rail truncation guard: ensure icons not C… */
+  /* garde troncature rail mobile : garantir icônes non C… */
   .nav-lbl { max-width: none; font-size: 11px; }
   .nav-key { display: none; }
   /* header wraps on 390: wordmark fallback legibility */
@@ -150,7 +150,7 @@ footer .fill { margin-left: auto; }
   main { overflow-x: hidden; padding-bottom: 64px; }
   .panel-stack { gap: 16px; }
   .view { padding: 12px; }
-  /* live hero mobile: keep 300px but full width */
+  /* hero live mobile : garde 300px mais pleine largeur */
   .view .card[style*="300px"] { height: 220px !important; }
   /* metric grid mobile: 2 cols */
   .panel-stack > div[style*="gridTemplateColumns"] { grid-template-columns: repeat(2, 1fr) !important; }
@@ -162,7 +162,7 @@ footer .fill { margin-left: auto; }
   .prompt-progress { animation: none !important; width: 0 !important; }
 }
 
-/* Sections pleine largeur — full-width sections inside the 2-col wall grid */
+/* Sections pleine largeur — sections étendues dans la grille mur 2-col */
 #wall .wall-span { grid-column: 1 / -1; }
 #wall .bento-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--gap); }
 #wall .bento-5.hidden { display: none; }

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
-// Chart-health probe — every chart surface renders, no console errors,
-// instrumentation seams report data flow. Debug-after ledger (plan §5).
+// Sonde santé graphes — chaque surface se rend, zéro erreur console,
+// les coutures d'instrumentation rapportent le flux. Journal après-debug (plan §5).
 
 const errors: string[] = []
 
@@ -12,7 +12,7 @@ test('wall — 3 ECharts canvases render non-blank + seams + no console errors',
   await page.locator('[data-panel="live"]').click()
   await page.waitForTimeout(2500)
 
-  // 3 grammar charts (hero + rtt + goodput) each render a canvas with visible pixels
+  // 3 graphes grammaire (hero + rtt + goodput) rendent chacun un canvas avec pixels visibles
   const canvases = page.locator('#wall canvas')
   const n = await canvases.count()
   expect(n, 'wall canvas count').toBeGreaterThanOrEqual(3)
@@ -31,7 +31,7 @@ test('wall — 3 ECharts canvases render non-blank + seams + no console errors',
   }
   expect(nonBlank, 'non-blank chart canvases').toBeGreaterThanOrEqual(3)
 
-  // instrumentation seams expose live data path
+  // les coutures d'instrumentation exposent le chemin live
   const seam = await page.evaluate(() => ({
     sse: (window as any).__CGO_SSE?.frameCount ?? -1,
     liveMax: (window as any).__CGO_LIVE?.max ?? -1,
@@ -65,7 +65,7 @@ test('resultats — scatter canvas renders non-blank with real groups', async ({
 test('campagne — timeline 48 brush present when running phase data exists', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-panel="campagne"]').click()
-  // timeline is data-gated (honest): assert it either renders SVG bands or stays hidden — never an empty 48px box
+  // timeline conditionnée aux données (honnête) : rend soit des bandes SVG soit reste cachée — jamais un bloc vide 48px
   const tl = page.locator('[data-testid="timeline"]')
   const count = await tl.count()
   if (count > 0) {

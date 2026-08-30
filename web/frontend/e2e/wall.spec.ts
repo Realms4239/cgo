@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-// Layer 5 Task 5.2 — wall clip: hero overlay + selective HD MetricCard, screenshot 1920x400.
+// Couche 5 Tâche 5.2 — clip mur : overlay hero + MetricCard HD sélective, capture 1920x400.
 test('wall clip — live-wall-overlay + small_p95 metric card', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-panel="live"]').click()
@@ -17,11 +17,11 @@ test('wall MetricCards — 8 cards with data-metric render', async ({ page }) =>
   }
 })
 
-test('wall honest emptiness — idle cards show — not fabricated 0s', async ({ page }) => {
+test('wall vide honnête — cartes repos montrent — pas des 0 fabriqués', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-panel="live"]').click()
   const small = page.locator('[data-metric="small_p95"]')
   await expect(small).toBeVisible()
-  // server idle (SSE running:false) — card must show — per truth boundary
+  // serveur au repos (SSE running:false) — la carte doit afficher — selon la frontière de vérité
   await expect(small).toContainText('—')
 })

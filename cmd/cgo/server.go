@@ -49,7 +49,7 @@ func runServer(ctx context.Context, addr, mode string) error {
 	}
 
 	// Boucle de diffusion unique pour toute la vie du serveur:
-	// lit le mtx courant via getMtx à chaque tick, pas de fuite, pas de flottement.
+	// lit le mtx courant par getMtx à chaque tick, pas de fuite, pas de flottement.
 	go pumpSnapshots(ctx, live, getMtx)
 
 	// watchCtl — bascule de surveillance partagée entre le chemin campagne

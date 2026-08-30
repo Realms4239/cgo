@@ -66,7 +66,7 @@ export default function ResultatsView() {
     const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
     const ro = new ResizeObserver(() => c.resize())
     ro.observe(scatterRef.current)
-    // via la grammaire — même base hairline que le mur, nuage propre, sans chrome
+    // par la grammaire — même base hairline que le mur, nuage propre, sans chrome
     const base = baseOption('compromis latence / débit', 'ms')
     const bestIdx = groups.map((g, i) => g.best ? i : -1).filter(i => i >= 0)
     const opt = {

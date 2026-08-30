@@ -8,26 +8,26 @@ test('m9 wall kit', async ({ page }) => {
   if ((await page.getByRole('dialog', { name: 'Palette de commandes' }).count()) === 0) await page.keyboard.press('Control+k')
   await expect(page.getByRole('dialog', { name: 'Palette de commandes' })).toBeVisible()
   await page.keyboard.press('Escape')
-  // After palette close, ensure prompt appears — start a lightweight run if idle so prompt-progress (Event 3/6) is visible
+  // Après fermeture palette, vérifier l'invite — lance un run léger si idle pour que prompt-progress (Event 3/6) soit visible
   const prompt = page.locator('.prompt-progress')
   if ((await prompt.count()) === 0) {
     await page.evaluate(() => fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles: ['P1'], reps: 1 }) }).catch(() => {}))
     await page.waitForTimeout(1200)
   }
-  // Prompt progress line (amber 1px) — visible when running; allow 7s reappear if just dismissed via Esc
+  // Ligne progression invite (ambre 1px) — visible en run ; tolère 7s de réapparition si fermée par Esc
   await expect(page.locator('.prompt-progress')).toBeVisible({ timeout: 7000 }).catch(async () => {
-    // fallback: ensure at least the running Event line or Actions rapides label is visible
+    // repli : vérifier au moins la ligne Event en cours ou le label Actions rapides
     const evt = page.locator('text=Event')
     const rapid = page.locator('text=Actions rapides')
     if (await evt.count()) await expect(evt.first()).toBeVisible({ timeout: 2000 })
     else if (await rapid.count()) await expect(rapid.first()).toBeVisible({ timeout: 2000 })
   })
-  // Live wall overlay baseline vs CAKE — same scale, diff badge
+  // Overlay mur live référence vs CAKE — même échelle, badge d'écart
   await page.getByLabel('Navigation').getByRole('button', { name: 'Temps réel' }).click()
   await expect(page.locator('.live-wall-overlay')).toBeVisible({ timeout: 5000 })
   await expect(page.locator('.live-wall-overlay')).toContainText('baseline')
   await expect(page.locator('.live-wall-overlay')).toContainText('CAKE')
-  // Résultats A/B diff badge + hardware provenance
+  // Résultats badge diff A/B + provenance matériel
   await page.getByLabel('Navigation').getByRole('button', { name: 'Résultats' }).click()
   await expect(page.locator('.ab-bento')).toBeVisible({ timeout: 5000 })
   await expect(page.locator('.ab-bento .diff-badge')).toBeVisible({ timeout: 5000 })

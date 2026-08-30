@@ -13,7 +13,7 @@ import (
 )
 
 // Generate crée des figures SVG à partir des CSV gelés sous dataDir, en écrivant dans outDir.
-// Il parcourt tous les runs via results.Scan, puis émet les SVG barres et nuage de points.
+// Il parcourt tous les runs par results.Scan, puis émet les SVG barres et nuage de points.
 func Generate(dataDir, outDir string) error {
 	groups, err := results.Scan(dataDir, "")
 	if err != nil {

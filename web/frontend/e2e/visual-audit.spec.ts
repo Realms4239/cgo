@@ -1,6 +1,6 @@
 import { test } from '@playwright/test'
 
-// Visual audit — full-page captures. Idle + live-run + tunnel SSE check.
+// Audit visuel — captures pleine page. Repos + run live + vérif SSE tunnel.
 const BASE = process.env.AUDIT_BASE || 'http://192.168.174.128:9090'
 
 test('idle — all 4 panels @1920', async ({ page }) => {
@@ -19,18 +19,18 @@ test('live run — wall with streaming data', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 })
   await page.goto(BASE + '/')
   await page.locator('[data-panel="live"]').click()
-  // browser-side SSE truth: frameCount must grow
+  // vérité SSE côté navigateur : frameCount doit croître
   const grew = await page.waitForFunction(() => {
     const f = (window as any).__CGO_SSE?.frameCount ?? 0
     if (!f) (window as any).__first = f
     return f > ((window as any).__first ?? 0) + 20
   }, { timeout: 8000 }).then(() => true).catch(() => false)
   await page.screenshot({ path: 'shots/audit-idle-wall-before.png', fullPage: true })
-  // start a quick P1 run from the API so charts get real data
+  // lance un run P1 rapide par l'API pour alimenter les graphes
   await page.evaluate(async () => {
     await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles: ['P1'], reps: 1 }) })
   })
-  // wait for charge phase or 30s
+  // attend la phase charge ou 30 s
   await page.waitForFunction(() => (window as any).__CGO_LIVE?.phase === 'charge', { timeout: 45000 }).catch(() => {})
   await page.waitForTimeout(6000)
   await page.screenshot({ path: 'shots/audit-live-wall-1920.png', fullPage: true })

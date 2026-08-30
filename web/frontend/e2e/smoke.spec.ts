@@ -5,9 +5,9 @@ test('shell renders four LIEN panels and SSE connects', async ({ page }) => {
   for (const lbl of ['Campagne','Temps réel','Résultats','Intégrité']) {
     await expect(page.getByLabel('Navigation').getByRole('button', { name: lbl })).toBeVisible();
   }
-  // run-follow may auto-switch the active panel — whichever section is on must render
+  // suivi de run peut basculer le panneau actif — la section affichée doit se rendre
   await expect(page.locator('#main section.on')).toBeVisible();
-  // after SSE connects (~1s) the header shows ● connecté
+  // après connexion SSE (~1s) l'en-tête affiche ● connecté
   await expect(page.locator('header')).toContainText('connecté', { timeout: 5000 });
 });
 
@@ -15,10 +15,10 @@ test('live panel receives 10 Hz frames', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Navigation').getByRole('button', { name: 'Temps réel' }).click();
   await expect(page.locator('#v-live')).toBeVisible();
-  // gates strip always 8 cells
+  // bande portes toujours 8 cellules
   await expect(page.locator('.gates .gate')).toHaveCount(8);
-  // live chart containers exist
+  // conteneurs graphes live existent
   await expect(page.locator('#v-live .card').first()).toBeVisible();
-  // after a moment the banner switches from OFFLINE to IDLE/BASELINE
+  // après un instant la bannière passe de OFFLINE à IDLE/BASELINE
   await expect(page.locator('.banner')).not.toContainText('OFFLINE', { timeout: 5000 });
 });

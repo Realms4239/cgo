@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-// Layer 5 — cockpit sheet: fixed right 380 with blur; steps live in the main workspace.
+// Couche 5 — feuille cockpit : fixe droite 380 avec flou ; les étapes vivent dans l'espace principal.
 test('sheet 380 — cockpit fixed right with blur, steps in workspace', async ({ page }) => {
   await page.goto('/')
   await page.locator('[data-panel="campagne"]').click()

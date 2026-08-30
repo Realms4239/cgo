@@ -6,7 +6,7 @@ test('compare view probe', async ({ page }) => {
   await page.goto('http://192.168.174.128:9090/')
   await page.locator('[data-panel="resultats"]').click()
   await expect(page.locator('.data-table')).toBeVisible({ timeout: 8000 })
-  // pin the two best-looking rows (first + last)
+  // épingler les deux lignes les plus parlantes (première + dernière)
   const rows = page.locator('.data-table tbody tr')
   await rows.first().locator('button', { hasText: 'A' }).click()
   await rows.last().locator('button', { hasText: 'B' }).click()
