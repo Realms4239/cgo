@@ -19,7 +19,7 @@ while [ $# -gt 0 ]; do
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
-[ -n "$ACTION" ] || { echo "usage: kit/engine.sh --action build|scan|boot|bootstrap|ensure|deploy|tunnel|status|logs [--config FILE] [--deep] [--public]" >&2; exit 2; }
+[ -n "$ACTION" ] || { echo "usage: kit/engine.sh --action build|scan|boot|bootstrap|ensure|deploy|tunnel|status|logs|align|doctor [--config FILE] [--deep] [--public]" >&2; exit 2; }
 
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/config.sh" "$CFG"
@@ -35,6 +35,37 @@ if [ "$HYP" = "auto" ]; then
   else HYP="none"
   fi
 fi
+
+prompt_install() {
+  local msg="$1" pkg="$2"
+  if [ -n "${CI:-}" ] || [ "${AUTO_YES:-0}" = "1" ]; then return 1; fi
+  printf '%s [o/N] ' "$msg" >&2
+  read -r ans; case "$ans" in [oOyY]*) return 0;; *) return 1;; esac
+}
+check_deps() {
+  local missing=()
+  for c in go bun node ssh scp curl; do
+    if ! command -v "$c" >/dev/null 2>&1 && ! command -v "${c}.exe" >/dev/null 2>&1; then
+      case "$c" in
+        bun) command -v bun.exe >/dev/null 2>&1 || missing+=("bun (https://bun.sh)") ;;
+        *) missing+=("$c") ;;
+      esac
+    fi
+  done
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo "[check] dépendances manquantes : ${missing[*]}" >&2
+    if prompt_install "Installer les dépendances manquantes ?" ""; then
+      if [ "$(uname -s)" = "Linux" ]; then bash "$SCRIPT_DIR/install.sh"
+      else echo "Installez manuellement : Go https://go.dev/dl , Bun https://bun.sh , Git, OpenSSH" >&2; fi
+    else
+      echo "[check] poursuivi sans ${missing[*]} — certaines actions échoueront" >&2
+    fi
+  fi
+  # hyperviseur : au moins l'un doit être présent pour boot/ensure
+  if [ "$HYP" = "none" ] && [[ "$ACTION" == "boot" || "$ACTION" == "ensure" || "$ACTION" == "deploy" ]]; then
+    echo "[check] aucun hyperviseur (vmrun/VBoxManage) — boot/ensure indisponible, utilisez --deep ou démarrez la VM manuellement" >&2
+  fi
+}
 
 ssh_vm() {
   ssh -o ConnectTimeout=4 -o BatchMode=yes -o StrictHostKeyChecking=accept-new -p "$CFG_SSH_PORT" -i "$CFG_SSH_KEY" "$CFG_SSH_USER@$CFG_SSH_HOST" "$@"
@@ -111,18 +142,64 @@ boot_vmx() {
   fi
 }
 
+check_deps
+
 case "$ACTION" in
+  align)
+    p="$(pick_vmx)" || { echo "pick failed ($?) hypervisor $HYP" >&2; exit 3; }
+    echo "[align] VM $p"
+    # sauvegarde
+    cp -n "$p" "$p.bak.$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
+    # arrêt si en cours (modif à froid)
+    if [ -n "$VMRUN" ] && "$VMRUN" list 2>/dev/null | grep -qF "$p"; then
+      echo "[align] arrêt de la VM pour alignement…"
+      "$VMRUN" stop "$p" soft 2>/dev/null || "$VMRUN" stop "$p" hard 2>/dev/null || true
+      for i in $(seq 1 20); do "$VMRUN" list 2>/dev/null | grep -qF "$p" || break; sleep 1; done
+    fi
+    if [ -n "$VBOX" ] && "$VBOX" list runningvms 2>/dev/null | grep -qF "$(basename "$p" .vbox)"; then
+      echo "[align] arrêt VBox…"; "$VBOX" controlvm "$(basename "$p" .vbox)" acpipoweroff 2>/dev/null || true; sleep 3
+    fi
+    # NIC : vmxnet3 pour perf (e1000 → vmxnet3), hostonly si possible
+    if [[ "$p" == *.vmx ]]; then
+      # e1000 → vmxnet3 (meilleure latence, bench)
+      if grep -q 'ethernet0.virtualDev.*e1000' "$p" 2>/dev/null; then
+        sed -i 's/ethernet0.virtualDev.*/ethernet0.virtualDev = "vmxnet3"/' "$p" && echo "[align] NIC e1000 → vmxnet3"
+      elif ! grep -q 'ethernet0.virtualDev' "$p" 2>/dev/null; then
+        echo 'ethernet0.virtualDev = "vmxnet3"' >> "$p" && echo "[align] NIC vmxnet3 ajouté"
+      fi
+      # CPU/mémoire mini bench
+      if grep -q '^numvcpus' "$p"; then
+        cur=$(grep '^numvcpus' "$p" | sed 's/.*"\([0-9]*\)".*/\1/'); [ "${cur:-0}" -lt 2 ] && sed -i 's/^numvcpus.*/numvcpus = "2"/' "$p" && echo "[align] numvcpus $cur → 2"
+      fi
+      if grep -q '^memsize' "$p"; then
+        cur=$(grep '^memsize' "$p" | sed 's/.*"\([0-9]*\)".*/\1/'); [ "${cur:-0}" -lt 4096 ] && sed -i 's/^memsize.*/memsize = "4096"/' "$p" && echo "[align] memsize $cur → 4096"
+      fi
+      echo "[align] OK — redémarrez via ensure/deploy"
+    else
+      echo "[align] .vbox : vérifiez manuellement CPU/RAM/NIC dans VirtualBox"
+    fi
+    ;;
+  doctor)
+    echo "[doctor] host $(uname -s) $(uname -r) hypervisor $HYP"
+    for c in go bun node ssh scp curl tc; do printf '  %-12s %s\n' "$c" "$(command -v "$c" 2>/dev/null || echo "MANQUANT")"; done
+    [ -n "$VMRUN" ] && echo "  vmrun $VMRUN" || echo "  vmrun MANQUANT"
+    [ -n "$VBOX" ] && echo "  VBoxManage $VBOX" || echo "  VBoxManage MANQUANT"
+    echo "  cfg $CFG → $CFG_SSH_HOST:$CFG_DASHBOARD_PORT $CFG_PROJECT_DIR"
+    bash "$SCRIPT_DIR/../kit/test-kit.sh" 2>&1 | sed 's/^/  /'
+    bash "$SCRIPT_DIR/../kit/test-hypervisor.sh" 2>&1 | sed 's/^/  /'
+    ;;
   build)
+    BUN="$(command -v bun 2>/dev/null || command -v bun.exe 2>/dev/null || echo bun)"
     echo "[build] go vet..."
     (cd "$ROOT" && go vet ./...) || exit 2
     echo "[build] bun typecheck..."
-    (cd "$ROOT/web/frontend" && C:/Users/ASUS/.bun/bin/bun.exe x tsc --noEmit) || exit 2
+    (cd "$ROOT/web/frontend" && "$BUN" x tsc --noEmit) || exit 2
     echo "[build] bun build..."
-    (cd "$ROOT/web/frontend" && C:/Users/ASUS/.bun/bin/bun.exe run build) || exit 2
+    (cd "$ROOT/web/frontend" && "$BUN" run build) || exit 2
     echo "[build] check-bundle TOTAL 600 echarts 350..."
     (cd "$ROOT/web/frontend" && node scripts/check-bundle.mjs) || exit 2
     echo "[build] vitest..."
-    (cd "$ROOT/web/frontend" && C:/Users/ASUS/.bun/bin/bun.exe x vitest run) || exit 2
+    (cd "$ROOT/web/frontend" && "$BUN" x vitest run) || exit 2
     echo "[build] embed analysis..."
     mkdir -p "$ROOT/kit/logs"
     sha256sum "$ROOT/web/frontend/dist/assets/"*.js 2>/dev/null | head -5 > "$ROOT/kit/logs/build.log" || true

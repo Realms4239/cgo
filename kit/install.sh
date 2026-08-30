@@ -17,75 +17,112 @@ if [ "$(id -u)" -ne 0 ]; then
   fi
 fi
 
-# --- APT packages: iproute2 (tc/ss), curl (downloads), bc (rate math) ------
-MISSING=""
-for pkg in iproute2 curl bc; do
-  if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
-    MISSING="$MISSING $pkg"
-  fi
-done
-if [ -n "$MISSING" ]; then
-  msg "installing packages:$MISSING"
-  $SUDO apt-get update
-  # shellcheck disable=SC2086
-  $SUDO apt-get install -y $MISSING
-else
-  msg "apt packages already present (iproute2, curl, bc)"
-fi
-
-# --- tcp_bbr kernel module: try to load, persist across reboots -----------
-if ! lsmod 2>/dev/null | grep -q '^tcp_bbr '; then
-  if $SUDO modprobe tcp_bbr 2>/dev/null; then
-    msg "tcp_bbr module loaded"
+# --- Plateforme : Linux = full, Windows/macOS = observation (portable) ----
+if [ "$(uname -s)" = "Linux" ]; then
+  # APT packages: iproute2 (tc/ss), curl (downloads), bc (rate math)
+  MISSING=""
+  for pkg in iproute2 curl bc; do
+    if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
+      MISSING="$MISSING $pkg"
+    fi
+  done
+  if [ -n "$MISSING" ]; then
+    msg "installing packages:$MISSING"
+    $SUDO apt-get update || warn "apt-get update failed"
+    # shellcheck disable=SC2086
+    $SUDO apt-get install -y $MISSING || warn "apt-get install failed"
   else
-    warn "could not load tcp_bbr (kernel may lack BBR support)"
+    msg "apt packages already present (iproute2, curl, bc)"
   fi
-else
-  msg "tcp_bbr module already loaded"
-fi
-# Persist autoload at boot; harmless if the module is built-in.
-if [ -w /etc/modules-load.d ] || [ "$(id -u)" -eq 0 ]; then
-  if ! grep -qs '^tcp_bbr$' /etc/modules-load.d/meteolink.conf 2>/dev/null; then
-    printf 'tcp_bbr\n' | $SUDO tee /etc/modules-load.d/meteolink.conf >/dev/null
-    msg "tcp_bbr persisted via /etc/modules-load.d/meteolink.conf"
+
+  # tcp_bbr kernel module: try to load, persist across reboots
+  if ! lsmod 2>/dev/null | grep -q '^tcp_bbr '; then
+    if $SUDO modprobe tcp_bbr 2>/dev/null; then
+      msg "tcp_bbr module loaded"
+    else
+      warn "could not load tcp_bbr (kernel may lack BBR support)"
+    fi
+  else
+    msg "tcp_bbr module already loaded"
   fi
-else
-  warn "cannot write /etc/modules-load.d/meteolink.conf (no root) — tcp_bbr will not autoload at boot"
-fi
+  if [ -w /etc/modules-load.d ] || [ "$(id -u)" -eq 0 ]; then
+    if ! grep -qs '^tcp_bbr$' /etc/modules-load.d/meteolink.conf 2>/dev/null; then
+      printf 'tcp_bbr\n' | $SUDO tee /etc/modules-load.d/meteolink.conf >/dev/null
+      msg "tcp_bbr persisted via /etc/modules-load.d/meteolink.conf"
+    fi
+  else
+    warn "cannot write /etc/modules-load.d/meteolink.conf (no root) — tcp_bbr will not autoload at boot"
+  fi
 
-# --- Congestion control availability: report only, never switch ----------
-if [ -r /proc/sys/net/ipv4/tcp_available_congestion_control ]; then
-  AVAILABLE="$(cat /proc/sys/net/ipv4/tcp_available_congestion_control)"
-  msg "available congestion control algorithms: $AVAILABLE"
-  case " $AVAILABLE " in
-    *" bbr "*) msg "bbr is available" ;;
-    *) warn "bbr is NOT in the available list — check kernel version and tcp_bbr module" ;;
-  esac
-  CURRENT="$(cat /proc/sys/net/ipv4/tcp_congestion_control)"
-  msg "current system default congestion control: $CURRENT (left unchanged)"
-else
-  warn "cannot read tcp_available_congestion_control from /proc"
-fi
+  # Congestion control availability: report only, never switch
+  if [ -r /proc/sys/net/ipv4/tcp_available_congestion_control ]; then
+    AVAILABLE="$(cat /proc/sys/net/ipv4/tcp_available_congestion_control)"
+    msg "available congestion control algorithms: $AVAILABLE"
+    case " $AVAILABLE " in
+      *" bbr "*) msg "bbr is available" ;;
+      *) warn "bbr is NOT in the available list — check kernel version and tcp_bbr module" ;;
+    esac
+    CURRENT="$(cat /proc/sys/net/ipv4/tcp_congestion_control)"
+    msg "current system default congestion control: $CURRENT (left unchanged)"
+  else
+    warn "cannot read tcp_available_congestion_control from /proc"
+  fi
 
-# --- Verify tc exists ------------------------------------------------------
-if command -v tc >/dev/null 2>&1; then
-  msg "tc found at $(command -v tc)"
-else
-  warn "tc not found in PATH — netem/AQM shaping will not work"
-fi
+  # Verify tc exists
+  if command -v tc >/dev/null 2>&1; then
+    msg "tc found at $(command -v tc)"
+  else
+    warn "tc not found in PATH — netem/AQM shaping will not work"
+  fi
 
-# --- Capability summary (mirrors what `cgo doctor` reports) ---------------
-CAP_NET_ADMIN=no
-if command -v capsh >/dev/null 2>&1; then
-  if capsh --print 2>/dev/null | grep -q 'cap_net_admin'; then
+  # Capability summary (mirrors what `cgo doctor` reports)
+  CAP_NET_ADMIN=no
+  if command -v capsh >/dev/null 2>&1; then
+    if capsh --print 2>/dev/null | grep -q 'cap_net_admin'; then
+      CAP_NET_ADMIN=yes
+    fi
+  elif [ "$(id -u)" -eq 0 ]; then
     CAP_NET_ADMIN=yes
   fi
-elif [ "$(id -u)" -eq 0 ]; then
-  CAP_NET_ADMIN=yes
+  msg "CAP_NET_ADMIN: $CAP_NET_ADMIN"
+  msg "kernel: $(uname -r)"
+  msg "summary: run 'cgo doctor' inside the app for the authoritative check"
+else
+  msg "hôte $(uname -s) — mode observation (pas de tc/BBR), DNS local seul"
 fi
-msg "CAP_NET_ADMIN: $CAP_NET_ADMIN"
-msg "kernel: $(uname -r)"
-msg "summary: run 'cgo doctor' inside the app for the authoritative check"
+
+# --- DNS local portable : meteolink.dev → 127.0.0.1 (idempotent) -------
+add_hosts_entry() {
+  local ip="$1" host="$2" file="$3"
+  if grep -qE "^[[:space:]]*$ip[[:space:]]+.*\b$host\b" "$file" 2>/dev/null; then
+    msg "$host déjà dans $file"
+    return 0
+  fi
+  if [ -w "$file" ] || [ "$(id -u)" -eq 0 ]; then
+    printf '%s %s\n' "$ip" "$host" | $SUDO tee -a "$file" >/dev/null
+    msg "$host → $ip ajouté à $file"
+  else
+    warn "ajout $host → $ip dans $file : relancez avec --hosts en root/Admin"
+  fi
+}
+if [ "${1:-}" = "--hosts" ] || [ "${HOSTS:-0}" = "1" ]; then
+  # portable : meteolink.dev → VM si présente, sinon localhost
+  _vm_ip="192.168.174.128"
+  if [ -f kit/cgo-vm.yaml ] && grep -q "host:" kit/cgo-vm.yaml 2>/dev/null; then
+    _vm_ip="$(grep -E '^[[:space:]]*host:' kit/cgo-vm.yaml | head -1 | sed 's/.*host:[[:space:]]*//' | tr -d '\"' | tr -d ' ')"
+    [ "$_vm_ip" = "auto" ] && _vm_ip="192.168.174.128"
+  fi
+  if [ -f /c/Windows/System32/drivers/etc/hosts ]; then
+    add_hosts_entry "127.0.0.1" "meteolink.dev" "/c/Windows/System32/drivers/etc/hosts"
+    add_hosts_entry "$_vm_ip" "meteolink.vm" "/c/Windows/System32/drivers/etc/hosts"
+    msg "hosts : http://meteolink.dev:9090 (local) et http://meteolink.vm:9090 (VM $_vm_ip) — éditez en Admin si Permission denied"
+  elif [ -f /etc/hosts ]; then
+    add_hosts_entry "127.0.0.1" "meteolink.dev" "/etc/hosts"
+    add_hosts_entry "$_vm_ip" "meteolink.vm" "/etc/hosts"
+  fi
+else
+  msg "DNS local : lancez 'bash kit/install.sh --hosts' (Admin) pour ajouter meteolink.dev → 127.0.0.1 et meteolink.vm → VM (portable, idempotent)"
+fi
 
 # --- Note -----------------------------------------------------------------
 cat <<'EOF'
@@ -96,4 +133,6 @@ Run the cgo server as root, grant the capability to the binary
   sudo setcap cap_net_admin+ep ./cgo
 or add your user to a sudo-capable group. Without it, cgo runs in
 observation mode only.
+Portable : dashboard sur http://meteolink.dev:9090 après --hosts (sinon http://localhost:9090).
+VM : http://192.168.174.128:9090 ou http://meteolink.vm:9090 si hosts VM ajouté.
 EOF

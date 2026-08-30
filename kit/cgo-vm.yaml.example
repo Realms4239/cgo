@@ -3,16 +3,17 @@
 # Exception historique : D:/ubuntu.vmx reste supportée (scan shallow ≤3 la trouve).
 ssh:
   user: altfloat
-  host: 192.168.174.128
+  host: auto            # auto = découvert via vmrun getGuestIPAddress, sinon 192.168.174.128
   port: 22
   key: ~/.ssh/id_ed25519
 
 hypervisor: auto      # auto|vmware|virtualbox — auto tries vmrun then VBoxManage
-vm_name: ""
-vmx_path: ""          # VMware .vmx path (auto-filled by kit/engine.sh --action scan)
-vbox_path: ""         # VirtualBox .vbox path (auto-filled when hypervisor virtualbox)
+vm_name: ""           # vide = premier .vmx trouvé sous D:/VMs ou C:/VMs
+vmx_path: ""          # auto-rempli par kit/engine.sh --action scan (D:/VMs/*, C:/VMs/*, D:/ubuntu.vmx)
+vbox_path: ""         # auto-rempli si hypervisor virtualbox
 snapshot: ""          # optional named snapshot to revert before boot
 
 project_dir: /home/altfloat/cgo
 dashboard_port: 9090
 go_min_version: "1.25"
+# DNS local portable : meteolink.dev → 127.0.0.1 + IP VM (ajouté par kit/install.sh --hosts)

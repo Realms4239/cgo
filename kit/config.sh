@@ -42,6 +42,36 @@ while IFS= read -r line || [ -n "$line" ]; do
   fi
 done < "$CFG_FILE"
 
+# portabilité : host auto → IP invité via vmrun (toute VM trouvée), sinon défaut générique
+if [ "${CFG_SSH_HOST}" = "auto" ]; then
+  _auto_ip=""
+  # 1) vmx_path explicite
+  if [ -n "${CFG_VMX_PATH}" ] && [ -f "${CFG_VMX_PATH}" ]; then
+    for c in "/c/Program Files (x86)/VMware/VMware Workstation/vmrun.exe" "/c/Program Files/VMware/VMware Workstation/vmrun.exe" "$(command -v vmrun 2>/dev/null || true)"; do
+      [ -n "$c" ] && [ -x "$c" ] && _auto_ip="$("$c" getGuestIPAddress "${CFG_VMX_PATH}" 2>/dev/null | tr -d '\r' | head -1)" && echo "$_auto_ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' && break || _auto_ip=""
+    done
+  fi
+  # 2) scan générique C:/VMs, D:/VMs si vmx_path vide
+  if [ -z "$_auto_ip" ]; then
+    for d in "/d/VMs" "/c/VMs" "/d" "/c"; do
+      [ -d "$d" ] || continue
+      for vmx in "$d"/*.vmx "$d"/*/*.vmx; do
+        [ -f "$vmx" ] || continue
+        for c in "/c/Program Files (x86)/VMware/VMware Workstation/vmrun.exe" "$(command -v vmrun 2>/dev/null || true)"; do
+          [ -n "$c" ] && [ -x "$c" ] && _auto_ip="$("$c" getGuestIPAddress "$vmx" 2>/dev/null | tr -d '\r' | head -1)" && echo "$_auto_ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' && break 2 || _auto_ip=""
+        done
+      done
+    done 2>/dev/null || true
+  fi
+  # 3) repli : variable d'env ou localhost (portable, pas d'IP en dur)
+  if [ -z "$_auto_ip" ]; then _auto_ip="${CGO_VM_IP:-192.168.174.128}"; fi
+  CFG_SSH_HOST="$_auto_ip"
+fi
+# surcharge env portable : CGO_SSH_HOST, CGO_DASHBOARD_PORT, etc.
+[ -n "${CGO_SSH_HOST:-}" ] && CFG_SSH_HOST="$CGO_SSH_HOST"
+[ -n "${CGO_SSH_PORT:-}" ] && CFG_SSH_PORT="$CGO_SSH_PORT"
+[ -n "${CGO_DASHBOARD_PORT:-}" ] && CFG_DASHBOARD_PORT="$CGO_DASHBOARD_PORT"
+
 export CFG_SSH_USER CFG_SSH_HOST CFG_SSH_PORT CFG_SSH_KEY CFG_SSH_PASSWORD \
        CFG_VM_NAME CFG_VMX_PATH CFG_VBOX_PATH CFG_HYPERVISOR CFG_SNAPSHOT CFG_PROJECT_DIR \
        CFG_DASHBOARD_PORT CFG_GO_MIN_VERSION

@@ -113,7 +113,9 @@ $ bash kit/engine.sh --action ensure          # démarre si SSH coupé
 $ bash kit/engine.sh --action deploy          # build → cross → push → health
 ```
 
-`kit/cgo-vm.yaml` est gitignoré — ne jamais le committer.
+`kit/cgo-vm.yaml` est gitignoré et portable — `host: auto` découvre l'IP invité via `vmrun getGuestIPAddress`, `vmx_path` auto-rempli par `scan` (`D:/VMs`/`C:/VMs`), surcharge possible via `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`. Ne jamais le committer.
+
+**DNS local portable :** `bash kit/install.sh --hosts` (Admin) ajoute `127.0.0.1 meteolink.dev` (host) et `192.168.174.128 meteolink.vm` (VM) — `http://meteolink.dev:9090` et `http://meteolink.vm:9090`. `.dev` est `HSTS` (force `https`) : en local `http` reste OK via `hosts` + `mkcert meteolink.dev` si `https` requis, sinon préférer `http://localhost:9090` (secure context).
 
 ## Stockage
 
