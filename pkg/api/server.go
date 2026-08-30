@@ -23,6 +23,50 @@ import (
 	frontend "github.com/Realms4239/cgo/web/frontend"
 )
 
+// Schema — the single source of truth for every parameterized control (Q14):
+// the server validates from it, GET /api/schema serves it, the client renders
+// inputs from it (placeholders = defaults, min/max from here). Bounds can
+// never diverge between UI and backend again.
+type Param struct {
+	Key     string   `json:"key"`
+	Label   string   `json:"label"`
+	Min     float64  `json:"min,omitempty"`
+	Max     float64  `json:"max,omitempty"`
+	Default any      `json:"default"`
+	Unit    string   `json:"unit,omitempty"`
+	Step    float64  `json:"step,omitempty"`
+	Enum    []string `json:"enum,omitempty"`
+	Desc    string   `json:"desc"`
+}
+
+var schemaParams = []Param{
+	{Key: "reps", Label: "Répétitions", Min: 1, Max: 5, Default: 3, Unit: "×", Desc: "répétitions de chaque cellule profile×qdisc×CC"},
+	{Key: "deadline_ms", Label: "Deadline small p95", Min: 200, Max: 5000, Default: 1000, Unit: "ms", Step: 100, Desc: "objectif de latence qui voyage avec la campagne"},
+	{Key: "target", Label: "Cible de mesure", Max: 64, Default: "1.1.1.1", Desc: "hôte sondé par la campagne et l'audit"},
+	{Key: "audit_duration_s", Label: "Durée d'audit", Min: 10, Max: 600, Default: 30, Unit: "s", Step: 10, Desc: "durée de l'audit client-side du lien"},
+	{Key: "warn_ms", Label: "Seuil dégradé", Min: 10, Max: 200, Default: 40, Unit: "ms", Step: 5, Desc: "latence au-delà de laquelle une carte passe en jaune"},
+	{Key: "crit_ms", Label: "Seuil critique", Min: 50, Max: 500, Default: 100, Unit: "ms", Step: 5, Desc: "latence au-delà de laquelle une carte passe en rouge"},
+	{Key: "ring_max", Label: "Fenêtre live", Min: 600, Max: 3600, Default: 1800, Unit: "pts", Step: 100, Desc: "profondeur d'historique du tableau live"},
+	{Key: "watch_ms", Label: "Cadence surveillance", Min: 200, Max: 2000, Default: 500, Unit: "ms", Step: 100, Desc: "intervalle des sondes de surveillance"},
+	{Key: "shape_capacity_mbps", Label: "Capacité du bord", Min: 1, Max: 1000, Default: 20, Unit: "Mbit/s", Desc: "capacité appliquée par le levier de façonnage"},
+	{Key: "link_delay_ms", Label: "Délai du lien", Min: 0, Max: 600, Default: 20, Unit: "ms", Desc: "délai proposé par défaut aux conditions du lien"},
+	{Key: "link_jitter_ms", Label: "Gigue", Min: 0, Max: 100, Default: 2, Unit: "ms", Desc: "gigue proposée par défaut"},
+	{Key: "link_loss_pct", Label: "Perte", Min: 0, Max: 10, Default: 0, Unit: "%", Step: 0.1, Desc: "perte proposée par défaut"},
+	{Key: "shape_qdisc", Label: "File d'attente", Default: "cake", Enum: []string{"cake", "fq_codel", "pfifo_fast", "none"}, Desc: "discipline appliquée au bord"},
+	{Key: "burst_cc", Label: "Contrôle de congestion du burst", Default: "bbr", Enum: []string{"cubic", "bbr"}, Desc: "CC du burst de test à travers le bord façonné"},
+	{Key: "burst_seconds", Label: "Durée du burst", Min: 2, Max: 10, Default: 4, Unit: "s", Desc: "durée d'un burst de test"},
+}
+
+// paramBounds — server-side validation reads the same registry.
+func paramBounds(key string) (min, max float64, ok bool) {
+	for _, p := range schemaParams {
+		if p.Key == key {
+			return p.Min, p.Max, true
+		}
+	}
+	return 0, 0, false
+}
+
 // ShapeReq — the full lever: file d'attente + conditions du lien (Q8).
 type ShapeReq struct {
 	Qdisc    string  `json:"qdisc"`
@@ -64,6 +108,10 @@ type Deps struct {
 	Version string
 	// DoctorFn — capability report for GET /api/doctor; nil ⇒ mode only.
 	DoctorFn func() any
+	// BurstFn — one bulk probe with the chosen CC through the shaped border
+	// (Q11a): the live traces show CUBIC vs BBR reacting under the same
+	// shaping, no campagne needed. Blocking (2–10 s).
+	BurstFn func(cc string, seconds int) error
 }
 
 // observeBlocked — Windows hosts observe (Q10): the audit works, the control
@@ -132,10 +180,14 @@ func shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (i
 	if !valid[q] {
 		return http.StatusBadRequest, map[string]any{"error": "qdisc must be cake | fq_codel | pfifo_fast | none"}
 	}
-	if cap < 1 || cap > 1000 {
+	capMn, capMx, _ := paramBounds("shape_capacity_mbps")
+	if cap < capMn || cap > capMx {
 		return http.StatusBadRequest, map[string]any{"error": "capacity_mbps must be 1–1000"}
 	}
-	if req.DelayMs < 0 || req.DelayMs > 600 || req.JitterMs < 0 || req.JitterMs > 100 || req.LossPct < 0 || req.LossPct > 10 {
+	dMn, dMx, _ := paramBounds("link_delay_ms")
+	jMn, jMx, _ := paramBounds("link_jitter_ms")
+	lMn, lMx, _ := paramBounds("link_loss_pct")
+	if req.DelayMs < dMn || req.DelayMs > dMx || req.JitterMs < jMn || req.JitterMs > jMx || req.LossPct < lMn || req.LossPct > lMx {
 		return http.StatusBadRequest, map[string]any{"error": "conditions du lien: délai 0–600 ms, gigue 0–100 ms, perte 0–10 %"}
 	}
 	if err := fn(req); err != nil {
@@ -175,6 +227,61 @@ func New(d Deps) Handler {
 			return
 		}
 		writeJSON(w, map[string]any{"mode": d.Mode, "checks": []any{}})
+	})
+	// the parameter contract — the client renders inputs from it (Q14)
+	mux.HandleFunc("GET /api/schema", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"params": schemaParams})
+	})
+	// burst test — one bulk probe with the chosen CC through the currently
+	// shaped border, while surveillance watches (Q11a). Refused mid-campagne:
+	// the matrix owns the shaper then.
+	mux.HandleFunc("POST /api/burst", func(w http.ResponseWriter, r *http.Request) {
+		if d.observeBlocked(w) {
+			return
+		}
+		var body struct {
+			CC      string `json:"cc"`
+			Seconds int    `json:"seconds"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		validCC := false
+		for _, p := range schemaParams {
+			if p.Key == "burst_cc" {
+				for _, e := range p.Enum {
+					if e == body.CC {
+						validCC = true
+					}
+				}
+			}
+		}
+		if !validCC {
+			http.Error(w, "cc must be cubic | bbr", http.StatusBadRequest)
+			return
+		}
+		if body.Seconds == 0 {
+			body.Seconds = 4
+		}
+		if mn, mx, ok := paramBounds("burst_seconds"); ok && (body.Seconds < int(mn) || body.Seconds > int(mx)) {
+			http.Error(w, "seconds must be 2–10", http.StatusBadRequest)
+			return
+		}
+		if d.RunningFn != nil && d.RunningFn() {
+			http.Error(w, "campagne active — le burst se lance hors campagne", http.StatusConflict)
+			return
+		}
+		if d.BurstFn == nil {
+			http.Error(w, "burst engine not wired on this host", http.StatusServiceUnavailable)
+			return
+		}
+		if err := d.BurstFn(body.CC, body.Seconds); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		recordEvent("burst", fmt.Sprintf("burst %s %ds — traverse le bord façonné", body.CC, body.Seconds))
+		writeJSON(w, map[string]any{"ok": true, "cc": body.CC, "seconds": body.Seconds})
 	})
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, snap())
@@ -265,16 +372,19 @@ func New(d Deps) Handler {
 			return
 		}
 		// prevention — the client is a hint, never the contract (§6); input is
-		// validated even on hosts without a wired engine
-		if opts.Reps < 1 || opts.Reps > 5 {
+		// validated even on hosts without a wired engine — bounds from the
+		// same registry GET /api/schema serves
+		if mn, mx, ok := paramBounds("reps"); ok && (opts.Reps < int(mn) || opts.Reps > int(mx)) {
 			http.Error(w, "reps must be 1–5", http.StatusBadRequest)
 			return
 		}
 		// Q10 bounds — the deadline travels with the run, inside the same
 		// window the Réglages drawer enforces client-side
-		if opts.DeadlineMs != 0 && (opts.DeadlineMs < 200 || opts.DeadlineMs > 5000) {
-			http.Error(w, "deadline_ms must be 200–5000", http.StatusBadRequest)
-			return
+		if opts.DeadlineMs != 0 {
+			if mn, mx, ok := paramBounds("deadline_ms"); ok && (float64(opts.DeadlineMs) < mn || float64(opts.DeadlineMs) > mx) {
+				http.Error(w, "deadline_ms must be 200–5000", http.StatusBadRequest)
+				return
+			}
 		}
 		if len(opts.Target) > 64 {
 			http.Error(w, "target must be ≤ 64 characters", http.StatusBadRequest)

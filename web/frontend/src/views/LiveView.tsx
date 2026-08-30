@@ -1,5 +1,6 @@
-﻿import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { EChartsOption } from 'echarts'
+import Explain from '../components/Explain'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries, barSeries, chargeMarkArea, CRAFT } from '../lib/chartGrammar'
 import { live, clearLive } from '../lib/live'
@@ -117,6 +118,8 @@ export default function LiveView() {
   const [journal, setJournal] = useState<{ ts: string; kind: string; msg: string }[]>([])
   const [linkOpen, setLinkOpen] = useState(false)
   const [watching, setWatching] = useState(false)
+  const [burstCc, setBurstCc] = useState('bbr')
+  const [bursting, setBursting] = useState(false)
 
   // Q4 tri-toggle — PanelChooser dispatches {metric, chart: craft, source}
   useEffect(() => {
@@ -263,6 +266,15 @@ export default function LiveView() {
       }
     } catch (e) { setShapeMsg(String(e)) }
   }
+  const runBurst = async () => {
+    setBursting(true)
+    try {
+      const r = await fetch('/api/burst', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cc: burstCc, seconds: 4 }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) useUIStore.getState().pushToast?.(j?.error ?? `échec burst (${r.status})`, 'err')
+      else useUIStore.getState().pushToast?.(`burst ${burstCc} traversé — lisez goodput et RTT`, 'ok')
+    } catch (e) { useUIStore.getState().pushToast?.(String(e), 'err') } finally { setBursting(false) }
+  }
   const toggleWatch = async () => {
     try {
       const r = await fetch('/api/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: !watching }) })
@@ -341,16 +353,19 @@ export default function LiveView() {
       </Card>
       {!liveSnap && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
       {/* Q4 metric pill — toggles the metric groups; one 5-col bento, 10 cells, no misaligned rows */}
-      <div data-wall-cards="metric-groups" className="bento-5 wall-span" style={{ display: tri.metric ? 'grid' : 'none', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
-        <MetricCard label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP95, settings)]} spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
-        <MetricCard label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP50, settings)]} spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
-        <MetricCard label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(smallP95, settings)]} spark={spark(live.small)} trend={trendOf(spark(live.small))} />
-        <MetricCard label="bulk_goodput" value={goodputVal ? goodputVal.toFixed(1) : '—'} unit="Mbit/s" color={LEVEL_COLOR[goodputLevel(goodputVal, settings.shapeCap)]} spark={spark(live.goodput)} trend={trendOf(spark(live.goodput))} />
-        <MetricCard label="drops" value={String(drops)} unit="" color={LEVEL_COLOR[dropsLevel(drops)]} trend={drops > 0 ? 'up' : 'flat'} />
-        <MetricCard label="wasted" value={wasted == null ? '—' : wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color={wasted == null ? 'var(--text-faint)' : CRAFT.threshold} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
-        <MetricCard label="cost_ar_per_h" value={costAr == null ? '—' : costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
-        <MetricCard label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? 'var(--text-faint)' : LEVEL_COLOR[deadlineLevel(deadlineOk)]} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} spark={spark(live.small)} />
-        <div data-testid="qdi-sparkline"><MetricCard label="QDI" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
+      {/* Q4 metric pill — responsive bento owned by CSS (container queries:
+          5 col → 2 @1100 → 1 @640); the inline gridTemplateColumns variant
+          overrode the breakpoints and cropped every card on mobile */}
+      <div data-wall-cards="metric-groups" className={'bento-5 wall-span' + (tri.metric ? '' : ' hidden')}>
+        <MetricCard term="rtt_p95" label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP95, settings)]} spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
+        <MetricCard term="rtt_p50" label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP50, settings)]} spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
+        <MetricCard term="small_p95" label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(smallP95, settings)]} spark={spark(live.small)} trend={trendOf(spark(live.small))} />
+        <MetricCard term="bulk_goodput" label="bulk_goodput" value={goodputVal ? goodputVal.toFixed(1) : '—'} unit="Mbit/s" color={LEVEL_COLOR[goodputLevel(goodputVal, settings.shapeCap)]} spark={spark(live.goodput)} trend={trendOf(spark(live.goodput))} />
+        <MetricCard term="drops" label="drops" value={String(drops)} unit="" color={LEVEL_COLOR[dropsLevel(drops)]} trend={drops > 0 ? 'up' : 'flat'} />
+        <MetricCard term="wasted" label="wasted" value={wasted == null ? '—' : wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color={wasted == null ? 'var(--text-faint)' : CRAFT.threshold} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
+        <MetricCard term="cost_ar_per_h" label="cost_ar_per_h" value={costAr == null ? '—' : costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
+        <MetricCard term="deadline_ok" label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? 'var(--text-faint)' : LEVEL_COLOR[deadlineLevel(deadlineOk)]} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} spark={spark(live.small)} />
+        <div data-testid="qdi-sparkline"><MetricCard term="QDI" label="QDI" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
         <Card head="JFI" sub="fairness 0–1" testid="jfi-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: jfiVal === null ? 'var(--text-body)' : LEVEL_COLOR[jfiLevel(jfiVal)], fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{jfiVal === null ? '—' : jfiVal.toFixed(2)}</span>
@@ -387,7 +402,7 @@ export default function LiveView() {
       {/* live-wall-overlay: baseline grey dashed vs CAKE cyan solid same scale; source pill gates live|frozen|both */}
       <div className="live-wall-overlay card" data-testid="live-wall-overlay" style={{ gridColumn: '1 / -1', border: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
         <CardHead
-          label="Comparer — pfifo vs CAKE"
+          label={`Figée vs appliqué — ${baseline?.qdisc ?? 'pfifo'} → ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
           sub={`source ${tri.source} · hash ${hash8} · ${wallGroups ? `${wallGroups.length} groupes gelés` : 'en attente'}`}
           right={diffAB != null ? (
             <span className="diff-badge mono" style={{ background: diffAB > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diffAB > 0 ? CRAFT.ok : CRAFT.danger), color: diffAB > 0 ? CRAFT.ok : CRAFT.danger, padding: '4px 10px', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{diffAB > 0 ? `-${diffAB}%` : `${diffAB}%`}</span>
@@ -396,12 +411,20 @@ export default function LiveView() {
         {/* edge control — verrouiller la baseline, façonner le bord, constat exportable */}
         <div style={{ border: '1px solid var(--hairline)', background: 'rgba(90,211,227,0.03)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <CardHead
-            label="Contrôle du bord — façonner et mesurer"
+            label={`Contrôle du bord — ${locked ? `figée ${locked.at}` : 'référence'} vs ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
             sub={shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}
             right={
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
-                <Pill label="capacité" value={`${shapeCap} Mbit/s`} on onClick={() => setShapeCap(shapeCap >= 80 ? 5 : shapeCap * 2)} title="capacité du bord — clic pour doubler (boucle 5→80)" />
+                <Explain term="capacity">
+                  <input
+                    type="number" min={1} max={1000} placeholder="20" value={shapeCap}
+                    onChange={e => setShapeCap(parseInt(e.target.value) || 20)}
+                    aria-label="capacité du bord (Mbit/s)"
+                    style={{ width: 74, background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '5px 6px', fontFamily: 'var(--font-mono)', fontSize: 10 }}
+                  />
+                </Explain>
+                <span className="mono" style={{ fontSize: 9, color: '#9aa0a8' }}>Mbit/s</span>
                 <Pill label="conditions" value={linkOpen ? 'masquer' : `${settings.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
                 {/* une campagne active possède le shaper — le levier répond 409 :
                     on grise au lieu de laisser l'opérateur lever une erreur */}
@@ -423,6 +446,22 @@ export default function LiveView() {
               </div>
             }
           />
+          {/* burst test — CUBIC vs BBR à travers le bord façonné, sous surveillance */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}><Explain term="burst">Burst test</Explain></span>
+            {['cubic', 'bbr'].map(c => (
+              <button key={c} className="btn" onClick={() => setBurstCc(c)} style={{
+                padding: '3px 10px', fontSize: 10, fontFamily: 'var(--font-mono)',
+                border: '1px solid ' + (burstCc === c ? '#3a3a40' : 'var(--hairline)'),
+                background: burstCc === c ? 'rgba(90,211,227,0.12)' : 'transparent',
+                color: burstCc === c ? '#7fd6e8' : '#a8aeb7',
+              }}>{c}</button>
+            ))}
+            <button className="btn" onClick={runBurst} disabled={bursting || !!liveSnap?.running} style={{ padding: '4px 12px', fontSize: 10 }}>
+              {bursting ? `burst ${burstCc}…` : `TESTER ${burstCc.toUpperCase()}`}
+            </button>
+            <span className="mono" style={{ fontSize: 9, color: '#9aa0a8' }}>{liveSnap?.running ? 'indisponible pendant la campagne' : 'traverse le bord façonné — regardez goodput et RTT'}</span>
+          </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn" onClick={lockBaseline} disabled={liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 10 }}>FIGER L'AVANT{liveSmallMedian != null ? ` — ${liveSmallMedian.toFixed(1)} ms` : ''}</button>
             {locked && <Pill label="avant" value={`${locked.ms} ms @ ${locked.at}`} on title="avant figé — cliquer pour libérer" onClick={() => { setLocked(null); try { localStorage.removeItem('wall-baseline') } catch { } }} />}
@@ -459,7 +498,7 @@ export default function LiveView() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
               <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-faint)', display: 'flex', justifyContent: 'space-between' }}>
-                <span>baseline pfifo_fast — gris pointillé</span>
+                <span>baseline figée — gris pointillé</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-body)' }}>{baseline ? `${baseline.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
               <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed #767b84', borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
@@ -468,7 +507,7 @@ export default function LiveView() {
             </div>
             <div>
               <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: CRAFT.live, display: 'flex', justifyContent: 'space-between' }}>
-                <span>CAKE — cyan solide{cakeBest?.best ? ' ★' : ''}</span>
+                <span>{shape?.applied ? shape.qdisc : "cake"} — cyan solide{cakeBest?.best ? ' ★' : ''}</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-body)' }}>{cakeBest ? `${cakeBest.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
               <div style={{ height: 10, background: 'rgba(90,211,227,0.08)', border: '1px solid ' + CRAFT.live, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>

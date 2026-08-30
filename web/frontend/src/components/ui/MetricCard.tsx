@@ -1,5 +1,6 @@
 import { useId, useMemo } from 'react'
 import { lttb } from '../../lib/lttb'
+import Explain from '../Explain'
 
 type Trend = 'up' | 'down' | 'flat'
 
@@ -10,6 +11,7 @@ export function MetricCard({
   trend = 'flat',
   spark,
   color = 'var(--t-live)',
+  term,
 }: {
   label: string
   value: string
@@ -17,6 +19,7 @@ export function MetricCard({
   trend?: Trend
   spark?: number[]
   color?: string
+  term?: string
 }) {
   const trendColor = trend === 'up' ? '#e22718' : trend === 'down' ? '#1fa348' : '#767b84'
   const trendSym = trend === 'up' ? '↗' : trend === 'down' ? '↘' : '—'
@@ -37,7 +40,9 @@ export function MetricCard({
   return (
     <div data-metric={label} data-testid={`metric-${label}`} className="card" style={{ padding: 12, border: '1px solid #26262a', background: 'var(--surface-card)', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>{label}</span>
+        <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
+          {term ? <Explain term={term}>{label}</Explain> : label}
+        </span>
         <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, padding: '2px 6px', border: '1px solid #26262a', background: trendColor + '14', color: trendColor, lineHeight: 1 }}>{trendSym}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>

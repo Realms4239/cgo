@@ -13,7 +13,6 @@ import ErrorBoundary from './components/ErrorBoundary'
 import Rail from './components/Rail'
 import WebGLMesh from './components/WebGLMesh'
 import QuickActionsPrompt from './components/QuickActionsPrompt'
-import OnboardingNudge from './components/OnboardingNudge'
 import CommandPalette from './components/CommandPalette'
 import MeteolinkWordmark from './components/MeteolinkWordmark'
 import PanelChooser from './components/PanelChooser'
@@ -88,7 +87,7 @@ export default function App() {
       <WebGLMesh />
       <div id="shell" data-density={density} className={railPinned ? '' : 'rail-min'}>
         <a className="skip-link" href="#main">Aller au contenu</a>
-        <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderBottom: '1px solid var(--hairline, #26262a)', background: 'var(--surface-soft, #0b0b0c)', minWidth: 0 }}>
+        <header style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '0 16px', borderBottom: '1px solid var(--hairline, #26262a)', background: 'var(--surface-soft, #0b0b0c)', minWidth: 0 }}>
           <MeteolinkWordmark />
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
             <PanelChooser />
@@ -107,7 +106,7 @@ export default function App() {
         {/* quick actions are running-state chrome — never block an idle view */}
         {live?.running && <QuickActionsPrompt />}
         <main id="main">
-          {panel === 'campagne' && <section id="v-campagne" className="view on"><OnboardingNudge /><CampagneView /></section>}
+          {panel === 'campagne' && <section id="v-campagne" className="view on"><CampagneView /></section>}
           {panel === 'live' && <section id="v-live" className="view on"><LiveView /></section>}
           {panel === 'resultats' && <section id="v-resultats" className="view on"><ResultatsView /></section>}
           {panel === 'integrite' && <section id="v-integrite" className="view on"><IntegriteView /></section>}

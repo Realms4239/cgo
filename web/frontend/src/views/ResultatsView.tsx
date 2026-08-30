@@ -7,6 +7,7 @@ import { echarts } from '../lib/echarts'
 import { baseOption, scatterSeries } from '../lib/chartGrammar'
 import CompareView, { type Pinned } from '../components/CompareView'
 import { CRAFT } from '../lib/chartGrammar'
+import Explain from '../components/Explain'
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -18,14 +19,26 @@ type Group = {
   best?: boolean; hardware_recommendation?: string
 }
 
+// le classement EST la comparaison toutes cellules (Q1/Q2): critère choisi,
+// filtres profil/file/CC, verdict recalculé — tout depuis les CSV gelés.
+const RANKS = [
+  { key: 'small_p95_median', label: 'small p95', dir: 'down' as const, unit: 'ms', term: 'small_p95' },
+  { key: 'rtt_p95_median', label: 'RTT p95', dir: 'down' as const, unit: 'ms', term: 'rtt_p95' },
+  { key: 'goodput_median', label: 'goodput', dir: 'up' as const, unit: 'Mbit/s', term: 'bulk_goodput' },
+  { key: 'cost', label: 'coût', dir: 'down' as const, unit: 'Ar/h', term: 'cost_ar_per_h' },
+]
+
 export default function ResultatsView() {
   const [groups, setGroups] = useState<Group[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [showCosts, setShowCosts] = useState(true)
   const [peek, setPeek] = useState<{ rect: DOMRect; g: Group } | null>(null)
   const [hash8, setHash8] = useState<string>('────────')
   const [pinA, setPinA] = useState<Pinned | null>(null)
   const [pinB, setPinB] = useState<Pinned | null>(null)
+  const [rankKey, setRankKey] = useState<string>('small_p95_median')
+  const [fProfile, setFProfile] = useState('tous')
+  const [fQdisc, setFQdisc] = useState('tous')
+  const [fCc, setFCc] = useState('tous')
   const scatterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -71,12 +84,35 @@ export default function ResultatsView() {
   if (err) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="error" hint={err} /></div>
   if (!groups) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="loading" hint="agrégation des réplications" /></div>
 
+  const rankMeta = RANKS.find(r => r.key === rankKey) ?? RANKS[0]
+  const val = (g: Group): number => {
+    if (rankKey === 'cost') return g.cost_median ?? g.cost_ar_per_h ?? Number.MAX_SAFE_INTEGER
+    const v = (g as any)[rankKey]
+    return typeof v === 'number' && v > 0 ? v : Number.MAX_SAFE_INTEGER
+  }
+  const distinct = (k: 'profile' | 'qdisc' | 'cc') => Array.from(new Set(groups.map(g => g[k]))).sort()
+  const filtered = groups.filter(g =>
+    (fProfile === 'tous' || g.profile === fProfile) &&
+    (fQdisc === 'tous' || g.qdisc === fQdisc) &&
+    (fCc === 'tous' || g.cc === fCc))
+  const ranked = [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(a) - val(b) : val(b) - val(a))
+  const rankMax = Math.max(...filtered.map(val).filter(Number.isFinite), 1)
+  const top = ranked[0]
+  const baselineRow = filtered.find(g => g.qdisc === 'pfifo_fast' && (!top || g.profile === top.profile))
+    ?? [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(b) - val(a) : val(a) - val(b))[0]
+  const diff = top && baselineRow && Number.isFinite(val(top)) && val(baselineRow) > 0
+    ? Math.round(((val(baselineRow) - val(top)) / val(baselineRow)) * 100) : null
+  const hwPerProfile = Array.from(new Map(groups.filter(g => g.best).map(g => [g.profile, g.hardware_recommendation ?? '—'])).entries()).map(([p, h]) => `${p}: ${h}`).join(' · ') || '—'
   const maxSmall = Math.max(...groups.map(g => g.small_p95_median), 1)
-  const best = groups.find(g => g.best) ?? groups[0]
-  const baseline = groups.find(g => g.qdisc === 'pfifo_fast' && g.profile === best.profile) ?? [...groups].sort((a, b) => b.small_p95_median - a.small_p95_median)[0]
-  const diff = baseline && best && baseline.small_p95_median > 0 ? Math.round(((baseline.small_p95_median - best.small_p95_median) / baseline.small_p95_median) * 100) : null
-  // hardware_recommendation per profile best (from Scan) — not per row
-  const hwPerProfile = Array.from(new Map(groups.filter(g => g.best).map(g => [g.profile, g.hardware_recommendation ?? '—'])).entries()).map(([p, h]) => `${p}: ${h}`).join(' · ') || best.hardware_recommendation || '—'
+
+  const chip = (label: string, active: boolean, onClick: () => void) => (
+    <button key={label} className="btn" onClick={onClick} style={{
+      padding: '2px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
+      border: '1px solid ' + (active ? '#3a3a40' : 'var(--hairline)'),
+      background: active ? 'rgba(90,211,227,0.12)' : 'transparent',
+      color: active ? '#7fd6e8' : '#a8aeb7',
+    }}>{label}</button>
+  )
 
   return (
     <div className="panel-stack" style={{ position: 'relative' }}>
@@ -93,76 +129,87 @@ export default function ResultatsView() {
           {peek.g.hardware_recommendation && <div className="mono" style={{ fontSize: 9, color: '#8b9099', marginTop: 4, maxWidth: 220, whiteSpace: 'normal' }}>{peek.g.hardware_recommendation}</div>}
         </PeekPopover>
       )}
-      <h1 className="view-title">Résultats — comparaison AQM/BBR</h1>
+      <h1 className="view-title">Résultats — classement complet</h1>
 
-      {/* ab-bento 3-col Avant/Après diff badge — hardware_recommendation provenance per profile best */}
-      <div className="ab-bento card" data-testid="ab-bento" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, alignItems: 'center', border: '1px solid #26262a', background: 'var(--surface-card)', padding: 16 }}>
-        <div>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>Avant — baseline</div>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 14, fontWeight: 700, color: '#767b84', fontVariantNumeric: 'tabular-nums' }}>{baseline.qdisc} {baseline.small_p95_median.toFixed(1)} ms</div>
-          <svg width="100%" height={4} style={{ display: 'block', marginTop: 6 }} aria-hidden><line x1={0} y1={2} x2="100%" y2={2} stroke="#767b84" strokeWidth={2} strokeDasharray="6 4" /></svg>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#767b84', marginTop: 4 }}>pfifo_fast — gris pointillé · Scan median réel</div>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#8b9099', marginTop: 2 }}>profil {baseline.profile} · n={baseline.count}</div>
+      {/* verdict recalculé sur le critère choisi — toujours mesuré, jamais décoré */}
+      {top && baselineRow && (
+        <div className="card" data-testid="rank-verdict" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 12, alignItems: 'center', padding: 14 }}>
+          <div>
+            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
+              <Explain term="pfifo_fast">pfifo — avant</Explain>
+            </div>
+            <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: '#c3c9d1', fontVariantNumeric: 'tabular-nums' }}>
+              {val(baselineRow) === Number.MAX_SAFE_INTEGER ? '—' : `${val(baselineRow).toFixed(1)} ${rankMeta.unit}`}
+            </div>
+            <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{baselineRow.profile} · n={baselineRow.count}</div>
+          </div>
+          <div className="mono" data-testid="rank-diff" style={{ fontSize: 24, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: diff != null && diff > 0 ? '#1fa348' : '#c3c9d1', textAlign: 'center' }}>
+            {diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7fd6e8' }}>
+              <Explain term={rankMeta.term}>1er — {rankMeta.label}</Explain>
+            </div>
+            <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: '#1fa348', fontVariantNumeric: 'tabular-nums' }}>
+              {val(top) === Number.MAX_SAFE_INTEGER ? '—' : `${val(top).toFixed(1)} ${rankMeta.unit}`}
+            </div>
+            <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{top.profile} · {top.qdisc}/{top.cc} · n={top.count}</div>
+          </div>
         </div>
-        <div>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#5ad3e3' }}>Après — CAKE</div>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 14, fontWeight: 700, color: '#1fa348', fontVariantNumeric: 'tabular-nums' }}>{best.qdisc} {best.small_p95_median.toFixed(1)} ms</div>
-          <svg width="100%" height={4} style={{ display: 'block', marginTop: 6 }} aria-hidden><line x1={0} y1={2} x2="100%" y2={2} stroke="#5ad3e3" strokeWidth={2} /><line x1={0} y1={2} x2="100%" y2={2} stroke="#1fa348" strokeWidth={1} strokeDasharray="12 6" opacity={0.7} /></svg>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#5ad3e3', marginTop: 4 }}>CAKE — cyan solide · best median · Scan median réel</div>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#8b9099', marginTop: 2 }}>profil {best.profile} · n={best.count} · {best.best ? '★' : ''}</div>
-        </div>
-        {diff != null && <div className="diff-badge mono" style={{ background: diff > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diff > 0 ? '#1fa348' : '#e22718'), color: diff > 0 ? '#1fa348' : '#e22718', padding: '8px 12px', fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', textAlign: 'center', minWidth: 80 }}>{diff > 0 ? `-${diff}%` : `${diff}%`}<div style={{ fontSize: 9, fontWeight: 400, color: '#8b9099', marginTop: 2 }}>-(baseline-best)/baseline</div></div>}
-      </div>
-      <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099', background: 'var(--surface-card)', border: '1px solid #26262a', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <span>provenance hash {hash8} · {groups.length} groupes · max small {maxSmall.toFixed(1)} ms</span>
-        <span style={{ color: '#767b84', maxWidth: 480, textAlign: 'right', whiteSpace: 'normal' }}>{hwPerProfile}</span>
-      </div>
+      )}
 
-      <div className="form-row" style={{ justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
-        <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8b9099' }}>affichage</span>
-        <button className="btn" onClick={() => setShowCosts(v => !v)} style={{ border: '1px solid #26262a', padding: '4px 10px', font: '700 10px JetBrains Mono', letterSpacing: '0.08em', textTransform: 'uppercase', background: showCosts ? 'rgba(90,211,227,0.08)' : 'transparent', color: showCosts ? '#5ad3e3' : '#8b9099' }}>
-          {showCosts ? 'masquer coûts' : 'afficher coûts'}
-        </button>
-        <span className="mono muted" style={{ fontFamily: 'JetBrains Mono', fontSize: 10 }}>deadline_ok · wasted · cost · hash {hash8}</span>
+      {/* critère + filtres — une ligne, pas de paragraphe */}
+      <div className="form-row" style={{ gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+        <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>classer par</span>
+        {RANKS.map(r => chip(r.label + (r.dir === 'up' ? ' ↑' : ' ↓'), rankKey === r.key, () => setRankKey(r.key)))}
+        <span style={{ width: 12 }} />
+        {(['tous', ...distinct('profile')] as string[]).map(v => chip(v, fProfile === v, () => setFProfile(v)))}
+        {(['tous', ...distinct('qdisc')] as string[]).map(v => chip(v, fQdisc === v, () => setFQdisc(v)))}
+        {(['tous', ...distinct('cc')] as string[]).map(v => chip(v, fCc === v, () => setFCc(v)))}
       </div>
 
       <div className="card" style={{ overflowX: 'auto' }}>
         <table className='data-table' style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
           <thead>
-            <tr style={{ color: 'var(--text-muted)', textAlign: 'left', borderBottom: '1px solid var(--hairline)' }}>
-              <th style={{ padding: '6px 8px' }}>profil</th><th>qdisc</th><th>cc</th><th>n</th><th style={{ minWidth: 140 }}>small p95</th><th>rtt p95</th><th>goodput</th>
-              {showCosts && <><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#8b9099' }}>deadline_ok</th><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#8b9099' }}>wasted</th><th style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f4b400' }}>cost</th></>}
-              <th>quar.</th><th>best</th><th style={{ padding: '6px 8px' }}>comparer</th>
+            <tr style={{ color: '#c3c9d1', textAlign: 'left', borderBottom: '1px solid var(--hairline)' }}>
+              <th style={{ padding: '6px 8px' }}>#</th>
+              <th style={{ padding: '6px 8px' }}>profil</th><th>qdisc</th><th>cc</th><th>n</th>
+              <th style={{ minWidth: 140 }}><Explain term="small_p95">small p95</Explain></th>
+              <th><Explain term="rtt_p95">rtt p95</Explain></th>
+              <th><Explain term="bulk_goodput">goodput</Explain></th>
+              <th><Explain term="deadline">deadline ok</Explain></th>
+              <th><Explain term="wasted">gaspillé</Explain></th>
+              <th><Explain term="cost_ar_per_h">coût</Explain></th>
+              <th>quar.</th>
+              <th style={{ padding: '6px 8px' }}>comparer</th>
             </tr>
           </thead>
           <tbody>
-            {groups.map((g, i) => {
-              const pct = (g.small_p95_median / maxSmall) * 100
-              const barColor = g.best ? 'var(--t-ok)' : g.qdisc === 'cake' ? 'var(--t-bbr)' : g.qdisc === 'fq_codel' ? 'var(--t-live)' : 'var(--text-faint)'
+            {ranked.map((g, i) => {
+              const pct = Math.min(100, (val(g) / rankMax) * 100)
+              const barColor = i === 0 ? 'var(--t-ok)' : g.qdisc === 'cake' ? 'var(--t-bbr)' : g.qdisc === 'fq_codel' ? 'var(--t-live)' : '#6b7078'
               const wasted: number | null = g.wasted_median ?? g.wasted_bytes ?? null
               const cost: number | null = g.cost_median ?? g.cost_ar_per_h ?? null
               const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
               return (
-                <tr key={i} style={{ borderBottom: '1px solid var(--hairline-faint)', background: g.best ? 'rgba(31,163,72,0.08)' : 'transparent' }} onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), g })} onMouseLeave={() => setPeek(null)}>
-                  <td style={{ padding: '6px 8px', fontWeight: g.best ? 700 : 400 }}>{g.profile}</td>
+                <tr key={`${g.profile}/${g.qdisc}/${g.cc}`} style={{ borderBottom: '1px solid var(--hairline-faint)', background: i === 0 ? 'rgba(31,163,72,0.08)' : 'transparent' }} onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), g })} onMouseLeave={() => setPeek(null)}>
+                  <td style={{ padding: '6px 8px', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? '#1fa348' : '#a8aeb7' }}>{i + 1}</td>
+                  <td style={{ padding: '6px 8px' }}>{g.profile}</td>
                   <td>{g.qdisc}</td><td>{g.cc}</td><td>{g.count}</td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ flex: 1, height: 6, background: 'var(--hairline-faint)', position: 'relative', minWidth: 80, borderRadius: 2, overflow: 'hidden' }}>
-                        <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: g.best ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2, filter: g.best ? `drop-shadow(0 0 4px ${barColor})` : 'none' }} />
+                        <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: i === 0 ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2, filter: i === 0 ? `drop-shadow(0 0 4px ${barColor})` : 'none' }} />
                       </div>
                       <span style={{ minWidth: 45, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{g.small_p95_median.toFixed(1)}</span>
                     </div>
                   </td>
                   <td>{g.rtt_p95_median.toFixed(1)}</td>
                   <td>{g.goodput_median.toFixed(1)}</td>
-                  {showCosts && <>
-                    <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, fontVariantNumeric: 'tabular-nums', color: deadlineOk == null ? '#767b84' : deadlineOk >= 95 ? '#1fa348' : '#f4b400', textAlign: 'right' }}>{deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'}</td>
-                    <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, fontVariantNumeric: 'tabular-nums', color: wasted == null ? '#767b84' : wasted > 0 ? '#e22718' : '#767b84', textAlign: 'right' }}>{wasted == null ? '—' : wasted >= 1048576 ? (wasted / 1048576).toFixed(1) + ' MiB' : wasted >= 1024 ? (wasted / 1024).toFixed(0) + ' KiB' : String(wasted)}</td>
-                    <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, fontVariantNumeric: 'tabular-nums', color: cost == null ? '#767b84' : cost > 0 ? '#f4b400' : '#767b84', textAlign: 'right' }}>{cost == null ? '—' : cost ? cost.toFixed(0) : '0'}</td>
-                  </>}
+                  <td style={{ fontVariantNumeric: 'tabular-nums', color: deadlineOk == null ? '#9aa0a8' : deadlineOk >= 95 ? '#1fa348' : '#f4b400', textAlign: 'right' }}>{deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'}</td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums', color: wasted == null ? '#9aa0a8' : wasted > 0 ? '#e22718' : '#9aa0a8', textAlign: 'right' }}>{wasted == null ? '—' : wasted >= 1048576 ? (wasted / 1048576).toFixed(1) + ' MiB' : wasted >= 1024 ? (wasted / 1024).toFixed(0) + ' KiB' : String(wasted)}</td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums', color: cost == null ? '#9aa0a8' : cost > 0 ? '#f4b400' : '#9aa0a8', textAlign: 'right' }}>{cost == null ? '—' : cost.toFixed(0)}</td>
                   <td>{g.quarantined}</td>
-                  <td>{g.best ? '★' : ''}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {(() => {
                       const pin = { profile: g.profile, qdisc: g.qdisc, cc: g.cc }

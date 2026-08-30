@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/pkg/doctor"
 	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/pkg/probe"
 	"github.com/Realms4239/cgo/pkg/qdisc"
 )
 
@@ -136,6 +138,25 @@ func runServer(ctx context.Context, addr, mode string) error {
 		DoctorFn: func() any {
 			m, checks := doctor.Report(mode)
 			return map[string]any{"mode": m, "checks": checks}
+		},
+		BurstFn: func(cc string, seconds int) error {
+			deps := campagne.ProdDeps()
+			ctxB, cancel := context.WithTimeout(ctx, time.Duration(seconds+3)*time.Second)
+			defer cancel()
+			b, err := probe.BulkSendTo(ctxB, deps.BulkAddr, cc)
+			if err != nil && b == 0 {
+				return err
+			}
+			g := float64(b) * 8 / 1e6 / float64(seconds)
+			if g > 2500 { // same ring clamp as the campagne cells
+				g = 2500
+			}
+			live.Set(campagne.Snapshot{
+				Phase: "burst", Profile: "burst", CC: cc,
+				BulkGoodputMbps: math.Round(g*10) / 10,
+				Drops:           0, Running: false,
+			})
+			return nil
 		},
 		WatchFn: func(on bool) error {
 			if on {

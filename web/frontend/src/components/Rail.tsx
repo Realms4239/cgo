@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useUIStore, PANELS } from '../store/ui'
 import { StatusPip } from './ui/StatusPip'
+import { explain } from '../lib/explain'
 
 export default function Rail(){
   const panel=useUIStore(s=>s.panel), setPanel=useUIStore(s=>s.setPanel)
@@ -40,10 +41,11 @@ export default function Rail(){
       {(live?.gates ?? Array(8).fill(null)).map((g: boolean|null, i:number) => {
         const titles=['G0 cible','G1 bulk','G2 sondes','G3 latence','G4 débit','G5 doublon','G6 baseline','G7 CPU']
         const state=g===null?'idle':g?'ok':'err'
+        const tip=`G${i} ${titles[i].split(" ").slice(1).join(" ")}: ${g===null?"—":g?"PASS":"FAIL"} — ${explain("G"+i)}`
         if(pinned){
-          return <span key={i} data-gate={i} title={titles[i]+': '+(g===null?'—':g?'PASS':'FAIL')} style={{display:'inline-flex'}}><StatusPip state={state as any} label={`G${i}`} title={titles[i]+': '+(g===null?'—':g?'PASS':'FAIL')} /></span>
+          return <span key={i} data-gate={i} title={tip} style={{display:'inline-flex'}}><StatusPip state={state as any} label={`G${i}`} title={tip} /></span>
         }
-        return <span key={i} className={'gate '+(g===null?'':g?'ok':'fail')} data-gate={i} title={titles[i]+': '+(g===null?'—':g?'PASS':'FAIL')} />
+        return <span key={i} className={'gate '+(g===null?'':g?'ok':'fail')} data-gate={i} title={tip} />
       })}
     </div>
     {pinned && <div className="side-status">

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArmButton } from '../components/ArmButton'
 import { Timeline } from '../components/Timeline'
 import { loadSettings } from '../lib/settings'
+import Explain from '../components/Explain'
 import { useUIStore } from '../store/ui'
 import { InlineField } from '../components/InlineField'
 import { validate } from '../lib/validation'
@@ -34,6 +35,7 @@ export default function CampagneView() {
   const [auditDuration, setAuditDuration] = useState(30)
   const [importMsg, setImportMsg] = useState('')
   const [importForm, setImportForm] = useState(false)
+  const [auditOpen, setAuditOpen] = useState(false)
   const [impId, setImpId] = useState('')
   const [impCap, setImpCap] = useState(20)
   const [impDelay, setImpDelay] = useState(100)
@@ -150,9 +152,9 @@ export default function CampagneView() {
         <h1 className="view-title">Campagne — pilotez la mesure</h1>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
           {[
-            { n: '①', t: 'Auditer', d: "30 s sur votre lien d'accès, sans droits administrateur — l'état réel avant toute comparaison" },
-            { n: '②', t: 'Comparer', d: 'pfifo vs CAKE en direct sur le Tableau live — mêmes échelles, écart en %' },
-            { n: '③', t: 'Exporter', d: 'rapport 1-page MD/CSV — la preuve chiffrée, hash signé' },
+            { n: '①', t: 'Auditer', d: "30 s sur le lien réel, sans droits admin" },
+            { n: '②', t: 'Comparer', d: 'pfifo vs CAKE en direct, même échelle' },
+            { n: '③', t: 'Exporter', d: 'constat MD/CSV signé' },
           ].map(x => (
             <div key={x.n} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 16 }}>
               <span className="mono" style={{ fontSize: 18, color: 'var(--t-live, #5ad3e3)' }}>{x.n}</span>
@@ -205,24 +207,24 @@ export default function CampagneView() {
           <label>Profils</label>
           <div className="check-row">
             {allProfiles.map(p => (
-              <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles,p.id] : profiles.filter(x=>x!==p.id))} /> {p.id}{p.imported ? <span className="mono muted" title="profil importé d'un audit réel"> ↧</span> : null}</label>
+              <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles,p.id] : profiles.filter(x=>x!==p.id))} /> <Explain term={p.id}>{p.id}</Explain>{p.imported ? <span className="mono muted" title="issu d'un audit réel"> ↧</span> : null}</label>
             ))}
           </div>
         </div>
         <div className="form-row">
-          <label>Qdiscs</label><span className="mono muted">{ALL_QDISCS.join(' · ')}</span>
+          <label>Files (AQM)</label><span className="mono muted">{ALL_QDISCS.map((q, i) => <span key={q}><Explain term={q}>{q}</Explain>{i < ALL_QDISCS.length - 1 ? ' · ' : ''}</span>)}</span>
         </div>
         <div className="form-row">
-          <label>CC</label><span className="mono muted">{ALL_CC.join(' · ')}</span>
+          <label>CC</label><span className="mono muted">{ALL_CC.map((c, i) => <span key={c}><Explain term={c}>{c}</Explain>{i < ALL_CC.length - 1 ? ' · ' : ''}</span>)}</span>
         </div>
         <div className="form-row">
           <label>Répétitions</label>
-          <input type="number" min={1} max={5} value={reps} onChange={e=>setReps(parseInt(e.target.value)||1)} style={{width:64}} />
+          <input type="number" min={1} max={5} placeholder="3" value={reps} onChange={e=>setReps(parseInt(e.target.value)||1)} style={{width:64}} />
         </div>
         <div className="form-row">
-          <label>Deadline</label>
-          <input title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" type="number" min={200} max={5000} step={100} value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11}} />
-          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms · seuil small_p95 (fixe)</span>
+          <label><Explain term="deadline">Deadline</Explain></label>
+          <input title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" type="number" min={200} max={5000} step={100} placeholder="1000" value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11}} />
+          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms</span>
         </div>
         <div className="form-row" style={{gap:8, border:'1px solid #26262a', background:'rgba(244,180,0,0.06)', padding:'6px 8px', marginTop:6}} onMouseEnter={e=>setPeek({rect:e.currentTarget.getBoundingClientRect(), data: liveRing.small.slice(-20).map(([,v]:[number,number])=>v)})} onMouseLeave={()=>setPeek(null)}>
           <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>cost preview</span>
@@ -242,7 +244,12 @@ export default function CampagneView() {
       </div>
 
       <div className="card">
-        <div className="card-head">Audit lien accessible (non intrusif)</div>
+        <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span><Explain term="audit">Audit du lien</Explain></span>
+          <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 10 }}>30 s, non intrusif</span>
+          <button className="btn" onClick={() => setAuditOpen(o => !o)} style={{ padding: '2px 10px' }}>{auditOpen ? 'FERMER' : 'LANCER'}</button>
+        </div>
+        {auditOpen && <>
         <div ref={auditFormRef} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <InlineField label="Site" error={auditValidation.errors.site} helper={!auditSite ? 'requis' : undefined}>
             <input name="site" value={auditSite} onChange={e=>setAuditSite(e.target.value)} style={{ flex:1, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
@@ -260,17 +267,15 @@ export default function CampagneView() {
           <ArmButton label="LANCER AUDIT" confirmLabel="CONFIRMER AUDIT" onConfirm={startAudit} disabled={!auditValidation.valid} />
           <span className="mono muted">{auditMsg}</span>
         </div>
+        </>}
       </div>
 
       <div className="card">
-        <div className="card-head">Profil personnalisé</div>
-        <p className="mono muted" style={{fontSize:12}}>Importer un profil réel mesuré par l'audit (LIEN III.IV — Import profile).</p>
-        {!importForm ? (
-          <div className="form-row" style={{gap:8}}>
-            <button className="btn" onClick={()=>setImportForm(true)}>IMPORTER PROFIL</button>
-            <span className="mono muted">{importMsg}</span>
-          </div>
-        ) : (
+        <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>Profil personnalisé</span>
+          {!importForm && <button className="btn" onClick={()=>setImportForm(true)} style={{ marginLeft: 'auto', padding: '2px 10px' }}>IMPORTER</button>}
+        </div>
+        {importForm && <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
             <InlineField label="Identifiant" error={importValidation.errors.id} helper="ex. P3">
               <input name="import-id" value={impId} onChange={e=>setImpId(e.target.value)} placeholder="P3" style={{ background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
@@ -287,7 +292,7 @@ export default function CampagneView() {
               <span className="mono muted">{importMsg}</span>
             </div>
           </div>
-        )}
+        </>}
       </div>
       </aside>
     </div>
