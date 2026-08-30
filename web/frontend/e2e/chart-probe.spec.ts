@@ -47,7 +47,7 @@ test('resultats — scatter canvas renders non-blank with real groups', async ({
   page.on('pageerror', e => errors.push(String(e)))
   await page.goto('/')
   await page.locator('[data-panel="resultats"]').click()
-  await expect(page.locator('[data-testid="ab-bento"]')).toBeVisible()
+  await expect(page.locator('[data-testid="rank-verdict"]')).toBeVisible()
   const canvas = page.locator('.panel-stack canvas').last()
   await expect(canvas).toHaveCount(1)
   const ok = await canvas.evaluate((c: HTMLCanvasElement) => {

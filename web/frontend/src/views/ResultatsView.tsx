@@ -237,7 +237,7 @@ export default function ResultatsView() {
       <div className="form-row" style={{ gap: 8 }}>
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
         <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>Exporter MD</a>
-        <span className="mono muted" style={{ marginLeft: 8 }}>médianes Scan réelles — ★ meilleur small p95 par profil · barres relatives au max · provenance {hash8}</span>
+        <span className="mono muted" style={{ marginLeft: 8 }}><Explain term="run_rows">médianes mesurées</Explain> · provenance {hash8}</span>
       </div>
       <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${groups.length} groupes · max small ${maxSmall.toFixed(1)} ms · ${hwPerProfile} · hash ${hash8}`} />
     </div>
