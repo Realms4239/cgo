@@ -1,8 +1,8 @@
-// Package model — LIEN domain types (docs/SPEC.md §2.2–2.3).
-// CSV column order matches LIEN Tableau 7 exactly via csvFieldOrder.
+// Package model — types du domaine.
+// L'ordre des colonnes CSV est défini par csvFieldOrder.
 package model
 
-// Profile — LIEN Tableau 2. Values are defaults, overridable by imported profiles.
+// Profil — valeurs par défaut, remplacées par les profils importés.
 type Profile struct {
 	ID           string  `json:"id"`
 	CapacityMbps float64 `json:"capacity_mbps"`
@@ -59,7 +59,7 @@ const (
 	GateInvalid  = "invalid"
 )
 
-// Event phases (LIEN III.III.5) and durations in seconds.
+// Phases d'un événement et durées (secondes).
 const (
 	PhaseBaseline = "baseline"
 	PhaseCharge   = "charge"
@@ -92,7 +92,7 @@ type Event struct {
 	GateStatus     string  `csv:"gate_status"       json:"gate_status"`
 }
 
-// AQMEvalHeader — Tableau 7 column order (after the identity columns).
+// En-têtes aqm_eval.csv (après les colonnes d'identité).
 var AQMEvalHeader = []string{
 	"run_id", "event_id", "profile", "qdisc", "cc", "repetition",
 	"rtt_p50_ms", "rtt_p95_ms", "small_p95_ms", "deadline_ok_pct",
@@ -100,7 +100,7 @@ var AQMEvalHeader = []string{
 	"cost_ar_per_h", "cpu_pct", "gate_status",
 }
 
-// LinkAuditHeader — Tableau 6 column order.
+// En-têtes link_audit.csv.
 var LinkAuditHeader = []string{
 	"audit_id", "timestamp", "site", "link_type", "provider",
 	"rtt_idle_p50_ms", "rtt_idle_p95_ms", "rtt_loaded_p50_ms", "rtt_loaded_p95_ms",

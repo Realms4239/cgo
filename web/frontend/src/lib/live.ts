@@ -7,7 +7,7 @@ export const live = {
   rtt95: [] as Ring,
   small: [] as Ring,
   goodput: [] as Ring,
-  max: 1800, // 180s one event @10Hz (Q53 B expand)
+  max: 1800, // 180 s, un événement à 10 Hz
   ts: 0,
   phase: '', // baseline|charge|recup — from SSE delta, drives CHARGE markArea (not estimated)
   phaseSince: {} as Record<string, number>, // first ts seen per phase — drives Timeline 48 phase bands
@@ -28,7 +28,7 @@ export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: num
   push(live.rtt50, ts, f.rtt_p50_ms ?? null)
   push(live.rtt95, ts, f.rtt_p95_ms ?? null)
   push(live.small, ts, f.small_p95_ms ?? null)
-  // counter artifacts (qdisc replacement resets) never enter the goodput ring
+  // les artefacts de compteur (reset de qdisc) n'entrent jamais dans l'anneau goodput
   const g = f.bulk_goodput_mbps
   push(live.goodput, ts, g != null && g >= 0 && g <= 2500 ? g : null)
 }

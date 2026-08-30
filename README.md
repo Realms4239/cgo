@@ -44,11 +44,15 @@ It produces the *measured evidence* that informs those decisions — the audit r
 
 ```bash
 make build            # frontend dist + Go binary → bin/cgo
-./bin/cgo --serve     # dashboard at http://localhost:9090
+./bin/cgo --serve     # dashboard at http://localhost:9090 (binds 127.0.0.1)
 ./bin/cgo audit --link-type 5g --site "Dept X" --duration 300
 ./bin/cgo run         # execute the AQM/CC matrix
 ./bin/cgo verify      # SHA-256 check of frozen CSVs
 ```
+
+The dashboard binds the local interface (`127.0.0.1:9090`) by default; pass
+`--addr 0.0.0.0:9090` to expose it on the LAN (as `kit/vm-install.sh` and the
+installed systemd unit do).
 
 **Deploy to an Ubuntu VM (the real bench):**
 

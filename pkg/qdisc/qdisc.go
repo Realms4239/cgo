@@ -1,15 +1,15 @@
 // Package qdisc — tc configuration behind a TCRunner seam.
-// Host tests use FakeRunner; the VM runs ExecRunner (real tc).
+// Tests hôte: FakeRunner; la VM exécute ExecRunner (tc réel).
 //
 // Topology contract (documented ceiling, docs/PLAN.md M1.1): profile
-// shaping and AQM live on separate layer-2 hops of the testbed veth pair
-// so two classless roots never compete on one interface:
+// façonnage et AQM sur deux sauts distincts de la paire veth du banc
+// pour que deux racines sans classe ne se disputent jamais une interface:
 //
-//	client veth ← netem(delay/jitter/loss) · shaping+aqm veth → server veth
+//	veth client ← netem(délai/gigue/perte) · veth façonnage+aqm → veth serveur
 //
-// Shaping: cake carries its own bandwidth; tbf shapes for pfifo/fq_codel,
-// with fq_codel attached as tbf's single child. pfifo_fast cell = tbf with
-// its default fifo (pfifo_fast is not attachable as a child) — documented.
+// Façonnage: cake porte sa propre bande passante; tbf façonne pour pfifo/fq_codel,
+// fq_codel attaché comme unique enfant du tbf. Cellule pfifo_fast = tbf avec
+// son fifo par défaut (pfifo_fast n'est pas attachable en enfant) — documenté.
 package qdisc
 
 import (
@@ -27,7 +27,7 @@ type TCRunner interface {
 type ExecRunner struct{}
 
 func (ExecRunner) Run(args ...string) ([]byte, error) {
-	// VM requires sudo for tc (NOPASSWD in /etc/sudoers.d/cgo-network)
+	// la VM exige sudo pour tc (NOPASSWD dans /etc/sudoers.d/cgo-network)
 	return exec.Command("sudo", append([]string{"tc"}, args...)...).CombinedOutput()
 }
 
@@ -59,7 +59,7 @@ func Reset(r TCRunner, iface string) error {
 	return nil
 }
 
-// ApplyNetem puts delay/jitter/loss as the root qdisc of the latency hop.
+// ApplyNetem pose délai/gigue/perte en qdisc racine du saut de latence.
 // It uses handle 1: so that a shaper can be stacked as child 1:1.
 func ApplyNetem(r TCRunner, iface string, delayMs, jitterMs, lossPct float64) error {
 	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
@@ -73,9 +73,9 @@ func ApplyNetem(r TCRunner, iface string, delayMs, jitterMs, lossPct float64) er
 	return nil
 }
 
-// ApplyShaper configures capacity + AQM on the shaping hop, stacked as child
-// of the netem at 1: so both delay and rate apply to the same egress.
-// If the parent 1: does not exist (e.g. veth-s has no netem), fall back to root.
+// ApplyShaper configure capacité + AQM sur le saut de façonnage, empilé enfant
+// du netem 1: pour que délai et débit touchent la même sortie.
+// Si le parent 1: n'existe pas (veth-s sans netem), repli sur la racine.
 func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64) error {
 	switch q {
 	case model.Cake:

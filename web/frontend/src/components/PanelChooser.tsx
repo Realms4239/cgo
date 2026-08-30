@@ -22,7 +22,7 @@ export default function PanelChooser() {
     return readVis()
   })
 
-  // vis persisted via PanelChooser mount; no toggle on nav — wall kit keeps hero always visible
+  // Visibilité persistée au montage; pas de toggle — le hero reste toujours visible.
   useEffect(() => {
     try { localStorage.setItem(LS_KEY, JSON.stringify(vis)) } catch {}
   }, [vis])

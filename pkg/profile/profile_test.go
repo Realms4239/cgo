@@ -7,7 +7,7 @@ import (
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
-// P3 VSAT built-in values (5/600/30/1) per LIEN Tableau 2 — import layer must not shadow them.
+// Valeurs P3 VSAT (5/600/30/1) — l'import ne doit pas les masquer.
 func TestP3Values(t *testing.T) {
 	p, ok := model.Profiles["P3"]
 	if !ok {
@@ -18,7 +18,7 @@ func TestP3Values(t *testing.T) {
 	}
 }
 
-// Import registers AND persists a custom profile (single source — callers get both).
+// Import enregistre ET persiste un profil (source unique — les appelants ont les deux).
 func TestImportCustom(t *testing.T) {
 	dir := t.TempDir()
 	old, err := os.Getwd()

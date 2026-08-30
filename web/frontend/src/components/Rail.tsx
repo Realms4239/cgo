@@ -16,7 +16,7 @@ export default function Rail(){
     const ctx=c.getContext('2d')
     if(!ctx) return
     ctx.clearRect(0,0,32,12)
-    // ponytail: static faint cyan sparkline, live data if throughput matters
+    // Sparkline cyan statique; données live si le débit importe.
     ctx.strokeStyle='#5ad3e3'
     ctx.globalAlpha=0.6
     ctx.lineWidth=1
@@ -33,7 +33,7 @@ export default function Rail(){
     {pinned && live && (
       <div className="live-peek" aria-hidden="true" style={{display:'flex',alignItems:'end',gap:1,height:12,margin:'4px 14px',opacity:0.7}}>
         {(live?.gates ?? []).length ? null : null}
-        {/* sparkline peek 32×12 cyan 0.6 when extended — ponytail: static preview, live data if needed */}
+        {/* mini-sparkline 32×12 cyan 0.6 — aperçu statique */}
         <span className="mono" style={{fontSize:10,color:'var(--t-live)'}}>∼ live</span>
       </div>
     )}
@@ -53,6 +53,6 @@ export default function Rail(){
       <div><span>événement</span><b className="mono">{live?.event_id ? '#'+live.event_id : '—'}</b></div>
       <div><span>SSE</span><b className="mono">{sseStatus}</b></div>
     </div>}
-    {pinned && <div className="rail-foot mono" style={{marginTop:'auto',padding:'8px 14px',borderTop:'1px solid var(--hairline)',fontSize:10,color:'var(--text-faint)',letterSpacing:'0.06em',textTransform:'uppercase' as const}}>Meteolink • LIEN</div>}
+    {pinned && <div className="rail-foot mono" style={{marginTop:'auto',padding:'8px 14px',borderTop:'1px solid var(--hairline)',fontSize:10,color:'var(--text-faint)',letterSpacing:'0.06em',textTransform:'uppercase' as const}}>Meteolink</div>}
   </aside>
 }

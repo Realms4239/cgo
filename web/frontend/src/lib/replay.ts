@@ -12,7 +12,7 @@ export function startReplay(runId: string) {
     try {
       const d = JSON.parse(ev.data)
       const ts = d.ts || Date.now()
-      // push real archived metrics into live rings
+      // pousse les métriques archivées réelles dans les anneaux live
       pushFrame(ts, {
         rtt_p50_ms: parseFloat(d.rtt_p50_ms) || 0,
         rtt_p95_ms: parseFloat(d.rtt_p95_ms) || 0,

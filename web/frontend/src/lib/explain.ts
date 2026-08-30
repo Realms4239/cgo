@@ -1,4 +1,4 @@
-// EXPLAIN — le dictionnaire unique des micro-explications (Q12/Q13).
+// Dictionnaire unique des micro-explications.
 // Une ligne par terme, français clair, zéro jargon auto-référentiel: chaque
 // élément essentiel de chaque vue peut expliquer ce qu'il montre.
 export const EXPLAIN: Record<string, string> = {

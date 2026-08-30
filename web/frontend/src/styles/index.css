@@ -35,12 +35,12 @@ header { grid-area: hd; display: flex; align-items: center; gap: 12px; padding: 
 .wordmark { font: 700 var(--fs-head) var(--font-display); letter-spacing: 0.04em; color: var(--text-primary); text-transform: uppercase; }
 .wordmark-lockup { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; min-width: 0; }
 .wordmark-text { white-space: nowrap; font: 600 20px var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; background: linear-gradient(90deg, #f2f2f4, #a9aeb6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: #f2f2f4; filter: drop-shadow(0 0 8px rgba(90,211,227,0.35)); line-height: 1; }
-.noc-icon { width: 16px; height: 16px; flex: none; color: var(--t-live); display: inline-flex; }
+.ml-icon { width: 16px; height: 16px; flex: none; color: var(--t-live); display: inline-flex; }
 .hd-sub { font: 400 var(--fs-micro) var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); white-space: nowrap; }
 .hd-right { margin-left: auto; display: flex; align-items: center; gap: var(--sp-3); font: 400 var(--fs-micro) var(--font-mono); color: var(--text-muted); flex: 0 0 auto; }
 .panel-chooser { display: flex; gap: 8px; padding: 10px 14px; background: rgba(16,16,18,0.92); border: 1px solid var(--hairline); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 
-/* sidebar / rail — ponytail minimal */
+/* barre latérale */
 aside.sidebar { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; }
 .rail { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; width: var(--rail-w, 56px); transition: width 400ms var(--ease); }
 .miniSparkline { width: 32px; height: 12px; opacity: 0.6; display: block; margin: 8px auto; }
@@ -162,7 +162,7 @@ footer .fill { margin-left: auto; }
   .prompt-progress { animation: none !important; width: 0 !important; }
 }
 
-/* NOC rebuild — full-width sections inside the 2-col wall grid */
+/* Sections pleine largeur — full-width sections inside the 2-col wall grid */
 #wall .wall-span { grid-column: 1 / -1; }
 #wall .bento-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--gap); }
 #wall .bento-5.hidden { display: none; }

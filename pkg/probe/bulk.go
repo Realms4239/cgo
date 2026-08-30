@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// BulkSendTo dials addr with cc and floods zeros until ctx done.
+// BulkSendTo connecte addr avec le cc et inonde de zéros jusqu'à la fin du ctx.
 func BulkSendTo(ctx context.Context, addr, cc string) (uint64, error) {
 	conn, err := DialWithCC(ctx, addr, cc)
 	if err != nil {
@@ -16,7 +16,7 @@ func BulkSendTo(ctx context.Context, addr, cc string) (uint64, error) {
 	return BulkSend(ctx, conn)
 }
 
-// BulkSend floods conn with zeros until ctx is done; returns bytes sent.
+// BulkSend inonde conn de zéros jusqu'à la fin du ctx; rend les octets envoyés.
 func BulkSend(ctx context.Context, conn net.Conn) (uint64, error) {
 	buf := make([]byte, 64*1024) // zeros
 	var total uint64
@@ -35,7 +35,7 @@ func BulkSend(ctx context.Context, conn net.Conn) (uint64, error) {
 	}
 }
 
-// BulkReceive reads until EOF; reports byte count via callback every read.
+// BulkReceive lit jusqu'à EOF; signale le compteur d'octets à chaque lecture.
 func BulkReceive(ctx context.Context, conn net.Conn, onBytes func(delta uint64)) (uint64, error) {
 	defer conn.Close()
 	buf := make([]byte, 256*1024)

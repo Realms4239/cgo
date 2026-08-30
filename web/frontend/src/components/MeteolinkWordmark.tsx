@@ -8,7 +8,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
     if (prefersReducedMotion()) return
     const el = ref.current
     if (!el) return
-    const path = el.querySelector('.noc-icon path:last-of-type') as SVGGeometryElement | null
+    const path = el.querySelector('.ml-icon path:last-of-type') as SVGGeometryElement | null
     if (path) {
       const drawable = svg.createDrawable(path)
       animate(drawable as any, { draw: ['0 0', '0 1'], duration: 800, ease: 'linear' } as any)
@@ -37,7 +37,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
         <i style={{ flex: 1, background: 'var(--brand-2, #1c69d4)' }} />
         <i style={{ flex: 1, background: 'var(--brand-3, #e22718)' }} />
       </span>
-      <svg className="noc-icon" width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ flex: 'none', color: 'var(--t-live, #5ad3e3)', display: 'inline-flex' }}>
+      <svg className="ml-icon" width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ flex: 'none', color: 'var(--t-live, #5ad3e3)', display: 'inline-flex' }}>
         <circle cx={5} cy={5} r={2.4} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
         <path d="M5 2 V1.2 M5 8.8 V7.6 M2.2 5 H1.2 M8.8 5 H7.6 M3.3 3.3 L2.4 2.4 M7.6 7.6 L6.7 6.7 M3.3 6.7 L2.4 7.6 M7.6 2.4 L6.7 3.3" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
         <path d="M1.8 11.5 Q5.5 8 8 11.5 T14.2 11.5" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
@@ -60,11 +60,11 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
           lineHeight: 1,
           whiteSpace: 'nowrap',
         }}
-        // fallback: ensure readable even if backgroundClip: text unsupported
+        // repli: rester lisible si backgroundClip: text n'est pas géré
       >
         METEOLINK
       </span>
-      {!compact && <span className="hd-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>LIEN — trafic critique · AQM/BBR · Mada</span>}
+      {!compact && <span className="hd-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Trafic critique · AQM/BBR · Madagascar</span>}
     </span>
   )
 }

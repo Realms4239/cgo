@@ -1,6 +1,6 @@
-// Package campagne — LIEN orchestration of one matrix cell
+// Package campagne — orchestration d'une cellule de matrice
 // (baseline → charge → récupération, SPEC §2.2). Durations injectable so
-// tests run fast; production uses the LIEN constants.
+// tests rapides; la production utilise ces durées.
 package campagne
 
 import (
@@ -30,11 +30,11 @@ type Deps struct {
 	Bulk  func(ctx context.Context, addr string) (uint64, error) // one charge-window flood
 	CPU   func() float64
 	Now   func() time.Time
-	// StatsFn returns per-qdisc stats for drops/bytes delta measurement.
-	// nil ⇒ no tc -s polling (drops stay 0, goodput from sender only).
+	// StatsFn rend les compteurs par qdisc pour les deltas pertes/octets.
+	// nil ⇒ pas de tc -s (pertes à 0, goodput côté émetteur seul).
 	StatsFn func() []qdisc.Stats
-	// DeadlineMs — small p95 objective (Q10): the operator's setting travels
-	// with the run so the exported CSV matches what was configured.
+	// DeadlineMs — objectif small p95: le réglage de l'opérateur voyage
+	// avec la campagne, le CSV exporté reflète la configuration.
 	DeadlineMs float64
 
 	BaselineSec int
@@ -44,10 +44,10 @@ type Deps struct {
 	OnSnap func(Snapshot)
 }
 
-// Snapshot composes the current broadcast frame.
-// Running is always true here — push is only called while the matrix is
-// running; the ground truth (mtx.Running) is applied by pumpSnapshots at
-// 10 Hz as the final word, avoiding pump vs push flapping.
+// Snapshot compose le frame de diffusion courant.
+// Running est toujours true ici — push n'est appelé que pendant que la matrice
+// tourne ; la vérité de référence (mtx.Running) est appliquée par pumpSnapshots
+// à 10 Hz comme dernier mot, évitant le battement pump vs push.
 func (d *Deps) Snapshot(phase, load string, ev model.Event,
 	base, chg map[string]float64, bulk uint64, prof model.Profile, gates []*bool) Snapshot {
 	s := Snapshot{
@@ -64,15 +64,15 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 
 func httpDefault() *http.Client { return &http.Client{Timeout: 2 * time.Second} }
 
-// readCPUIdleGuess — documented ceiling: /proc/stat sampling arrives with the
-// VM bootstrap (M1.6); until then CPU is reported 0 and G7 stays not-assessed.
+// readCPUIdleGuess — plafond documenté : l'échantillonnage /proc/stat arrive avec
+// le bootstrap VM (M1.6) ; jusque-là le CPU est rapporté 0 et G7 reste non évalué.
 func readCPUIdleGuess() float64 { return 0 }
 
 type qdiscRunner interface {
 	Run(args ...string) ([]byte, error)
 }
 
-// Live is the mutable snapshot the SSE hub broadcasts.
+// Live est l'instantané mutable que le hub SSE diffuse.
 type Live struct {
 	mu        sync.Mutex
 	snap      Snapshot
@@ -113,7 +113,7 @@ func (l *Live) Set(s Snapshot) {
 }
 func (l *Live) Get() Snapshot { l.mu.Lock(); defer l.mu.Unlock(); return l.snap }
 
-// SetRunning atomically updates only the Running flag, avoiding the
+// SetRunning met à jour atomiquement le seul drapeau Running, évitant
 // Get+Modify+Set lost-update race where a pump's stale Get overwrites
 // OnSnap's structural fields (profile/qdisc/gates).
 func (l *Live) SetRunning(v bool) {
@@ -155,12 +155,12 @@ func defaults(d *Deps) {
 	}
 }
 
-// RunEvent executes one cell end-to-end and returns the frozen row.
+// RunEvent exécute une cellule de bout en bout et rend la ligne gelée.
 func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (model.Event, error) {
 	defaults(&d)
 
-	// configure both hops — reset first: the shape lever (or a stale cell)
-	// can leave a foreign qdisc at root, which would fail every apply
+	// configurer les deux sauts — reset d'abord : le levier de façonnage (ou une
+	// cellule périmée) peut laisser un qdisc étranger à la racine, ce qui ferait échouer chaque apply
 	_, _ = d.TC.Run("qdisc", "del", "dev", d.CliIf, "root")
 	if err := qdisc.ApplyNetem(d.TC, d.CliIf, prof.DelayMs, prof.JitterMs, prof.LossPct); err != nil {
 		return ev, fmt.Errorf("netem: %w", err)
@@ -185,9 +185,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	var baseRTT, baseSmall, chgRTT, chgSmall, recRTT []float64
 	var bulkBytes uint64
 
-	// live truth (§5): publish running measurements every probe round so the
-	// 10Hz hub carries rtt/small/goodput/drops DURING the window — not only
-	// at phase boundaries (charts flatlined at 0 mid-charge before this).
+	// vérité live (§5) : publier les mesures en cours à chaque tour de sonde pour que
+	// le hub 10 Hz porte rtt/small/goodput/drops PENDANT la fenêtre — pas seulement
+	// aux frontières de phase (les courbes restaient à 0 en plein charge avant).
 	startDrops, startBytes := uint64(0), uint64(0)
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
@@ -213,11 +213,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			sts := d.StatsFn()
 			nowB, nowT := qdisc.SumBytes(sts), d.Now()
 			if nowB < liveLastBytes {
-				liveLastBytes = nowB // qdisc replaced (shape lever) — counters reset
+				liveLastBytes = nowB // qdisc remplacé (levier de façonnage) — compteurs remis à zéro
 			}
 			if dt := nowT.Sub(liveLastT).Seconds(); dt > 0.2 {
 				g := float64(nowB-liveLastBytes) * 8 / 1e6 / dt
-				if g >= 0 && g <= 2500 { // discard counter artifacts, keep the axis sane
+				if g >= 0 && g <= 2500 { // écarter les artefacts de compteur, garder l'axe lisible
 					live.BulkGoodputMbps = round1(g)
 				}
 			}
@@ -232,7 +232,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		d.OnSnap(d.Snapshot(phase, loadFor(phase), live, nil, nil, 0, prof, gates))
 	}
 	collect := func(secs int, phase string) (rtt, small []float64) {
-		if secs <= 0 { // instant window: single synthetic pass (tests)
+		if secs <= 0 { // fenêtre instantanée : une seule passe synthétique (tests)
 			rtt = d.Ping(ctx, d.Target, 5)
 			if v, err := d.Small(ctx); err == nil {
 				small = append(small, v)
@@ -242,15 +242,15 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		}
 		deadline := d.Now().Add(time.Duration(secs) * time.Second)
 		for d.Now().Before(deadline) {
-			// prompt stop: a cancelled campagne must not keep probing until the
-			// phase deadline (up to 120 s of hot-spinning empty rounds)
+			// arrêt prompt : une campagne annulée ne doit pas continuer à sonder jusqu'à
+			// l'échéance de phase (jusqu'à 120 s de tours vides en boucle chaude)
 			select {
 			case <-ctx.Done():
 				return rtt, small
 			default:
 			}
-			// publish FIRST — ping+small can block seconds over a saturated
-			// link; the wall shows current truth every round, not boundary zeros
+			// publier D'ABORD — ping+small peuvent bloquer des secondes sur un lien
+			// saturé ; le mur montre la vérité courante à chaque tour, pas des zéros de frontière
 			publishLive(phase, rtt, small)
 			rtt = append(rtt, d.Ping(ctx, d.Target, 5)...)
 			if v, err := d.Small(ctx); err == nil {
@@ -268,12 +268,12 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	sumB := metrics.Summarize(baseRTT)
 	set(model.G6BaselineStable, len(baseRTT) > 4 && sumB.P95-sumB.Median < maxVal(5, .2*sumB.Median))
 
-	// charge — bulk flood with the cell's congestion control (real CC matrix)
+	// charge — bulk flood avec le contrôle de congestion de la cellule (vraie matrice CC)
 	push(model.PhaseCharge)
 	chgCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// re-baseline tc -s counters at charge start — drops/goodput delta is charge-scoped
+	// re-baseline des compteurs tc -s au début de la charge — le delta drops/goodput est propre à la charge
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
 		startDrops, startBytes = qdisc.SumDrops(sts), qdisc.SumBytes(sts)
@@ -290,16 +290,16 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	done := make(chan uint64, 1)
 	go func() { b, _ := bulkFn(chgCtx, d.BulkAddr); done <- b }()
 	if d.ChargeSec > 0 {
-		time.Sleep(300 * time.Millisecond) // let the flood connect
+		time.Sleep(300 * time.Millisecond) // laisser le flood se connecter
 	}
 	chgRTT, chgSmall = collect(d.ChargeSec, model.PhaseCharge)
 	cancel()
 	bulkBytes = <-done
 	set(model.G1BulkStarted, bulkBytes > 0)
 	set(model.G2ProbesProducing, len(chgRTT) > 0 && len(chgSmall) > 0)
-	chargeDur := float64(maxVal(float64(d.ChargeSec), 1)) // ≥1 s denominator
+	chargeDur := float64(maxVal(float64(d.ChargeSec), 1)) // dénominateur ≥ 1 s
 
-	// goodput: prefer tc -s receiver-side delta over sender-side bytes
+	// goodput : préférer le delta côté récepteur de tc -s aux octets côté émetteur
 	goodput := float64(bulkBytes) * 8 / 1e6 / chargeDur
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
@@ -321,14 +321,14 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.BulkGoodputMbps = round1(goodput)
 	cpuAvg := d.CPU()
 	ev.CPUPct = round1(cpuAvg)
-	// wasted bytes: retransmitted segments × MSS (approx 1448 for veth MTU 1500)
+	// octets gaspillés : segments retransmis × MSS (environ 1448 pour veth MTU 1500)
 	ev.WastedBytes = ev.Drops * 1448
 	ev.CostARPerH = round1(metrics.CostARPerH(ev.WastedBytes))
 	set(model.G3LatencyPlausible, ev.RTTp95Ms < prof.DelayMs*10+200)
 	set(model.G4ThroughputCoherent, goodput >= prof.CapacityMbps*.5 && goodput <= prof.CapacityMbps*1.1+.5)
 	set(model.G7CPUNotSaturated, cpuAvg < 90)
-	set(model.G5NoDuplicateRows, true) // enforced by writer at freeze
-	// publish updated metrics so SSE carries truth (wasted/cost/deadline) without derivation
+	set(model.G5NoDuplicateRows, true) // appliqué par l'écrivain au gel
+	// publier les métriques mises à jour pour que SSE porte la vérité (wasted/cost/deadline) sans dérivation
 	if d.OnSnap != nil {
 		d.OnSnap(d.Snapshot(model.PhaseCharge, loadFor(model.PhaseCharge), ev, nil, nil, 0, prof, gates))
 	}

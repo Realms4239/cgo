@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-// ponytail: 2d mesh not WebGL, full WebGL if jank matters — one canvas, draw once, no loop
+// Maillage 2D (pas WebGL) — un canvas, dessin unique, sans boucle.
 export default function WebGLMesh() {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {

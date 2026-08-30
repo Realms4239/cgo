@@ -11,18 +11,18 @@ import (
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
-// Task 5.1 — figures need data (honest error, no empty SVG) and embed RDF
-// provenance (sha256 of latest aqm_eval.csv + date + creator) in both SVGs.
+// Tâche 5.1 — les figures exigent des données (erreur honnête, pas de SVG vide) et
+// intègrent la provenance RDF (sha256 du dernier aqm_eval.csv + date + créateur) dans les deux SVG.
 func TestFiguresRDF(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "figures")
 
-	// no data → honest error, nothing written
+	// pas de données → erreur honnête, rien d'écrit
 	if err := Generate(filepath.Join(dir, "runs"), out); err == nil {
 		t.Fatal("expected error with no data")
 	}
 
-	// one run, two rows same profile|qdisc|cc — header per model.AQMEvalHeader
+	// un run, deux lignes même profile|qdisc|cc — en-tête selon model.AQMEvalHeader
 	run := filepath.Join(dir, "runs", "run-20260828-0001")
 	if err := os.MkdirAll(run, 0o755); err != nil {
 		t.Fatal(err)
@@ -50,8 +50,8 @@ func TestFiguresRDF(t *testing.T) {
 	}
 }
 
-// ProvenanceHash8 — the 8-char sha256 of the latest aqm_eval.csv, stable
-// across Wall/Drawer/Archives/Report (triple-provenance, master ledger).
+// ProvenanceHash8 — le sha256 8 caractères du dernier aqm_eval.csv, stable
+// sur Wall/Drawer/Archives/Report (triple provenance, registre maître).
 func TestProvenanceHash8(t *testing.T) {
 	if h := ProvenanceHash8(filepath.Join(t.TempDir(), "empty")); h != "" {
 		t.Fatalf("no data expected empty hash, got %q", h)

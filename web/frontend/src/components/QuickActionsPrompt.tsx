@@ -46,7 +46,7 @@ export default function QuickActionsPrompt() {
   const running = !!live?.running
   const eventId = live?.event_id ?? 1
   const phase = live?.phase ?? 'charge'
-  // M9 fix: progress not choices when running — show Event 3/6 4/10s
+  // pendant la course: progression, pas de choix — Événement 3/6 4/10 s
   const isRunningProgress = running
   const rapidLabel = isRunningProgress ? '' : ['Actions', 'rapides'].join(' ')
   const actions = isRunningProgress

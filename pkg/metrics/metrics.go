@@ -1,5 +1,5 @@
-// Package metrics — pure LIEN Tableau 4/5 computations.
-// The browser never derives these; Go is the only calculator.
+// Package metrics — percentile, deadline et coût.
+// Le navigateur ne recalcule rien; Go est le seul calculateur.
 package metrics
 
 import (
@@ -28,7 +28,7 @@ type Summary struct {
 	IQRLow, IQRHigh  float64
 }
 
-// Summarize sorts a copy and returns median + IQR + percentiles.
+// Summarize trie une copie et rend médiane + IQR + percentiles.
 func Summarize(v []float64) Summary {
 	s := append([]float64(nil), v...)
 	sort.Float64s(s)
@@ -55,14 +55,14 @@ func DeadlineOKPct(completionsMs []float64, dueMs float64) float64 {
 	return float64(ok) / float64(len(completionsMs)) * 100
 }
 
-// CostARPerH — LIEN formula: wasted / 4.5 GiB × 30000 Ar/h.
+// Coût: gaspillé / 4,5 Gio × 30 000 Ar/h.
 const (
 	planBytes = 4.5 * 1024 * 1024 * 1024
 	planAR    = 30000
 )
 
 // JFI — Jain's fairness index (Σx)² / (n·Σx²), 0..1 (1 = perfectly fair).
-// ponytail: unused until detail=1 API exposes per-rep values — frontend computeJFI covers current need
+// Inutilisé tant que l'API n'expose pas les valeurs par répétition (computeJFI côté front).
 func JFI(values []float64) float64 {
 	if len(values) == 0 {
 		return 0

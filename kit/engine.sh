@@ -4,8 +4,7 @@
 #  Hypervisor auto: VMware (vmrun) primary, VirtualBox (VBoxManage) fallback.
 #  Scan entire disk C:/D: shallow depth≤3 for .vmx/.vbox (--deep full)
 #  Build-then-embed strict before deploy, Cloudflare tunnel via $CLOUDFLARE_TUNNEL_TOKEN
-#  See docs/superpowers/specs/2026-08-27-wall-kit-reunite-design.md §7
-# ================================================================
+#  ================================================================
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

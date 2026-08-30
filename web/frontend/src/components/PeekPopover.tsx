@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-// ponytail: single popover not tour — 160×60 fixed portal, no lib
+// Un seul popover, pas de visite guidée — 160×60, sans lib.
 export function PeekPopover({ rect, children }: { rect: DOMRect; children: React.ReactNode }) {
   const left = rect.right + 168 > window.innerWidth ? rect.left - 168 : rect.right + 8
   const top = Math.min(rect.top, window.innerHeight - 68)

@@ -1,4 +1,4 @@
-// Stat — one tabular number discipline (value + unit + label), no boxes-in-boxes.
+// Stat — discipline du chiffre tabulaire (valeur + unité + label).
 export function Stat({ label, value, unit, color = 'var(--text-body, #f2f2f4)', size = 20 }: {
   label?: string
   value: string

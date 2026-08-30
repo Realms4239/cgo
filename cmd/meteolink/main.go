@@ -1,8 +1,8 @@
-// meteolink — cross-platform binary for npm/brew/go (go install github.com/Realms4239/cgo/cmd/meteolink@latest)
+// meteolink — binaire multiplateforme (go install github.com/Realms4239/cgo/cmd/meteolink@latest)
 // Usage:
-//   meteolink top [--addr http://localhost:9090] [--interval 250ms]   TUI 8 cards ASCII sparklines via live rings
-//   meteolink --serve [--addr :9090]                                Web dashboard (same as cgo --serve)
-//   meteolink serve                                                  alias for --serve
+//   meteolink top [--addr http://localhost:9090] [--interval 250ms]   TUI 8 cartes, sparklines ASCII via les anneaux live
+//   meteolink --serve [--addr :9090]                                Tableau de bord web (comme cgo --serve)
+//   meteolink serve                                                  alias de --serve
 package main
 
 import (

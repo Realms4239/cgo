@@ -1,8 +1,8 @@
 import type { EChartsOption } from 'echarts'
 
-// ponytail: observatory grammar in ~100 lines, not a chart framework.
+// Grammaire de graphiques en ~100 lignes, pas un framework.
 // One parameterized base + craft factories (line | bar | area | scatter) —
-// every ECharts surface in the app consumes this (GoAccess/AA multiplicity).
+// toute surface ECharts de l'app passe par cette grammaire.
 export function baseOption(title: string, unit: string, opts?: { idle?: boolean }): EChartsOption {
   return {
     backgroundColor: 'transparent',
@@ -44,7 +44,7 @@ export function baseOption(title: string, unit: string, opts?: { idle?: boolean 
     ] as unknown as EChartsOption['dataZoom'],
     // semantic overload visualMap piecewise — STRIPPED per §3 clean triple
     // (its gradient pipeline crashed LineView/getVisualGradient mid-run)
-    // watermark kept only when !idle (§3) — on idle charts it glares in the void
+    // filigrane seulement hors idle — il éclat dans le vide sur un graphe vide
     graphic: opts?.idle ? [] : [
       { type: 'text', left: 'center', top: 10, style: { text: 'METEOLINK \u00B7 LIEN', fill: 'rgba(255,255,255,0.03)', font: '600 28px Cormorant Garamond', textAlign: 'center' }, silent: true },
       { type: 'image', left: 'center', top: 'center', style: { image: 'data:image/svg+xml;base64,PHN2Zz4=', width: 300, height: 300, opacity: 0.015 }, silent: true },
@@ -52,7 +52,7 @@ export function baseOption(title: string, unit: string, opts?: { idle?: boolean 
   } as unknown as EChartsOption
 }
 
-// craft palette — single source for every chart color (no hex in views)
+// palette — source unique des couleurs (pas de hex dans les vues)
 export const CRAFT = {
   live: '#5ad3e3',
   ok: '#1fa348',
@@ -62,7 +62,7 @@ export const CRAFT = {
   danger: '#e22718',
 } as const
 
-// craft factories — markPoint is opt-in with a unit-aware formatter (clean triple: no clutter on live charts)
+// fabriques — markPoint en opt-in, formateur à l'unité (pas d'encombrement)
 export function lineSeries(name: string, data: [number, number][], color: string, area = false, maxMarkUnit?: string) {
   return {
     name,
@@ -72,8 +72,8 @@ export function lineSeries(name: string, data: [number, number][], color: string
     smoothMonotone: 'x',
     sampling: 'lttb' as const,
     lineStyle: { width: 2, cap: 'round' as const, join: 'round' as const, shadowBlur: 12, shadowColor: color + '66', shadowOffsetY: 2, color },
-    // flat translucent area — the decorative LinearGradient crashed ECharts
-    // LineView (getVisualGradient 'coord') and is banned by the clean triple
+    // aire translucide plate — le LinearGradient décoratif plantait ECharts
+    // (getVisualGradient 'coord') — interdit par la grammaire propre
     areaStyle: area ? { color: color + '26', opacity: 0.8 } : undefined,
     emphasis: { focus: 'series', lineStyle: { width: 3 }, itemStyle: { borderWidth: 2 } },
     blur: { lineStyle: { opacity: 0.2 } },
@@ -110,9 +110,9 @@ export function scatterSeries(name: string, data: [number, number][], color: str
   }
 }
 
-// CHARGE markArea — single per chart, phase-driven only. Degenerate windows
+// markArea CHARGE — une seule par graphique, pilotée par la phase. Fenêtres
 // (ce<=cs, empty rings at phase boundary) render empty — ECharts markArea
-// throws 'coord' undefined otherwise, which killed the whole paint loop.
+// sinon 'coord' indéfini, ce qui tuait toute la boucle de rendu.
 export function chargeMarkArea(cs: number, ce: number, show: boolean) {
   const ok = show && Number.isFinite(cs) && Number.isFinite(ce) && ce > cs
   return {

@@ -26,17 +26,17 @@ type Craft = 'line' | 'bar' | 'area'
 type Tri = { metric: boolean; chart: Craft; source: 'live' | 'frozen' | 'both' }
 const DEFAULT_TRI: Tri = { metric: true, chart: 'line', source: 'both' }
 
-// craft adapter — one grammar, three chart crafts (Q4 chart pill: line|bar|area)
+// Adaptateur — une grammaire, trois rendus (pilule: ligne|barre|aire)
 function craftSeries(craft: Craft, name: string, data: [number, number][], color: string) {
   if (craft === 'bar') return barSeries(name, data as any, color)
   return lineSeries(name, data, color, craft === 'area')
 }
 
-// useChart — callback ref: the ECharts instance follows whatever div React
+// useChart — ref de callback: l'instance ECharts suit le div que React
 // mounts (re-renders at 2 Hz may replace nodes; useEffect([]) orphaned them).
-// useChart — the surface component owns the instance lifecycle (created after
-// layout, disposed on ITS unmount). Parent re-renders at 2 Hz never touch it;
-// React 19 ref-ordering can no longer orphan or dispose the chart.
+// useChart — le composant surface possède le cycle de vie de l'instance (créée
+// après layout, détruite à SON démontage). Les re-rendus parents à 2 Hz ne l'y touchent pas;
+// l'ordre des refs React 19 ne peut plus orpheliner ni détruire le graphe.
 function useChart(_title: string, _unit: string) {
   const chart = useRef<echarts.ECharts | null>(null)
   const onReady = useCallback((c: echarts.ECharts | null) => { chart.current = c }, [])
@@ -64,10 +64,10 @@ const ChartSurface = memo(function ChartSurface({ title, unit, domId, height, em
   useEffect(() => {
     if (!boxRef.current) return
     const c = echarts.init(boxRef.current, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
-    // prime the coordinate system BEFORE any data arrives — the first data
+    // amorcer le repère AVANT toute donnée — la première donnée
     // setOption on a never-painted chart crashed LineView ('coord') and
-    // poisoned zrender's shared flush, freezing the other charts with it.
-    // The primed base is also the visible idle grid (§3 honest emptiness).
+    // empoisonnait le flush partagé de zrender, gelant les autres graphes.
+    // La base amorcée sert aussi de grille idle visible (vide honnête).
     try { c.setOption(baseOption(title, unit, { idle: true })) } catch (e) { console.error('[chart] prime failed', e) }
     const ro = new ResizeObserver(() => { try { c.resize() } catch { } })
     ro.observe(boxRef.current)
@@ -105,7 +105,7 @@ export default function LiveView() {
   const [wallHash, setWallHash] = useState<string>('')
   const [hovered, setHovered] = useState(false)
   const [tri, setTri] = useState<Tri>(DEFAULT_TRI)
-  // edge control — baseline lock + shaping lever (ARG.md: control and shape)
+  // Contrôle du bord — verrou de baseline + levier de façonnage
   const [locked, setLocked] = useState<{ ms: number; at: string } | null>(() => {
     try { const r = localStorage.getItem('wall-baseline'); return r ? JSON.parse(r) : null } catch { return null }
   })
@@ -132,17 +132,17 @@ export default function LiveView() {
     return () => window.removeEventListener('panel-chooser-tri', onTri)
   }, [])
 
-  // honest idle: a new run starts from empty rings — no stale series under a fresh banner
+  // idle honnête: un nouveau run part d'anneaux vides — pas de séries périmées
   useEffect(() => { if (liveSnap?.running) clearLive() }, [liveSnap?.running])
 
-  // frozen history for A/B baseline vs CAKE when idle
+  // historique gelé pour la baseline A/B vs CAKE hors course
   useEffect(() => {
     if (liveSnap?.running || replayRunning) return
     let cancelled = false
     fetch('/api/results').then(r => r.json()).then(j => { if (!cancelled && j.available) setWallGroups(j.groups) }).catch(() => {})
     fetch('/api/integrity').then(r => r.json()).then(j => {
       if (cancelled) return
-      // triple-provenance: hash8 = sha256(latest aqm_eval.csv)[:8]; run-id only as fallback
+      // triple provenance: hash8 = sha256(dernier aqm_eval.csv)[:8]; repli run-id
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
       if (id) setWallHash(String(id).slice(0, 8))
     }).catch(() => {})
@@ -161,7 +161,7 @@ export default function LiveView() {
     if (ts - lastRef.current < 250) return
     lastRef.current = ts
     const d = (r: [number, number][]) => r.length > 400 ? lttb(r, 400) : r
-    // CHARGE markArea — single per chart, phase-driven only. No quartile estimate.
+    // markArea CHARGE — une seule par graphique, pilotée par la phase.
     const charging = live.phase === 'charge'
     const cs = charging ? live.phaseSince['charge'] ?? live.rtt95[0]?.[0] ?? Date.now() - 1000 : 0
     const ce = charging ? live.rtt95.at(-1)?.[0] ?? Date.now() : 0
@@ -236,7 +236,7 @@ export default function LiveView() {
   }
   const qdiSpark = live.rtt95.slice(-20).map(([, v], i) => Math.max(0, v - (live.rtt50[i]?.[1] ?? v)))
 
-  // live median of the current window — the number the comparison drives on
+  // médiane live de la fenêtre courante — le chiffre du comparatif
   const liveSmallMedian = (() => {
     const vals = live.small.slice(-120).map(([, v]) => v).filter(v => v > 0)
     if (vals.length < 5) return null
@@ -280,8 +280,8 @@ export default function LiveView() {
       const r = await fetch('/api/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: !watching }) })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) { useUIStore.getState().pushToast?.(j?.error ?? 'échec surveillance', 'err'); return }
-      // the server response is the truth — a double-click or a 409 race must
-      // never desync the pill from what the backend actually runs
+      // la réponse du serveur fait foi — un double-clic ou une course 409 ne doit
+      // jamais désynchroniser la pilule de ce que le backend exécute
       setWatching(!!j.watch)
       if (j.watch) { setLocked(null); lockedRingRef.current = [] }
       useUIStore.getState().pushToast?.(j.watch ? 'surveillance active — le mur est vivant' : 'surveillance arrêtée', 'ok')
@@ -309,7 +309,7 @@ export default function LiveView() {
   useEffect(() => { if (bannerRef.current) animateBannerPulse(bannerRef.current) }, [banner])
   useEffect(() => { animateLiveEnter() }, [])
 
-  // A/B overlay — baseline pfifo_fast median vs CAKE best median same scale, diff badge, hash 8-char
+  // superposition A/B — médianes pfifo vs meilleure CAKE, même échelle, badge d'écart, hash 8
   const baseline = wallGroups?.find(g => g.qdisc === 'pfifo_fast')
   const cakeBest = wallGroups?.find(g => g.qdisc === 'cake' && g.best) ?? wallGroups?.find(g => g.qdisc === 'cake') ?? wallGroups?.find(g => g.best) ?? null
   const maxAB = Math.max(baseline?.small_p95_median ?? 0, cakeBest?.small_p95_median ?? 0, smallP95, 1)
@@ -319,14 +319,14 @@ export default function LiveView() {
   const heroEmpty = live.small.length === 0
   const rttEmpty = live.rtt95.length === 0
   const goodputEmpty = live.goodput.length === 0
-  // Timeline 48 — phase bands from live.phaseSince, hidden idle (honest)
+  // Timeline 48 — bandes de phase depuis live.phaseSince, cachée au repos
   const hasData = live.rtt95.length > 0
   const now = live.rtt95.at(-1)?.[0] ?? Date.now()
   const t0 = live.phaseSince['baseline'] ?? live.rtt95[0]?.[0] ?? now - 1000
   const tCharge = Math.max(t0 + 1, live.phaseSince['charge'] ?? (live.phase === 'charge' ? t0 + 1 : now))
   const tRecup = Math.max(tCharge + 1, live.phaseSince['recup'] ?? (live.phase === 'recup' ? now : tCharge + 1000))
 
-  // instrumentation seam — surgical: read live option/pixels from probes
+  // couture d'instrumentation: lire options/pixels depuis les sondes
   if (typeof window !== 'undefined') (window as any).__CGO_CHARTS = { rtt: rtt.chart.current, small: small.chart.current, goodput: goodput.chart.current }
   return (
     <div id="wall" className="panel-stack" style={{ position: 'relative' }}>

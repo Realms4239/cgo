@@ -19,7 +19,7 @@ func TestDeadlineOKPct(t *testing.T) {
 	}
 }
 
-// Golden: LIEN cost formula — one full plan of waste costs exactly 30000 Ar/h.
+// Référence: un plan complet de gaspillage coûte exactement 30 000 Ar/h.
 func TestCostARPerHGolden(t *testing.T) {
 	if got := CostARPerH(uint64(4.5 * 1024 * 1024 * 1024)); got != 30000 {
 		t.Fatalf("cost = %v, want 30000", got)

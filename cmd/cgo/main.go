@@ -1,10 +1,10 @@
-// CGO — LIEN instrument. Commands per LIEN.md Partie III:
+// Meteolink (binaire cgo) — commandes principales:
 //
-//	cgo --serve                          dashboard + API (default port :9090)
+//	cgo --serve                          dashboard + API (127.0.0.1:9090 par défaut)
 //	cgo audit --link-type T --site S --duration N
 //	cgo run  --matrix full|reduced --profiles P1,P2 --reps 3
 //	cgo verify                           manifest integrity check
-//	cgo figures                          regenerate SVGs from frozen CSVs
+//	cgo figures                          régénère les SVG depuis les CSV gelés
 package main
 
 import (
@@ -40,7 +40,7 @@ func main() {
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
 		def := os.Getenv("CGO_DASHBOARD__ADDR")
 		if def == "" {
-			def = ":9090"
+			def = "127.0.0.1:9090" // interface locale par défaut; 0.0.0.0 pour la VM
 		}
 		addr := fs.String("addr", def, "listen address")
 		mode := fs.String("mode", "auto", "observe | full | auto (défaut: OS décide — Windows observe, Linux complet)")
@@ -152,7 +152,7 @@ WantedBy=multi-user.target
 		}
 		fmt.Printf("audit ok — p50 %.1f p95 %.1f small %.1f → data/link_audit.csv\n", res.RTTIdleP50, res.RTTIdleP95, res.HTTPSmallP95)
 	case "run":
-		fmt.Fprintln(os.Stderr, "run: use API POST /api/run/start {profiles,reps} (CLI run direct en M3+)")
+		fmt.Fprintln(os.Stderr, "run: use API POST /api/run/start {profiles,reps} (le lancement CLI passe par l'API)")
 		os.Exit(2)
 	default:
 		usage()

@@ -14,9 +14,10 @@ import (
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
-// Triple-provenance (master ledger): /api/integrity exposes the sha256 of the
-// latest aqm_eval.csv (full + 8-char) so Wall drawer + Archives pill + Report
-// + figures RDF all carry the SAME hash8. Chdir to temp — never pollute repo.
+// Triple provenance (registre maître) : /api/integrity expose le sha256 du
+// dernier aqm_eval.csv (complet + 8 caractères) pour que le tiroir Wall + la pastille
+// Archives + le Rapport + les figures RDF portent le MÊME hash8. Chdir vers un
+// dossier temp — ne jamais polluer le dépôt.
 func TestIntegrityProvenance(t *testing.T) {
 	dir := t.TempDir()
 	old, err := os.Getwd()

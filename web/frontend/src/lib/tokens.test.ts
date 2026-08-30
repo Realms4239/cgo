@@ -1,4 +1,4 @@
-// @ts-ignore node:fs types not needed for vitest jsdom — ponytail minimal
+// @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 
@@ -6,7 +6,7 @@ function read(p: string): string {
   for (const cand of [p, p.replace(/^web\/frontend\//, ''), `../${p}`, `../../${p}`]) {
     try { return readFileSync(cand, 'utf8') } catch { /* try next */ }
   }
-  // last attempt lets error throw with original path for diagnostics
+  // la dernière tente laisse l'erreur remonter avec le chemin d'origine
   return readFileSync(p, 'utf8')
 }
 
@@ -36,7 +36,7 @@ describe('tokens', () => {
   })
   it('tokens.css has hairline fading', () => {
     const css = read('web/frontend/src/styles/tokens.css')
-    // hairline fading is a linear-gradient with transparent edges
+    // le dégradé hairline est un linear-gradient à bords transparents
     expect(css).toMatch(/linear-gradient.*transparent.*#26262a/)
   })
   it('index.css has fadeIn and card hover and nav-btn inset', () => {

@@ -34,7 +34,7 @@ cat > start.sh <<LAUNCHER
 #!/bin/bash
 cd "$PROJECT_DIR"
 export CGO_DASHBOARD__ADDR=":$PORT"
-exec ./cgo-linux --serve >> /tmp/cgo.log 2>&1
+exec ./cgo-linux --serve --addr 0.0.0.0:9090 >> /tmp/cgo.log 2>&1
 LAUNCHER
 chmod +x start.sh
 ok "start.sh written (port $PORT)"

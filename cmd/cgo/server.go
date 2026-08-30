@@ -18,19 +18,19 @@ import (
 	"github.com/Realms4239/cgo/pkg/qdisc"
 )
 
-// runServer starts dashboard+API with the campagne core attached.
+// runServer démarre le tableau de bord + l'API avec le cœur de campagne.
 // mode: "full" (Linux bench/edge) or "observe" (Windows workstation).
 func runServer(ctx context.Context, addr, mode string) error {
 	live := campagne.NewLive()
 
-	// quarantined cells land in the operator journal (Q13)
+	// les cellules en quarantaine vont dans le journal opérateur
 	campagne.OnQuarantine = func(runID string, eventID int, profile, qdisc, cc string) {
 		api.RecordEvent("quarantaine", fmt.Sprintf("%s évènement %d %s/%s/%s — cellule invalidée par les portes", runID, eventID, profile, qdisc, cc))
 	}
 
 	if mode == "full" {
-		// startup self-check (Q18): a crashed session can leave a root qdisc
-		// behind; reset-then-apply semantics start from a clean shaper.
+		// startup self-check: a crashed session can leave a root qdisc
+		// derrière; reset-puis-application repart d'un shaper propre.
 		deps := campagne.ProdDeps()
 		_, _ = deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "root")
 	}
@@ -48,14 +48,14 @@ func runServer(ctx context.Context, addr, mode string) error {
 		mtxMu.Unlock()
 	}
 
-	// Single pump goroutine for the lifetime of the server (H1 fix):
-	// reads current mtx via getMtx each tick, no leak on restart, no flap.
+	// Boucle de diffusion unique pour toute la vie du serveur:
+	// lit le mtx courant via getMtx à chaque tick, pas de fuite, pas de flottement.
 	go pumpSnapshots(ctx, live, getMtx)
 
-	// watchCtl — the surveillance toggle shared between the campagne path
-	// (startFn auto-stops watch) and the API path (POST /api/watch). Both
-	// mutate the same state; one mutex or nothing (a bare bool here raced
-	// between the two call paths).
+	// watchCtl — bascule de surveillance partagée entre le chemin campagne
+	// (startFn arrête la surveillance) et le chemin API (POST /api/watch). Les
+	// deux mutent le même état; un mutex, sinon course de données (un bool
+	// nu courait entre les deux chemins).
 	watchCtl := struct {
 		mu   sync.Mutex
 		stop func()
@@ -86,8 +86,8 @@ func runServer(ctx context.Context, addr, mode string) error {
 		watchStop() // campagne and surveillance are mutually exclusive
 		if m := getMtx(); m != nil {
 			m.Stop()
-			// drain — the old matrix's cells may still be mid-tc-call; starting
-			// under them races the shaper and fails the new cells wholesale
+			// drainage — les cellules de l'ancienne matrice peuvent être en plein appel tc;
+			// démarrer par-dessus fait courir le shaper et casse les nouvelles cellules
 			for i := 0; i < 30 && m.IsRunning(); i++ {
 				time.Sleep(100 * time.Millisecond)
 			}
@@ -106,20 +106,20 @@ func runServer(ctx context.Context, addr, mode string) error {
 			getMtx().Stop()
 		}
 		// pump will notice mtx.IsRunning()==false on next tick (≤100ms) and
-		// set live false atomically; we also set immediately for snappier UX.
+		// passe live à false atomiquement; réglé aussi tout de suite pour la réactivité.
 		live.SetRunning(false)
 	}
-	// ARG.md edge control — the shaping lever on the gateway's egress hop,
-	// same primitives the campagne cells use (manual mode for the DSI).
+	// Levier de façonnage sur la sortie du bord (contrôle manuel):
+	// mêmes primitives que les cellules de campagne (mode manuel pour la DSI).
 	shapeFn := func(r api.ShapeReq) error {
 		deps := campagne.ProdDeps()
-		// reset first — stale handles from a campagne cell make 'replace'
-		// fail; the lever owns a deterministic clean state
+		// reset d'abord — des handles périmés d'une cellule font échouer 'replace';
+		// le levier possède un état propre déterministe
 		_, _ = deps.TCShaper.Run("qdisc", "del", "dev", deps.ShaperIf, "root")
 		if r.Qdisc == "none" {
 			return nil
 		}
-		// conditions du lien (Q8): netem at root, shaper stacked as child
+		// Conditions du lien: netem à la racine, shaper empilé en enfant.
 		if r.DelayMs > 0 || r.JitterMs > 0 || r.LossPct > 0 {
 			if err := qdisc.ApplyNetem(deps.TCShaper, deps.ShaperIf, r.DelayMs, r.JitterMs, r.LossPct); err != nil {
 				return err
@@ -186,9 +186,9 @@ func runServer(ctx context.Context, addr, mode string) error {
 	}
 }
 
-// pumpSnapshots mirrors matrix progress into the broadcast snapshot at 10 Hz.
+// pumpSnapshots reflète la progression de la matrice dans l'instantané diffus à 10 Hz.
 // Uses Live.SetRunning atomically to avoid Get+Modify+Set lost-update race (H2).
-// getMtx is a func to read the current matrix pointer under lock (single pump, H1).
+// getMtx lit le pointeur de matrice sous verrou (pompe unique).
 func pumpSnapshots(ctx context.Context, live *campagne.Live, getMtx func() *campagne.Matrix) {
 	tk := time.NewTicker(time.Second / 10)
 	defer tk.Stop()

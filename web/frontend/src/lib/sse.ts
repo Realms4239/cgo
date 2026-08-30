@@ -17,8 +17,8 @@ const gatesEqual = (a: unknown, b: unknown): boolean => {
 
 export function connectSSE() {
   if (es) return
-  // H4: server caps replay to last 5 frames when no Last-Event-ID (was 2048 storm);
-  // browser auto-sends Last-Event-ID on reconnect via retry:2000
+  // le serveur limite le replay aux 5 dernières frames sans Last-Event-ID;
+  // le navigateur renvoie Last-Event-ID à la reconnexion (retry:2000)
   es = new EventSource('/api/stream')
   const store = useUIStore
 
@@ -38,10 +38,10 @@ export function connectSSE() {
         }
         if (data[k] !== undefined) (last as any)[k] = data[k]
       }
-      // truth boundary: idle frames carry no measurement — never fabricate 0s.
-      // While running, all-zero frames are boundary/pump gaps, not measurements — skip.
-      // Surveillance (surveil) and burst-test frames are measurements with
-      // running=false — they must reach the rings or the wall starves.
+      // frontière de vérité: les frames idle ne mesurent rien — jamais de 0 fabriqué.
+      // En course, les frames tout-zéro sont des trous de pompe, pas des mesures — ignorer.
+      // Les frames surveillance (surveil) et burst sont des mesures avec
+      // running=false — elles doivent atteindre les anneaux, sinon le mur meurt.
       const measured = !!(data.rtt_p50_ms || data.rtt_p95_ms || data.small_p95_ms || data.bulk_goodput_mbps || data.drops)
       if (data.ts && (data.running || data.phase === 'surveil' || data.phase === 'burst') && measured) pushFrame(data.ts, data as any)
       frameCount++

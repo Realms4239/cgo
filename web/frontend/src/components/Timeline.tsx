@@ -2,8 +2,8 @@ import * as d3 from 'd3'
 import { useEffect, useRef } from 'react'
 import { live } from '../lib/live'
 
-// ponytail: full d3 — switch to d3-scale/d3-selection if bundle exceeds 650KB
-// ponytail: brushX global live.max — per-phase brush if selection throughput matters
+// d3 complet — d3-scale/d3-selection si le bundle dépasse 650 Ko.
+// Brush global sur live.max — par phase si la sélection devient utile.
 export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, currentPhase }: { baselineStart: number, chargeStart: number, chargeEnd: number, recupEnd: number, currentPhase: string }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -30,18 +30,18 @@ export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, curr
         .attr('stroke-width', isCurrent ? 1 : 0)
         .style('filter', isCurrent ? 'drop-shadow(0 0 6px rgba(255,255,255,0.25))' : 'none')
     }
-    // brushX — extent [[0,0],[w,48]] sets live.max from selection width
-    // ponytail: live.max is mutable ring, don't corrupt Zustand — use live.max directly
-    // snap-effect handle 16px — ponytail: 16px grab area keeps brush usable on touch
+    // brushX — extent [[0,0],[w,48]] règle live.max depuis la sélection
+    // live.max est mutable (anneau):'t corrupt Zustand — use live.max directly
+    // Poignée de 16 px — zone de saisie utilisable au tactile.
     const brush = (d3 as any).brushX().extent([[0, 0], [w, 48]]).handleSize(16).on('end', (e: any) => {
       if (e.selection) {
         const a = (x.invert as any)(e.selection[0]).getTime()
         const b = (x.invert as any)(e.selection[1]).getTime()
         const span = Math.abs(b - a)
-        // ponytail: live.max mutable — single source for ring window, 60..1800 clamp (rings 1800, Q53 B)
+        // live.max mutable — source unique de la fenêtre, borne 60..1800.
         live.max = Math.max(60, Math.min(1800, Math.round(span / 100)))
       } else {
-        // reset to full window when brush cleared — prevents permanent shrink
+        // retour à la fenêtre complète si le brush est vidé — évite le rétrécissement durable
         live.max = 1800
       }
     })

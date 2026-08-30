@@ -12,8 +12,8 @@ import (
 	"github.com/Realms4239/cgo/pkg/results"
 )
 
-// Generate creates SVG figures from frozen CSVs under dataDir, writing to outDir.
-// It scans all runs via results.Scan, then emits bar and scatter SVGs.
+// Generate crée des figures SVG à partir des CSV gelés sous dataDir, en écrivant dans outDir.
+// Il parcourt tous les runs via results.Scan, puis émet les SVG barres et nuage de points.
 func Generate(dataDir, outDir string) error {
 	groups, err := results.Scan(dataDir, "")
 	if err != nil {
@@ -26,7 +26,7 @@ func Generate(dataDir, outDir string) error {
 		return err
 	}
 	meta := provenanceMeta(dataDir)
-	// bar: small_p95 per group
+	// barres : small_p95 par groupe
 	if err := writeBar(filepath.Join(outDir, "small_p95.svg"), groups, meta); err != nil {
 		return err
 	}
@@ -36,8 +36,8 @@ func Generate(dataDir, outDir string) error {
 	return nil
 }
 
-// ProvenanceSHA — full sha256 of the latest aqm_eval.csv ("" when no data).
-// One derivation for the triple-provenance chain (Wall/Archives/Report).
+// ProvenanceSHA — sha256 complet du dernier aqm_eval.csv ("" sans données).
+// Une seule dérivation pour la chaîne de triple provenance (Wall/Archives/Report).
 func ProvenanceSHA(dataDir string) string {
 	runs, _ := filepath.Glob(filepath.Join(dataDir, "*", "aqm_eval.csv"))
 	if len(runs) == 0 {
@@ -52,7 +52,7 @@ func ProvenanceSHA(dataDir string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ProvenanceHash8 — first 8 hex chars of ProvenanceSHA.
+// ProvenanceHash8 — les 8 premiers caractères hex de ProvenanceSHA.
 func ProvenanceHash8(dataDir string) string {
 	if full := ProvenanceSHA(dataDir); full != "" {
 		return full[:8]
@@ -75,7 +75,7 @@ func provenanceMeta(dataDir string) string {
 	sha := hex.EncodeToString(sum[:])
 	src := filepath.ToSlash(latest)
 	date := time.Now().UTC().Format(time.RFC3339)
-	return fmt.Sprintf(`<metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:source>%s</dc:source><dc:identifier>sha256:%s</dc:identifier><dc:date>%s</dc:date><dc:creator>CGO LIEN</dc:creator></rdf:Description></rdf:RDF></metadata>`, src, sha, date)
+	return fmt.Sprintf(`<metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:source>%s</dc:source><dc:identifier>sha256:%s</dc:identifier><dc:date>%s</dc:date><dc:creator>Meteolink</dc:creator></rdf:Description></rdf:RDF></metadata>`, src, sha, date)
 }
 
 func writeBar(path string, groups []results.Group, meta string) error {

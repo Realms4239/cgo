@@ -3,7 +3,7 @@ import { DEFAULTS, loadSettings, saveSettings, type Settings } from '../lib/sett
 import { useUIStore } from '../store/ui'
 import { loadSchema, param, type Param } from '../lib/schema'
 
-// Réglages — rendu depuis GET /api/schema (source unique Q14): bornes, pas,
+// Réglages — rendu depuis /api/schema (source unique): bornes, pas,
 // défauts en placeholder. Les bornes serveur restent autoritaires.
 const FIELDS: { key: keyof Settings; skey: string; label: string; unit?: string }[] = [
   { key: 'warnMs', skey: 'warn_ms', label: 'Seuil « dégradé »' },

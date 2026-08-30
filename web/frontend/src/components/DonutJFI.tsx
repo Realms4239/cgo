@@ -1,4 +1,4 @@
-// ponytail: donut-chart 56×56 stroke 8 steel→green arc 0–360 for JFI 0–1
+// Arc 0–360 (56×56, épaisseur 8) pour JFI 0–1.
 export function DonutJFI({ value }: { value: number | null }) {
   if (value == null || !Number.isFinite(value)) {
     return (

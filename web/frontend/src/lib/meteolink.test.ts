@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-// @ts-ignore node:fs types not needed for vitest jsdom — ponytail minimal
+// @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
 function read(p: string): string {
   const cands = [p, p.replace(/^web\/frontend\//, ''), 'web/frontend/' + p.replace(/^web\/frontend\//, '')]

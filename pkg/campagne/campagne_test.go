@@ -20,9 +20,9 @@ func fastDeps() Deps {
 		Target: "10.0.0.1", SmallURL: "http://127.0.0.1/obj", BulkAddr: "127.0.0.1:5201",
 		Ping:        func(context.Context, string, int) []float64 { return []float64{20, 21, 22, 23, 24} },
 		Small:       func(context.Context) (float64, error) { return 25, nil },
-		Bulk:        func(ctx context.Context, _ string) (uint64, error) { return 2_500_000, nil }, // ≈20 Mbit/s over the ≥1 s window
+		Bulk:        func(ctx context.Context, _ string) (uint64, error) { return 2_500_000, nil }, // ≈ 20 Mbit/s sur la fenêtre ≥ 1 s
 		CPU:         func() float64 { return 30 },
-		BaselineSec: -1, ChargeSec: -1, RecupSec: -1, // instant windows in tests
+		BaselineSec: -1, ChargeSec: -1, RecupSec: -1, // fenêtres instantanées dans les tests
 	}
 }
 
@@ -46,7 +46,7 @@ func TestRunEventHappyPath(t *testing.T) {
 
 func TestRunEventQuarantinesWhenBulkFails(t *testing.T) {
 	d := fastDeps()
-	d.Bulk = func(ctx context.Context, _ string) (uint64, error) { return 0, nil } // G1 fails → invalid
+	d.Bulk = func(ctx context.Context, _ string) (uint64, error) { return 0, nil } // G1 échoue → invalid
 	ev := model.Event{RunID: "r1", EventID: 2, Profile: "P2", Qdisc: model.Cake, CC: model.BBR, Repetition: 1}
 	got, err := RunEvent(context.Background(), ev, model.Profiles["P2"], d)
 	if err != nil {
@@ -80,21 +80,21 @@ func TestWriterAppendAndFreeze(t *testing.T) {
 	}
 }
 
-// §5 live contract: OnSnap carries running measurements DURING the charge
-// window — boundary-only publishing starved the Wall with zeros for the
-// whole charge (charts flatlined at 0 while SSE said running).
+// §5 contrat live : OnSnap porte les mesures en cours PENDANT la fenêtre
+// de charge — la publication aux seules frontières affamait le mur de zéros
+// pendant toute la charge (courbes à 0 alors que SSE disait running).
 func TestRunEventLivePublish(t *testing.T) {
 	d := fastDeps()
 	d.BaselineSec = 1
-	d.ChargeSec = 2 // probe loop rounds at ~300ms
-	d.RecupSec = -1 // instant — defaults() would replace 0 with the real recup window
+	d.ChargeSec = 2 // tours de boucle de sonde à ~300 ms
+	d.RecupSec = -1 // instantané — defaults() remplacerait 0 par la vraie fenêtre recup
 
 	release := make(chan struct{})
 	var once sync.Once
 	releaseAll := func() { once.Do(func() { close(release) }) }
 	defer releaseAll()
 	d.Bulk = func(ctx context.Context, _ string) (uint64, error) {
-		<-release // hold bulk mid-charge — collect loop must publish live regardless
+		<-release // retenir le bulk en plein charge — la boucle de collecte doit publier en live malgré tout
 		return 2_500_000, nil
 	}
 
@@ -141,7 +141,7 @@ func TestRunEventLivePublish(t *testing.T) {
 }
 
 // The shape lever (and any stale state) can leave a foreign qdisc at root —
-// RunEvent resets the hop before applying netem so cells self-heal instead of
+// RunEvent réinitialise le saut avant d'appliquer netem — les cellules
 // failing wholesale.
 func TestRunEventResetsStaleQdisc(t *testing.T) {
 	ops := [][]string{}
@@ -182,11 +182,11 @@ func (r *recTC) Run(args ...string) ([]byte, error) {
 	return nil, nil
 }
 
-// Stop must be prompt: a cancelled campagne must not keep probing until the
-// phase deadline (the collect loop used to ignore ctx for up to 120 s).
+// Stop doit être prompt : une campagne annulée ne doit pas continuer à sonder
+// jusqu'à l'échéance de phase (la boucle de collecte ignorait ctx jusqu'à 120 s).
 func TestStopPromptOnCancel(t *testing.T) {
 	d := fastDeps()
-	d.BaselineSec = 30 // long phase — only cancellation can end collect early
+	d.BaselineSec = 30 // phase longue — seule l'annulation peut terminer la collecte tôt
 	var calls int32
 	d.Ping = func(ctx context.Context, _ string, n int) []float64 {
 		atomic.AddInt32(&calls, 1)
@@ -202,24 +202,24 @@ func TestStopPromptOnCancel(t *testing.T) {
 		_, runErr = RunEvent(ctx, model.Event{RunID: "r1", EventID: 4, Profile: "P2", Qdisc: model.Cake, CC: model.BBR, Repetition: 1}, model.Profiles["P2"], d)
 		close(done)
 	}()
-	time.Sleep(300 * time.Millisecond) // let a few rounds run
+	time.Sleep(300 * time.Millisecond) // laisser quelques tours tourner
 	cancel()
 	select {
 	case <-done:
-		// returned promptly — good
+		// retourné promptement — bon
 	case <-time.After(3 * time.Second):
 		t.Fatal("RunEvent ignored cancellation for >3 s mid-phase — stop is not prompt")
 	}
 	if runErr != nil && !errors.Is(runErr, context.Canceled) {
-		// RunEvent may surface the cancel or complete degraded — both fine
+		// RunEvent peut remonter l'annulation ou finir dégradé — les deux sont acceptables
 		_ = runErr
 	}
-	if atomic.LoadInt32(&calls) > 40 { // 300 ms at ~20 ms/round ≈ ≤ 20; generous x2
+	if atomic.LoadInt32(&calls) > 40 { // 300 ms à ~20 ms/tour ≈ ≤ 20 ; généreux ×2
 		t.Fatalf("probes kept running after cancel: %d rounds", calls)
 	}
 }
 
-// Surveillance continue — ping+small sans bulk (ARG.md: non-intrusif) : le
+// Surveillance continue — ping + petits objets, sans bulk (non intrusif):
 // mur reste vivant hors campagne, le levier de façonnage devient visible.
 func TestStartWatchPublishes(t *testing.T) {
 	d := fastDeps()

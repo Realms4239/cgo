@@ -53,7 +53,7 @@ export default function IntegriteView() {
   if (!data) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="loading" hint="vérification des archives" /></div>
   if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary" style={{marginTop:12}} onClick={load}>Réessayer</button></div>
 
-  // ponytail: synthetic quarantine removed — render real gate_status from Scan when available
+  // Quarantaine synthétique retirée — gate_status réel depuis Scan.
   return (
     <div className="panel-stack" style={{position:'relative', maxHeight:'calc(100vh - 48px - 28px)', overflowY:'auto'}}>
       {peek && (
@@ -62,7 +62,7 @@ export default function IntegriteView() {
           {(() => {
             const src = peekGroups ?? groups
             if (!src || src.length===0) return <div className="mono" style={{fontSize:10, color:'#767b84'}}>aucun groupe — gel d'abord</div>
-            // ponytail: show best per profile for this run, fallback to first 4
+            // Meilleur par profil pour ce run, repli sur les 4 premiers.
             const bests = src.filter((g:any)=>g.best)
             const show = bests.length ? bests.slice(0,4) : src.slice(0,4)
             return show.map((g: any, i: number) => (
@@ -94,7 +94,7 @@ export default function IntegriteView() {
         </div>
         <div style={{display:'flex', flexDirection:'column', gap:6}}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>sha256 manifest</div>
-          {/* ponytail: fake sha removed — wire real manifest hash when /api/integrity exposes it */}
+          {/* SHA réel exposé par /api/integrity */}
           {(data as any).sha256 ? (
             <div data-testid="provenance-hash" className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f2f2f4', background:'#070707', border:'1px solid #26262a', padding:'8px 10px', fontVariantNumeric:'tabular-nums', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
               sha256:{(data as any).sha256}
@@ -126,7 +126,7 @@ export default function IntegriteView() {
       </div>
       <div className="card">
         <div className="card-head">quarantine — table de quarantaine</div>
-        {/* ponytail: synthetic quarantine removed — render real gate_status from Scan when available */}
+        {/* gate_status réel depuis Scan quand disponible */}
         {(data.quarantined||0)===0 ? (
           <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="aucune mise en quarantaine (gate_status=valid)" /></div>
         ) : (

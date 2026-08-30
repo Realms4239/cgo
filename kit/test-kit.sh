@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit regression test (plan 2026-08-27-wall-kit-4-kit.md Task 4.1) — build-then-embed strict gate present.
+# Test du kit — porte build-then-embed stricte.
 set -u
 fail=0
 test -f kit/engine.sh || { echo "FAIL kit/engine.sh missing"; fail=1; }

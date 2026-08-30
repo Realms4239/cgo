@@ -11,8 +11,8 @@ import (
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
-// CSV profile import (LIEN III.IV) — one header-less row: id,capacity_mbps,delay_ms,jitter_ms,loss_pct
-// Chdir to a temp dir: profile.Import persists data/profiles.json relative to CWD — never pollute the repo.
+// Import de profil CSV — une ligne sans en-tête : id,capacity_mbps,delay_ms,jitter_ms,loss_pct
+// Chdir vers un dossier temp : profile.Import persiste data/profiles.json relatif au CWD — ne jamais polluer le dépôt.
 func TestProfileImportCSV(t *testing.T) {
 	dir := t.TempDir()
 	old, err := os.Getwd()

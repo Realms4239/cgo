@@ -1,6 +1,6 @@
 // Package doctor — capability report (grilling Q11): one line per capability,
-// the same truth the dashboard badge shows. Nothing here shapes traffic or
-// mutates the host; it reads and reports.
+// la même vérité que le badge du tableau de bord. Rien ici ne
+// ne mute l'hôte: lecture et rapport.
 package doctor
 
 import (
@@ -17,8 +17,8 @@ type Check struct {
 	Detail string `json:"detail"`
 }
 
-// Mode resolves the effective mode: explicit override, else the OS decides —
-// Windows observes (no tc/netem), Linux runs at full power.
+// Mode résout le mode effectif: override explicite, sinon l'OS décide —
+// Windows observe (pas de tc/netem), Linux tourne à pleine puissance.
 func Mode(override string) string {
 	switch override {
 	case "observe", "full":
@@ -31,7 +31,7 @@ func Mode(override string) string {
 	}
 }
 
-// Report lists every capability the server needs, for the given mode.
+// Report liste chaque capacité requise pour le mode donné.
 func Report(mode string) (string, []Check) {
 	checks := []Check{
 		{Name: "os", Status: "ok", Detail: runtime.GOOS + "/" + runtime.GOARCH + " → mode " + mode},
@@ -73,7 +73,7 @@ func Report(mode string) (string, []Check) {
 	return mode, checks
 }
 
-// Print writes the human report for `cgo doctor`.
+// Print écrit le rapport lisible de `cgo doctor`.
 func Print() {
 	mode, checks := Report(Mode("auto"))
 	fmt.Printf("mode: %s\n", mode)

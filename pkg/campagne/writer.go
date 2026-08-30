@@ -11,9 +11,9 @@ import (
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
-// Writer appends rows to a run's frozen aqm_eval.csv and freezes the
-// manifest. G5 (no duplicate event rows) is enforced here, at the only
-// write path.
+// Writer ajoute des lignes au aqm_eval.csv gelé d'un run et gèle le
+// manifest. G5 (pas de lignes événement dupliquées) est appliqué ici, à l'unique
+// chemin d'écriture.
 type Writer struct {
 	Dir        string
 	seen       map[string]bool
@@ -39,12 +39,12 @@ func OpenRun(dir string) (*Writer, error) {
 	exists := false
 	if st, err := os.Stat(path); err == nil && st.Size() > 0 {
 		exists = true
-		// populate seen for resume (G5) — read existing rows
+		// remplir seen pour la reprise (G5) — lire les lignes existantes
 		if data, err := os.ReadFile(path); err == nil {
 			lines := splitLines(string(data))
 			for i, ln := range lines {
 				if i == 0 {
-					continue // header
+					continue // en-tête
 				}
 				if ln == "" {
 					continue
@@ -114,7 +114,7 @@ func joinRow(cols []string) string {
 	return out
 }
 
-// Append writes one row; duplicate (run,event) pairs are rejected (G5).
+// Append écrit une ligne ; les paires (run,event) dupliquées sont rejetées (G5).
 func (w *Writer) Append(ev model.Event) error {
 	key := fmt.Sprintf("%s/%d", ev.RunID, ev.EventID)
 	if w.seen[key] {
@@ -136,13 +136,13 @@ func (w *Writer) Append(ev model.Event) error {
 	return err
 }
 
-// Freeze closes the CSV and writes manifest.json with SHA-256 of every file
-// plus quarantine.json for degraded/invalid events.
+// Freeze ferme le CSV et écrit manifest.json avec le SHA-256 de chaque
+// fichier, plus quarantine.json pour les événements degraded/invalid.
 func (w *Writer) Freeze(cfgHash string) error {
 	if err := w.fh.Close(); err != nil {
 		return err
 	}
-	// quarantine
+	// quarantaine
 	if len(w.quarantine) > 0 {
 		qb, _ := json.MarshalIndent(w.quarantine, "", "  ")
 		_ = os.WriteFile(filepath.Join(w.Dir, "quarantine.json"), qb, 0644)
@@ -153,7 +153,7 @@ func (w *Writer) Freeze(cfgHash string) error {
 		if err != nil || info.IsDir() || filepath.Base(p) == "manifest.json" {
 			return err
 		}
-		// include quarantine.json in manifest hash
+		// inclure quarantine.json dans le hash du manifest
 		b, err := os.ReadFile(p)
 		if err != nil {
 			return err

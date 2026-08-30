@@ -9,12 +9,13 @@ import (
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
-// OnQuarantine — package-level hook set by the host (cmd/cgo) so quarantined
-// cells land in the operator journal (Q13). Nil ⇒ silent, tests stay quiet.
+// OnQuarantine — hook de niveau package posé par l'hôte (cmd/cgo) pour que les
+// cellules quarantaine arrivent dans le journal opérateur (Q13). Nil ⇒ silencieux, tests tranquilles.
 var OnQuarantine func(runID string, eventID int, profile, qdisc, cc string)
 
-// Matrix drives the full LIEN experiment matrix (Tableau 3):
-// profiles × qdiscs × CC × repetitions = 36 events (18 when reduced to P2).
+// Matrice d'expérimentation complète: profils × files d'attente × CC ×
+// répétitions.
+// profils × qdiscs × CC × répétitions = 36 événements (18 en réduit P2).
 type Matrix struct {
 	mu      sync.Mutex
 	cancel  context.CancelFunc
@@ -25,7 +26,7 @@ type Matrix struct {
 	Done  int
 }
 
-// IsRunning is the race-free accessor for Running (H3).
+// IsRunning est l'accesseur sans course pour Running (H3).
 func (m *Matrix) IsRunning() bool {
 	if m == nil {
 		return false
@@ -35,7 +36,7 @@ func (m *Matrix) IsRunning() bool {
 	return m.Running
 }
 
-// Start launches the matrix in the background; progress lands in Live.
+// Start lance la matrice en arrière-plan ; la progression arrive dans Live.
 func StartMatrix(base context.Context, profiles []string, reps int,
 	deps Deps, live *Live, dataDir string) (*Matrix, error) {
 	return StartMatrixWithID(base, newRunID(), profiles, reps, deps, live, dataDir)
@@ -96,7 +97,7 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 						if err == nil {
 							_ = w.Append(done)
 							m.Done = id
-							// quarantined cells land in the operator journal (Q13)
+							// les cellules quarantaine arrivent dans le journal opérateur (Q13)
 							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
 								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
 							}

@@ -1,7 +1,7 @@
 import { useUIStore } from '../store/ui'
 
-// ponytail: fixed beam between Campagne and Live when running — CSS dashOffset -40 linear infinite
-// hover-sync (Task 3.3): hovered = chart hover state from LiveView — beam brightens; anime guarded (CSS no-preference)
+// Trait fixe entre Campagne et Tableau live quand la campagne tourne.
+// synchro au survol: hovered = état de survol du graphique — le trait s'éclaire; anime gardé (CSS no-preference)
 export function Beam({ hovered = false }: { hovered?: boolean }) {
   const live = useUIStore((s: any) => s.live)
   if (!live?.running) return null

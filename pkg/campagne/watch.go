@@ -10,10 +10,10 @@ import (
 	"github.com/Realms4239/cgo/pkg/qdisc"
 )
 
-// StartWatch runs the non-intrusive probe loop (ping + small object, no bulk —
-// ARG.md: the audit is client-side by design). The wall stays alive outside a
-// campagne, which makes the shape lever's effect visible in real time.
-// Snapshots carry phase "surveil" and never touch the shaper.
+// StartWatch exécute la boucle de sonde non intrusive (ping + petit objet, sans bulk —
+// l'audit reste côté client). Le mur reste vivant hors
+// campagne, ce qui rend l'effet du levier de façonnage visible en temps réel.
+// Les instantanés portent la phase "surveil" et ne touchent jamais le shaper.
 func StartWatch(base context.Context, d Deps) (stop func()) {
 	defaults(&d)
 	ctx, cancel := context.WithCancel(base)
@@ -60,12 +60,12 @@ func StartWatch(base context.Context, d Deps) (stop func()) {
 				}
 			}
 			snap := d.Snapshot("surveil", "", live, nil, nil, 0, model.Profiles["P2"], nil)
-			// watch ≠ campagne — Running must stay false or it flaps against
-			// pumpSnapshots' ground truth and the app treats every frame as a
-			// campagne end (auto-switching panels mid-surveillance).
+			// watch ≠ campagne — Running doit rester false sinon il bat contre la
+			// vérité de référence de pumpSnapshots et l'app traite chaque frame comme
+			// une fin de campagne (bascule de panneaux en pleine surveillance).
 			snap.Running = false
 			d.OnSnap(snap)
-			if len(rtt) > 3600 { // ~30 min window at 3 pings / 500 ms
+			if len(rtt) > 3600 { // fenêtre de ~30 min à 3 pings / 500 ms
 				rtt = rtt[len(rtt)-1800:]
 			}
 			if len(small) > 1200 {

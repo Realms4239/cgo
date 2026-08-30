@@ -29,7 +29,7 @@ func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		// F8: no data yet — honest empty, not synthetic success
+		// F8 : pas encore de données — vide honnête, pas de succès synthétique
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]any{"available": false, "reason": "aucune donnée — lancez campagne"})

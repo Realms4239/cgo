@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { explain } from '../lib/explain'
 
-// Explain — micro-explication d'un élément essentiel (Q12): survol montre,
+// Micro-explication d'un élément essentiel: survol montre,
 // clic épingle (projection-friendly — pas de curseur tremblant), clic dehors
 // referme. Un seul composant, un seul dictionnaire (lib/explain.ts).
 export default function Explain({ term, children, style }: { term: string; children: ReactNode; style?: React.CSSProperties }) {

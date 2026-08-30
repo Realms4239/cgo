@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit regression test (plan 2026-08-27-wall-kit-4-kit.md Task 4.2) — VMware detect-fallback VirtualBox.
+# Test du kit — détection VMware avec repli VirtualBox.
 set -u
 fail=0
 grep -q "VBoxManage" kit/engine.sh || { echo "FAIL VBoxManage fallback absent"; fail=1; }

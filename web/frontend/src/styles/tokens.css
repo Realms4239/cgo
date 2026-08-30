@@ -90,7 +90,7 @@ body::before {
   :root { --dur-fast: 1ms; --dur-base: 1ms; --ease: linear; }
 }
 
-/* ponytail: donor aliases — canonical tokens above */
+/* Alias de compatibilité — tokens canoniques ci-dessus */
 :root {
   /* weight */
   --tw-400: 400;

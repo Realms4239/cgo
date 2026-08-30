@@ -24,7 +24,7 @@ export function MetricCard({
   const trendColor = trend === 'up' ? '#e22718' : trend === 'down' ? '#1fa348' : '#767b84'
   const trendSym = trend === 'up' ? '↗' : trend === 'down' ? '↘' : '—'
   const clipId = useId().replace(/:/g, '-')
-  // ponytail: HD 60×12 clipPath rx4 + lttb40 downsample — D3 area if thesis needs fill
+  // Sparkline 60×12 (clipPath rx4) + lttb40 — zone D3 si remplissage utile.
   const path = useMemo(() => {
     if (!spark || spark.length < 2) return ''
     let data = spark
@@ -61,7 +61,7 @@ export function MetricCard({
   )
 }
 
-// ponytail: small variant reuses same shell, no extra abstraction
+// Variante compacte: mêmes coquilles, pas d'abstraction en plus.
 export function SmallMetric({ label, value, color = '#9aa3ad' }: { label: string; value: string; color?: string }) {
   return (
     <div style={{ height: 40, border: '1px solid #26262a', background: 'rgba(154,163,173,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px' }}>

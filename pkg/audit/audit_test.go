@@ -29,5 +29,5 @@ func TestAppendLinkAudit(t *testing.T) {
 	if err := AppendLinkAudit(dir, r); err != nil {
 		t.Fatal(err)
 	}
-	// file should have header +2 rows
+	// le fichier doit avoir l'en-tête + 2 lignes
 }

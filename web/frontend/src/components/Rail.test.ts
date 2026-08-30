@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-// @ts-ignore node:fs for vitest file check
+// @ts-ignore — types node:fs inutiles sous jsdom
 import { readFileSync, existsSync } from 'node:fs'
 // @ts-ignore node:path
 import { resolve } from 'node:path'
@@ -24,7 +24,7 @@ describe('Rail', () => {
     expect(s).toContain('density')
   })
 })
-describe('Rail var(--rail-w) splatter fix', () => {
+describe('Rail — largeur de la barre latérale', () => {
   it('width via var(--rail-w), no anime width fight', () => {
     const r = readAny(['web/frontend/src/components/Rail.tsx','src/components/Rail.tsx'])
     expect(r).toContain('--rail-w')

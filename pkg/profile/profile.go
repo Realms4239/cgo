@@ -10,7 +10,7 @@ import (
 
 const file = "data/profiles.json"
 
-// Import registers a custom profile in model.Profiles AND persists it (single source).
+// Import enregistre un profil dans model.Profiles ET le persiste (source unique).
 func Import(p model.Profile) error {
 	if p.ID == "" {
 		return nil
@@ -28,7 +28,7 @@ func Import(p model.Profile) error {
 	return os.WriteFile(file, data, 0644)
 }
 
-// Load merges persisted profiles into model.Profiles.
+// Load fusionne les profils persistés dans model.Profiles.
 func Load() {
 	data, err := os.ReadFile(file)
 	if err != nil {

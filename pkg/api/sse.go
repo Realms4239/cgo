@@ -1,4 +1,4 @@
-// Package api — REST + SSE surface (docs/SPEC.md §2.4–2.5). stdlib only.
+// Package api — surface REST + SSE (docs/SPEC.md §2.4–2.5). stdlib seul.
 package api
 
 import (
@@ -13,8 +13,8 @@ import (
 
 const frameHz = 10
 
-// Hub broadcasts snapshots at 10 Hz with delta-compressed structural
-// fields, Last-Event-ID replay (ring 2048) and named backpressure events.
+// Hub diffuse des instantanés à 10 Hz avec champs structurels compressés en
+// delta, rejeu Last-Event-ID (anneau 2048) et événements backpressure nommés.
 type Hub struct {
 	mu       sync.Mutex
 	lastID   uint64
@@ -41,7 +41,7 @@ func NewHub() *Hub {
 	return h
 }
 
-// Serve starts the 10 Hz broadcast loop over the snapshot provider.
+// Serve démarre la boucle de diffusion 10 Hz sur le fournisseur d'instantanés.
 func (h *Hub) Serve(next func() any) {
 	if h.ticker != nil {
 		return
@@ -60,7 +60,7 @@ func (h *Hub) Close() {
 	}
 }
 
-// Publish marshals one snapshot, delta-encodes structural keys and fans out.
+// Publish sérialise un instantané, encode en delta les clés structurelles et diffuse.
 var structuralKeys = []string{"profile", "qdisc", "cc", "repetition", "event_id", "phase"}
 
 func (h *Hub) Publish(snap any) {
@@ -75,7 +75,7 @@ func (h *Hub) Publish(snap any) {
 	for k, v := range src {
 		if contains(structuralKeys, k) {
 			if eq, ok := h.last[k]; ok && fmt.Sprint(eq) == fmt.Sprint(v) {
-				continue // unchanged structural field: omitted, client retains
+				continue // champ structurel inchangé : omis, le client conserve la valeur
 			}
 			(h.last)[k] = v
 		}
@@ -86,7 +86,7 @@ func (h *Hub) Publish(snap any) {
 	if err != nil {
 		return
 	}
-	// full copy (structural included) — fresh clients sync state from it
+	// copie complète (structurel inclus) — les nouveaux clients synchronisent leur état depuis elle
 	full := make(map[string]any, len(src)+1)
 	for k, v := range src {
 		full[k] = v
@@ -107,7 +107,7 @@ func (h *Hub) Publish(snap any) {
 		case s.ch <- payload:
 		default:
 			s.dropped++
-			select { // never stack more than one backpressure notice
+			select { // ne jamais empiler plus d'une notification backpressure
 			case s.ch <- fmt.Sprintf("event: backpressure\ndata: {\"type\":\"backpressure\",\"dropped\":%d}\n\n", s.dropped):
 			default:
 			}
@@ -115,7 +115,7 @@ func (h *Hub) Publish(snap any) {
 	}
 }
 
-// SSE handles GET /api/stream: replay then live.
+// SSE gère GET /api/stream : rejeu puis direct.
 func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 	fl, ok := w.(http.Flusher)
 	if !ok {
@@ -131,7 +131,7 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 	h.mu.Unlock()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
-	// no manual Connection header — hop-by-hop, illegal over HTTP/2 (broke SSE behind cloudflared/CF edge)
+	// pas d'en-tête Connection manuel — hop-by-hop, illégal en HTTP/2 (cassait le SSE derrière cloudflared/bord CF)
 	fmt.Fprint(w, "retry: 2000\n")
 
 	h.mu.Lock()
@@ -146,9 +146,9 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		// No Last-Event-ID: cap replay to last 5 frames to avoid 2048-frame
-		// storm (was 2s stale with 20). 5 = 0.5s warm-up, still gives client
-		// a recent warm frame but not a 2-second backlog.
+		// Sans Last-Event-ID : rejeu limité aux 5 derniers frames pour éviter une
+		// tempête de 2048 frames (2 s de retard avec 20). 5 = 0,5 s de préchauffage,
+		// donne un frame récent mais pas un arriéré de 2 secondes.
 		if len(h.ring) > 5 {
 			from = len(h.ring) - 5
 		}
@@ -172,8 +172,8 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// fresh client (no Last-Event-ID): delta frames omit unchanged structural
-	// fields the client never received — sync state with one full frame first
+	// nouveau client (sans Last-Event-ID) : les frames delta omettent les champs
+	// structurels inchangés jamais reçus — synchroniser avec un frame complet d'abord
 	h.mu.Lock()
 	lastFull := h.lastFull
 	h.mu.Unlock()
@@ -196,7 +196,7 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ---- helpers ----
+// ---- aides ----
 
 func toMap(v any) (map[string]any, error) {
 	b, err := json.Marshal(v)

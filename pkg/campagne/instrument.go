@@ -4,5 +4,5 @@ package campagne
 
 import "log"
 
-// logTC is the surgical Go tag seam — tc args trace for kit/logs/tc.log and -race verification
+// logTC trace les arguments tc vers kit/logs/tc.log (vérifiable en -race)
 func logTC(args ...string) { log.Printf("instrument tc %v", args) }

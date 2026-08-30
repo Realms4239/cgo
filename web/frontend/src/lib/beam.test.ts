@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-// @ts-ignore node:fs for vitest jsdom — same pattern as meteolink/tui tests
+// @ts-ignore — types node:fs inutiles sous jsdom
 import { readFileSync } from 'node:fs'
 function read(p:string){
   for(const q of [p, p.replace('web/frontend/',''), `../${p}`, `../../${p}`, `C:/cgo/.worktrees/chart-grammar/${p}`, `C:/cgo/${p}`]) try{ return readFileSync(q as any,'utf8' as any)}catch{}
@@ -39,7 +39,7 @@ describe('chart grammar parameterized — GoAccess/AA craft (plans §3)',()=>{
     expect(g).toContain('export function lineSeries')
     expect(g).toContain('export function barSeries')
     expect(g).toContain('export function scatterSeries')
-    // markPoint unit-aware, not hardcoded ms
+    // markPoint à l'unité, pas de ms codé en dur
     expect(g).toContain('unit')
     expect(g).not.toContain("formatter: 'max {c} ms'")
   })
@@ -48,7 +48,7 @@ describe('chart grammar parameterized — GoAccess/AA craft (plans §3)',()=>{
     expect(g).toContain('chargeMarkArea')
     const lv=read('web/frontend/src/views/LiveView.tsx')
     expect(lv).not.toContain('Math.floor(live.rtt95.length * 0.25)')
-    // applied once per chart, not per series
+    // appliqué une fois par graphique, pas par série
     expect((lv.match(/markArea: ma/g)||[]).length).toBeLessThanOrEqual(3)
   })
   it('PanelChooser chart craft is line|bar|area and dispatches consumable tri event',()=>{
@@ -84,7 +84,7 @@ describe('chart grammar parameterized — GoAccess/AA craft (plans §3)',()=>{
   })
 })
 
-describe('NOC rebuild Layer B — primitives + grammar tokens',()=>{
+describe('Couche B — primitives + grammaire',()=>{
   it('primitives exist and speak tokens, not hex',()=>{
     for(const f of ['Card','CardHead','Stat','Pill','EmptyChart']){
       const s=read(`web/frontend/src/components/ui/${f}.tsx`)
@@ -96,7 +96,7 @@ describe('NOC rebuild Layer B — primitives + grammar tokens',()=>{
     const g=read('web/frontend/src/lib/chartGrammar.ts')
     expect(g).toContain('export const CRAFT')
     expect(g).toContain('idle')
-    expect(g).not.toContain("graphic: [\n      // ponytail: 28px")
+    expect(g).not.toContain("graphic: [\n      // 28px")
   })
   it('Wall — no internal spec labels in UI, hero head via CardHead',()=>{
     const lv=read('web/frontend/src/views/LiveView.tsx')

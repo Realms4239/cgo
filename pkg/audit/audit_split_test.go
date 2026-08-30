@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// 3-window split: 0-12s idle, 12-22s bulk, 22-30s loaded — loaded RTT must differ from idle
-// when the link is actually loaded (fake pings simulate load appearing with the bulk window).
-// Real 30s audit by design (B split Q26) — no fake clock seam, honest duration.
+// Découpe 3 fenêtres : 0–12 s idle, 12–22 s bulk, 22–30 s chargé — le RTT chargé doit différer de l'idle
+// quand le lien est réellement chargé (pings factices simulent la charge apparaissant avec la fenêtre bulk).
+// Audit réel de 30 s par conception (découpe B Q26) — pas de couture d'horloge factice, durée honnête.
 func TestAuditSplit(t *testing.T) {
 	if testing.Short() {
 		t.Skip("30s real audit — skip in -short")
@@ -17,7 +17,7 @@ func TestAuditSplit(t *testing.T) {
 	p := Params{Duration: 30, Target: "1.1.1.1"}
 	res, err := Run(context.Background(), p, Deps{
 		Ping: func(_ context.Context, _ string, _ int) []float64 {
-			// load kicks in at the 22s mark (bulk flood 12-22s congests the link)
+			// la charge s'active à la marque 22 s (le bulk flood 12–22 s sature le lien)
 			if time.Since(start) > 22*time.Second {
 				return []float64{120, 121}
 			}

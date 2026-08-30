@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-// Layer 0 splatter-fix surgical specs — rail var(--rail-w), bento #wall scoped, integrite scroll lock A
+// Spécifications chirurgicales — largeur du rail, bento scopé, verrou de défilement.
 // (SPA has no /archives route — navigate via rail nav-btn, per App.tsx panels)
 
 test('rail uses var(--rail-w) and is visible', async ({ page }) => {

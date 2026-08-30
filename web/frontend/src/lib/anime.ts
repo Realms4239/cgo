@@ -8,7 +8,7 @@ export const prefersReducedMotion = () =>
 export function animateViewEnter() {
   if (prefersReducedMotion()) return
   const tl = createTimeline()
-  // ponytail: as any — animejs types narrow, runtime correct
+  // as any — types animejs trop étroits, l'exécution est correcte.
   tl.add('.view', { translateY: [8, 0], opacity: [0, 1], filter: ['blur(4px)', 'blur(0)'], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
   tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
@@ -47,7 +47,7 @@ export function animateLiveEnter() {
   tl.add('.card', { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'], duration: 700, delay: stagger(50, { start: 80 }), ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
 
-// width animation owned by CSS var(--rail-w) transition 400ms — anime inline width would fight the var
+// largeur animée par la transition CSS var(--rail-w) — anime écrirait la var
 
 export function animatePromptEnter(el: Element) {
   if (prefersReducedMotion()) return
@@ -82,11 +82,11 @@ export function animateToasts(els: Element[]) {
   tl.add(els, { translateY: [16, 0], opacity: [0, 1], delay: stagger(20), duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
 
-// --- dense: svg/text/animatable/layout — animejs@4.5.0 via context7 ---
+// --- dense: svg/text/animatable/layout — animejs@4.5.0 ---
 
 export function animateMeteolinkShimmer(el: Element) {
   if (prefersReducedMotion()) return
-  const path = el.querySelector('.noc-icon path') as SVGGeometryElement | null
+  const path = el.querySelector('.ml-icon path') as SVGGeometryElement | null
   if (path) {
     const drawable = svg.createDrawable(path)
     animate(drawable as any, { draw: ['0 0', '0 1'], duration: 800, ease: 'linear' } as any)
@@ -125,7 +125,7 @@ export function animateDonut(el: Element, value: number) {
 
 export function animateGrid(els: Element[]) {
   if (prefersReducedMotion() || !els.length) return
-  // exhaustive single timeline sequential stagger grid[4,2] center → grid[2,3] first — fixes double-timeline jank
+  // timeline unique séquentielle, grille [4,2] centre → [2,3] — évite le double-time
   const tl = createTimeline()
   tl.add(els as any, { translateY: [12, 0], opacity: [0, 1], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [4, 2], from: 'center' } as any) } as any, 0)
     .add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 200)

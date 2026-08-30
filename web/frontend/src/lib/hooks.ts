@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 
-// Generic rAF loop hook — the React port of the original paintLoop model.
-// The callback reads the mutable `live` singleton and paints imperatively
-// (ECharts setOption / canvas / DOM refs), keeping React out of the 10 Hz path.
+// Hook de boucle rAF générique — port React du paintLoop d'origine.
+// Le callback lit le singleton `live` mutable et peint de façon impérative
+// (ECharts setOption / canvas / refs DOM): React reste hors du chemin 10 Hz.
 export function useRafLoop(cb: (ts: number) => void, active = true) {
   const cbRef = useRef(cb);
   cbRef.current = cb;
@@ -14,7 +14,7 @@ export function useRafLoop(cb: (ts: number) => void, active = true) {
       try {
         cbRef.current(ts);
       } catch (e) {
-        // a bad paint frame must never kill the loop — charts would freeze forever
+        // une frame de rendu ratée ne doit jamais tuer la boucle — les graphes geleraient
         if (!dead) {
           dead = true;
           const st = (e as Error)?.stack ?? String(e);
@@ -28,7 +28,7 @@ export function useRafLoop(cb: (ts: number) => void, active = true) {
   }, [active]);
 }
 
-// Interval hook with the same ref pattern (for 1 Hz clock, 5 s CDF poll, 10 s gates).
+// Hook d'intervalle, même motif de ref (horloge 1 Hz, CDF 5 s, portes 10 s).
 export function useInterval(cb: () => void, ms: number, active = true) {
   const cbRef = useRef(cb);
   cbRef.current = cb;

@@ -1,5 +1,5 @@
-// Largest-Triangle-Three-Buckets downsampling — preserves the visual shape
-// of the minimap while capping the point count (canvas 2D, no ECharts).
+// Sous-échantillonnage LTTB — préserve la forme visuelle
+// de la minimap en plafonnant les points (canvas 2D, sans ECharts).
 export function lttb(data: Array<[number, number]>, threshold: number): Array<[number, number]> {
   const n = data.length;
   if (threshold >= n || threshold <= 2) return data.slice();

@@ -1,4 +1,4 @@
-// CardHead — one mono-caps discipline for every section head (11px caps + 10px sub).
+// CardHead — discipline mono-caps pour chaque tête de section (11 px + 10 px).
 export function CardHead({ label, sub, right }: { label: string; sub?: string; right?: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>

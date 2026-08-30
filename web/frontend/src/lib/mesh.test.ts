@@ -1,4 +1,4 @@
-// @ts-ignore node:fs types not needed for vitest jsdom — ponytail minimal
+// @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-// @ts-ignore node:fs types not needed for vitest jsdom — ponytail minimal
+// @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
 function read(p:string){ for(const c of [p, p.replace(/^web\/frontend\//,''), `../${p}`, `../../${p}`, `web/frontend/src/components/${p.split('/').pop()}`]){ try{ return readFileSync(c,'utf8') }catch{} } return readFileSync(p,'utf8') }
 describe('prompt', () => {

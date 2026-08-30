@@ -9,7 +9,7 @@ import (
 	"github.com/Realms4239/cgo/pkg/probe"
 )
 
-// Params for one audit run (Tableau 6).
+// Paramètres d'un audit de lien.
 type Params struct {
 	AuditID  string
 	Site     string
@@ -22,7 +22,7 @@ type Params struct {
 	BulkAddr string // optional bulk addr for throughput
 }
 
-// Result row matching Tableau 6.
+// Ligne de résultat d'audit.
 type Result struct {
 	AuditID      string  `json:"audit_id"`
 	Timestamp    string  `json:"timestamp"`
@@ -46,9 +46,9 @@ type Deps struct {
 	Bulk  func(ctx context.Context, addr string) (uint64, error)
 }
 
-// Run executes an audit for Duration seconds, collecting ping/small samples.
-// B split: 0–12s idle, 12–22s bulk flood, 22–30s loaded distinct per Q26, plus iperf3 fallback via BulkAddr.
-// When Duration <30, single window with idle==loaded honest copy; when >=30 three windows produce distinct RTT idle vs loaded.
+// Run exécute un audit de Duration secondes, en collectant des échantillons ping/small.
+// Découpe B : 0–12 s idle, 12–22 s bulk flood, 22–30 s chargé distinct selon Q26, plus repli iperf3 via BulkAddr.
+// Si Duration <30, fenêtre unique avec idle==loaded copie honnête ; si >=30, trois fenêtres produisent des RTT idle vs chargé distincts.
 func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	if d.Ping == nil {
 		d.Ping = func(ctx context.Context, t string, n int) []float64 {
@@ -74,10 +74,10 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	var idleRTTs, loadedRTTs, idleSmalls, loadedSmalls []float64
 	var bulkBytes uint64
 	bulkDone := make(chan uint64, 1)
-	// bulk runs 12–22s window if >=30 and Bulk present, otherwise throughput stays 0 with honest notes
+	// le bulk couvre la fenêtre 12–22 s si >=30 et Bulk présent, sinon le débit reste à 0 avec notes honnêtes
 	go func() {
 		if d.Bulk != nil && p.Duration >= 30 {
-			// wait for idle 12s then flood 10s
+			// attendre l'idle 12 s puis flood 10 s
 			select { case <-time.After(12 * time.Second): case <-ctx.Done(): bulkDone <- 0; return }
 			b, _ := d.Bulk(ctx, p.BulkAddr)
 			bulkDone <- b
@@ -100,15 +100,15 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 
 	if p.Duration >= 30 {
 		collectWindow(12, &idleRTTs, &idleSmalls)
-		// bulk flood already started at 12s, let loaded collection run 22–30s
-		// wait until 22s mark (10s bulk window) then collect loaded 8s
+		// le bulk flood a déjà démarré à 12 s, laisser la collecte chargée tourner 22–30 s
+		// attendre la marque 22 s (fenêtre bulk 10 s) puis collecter 8 s en charge
 		remaining := p.Duration - 12 - 8
 		if remaining > 0 {
 			time.Sleep(time.Duration(remaining) * time.Second)
 		}
 		collectWindow(8, &loadedRTTs, &loadedSmalls)
 	} else {
-		// short audit: single window, idle==loaded honest
+		// audit court : fenêtre unique, idle==loaded honnête
 		collectWindow(p.Duration, &idleRTTs, &idleSmalls)
 		loadedRTTs = append([]float64(nil), idleRTTs...)
 		loadedSmalls = append([]float64(nil), idleSmalls...)
@@ -119,7 +119,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	loadedSummary := metrics.Summarize(loadedRTTs)
 	allSmalls := append(append([]float64(nil), idleSmalls...), loadedSmalls...)
 	sSummary := metrics.Summarize(allSmalls)
-	// loss estimate: missing vs expected (5 per 400ms → 12.5/s)
+	// estimation de perte : manquants vs attendus (5 par 400 ms → 12,5/s)
 	expectedSamples := float64(p.Duration) * 12.5
 	actualSamples := float64(len(idleRTTs) + len(loadedRTTs))
 	lossPct := 0.0

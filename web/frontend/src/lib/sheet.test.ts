@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-// @ts-ignore node:fs for vitest jsdom — same pattern as meteolink/tui tests
+// @ts-ignore — types node:fs inutiles sous jsdom
 import { readFileSync } from 'node:fs'
 function read(p:string){
-  for(const q of [p, p.replace('web/frontend/',''), `../${p}`, `../../${p}`, `C:/cgo/.worktrees/wall-kit-reunite/${p}`, `C:/cgo/${p}`]) try{ return readFileSync(q as any,'utf8' as any)}catch{}
+  for(const q of [p, p.replace('web/frontend/',''), `../${p}`, `../../${p}`, `C:/cgo/${p}`, `C:/cgo/${p}`]) try{ return readFileSync(q as any,'utf8' as any)}catch{}
   return readFileSync(p as any,'utf8' as any)
 }
 describe('sheet',()=>{

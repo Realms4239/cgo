@@ -25,7 +25,7 @@ export function ArmButton({ label, confirmLabel = 'CONFIRMER ?', onConfirm, disa
       if (!prefersReducedMotion()) {
         animate(progressRef.current, { scaleX: [1, 0], duration: 5000, ease: 'linear' } as any)
       } else {
-        // reduced motion: still show static 1px line, no drain
+        // mouvement réduit: ligne statique 1 px, sans drainage
       }
     }
   }, [armed])

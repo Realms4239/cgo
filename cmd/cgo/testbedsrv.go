@@ -15,8 +15,8 @@ import (
 	"github.com/Realms4239/cgo/pkg/probe"
 )
 
-// runTestbedSrv serves the small object over HTTP and the bulk sink,
-// both bound inside the cgo-srv netns (deploy/testbed.sh).
+// runTestbedSrv sert le petit objet en HTTP et le puits de masse,
+// tous deux liés dans le netns cgo-srv (deploy/testbed.sh).
 func runTestbedSrv(httpAddr, bulkAddr string) error {
 	obj := os.Getenv("CGO_TESTBED_OBJ")
 	if obj == "" {

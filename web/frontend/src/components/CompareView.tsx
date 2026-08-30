@@ -4,7 +4,7 @@ import { baseOption, lineSeries, CRAFT } from '../lib/chartGrammar'
 import { CardHead } from './ui/CardHead'
 import { EmptyState } from './ui/EmptyState'
 
-// Q14 — Comparaison BBR×AQM « pin A/B » : deux cellules gelées, traces
+// Métriques du live — Comparaison BBR×AQM « pin A/B » : deux cellules gelées, traces
 // alignées par événement, table d'écart (médianes, p95, pertes, coût Ariary),
 // verdict, exports CSV/JSON. Alimentée par /api/run/rows (provenance figée).
 type Row = Record<string, string>
@@ -40,8 +40,8 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
     fetch('/api/replay/list').then(r => r.json()).then(j => {
       const ids: string[] = j?.runs ?? []
       setRuns(ids)
-      // the operator just ran the campagne — the most recent runs are the
-      // likeliest to contain the pinned cells (oldest runs predate them)
+      // l'opérateur vient de lancer la campagne — les runs les plus récents
+      // contiennent le plus sûrement les cellules épinglées
       setRunA(ids[ids.length - 1] ?? null)
       setRunB(ids[ids.length - 2] ?? ids[ids.length - 1] ?? null)
     }).catch(e => setErr(String(e)))
@@ -51,7 +51,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
     if (!runA || !runB) return
     let cancelled = false
     // a campagne stopped early freezes a header-only CSV → 404 "run vide" —
-    // that run side is simply empty (amber warning), never a fatal error.
+    // ce côté est simplement vide (avertissement ambre), jamais fatal.
     const load = async (id: string): Promise<Row[]> => {
       const r = await fetch(`/api/run/rows?run=${id}`)
       if (r.status === 404) return []
@@ -65,9 +65,9 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
     return () => { cancelled = true }
   }, [runA, runB])
 
-  // auto-find runs containing the pinned cells: pin from Résultats aggregates
-  // all runs, so the default run may not carry the cell — walk newest-first
-  // (capped at 12 probes) until a run actually containing the cell is found.
+  // auto-résolution des runs contenant les cellules épinglées: l'épingle
+  // vient de l'agrégat; sonder du plus récent au plus ancien (12 max)
+  // jusqu'à un run contenant réellement la cellule.
   useEffect(() => {
     if (!rows || !runs.length) return
     const find = async (side: 'a' | 'b', pin: Pinned, current: string | null) => {
@@ -139,7 +139,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
   }
   const prescription = (() => {
     if (!stats) return null
-    // la prescription sort du verdict mesuré (grilling Q17) — jamais d'intuition
+    // La prescription découle du verdict mesuré — jamais d'intuition.
     const p95a = stats.a.small_p95_ms.med, p95b = stats.b.small_p95_ms.med
     const winner = p95b < p95a ? b : a
     const other = p95b < p95a ? a : b

@@ -37,7 +37,7 @@ export function saveSettings(s: Settings) {
 
 export type Level = 'ok' | 'warn' | 'crit'
 
-// Taxonomie de sévérité uniforme (Q12) — un seul source pour toutes les cartes.
+// Taxonomie de sévérité uniforme — une seule source pour toutes les cartes.
 export function latencyLevel(ms: number, s: Settings): Level {
   if (ms <= s.warnMs) return 'ok'
   if (ms <= s.critMs) return 'warn'

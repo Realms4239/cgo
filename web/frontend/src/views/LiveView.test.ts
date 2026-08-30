@@ -1,4 +1,4 @@
-// @ts-ignore node:fs types not needed for vitest jsdom — ponytail minimal
+// @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 function readLive(): string {
@@ -14,7 +14,7 @@ describe('LiveView metrics', () => {
     expect(s).toContain('goodput')
     expect(s).toContain('drops')
     expect(s).toContain('QDI')
-    // extended for Task 6 — all LIEN Tableau 4/5 important look
+    // étendu — toutes les métriques importantes
     expect(s).toContain('wasted')
     expect(s).toContain('cost')
     expect(s).toContain('deadline')

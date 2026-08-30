@@ -11,8 +11,8 @@ import (
 	"testing"
 )
 
-// ARG.md pivot: the tool is an edge-shaping CONTROL, not just an observatory —
-// the DSI applies the AQM to the local gateway and watches the wall react.
+// Le banc façonne le bord — pas seulement un observatoire :
+// la DSI applique l'AQM à la passerelle locale et regarde le mur réagir.
 func TestShapeControl(t *testing.T) {
 	var mu sync.Mutex
 	var calls []string
@@ -104,8 +104,8 @@ type tcError struct{ msg string }
 
 func (e *tcError) Error() string { return e.msg }
 
-// Hardening — zero-value Deps must answer 503, never panic (the GetSnap fix's
-// contract extended to the mutating endpoints).
+// Durcissement — des Deps à valeur nulle doivent répondre 503, jamais paniquer
+// (le contrat du correctif GetSnap étendu aux endpoints mutatifs).
 func TestMutatingEndpointsNilGuards(t *testing.T) {
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
@@ -130,8 +130,8 @@ func TestMutatingEndpointsNilGuards(t *testing.T) {
 	}
 }
 
-// The shape lever and a running campagne fight over the same shaper — a manual
-// apply mid-run corrupts the cell's shaping (and vice versa). 409 while active.
+// Le levier de façonnage et une campagne active se disputent le même shaper — un
+// apply manuel en cours de run corrompt le façonnage de la cellule (et inversement). 409 tant qu'active.
 func TestShapeConflictWithRunningCampagne(t *testing.T) {
 	h := New(Deps{
 		ShapeFn:   func(ShapeReq) error { return nil },
@@ -150,14 +150,14 @@ func TestShapeConflictWithRunningCampagne(t *testing.T) {
 	}
 }
 
-// Graceful shutdown — CloseHub stops the hub ticker; double-close is safe.
+// Arrêt propre — CloseHub arrête le ticker du hub ; double-close sans risque.
 func TestHandlerCloseHub(t *testing.T) {
 	h := New(Deps{ShapeFn: func(ShapeReq) error { return nil }})
 	h.CloseHub()
 	h.CloseHub() // idempotent
 }
 
-// Hub subscriber cap — beyond maxSubs streams the server sheds load with 503.
+// Plafond d'abonnés du hub — au-delà de maxSubs flux, le serveur écoule la charge avec 503.
 func TestHubSubscriberCap(t *testing.T) {
 	h := NewHub()
 	for i := 0; i < maxSubs; i++ {
@@ -175,8 +175,8 @@ func TestHubSubscriberCap(t *testing.T) {
 	}
 }
 
-// Q8/Q10 — the lever parameterizes the link itself (delay/jitter/loss) and the
-// campagne honors the operator's deadline + target. Bounds are server-side.
+// Q8/Q10 — le levier paramètre le lien lui-même (délai/gigue/perte) et la
+// campagne respecte la deadline + la cible de l'opérateur. Bornes côté serveur.
 func TestShapeLinkConditions(t *testing.T) {
 	var mu sync.Mutex
 	var last ShapeReq
@@ -207,7 +207,7 @@ func TestShapeLinkConditions(t *testing.T) {
 		t.Fatalf("netem params lost: %+v", last)
 	}
 
-	// bounds: delay ≤ 600, jitter ≤ 100, loss ≤ 10
+	// bornes : délai ≤ 600, gigue ≤ 100, perte ≤ 10
 	for _, bad := range []string{
 		`{"qdisc":"cake","capacity_mbps":20,"delay_ms":601}`,
 		`{"qdisc":"cake","capacity_mbps":20,"jitter_ms":101}`,
@@ -254,7 +254,7 @@ func TestRunOptsDeadlineTarget(t *testing.T) {
 	}
 }
 
-// Journal — operator memory: actions land in a queryable ring.
+// Journal — mémoire opérateur : les actions arrivent dans un anneau interrogeable.
 func TestJournal(t *testing.T) {
 	h := New(Deps{ShapeFn: func(ShapeReq) error { return nil }})
 	srv := httptest.NewServer(h)
@@ -271,7 +271,7 @@ func TestJournal(t *testing.T) {
 	}
 }
 
-// Compare view — raw rows per run, path-traversal safe.
+// Vue Compare — lignes brutes par run, protégée contre le cheminement.
 func TestRunRows(t *testing.T) {
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
@@ -300,22 +300,22 @@ func TestRunRows(t *testing.T) {
 	}
 }
 
-// Prevention — server-side bounds are the contract (§6): the client hint is
-// never trusted. Audit duration clamps to 10–600 s; unknown profile ids and
-// out-of-range reps are refused, not silently swallowed into an empty run.
+// Prévention — les bornes côté serveur sont le contrat (§6) : l'indication client
+// n'est jamais crue. La durée d'audit est bornée à 10–600 s ; les ids de profil inconnus
+// et les répétitions hors bornes sont refusés, pas avalés en silence dans un run vide.
 func TestValidationPrevention(t *testing.T) {
 	h := New(Deps{ShapeFn: func(ShapeReq) error { return nil }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	// shape capacity out of range
+	// capacité de façonnage hors bornes
 	resp, _ := http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":5000}`))
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("capacity 5000: %d want 400", resp.StatusCode)
 	}
 
-	// unknown profile id → 400 with the offending id
+	// id de profil inconnu → 400 avec l'id fautif
 	resp2, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1; drop","GHOST"],"reps":1}`))
 	if err != nil {
 		t.Fatal(err)
@@ -326,7 +326,7 @@ func TestValidationPrevention(t *testing.T) {
 		t.Fatalf("unknown profile: %d %s want 400 naming it", resp2.StatusCode, b2)
 	}
 
-	// reps out of range → 400
+	// répétitions hors bornes → 400
 	resp3, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":99}`))
 	if err != nil {
 		t.Fatal(err)
@@ -336,7 +336,7 @@ func TestValidationPrevention(t *testing.T) {
 		t.Fatalf("reps 99: %d want 400", resp3.StatusCode)
 	}
 
-	// deadline outside the 200–5000 window → 400 (Q10 bounds are server-side)
+	// deadline hors de la fenêtre 200–5000 → 400 (les bornes Q10 sont côté serveur)
 	resp5, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"deadline_ms":99999}`))
 	if err != nil {
 		t.Fatal(err)
@@ -346,7 +346,7 @@ func TestValidationPrevention(t *testing.T) {
 		t.Fatalf("deadline 99999: %d want 400", resp5.StatusCode)
 	}
 
-	// target longer than 64 characters → 400
+	// cible de plus de 64 caractères → 400
 	resp6, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"target":"`+strings.Repeat("a", 65)+`"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -356,7 +356,7 @@ func TestValidationPrevention(t *testing.T) {
 		t.Fatalf("target 65 chars: %d want 400", resp6.StatusCode)
 	}
 
-	// audit duration clamps to the 10–600 window
+	// la durée d'audit est bornée à la fenêtre 10–600
 	resp4, err := http.Post(srv.URL+"/api/audit/start", "application/json", bytes.NewBufferString(`{"site":"x","link_type":"5g","duration":999999}`))
 	if err != nil {
 		t.Fatal(err)

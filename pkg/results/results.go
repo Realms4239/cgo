@@ -29,8 +29,8 @@ type Group struct {
 	HardwareRecommendation string `json:"hardware_recommendation"`
 }
 
-// Scan aggregates all aqm_eval.csv under dataDir (latest run if multiple, else all).
-// Ponytail: scan all files, group, compute medians. Empty -> nil, nil.
+// Scan agrège tous les aqm_eval.csv sous dataDir (dernier run, sinon tous).
+// Parcourt les gelés, groupe, médianes. Vide -> nil, nil.
 func Scan(dataDir, runFilter string) ([]Group, error) {
 	pattern := filepath.Join(dataDir, "*", "aqm_eval.csv")
 	if runFilter != "" {
@@ -60,7 +60,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 				buckets[key] = b
 			}
 			b.count++
-			// ponytail: quarantine only invalid — not degraded, not covariable; spec gates 7 honest
+			// Quarantaine seulement pour invalid — pas dégradé; 7 portes honnêtes.
 			if r[16] == "invalid" {
 				b.quarantined++
 			}

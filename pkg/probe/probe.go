@@ -1,6 +1,6 @@
-// Package probe — LIEN sondes module (SPEC §2.1).
-// All probes take their dependencies as interfaces so tests run anywhere;
-// real execution happens on the VM.
+// Package probe — sondes (ping, petits objets, transfert de masse).
+// Toutes les sondes prennent leurs dépendances en interfaces pour tester partout;
+// l'exécution réelle se fait sur la VM.
 package probe
 
 import (
@@ -28,8 +28,8 @@ func (ExecCmdRunner) Output(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).Output()
 }
 
-// Ping runs `ping -c n -i interval` and returns parsed RTT samples in ms.
-// Runner injectable for tests.
+// Ping lance `ping -c n -i interval` et rend les RTT analysés en ms.
+// Runner injectable pour les tests.
 func Ping(ctx context.Context, r CmdRunner, target string, count int, intervalMs int) ([]PingSample, error) {
 	cctx, cancel := context.WithTimeout(ctx, time.Duration(count*intervalMs+5000)*time.Millisecond)
 	defer cancel()
@@ -42,7 +42,7 @@ func Ping(ctx context.Context, r CmdRunner, target string, count int, intervalMs
 	return parsePing(string(out)), nil
 }
 
-// parsePing extracts `time=XX.X ms` values (locale-tolerant enough for the
+// parsePing extrait les valeurs `time=XX.X ms` (tolérant aux locales pour
 // Ubuntu VM; documented ceiling: non-English ping output on exotic hosts).
 func parsePing(out string) []PingSample {
 	var s []PingSample

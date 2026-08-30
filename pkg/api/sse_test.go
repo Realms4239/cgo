@@ -16,9 +16,9 @@ type snap struct {
 	RTTp50Ms float64 `json:"rtt_p50_ms"`
 }
 
-// New(Deps{}) must not panic: nil GetSnap defaults to an idle snapshot
-// {"running":false} for both /api/state and the 10 Hz hub provider —
-// honest emptiness (truth boundary: idle frames carry no measurement).
+// New(Deps{}) ne doit pas paniquer : GetSnap nil ⇒ instantané idle
+// {"running":false} pour /api/state et le fournisseur du hub 10 Hz —
+// vide honnête (frontière de vérité : les frames idle ne portent aucune mesure).
 func TestNewZeroDepsIdle(t *testing.T) {
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
@@ -34,11 +34,11 @@ func TestNewZeroDepsIdle(t *testing.T) {
 		t.Fatalf("idle state expected running:false, got %s", body)
 	}
 
-	// let the hub ticker fire ≥2 ticks — a nil-provider panic would crash the test binary
+	// laisser le ticker du hub émettre ≥ 2 ticks — une panic de fournisseur nil ferait planter le binaire de test
 	time.Sleep(250 * time.Millisecond)
 }
 
-// Publisher runs at exactly 10 Hz; the assertion covers fan-out + delta.
+// Le Publisher tourne exactement à 10 Hz ; l'assertion couvre la diffusion + le delta.
 func TestSSECadenceAndDelta(t *testing.T) {
 	cur := snap{Phase: "baseline", Profile: "P1", RTTp50Ms: 20}
 	h := NewHub()
@@ -66,7 +66,7 @@ func TestSSECadenceAndDelta(t *testing.T) {
 				return
 			case <-tk.C:
 				cur.RTTp50Ms++
-				h.Publish(cur) // profile unchanged → omitted after first frame
+				h.Publish(cur) // profil inchangé → omis après le premier frame
 			}
 		}
 	}()

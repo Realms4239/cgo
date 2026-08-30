@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Stats holds per-qdisc lifetime counters parsed from `tc -s qdisc show`.
+// Stats — compteurs cumulés par qdisc, lus depuis `tc -s qdisc show`.
 type Stats struct {
 	Kind       string
 	Handle     string
@@ -17,8 +17,8 @@ type Stats struct {
 	Backlog    uint64
 }
 
-// PollStats parses `tc -s qdisc show dev <iface>` for all non-default qdiscs.
-// Works on both main-ns (veth-c) and netns (veth-s) via the TCRunner seam.
+// PollStats lit `tc -s qdisc show dev <iface>` pour tous les qdiscs non défauts.
+// Fonctionne en ns principal (veth-c) et netns (veth-s) via TCRunner.
 func PollStats(r TCRunner, iface string) ([]Stats, error) {
 	out, err := r.Run("-s", "qdisc", "show", "dev", iface)
 	if err != nil {
@@ -27,7 +27,7 @@ func PollStats(r TCRunner, iface string) ([]Stats, error) {
 	return parseStats(string(out)), nil
 }
 
-// parseStats extracts qdisc kind, handle, bytes, packets, drops, overlimits.
+// parseStats extrait type, handle, octets, paquets, pertes, overlimits du qdisc.
 // `tc -s` output format:
 //
 //	qdisc netem 1: root refcnt 129 limit 1000 delay 20ms 2ms
@@ -82,7 +82,7 @@ func parseU64(line, prefix, suffix string) uint64 {
 	return v
 }
 
-// SumDrops sums drops across all non-root qdiscs for a delta measurement.
+// SumDrops additionne les pertes de tous les qdiscs non racines (delta).
 func SumDrops(stats []Stats) uint64 {
 	var total uint64
 	for _, s := range stats {
@@ -91,20 +91,20 @@ func SumDrops(stats []Stats) uint64 {
 	return total
 }
 
-// SumBytes returns goodput bytes as the leaf qdisc's counter.
-// Stacked shaper on same egress: netem 1: parent of tbf 10: / cake 10:
-// with fq_codel 20: as tbf's child. Same packets are counted at each
+// SumBytes rend les octets via le compteur du qdisc feuille.
+// Shaper empilé sur la même sortie: netem 1: parent de tbf 10: / cake 10:
+// avec fq_codel 20: enfant du tbf. Les mêmes paquets sont comptés à chaque
 // layer, so summing inflates goodput 2-3× (P1 80Mbit observed 231).
 // Leaf is last in tc output (fq_codel if present, else tbf/cake).
 func SumBytes(stats []Stats) uint64 {
 	if len(stats) == 0 {
 		return 0
 	}
-	// ponytail: leaf only; per-layer sum if leaf heuristic proves wrong on exotic qdiscs
+	// Feuille seule; somme par couche si l'heuristique se trompe sur un qdisc exotique.
 	return stats[len(stats)-1].Bytes
 }
 
-// execCmdRunner is a helper for tests.
+// execCmdRunner — aide de test.
 type execCmdRunner struct{}
 
 func (execCmdRunner) Run(args ...string) ([]byte, error) {

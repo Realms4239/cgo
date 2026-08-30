@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-// @ts-ignore node:fs types not needed for vitest jsdom — ponytail minimal
+// @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync, existsSync } from 'node:fs'
 function readAnime(): string {
   const cands = ['web/frontend/src/lib/anime.ts','src/lib/anime.ts','C:/cgo/.worktrees/m8/web/frontend/src/lib/anime.ts','C:/cgo/web/frontend/src/lib/anime.ts']

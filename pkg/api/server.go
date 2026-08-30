@@ -23,10 +23,10 @@ import (
 	frontend "github.com/Realms4239/cgo/web/frontend"
 )
 
-// Schema — the single source of truth for every parameterized control (Q14):
-// the server validates from it, GET /api/schema serves it, the client renders
-// inputs from it (placeholders = defaults, min/max from here). Bounds can
-// never diverge between UI and backend again.
+// Schema — source unique de vérité pour chaque contrôle paramétré :
+// le serveur valide depuis ce registre, GET /api/schema le sert, le client
+// rend les champs depuis ce registre (placeholders = valeurs par défaut,
+// min/max d'ici). Les bornes ne peuvent plus diverger entre l'UI et le backend.
 type Param struct {
 	Key     string   `json:"key"`
 	Label   string   `json:"label"`
@@ -57,7 +57,7 @@ var schemaParams = []Param{
 	{Key: "burst_seconds", Label: "Durée du burst", Min: 2, Max: 10, Default: 4, Unit: "s", Desc: "durée d'un burst de test"},
 }
 
-// paramBounds — server-side validation reads the same registry.
+// paramBounds — la validation côté serveur lit ce même registre.
 func paramBounds(key string) (min, max float64, ok bool) {
 	for _, p := range schemaParams {
 		if p.Key == key {
@@ -67,7 +67,7 @@ func paramBounds(key string) (min, max float64, ok bool) {
 	return 0, 0, false
 }
 
-// ShapeReq — the full lever: file d'attente + conditions du lien (Q8).
+// ShapeReq — levier complet: file d'attente + conditions du lien.
 type ShapeReq struct {
 	Qdisc    string  `json:"qdisc"`
 	CapMbps  float64 `json:"capacity_mbps"`
@@ -76,7 +76,7 @@ type ShapeReq struct {
 	LossPct  float64 `json:"loss_pct"`
 }
 
-// RunOpts — what an operator actually decides (Q10): profils, répétitions,
+// RunOpts — ce que l'opérateur décide réellement : profils, répétitions,
 // deadline small p95 et cible de mesure.
 type RunOpts struct {
 	Profiles   []string `json:"profiles"`
@@ -85,37 +85,39 @@ type RunOpts struct {
 	Target     string   `json:"target"`
 }
 
-// Deps wires the server to the campagne core.
+// Deps relie le serveur au noyau campagne.
 type Deps struct {
 	GetSnap func() any
 	StartFn func(o RunOpts) error
 	StopFn  func()
-	// ShapeFn applies the queue discipline + link conditions to the edge
-	// gateway (ARG.md pivot: edge shaping is the lever the DSI controls).
-	// "none" clears.
+	// ShapeFn applique la discipline de file + les conditions du lien au bord
+	// (le façonnage du bord est le levier que la DSI contrôle).
+	// "none" efface.
 	ShapeFn func(r ShapeReq) error
-	// RunningFn reports an active campagne — the shape lever and a running
-	// matrix fight over the same shaper, so manual shaping is refused mid-run.
+	// RunningFn signale une campagne active — le levier de façonnage et une
+	// matrice en cours se disputent le même shaper, donc le façonnage manuel
+	// est refusé en cours de run.
 	RunningFn func() bool
-	// WatchFn toggles the non-intrusive surveillance loop (ping+small, no
-	// bulk): the wall stays alive outside a campagne. Watching does NOT
-	// conflict with shaping — that combination is the product.
+	// WatchFn active/désactive la boucle de surveillance non intrusive
+	// (ping+small, sans bulk) : le mur reste vivant hors campagne. La
+	// surveillance n'entre PAS en conflit avec le façonnage — cette
+	// combinaison est le produit.
 	WatchFn func(on bool) error
-	// Mode — observation hosts refuse the control endpoints (Q10): audit and
-	// consultation work, campagne/façonnage/surveillance answer 501. "" is full.
+	// Mode — les hôtes en observation refusent les endpoints de contrôle :
+	// audit et consultation fonctionnent, campagne/façonnage/surveillance
+	// répondent 501. "" = mode complet.
 	Mode string
-	// Version — stamped at build (-X main.version), surfaced by /api/health.
+	// Version — estampillée au build (-X main.version), exposée par /api/health.
 	Version string
-	// DoctorFn — capability report for GET /api/doctor; nil ⇒ mode only.
+	// DoctorFn — rapport de capacités pour GET /api/doctor ; nil ⇒ mode seul.
 	DoctorFn func() any
-	// BurstFn — one bulk probe with the chosen CC through the shaped border
-	// (Q11a): the live traces show CUBIC vs BBR reacting under the same
-	// shaping, no campagne needed. Blocking (2–10 s).
+	// BurstFn — une sonde bulk avec la CC choisie à travers le bord façonné :
+	// façonnage seul, sans campagne. Bloquant (2–10 s).
 	BurstFn func(cc string, seconds int) error
 }
 
-// observeBlocked — Windows hosts observe (Q10): the audit works, the control
-// endpoints answer 501 with the pointer to the bench. True = answered.
+// observeBlocked — les hôtes Windows observent : l'audit fonctionne, les
+// endpoints de contrôle répondent 501 avec le renvoi vers le banc. True = répondu.
 func (d Deps) observeBlocked(w http.ResponseWriter) bool {
 	if d.Mode != "observe" {
 		return false
@@ -127,18 +129,18 @@ func (d Deps) observeBlocked(w http.ResponseWriter) bool {
 	return true
 }
 
-// RecordEvent exports the operator journal to hosts wiring campagne
-// callbacks (quarantined cells land here from the matrix loop).
+// RecordEvent exporte le journal opérateur vers les hôtes qui câblent les
+// callbacks campagne (les cellules quarantaine arrivent ici depuis la boucle matrice).
 func RecordEvent(kind, msg string) { recordEvent(kind, msg) }
 
-// Handler carries the hub lifecycle so hosts can stop the 10 Hz ticker on
-// shutdown (Server.Close alone never does).
+// Handler porte le cycle de vie du hub afin que les hôtes puissent arrêter
+// le ticker 10 Hz à l'arrêt (Server.Close seul ne le fait jamais).
 type Handler struct {
 	http.Handler
 	hubClose func()
 }
 
-// CloseHub stops the hub broadcast ticker. Idempotent.
+// CloseHub arrête le ticker de diffusion du hub. Idempotent.
 func (h Handler) CloseHub() {
 	if h.hubClose != nil {
 		h.hubClose()
@@ -149,7 +151,7 @@ var auditMu sync.Mutex
 var lastAudit *audit.Result
 var auditRunning bool
 
-// Journal — mémoire opérateur (Q13): anneau des 50 derniers événements.
+// Journal — mémoire opérateur: anneau des 50 derniers événements.
 var eventsMu sync.Mutex
 var eventsRing []map[string]any
 
@@ -162,7 +164,7 @@ func recordEvent(kind, msg string) {
 	}
 }
 
-// shapeState — last applied edge shaping (observability of the control).
+// shapeState — dernier façonnage du bord appliqué (observabilité du contrôle).
 var shapeMu sync.Mutex
 var shapeQdisc string
 var shapeCap float64
@@ -206,13 +208,13 @@ func shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (i
 
 const maxSubs = 64
 
-// New builds the full handler with SPA fallback. The returned Handler exposes
-// CloseHub for graceful shutdown (stops the 10 Hz broadcast ticker).
+// New construit le handler complet avec repli SPA. Le Handler retourné expose
+// CloseHub pour un arrêt propre (stoppe le ticker de diffusion 10 Hz).
 func New(d Deps) Handler {
 	hub := NewHub()
 	mux := http.NewServeMux()
 
-	// nil provider defaults to an idle snapshot — honest emptiness, never a nil-call panic
+	// fournisseur nil ⇒ instantané idle — vide honnête, jamais de panic sur appel nil
 	snap := d.GetSnap
 	if snap == nil {
 		snap = func() any { return map[string]any{"running": false} }
@@ -228,13 +230,13 @@ func New(d Deps) Handler {
 		}
 		writeJSON(w, map[string]any{"mode": d.Mode, "checks": []any{}})
 	})
-	// the parameter contract — the client renders inputs from it (Q14)
+	// le contrat de paramètres — le client rend les champs depuis ce registre
 	mux.HandleFunc("GET /api/schema", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"params": schemaParams})
 	})
-	// burst test — one bulk probe with the chosen CC through the currently
-	// shaped border, while surveillance watches (Q11a). Refused mid-campagne:
-	// the matrix owns the shaper then.
+	// test burst — une sonde bulk avec la CC choisie à travers le bord
+	// actuellement façonné, pendant que la surveillance veille. Refusé en
+	// cours de campagne : la matrice possède alors le shaper.
 	mux.HandleFunc("POST /api/burst", func(w http.ResponseWriter, r *http.Request) {
 		if d.observeBlocked(w) {
 			return
@@ -286,7 +288,7 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, snap())
 	})
-	// ARG.md edge control — dynamic profile registry (imported profiles included)
+	// Profils dynamiques (profil importé inclus):
 	mux.HandleFunc("GET /api/profiles", func(w http.ResponseWriter, _ *http.Request) {
 		ids := make([]string, 0, len(model.Profiles))
 		for id := range model.Profiles {
@@ -308,7 +310,7 @@ func New(d Deps) Handler {
 		}
 		writeJSON(w, map[string]any{"profiles": out})
 	})
-	// ARG.md edge control — apply / observe shaping on the gateway
+	// Façonnage du bord — appliquer / observer:
 	mux.HandleFunc("GET /api/shape", func(w http.ResponseWriter, _ *http.Request) {
 		shapeMu.Lock()
 		defer shapeMu.Unlock()
@@ -318,7 +320,7 @@ func New(d Deps) Handler {
 		}
 		writeJSON(w, map[string]any{"applied": true, "qdisc": shapeQdisc, "capacity_mbps": shapeCap, "since": shapeSince.Format(time.RFC3339)})
 	})
-	// surveillance continue — non-intrusive, composable with the shape lever
+	// surveillance continue — non intrusive, composable avec le levier
 	mux.HandleFunc("POST /api/watch", func(w http.ResponseWriter, r *http.Request) {
 		if d.observeBlocked(w) {
 			return
@@ -371,15 +373,15 @@ func New(d Deps) Handler {
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
-		// prevention — the client is a hint, never the contract (§6); input is
-		// validated even on hosts without a wired engine — bounds from the
-		// same registry GET /api/schema serves
+		// prévention — le client est une indication, jamais le contrat (§6) ; l'entrée
+		// est validée même sur les hôtes sans moteur câblé — bornes issues du
+		// même registre que sert GET /api/schema
 		if mn, mx, ok := paramBounds("reps"); ok && (opts.Reps < int(mn) || opts.Reps > int(mx)) {
 			http.Error(w, "reps must be 1–5", http.StatusBadRequest)
 			return
 		}
-		// Q10 bounds — the deadline travels with the run, inside the same
-		// window the Réglages drawer enforces client-side
+		// bornes — la deadline voyage avec le run, dans la même fenêtre
+		// que le tiroir Réglages impose côté client
 		if opts.DeadlineMs != 0 {
 			if mn, mx, ok := paramBounds("deadline_ms"); ok && (float64(opts.DeadlineMs) < mn || float64(opts.DeadlineMs) > mx) {
 				http.Error(w, "deadline_ms must be 200–5000", http.StatusBadRequest)
@@ -479,7 +481,7 @@ func New(d Deps) Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-		w.Write([]byte("# CGO Report — LIEN\n\n| profil | qdisc | cc | n | small p95 | rtt p95 | goodput | quarant. | best |\n|---|---|---|---|---|---|---|---|---|\n"))
+		w.Write([]byte("# Meteolink Report\n\n| profil | qdisc | cc | n | small p95 | rtt p95 | goodput | quarant. | best |\n|---|---|---|---|---|---|---|---|---|\n"))
 		for _, g := range groups {
 			mark := ""
 			if g.Best {
@@ -487,7 +489,7 @@ func New(d Deps) Handler {
 			}
 			w.Write([]byte(fmt.Sprintf("| %s | %s | %s | %d | %.1f | %.1f | %.1f | %d | %s |\n", g.Profile, g.Qdisc, g.CC, g.Count, g.Smallp95Median, g.RTTp95Median, g.GoodputMedian, g.Quarantined, mark)))
 		}
-		// triple-provenance — same hash8 as Wall drawer / Archives / figures RDF
+		// triple provenance — même hash8 que le tiroir, les archives et les figures RDF
 		if hash8 := figures.ProvenanceHash8("data/runs"); hash8 != "" {
 			fmt.Fprintf(w, "\nprovenance : sha256:%s · source data/runs/*/aqm_eval.csv · généré %s\n", hash8, time.Now().UTC().Format(time.RFC3339))
 		}
@@ -571,7 +573,7 @@ func New(d Deps) Handler {
 		if body.Duration <= 0 {
 			body.Duration = 30
 		}
-		// prevention — clamp to the §6 window; a runaway audit is a cost
+		// prévention — bornes imposées; un audit débridé coûte cher
 		if body.Duration < 10 {
 			body.Duration = 10
 		}
@@ -599,7 +601,7 @@ func New(d Deps) Handler {
 		go func() {
 			defer func() { auditMu.Lock(); auditRunning = false; auditMu.Unlock() }()
 			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target}
-			// detached ctx: the audit must outlive this HTTP request
+			// contexte détaché: l'audit survit à cette requête HTTP
 			res, err := audit.Run(context.Background(), p, audit.Deps{})
 			if err != nil {
 				return
@@ -652,7 +654,7 @@ func New(d Deps) Handler {
 		}
 		ct := r.Header.Get("Content-Type")
 		var p model.Profile
-		// CSV row (LIEN III.IV): id,capacity_mbps,delay_ms,jitter_ms,loss_pct — optional header line skipped
+		// Ligne CSV: id,capacity_mbps,delay_ms,jitter_ms,loss_pct — en-tête optionnel sauté
 		if strings.Contains(ct, "text/csv") || (len(body) > 0 && body[0] != '{') {
 			rows, err := csv.NewReader(strings.NewReader(string(body))).ReadAll()
 			if err != nil || len(rows) == 0 {
@@ -661,7 +663,7 @@ func New(d Deps) Handler {
 			}
 			row := rows[0]
 			if len(row) > 0 && (row[0] == "id" || row[0] == "ID") && len(rows) > 1 {
-				row = rows[1] // skip header line
+				row = rows[1] // saute la ligne d'en-tête
 			}
 			if len(row) < 2 {
 				http.Error(w, "bad csv row", http.StatusBadRequest)
@@ -703,7 +705,7 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"hub": "ok", "time": time.Now().UTC().Format(time.RFC3339)})
 	})
 	mux.HandleFunc("GET /api/hardware/translate", HandleTranslate)
-	// JSON 404 for unknown /api/* — must be before "/" SPA catch-all
+	// 404 JSON pour /api/* inconnu — doit précéder le catch-all SPA "/"
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -714,7 +716,7 @@ func New(d Deps) Handler {
 	hub.Serve(func() any { return snap() })
 
 	spa := http.FileServer(http.FS(frontend.FS))
-	// Compare view (Q14) — raw frozen rows of one run, path-traversal safe.
+	// Vue Compare — lignes gelées brutes d'un run, protégée contre le cheminement.
 	mux.HandleFunc("GET /api/run/rows", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
 		if id == "" || strings.ContainsAny(id, `/\.`) {

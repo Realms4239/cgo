@@ -1,5 +1,5 @@
-// EmptyChart — honest emptiness for a chart surface: centered ghost hint over
-// the (visible) hairline grid. Never a black void, never fake data (§6).
+// EmptyChart — vide honnête: indication centrée sur la grille
+// hairline visible. Jamais de trou noir, jamais de fausses données.
 export function EmptyChart({ hint }: { hint: string }) {
   return (
     <div

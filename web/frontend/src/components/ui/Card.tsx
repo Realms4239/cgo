@@ -1,5 +1,5 @@
-// Card — the single surface shell: hairline border, card surface, 12 padding.
-// Views must not re-roll borders/backgrounds inline (NOC rebuild, tokens only).
+// Card — coque unique: bordure hairline, fond carte, marge 12.
+// Les vues ne redéfinissent ni bordures ni fonds en inline (tokens uniquement).
 import { CardHead } from './CardHead'
 
 export function Card({ head, sub, right, children, testid, style, className, onMouseEnter, onMouseLeave }: {

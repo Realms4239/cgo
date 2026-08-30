@@ -3,7 +3,7 @@ package qdisc
 import "testing"
 
 // Leaf-only goodput — receiver tc output sums parents+leaf (2-3x inflation, P1 80Mbit observed 231).
-// SumBytes must return the leaf (last qdisc) counter, not the sum. Golden: 77 valid G4.
+// SumBytes rend le compteur de la feuille (dernier qdisc), pas la somme. Référence: 77 valide G4.
 func TestStatsLeafOnly(t *testing.T) {
 	stats := []Stats{{Kind: "netem", Bytes: 100}, {Kind: "tbf", Bytes: 80}, {Kind: "fq_codel", Bytes: 77}}
 	if got := SumBytes(stats); got != 77 {

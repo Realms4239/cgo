@@ -47,7 +47,7 @@ export default function ResultatsView() {
       else setErr(j.reason || 'pas de résultats')
     }).catch(e => setErr(String(e)))
     fetch('/api/integrity').then(r => r.json()).then(j => {
-      // triple-provenance: hash8 = sha256(latest aqm_eval.csv)[:8]; fallback run id when absent
+      // triple provenance: hash8 = sha256(dernier aqm_eval.csv)[:8]; repli run-id
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
       if (id) setHash8(String(id).slice(0, 8))
     }).catch(() => {})
@@ -66,7 +66,7 @@ export default function ResultatsView() {
     const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
     const ro = new ResizeObserver(() => c.resize())
     ro.observe(scatterRef.current)
-    // through the grammar — same hairline base as the Wall, craft scatter, no chrome
+    // via la grammaire — même base hairline que le mur, nuage propre, sans chrome
     const base = baseOption('compromis latence / débit', 'ms')
     const bestIdx = groups.map((g, i) => g.best ? i : -1).filter(i => i >= 0)
     const opt = {

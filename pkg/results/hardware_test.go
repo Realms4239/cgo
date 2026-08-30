@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// HardwareRecommendation single source — fq_codel/cake → MikroTik, else ISP/mini-PC CAKE bridge.
+// HardwareRecommendation — fq_codel/cake → MikroTik, sinon pont CAKE ISP/mini-PC.
 func TestHardwareSingle(t *testing.T) {
 	fq := HardwareRecommendation("fq_codel", "P2")
 	if !strings.Contains(fq, "MikroTik") || !strings.Contains(fq, "fq_codel") {

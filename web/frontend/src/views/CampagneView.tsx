@@ -20,8 +20,8 @@ export default function CampagneView() {
   const [allProfiles, setAllProfiles] = useState<{ id: string; imported: boolean }[]>([{ id: 'P1', imported: false }, { id: 'P2', imported: false }])
   useEffect(() => { fetch('/api/profiles').then(r => r.json()).then(j => { if (j?.profiles?.length) setAllProfiles(j.profiles.map((x: any) => ({ id: x.id, imported: !!x.imported }))) }).catch(() => { }) }, [])
   const [reps, setReps] = useState(3)
-  // Q10 — the deadline travels with the run: the input shows the operator's
-  // actual value and follows the Réglages (meteolink-settings event).
+  // La deadline voyage avec la campagne: le champ montre la valeur
+  // réelle de l'opérateur et suit les Réglages (événement meteolink-settings).
   const [deadlineMs, setDeadlineMs] = useState(loadSettings().deadlineMs)
   useEffect(() => {
     const on = () => setDeadlineMs(loadSettings().deadlineMs)
@@ -127,7 +127,7 @@ export default function CampagneView() {
     if (ok) {
       const st = useUIStore.getState()
       st.setPanel('live')
-      // ponytail: flash handled by App wasRunning redirect — avoid duplicate
+      // Flash géré par App (redirection wasRunning) — évite le doublon.
     }
   }
   const stop = async () => {
@@ -138,7 +138,7 @@ export default function CampagneView() {
 
   const gates = live?.gates ?? Array(8).fill(null)
   const phase = live?.phase || 'idle'
-  // ponytail: backend idle phase is '' not 'idle' — gate on data flowed, not string
+  // Phase idle = '' côté serveur — tester sur les données reçues.
   const hasData = !!(live?.running || liveRing.small.length > 0)
   const [timeline] = useState(() => {
     const n = Date.now()

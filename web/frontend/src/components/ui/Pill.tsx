@@ -1,5 +1,5 @@
 // Pill — labeled toggle control (header/chooser): "groupes · on", "craft · line".
-// The control name is always visible — no cryptic one-word chrome.
+// Le nom du contrôle reste toujours visible — pas de chrome cryptique.
 export function Pill({ label, value, on = true, onClick, title }: {
   label: string
   value?: string
