@@ -10,14 +10,22 @@ import (
 	"github.com/Realms4239/cgo/pkg/qdisc"
 )
 
+// OnWatchAlert — sentinelle deadline : la surveillance dépasse l'objectif
+// small p95 de façon soutenue. Journal opérateur côté hôte.
+var OnWatchAlert func(p95, deadlineMs float64)
+
 // StartWatch exécute la boucle de sonde non intrusive (ping + petit objet, sans bulk —
 // l'audit reste côté client). Le mur reste vivant hors
 // campagne, ce qui rend l'effet du levier de façonnage visible en temps réel.
 // Les instantanés portent la phase "surveil" et ne touchent jamais le shaper.
+// DeadlineMs > 0 : sentinelle — 10 dépassements consécutifs de small p95
+// journalisent une alerte honnête (pas de notification externe).
 func StartWatch(base context.Context, d Deps) (stop func()) {
 	defaults(&d)
 	ctx, cancel := context.WithCancel(base)
 	var once sync.Once
+	overDeadline := 0
+	var lastAlert time.Time
 	go func() {
 		defer once.Do(cancel)
 		var startDrops uint64
@@ -50,7 +58,19 @@ func StartWatch(base context.Context, d Deps) (stop func()) {
 			if len(small) > 0 {
 				sm := metrics.Summarize(small)
 				live.Smallp95Ms = round1(sm.P95)
-				live.DeadlineOKPct = round1(metrics.DeadlineOKPct(small, 1000))
+				live.DeadlineOKPct = round1(metrics.DeadlineOKPct(small, d.DeadlineMs))
+				// sentinelle deadline — journal + pas de spam (1 alerte / 5 min)
+				if d.DeadlineMs > 0 && sm.P95 > d.DeadlineMs {
+					overDeadline++
+					if overDeadline >= 10 && time.Since(lastAlert) > 5*time.Minute {
+						lastAlert = time.Now()
+						if OnWatchAlert != nil {
+							OnWatchAlert(sm.P95, d.DeadlineMs)
+						}
+					}
+				} else {
+					overDeadline = 0
+				}
 			}
 			if d.StatsFn != nil {
 				sts := d.StatsFn()

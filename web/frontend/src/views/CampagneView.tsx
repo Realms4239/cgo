@@ -276,10 +276,20 @@ export default function CampagneView() {
         </>}
       </div>
 
-      <div className="card" style={{ position: 'sticky', top: 12, zIndex: 1 }}>
+      <div className="card">
         <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span>Profil personnalisé</span>
-          {!importForm && <button className="btn" onClick={()=>setImportForm(true)} style={{ marginLeft: 'auto', padding: '2px 10px' }}>IMPORTER</button>}
+          {!importForm && <>
+            <button className="btn" onClick={async () => {
+              try {
+                const r = await fetch('/api/audit/toprofile', { method: 'POST' })
+                const j = await r.json().catch(() => ({}))
+                if (!r.ok) { useUIStore.getState().pushToast(j?.error ?? 'échec import audit', 'err'); return }
+                useUIStore.getState().pushToast(`Profil ${j.profile?.id ?? 'P-audit'} importé depuis l'audit — ${j.profile?.capacity_mbps} Mbit/s, ${j.profile?.delay_ms} ms`, 'ok')
+              } catch { useUIStore.getState().pushToast('échec import audit', 'err') }
+            }} title="transforme le dernier audit du lien réel en profil rejouable sur le banc" style={{ marginLeft: 'auto', padding: '2px 10px' }}>AUDIT → PROFIL</button>
+            <button className="btn" onClick={()=>setImportForm(true)} style={{ padding: '2px 10px' }}>IMPORTER</button>
+          </>}
         </div>
         {importForm && <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>

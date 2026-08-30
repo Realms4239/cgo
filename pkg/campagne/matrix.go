@@ -24,6 +24,25 @@ type Matrix struct {
 	RunID string
 	Total int
 	Done  int
+
+	// cancel de l'event courant — le skip coupe la cellule, pas la campagne
+	skipCancel context.CancelFunc
+}
+
+func (m *Matrix) setSkipCancel(c context.CancelFunc) {
+	m.mu.Lock()
+	m.skipCancel = c
+	m.mu.Unlock()
+}
+
+// Skip interrompt la cellule en cours sans arrêter la matrice.
+func (m *Matrix) Skip() {
+	m.mu.Lock()
+	c := m.skipCancel
+	m.mu.Unlock()
+	if c != nil {
+		c()
+	}
 }
 
 // IsRunning est l'accesseur sans course pour Running (H3).
@@ -57,6 +76,9 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 		total += len(model.AllQdiscs) * len(model.AllCC) * reps
 	}
 	m.Total = total
+	// la progression voyage avec chaque snapshot — un seul canal de vérité
+	deps.TotalEvents = total
+	deps.DoneEvents = m.Done
 
 	w, err := OpenRun(dataDir + "/" + m.RunID)
 	if err != nil {
@@ -83,28 +105,39 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 							return
 						default:
 						}
-						key := fmt.Sprintf("%s/%d", m.RunID, id)
-						if w.seen[key] {
-							m.Done = id
-							id++
-							continue
-						}
-						ev := model.Event{
-							RunID: m.RunID, EventID: id, Profile: pid,
-							Qdisc: q, CC: cc, Repetition: rep,
-						}
-						done, err := RunEvent(ctx, ev, prof, deps)
-						if err == nil {
-							_ = w.Append(done)
-							m.Done = id
-							// les cellules quarantaine arrivent dans le journal opérateur (Q13)
-							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
-								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
-							}
-						} else {
-							log.Printf("[campagne] cell %s failed: %v", key, err)
-						}
+					key := fmt.Sprintf("%s/%d", m.RunID, id)
+					if w.seen[key] {
+						m.Done = id
 						id++
+						continue
+					}
+					ev := model.Event{
+						RunID: m.RunID, EventID: id, Profile: pid,
+						Qdisc: q, CC: cc, Repetition: rep,
+					}
+					// contexte annulable par event — le skip coupe la cellule
+					// courante sans arrêter la matrice ; la phase de gel reste propre.
+					evCtx, evCancel := context.WithCancel(ctx)
+					m.setSkipCancel(evCancel)
+					done, err := RunEvent(evCtx, ev, prof, deps)
+					evCancel()
+					if err == nil {
+						_ = w.Append(done)
+						m.Done = id
+						// les cellules quarantaine arrivent dans le journal opérateur (Q13)
+						if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
+							OnQuarantine(m.RunID, id, pid, string(q), string(cc))
+						}
+					} else if evCtx.Err() != nil && ctx.Err() == nil {
+						// skippé (pas arrêt global) — aucune ligne gelée, reprise possible
+						if OnQuarantine != nil {
+							OnQuarantine(m.RunID, id, pid, string(q), string(cc))
+						}
+					} else {
+						log.Printf("[campagne] cell %s failed: %v", key, err)
+					}
+					m.setSkipCancel(nil)
+					id++
 					}
 				}
 			}

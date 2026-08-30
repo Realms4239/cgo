@@ -23,9 +23,29 @@ import (
 func runServer(ctx context.Context, addr, mode string) error {
 	live := campagne.NewLive()
 
+	// deadline par défaut — même registre que GET /api/schema
+	defaultDeadline := func() float64 {
+		for _, p := range api.SchemaParams() {
+			if p.Key == "deadline_ms" {
+				if v, ok := p.Default.(float64); ok {
+					return v
+				}
+				if v, ok := p.Default.(int); ok {
+					return float64(v)
+				}
+			}
+		}
+		return 1000
+	}
+
 	// les cellules en quarantaine vont dans le journal opérateur
 	campagne.OnQuarantine = func(runID string, eventID int, profile, qdisc, cc string) {
 		api.RecordEvent("quarantaine", fmt.Sprintf("%s évènement %d %s/%s/%s — cellule invalidée par les portes", runID, eventID, profile, qdisc, cc))
+	}
+	// sentinelle deadline — la surveillance alerter honnêtement quand le lien
+	// tenu hors campagne dépasse l'objectif small p95 de façon soutenue
+	campagne.OnWatchAlert = func(p95, deadline float64) {
+		api.RecordEvent("alerte", fmt.Sprintf("deadline dépassée en production — small p95 %.1f ms > %.0f ms", p95, deadline))
 	}
 
 	if mode == "full" {
@@ -69,6 +89,8 @@ func runServer(ctx context.Context, addr, mode string) error {
 		}
 		deps := campagne.ProdDeps()
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
+		// la sentinelle connaît l'objectif courant (paramètre partagé campagne/surveillance)
+		deps.DeadlineMs = defaultDeadline()
 		stop := campagne.StartWatch(ctx, deps)
 		watchCtl.stop = stop
 		watchCtl.on = true
@@ -109,6 +131,12 @@ func runServer(ctx context.Context, addr, mode string) error {
 		// passe live à false atomiquement; réglé aussi tout de suite pour la réactivité.
 		live.SetRunning(false)
 	}
+	// Skip — coupe la cellule en cours sans arrêter la matrice
+	skipFn := func() {
+		if m := getMtx(); m != nil {
+			m.Skip()
+		}
+	}
 	// Levier de façonnage sur la sortie du bord (contrôle manuel):
 	// mêmes primitives que les cellules de campagne (mode manuel pour la DSI).
 	shapeFn := func(r api.ShapeReq) error {
@@ -131,6 +159,7 @@ func runServer(ctx context.Context, addr, mode string) error {
 		GetSnap:   func() any { return live.Get() },
 		StartFn:   startFn,
 		StopFn:    stopFn,
+		SkipFn:    skipFn,
 		ShapeFn:   shapeFn,
 		RunningFn: func() bool { return getMtx() != nil && getMtx().IsRunning() },
 		Mode:      mode,

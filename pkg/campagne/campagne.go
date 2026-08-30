@@ -41,6 +41,11 @@ type Deps struct {
 	ChargeSec   int
 	RecupSec    int
 
+	// Progression de la matrice — peuplé par StartMatrix, porté par chaque
+	// snapshot : un seul canal de vérité pour le badge et le popup.
+	TotalEvents int
+	DoneEvents  int
+
 	OnSnap func(Snapshot)
 }
 
@@ -50,13 +55,25 @@ type Deps struct {
 // à 10 Hz comme dernier mot, évitant le battement pump vs push.
 func (d *Deps) Snapshot(phase, load string, ev model.Event,
 	base, chg map[string]float64, bulk uint64, prof model.Profile, gates []*bool) Snapshot {
+	phaseTotal := 0
+	switch phase {
+	case model.PhaseBaseline:
+		phaseTotal = d.BaselineSec
+	case model.PhaseCharge:
+		phaseTotal = d.ChargeSec
+	case model.PhaseRecup:
+		phaseTotal = d.RecupSec
+	}
 	s := Snapshot{
 		Phase: phase, LoadStatus: load,
 		Profile: ev.Profile, Qdisc: string(ev.Qdisc), CC: string(ev.CC),
 		Repetition: ev.Repetition, EventID: ev.EventID,
+		TotalEvents: d.TotalEvents, DoneEvents: d.DoneEvents, PhaseTotalS: phaseTotal,
 		RTTp50Ms: ev.RTTp50Ms, RTTp95Ms: ev.RTTp95Ms, Smallp95Ms: ev.Smallp95Ms,
 		GoodputMbps: ev.BulkGoodputMbps, Drops: ev.Drops,
 		WastedBytes: ev.WastedBytes, CostARPerH: ev.CostARPerH, DeadlineOKPct: ev.DeadlineOKPct,
+		ProfileCapMbps: prof.CapacityMbps, ProfileDelayMs: prof.DelayMs,
+		ProfileJitterMs: prof.JitterMs, ProfileLossPct: prof.LossPct,
 		Gates: gates, Running: true,
 	}
 	return s
@@ -86,6 +103,9 @@ type Snapshot struct {
 	CC            string  `json:"cc"`
 	Repetition    int     `json:"repetition"`
 	EventID       int     `json:"event_id"`
+	TotalEvents   int     `json:"total_events"`
+	DoneEvents    int     `json:"done_events"`
+	PhaseTotalS   int     `json:"phase_total_s"`
 	LoadStatus    string  `json:"load_status"`
 	RTTp50Ms      float64 `json:"rtt_p50_ms"`
 	RTTp95Ms      float64 `json:"rtt_p95_ms"`
@@ -95,6 +115,10 @@ type Snapshot struct {
 	WastedBytes   uint64  `json:"wasted_bytes"`
 	CostARPerH    float64 `json:"cost_ar_per_h"`
 	DeadlineOKPct float64 `json:"deadline_ok_pct"`
+	ProfileCapMbps  float64 `json:"profile_capacity_mbps"`
+	ProfileDelayMs  float64 `json:"profile_delay_ms"`
+	ProfileJitterMs float64 `json:"profile_jitter_ms"`
+	ProfileLossPct  float64 `json:"profile_loss_pct"`
 	Gates         []*bool `json:"gates"` // nil = not assessed
 	Running       bool    `json:"running"`
 	LastTS        int64   `json:"ts"`
@@ -315,6 +339,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	sumC := metrics.Summarize(chgRTT)
 	ev.RTTp50Ms = round1(sumC.Median)
 	ev.RTTp95Ms = round1(sumC.P95)
+	// QDI — dégradation de délai de file : P95 chargé − P50 chargé (ms).
+	// La métrique queue-delay de référence, gelée avec la ligne.
+	ev.QDIPctMs = round1(sumC.P95 - sumC.Median)
 	sm := metrics.Summarize(chgSmall)
 	ev.Smallp95Ms = round1(sm.P95)
 	ev.DeadlineOKPct = round1(metrics.DeadlineOKPct(chgSmall, d.DeadlineMs))

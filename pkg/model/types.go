@@ -81,6 +81,7 @@ type Event struct {
 
 	RTTp50Ms       float64 `csv:"rtt_p50_ms"        json:"rtt_p50_ms"`
 	RTTp95Ms       float64 `csv:"rtt_p95_ms"        json:"rtt_p95_ms"`
+	QDIPctMs       float64 `csv:"qdi_ms"            json:"qdi_ms"`
 	Smallp95Ms     float64 `csv:"small_p95_ms"      json:"small_p95_ms"`
 	DeadlineOKPct  float64 `csv:"deadline_ok_pct"   json:"deadline_ok_pct"`
 	BulkGoodputMbps float64 `csv:"bulk_goodput_mbps" json:"bulk_goodput_mbps"`
@@ -95,7 +96,7 @@ type Event struct {
 // En-têtes aqm_eval.csv (après les colonnes d'identité).
 var AQMEvalHeader = []string{
 	"run_id", "event_id", "profile", "qdisc", "cc", "repetition",
-	"rtt_p50_ms", "rtt_p95_ms", "small_p95_ms", "deadline_ok_pct",
+	"rtt_p50_ms", "rtt_p95_ms", "qdi_ms", "small_p95_ms", "deadline_ok_pct",
 	"bulk_goodput_mbps", "drops", "retransmissions", "wasted_bytes",
 	"cost_ar_per_h", "cpu_pct", "gate_status",
 }

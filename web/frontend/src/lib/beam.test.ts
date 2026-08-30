@@ -71,12 +71,16 @@ describe('chart grammar parameterized — GoAccess/AA craft (plans §3)',()=>{
     expect(r).toContain('scatterSeries')
     expect(r).not.toContain('toolbox')
   })
-  it('Timeline 48 on the Wall + brush window matches rings 1800',()=>{
+  it('Timeline 48 — bandes figées, curseur sans reconstruction',()=>{
     const lv=read('web/frontend/src/views/LiveView.tsx')
     expect(lv).toContain('<Timeline')
+    // borne figée côté appelant : la fenêtre ne grandit pas avec now
+    expect(lv).toContain('tRecup + 30000')
     const t=read('web/frontend/src/components/Timeline.tsx')
-    expect(t).toContain('1800')
-    expect(t).not.toContain('Math.min(600')
+    // curseur de progression par interval, jamais de rebuild svg
+    expect(t).toContain('setInterval')
+    expect(t).not.toContain('brushX')
+    expect(t).not.toContain('Math.max(tRecup, now)')
   })
   it('Wall provenance hash8 = sha8 from /api/integrity, run-id only as fallback',()=>{
     const lv=read('web/frontend/src/views/LiveView.tsx')

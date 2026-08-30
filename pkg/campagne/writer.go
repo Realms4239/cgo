@@ -127,9 +127,9 @@ func (w *Writer) Append(ev model.Event) error {
 			EventID: ev.EventID, Profile: string(ev.Profile), Qdisc: string(ev.Qdisc), CC: string(ev.CC), Status: ev.GateStatus,
 		})
 	}
-	row := fmt.Sprintf("%s,%d,%s,%s,%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%.2f,%.1f,%s",
+	row := fmt.Sprintf("%s,%d,%s,%s,%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%.2f,%.1f,%s",
 		ev.RunID, ev.EventID, ev.Profile, ev.Qdisc, ev.CC, ev.Repetition,
-		ev.RTTp50Ms, ev.RTTp95Ms, ev.Smallp95Ms, ev.DeadlineOKPct,
+		ev.RTTp50Ms, ev.RTTp95Ms, ev.QDIPctMs, ev.Smallp95Ms, ev.DeadlineOKPct,
 		ev.BulkGoodputMbps, ev.Drops, ev.Retransmissions, ev.WastedBytes,
 		ev.CostARPerH, ev.CPUPct, ev.GateStatus)
 	_, err := fmt.Fprintln(w.fh, row)

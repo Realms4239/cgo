@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import Explain from '../components/Explain'
+import EventBadge from '../components/EventBadge'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries, barSeries, chargeMarkArea, CRAFT } from '../lib/chartGrammar'
 import { live, clearLive } from '../lib/live'
@@ -190,6 +191,15 @@ export default function LiveView() {
     : liveSnap.phase === 'baseline' ? 'BASELINE'
     : liveSnap.phase === 'recup' ? 'RÉCUPÉRATION'
     : 'IDLE'
+
+  // p95 partiel honnête — le nombre est vrai (fenêtre courante), seulement
+  // la complétude est indiquée : "en cours 42 s/120 s" si la phase tourne.
+  const phaseTotalHint = liveSnap?.running && liveSnap.phase && liveSnap.phase_total_s
+    ? <span className="mono" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)' }}>
+        {liveSnap.small_p95_ms > 0 ? `p95 partiel ${liveSnap.small_p95_ms.toFixed(1)} ms — ` : ''}
+        {liveSnap.phase} en cours
+      </span>
+    : null
   const bannerColor = replayRunning ? 'var(--t-live)'
     : !liveSnap ? 'var(--t-danger)'
     : banner.startsWith('CHARGE') ? 'var(--t-threshold)'
@@ -319,12 +329,15 @@ export default function LiveView() {
   const heroEmpty = live.small.length === 0
   const rttEmpty = live.rtt95.length === 0
   const goodputEmpty = live.goodput.length === 0
-  // Timeline 48 — bandes de phase depuis live.phaseSince, cachée au repos
+  // Timeline 48 — bandes de phase depuis live.phaseSince, bornes FIGÉES :
+  // recupEnd = chargeEnd + 30s nominal — la bande ne grandit pas avec now.
   const hasData = live.rtt95.length > 0
   const now = live.rtt95.at(-1)?.[0] ?? Date.now()
   const t0 = live.phaseSince['baseline'] ?? live.rtt95[0]?.[0] ?? now - 1000
   const tCharge = Math.max(t0 + 1, live.phaseSince['charge'] ?? (live.phase === 'charge' ? t0 + 1 : now))
   const tRecup = Math.max(tCharge + 1, live.phaseSince['recup'] ?? (live.phase === 'recup' ? now : tCharge + 1000))
+  // borne figée — la fenêtre totale de l'event (30+120+30) connue par construction
+  const tEnd = tRecup + 30000
 
   // couture d'instrumentation: lire options/pixels depuis les sondes
   if (typeof window !== 'undefined') (window as any).__CGO_CHARTS = { rtt: rtt.chart.current, small: small.chart.current, goodput: goodput.chart.current }
@@ -339,7 +352,11 @@ export default function LiveView() {
           </div>
         </PeekPopover>
       )}
-      <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55' }}>{banner}</div>
+      <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ whiteSpace: 'nowrap' }}>{banner}</span>
+        <EventBadge />
+        {phaseTotalHint}
+      </div>
       <Card
         head="Petits objets p95"
         sub="p95 · fenêtre 180 s"
@@ -366,7 +383,7 @@ export default function LiveView() {
         <MetricCard term="cost_ar_per_h" label="cost_ar_per_h" value={costAr == null ? '—' : costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
         <MetricCard term="deadline_ok" label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? 'var(--text-faint)' : LEVEL_COLOR[deadlineLevel(deadlineOk)]} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} spark={spark(live.small)} />
         <div data-testid="qdi-sparkline"><MetricCard term="QDI" label="QDI" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
-        <Card head="JFI" sub="fairness 0–1" testid="jfi-card">
+        <Card head="QDI" sub="queue delay p95−p50" testid="qdi-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: jfiVal === null ? 'var(--text-body)' : LEVEL_COLOR[jfiLevel(jfiVal)], fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{jfiVal === null ? '—' : jfiVal.toFixed(2)}</span>
             <DonutJFI value={jfiVal} />
@@ -397,7 +414,7 @@ export default function LiveView() {
           bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
         </div>
       )}
-      {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={Math.max(tRecup, now)} currentPhase={live.phase || 'idle'} />}
+      {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={tEnd} currentPhase={live.phase || 'idle'} />}
 
       {/* live-wall-overlay: baseline grey dashed vs CAKE cyan solid same scale; source pill gates live|frozen|both */}
       <div className="live-wall-overlay card" data-testid="live-wall-overlay" style={{ gridColumn: '1 / -1', border: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>

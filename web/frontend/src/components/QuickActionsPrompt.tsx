@@ -1,66 +1,66 @@
 import { useEffect, useRef, useState } from 'react'
 import { useUIStore } from '../store/ui'
 import { animatePromptEnter, animatePromptExit } from '../lib/anime'
-import { PromptProgressLine } from './PromptProgressLine'
 
+// Popup de progression — un seul but : dire ce qui est testé, où l'on en est,
+// combien de temps dure la phase. Re-apparaît à chaque nouvel event;
+// Esc la referme jusqu'au prochain event.
 export default function QuickActionsPrompt() {
   const live = useUIStore((s: any) => s.live)
-  const setPanel = useUIStore((s: any) => s.setPanel)
   const [open, setOpen] = useState(true)
-  const [isHoverPaused, setIsHoverPaused] = useState(false)
+  const [closedForEvent, setClosedForEvent] = useState<number>(-1)
+  const [elapsed, setElapsed] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
-  const reappearRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const startRef = useRef<number>(0)
-  const remainRef = useRef<number>(6000)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const eventId = live?.event_id ?? 0
+  const total = live?.total_events ?? 0
+  const phase = live?.phase ?? ''
+  const phaseTotal = live?.phase_total_s ?? 0
+  const running = !!live?.running
+
+  // re-pop à chaque nouvel event — pas de re-pop intempestif en cours d'event
+  useEffect(() => {
+    if (!running) return
+    if (closedForEvent === eventId) return
+    setOpen(true)
+  }, [eventId, running, closedForEvent])
 
   useEffect(() => { if (!ref.current) return; if (open) animatePromptEnter(ref.current) }, [open])
-  useEffect(() => { if (open) remainRef.current = 6000 }, [open, live?.event_id, live?.phase])
 
+  // Esc referme jusqu'au prochain event
   useEffect(() => {
     if (!open) return
-    if (isHoverPaused) {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-      remainRef.current = Math.max(0, remainRef.current - (Date.now() - startRef.current))
-      return
-    }
-    startRef.current = Date.now()
-    timeoutRef.current = setTimeout(() => { if (ref.current) animatePromptExit(ref.current).then(() => setOpen(false)); else setOpen(false) }, remainRef.current)
-    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current) }
-  }, [open, isHoverPaused])
-
-  useEffect(() => {
-    if (open) return
-    reappearRef.current = setTimeout(() => setOpen(true), 8000)
-    return () => { if (reappearRef.current) clearTimeout(reappearRef.current) }
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (ref.current) animatePromptExit(ref.current).then(() => setOpen(false)); else setOpen(false) } }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open])
+  }, [open, eventId])
 
-  if (!open) return null
-  const running = !!live?.running
-  const eventId = live?.event_id ?? 1
-  const phase = live?.phase ?? 'charge'
-  // pendant la course: progression, pas de choix — Événement 3/6 4/10 s
-  const isRunningProgress = running
-  const rapidLabel = isRunningProgress ? '' : ['Actions', 'rapides'].join(' ')
-  const actions = isRunningProgress
-    ? [] // no choices when running — progress bar only
-    : live ? [{ label: 'Résultats', panel: 'resultats' }, { label: 'Rejouer', panel: 'integrite' }] : [{ label: 'Démarrer', panel: 'campagne' }, { label: 'Audit', panel: 'campagne' }]
+  // countdown réel — depuis phaseSince porté par le store live
+  useEffect(() => {
+    if (!open || !running) return
+    const t = window.setInterval(() => {
+      const since = (live as any)?.phaseSince?.[phase]
+      if (since) setElapsed(Math.max(0, Math.round((Date.now() - since) / 1000)))
+    }, 1000)
+    return () => window.clearInterval(t)
+  }, [open, running, phase, live])
+
+  const close = () => {
+    setClosedForEvent(eventId)
+    if (ref.current) animatePromptExit(ref.current).then(() => setOpen(false))
+    else setOpen(false)
+  }
+
+  if (!open || !running) return null
+
+  const label = `Event ${eventId}/${total} — ${live?.profile}/${live?.qdisc}/${live?.cc} rep ${live?.repetition} — ${phase} ${elapsed}/${phaseTotal}s`
 
   return (
     <div
       ref={ref}
-      role="dialog"
-      aria-modal="true"
-      aria-label={rapidLabel}
-      onMouseEnter={() => setIsHoverPaused(true)}
-      onMouseLeave={() => setIsHoverPaused(false)}
+      role="status"
+      aria-label={label}
+      onMouseEnter={undefined}
       style={{
         position: 'fixed',
         bottom: 40,
@@ -73,19 +73,14 @@ export default function QuickActionsPrompt() {
         background: 'rgba(16,16,18,0.92)',
         border: '1px solid rgba(255,255,255,0.08)',
         backdropFilter: 'blur(12px)',
-        borderRadius: 0,
         zIndex: 400,
         boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
         overflow: 'hidden',
       }}
     >
-      {!isRunningProgress && <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#9aa3ad', alignSelf: 'center' }}>{rapidLabel}</span>}
-      {isRunningProgress ? <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f2f2f4', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Event {eventId}/6 — {phase} 4/10s</span> : null}
-      {actions.map((a) => (
-        <button key={a.label} onClick={() => setPanel(a.panel)} style={{ padding: '6px 12px', background: '#161618', color: '#5ad3e3', border: '1px solid #26262a', fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>{a.label}</button>
-      ))}
-      <button aria-label="Fermer" onClick={() => { if (ref.current) animatePromptExit(ref.current).then(() => setOpen(false)); else setOpen(false) }} style={{ padding: '6px 8px', background: 'transparent', border: '1px solid #26262a', color: '#9aa3ad', fontSize: 11, cursor: 'pointer' }}>Esc</button>
-      <PromptProgressLine paused={isHoverPaused} />
+      <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f2f2f4', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{label}</span>
+      <button aria-label="Passer la cellule" title="passer la cellule courante (reprise possible)" onClick={async () => { await fetch('/api/run/skip', { method: 'POST' }).catch(() => {}); close() }} style={{ padding: '6px 12px', background: '#161618', color: '#f4b400', border: '1px solid #26262a', fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>Passer</button>
+      <button aria-label="Fermer" onClick={close} style={{ padding: '6px 8px', background: 'transparent', border: '1px solid #26262a', color: '#9aa3ad', fontSize: 11, cursor: 'pointer' }}>Esc</button>
     </div>
   )
 }

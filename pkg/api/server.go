@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -67,6 +68,9 @@ func paramBounds(key string) (min, max float64, ok bool) {
 	return 0, 0, false
 }
 
+// SchemaParams expose le registre des paramètres (défauts côté hôte).
+func SchemaParams() []Param { return schemaParams }
+
 // ShapeReq — levier complet: file d'attente + conditions du lien.
 type ShapeReq struct {
 	Qdisc    string  `json:"qdisc"`
@@ -90,6 +94,9 @@ type Deps struct {
 	GetSnap func() any
 	StartFn func(o RunOpts) error
 	StopFn  func()
+	// SkipFn coupe la cellule en cours sans arrêter la matrice — l'event
+	// n'est pas gelé, il reste re-exécutable à la reprise.
+	SkipFn func()
 	// ShapeFn applique la discipline de file + les conditions du lien au bord
 	// (le façonnage du bord est le levier que la DSI contrôle).
 	// "none" efface.
@@ -426,6 +433,15 @@ func New(d Deps) Handler {
 		recordEvent("campagne", "arrêtée")
 		writeJSON(w, map[string]any{"stopped": true})
 	})
+	mux.HandleFunc("POST /api/run/skip", func(w http.ResponseWriter, _ *http.Request) {
+		if d.SkipFn == nil {
+			http.Error(w, "run engine not wired on this host", http.StatusServiceUnavailable)
+			return
+		}
+		d.SkipFn()
+		recordEvent("campagne", "cellule courante skippée — reprise possible")
+		writeJSON(w, map[string]any{"skipped": true})
+	})
 	mux.HandleFunc("GET /api/results", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
 		groups, _ := results.Scan("data/runs", run)
@@ -434,6 +450,78 @@ func New(d Deps) Handler {
 			return
 		}
 		writeJSON(w, map[string]any{"available": true, "groups": groups})
+	})
+	// delta — même cellule (profile|qdisc|cc) du run précédent : la dérive
+	// temporelle sans re-campagne. Ex: GET /api/results/delta?cell=P2|cake|bbr
+	mux.HandleFunc("GET /api/results/delta", func(w http.ResponseWriter, r *http.Request) {
+		cell := r.URL.Query().Get("cell")
+		if cell == "" || strings.Count(cell, "|") != 2 {
+			http.Error(w, "cell required: profile|qdisc|cc", http.StatusBadRequest)
+			return
+		}
+		runs, _ := filepath.Glob("data/runs/*")
+		if len(runs) < 2 {
+			writeJSON(w, map[string]any{"available": false})
+			return
+		}
+		sort.Strings(runs)
+		prev, cur := runs[len(runs)-2], runs[len(runs)-1]
+		type cellVals struct {
+			SmallP95 float64
+			RTTp95   float64
+			Goodput  float64
+		}
+		readCell := func(runDir string) (cellVals, bool) {
+			b, err := os.ReadFile(filepath.Join(runDir, "aqm_eval.csv"))
+			if err != nil {
+				return cellVals{}, false
+			}
+			var smalls, rtts, gds []float64
+			for _, ln := range strings.Split(string(b), "\n")[1:] {
+				parts := strings.Split(ln, ",")
+				if len(parts) < 11 {
+					continue
+				}
+				if parts[2]+"|"+parts[3]+"|"+parts[4] == cell && parts[len(parts)-1] == "valid" {
+					if v, err := strconv.ParseFloat(parts[8], 64); err == nil {
+						smalls = append(smalls, v)
+					}
+					if v, err := strconv.ParseFloat(parts[7], 64); err == nil {
+						rtts = append(rtts, v)
+					}
+					if v, err := strconv.ParseFloat(parts[10], 64); err == nil {
+						gds = append(gds, v)
+					}
+				}
+			}
+			if len(smalls) == 0 {
+				return cellVals{}, false
+			}
+			sm := func(xs []float64) float64 {
+				if len(xs) == 0 {
+					return 0
+				}
+				return xs[len(xs)/2]
+			}
+			return cellVals{SmallP95: sm(smalls), RTTp95: sm(rtts), Goodput: sm(gds)}, true
+		}
+		pv, ok1 := readCell(prev)
+		cv, ok2 := readCell(cur)
+		if !ok1 || !ok2 {
+			writeJSON(w, map[string]any{"available": false, "reason": "cellule absente d'un run"})
+			return
+		}
+		pct := func(a, b float64) *int {
+			if a <= 0 {
+				return nil
+			}
+			p := int(math.Round((b - a) / a * 100))
+			return &p
+		}
+		writeJSON(w, map[string]any{
+			"available": true, "previous_run": filepath.Base(prev), "current_run": filepath.Base(cur),
+			"delta": map[string]any{"small_p95_pct": pct(pv.SmallP95, cv.SmallP95), "rtt_p95_pct": pct(pv.RTTp95, cv.RTTp95), "goodput_pct": pct(pv.Goodput, cv.Goodput)},
+		})
 	})
 	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, _ *http.Request) {
 		runs, _ := filepath.Glob("data/runs/*")
@@ -645,6 +733,51 @@ func New(d Deps) Handler {
 			out = append(out, m)
 		}
 		writeJSON(w, map[string]any{"audits": out})
+	})
+	// boucle RQ1→RQ2 : l'audit réel devient profil rejouable sur le banc.
+	// Dernière ligne de link_audit.csv → capacity = throughput, delay = rtt_idle_p95.
+	mux.HandleFunc("POST /api/audit/toprofile", func(w http.ResponseWriter, r *http.Request) {
+		f, err := os.Open("data/link_audit.csv")
+		if err != nil {
+			http.Error(w, "aucun audit — lancez d'abord cgo audit", http.StatusNotFound)
+			return
+		}
+		defer f.Close()
+		rd := csv.NewReader(f)
+		rows, _ := rd.ReadAll()
+		if len(rows) < 2 {
+			http.Error(w, "audit vide", http.StatusNotFound)
+			return
+		}
+		hdr := rows[0]
+		last := rows[len(rows)-1]
+		get := func(col string) string {
+			for i, h := range hdr {
+				if h == col && i < len(last) {
+					return last[i]
+				}
+			}
+			return ""
+		}
+		cap, _ := strconv.ParseFloat(get("throughput_mbps"), 64)
+		delay, _ := strconv.ParseFloat(get("rtt_idle_p95_ms"), 64)
+		id := "P-audit"
+		if v := get("audit_id"); v != "" {
+			id = "P-" + v
+		}
+		p := model.Profile{ID: id, CapacityMbps: cap, DelayMs: delay}
+		if p.CapacityMbps <= 0 {
+			p.CapacityMbps = 20 // repli documenté — banc par défaut si débit non mesuré
+		}
+		if p.DelayMs <= 0 {
+			p.DelayMs = 100
+		}
+		if err := profile.Import(p); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		recordEvent("profil", fmt.Sprintf("%s importé depuis audit — %g Mbit/s, %g ms", id, p.CapacityMbps, p.DelayMs))
+		writeJSON(w, map[string]any{"ok": true, "profile": p})
 	})
 	mux.HandleFunc("POST /api/profile/import", func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))

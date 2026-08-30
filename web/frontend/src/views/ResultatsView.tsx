@@ -8,6 +8,8 @@ import { baseOption, scatterSeries } from '../lib/chartGrammar'
 import CompareView, { type Pinned } from '../components/CompareView'
 import { CRAFT } from '../lib/chartGrammar'
 import Explain from '../components/Explain'
+import InterpretationView from '../components/InterpretationView'
+import { useUIStore } from '../store/ui'
 
 type Group = {
   profile: string; qdisc: string; cc: string
@@ -39,6 +41,9 @@ export default function ResultatsView() {
   const [fProfile, setFProfile] = useState('tous')
   const [fQdisc, setFQdisc] = useState('tous')
   const [fCc, setFCc] = useState('tous')
+  const [interpProfile, setInterpProfile] = useState<string | null>(null)
+  const [deltas, setDeltas] = useState<Record<string, { small_p95_pct?: number }>>({})
+  const liveSnapRunning = useUIStore((s: any) => !!s.live?.running)
   const scatterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -79,6 +84,25 @@ export default function ResultatsView() {
     }
     c.setOption(opt as any)
     return () => { ro.disconnect(); c.dispose() }
+  }, [groups])
+
+  // delta vs run précédent — la dérive temporelle depuis l'historique gelé
+  useEffect(() => {
+    if (!groups) return
+    let cancelled = false
+    Promise.all((Array.isArray(groups) ? groups : []).map(async (g) => {
+      const cell = `${g.profile}|${g.qdisc}|${g.cc}`
+      const r = await fetch(`/api/results/delta?cell=${encodeURIComponent(cell)}`).then(x => x.json()).catch(() => null)
+      return [cell, r] as const
+    })).then(rows => {
+      if (cancelled) return
+      const d: Record<string, { small_p95_pct?: number }> = {}
+      for (const [cell, r] of rows) {
+        if (r?.available) d[cell] = r.delta
+      }
+      setDeltas(d)
+    })
+    return () => { cancelled = true }
   }, [groups])
 
   if (err) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="error" hint={err} /></div>
@@ -133,6 +157,21 @@ export default function ResultatsView() {
       )}
       <h1 className="view-title">Résultats — classement complet</h1>
 
+      {/* constat de campagne — le verdict en langage opérateur, cliquable pour l'interprétation riche */}
+      <button onClick={() => setInterpProfile(filtered[0]?.profile ?? 'P2')} data-testid="constat-button" style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid ' + (top ? CRAFT.ok : 'var(--hairline)') }}>
+          <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>constat de campagne</span>
+          {top && baselineRow && diff != null && (
+            <span className="mono" style={{ fontSize: 12, color: diff > 0 ? CRAFT.ok : '#c3c9d1' }}>
+              {top.profile} : {top.qdisc}/{top.cc} protège le trafic critique — {diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`} de small p95 vs pfifo
+            </span>
+          )}
+          {(!top || !baselineRow) && <span className="mono muted" style={{ fontSize: 11 }}>cliquez pour l'interprétation complète</span>}
+          <span className="mono" style={{ marginLeft: 'auto', fontSize: 10, color: CRAFT.live }}>interpréter →</span>
+        </div>
+      </button>
+      {interpProfile && <InterpretationView profile={interpProfile} onClose={() => setInterpProfile(null)} />}
+
       {/* verdict recalculé sur le critère choisi — toujours mesuré, jamais décoré */}
       {top && baselineRow && (
         <div className="card rank-verdict" data-testid="rank-verdict">
@@ -169,6 +208,10 @@ export default function ResultatsView() {
         {(['tous', ...distinct('qdisc')] as string[]).map(v => chip(v, fQdisc === v, () => setFQdisc(v)))}
         {(['tous', ...distinct('cc')] as string[]).map(v => chip(v, fCc === v, () => setFCc(v)))}
       </div>
+      <div className="mono" style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 8 }}>
+        vue : classement gelé depuis data/runs (médianes des CSV gelés{hash8 !== '────────' ? ` · hash ${hash8}` : ''})
+        {liveSnapRunning ? ' — campagne en cours, rafraîchi au gel' : ''}
+      </div>
 
       {filtered.length === 0 && <div className="card"><EmptyState kind="empty" hint="aucun groupe pour ces filtres — élargissez la sélection" /></div>}
       {filtered.length > 0 && <div className="card" style={{ overflowX: 'auto' }}>
@@ -194,8 +237,9 @@ export default function ResultatsView() {
               const wasted: number | null = g.wasted_median ?? g.wasted_bytes ?? null
               const cost: number | null = g.cost_median ?? g.cost_ar_per_h ?? null
               const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
+              const cellDelta = deltas[`${g.profile}|${g.qdisc}|${g.cc}`]?.small_p95_pct
               return (
-                <tr key={`${g.profile}/${g.qdisc}/${g.cc}`} style={{ borderBottom: '1px solid var(--hairline-faint)', background: i === 0 ? 'rgba(31,163,72,0.08)' : 'transparent' }} onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), g })} onMouseLeave={() => setPeek(null)}>
+                <tr key={`${g.profile}/${g.qdisc}/${g.cc}`} style={{ borderBottom: '1px solid var(--hairline-faint)', background: i === 0 ? 'rgba(31,163,72,0.08)' : 'transparent', cursor: 'pointer' }} onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), g })} onMouseLeave={() => setPeek(null)} onClick={() => setInterpProfile(g.profile)}>
                   <td style={{ padding: '6px 8px', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? '#1fa348' : '#a8aeb7' }}>{i + 1}</td>
                   <td style={{ padding: '6px 8px' }}>{g.profile}</td>
                   <td>{g.qdisc}</td><td>{g.cc}</td><td>{g.count}</td>
@@ -205,6 +249,11 @@ export default function ResultatsView() {
                         <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: i === 0 ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2, filter: i === 0 ? `drop-shadow(0 0 4px ${barColor})` : 'none' }} />
                       </div>
                       <span style={{ minWidth: 45, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{g.small_p95_median.toFixed(1)}</span>
+                      {cellDelta != null && (
+                        <span className="mono" title="vs run précédent, même cellule" style={{ fontSize: 9, color: cellDelta <= 0 ? '#1fa348' : '#e22718', fontVariantNumeric: 'tabular-nums' }}>
+                          {cellDelta <= 0 ? '↘' : '↗'}{Math.abs(cellDelta)}%
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td>{g.rtt_p95_median.toFixed(1)}</td>
