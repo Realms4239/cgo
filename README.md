@@ -1,66 +1,66 @@
 # Meteolink [![version](https://img.shields.io/badge/version-1.0.6-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
 
-## What is it?
+## Qu'est-ce que c'est ?
 
-Meteolink is an open source, real-time network benchmark and interactive viewer that runs in a terminal in *nix systems or directly in your browser. Designed for constrained access links (4G/5G, fibre, VSAT), it delivers fast, verifiable AQM/BBR evidence on the fly. Meteolink audits your link from the client, replays it on a reproducible Linux bench, and presents the data directly in the terminal or via a live HTML dashboard — no vendor claims, only frozen CSVs with SHA-256.
+Meteolink est un banc d'essai réseau open source, temps réel et visualiseur interactif qui s'exécute dans un terminal sur les systèmes *nix ou directement dans votre navigateur. Conçu pour les liens d'accès contraints (4G/5G, fibre, VSAT), il fournit à la volée des preuves AQM/BBR rapides et vérifiables. Meteolink audite votre lien côté client, le rejoue sur un banc Linux reproductible et présente les données directement dans le terminal ou via un tableau de bord HTML live — aucune promesse fournisseur, seulement des CSV gelés avec SHA-256.
 
-More info at: [https://github.com/Realms4239/cgo](https://github.com/Realms4239/cgo).
+Plus d'infos sur : [https://github.com/Realms4239/cgo](https://github.com/Realms4239/cgo).
 
-## Features
+## Fonctionnalités
 
-Meteolink replays link profiles and outputs the data to the terminal or dashboard. Features include:
+Meteolink rejoue des profils de lien et affiche les données dans le terminal ou le tableau de bord. Fonctionnalités :
 
-- **Completely Real Time**  
-  All live panels and metrics are timed to be updated every 100 ms on the SSE stream (10 Hz) and every 250 ms on the TUI. The `live-wall-overlay` shows the delta `Figée vs appliqué` instantly.
+- **Entièrement temps réel**  
+  Tous les panneaux et métriques sont rafraîchis toutes les 100 ms sur le flux `SSE` (10 Hz) et toutes les 250 ms sur la `TUI`. Le `live-wall-overlay` affiche l'écart `Figée vs appliqué` instantanément.
 
-- **Minimal Configuration needed**  
-  You can just run it against your access link, pick the profiles `P1/P2` and let Meteolink run the matrix `pfifo_fast / fq_codel / CAKE × CUBIC / BBR` and show you the comparison.
+- **Configuration minimale nécessaire**  
+  Il suffit de le lancer sur votre lien d'accès, choisir les profils `P1/P2` et laisser Meteolink exécuter la matrice `pfifo_fast / fq_codel / CAKE × CUBIC / BBR` et vous montrer la comparaison.
 
-- **Track Application Response Time**  
-  Track `small p95` — the critical small objects (telemetry, alerts) that suffer most under bufferbloat. Extremely useful if you want to protect the traffic that matters.
+- **Suivi du temps de réponse applicatif**  
+  Suivi du `small p95` — les petits objets critiques (télémétrie, alertes) qui souffrent le plus du bufferbloat. Extrêmement utile si vous voulez protéger le trafic qui compte.
 
-- **Only one binary**  
-  Meteolink is written in Go. To run it, you only need the binary — the React dashboard is embedded via `go:embed`. No database, no service dependency. It even features its own SSE server.
+- **Un seul binaire**  
+  Meteolink est écrit en `Go`. Pour l'exécuter, seul le binaire est nécessaire — le tableau de bord `React` est embarqué via `go:embed`. Aucune base de données, aucune dépendance de service. Il embarque même son propre serveur `SSE`.
 
-- **Nearly All Access Scenarios**  
-  Meteolink allows any link profile (`P1` fibre 80 Mbit/s, `P2` 4G 20 Mbit/s, `P3` VSAT 5 Mbit/s importable via `POST /api/profile/import`). Predefined qdiscs include `pfifo_fast`, `fq_codel`, `CAKE` and CCs `CUBIC`, `BBR`.
+- **Presque tous les scénarios d'accès**  
+  Meteolink accepte tout profil de lien (`P1` fibre 80 Mbit/s, `P2` 4G 20 Mbit/s, `P3` VSAT 5 Mbit/s importable via `POST /api/profile/import`). Les `qdisc` prédéfinis incluent `pfifo_fast`, `fq_codel`, `CAKE` et les `CC` `CUBIC`, `BBR`.
 
-- **Incremental Campaign Processing**  
-  Need data persistence? Meteolink freezes every event to `data/runs/<run>/aqm_eval.csv` + `manifest.json` (SHA-256). `cgo verify` checks them, `cgo figures` regenerates the SVGs without Node.
+- **Traitement incrémental des campagnes**  
+  Besoin de persistance ? Meteolink fige chaque évènement vers `data/runs/<run>/aqm_eval.csv` + `manifest.json` (SHA-256). `cgo verify` les vérifie, `cgo figures` régénère les `SVG` sans `Node`.
 
-- **Verifiable Provenance**  
-  Every result shows `hash8 = sha256(dernier aqm_eval.csv)[:8]` — same hash in `Wall`, `Résultats`, `Provenance` and `report.md`. Quarantined `invalid` events stay counted, never hidden.
+- **Provenance vérifiable**  
+  Chaque résultat affiche `hash8 = sha256(dernier aqm_eval.csv)[:8]` — même hash dans `Wall`, `Résultats`, `Provenance` et `report.md`. Les évènements `invalid` mis en quarantaine restent comptés, jamais masqués.
 
-- **Edge Shaping Lever**  
-  `Façonnage du bord` (`qdisc` + `capacity 1–1000 Mbit/s` + `delay/jitter/loss`) composes with `Surveillance continue` (`POST /api/watch`) and `Burst` (`POST /api/burst` CUBIC/BBR) — the live delta is the product.
+- **Levier de façonnage du bord**  
+  `Façonnage du bord` (`qdisc` + `capacity 1–1000 Mbit/s` + `delay/jitter/loss`) compose avec `Surveillance continue` (`POST /api/watch`) et `Burst` (`POST /api/burst` CUBIC/BBR) — l'écart live est le produit.
 
-- **Docker Support**  
-  Ability to run the dashboard in a container; mount `data/runs` to keep the frozen evidence.
+- **Support Docker**  
+  Possibilité d'exécuter le tableau de bord dans un conteneur ; montez `data/runs` pour conserver les preuves gelées.
 
-## Why Meteolink?
+## Pourquoi Meteolink ?
 
-Meteolink was designed to be a fast, terminal-based link auditor. Its core idea is to quickly audit and compare AQM/BBR policies in real time without touching your routers (*great if you want to do a quick analysis of your 4G link via SSH, or if you simply love working in the terminal*).
+Meteolink a été conçu pour être un auditeur de lien rapide, basé sur le terminal. Son idée centrale est d'auditer et comparer rapidement les politiques AQM/BBR en temps réel sans toucher à vos routeurs (*idéal si vous voulez analyser vite votre lien 4G via SSH, ou si vous aimez simplement travailler dans le terminal*).
 
-It also serves as a practical tool for field diagnostics, making it easy to spot bufferbloat, unfair sharing (`JFI`), and wasted capacity directly from your link. While the terminal output (`meteolink top`) is the default, it has the capability to generate a complete, self-contained, real-time [`HTML`](http://192.168.174.128:9090) dashboard, as well as a [`CSV`](http://192.168.174.128:9090/api/report/export?format=csv) and [`Markdown`](http://192.168.174.128:9090/api/report/export?format=md) report.
+Il sert aussi d'outil pratique pour le diagnostic terrain, facilitant la détection du bufferbloat, du partage inéquitable (`JFI`) et de la capacité gaspillée directement depuis votre lien. Bien que la sortie terminal (`meteolink top`) soit la sortie par défaut, il peut générer un tableau de bord [`HTML`](http://192.168.174.128:9090) temps réel complet et autonome, ainsi qu'un rapport [`CSV`](http://192.168.174.128:9090/api/report/export?format=csv) et [`Markdown`](http://192.168.174.128:9090/api/report/export?format=md).
 
-You can see it more of a `monitor` command for your access link than anything else.
+Voyez-le plutôt comme une commande `monitor` pour votre lien d'accès.
 
 ## Installation
 
-### Build from release
+### Compilation depuis une release
 
-Meteolink can be compiled and used on *nix systems. Download, extract and run the single binary with:
+Meteolink peut être compilé et utilisé sur les systèmes *nix. Téléchargez, extrayez et exécutez le binaire unique avec :
 
 ```
 $ wget https://github.com/Realms4239/cgo/releases/download/v1.0.6/cgo-linux-amd64.tar.gz
 $ tar -xzvf cgo-linux-amd64.tar.gz
 $ ./cgo --serve              # http://127.0.0.1:9090
-# or meteolink --serve
+# ou meteolink --serve
 ```
 
-Verify with `checksums.txt` (SHA-256).
+Vérifiez avec `checksums.txt` (SHA-256).
 
-### Build from GitHub (Development)
+### Compilation depuis GitHub (Développement)
 
 ```
 $ git clone https://github.com/Realms4239/cgo.git
@@ -72,7 +72,7 @@ $ ./bin/cgo --serve
 
 ### Distributions
 
-It is easiest to install Meteolink using the preferred package manager:
+Il est plus simple d'installer Meteolink via le gestionnaire de paquets préféré :
 
 #### Go
 
@@ -91,43 +91,43 @@ $ meteolink --serve
 #### Windows (observation)
 
 ```
-> cgo.exe --serve   # 127.0.0.1:9090, Windows = observe (no tc)
+> cgo.exe --serve   # 127.0.0.1:9090, Windows = observe (sans tc)
 ```
 
 #### Docker
 
-A Docker image can run the dashboard; mount the frozen runs to keep evidence:
+Une image `Docker` peut exécuter le tableau de bord ; montez les `runs` gelés pour conserver les preuves :
 
 ```
 $ docker run -p 9090:9090 -v ./data/runs:/data/runs meteolink --serve --addr 0.0.0.0:9090
 ```
 
-### VM bench (the real `tc` bench)
+### Banc VM (le vrai banc `tc`)
 
-The bench is an Ubuntu VM (VMware or VirtualBox). Convention: store VMs under `D:\VMs\` or `C:\VMs\` (e.g. `D:\VMs\ubuntu\ubuntu.vmx`); exception `D:\ubuntu.vmx` is still found. The engine scans `C:`/`D:` shallow ≤3 (`--deep` for full) via `vmrun list` + `inventory.vmls` + `VBoxManage`.
+Le banc est une VM `Ubuntu` (`VMware` ou `VirtualBox`). Convention : stocker les VMs sous `D:\VMs\` ou `C:\VMs\` (ex. `D:\VMs\ubuntu\ubuntu.vmx`) ; exception `D:\ubuntu.vmx` toujours trouvée. Le moteur scanne `C:`/`D:` en profondeur ≤3 (`--deep` pour complet) via `vmrun list` + `inventory.vmls` + `VBoxManage`.
 
 ```
-$ cp kit/cgo-vm.yaml.example kit/cgo-vm.yaml  # fill ssh/vmx
-$ bash kit/engine.sh --action scan            # find .vmx/.vbox
-$ bash kit/engine.sh --action ensure          # boot if SSH down
+$ cp kit/cgo-vm.yaml.example kit/cgo-vm.yaml  # renseigner ssh/vmx
+$ bash kit/engine.sh --action scan            # trouve les .vmx/.vbox
+$ bash kit/engine.sh --action ensure          # démarre si SSH coupé
 $ bash kit/engine.sh --action deploy          # build → cross → push → health
 ```
 
-`kit/cgo-vm.yaml` is gitignored — never commit it.
+`kit/cgo-vm.yaml` est gitignoré — ne jamais le committer.
 
-## Storage
+## Stockage
 
-#### Default Frozen Archives
+#### Archives gelées par défaut
 
-In-memory `live` rings provide better performance (180 s, 1800 pts at 10 Hz). For persistence, Meteolink freezes every event to `data/runs/<run_id>/aqm_eval.csv` + `manifest.json` (SHA-256). This storage has support for `cgo verify` and `cgo figures` as well.
+Les anneaux `live` en mémoire offrent de meilleures performances (180 s, 1800 pts à 10 Hz). Pour la persistance, Meteolink fige chaque évènement vers `data/runs/<run_id>/aqm_eval.csv` + `manifest.json` (SHA-256). Ce stockage supporte aussi `cgo verify` et `cgo figures`.
 
-#### On-disk CSV + Manifest
+#### CSV sur disque + Manifest
 
-Each run freezes the matrix; `manifest.json` lists `file` + `sha256`. `GET /api/integrity` exposes `hash8`.
+Chaque campagne fige la matrice ; `manifest.json` liste `file` + `sha256`. `GET /api/integrity` expose `hash8`.
 
-## Command Line / Config Options
+## Ligne de commande / Options de configuration
 
-See [options](docs/api.md) that can be supplied to the command or specified in `GET /api/schema`. If specified in the configuration file, long options need to be used without prepending `--`.
+Voir les [options](docs/api.md) passables à la commande ou dans `GET /api/schema`. Si spécifiées dans le fichier de configuration, les options longues doivent être utilisées sans `--`.
 
 ```
 $ cgo --serve --addr 127.0.0.1:9090 --mode auto   # auto: Linux full, Windows observe
@@ -139,134 +139,133 @@ $ cgo shape --restore
 $ meteolink top --addr http://localhost:9090 --interval 250ms
 ```
 
-## Usage / Examples
+## Utilisation / Exemples
 
-**Note:** The dashboard binds `127.0.0.1:9090` by default; pass `--addr 0.0.0.0:9090` to expose on LAN (as `kit/vm-install.sh` does).
+**Note :** le tableau de bord écoute `127.0.0.1:9090` par défaut ; passez `--addr 0.0.0.0:9090` pour exposer en LAN (comme le fait `kit/vm-install.sh`).
 
-### Getting Started
+### Démarrage
 
-To output to a terminal and generate a live dashboard:
+Pour afficher dans un terminal et générer un tableau de bord live :
 
 ```
 $ cgo --serve
-# open http://localhost:9090
+# ouvrir http://localhost:9090
 ```
 
-To audit your link from this workstation (non-intrusive, no admin):
+Pour auditer votre lien depuis ce poste (non intrusif, sans admin) :
 
 ```
 $ cgo audit --link-type 5g --site "Dept X" --duration 300
 # → data/link_audit.csv (p50/p95, small p95, goodput)
 ```
 
-To generate a CSV report to stdout:
+Pour générer un rapport `CSV` sur la sortie standard :
 
 ```
 $ curl "http://localhost:9090/api/report/export?format=csv"
 ```
 
-Meteolink also allows great flexibility for real-time filtering. To quickly diagnose bufferbloat on the live wall:
+Meteolink permet aussi une grande flexibilité de filtrage temps réel. Pour diagnostiquer vite le bufferbloat sur le mur live :
 
 ```
 $ curl -X POST http://localhost:9090/api/shape -H 'Content-Type: application/json' -d '{"qdisc":"cake","capacity_mbps":20}'
-# watch the live-wall-overlay Figée vs appliqué — -41% is the product
+# observez le live-wall-overlay Figée vs appliqué — -41% est le produit
 ```
 
-### Multiple Profiles
+### Multiples profils
 
-There are several ways to run multiple profiles with Meteolink. The simplest is to pass multiple profiles to the campaign:
+Il existe plusieurs façons d'exécuter plusieurs profils avec Meteolink. La plus simple est de passer plusieurs profils à la campagne :
 
 ```
 $ curl -X POST http://localhost:9090/api/run/start -H 'Content-Type: application/json' -d '{"profiles":["P1","P2"],"reps":3}'
 ```
 
-It's even possible to import a custom profile from the UI (`Campagne → Profil personnalisé → P3`) or via pipe:
+Il est même possible d'importer un profil personnalisé depuis l'UI (`Campagne → Profil personnalisé → P3`) ou via pipe :
 
 ```
 $ echo '{"id":"P3","capacity_mbps":5,"delay_ms":600}' | curl -X POST http://localhost:9090/api/profile/import -H 'Content-Type: application/json' -d @-
 ```
 
-### Real-time Dashboard
+### Tableau de bord temps réel
 
-Meteolink has the ability to output real-time data in the HTML dashboard. You can even email the `data/runs` folder since it is composed of single CSVs with no external file dependencies.
+Meteolink peut afficher les données temps réel dans le tableau `HTML`. Vous pouvez même envoyer le dossier `data/runs` par email puisqu'il est composé de simples `CSV` sans dépendance externe.
 
-The process of generating a real-time dashboard is very similar to the process of creating a static report. Only `--serve` is needed.
+Le processus de génération d'un tableau temps réel est très similaire à celui d'un rapport statique. Seul `--serve` est nécessaire.
 
 ```
 $ cgo --serve --addr 0.0.0.0:9090
 ```
 
-To view the report you can navigate to `http://<ip>:9090`. By default, Meteolink listens on port `9090`, to use a different port:
+Pour voir le rapport, naviguez vers `http://<ip>:9090`. Par défaut, Meteolink écoute sur le port `9090`, pour utiliser un autre port :
 
 ```
 $ cgo --serve --addr 0.0.0.0:9870
 ```
 
-And to bind to a different address other than `127.0.0.1`:
+Et pour lier le serveur `WebSocket` à une autre adresse que `127.0.0.1` :
 
 ```
 $ cgo --serve --addr 127.0.0.1:9090
 ```
 
-### Filtering
+### Filtrage
 
-#### Working with profiles
+#### Travail avec les profils
 
-Another useful filter is to compare only one profile or one qdisc. On `Résultats`, use the chips `tous → P1` or `cake`. The `filtered` table and the `rank-verdict` recalculate instantly — all from frozen CSVs.
+Un autre filtre utile est de comparer un seul profil ou une seule `qdisc`. Sur `Résultats`, utilisez les puces `tous → P1` ou `cake`. Le tableau `filtered` et le `rank-verdict` se recalculent instantanément — tout depuis les `CSV` gelés.
 
-#### Burst Tests
+#### Tests Burst
 
-To compare `CUBIC` vs `BBR` through the shaped edge without a full campaign:
+Pour comparer `CUBIC` vs `BBR` à travers le bord façonné sans campagne complète :
 
 ```
 $ curl -X POST http://localhost:9090/api/burst -H 'Content-Type: application/json' -d '{"cc":"bbr","seconds":4}'
 $ curl -X POST http://localhost:9090/api/burst -H 'Content-Type: application/json' -d '{"cc":"cubic","seconds":4}'
-# watch goodput + RTT on Tableau live
+# observez goodput + RTT sur Tableau live
 ```
 
-### Tips
+### Astuces
 
-Also, it is worth pointing out that if you want to run Meteolink at lower priority, you can run it as:
+Il vaut aussi noter que si vous voulez exécuter Meteolink en basse priorité, vous pouvez le lancer comme :
 
 ```
 $ nice -n 19 cgo --serve
 ```
 
-and if you don't want to install it on your server, you can still run the audit from your local machine:
+et si vous ne voulez pas l'installer sur votre serveur, vous pouvez encore exécuter l'audit depuis votre machine locale :
 
 ```
 $ ssh -n altfloat@192.168.174.128 'cgo audit --link-type 5g --site "Site X" --duration 30' | cat
 ```
 
-### Troubleshooting
+### Dépannage
 
-We receive many questions. Check first:
+Nous recevons beaucoup de questions. Vérifiez d'abord :
 
-- `cgo doctor` — `tc` present, `CAP_NET_ADMIN`, `BBR`, `ping` — all green before a campaign.
-- `cgo shape --restore` — clears stale `qdisc`s after a crash.
-- `GET /api/health` → `{"mode":"full","version":"1.0.6"}` — `observe` on Windows is normal, campagne returns `501`.
-- `go vet ./...` needs `web/frontend/dist` — `bun run build` first, otherwise `embed.go` fails.
-- ECharts: never reintroduce `visualMap piecewise` nor `LinearGradient` area — it crashes `LineView` (`coord`) and freezes neighbours. `ChartSurface` `init` in `useEffect`, `dispose` on cleanup.
+- `cgo doctor` — `tc` présent, `CAP_NET_ADMIN`, `BBR`, `ping` — tout vert avant une campagne.
+- `cgo shape --restore` — nettoie les `qdisc` périmés après un crash.
+- `GET /api/health` → `{"mode":"full","version":"1.0.6"}` — `observe` sur `Windows` est normal, la campagne renvoie `501`.
+- `go vet ./...` a besoin de `web/frontend/dist` — `bun run build` d'abord, sinon `embed.go` échoue.
+- `ECharts` : ne jamais réintroduire `visualMap piecewise` ni `LinearGradient` area — cela plante `LineView` (`coord`) et fige les voisins. `ChartSurface` `init` dans `useEffect`, `dispose` au cleanup.
 
-### Incremental Campaign Processing
+### Traitement incrémental des campagnes
 
-Meteolink has the ability to process campaigns incrementally through its frozen storage. It works in the following way:
+Meteolink peut traiter les campagnes de façon incrémentale via son stockage gelé. Fonctionnement :
 
-1. A matrix must be run first with `POST /api/run/start`, then the same dataset is frozen to `data/runs/<run>`.
-2. `GET /api/results` scans the frozen CSVs; `GET /api/integrity` shows `hash8`.
+1. Une matrice doit d'abord être exécutée avec `POST /api/run/start`, puis le même jeu est gelé vers `data/runs/<run>`.
+2. `GET /api/results` scanne les `CSV` gelés ; `GET /api/integrity` affiche `hash8`.
 
-To read persisted data only (without a new campaign):
+Pour lire seulement les données persistées (sans nouvelle campagne) :
 
 ```
 $ cgo verify
 $ cgo figures
 ```
 
-## Contributing
+## Contribuer
 
-Any help on Meteolink is welcome. The most helpful way is to try it out and give feedback. Feel free to use the GitHub issue tracker and pull requests to discuss and submit code changes.
+Toute aide sur Meteolink est la bienvenue. Le plus utile est de l'essayer et donner votre retour. N'hésitez pas à utiliser le suivi d'issues `GitHub` et les `pull requests` pour discuter et proposer des changements de code.
 
-## About
+## À propos
 
-Meteolink is a terminal-friendly, self-contained network benchmark for auditing constrained access links and comparing AQM/BBR policies — runs in *nix systems or through your browser.
-
+Meteolink est un banc d'essai réseau autonome et visualiseur interactif pour auditer les liens d'accès contraints et comparer les politiques AQM/BBR — s'exécute dans un terminal sur les systèmes *nix ou directement dans votre navigateur.
