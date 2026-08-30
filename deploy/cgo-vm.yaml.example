@@ -1,4 +1,5 @@
 # CGO — machine-local VM config. Copy to cgo-vm.yaml (gitignored).
+# Convention : D:/VMs/ ou C:/VMs/ (ex. D:/VMs/ubuntu/ubuntu.vmx), exception D:/ubuntu.vmx supportée.
 ssh:
   user: altfloat
   host: 192.168.174.128

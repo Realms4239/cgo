@@ -1,4 +1,6 @@
 # CGO — machine-local VM config. Copy to cgo-vm.yaml (gitignored). Kit general: hypervisor auto detects vmrun else VBoxManage.
+# Convention: stocker les VMs sous D:/VMs/ ou C:/VMs/ (ex. D:/VMs/ubuntu/ubuntu.vmx).
+# Exception historique : D:/ubuntu.vmx reste supportée (scan shallow ≤3 la trouve).
 ssh:
   user: altfloat
   host: 192.168.174.128
