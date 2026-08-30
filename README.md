@@ -242,7 +242,6 @@ ECharts : ne jamais réintroduire `visualMap piecewise` ni `LinearGradient` area
 - [docs/api.md](docs/api.md) — REST + SSE
 - [docs/deploy.md](docs/deploy.md) — installation machine propre & VM
 - [docs/methodology.fr.md](docs/methodology.fr.md) — protocole & portes
-- [LIEN.md](LIEN.md) — mémoire source, [DESIGN.md](DESIGN.md), [PRODUCT.md](PRODUCT.md)
 
 ## Licence
 

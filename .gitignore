@@ -23,7 +23,10 @@ data/logs/
 Thumbs.db
 .worktrees/
 
-# legacy thesis doc: stays on disk untracked, not part of the LIEN project
+# local memo / design — entreprise, non publié
+LIEN.md
+DESIGN.md
+PRODUCT.md
 CONGESTION.md
 !web/frontend/dist/.gitkeep
 
