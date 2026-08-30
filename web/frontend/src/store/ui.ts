@@ -30,7 +30,7 @@ interface UIState {
   railPinned: boolean; density: Density; setRailPinned: (v: boolean) => void; setDensity: (d: Density) => void
 }
 
-const getRailPinned = () => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('railPinned') === '1' } catch { return false } }
+const getRailPinned = () => false
 const getDensity = (): Density => { try { const v = typeof localStorage !== 'undefined' ? localStorage.getItem('density') as Density : null; return v === 'dense' ? 'dense' : 'airy' } catch { return 'airy' } }
 
 export const useUIStore = create<UIState>((set) => ({

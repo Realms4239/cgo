@@ -120,14 +120,20 @@ export default function CampagneView() {
   const pushToast = useUIStore((s: any)=>s.pushToast)
   const start = async () => {
     setMsg('démarrage…')
-    const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, deadline_ms: deadlineMs, target: loadSettings().target }) })
-    const ok = r.ok
-    setMsg(ok ? 'campagne lancée' : 'échec: ' + r.status)
-    pushToast(ok ? 'Campagne lancée' : 'Échec démarrage', ok ? 'ok' : 'err')
-    if (ok) {
-      const st = useUIStore.getState()
-      st.setPanel('live')
-      // Flash géré par App (redirection wasRunning) — évite le doublon.
+    try {
+      const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, deadline_ms: deadlineMs, target: loadSettings().target }) })
+      if (!r.ok) {
+        const txt = await r.text().catch(() => String(r.status))
+        setMsg('échec: ' + txt.slice(0,120))
+        pushToast(txt.includes('déjà') || r.status===409 ? 'Campagne déjà en cours — arrêter d\'abord' : 'Échec démarrage: ' + r.status, 'err')
+        return
+      }
+      setMsg('campagne lancée')
+      pushToast('Campagne lancée', 'ok')
+      useUIStore.getState().setPanel('live')
+    } catch (e:any) {
+      setMsg('échec: ' + (e?.message ?? 'réseau'))
+      pushToast('Échec démarrage', 'err')
     }
   }
   const stop = async () => {
@@ -237,7 +243,7 @@ export default function CampagneView() {
           <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10, marginLeft:'auto'}}>wasted × cost_per_h</span>
         </div>
         <div className="form-row" style={{gap:8}}>
-          <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running} />
+          <span title={live?.running ? 'campagne en cours — arrêter d\'abord' : undefined}><ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running} /></span>
           <ArmButton label="ARRÊTER" confirmLabel="CONFIRMER L'ARRÊT" onConfirm={stop} disabled={!live?.running} />
           <span className="mono muted">{msg}</span>
         </div>
@@ -270,7 +276,7 @@ export default function CampagneView() {
         </>}
       </div>
 
-      <div className="card">
+      <div className="card" style={{ position: 'sticky', top: 12, zIndex: 1 }}>
         <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span>Profil personnalisé</span>
           {!importForm && <button className="btn" onClick={()=>setImportForm(true)} style={{ marginLeft: 'auto', padding: '2px 10px' }}>IMPORTER</button>}

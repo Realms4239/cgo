@@ -90,8 +90,10 @@ export default function ResultatsView() {
     const v = (g as any)[rankKey]
     return typeof v === 'number' && v > 0 ? v : Number.MAX_SAFE_INTEGER
   }
-  const distinct = (k: 'profile' | 'qdisc' | 'cc') => Array.from(new Set(groups.map(g => g[k]))).sort()
-  const filtered = groups.filter(g =>
+  // groupes sûrs — évite l'écran d'erreur si la charge est inattendue
+  const safeGroups: Group[] = Array.isArray(groups) ? groups : []
+  const distinct = (k: 'profile' | 'qdisc' | 'cc') => Array.from(new Set(safeGroups.map(g => g[k]))).sort()
+  const filtered = safeGroups.filter(g =>
     (fProfile === 'tous' || g.profile === fProfile) &&
     (fQdisc === 'tous' || g.qdisc === fQdisc) &&
     (fCc === 'tous' || g.cc === fCc))
@@ -102,8 +104,8 @@ export default function ResultatsView() {
     ?? [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(b) - val(a) : val(a) - val(b))[0]
   const diff = top && baselineRow && Number.isFinite(val(top)) && val(baselineRow) > 0
     ? Math.round(((val(baselineRow) - val(top)) / val(baselineRow)) * 100) : null
-  const hwPerProfile = Array.from(new Map(groups.filter(g => g.best).map(g => [g.profile, g.hardware_recommendation ?? '—'])).entries()).map(([p, h]) => `${p}: ${h}`).join(' · ') || '—'
-  const maxSmall = Math.max(...groups.map(g => g.small_p95_median), 1)
+  const hwPerProfile = Array.from(new Map(safeGroups.filter(g => g.best).map(g => [g.profile, g.hardware_recommendation ?? '—'])).entries()).map(([p, h]) => `${p}: ${h}`).join(' · ') || '—'
+  const maxSmall = Math.max(...safeGroups.map(g => g.small_p95_median), 1)
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
     <button key={label} className="btn" onClick={onClick} style={{
@@ -133,7 +135,7 @@ export default function ResultatsView() {
 
       {/* verdict recalculé sur le critère choisi — toujours mesuré, jamais décoré */}
       {top && baselineRow && (
-        <div className="card" data-testid="rank-verdict" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 12, alignItems: 'center', padding: 14 }}>
+        <div className="card rank-verdict" data-testid="rank-verdict">
           <div>
             <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
               <Explain term="pfifo_fast">pfifo — avant</Explain>
@@ -168,7 +170,8 @@ export default function ResultatsView() {
         {(['tous', ...distinct('cc')] as string[]).map(v => chip(v, fCc === v, () => setFCc(v)))}
       </div>
 
-      <div className="card" style={{ overflowX: 'auto' }}>
+      {filtered.length === 0 && <div className="card"><EmptyState kind="empty" hint="aucun groupe pour ces filtres — élargissez la sélection" /></div>}
+      {filtered.length > 0 && <div className="card" style={{ overflowX: 'auto' }}>
         <table className='data-table' style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
           <thead>
             <tr style={{ color: '#c3c9d1', textAlign: 'left', borderBottom: '1px solid var(--hairline)' }}>
@@ -226,7 +229,7 @@ export default function ResultatsView() {
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
       {pinA && pinB && (
         <CompareView a={pinA} b={pinB} onClose={() => { setPinA(null); setPinB(null) }} />
       )}
@@ -239,7 +242,7 @@ export default function ResultatsView() {
         <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>Exporter MD</a>
         <span className="mono muted" style={{ marginLeft: 8 }}><Explain term="run_rows">médianes mesurées</Explain> · provenance {hash8}</span>
       </div>
-      <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${groups.length} groupes · max small ${maxSmall.toFixed(1)} ms · ${hwPerProfile} · hash ${hash8}`} />
+      <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${safeGroups.length} groupes · max small ${maxSmall.toFixed(1)} ms · ${hwPerProfile} · hash ${hash8}`} />
     </div>
   )
 }
