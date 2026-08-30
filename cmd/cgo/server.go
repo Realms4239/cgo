@@ -153,8 +153,8 @@ func runServer(ctx context.Context, addr, mode string) error {
 			}
 			live.Set(campagne.Snapshot{
 				Phase: "burst", Profile: "burst", CC: cc,
-				BulkGoodputMbps: math.Round(g*10) / 10,
-				Drops:           0, Running: false,
+				GoodputMbps: math.Round(g*10) / 10,
+				Drops:       0, Running: false,
 			})
 			return nil
 		},
