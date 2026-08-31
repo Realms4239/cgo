@@ -18,6 +18,7 @@ import (
 
 	"github.com/Realms4239/cgo/pkg/audit"
 	"github.com/Realms4239/cgo/pkg/figures"
+	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/profile"
 	"github.com/Realms4239/cgo/pkg/results"
@@ -56,6 +57,7 @@ var schemaParams = []Param{
 	{Key: "shape_qdisc", Label: "File d'attente", Default: "cake", Enum: []string{"cake", "fq_codel", "pfifo_fast", "none"}, Desc: "discipline appliquée au bord"},
 	{Key: "burst_cc", Label: "Contrôle de congestion du burst", Default: "bbr", Enum: []string{"cubic", "bbr"}, Desc: "CC du burst de test à travers le bord façonné"},
 	{Key: "burst_seconds", Label: "Durée du burst", Min: 2, Max: 10, Default: 4, Unit: "s", Desc: "durée d'un burst de test"},
+	{Key: "price_tier", Label: "Palier tarifaire", Default: "yas-month-4.5gb", Enum: []string{"yas-day-1gb", "yas-month-4.5gb", "airtel-month-4.5gb", "orange-month-5gb", "yas-month-100gb", "yas-ftth-100gb"}, Desc: "forfait de référence du coût du gaspillage (tarifs réels 2026 — docs/data-prices.md)"},
 }
 
 // paramBounds — la validation côté serveur lit ce même registre.
@@ -240,6 +242,10 @@ func New(d Deps) Handler {
 	// le contrat de paramètres — le client rend les champs depuis ce registre
 	mux.HandleFunc("GET /api/schema", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"params": schemaParams})
+	})
+	// paliers tarifaires réels — le client rend le choix de forfait honnêtement
+	mux.HandleFunc("GET /api/cost/tiers", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"tiers": metrics.Tiers, "default": metrics.DefaultTier.Name})
 	})
 	// test burst — une sonde bulk avec la CC choisie à travers le bord
 	// actuellement façonné, pendant que la surveillance veille. Refusé en

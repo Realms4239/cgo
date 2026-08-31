@@ -3,6 +3,8 @@ kit/cgo-vm.yaml
 deploy-vm.env
 deploy.env
 *.local
+opencode.json
+opencode.jsonc
 
 # deps/build
 node_modules/

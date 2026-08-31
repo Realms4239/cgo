@@ -30,7 +30,7 @@ export const EXPLAIN: Record<string, string> = {
   bulk_goodput: 'Débit utile du transfert de masse, mesuré au récepteur.',
   drops: 'Palets perdus dans la file du bord pendant la charge.',
   wasted: 'Octets retransmis à cause des pertes — de la capacité gaspillée.',
-  cost_ar_per_h: 'Coût de la capacité gaspillée, en Ariary par heure.',
+  cost_ar_per_h: "Coût horaire du gaspillage en Ariary — palier Yas Net Month 4,5 Go (25 000 Ar, 5 556 Ar/Go) par défaut. Le forfait change tout : Ye'low One 1 000 Ar/Go, FTTH 490 Ar/Go. GET /api/cost/tiers liste les paliers réels (docs/data-prices.md).",
   deadline_ok: 'Part des petits objets arrivés sous la deadline choisie.',
   QDI: 'Écart p95 − médiane de latence: plus il est petit, plus le lien est régulier.',
   JFI: 'Équité de partage du lien entre flux (0–1): 1 = parfaitement équitable.',
