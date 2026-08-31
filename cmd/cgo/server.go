@@ -116,6 +116,13 @@ func runServer(ctx context.Context, addr, mode string) error {
 		}
 		deps := campagne.ProdDeps()
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
+		// la deadline choisie par l'opérateur voyage avec la campagne —
+		// reprise du défaut registre si non fournie (0 interdit : 0% partout)
+		if o.DeadlineMs > 0 {
+			deps.DeadlineMs = float64(o.DeadlineMs)
+		} else {
+			deps.DeadlineMs = defaultDeadline()
+		}
 		m, err := campagne.StartMatrix(ctx, o.Profiles, o.Reps, deps, live, "data/runs")
 		if err != nil {
 			return err
