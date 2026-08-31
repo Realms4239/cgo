@@ -43,3 +43,4 @@ web/frontend/*.log
 
 # session logs
 /*.log
+cgo.exe
