@@ -185,8 +185,8 @@ case "$ACTION" in
     [ -n "$VMRUN" ] && echo "  vmrun $VMRUN" || echo "  vmrun MANQUANT"
     [ -n "$VBOX" ] && echo "  VBoxManage $VBOX" || echo "  VBoxManage MANQUANT"
     echo "  cfg $CFG → $CFG_SSH_HOST:$CFG_DASHBOARD_PORT $CFG_PROJECT_DIR"
-    bash "$SCRIPT_DIR/../kit/test-kit.sh" 2>&1 | sed 's/^/  /'
-    bash "$SCRIPT_DIR/../kit/test-hypervisor.sh" 2>&1 | sed 's/^/  /'
+    bash "$SCRIPT_DIR/test-kit.sh" 2>&1 | sed 's/^/  /'
+    bash "$SCRIPT_DIR/test-hypervisor.sh" 2>&1 | sed 's/^/  /'
     ;;
   build)
     BUN="$(command -v bun 2>/dev/null || command -v bun.exe 2>/dev/null || echo bun)"

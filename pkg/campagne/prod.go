@@ -7,7 +7,7 @@ import (
 )
 
 // ProdDeps retourne les dépendances de production du runner campagne,
-// câblées à la topologie du banc de deploy/testbed.sh :
+// câblées à la topologie du banc de kit/testbed.sh :
 // saut netem veth-c (ns principal) · saut façonnage+aqm veth-s (netns cgo-srv).
 // Chaque adresse est surchargeable par env pour les setups exotiques.
 //

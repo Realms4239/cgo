@@ -1,7 +1,7 @@
 # machine-local
-deploy/cgo-vm.yaml
-deploy/deploy-vm.env
-deploy/deploy.env
+kit/cgo-vm.yaml
+deploy-vm.env
+deploy.env
 *.local
 
 # deps/build

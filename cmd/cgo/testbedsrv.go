@@ -16,7 +16,7 @@ import (
 )
 
 // runTestbedSrv sert le petit objet en HTTP et le puits de masse,
-// tous deux liés dans le netns cgo-srv (deploy/testbed.sh).
+// tous deux liés dans le netns cgo-srv (kit/testbed.sh).
 func runTestbedSrv(httpAddr, bulkAddr string) error {
 	obj := os.Getenv("CGO_TESTBED_OBJ")
 	if obj == "" {

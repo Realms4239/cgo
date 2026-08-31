@@ -41,7 +41,7 @@ Meteolink rejoue des profils de lien et affiche les données dans le terminal ou
 
 Meteolink a été conçu pour être un auditeur de lien rapide, basé sur le terminal. Son idée centrale est d'auditer et comparer rapidement les politiques AQM/BBR en temps réel sans toucher à vos routeurs (*idéal si vous voulez analyser vite votre lien 4G via SSH, ou si vous aimez simplement travailler dans le terminal*).
 
-Il sert aussi d'outil pratique pour le diagnostic terrain, facilitant la détection du bufferbloat, du partage inéquitable (`JFI`) et de la capacité gaspillée directement depuis votre lien. Bien que la sortie terminal (`meteolink top`) soit la sortie par défaut, il peut générer un tableau de bord [`HTML`](http://192.168.174.128:9090) temps réel complet et autonome, ainsi qu'un rapport [`CSV`](http://192.168.174.128:9090/api/report/export?format=csv) et [`Markdown`](http://192.168.174.128:9090/api/report/export?format=md).
+Il sert aussi d'outil pratique pour le diagnostic terrain, facilitant la détection du bufferbloat, du partage inéquitable (`JFI`) et de la capacité gaspillée directement depuis votre lien. Bien que la sortie terminal (`meteolink top`) soit la sortie par défaut, il peut générer un tableau de bord [`HTML`](http://localhost:9090) temps réel complet et autonome, ainsi qu'un rapport [`CSV`](http://localhost:9090/api/report/export?format=csv) et [`Markdown`](http://localhost:9090/api/report/export?format=md).
 
 Voyez-le plutôt comme une commande `monitor` pour votre lien d'accès.
 
