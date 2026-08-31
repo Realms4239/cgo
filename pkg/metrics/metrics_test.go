@@ -19,12 +19,50 @@ func TestDeadlineOKPct(t *testing.T) {
 	}
 }
 
-// Référence: un plan complet de gaspillage coûte exactement 30 000 Ar/h.
+// Référence : 4,5 Go gaspillés au palier Yas Net Month (25 000 Ar / 4,5 Go =
+// 25 002 Ar pour le bundle complet), fenêtre 3 min extrapolée à l'heure
+// (×20) = 500 040 Ar/h. L'ancien golden (30 000 Ar) mélangeait bundle et
+// heure sur un tarif inexistant — corrigé via docs/data-prices.md (yas.mg).
 func TestCostARPerHGolden(t *testing.T) {
-	if got := CostARPerH(uint64(4.5 * 1024 * 1024 * 1024)); got != 30000 {
-		t.Fatalf("cost = %v, want 30000", got)
+	got := CostARPerH(uint64(4.5 * 1024 * 1024 * 1024))
+	if got < 500039 || got > 500041 {
+		t.Fatalf("cost = %v, want ~500040 (25 002 Ar bundle × 20 fenêtre/heure)", got)
 	}
 	if got := CostARPerH(0); got != 0 {
 		t.Fatalf("zero waste must be zero")
+	}
+}
+
+// Paliers réels — le catalogue doit refléter les tarifs publiés.
+func TestTiers(t *testing.T) {
+	byName := map[string]PriceTier{}
+	for _, tr := range Tiers {
+		byName[tr.Name] = tr
+	}
+	if tr, ok := byName["yas-day-1gb"]; !ok || tr.ARGB != 1000 {
+		t.Fatalf("yas-day-1gb = %+v, want 1000 Ar/Go (Ye'low One)", tr)
+	}
+	if tr, ok := byName["yas-month-4.5gb"]; !ok || tr.ARGB != 5556 {
+		t.Fatalf("yas-month-4.5gb = %+v, want 5556 Ar/Go (25 000 Ar / 4,5 Go)", tr)
+	}
+	if tr, ok := byName["yas-ftth-100gb"]; !ok || tr.ARGB != 490 {
+		t.Fatalf("yas-ftth-100gb = %+v, want 490 Ar/Go (49 000 Ar / 100 Go)", tr)
+	}
+	// le quotidien Ye'low One est le MEILLEUR rapport du catalogue Yas (1 000 Ar/Go)
+	// vs le mensuel 4,5 Go qui est le pire (5 556 Ar/Go) — écart 5,6×
+	small := byName["yas-day-1gb"].ARGB
+	worst := byName["yas-month-4.5gb"].ARGB
+	if worst/small < 5 {
+		t.Fatalf("le mensuel 4,5 Go (%v Ar/Go) doit être >5× le Ye'low One (%v)", worst, small)
+	}
+}
+
+// Palier explicite — chaque calcul doit suivre le forfait choisi.
+func TestCostARPerHTier(t *testing.T) {
+	w := uint64(100 * MB)
+	day := CostARPerHTier(w, PriceTier{Name: "d", ARGB: 1000})
+	ftth := CostARPerHTier(w, PriceTier{Name: "f", ARGB: 490})
+	if day <= ftth {
+		t.Fatalf("mobile (%v) doit coûter plus cher que fibre (%v) à volume égal", day, ftth)
 	}
 }

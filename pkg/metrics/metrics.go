@@ -55,29 +55,55 @@ func DeadlineOKPct(completionsMs []float64, dueMs float64) float64 {
 	return float64(ok) / float64(len(completionsMs)) * 100
 }
 
-// Coût: gaspillé / 4,5 Gio × 30 000 Ar/h.
+// Coût du gaspillage — modèle à paliers opérateurs réels (recherche 2026,
+// yas.mg officiel) : le prix à l'octet dépend du forfait où vit
+// l'institution. La fibre est ~10× moins chère que le mobile au Go.
+//
+//	palier           Ar/Go    source
+//	Yas Net Day 1 Go  1 000    yas.mg (1000 Ar/24h)
+//	Yas Net Month 4,5 5 556    yas.mg (25 000 Ar) — Airtel idem 4,5 Go
+//	Yas Net 100 Go    2 000    yas.mg (200 000 Ar)
+//	Yas FTTH 100 Go     490    yas.mg (49 000 Ar/mo, hors fibre dédiée)
+//
+// Default = mobile mensuel 4,5 Go (contexte DSI : liens cellulaires de
+// secours) ; l'API expose le choix de palier pour ne pas mentir.
 const (
-	planBytes = 4.5 * 1024 * 1024 * 1024
-	planAR    = 30000
+	MB = 1024 * 1024
+	GB = 1024 * 1024 * 1024
 )
+
+// PriceTier — palier de forfait observé (Ar par Go).
+type PriceTier struct {
+	Name  string  `json:"name"`
+	ARGB  float64 `json:"ar_per_gb"`
+	Bytes float64 `json:"bundle_bytes"`
+}
+
+// Tiers — tarifs réels des trois opérateurs, mobile + fibre.
+var Tiers = []PriceTier{
+	{Name: "yas-day-1gb", ARGB: 1000, Bytes: 1 * GB},
+	{Name: "yas-month-4.5gb", ARGB: 5556, Bytes: 4.5 * GB},
+	{Name: "airtel-month-4.5gb", ARGB: 5556, Bytes: 4.5 * GB},
+	{Name: "yas-month-100gb", ARGB: 2000, Bytes: 100 * GB},
+	{Name: "yas-ftth-100gb", ARGB: 490, Bytes: 100 * GB},
+	{Name: "orange-month-5gb", ARGB: 2000, Bytes: 5 * GB},
+}
+
+// DefaultTier — le palier par défaut du calcul.
+var DefaultTier = Tiers[1] // yas-month-4.5gb : contexte cellular DSI
+
+// CostARPerH — coût horaire du gaspillage au palier courant.
+// wasted × (Ar/Go) / Go = Ar, l'heure vient de la fenêtre d'événement (3 min
+// extrapolée ×20 — documentée dans la méthodologie, pas une facturation).
+func CostARPerH(wastedBytes uint64) float64 {
+	return CostARPerHTier(wastedBytes, DefaultTier)
+}
+
+// CostARPerHTier — même calcul, palier explicite (sélectionné via l'API).
+func CostARPerHTier(wastedBytes uint64, tier PriceTier) float64 {
+	ar := float64(wastedBytes) / GB * tier.ARGB
+	return ar * 20 // fenêtre 3 min → heure
+}
 
 // JFI — Jain's fairness index (Σx)² / (n·Σx²), 0..1 (1 = perfectly fair).
 // Inutilisé tant que l'API n'expose pas les valeurs par répétition (computeJFI côté front).
-func JFI(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	var sum, sumSq float64
-	for _, v := range values {
-		sum += v
-		sumSq += v * v
-	}
-	if sumSq == 0 {
-		return 0
-	}
-	return (sum * sum) / (float64(len(values)) * sumSq)
-}
-
-func CostARPerH(wastedBytes uint64) float64 {
-	return float64(wastedBytes) / planBytes * planAR
-}
