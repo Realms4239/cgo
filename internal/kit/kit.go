@@ -281,7 +281,7 @@ func (r *Runner) pickVM(c *Config, deep bool) (vm.Hypervisor, string, error) {
 
 // Doctor — dépendances locales + config, tout vert avant d'agir.
 func (r *Runner) Doctor(c *Config) int {
-	r.out("[doctor] hôte %s/%s go%s", runtime.GOOS, runtime.GOARCH, runtime.Version())
+	r.out("[doctor] hôte %s/%s — go %s", runtime.GOOS, runtime.GOARCH, strings.TrimPrefix(runtime.Version(), "go"))
 	for _, t := range []string{"go", "bun", "node", "ssh", "scp", "curl"} {
 		if p, err := exec.LookPath(t); err == nil {
 			r.out("  %-10s %s", t, p)

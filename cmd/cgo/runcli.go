@@ -1,0 +1,96 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/Realms4239/cgo/pkg/campagne"
+	"github.com/Realms4239/cgo/pkg/results"
+)
+
+// runCLI — campagne en ligne de commande : la même matrice que le dashboard,
+// imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
+// (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
+// peut campagner par SSH.
+func runCLI(profilesStr string, reps, deadlineMs int, target, dataDir string) int {
+	profiles := strings.Split(profilesStr, ",")
+	for i := range profiles {
+		profiles[i] = strings.TrimSpace(profiles[i])
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	lastLine := func(s string) {
+		fmt.Printf("\r\033[K%s", s)
+	}
+	deps := campagne.ProdDeps()
+	deps.Target = target
+	deps.DeadlineMs = float64(deadlineMs)
+
+	// progression : chaque instantané rafraîchit la ligne courante
+	deps.OnSnap = func(s campagne.Snapshot) {
+		gates := ""
+		for _, g := range s.Gates {
+			switch {
+			case g == nil:
+				gates += "·"
+			case *g:
+				gates += "✓"
+			default:
+				gates += "✗"
+			}
+		}
+		lastLine(fmt.Sprintf("[%s %s/%s rep%d] %s — small p95 %.1fms — rtt %.1fms — G[%s] %d/%d",
+			s.Profile, s.Qdisc, s.CC, s.Repetition, s.Phase,
+			s.Smallp95Ms, s.RTTp95Ms, gates, s.EventID, s.TotalEvents))
+	}
+
+	m, err := campagne.StartMatrix(ctx, profiles, reps, deps, nil, dataDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "run:", err)
+		return 2
+	}
+
+	// attente active : CTRL-C → Stop gracieux, la matrice draine et gèle
+	for m.IsRunning() {
+		select {
+		case <-ctx.Done():
+			fmt.Println("\narrêt demandé — gel en cours…")
+			m.Stop()
+			for i := 0; i < 30 && m.IsRunning(); i++ {
+				time.Sleep(200 * time.Millisecond)
+			}
+			fmt.Println("gel terminé.")
+			printSummary(dataDir)
+			return 0
+		case <-time.After(300 * time.Millisecond):
+		}
+	}
+	fmt.Println()
+	printSummary(dataDir)
+	return 0
+}
+
+// printSummary — médianes gelées de la dernière matrice + verdict + hash.
+func printSummary(dataDir string) {
+	groups, _ := results.Scan(dataDir, "")
+	if len(groups) == 0 {
+		fmt.Println("aucune ligne gelée.")
+		return
+	}
+	fmt.Printf("\n%-8s %-12s %-6s %10s %10s %10s %10s\n", "profil", "qdisc", "cc", "small p95", "rtt p95", "goodput", "deadline")
+	for _, g := range groups {
+		mark := ""
+		if g.Best {
+			mark = " ★"
+		}
+		fmt.Printf("%-8s %-12s %-6s %9.1fms %9.1fms %8.1fMb %9.0f%%%s\n",
+			g.Profile, g.Qdisc, g.CC, g.Smallp95Median, g.RTTp95Median, g.GoodputMedian, g.DeadlineMedian, mark)
+	}
+}

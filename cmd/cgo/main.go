@@ -161,8 +161,16 @@ WantedBy=multi-user.target
 		}
 		fmt.Printf("audit ok — p50 %.1f p95 %.1f small %.1f → data/link_audit.csv\n", res.RTTIdleP50, res.RTTIdleP95, res.HTTPSmallP95)
 	case "run":
-		fmt.Fprintln(os.Stderr, "run: use API POST /api/run/start {profiles,reps} (le lancement CLI passe par l'API)")
-		os.Exit(2)
+		fs := flag.NewFlagSet("run", flag.ExitOnError)
+		profiles := fs.String("profiles", "P2", "profils à tester (P1,P2,P3-importé)")
+		reps := fs.Int("reps", 3, "répétitions par cellule (1–5)")
+		deadline := fs.Int("deadline", 1000, "objectif small p95 en ms (200–5000)")
+		target := fs.String("target", "1.1.1.1", "cible de mesure")
+		dataDir := fs.String("data", "data/runs", "répertoire des runs gelés")
+		_ = fs.Parse(os.Args[2:])
+		if code := runCLI(*profiles, *reps, *deadline, *target, *dataDir); code != 0 {
+			os.Exit(code)
+		}
 	default:
 		usage()
 		os.Exit(2)
