@@ -1,8 +1,11 @@
 // Meteolink (binaire cgo) — commandes principales:
 //
 //	cgo --serve                          dashboard + API (127.0.0.1:9090 par défaut)
+//	cgo setup                            wizard première installation (tout guidé)
+//	cgo kit <action>                     moteur de déploiement (doctor, scan, ensure, deploy…)
 //	cgo audit --link-type T --site S --duration N
-//	cgo run  --matrix full|reduced --profiles P1,P2 --reps 3
+//	cgo run --profiles P1,P2 --reps 3    campagne CLI (progression ligne à ligne)
+//	cgo tui                              tableau de bord terminal complet
 //	cgo verify                           manifest integrity check
 //	cgo figures                          régénère les SVG depuis les CSV gelés
 package main
@@ -36,6 +39,12 @@ func main() {
 		os.Exit(2)
 	}
 	switch os.Args[1] {
+	case "kit":
+		os.Exit(runKit(os.Args[2:]))
+	case "setup":
+		os.Exit(runSetup(os.Args[2:]))
+	case "tui":
+		os.Exit(runTUI(os.Args[2:]))
 	case "--serve":
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
 		def := os.Getenv("CGO_DASHBOARD__ADDR")
