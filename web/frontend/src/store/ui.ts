@@ -31,7 +31,8 @@ interface UIState {
 }
 
 const getRailPinned = () => false
-const getDensity = (): Density => { try { const v = typeof localStorage !== 'undefined' ? localStorage.getItem('density') as Density : null; return v === 'dense' ? 'dense' : 'airy' } catch { return 'airy' } }
+// dense par défaut — un NOC montre plus de données par écran; airy reste au toggle (soutenance/projection)
+const getDensity = (): Density => { try { const v = typeof localStorage !== 'undefined' ? localStorage.getItem('density') as Density : null; return v === 'airy' ? 'airy' : 'dense' } catch { return 'dense' } }
 
 export const useUIStore = create<UIState>((set) => ({
   panel: 'campagne', setPanel: (panel) => set({ panel }),

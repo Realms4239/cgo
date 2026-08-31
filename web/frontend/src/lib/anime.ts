@@ -8,9 +8,8 @@ export const prefersReducedMotion = () =>
 export function animateViewEnter() {
   if (prefersReducedMotion()) return
   const tl = createTimeline()
-  // as any — types animejs trop étroits, l'exécution est correcte.
-  tl.add('.view', { translateY: [8, 0], opacity: [0, 1], filter: ['blur(4px)', 'blur(0)'], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
-  tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+  // fondu simple — le blur animé sur .view entier coûtait trop au switch
+  tl.add('.view:not([hidden])', { translateY: [8, 0], opacity: [0, 1], duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
 }
 
 export function animateCardStagger() {

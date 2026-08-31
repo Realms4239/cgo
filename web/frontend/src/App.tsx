@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useUIStore, PANELS } from './store/ui'
 import { connectSSE, disconnectSSE } from './lib/sse'
-import { animateGrid, animateViewEnter } from './lib/anime'
+import { animateViewEnter } from './lib/anime'
 import CampagneView from './views/CampagneView'
 import LiveView from './views/LiveView'
 import ResultatsView from './views/ResultatsView'
@@ -43,9 +43,8 @@ export default function App() {
   }, [connected])
 
   useEffect(() => {
+    // entrée légère : fondu CSS seulement — plus de blur JS ni de re-stagger des cartes
     animateViewEnter()
-    const els = document.querySelectorAll('.panel-stack .card, .view .card')
-    if (els.length) animateGrid(Array.from(els) as Element[])
   }, [panel])
 
   const wasRunningRef = useRef(!!live?.running)
@@ -106,10 +105,11 @@ export default function App() {
         {/* quick actions are running-state chrome — never block an idle view */}
         {live?.running && <QuickActionsPrompt />}
         <main id="main">
-          {panel === 'campagne' && <section id="v-campagne" className="view on"><CampagneView /></section>}
-          {panel === 'live' && <section id="v-live" className="view on"><LiveView /></section>}
-          {panel === 'resultats' && <section id="v-resultats" className="view on"><ResultatsView /></section>}
-          {panel === 'integrite' && <section id="v-integrite" className="view on"><IntegriteView /></section>}
+          {/* vues toutes montées — retour instantané, pas de refetch/réinit ECharts à chaque switch */}
+          <section id="v-campagne" className="view" hidden={panel !== 'campagne'}><CampagneView /></section>
+          <section id="v-live" className="view" hidden={panel !== 'live'}><LiveView /></section>
+          <section id="v-resultats" className="view" hidden={panel !== 'resultats'}><ResultatsView /></section>
+          <section id="v-integrite" className="view" hidden={panel !== 'integrite'}><IntegriteView /></section>
         </main>
 
         <footer className="foot-ticker" style={{ height: 28, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderTop: '1px solid var(--hairline)', background: 'var(--surface-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--text-faint)' }}>

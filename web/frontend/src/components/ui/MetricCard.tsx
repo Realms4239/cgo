@@ -1,4 +1,4 @@
-import { useId, useMemo } from 'react'
+import { useId, useMemo, useRef, useEffect, useState } from 'react'
 import { lttb } from '../../lib/lttb'
 import Explain from '../Explain'
 
@@ -24,6 +24,21 @@ export function MetricCard({
   const trendColor = trend === 'up' ? '#e22718' : trend === 'down' ? '#1fa348' : '#767b84'
   const trendSym = trend === 'up' ? '↗' : trend === 'down' ? '↘' : '—'
   const clipId = useId().replace(/:/g, '-')
+  // flash directionnel — la carte s'allume quand SA valeur change (montée = rouge,
+  // descente = vert pour une métrique où bas = mieux; le parent décide via good/badIsUp)
+  const prevRef = useRef(value)
+  const [flash, setFlash] = useState<'' | 'up' | 'down'>('')
+  useEffect(() => {
+    if (value === prevRef.current || value === '—' || prevRef.current === '—') { prevRef.current = value; return }
+    const pv = parseFloat(prevRef.current), nv = parseFloat(value)
+    prevRef.current = value
+    if (!Number.isFinite(pv) || !Number.isFinite(nv) || pv === nv) return
+    // sur le mur live, une métrique qui monte en valeur = charge qui grossit (rouge);
+    // qui descend = récupération (vert) — sauf trend 'up' explicite (goodput)
+    setFlash(trend === 'up' ? (nv > pv ? 'up' : 'down') : (nv > pv ? 'down' : 'up'))
+    const t = setTimeout(() => setFlash(''), 400)
+    return () => clearTimeout(t)
+  }, [value, trend])
   // Sparkline 60×12 (clipPath rx4) + lttb40 — zone D3 si remplissage utile.
   const path = useMemo(() => {
     if (!spark || spark.length < 2) return ''
@@ -46,7 +61,7 @@ export function MetricCard({
         <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, padding: '2px 6px', border: '1px solid #26262a', background: trendColor + '14', color: trendColor, lineHeight: 1 }}>{trendSym}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 20, fontWeight: 700, color: '#f2f2f4', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{value}</span>
+        <span className={'mono' + (flash ? (flash === 'up' ? ' val-flash-up' : ' val-flash-down') : '')} style={{ fontFamily: 'JetBrains Mono', fontSize: 20, fontWeight: 700, color: flash === 'up' ? 'var(--t-ok)' : flash === 'down' ? 'var(--t-danger)' : '#f2f2f4', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{value}</span>
         {unit ? <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#767b84' }}>{unit}</span> : null}
       </div>
       {path ? (

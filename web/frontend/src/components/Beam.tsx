@@ -3,8 +3,9 @@ import { useUIStore } from '../store/ui'
 // Trait fixe entre Campagne et Tableau live quand la campagne tourne.
 // synchro au survol: hovered = état de survol du graphique — le trait s'éclaire; anime gardé (CSS no-preference)
 export function Beam({ hovered = false }: { hovered?: boolean }) {
-  const live = useUIStore((s: any) => s.live)
-  if (!live?.running) return null
+  // un seul champ — le trait ne suit pas les frames de mesure
+  const running = useUIStore((s: any) => !!s.live?.running)
+  if (!running) return null
   return (
     <svg
       aria-hidden
@@ -28,6 +29,7 @@ export function Beam({ hovered = false }: { hovered?: boolean }) {
         </linearGradient>
       </defs>
       <line
+        className="beam-line"
         x1={0}
         y1={1}
         x2="100%"
@@ -36,7 +38,6 @@ export function Beam({ hovered = false }: { hovered?: boolean }) {
         strokeWidth={hovered ? 2 : 1}
         strokeDasharray="4"
         strokeDashoffset={-40}
-        style={{ animation: 'beamDash 1s linear infinite' } as any}
       />
     </svg>
   )

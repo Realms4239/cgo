@@ -29,10 +29,14 @@ describe('tokens', () => {
     const css = read('web/frontend/src/styles/tokens.css')
     expect(css).toContain('noise.png')
   })
-  it('tokens.css has surface-card gradient and backdrop-filter', () => {
+  it('tokens.css — cartes opaques : le blur vit seulement dans les overlays (index.css)', () => {
     const css = read('web/frontend/src/styles/tokens.css')
     expect(css).toContain('linear-gradient')
-    expect(css).toContain('backdrop-filter')
+    // plus de backdrop-filter sur .card — la cause n°1 de jank a été retirée
+    expect(css).not.toContain('.card')
+    const idx = read('web/frontend/src/styles/index.css')
+    // le blur survit uniquement sur les overlays flottants
+    expect(idx).toContain('.panel-chooser')
   })
   it('tokens.css has hairline fading', () => {
     const css = read('web/frontend/src/styles/tokens.css')

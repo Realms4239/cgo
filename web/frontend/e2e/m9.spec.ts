@@ -23,7 +23,7 @@ test('m9 wall kit', async ({ page }) => {
     else if (await rapid.count()) await expect(rapid.first()).toBeVisible({ timeout: 2000 })
   })
   // Overlay mur live référence vs CAKE — même échelle, badge d'écart
-  await page.getByLabel('Navigation').getByRole('button', { name: 'Temps réel' }).click()
+  await page.getByLabel('Navigation').getByRole('button', { name: 'Tableau live' }).click()
   await expect(page.locator('.live-wall-overlay')).toBeVisible({ timeout: 5000 })
   await expect(page.locator('.live-wall-overlay')).toContainText('baseline')
   await expect(page.locator('.live-wall-overlay')).toContainText('CAKE')

@@ -11,6 +11,7 @@ export const live = {
   ts: 0,
   phase: '', // baseline|charge|recup — from SSE delta, drives CHARGE markArea (not estimated)
   phaseSince: {} as Record<string, number>, // first ts seen per phase — drives Timeline 48 phase bands
+  seq: 0, // dirty-check — incrémenté à chaque frame mesurée, les rendus ne suivent que le changement
 }
 
 function push(r: Ring, ts: number, v: number | null) {
@@ -21,6 +22,7 @@ function push(r: Ring, ts: number, v: number | null) {
 
 export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: number; small_p95_ms?: number; bulk_goodput_mbps?: number; phase?: string }) {
   live.ts = ts
+  live.seq++
   if (f.phase && f.phase !== live.phase) {
     live.phase = f.phase
     if (!live.phaseSince[f.phase]) live.phaseSince[f.phase] = ts

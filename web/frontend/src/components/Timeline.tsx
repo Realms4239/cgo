@@ -1,47 +1,48 @@
-import * as d3 from 'd3'
 import { useEffect, useRef } from 'react'
 
-// Timeline 48 — bandes de phase, bornes FIGÉES par event.
-// recupEnd = chargeEnd + RecupSec (nominal) : la bande ne grandit pas à
-// chaque frame, le SVG n'est jamais reconstruit en cours de phase.
+// Timeline 48 — bandes de phase, bornes FIGÉES par event, zéro dépendance :
+// le scale est un map linéaire, le SVG un template. d3 complet (90 KB gz)
+// servait trois appels — retiré.
+const PHASES = [
+  { key: 'baseline', fill: 'rgba(90,211,227,0.04)' },
+  { key: 'charge', fill: 'rgba(244,180,0,0.08)' },
+  { key: 'recup', fill: 'rgba(31,163,72,0.06)' },
+] as const
+
 export function Timeline({ baselineStart, chargeStart, chargeEnd, recupEnd, currentPhase }: { baselineStart: number, chargeStart: number, chargeEnd: number, recupEnd: number, currentPhase: string }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (!ref.current) return
+    const el = ref.current
+    if (!el) return
     if (!currentPhase || currentPhase === 'idle' || currentPhase === 'surveil') {
-      d3.select(ref.current).html('')
+      el.innerHTML = ''
       return
     }
-    const w = ref.current.clientWidth || 600, h = 48
-    const svg = d3.select(ref.current).html('').append('svg').attr('width', w).attr('height', h)
-    const x = d3.scaleTime().domain([new Date(baselineStart), new Date(recupEnd)]).range([0, w])
-    const rects: Record<string, { x: number, w: number }> = {
-      baseline: { x: x(new Date(baselineStart)), w: x(new Date(chargeStart)) - x(new Date(baselineStart)) },
-      charge: { x: x(new Date(chargeStart)), w: x(new Date(chargeEnd)) - x(new Date(chargeStart)) },
-      recup: { x: x(new Date(chargeEnd)), w: x(new Date(recupEnd)) - x(new Date(chargeEnd)) },
+    const w = el.clientWidth || 600, h = 48
+    const x = (t: number) => ((t - baselineStart) / Math.max(1, recupEnd - baselineStart)) * w
+    const bands: [string, number, number][] = [
+      ['baseline', baselineStart, chargeStart],
+      ['charge', chargeStart, chargeEnd],
+      ['recup', chargeEnd, recupEnd],
+    ]
+    let rects = ''
+    for (const [k, a, b] of bands) {
+      const rx = Math.max(0, x(a)), rw = Math.max(0, x(b) - x(a))
+      const cur = currentPhase === k
+      rects += `<rect x="${rx.toFixed(1)}" width="${rw.toFixed(1)}" height="${h}" fill="${PHASES.find(p => p.key === k)!.fill}"${cur ? ' stroke="rgba(255,255,255,0.35)" stroke-width="1"' : ''}/>`
     }
-    const fill: Record<string,string> = { baseline:'rgba(90,211,227,0.04)', charge:'rgba(244,180,0,0.08)', recup:'rgba(31,163,72,0.06)' }
-    for (const k of ['baseline','charge','recup'] as const) {
-      const isCurrent = currentPhase === k
-      svg.append('rect')
-        .attr('x', rects[k].x).attr('width', Math.max(0, rects[k].w)).attr('height', h)
-        .attr('fill', fill[k])
-        .attr('stroke', isCurrent ? 'rgba(255,255,255,0.35)' : 'none')
-        .attr('stroke-width', isCurrent ? 1 : 0)
-        .style('filter', isCurrent ? 'drop-shadow(0 0 6px rgba(255,255,255,0.25))' : 'none')
-    }
-    // curseur de progression — une flèche par frame, pas de reconstruction
-    const cursor = svg.append('line')
-      .attr('y1', 0).attr('y2', h)
-      .attr('stroke', 'rgba(255,255,255,0.5)').attr('stroke-width', 1)
+    el.innerHTML = `<svg width="${w}" height="${h}" style="display:block">${rects}<line class="tl-cursor" y1="0" y2="${h}" stroke="rgba(255,255,255,0.5)" stroke-width="1"/></svg>`
+    // curseur de progression — une position par 500 ms, jamais de rebuild
+    const cursor = el.querySelector<SVGLineElement>('.tl-cursor')
     const tick = window.setInterval(() => {
-      if (!ref.current) { window.clearInterval(tick); return }
-      cursor.attr('x1', x(new Date())).attr('x2', x(new Date()))
+      if (!cursor) { window.clearInterval(tick); return }
+      cursor.setAttribute('x1', String(x(Date.now())))
+      cursor.setAttribute('x2', String(x(Date.now())))
     }, 500)
     return () => {
       window.clearInterval(tick)
-      try { (d3 as any).select(ref.current).selectAll('*').remove() } catch {}
+      if (el.isConnected) el.innerHTML = ''
     }
   }, [baselineStart, chargeStart, chargeEnd, recupEnd, currentPhase])
-  return <div ref={ref} style={{height:48, border: '1px solid #26262a'}} data-testid="timeline" aria-label={`timeline ${currentPhase}`} />
+  return <div ref={ref} style={{ height: 48, border: '1px solid #26262a' }} data-testid="timeline" aria-label={`timeline ${currentPhase}`} />
 }

@@ -158,9 +158,15 @@ export default function LiveView() {
   })()
 
   const lastRef = useRef(0)
+  const seqRef = useRef(-1)
+  // la boucle ne tourne que s'il y a de la donnée à peindre — idle = zéro frame
+  const rafActive = live.rtt95.length > 0 || live.small.length > 0 || live.goodput.length > 0 || lockedRingRef.current.length > 0
   useRafLoop((ts) => {
+    // dirty-check — les anneaux n'ont pas bougé : rien à re-rendre, frame gratuite
+    if (live.seq === seqRef.current) return
     if (ts - lastRef.current < 250) return
     lastRef.current = ts
+    seqRef.current = live.seq
     const d = (r: [number, number][]) => r.length > 400 ? lttb(r, 400) : r
     // markArea CHARGE — une seule par graphique, pilotée par la phase.
     const charging = live.phase === 'charge'
@@ -182,7 +188,7 @@ export default function LiveView() {
     }
     small.setData(series)
     goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(live.goodput as any), CRAFT.bbr), markArea: ma } as any])
-  })
+  }, rafActive)
 
   const banner = replayRunning ? `REPLAY — ${replayRunId}`
     : !liveSnap ? 'OFFLINE — en attente du flux'
