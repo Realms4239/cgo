@@ -79,13 +79,18 @@ func runSetup(args []string) int {
 
 	// 3 — build (frontend + binaire)
 	step(3, "Construction")
-	dist := filepath.Join(root, "web", "frontend", "dist", "index.html")
-	if _, err := os.Stat(dist); err != nil {
+	distIndex := filepath.Join(root, "web", "frontend", "dist", "index.html")
+	distPlaceholder := filepath.Join(root, "web", "frontend", "dist", ".placeholder")
+	_, hasIndex := os.Stat(distIndex)
+	_, hasPlaceholder := os.Stat(distPlaceholder)
+	needsBuild := os.IsNotExist(hasIndex) || !os.IsNotExist(hasPlaceholder)
+	if needsBuild {
+		fmt.Println("frontend non construit (placeholder)")
 		if confirm("Builder le frontend maintenant (bun install + build) ?") {
 			fmt.Println("→ bun install && bun run build")
 			if out, err := kitRun(filepath.Join(root, "web", "frontend"), "bun", "install"); err != nil {
 				fmt.Println(out)
-				fmt.Println("bun install ÉCHEC — installez bun puis relancez")
+				fmt.Println("bun install ÉCHEC — installez bun puis relancez : https://bun.sh")
 				return 2
 			}
 			if out, err := kitRun(filepath.Join(root, "web", "frontend"), "bun", "run", "build"); err != nil {
@@ -93,9 +98,9 @@ func runSetup(args []string) int {
 				fmt.Println("bun build ÉCHEC")
 				return 2
 			}
+			_ = os.Remove(distPlaceholder)
 		} else {
-			fmt.Println("sans dist, go build échoue (embed) — relancez après build")
-			return 2
+			fmt.Println("sans dist réel, le dashboard servira la page placeholder — lancez le build avant de servir")
 		}
 	} else {
 		fmt.Println("frontend dist : présent")
