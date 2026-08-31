@@ -43,7 +43,7 @@ func main() {
 		os.Exit(runKit(os.Args[2:]))
 	case "setup":
 		os.Exit(runSetup(os.Args[2:]))
-	case "tui":
+	case "tui", "top":
 		os.Exit(runTUI(os.Args[2:]))
 	case "--serve":
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)

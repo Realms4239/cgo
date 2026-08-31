@@ -2,6 +2,9 @@ version: 2
 
 project_name: meteolink
 
+# un seul binaire — meteolink devient un alias embarqué (commande `cgo top`
+# historique + wrapper de compat dans l'archive). Moins de surface, une
+# seule toolchain, zéro divergence.
 builds:
   - id: cgo
     main: ./cmd/cgo
@@ -14,6 +17,8 @@ builds:
       - windows/amd64
     ldflags:
       - -s -w -X main.version={{.Version}}
+  # le wrapper meteolink re-exécute cgo — gardé comme binaire séparé pour
+  # la compat npm/scripts existants (même archive, mêmes flags).
   - id: meteolink
     main: ./cmd/meteolink
     binary: meteolink
@@ -28,12 +33,14 @@ builds:
 
 archives:
   - id: default
-    # tar.gz for unix platforms, zip for windows (override below).
+    # archive unique : cgo-<os>-<arch> contient cgo + meteolink + kit/
     formats: [tar.gz]
     name_template: "cgo-{{ .Os }}-{{ .Arch }}"
     files:
       - LICENSE
       - README.md
+      - kit/*.example
+      - kit/*.sh
     format_overrides:
       - goos: windows
         format: zip
@@ -50,7 +57,7 @@ release:
   header: |
     ## Meteolink {{ .Version }}
 
-    - `cgo` — dashboard + API server
-    - `meteolink` — TUI client
+    - `cgo` — le binaire unique : dashboard + API + `cgo setup` + `cgo kit` + `cgo run` + `cgo tui`
+    - `meteolink` — alias de compatibilité (re-exécute cgo)
 
-    Verify downloads with `checksums.txt` (SHA-256).
+    Vérifiez les téléchargements avec `checksums.txt` (SHA-256).
