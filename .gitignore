@@ -30,7 +30,7 @@ LIEN.md
 DESIGN.md
 PRODUCT.md
 CONGESTION.md
-!web/frontend/dist/.placeholder
+!web/frontend/dist/index.html
 
 web/frontend/test-results/
 web/frontend/playwright-report/

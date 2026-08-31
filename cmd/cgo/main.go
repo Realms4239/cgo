@@ -31,7 +31,7 @@ import (
 )
 
 // version — overridden at release time: -X main.version={{.Version}}.
-var version = "1.0.6"
+var version = "1.1.0"
 
 func main() {
 	if len(os.Args) < 2 {
