@@ -47,38 +47,45 @@ Voyez-le plutôt comme une commande `monitor` pour votre lien d'accès.
 
 ## Installation
 
-### Compilation depuis une release
+### La voie unique : `cgo setup` (wizard guidé)
 
-Meteolink peut être compilé et utilisé sur les systèmes *nix. Téléchargez, extrayez et exécutez le binaire unique avec :
+Clonez puis laissez le wizard détecter, construire et configurer — de zéro au dashboard en une commande :
 
 ```
-$ wget https://github.com/Realms4239/cgo/releases/download/v1.0.6/cgo-linux-amd64.tar.gz
+$ git clone https://github.com/Realms4239/cgo.git && cd cgo
+$ go run ./cmd/cgo setup
+```
+
+Sept étapes idempotentes : détection (OS, go/bun/node/ssh, hyperviseurs) → dépendances → build frontend+binaire → contexte (observe/full/VM) → config VM (scan, IP invité auto) → DNS local (`meteolink.dev`) → doctor + menu final (dashboard/TUI). Modes : `--yes` (CI, défauts), `--no-vm` (sans hyperviseur).
+
+### Compilation depuis une release
+
+Téléchargez, extrayez et exécutez le binaire unique :
+
+```
+$ wget https://github.com/Realms4239/cgo/releases/download/v1.1.0/cgo-linux-amd64.tar.gz
 $ tar -xzvf cgo-linux-amd64.tar.gz
 $ ./cgo --serve              # http://127.0.0.1:9090
-# ou meteolink --serve
+# ou meteolink --serve (alias de compatibilité)
 ```
 
 Vérifiez avec `checksums.txt` (SHA-256).
 
-### Compilation depuis GitHub (Développement)
+### Compilation depuis GitHub (développement)
 
 ```
-$ git clone https://github.com/Realms4239/cgo.git
-$ cd cgo
+$ git clone https://github.com/Realms4239/cgo.git && cd cgo
+$ go run ./cmd/cgo setup --yes     # ou manuellement :
 $ cd web/frontend && bun install && bun run build && cd ../..
-$ go build -o bin/cgo ./cmd/cgo
-$ ./bin/cgo --serve
+$ go build -o bin/cgo ./cmd/cgo && ./bin/cgo --serve
 ```
 
 ### Distributions
-
-Il est plus simple d'installer Meteolink via le gestionnaire de paquets préféré :
 
 #### Go
 
 ```
 $ go install github.com/Realms4239/cgo/cmd/cgo@latest
-$ go install github.com/Realms4239/cgo/cmd/meteolink@latest
 ```
 
 #### npm (wrapper)
@@ -96,24 +103,24 @@ $ meteolink --serve
 
 #### Docker
 
-Une image `Docker` peut exécuter le tableau de bord ; montez les `runs` gelés pour conserver les preuves :
-
 ```
 $ docker run -p 9090:9090 -v ./data/runs:/data/runs meteolink --serve --addr 0.0.0.0:9090
 ```
 
-### Banc VM (le vrai banc `tc`)
+### Banc VM (le vrai banc `tc`) — `cgo kit`
 
-Le banc est une VM `Ubuntu` (`VMware` ou `VirtualBox`). Convention : stocker les VMs sous `D:\VMs\` ou `C:\VMs\` (ex. `D:\VMs\ubuntu\ubuntu.vmx`) ; exception `D:\ubuntu.vmx` toujours trouvée. Le moteur scanne `C:`/`D:` en profondeur ≤3 (`--deep` pour complet) via `vmrun list` + `inventory.vmls` + `VBoxManage`.
+Le banc est une VM `Ubuntu` (`VMware` ou `VirtualBox`). Convention : VMs sous `D:\VMs\` ou `C:\VMs\` (exception racine historique tolérée). Le moteur `cgo kit` (pur Go, multi-OS) remplace l'ancien bash :
 
 ```
-$ cp kit/cgo-vm.yaml.example kit/cgo-vm.yaml  # renseigner ssh/vmx
-$ bash kit/engine.sh --action scan            # trouve les .vmx/.vbox
-$ bash kit/engine.sh --action ensure          # démarre si SSH coupé
-$ bash kit/engine.sh --action deploy          # build → cross → push → health
+$ cgo kit scan      # trouve les .vmx/.vbox, sauvegarde l'unique
+$ cgo kit ensure    # SSH up, sinon boot + attente
+$ cgo kit align     # NIC vmxnet3 + CPU/mémoire mini (à froid)
+$ cgo kit deploy    # build → cross → push → health
+$ cgo kit doctor    # dépendances + config, tout vert avant d'agir
+$ cgo kit status · logs · bootstrap · build · tunnel
 ```
 
-`kit/cgo-vm.yaml` est gitignoré et portable — `host: auto` découvre l'IP invité via `vmrun getGuestIPAddress`, `vmx_path` auto-rempli par `scan` (`D:/VMs`/`C:/VMs`), surcharge possible via `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`. Ne jamais le committer.
+Mêmes codes de sortie que l'ancien `engine.sh` (2 usage/build, 3 scan ambigu, 4 hyperviseur, 5 timeout SSH, 6 cross, 7 scp, 8 install), env `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`/`CGO_VM_IP` inchangés. `kit/engine.sh` reste en shim de compatibilité.
 
 **DNS local portable :** `bash kit/install.sh --hosts` (Admin) ajoute `127.0.0.1 meteolink.dev` (host) et `192.168.174.128 meteolink.vm` (VM) — `http://meteolink.dev:9090` et `http://meteolink.vm:9090`. `.dev` est `HSTS` (force `https`) : en local `http` reste OK via `hosts` + `mkcert meteolink.dev` si `https` requis, sinon préférer `http://localhost:9090` (secure context).
 
@@ -132,13 +139,16 @@ Chaque campagne fige la matrice ; `manifest.json` liste `file` + `sha256`. `GET 
 Voir les [options](docs/api.md) passables à la commande ou dans `GET /api/schema`. Si spécifiées dans le fichier de configuration, les options longues doivent être utilisées sans `--`.
 
 ```
-$ cgo --serve --addr 127.0.0.1:9090 --mode auto   # auto: Linux full, Windows observe
+$ cgo setup                                      # wizard : de zéro au dashboard
+$ cgo kit doctor|scan|ensure|align|deploy|...    # moteur de déploiement (11 actions)
+$ cgo run --profiles P2 --reps 3 --deadline 1000 # campagne CLI réelle
+$ cgo tui                                        # terminal 5 onglets
+$ cgo --serve --addr 127.0.0.1:9090 --mode auto  # auto: Linux full, Windows observe
 $ cgo audit --link-type 5g --site "Dept X" --duration 300
 $ cgo verify
 $ cgo figures
 $ cgo doctor
 $ cgo shape --restore
-$ meteolink top --addr http://localhost:9090 --interval 250ms
 ```
 
 ## Utilisation / Exemples
@@ -147,12 +157,15 @@ $ meteolink top --addr http://localhost:9090 --interval 250ms
 
 ### Démarrage
 
-Pour afficher dans un terminal et générer un tableau de bord live :
+Trois peaux, un seul moteur — le web dashboard, le TUI terminal, la CLI :
 
 ```
-$ cgo --serve
-# ouvrir http://localhost:9090
+$ cgo --serve          # dashboard web — http://localhost:9090
+$ cgo tui              # terminal : 5 onglets (Setup Kit Campagne Live Résultats)
+$ cgo run --profiles P2 --reps 3   # campagne CLI : progression, CTRL-C gel, résumé
 ```
+
+Le TUI pilote tout depuis le terminal : navigation `1-5`/`h-l`, actions par `ENTRÉE` (démarrer/arrêter campagne, exécuter kit), polling live 1 s. Sans API : état vide honnête, jamais de données synthétiques.
 
 Pour auditer votre lien depuis ce poste (non intrusif, sans admin) :
 
@@ -160,6 +173,18 @@ Pour auditer votre lien depuis ce poste (non intrusif, sans admin) :
 $ cgo audit --link-type 5g --site "Dept X" --duration 300
 # → data/link_audit.csv (p50/p95, small p95, goodput)
 ```
+
+### Coût du gaspillage — paliers tarifaires réels
+
+Le coût en Ariary suit le forfait réel de l'institution (`GET /api/cost/tiers`, recherche 2026, docs/data-prices.md) :
+
+```
+$ curl http://localhost:9090/api/cost/tiers
+# yas-day-1gb 1 000 Ar/Go · yas-month-4.5gb 5 556 · yas-month-100gb 2 000 ·
+# yas-ftth-100gb 490 · orange-month-5gb 2 000 · airtel-month-4.5gb 5 556
+```
+
+Défaut : mobile mensuel 4,5 Go (contexte cellular DSI). La fibre est ~10× moins chère au Go — le palier change le verdict économique.
 
 Pour générer un rapport `CSV` sur la sortie standard :
 

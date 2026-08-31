@@ -90,15 +90,16 @@ brutal, le bord ne reste jamais façonné à l'insu de l'opérateur.
 
 ## 3. VM de banc (développement / mesure contrôlée)
 
-Le déploiement hôte → VM est piloté par `kit/engine.sh` :
+Le déploiement hôte → VM est piloté par `cgo kit` (moteur Go, mêmes codes de
+sortie que l'ancien bash ; `kit/engine.sh --action X` reste un shim de compat) :
 
 ```bash
-cp kit/cgo-vm.yaml.example kit/cgo-vm.yaml   # gitignored — remplir ssh/vmx
-bash kit/engine.sh --action scan    # trouver le .vmx sur ce PC
-bash kit/engine.sh --action ensure  # démarrer la VM si SSH est down, attendre SSH
-bash kit/engine.sh --action deploy  # build frontend+binaire, push, install, health-check
-bash kit/engine.sh --action status  # SSH + process + santé du dashboard
-bash kit/engine.sh --action logs    # tail du log serveur sur la VM
+cgo kit scan      # trouver le .vmx/.vbox, sauvegarder l'unique
+cgo kit ensure    # démarrer la VM si SSH est down, attendre SSH
+cgo kit deploy    # build frontend+binaire, push, install, health-check
+cgo kit status    # SSH + process + santé du dashboard
+cgo kit logs      # tail du log serveur sur la VM
+cgo kit align     # NIC vmxnet3 + CPU/mémoire mini du banc (à froid)
 ```
 
 Le déploiement est **binaire-first et idempotent** : la SPA est
