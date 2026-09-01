@@ -1,0 +1,13 @@
+{
+ "config_sha256": "config",
+ "files": [
+  {
+   "File": "aqm_eval.csv",
+   "Sha256": "45e01aca8289789accebdfe60e987fcd95e19d5a696447a87c68617bfc34185d"
+  },
+  {
+   "File": "quarantine.json",
+   "Sha256": "393c99c649c8cbe2f8ad367e1c8797cc0d1c261939496972765a328ef5ea09ae"
+  }
+ ]
+}

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="460" viewBox="0 0 900 460">
+<defs></defs>
+<rect width="900" height="460" fill="#ffffff"/>
+<line x1="60" y1="60" x2="60" y2="400" stroke="#9aa1ac" stroke-width="1.5"/>
+<line x1="60" y1="400" x2="870" y2="400" stroke="#9aa1ac" stroke-width="1.5"/>
+<line x1="60" y1="400" x2="870" y2="400" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="50" y="404" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">0 %</text>
+<line x1="60" y1="315" x2="870" y2="315" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="50" y="319" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">25 %</text>
+<line x1="60" y1="230" x2="870" y2="230" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="50" y="234" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">50 %</text>
+<line x1="60" y1="145" x2="870" y2="145" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="50" y="149" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">75 %</text>
+<line x1="60" y1="60" x2="870" y2="60" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="50" y="64" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">100 %</text>
+<rect x="147" y="66.80000000000001" width="42" height="333.2" rx="0" fill="#64748b"/>
+<rect x="201" y="195.32" width="42" height="204.68" rx="0" fill="#d97706"/>
+<text x="189" y="58.80000000000001" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#64748b" font-weight="700" text-anchor="middle">98.0%</text>
+<text x="243" y="187.32" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#8a6d1a" font-weight="700" text-anchor="middle">60.2%</text>
+<text x="195" y="424" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#1f2430" font-weight="normal" text-anchor="middle">pfifo_fast</text>
+<rect x="417" y="69.86000000000001" width="42" height="330.14" rx="0" fill="#64748b"/>
+<rect x="471" y="72.91999999999996" width="42" height="327.08000000000004" rx="0" fill="#d97706"/>
+<text x="459" y="61.860000000000014" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#64748b" font-weight="700" text-anchor="middle">97.1%</text>
+<text x="513" y="64.91999999999996" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#8a6d1a" font-weight="700" text-anchor="middle">96.2%</text>
+<text x="465" y="424" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#1f2430" font-weight="normal" text-anchor="middle">fq_codel</text>
+<rect x="687" y="76.66000000000003" width="42" height="323.34" rx="0" fill="#64748b"/>
+<rect x="741" y="66.45999999999998" width="42" height="333.54" rx="0" fill="#d97706"/>
+<text x="729" y="68.66000000000003" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#64748b" font-weight="700" text-anchor="middle">95.1%</text>
+<text x="783" y="58.45999999999998" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#8a6d1a" font-weight="700" text-anchor="middle">98.1%</text>
+<text x="735" y="424" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#1f2430" font-weight="normal" text-anchor="middle">cake</text>
+<text x="18" y="230" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#5b6472" font-weight="normal" text-anchor="middle" transform="rotate(-90 18 230)">requêtes à l'heure</text>
+<text x="450" y="30" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#1f2430" font-weight="700" text-anchor="middle">Respect de l'échéance (220 ms) sous charge — profil 4G P2</text>
+<rect x="620" y="48" width="14" height="14" rx="3" fill="#64748b"/>
+<text x="640" y="60" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">CUBIC</text>
+<rect x="695" y="48" width="14" height="14" rx="3" fill="#d97706"/>
+<text x="715" y="60" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">BBR</text>
+</svg>
