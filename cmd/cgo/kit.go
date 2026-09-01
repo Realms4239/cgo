@@ -9,9 +9,9 @@ import (
 	"github.com/Realms4239/cgo/internal/kit"
 )
 
-// runKit — moteur de déploiement Go, miroir des 11 actions de l'ancien
-// engine.sh avec les mêmes codes de sortie (2 usage/build, 3 scan/pick,
-// 4 hyperviseur, 5 timeout SSH, 6 cross/bootstrap, 7 scp, 8 install/logs).
+// runKit — moteur de déploiement Go : 15 actions, mêmes codes de sortie
+// que l'ancien engine.sh (2 usage/build, 3 scan/pick, 4 hyperviseur,
+// 5 timeout SSH, 6 cross/bootstrap, 7 scp, 8 install/logs).
 func runKit(args []string) int {
 	fs := flag.NewFlagSet("kit", flag.ExitOnError)
 	cfgPath := fs.String("config", filepath.Join("kit", "cgo-vm.yaml"), "chemin du yaml machine-local")
@@ -24,14 +24,19 @@ func runKit(args []string) int {
 actions :
   doctor    dépendances locales + config (tout vert avant d'agir)
   scan      trouve les .vmx/.vbox (D:/VMs, C:/VMs, racines), sauvegarde l'unique
-  ensure    SSH up, sinon boot VM + attente (300 s max)
-  align     NIC vmxnet3 + CPU/mémoire mini du banc (à froid)
+  ensure    SSH up, sinon boot VM + attente (300 s max) + IP auto-découverte
+  align     NIC + CPU/mémoire mini du banc (à froid, snapshot auto avant)
   build     porte stricte : go vet + tsc + vite + bundle <600 KB + vitest
   deploy    build + ensure + cross-compile linux + scp + install + health
   bootstrap paquets VM + veth (idempotent)
   status    SSH + process + health dashboard
   logs      tail du journal serveur VM
   tunnel    cloudflared (CLOUDFLARE_TUNNEL_TOKEN requis)
+  snapshot  point de restauration VM (garde-fou avant align/deploy)
+  revert    revenir au dernier snapshot (ou --name NOM)
+  ssh       shell interactif direct dans la VM (Ctrl-D pour sortir)
+  ps        processus dashboard en direct (rafraîchi 2 s, q pour sortir)
+  backup    rapatrie les runs gelés de la VM vers ./backup (tar.gz horodaté)
 exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
              6 cross-compile/bootstrap, 7 scp, 8 install/logs`)
 		fs.PrintDefaults()
@@ -42,6 +47,7 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return 2
 	}
 	action := fs.Arg(0)
+	rest := fs.Args()[1:]
 	_ = yes
 
 	c, _ := kit.LoadConfig(*cfgPath)
@@ -72,6 +78,28 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.Logs(c, 40)
 	case "tunnel":
 		return r.Tunnel()
+	case "snapshot":
+		name := "cgo-auto"
+		if len(rest) > 0 {
+			name = rest[0]
+		}
+		return r.Snapshot(c, name, *deep)
+	case "revert":
+		name := ""
+		if len(rest) > 0 {
+			name = rest[0]
+		}
+		return r.Revert(c, name, *deep)
+	case "ssh":
+		return r.SSHInteractive(c)
+	case "ps":
+		return r.Ps(c)
+	case "backup":
+		dest := "backup"
+		if len(rest) > 0 {
+			dest = rest[0]
+		}
+		return r.Backup(c, dest)
 	default:
 		fmt.Fprintf(os.Stderr, "action inconnue : %s\n", action)
 		fs.Usage()
