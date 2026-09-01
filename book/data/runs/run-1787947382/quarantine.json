@@ -1,0 +1,9 @@
+[
+  {
+    "event_id": 4,
+    "profile": "P1",
+    "qdisc": "fq_codel",
+    "cc": "bbr",
+    "gate_status": "invalid"
+  }
+]

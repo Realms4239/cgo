@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+<defs></defs>
+<rect width="900" height="420" fill="#ffffff"/>
+<line x1="160" y1="70" x2="160" y2="330" stroke="#9aa1ac" stroke-width="1.5"/>
+<line x1="160" y1="330" x2="860" y2="330" stroke="#9aa1ac" stroke-width="1.5"/>
+<line x1="160" y1="330" x2="860" y2="330" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="150" y="334" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">0 Ar</text>
+<line x1="160" y1="265" x2="860" y2="265" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="150" y="269" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">1 500 Ar</text>
+<line x1="160" y1="200" x2="860" y2="200" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="150" y="204" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">3 000 Ar</text>
+<line x1="160" y1="135" x2="860" y2="135" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="150" y="139" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">4 500 Ar</text>
+<line x1="160" y1="70" x2="860" y2="70" stroke="#e4e7ec" stroke-width="1.5"/>
+<text x="150" y="74" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11" fill="#5b6472" font-weight="normal" text-anchor="end">6 000 Ar</text>
+<rect x="198" y="286.6666666666667" width="64" height="43.333333333333314" rx="0" fill="#2f8f4f" opacity="0.85"/>
+<text x="230" y="278.6666666666667" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="700" text-anchor="middle">1 000 Ar</text>
+<text x="230" y="352" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">Ye'low One</text>
+<text x="230" y="366" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">1 Go / 24 h</text>
+<rect x="338" y="89.23999999999998" width="64" height="240.76000000000002" rx="0" fill="#dc2626" opacity="0.85"/>
+<text x="370" y="81.23999999999998" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="700" text-anchor="middle">5 556 Ar</text>
+<text x="370" y="352" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">Net Month</text>
+<text x="370" y="366" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">4,5 Go / 30 j</text>
+<rect x="478" y="113.33333333333331" width="64" height="216.66666666666669" rx="0" fill="#dc2626" opacity="0.85"/>
+<text x="510" y="105.33333333333331" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="700" text-anchor="middle">5 000 Ar</text>
+<text x="510" y="352" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">Net Month 15 Go</text>
+<rect x="618" y="243.33333333333334" width="64" height="86.66666666666666" rx="0" fill="#d97706" opacity="0.85"/>
+<text x="650" y="235.33333333333334" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="700" text-anchor="middle">2 000 Ar</text>
+<text x="650" y="352" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">Net Month</text>
+<text x="650" y="366" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">100 Go</text>
+<rect x="758" y="308.76666666666665" width="64" height="21.23333333333335" rx="0" fill="#2f8f4f" opacity="0.85"/>
+<text x="790" y="300.76666666666665" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="700" text-anchor="middle">490 Ar</text>
+<text x="790" y="352" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">Fibre IN</text>
+<text x="790" y="366" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">100 Go (FTTH)</text>
+<text x="450" y="36" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#1f2430" font-weight="700" text-anchor="middle">Prix du gigaoctet selon le forfait — Yas 2026 (yas.mg)</text>
+<text x="120" y="200" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#5b6472" font-weight="normal" text-anchor="middle" transform="rotate(-90 120 200)">Ar / Go</text>
+</svg>

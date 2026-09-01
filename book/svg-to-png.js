@@ -1,7 +1,7 @@
 // Render every SVG in figures/ to a high-resolution PNG (3x) via Playwright Chromium.
 const fs = require('fs');
 const path = require('path');
-const { chromium } = require('c:/thesis-cgo/thesis-cgo/web/frontend/node_modules/playwright');
+const { chromium } = require('C:/cgo/web/frontend/node_modules/playwright');
 
 const DIR = path.join(__dirname, 'figures');
 const SCALE = 3;
