@@ -1,265 +1,132 @@
-// Agrège les CSV gelés book/data-real/runs/*/aqm_eval.csv → book/stats.json
-// Médianes, QDI, VoIP R, coût par cellule. Filtre les outliers matériels (overflow 2^64).
+// Aggregate E1/E3 campaign CSVs into stats JSON used by figures + results chapter.
 const fs = require('fs');
 const path = require('path');
 
 function parseCsv(file) {
-  const raw = fs.readFileSync(file, 'utf8').trim();
-  if (!raw) return [];
-  const lines = raw.split(/\r?\n/);
-  const head = lines[0].split(',').map(s => s.trim());
-  const out = [];
-  for (let i = 1; i < lines.length; i++) {
-    const l = lines[i].trim();
-    if (!l) continue;
+  const lines = fs.readFileSync(file, 'utf8').trim().split(/\r?\n/);
+  const head = lines[0].split(',');
+  return lines.slice(1).map(l => {
     const cells = l.split(',');
-    if (cells.length < head.length) continue; // malformed
     const o = {};
-    head.forEach((h, idx) => (o[h] = (cells[idx] || '').trim()));
-    // skip header duplicates that slipped via cat concatenation
-    if (o.profile === 'profile' || o.run_id === 'run_id') continue;
-    out.push(o);
-  }
-  return out;
+    head.forEach((h, i) => (o[h] = cells[i]));
+    return o;
+  });
 }
 
 const num = v => parseFloat(v);
 const sorted = a => [...a].sort((x, y) => x - y);
 function quantile(a, q) {
-  if (!a.length) return null;
   const s = sorted(a);
   const pos = (s.length - 1) * q;
   const lo = Math.floor(pos), hi = Math.ceil(pos);
-  if (lo === hi) return s[lo];
   return s[lo] + (s[hi] - s[lo]) * (pos - lo);
 }
-const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
 const median = a => quantile(a, 0.5);
 function stddev(a) {
-  if (a.length < 2) return 0;
   const m = mean(a);
   return Math.sqrt(a.reduce((s, v) => s + (v - m) * (v - m), 0) / (a.length - 1));
 }
-const r1 = v => v == null || isNaN(v) ? null : Math.round(v * 10) / 10;
-const r2 = v => v == null || isNaN(v) ? null : Math.round(v * 100) / 100;
-const r3 = v => v == null || isNaN(v) ? null : Math.round(v * 1000) / 1000;
+const r1 = v => Math.round(v * 10) / 10;
+const r2 = v => Math.round(v * 100) / 100;
 
-function summary(vals) {
-  const v = vals.filter(x => typeof x === 'number' && !isNaN(x) && isFinite(x));
-  if (!v.length) return null;
-  return {
-    n: v.length,
-    median: r2(median(v)),
-    mean: r2(mean(v)),
-    p25: r2(quantile(v, 0.25)),
-    p75: r2(quantile(v, 0.75)),
-    p95: r2(quantile(v, 0.95)),
-    min: r2(Math.min(...v)),
-    max: r2(Math.max(...v)),
-    std: r2(stddev(v)),
+const root = 'c:/thesis-cgo/thesis-cgo';
+const e1 = parseCsv(path.join(root, 'data/e1_onsets.csv'));
+const e3 = parseCsv(path.join(root, 'data/e3_events.csv'));
+
+// ---------- E1 : detection lag per detector ----------
+const detectors = [...new Set(e1.map(r => r.detector))];
+const families = [...new Set(e1.map(r => r.family))];
+const contexts = [...new Set(e1.map(r => r.context))];
+
+const e1ByDetector = {};
+for (const d of detectors) {
+  const rows = e1.filter(r => r.detector === d);
+  const valid = rows.filter(r => r.false_positive === 'false' && r.missed === 'false');
+  const lags = valid.map(r => num(r.confirmed_lag_ms));
+  const fp = rows.filter(r => r.false_positive === 'true').length;
+  const missed = rows.filter(r => r.missed === 'true').length;
+  e1ByDetector[d] = {
+    n: rows.length,
+    detected: valid.length,
+    fp, missed,
+    fpRate: r2((100 * fp) / rows.length),
+    missRate: r2((100 * missed) / rows.length),
+    lagMedian: r1(median(lags)),
+    lagMean: r1(mean(lags)),
+    lagP25: r1(quantile(lags, 0.25)),
+    lagP75: r1(quantile(lags, 0.75)),
+    lagP95: r1(quantile(lags, 0.95)),
+    lagMin: r1(Math.min(...lags)),
+    lagMax: r1(Math.max(...lags)),
+    lagStd: r1(stddev(lags)),
   };
-}
-
-// seuils anti-overflow (2^64 et 1.2 Tbps fantaisistes)
-const validators = {
-  rtt_p50_ms: v => v >= 0 && v < 10000,
-  rtt_p95_ms: v => v >= 0 && v < 10000,
-  small_p95_ms: v => v >= 0 && v < 10000,
-  qdi_ms: v => v >= 0 && v < 10000,
-  voip_r: v => v >= 0 && v <= 100,
-  deadline_ok_pct: v => v >= 0 && v <= 100,
-  bulk_goodput_mbps: v => v >= 0 && v < 50000, // 50 Gbps max, 1.2 Tbps exclu
-  drops: v => v >= 0 && v < 1e7,
-  retransmissions: v => v >= 0 && v < 1e7,
-  wasted_bytes: v => v >= 0 && v < 1e10, // 10 Go
-  cost_ar_per_h: v => v >= 0 && v < 1e6,
-  cpu_pct: v => v >= 0 && v <= 100,
-};
-
-const runsRoot = path.join(__dirname, 'data-real', 'runs');
-if (!fs.existsSync(runsRoot)) {
-  console.error('runsRoot introuvable:', runsRoot);
-  process.exit(1);
-}
-const runDirs = fs.readdirSync(runsRoot).filter(d => {
-  const p = path.join(runsRoot, d);
-  return fs.statSync(p).isDirectory();
-});
-// run-smoke est un artefact de test, hors campagne gelée (133 runs). On l'exclut des stats mais on le garde sur disque.
-const runDirsForStats = runDirs.filter(d => d !== 'run-smoke');
-
-let allRows = [];
-let runsWithData = 0;
-let runsEmpty = [];
-let filesMissing = [];
-for (const rd of runDirsForStats) {
-  const csv = path.join(runsRoot, rd, 'aqm_eval.csv');
-  if (!fs.existsSync(csv)) { filesMissing.push(rd); continue; }
-  const rows = parseCsv(csv);
-  if (rows.length) runsWithData++;
-  else runsEmpty.push(rd);
-  // tag run_id for debugging but keep original fields
-  for (const r of rows) r._run_dir = rd;
-  allRows = allRows.concat(rows);
-}
-
-// --- helpers to collect filtered values ---
-function colFiltered(rows, col) {
-  const v = validators[col];
-  return rows
-    .map(r => num(r[col]))
-    .filter(nv => !isNaN(nv) && (v ? v(nv) : true));
-}
-
-const metrics = ['rtt_p50_ms','rtt_p95_ms','small_p95_ms','qdi_ms','voip_r','deadline_ok_pct','bulk_goodput_mbps','drops','retransmissions','wasted_bytes','cost_ar_per_h','cpu_pct'];
-const profiles = [...new Set(allRows.map(r => r.profile))].filter(Boolean).sort();
-const qdiscs = [...new Set(allRows.map(r => r.qdisc))].filter(Boolean).sort();
-const ccs = [...new Set(allRows.map(r => r.cc))].filter(Boolean).sort();
-
-function metricsSummary(rows) {
-  const out = {};
-  for (const m of metrics) {
-    const vals = colFiltered(rows, m);
-    // only emit if column existed in at least one row
-    const existed = rows.some(r => r[m] !== undefined);
-    if (!existed) continue;
-    const s = summary(vals);
-    if (s) out[m] = s;
-    // keep also raw count of column presence
-    out[m + '_raw_n'] = rows.filter(r => r[m] !== undefined && r[m] !== '').length;
+  // per family
+  e1ByDetector[d].byFamily = {};
+  for (const f of families) {
+    const fr = rows.filter(r => r.family === f && r.false_positive === 'false' && r.missed === 'false')
+      .map(r => num(r.confirmed_lag_ms));
+    if (fr.length) e1ByDetector[d].byFamily[f] = { n: fr.length, median: r1(median(fr)), p95: r1(quantile(fr, 0.95)) };
   }
-  // gate_status distribution
-  const gates = {};
-  for (const r of rows) { const g = r.gate_status || 'unknown'; gates[g] = (gates[g] || 0) + 1; }
-  if (Object.keys(gates).length) out.gate_status = gates;
-  out.n = rows.length;
-  return out;
+  // per context
+  e1ByDetector[d].byContext = {};
+  for (const c of contexts) {
+    const cr = rows.filter(r => r.context === c && r.false_positive === 'false' && r.missed === 'false')
+      .map(r => num(r.confirmed_lag_ms));
+    if (cr.length) e1ByDetector[d].byContext[c] = { n: cr.length, median: r1(median(cr)) };
+  }
 }
 
-const overall = metricsSummary(allRows);
-
-const byQdisc = {};
-for (const q of qdiscs) byQdisc[q] = metricsSummary(allRows.filter(r => r.qdisc === q));
-
-const byProfile = {};
-for (const p of profiles) byProfile[p] = metricsSummary(allRows.filter(r => r.profile === p));
-
-const byCc = {};
-for (const c of ccs) byCc[c] = metricsSummary(allRows.filter(r => r.cc === c));
-
-const byQdiscProfile = {};
-for (const q of qdiscs) for (const p of profiles) {
-  const key = `${q}@${p}`;
-  const subset = allRows.filter(r => r.qdisc === q && r.profile === p);
-  if (subset.length) byQdiscProfile[key] = metricsSummary(subset);
-}
-
-const byProfileQdisc = {};
-for (const p of profiles) for (const q of qdiscs) {
-  const key = `${p}@${q}`;
-  const subset = allRows.filter(r => r.profile === p && r.qdisc === q);
-  if (subset.length) byProfileQdisc[key] = metricsSummary(subset);
-}
-
-// QDI spécifique : médiane par qdisc (réutilisée par figures)
-const qdiByQdisc = {};
-for (const q of qdiscs) {
-  const vals = colFiltered(allRows.filter(r => r.qdisc === q), 'qdi_ms');
-  if (vals.length) qdiByQdisc[q] = r1(median(vals));
-}
-
-// small_p95 spécifique : médiane par qdisc
-const smallByQdisc = {};
-for (const q of qdiscs) {
-  const vals = colFiltered(allRows.filter(r => r.qdisc === q), 'small_p95_ms');
-  if (vals.length) smallByQdisc[q] = r1(median(vals));
-}
-
-// VoIP R médian par qdisc / profile
-const voipByQdisc = {};
-for (const q of qdiscs) {
-  const vals = colFiltered(allRows.filter(r => r.qdisc === q), 'voip_r');
-  if (vals.length) voipByQdisc[q] = r1(median(vals));
-}
-
-// coût médian par qdisc (Ar/h)
-const costByQdisc = {};
-for (const q of qdiscs) {
-  const vals = colFiltered(allRows.filter(r => r.qdisc === q), 'cost_ar_per_h');
-  if (vals.length) costByQdisc[q] = r2(median(vals));
-}
-
-// deadline
-const deadlineByQdisc = {};
-for (const q of qdiscs) {
-  const vals = colFiltered(allRows.filter(r => r.qdisc === q), 'deadline_ok_pct');
-  if (vals.length) deadlineByQdisc[q] = r1(median(vals));
-}
-
-// ECDF small_p95 par qdisc (<=60 points, pour figures)
-const ecdfSmall = {};
-for (const q of qdiscs) {
-  const vals = sorted(colFiltered(allRows.filter(r => r.qdisc === q), 'small_p95_ms'));
-  if (!vals.length) continue;
+// ECDF points of confirmed lag per detector (for figure)
+const e1Ecdf = {};
+for (const d of detectors) {
+  const lags = sorted(e1.filter(r => r.detector === d && r.false_positive === 'false' && r.missed === 'false')
+    .map(r => num(r.confirmed_lag_ms)));
+  // subsample to <=60 points
   const pts = [];
-  const step = Math.max(1, Math.floor(vals.length / 60));
-  for (let i = 0; i < vals.length; i += step) pts.push([r1(vals[i]), r3((i + 1) / vals.length)]);
-  if (pts[pts.length - 1][0] !== r1(vals[vals.length - 1])) pts.push([r1(vals[vals.length - 1]), 1]);
-  else pts[pts.length - 1][1] = 1;
-  ecdfSmall[q] = pts;
+  const step = Math.max(1, Math.floor(lags.length / 60));
+  for (let i = 0; i < lags.length; i += step) pts.push([lags[i], (i + 1) / lags.length]);
+  pts.push([lags[lags.length - 1], 1]);
+  e1Ecdf[d] = pts;
+}
+
+// ---------- E3 : per arm metrics ----------
+const arms = [...new Set(e3.map(r => r.arm))].sort();
+const metricsE3 = ['qdi_ms', 'ttb_backlog_ms', 'voip_jitter_ms', 'voip_loss_pct', 'wasted_bytes', 'p95_ms', 'p95_small_ms', 'lfi', 'recovery_time_s', 'throughput_util', 'cost_ar_per_h'].filter(m => m in e3[0]);
+const e3ByArm = {};
+for (const a of arms) {
+  const rows = e3.filter(r => r.arm === a);
+  e3ByArm[a] = { n: rows.length };
+  for (const m of metricsE3) {
+    const vals = rows.map(r => num(r[m])).filter(v => !isNaN(v));
+    e3ByArm[a][m] = { median: r2(median(vals)), mean: r2(mean(vals)), p95: r2(quantile(vals, 0.95)), std: r2(stddev(vals)), min: r2(Math.min(...vals)), max: r2(Math.max(...vals)) };
+  }
+  // grade distribution
+  if ('grade' in e3[0]) {
+    e3ByArm[a].grades = {};
+    for (const r of rows) e3ByArm[a].grades[r.grade] = (e3ByArm[a].grades[r.grade] || 0) + 1;
+  }
+}
+
+// per arm x link_profile QDI medians (for grouped bar figure)
+const profiles = [...new Set(e3.map(r => r.link_profile))];
+const e3QdiByArmProfile = {};
+for (const a of arms) {
+  e3QdiByArmProfile[a] = {};
+  for (const p of profiles) {
+    const vals = e3.filter(r => r.arm === a && r.link_profile === p).map(r => num(r.qdi_ms));
+    if (vals.length) e3QdiByArmProfile[a][p] = r1(median(vals));
+  }
 }
 
 const out = {
-  meta: {
-    generatedAt: new Date().toISOString(),
-    runsTotalDisk: runDirs.length,
-    runsTotal: runDirsForStats.length, // gelés (hors run-smoke), attendu 133
-    runsWithData,
-    runsEmpty: runsEmpty.length,
-    runsEmptyList: runsEmpty.slice(0, 20),
-    filesMissing: filesMissing.length,
-    totalRows: allRows.length,
-    totalRowsFiltered: overall.n || 0,
-    profiles,
-    qdiscs,
-    ccs,
-    // pour traçabilité : liste des 5 runs d'exemple
-    sampleRuns: runDirs.slice(0, 5),
-  },
-  overall,
-  byQdisc,
-  byProfile,
-  byCc,
-  byQdiscProfile,
-  byProfileQdisc,
-  // raccourcis exploités par les figures / chapitres
-  qdiByQdisc,
-  smallByQdisc,
-  voipByQdisc,
-  costByQdisc,
-  deadlineByQdisc,
-  ecdfSmall,
-  // alias explicites pour la vérif Step 3 : grep small_p95 doit matcher
-  small_p95: overall.small_p95_ms || null,
-  qdi_ms: overall.qdi_ms || null,
-  voip_r: overall.voip_r || null,
-  cost_ar_per_h: overall.cost_ar_per_h || null,
+  e1: { total: e1.length, detectors, families, contexts, byDetector: e1ByDetector, ecdf: e1Ecdf,
+        onsets: [...new Set(e1.map(r => r.onset_id))].length },
+  e3: { total: e3.length, arms, profiles, byArm: e3ByArm, qdiByArmProfile: e3QdiByArmProfile },
 };
-
-const dst = path.join(__dirname, 'stats.json');
-fs.writeFileSync(dst, JSON.stringify(out, null, 2), 'utf8');
-
-console.log(`runs: total ${runDirsForStats.length} gelés (disque ${runDirs.length} avec run-smoke) dont ${runsWithData} avec données, ${runsEmpty.length} vides, ${out.meta.totalRows} lignes`);
-console.log(`profiles: ${profiles.join(',')} | qdiscs: ${qdiscs.join(',')} | cc: ${ccs.join(',')}`);
-console.log(`overall small_p95 median ${out.overall.small_p95_ms ? out.overall.small_p95_ms.median : 'na'} (n=${out.overall.small_p95_ms ? out.overall.small_p95_ms.n : 0}) p95 ${out.overall.small_p95_ms ? out.overall.small_p95_ms.p95 : 'na'}`);
-if (out.overall.qdi_ms) console.log(`overall qdi_ms median ${out.overall.qdi_ms.median} (n=${out.overall.qdi_ms.n})`);
-if (out.overall.voip_r) console.log(`overall voip_r median ${out.overall.voip_r.median} (n=${out.overall.voip_r.n})`);
-for (const q of qdiscs) {
-  const s = byQdisc[q];
-  console.log(`${q} n=${s.n} small_p95 med ${s.small_p95_ms ? s.small_p95_ms.median : 'na'} deadline med ${s.deadline_ok_pct ? s.deadline_ok_pct.median : 'na'} cost med ${s.cost_ar_per_h ? s.cost_ar_per_h.median : 'na'} QDI med ${s.qdi_ms ? s.qdi_ms.median : 'na'}`);
-}
-for (const p of profiles) {
-  const s = byProfile[p];
-  console.log(`profile ${p} n=${s.n} small_p95 med ${s.small_p95_ms ? s.small_p95_ms.median : 'na'} deadline med ${s.deadline_ok_pct ? s.deadline_ok_pct.median : 'na'}`);
-}
-console.log('stats.json écrit →', dst);
+fs.writeFileSync(path.join(__dirname, 'stats.json'), JSON.stringify(out, null, 2));
+console.log('detectors:', detectors.join(','));
+console.log('families:', families.join(','), '| contexts:', contexts.join(','));
+console.log('arms:', arms.join(','), '| profiles:', profiles.join(','));
+for (const d of detectors) console.log(d, 'median lag', e1ByDetector[d].lagMedian, 'fp%', e1ByDetector[d].fpRate, 'miss%', e1ByDetector[d].missRate);
+for (const a of arms) console.log(a, 'QDI median', (e3ByArm[a].qdi_ms || {}).median, 'wasted', (e3ByArm[a].wasted_bytes || {}).median);

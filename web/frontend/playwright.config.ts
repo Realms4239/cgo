@@ -3,7 +3,7 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
   use: {
-    baseURL: 'http://192.168.174.128:9090',
+    baseURL: process.env.AUDIT_BASE || 'http://localhost:9090',
     trace: 'on',
     video: 'retain-on-failure',
   },

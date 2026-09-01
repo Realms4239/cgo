@@ -25,8 +25,10 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; }
 .skip-link:focus-visible { left: 8px; top: 8px; padding: 8px 12px; background: var(--surface-elevated); border: 1px solid var(--t-live); color: var(--text-primary); }
 
-/* en-tête — bien placé, non tronqué : min-width:0 + garde flex, repli wordmark #f2f2f4 */
-header { grid-area: hd; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); min-width: 0; }
+/* header — bien placé, non tronqué : min-width:0 + garde flex, repli wordmark #f2f2f4 ;
+   z-index:10 — le chooser wrappe sur 2 lignes, sa moitié basse doit rester cliquable
+   au-dessus de main (sans z-index, main le recouvre car il suit dans le DOM) */
+header { grid-area: hd; position: relative; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); min-width: 0; }
 .stripe { display: flex; flex-direction: column; width: 4px; height: 18px; gap: 2px; flex: none; }
 .stripe i { flex: 1; }
 .stripe i:nth-child(1) { background: var(--brand-1); }
@@ -76,9 +78,9 @@ main { grid-area: main; overflow-y: auto; position: relative; }
 .card:hover { border-color: var(--hairline-strong); box-shadow: 0 0 0 1px var(--live-dim), 0 4px 20px rgba(0,0,0,0.35); }
 @container (min-width: 600px) { .card { padding: 24px; } }
 .card-head { font: 700 11px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-3); }
-.form-row { display: flex; align-items: center; gap: var(--sp-3); padding: 6px 0; border-bottom: 1px solid var(--hairline-faint); }
-.form-row label { width: 110px; font: 500 12px var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
-.check-row { display: flex; gap: var(--sp-3); }
+.form-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding: 6px 0; border-bottom: 1px solid var(--hairline-faint); }
+.form-row label { width: 110px; font: 500 12px var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); flex: 0 0 auto; }
+.check-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); min-width: 0; flex: 1; }
 .mono { font-family: var(--font-mono); font-size: 12px; }
 .muted { color: var(--text-muted); }
 .kv { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--hairline-faint); font: 400 12px var(--font-mono); color: var(--text-muted); }

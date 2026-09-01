@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+const BASE = process.env.AUDIT_BASE || 'http://localhost:9090'
 
 // Multi-profondeur : chaque action d'interface est instrumentée — requête API
 // observée, erreur console capturée, état vérifié APRÈS l'action. La preuve
@@ -9,7 +10,7 @@ test('1. navigation — 4 panneaux, retour instantané, zéro erreur', async ({ 
   const errs: string[] = []
   page.on('pageerror', e => errs.push(String(e)))
   page.on('console', m => { if (m.type() === 'error') errs.push(m.text()) })
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.waitForTimeout(1200)
   const order = ['campagne', 'live', 'resultats', 'integrite', 'live', 'campagne'] as const
   for (const p of order) {
@@ -20,7 +21,7 @@ test('1. navigation — 4 panneaux, retour instantané, zéro erreur', async ({ 
 })
 
 test('2. campagne — formulaire rendu depuis /api/schema', async ({ page }) => {
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.locator('[data-panel="campagne"]').click()
   await page.waitForTimeout(500)
   // les profils viennent de l'API, pas du DOM en dur
@@ -33,7 +34,7 @@ test('2. campagne — formulaire rendu depuis /api/schema', async ({ page }) => 
 })
 
 test('3. live — watch on/off traverse l\'API et alimente les anneaux', async ({ page }) => {
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.locator('[data-panel="live"]').click()
   await page.waitForTimeout(800)
   const resp = await page.evaluate(async () => {
@@ -53,7 +54,7 @@ test('3. live — watch on/off traverse l\'API et alimente les anneaux', async (
 })
 
 test('4. façonnage — cake appliqué puis retiré, shapeState suit', async ({ page }) => {
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.locator('[data-panel="live"]').click()
   await page.waitForTimeout(500)
   const on = await page.evaluate(async () => {
@@ -73,7 +74,7 @@ test('4. façonnage — cake appliqué puis retiré, shapeState suit', async ({ 
 })
 
 test('5. résultats — interprétation au clic, verdict calculé depuis le gel', async ({ page }) => {
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.locator('[data-panel="resultats"]').click()
   await page.waitForTimeout(1200)
   const verdictBefore = await page.evaluate(async () => {
@@ -91,7 +92,7 @@ test('5. résultats — interprétation au clic, verdict calculé depuis le gel'
 })
 
 test('6. burst — refusé pendant campagne, honnête 409', async ({ page }) => {
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.waitForTimeout(600)
   const r = await page.evaluate(async () => {
     const resp = await fetch('/api/burst', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cc: 'bbr', seconds: 4 }) })
@@ -104,7 +105,7 @@ test('6. burst — refusé pendant campagne, honnête 409', async ({ page }) => 
 })
 
 test('7. paliers tarifaires — GET /api/cost/tiers expose les vrais tarifs', async ({ page }) => {
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   const tiers = await page.evaluate(async () => (await fetch('/api/cost/tiers').then(r => r.json())))
   expect(tiers.tiers.length).toBeGreaterThanOrEqual(6)
   const yas = tiers.tiers.find((t: any) => t.name === 'yas-month-4.5gb')
@@ -114,7 +115,7 @@ test('7. paliers tarifaires — GET /api/cost/tiers expose les vrais tarifs', as
 })
 
 test('8. intégrité — hash8 visible dans Provenance = dernier gel', async ({ page }) => {
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.locator('[data-panel="integrite"]').click()
   await page.waitForTimeout(800)
   const integ = await page.evaluate(async () => (await fetch('/api/integrity').then(r => r.json())))
@@ -124,7 +125,7 @@ test('8. intégrité — hash8 visible dans Provenance = dernier gel', async ({ 
 })
 
 test('9. journal opérateur — les actions passées sont tracées', async ({ page }) => {
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   const events = await page.evaluate(async () => (await fetch('/api/events').then(r => r.json())))
   const msgs = (events.events || []).map((e: any) => e.msg).join(' ')
   // les tests 3-4 (watch, shape) ont tracé leurs actions
@@ -133,7 +134,7 @@ test('9. journal opérateur — les actions passées sont tracées', async ({ pa
 
 test('10. mobile 390 — bento 1 col, pas de déborde horizontal', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.waitForTimeout(800)
   await page.locator('[data-panel="live"]').click()
   await page.waitForTimeout(600)

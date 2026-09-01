@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
+const BASE = process.env.AUDIT_BASE || 'http://localhost:9090'
 test('compare view probe', async ({ page }) => {
   test.setTimeout(90000)
   const errs: string[] = []
   page.on('pageerror', e => errs.push(String(e).slice(0, 200)))
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.locator('[data-panel="resultats"]').click()
   await expect(page.locator('.data-table')).toBeVisible({ timeout: 8000 })
   // épingler les deux lignes les plus parlantes (première + dernière)

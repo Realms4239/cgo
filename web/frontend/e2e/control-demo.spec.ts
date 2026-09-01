@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test'
+const BASE = process.env.AUDIT_BASE || 'http://localhost:9090'
 
 // Boucle contrôle-et-façonnage pilotée par l'UI (pivot ARG.md) :
 // figer une référence depuis les anneaux live → appliquer CAKE au bord → écart live.
 test('edge control demo', async ({ page }) => {
   test.setTimeout(180000)
-  await page.goto('http://192.168.174.128:9090/')
+  await page.goto(BASE + '/')
   await page.locator('[data-panel="live"]').click()
   const overlay = page.locator('[data-testid="live-wall-overlay"]')
   await overlay.scrollIntoViewIfNeeded()

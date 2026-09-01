@@ -1,7 +1,7 @@
 import { test } from '@playwright/test'
 
 // Audit visuel — captures pleine page. Repos + run live + vérif SSE tunnel.
-const BASE = process.env.AUDIT_BASE || 'http://192.168.174.128:9090'
+const BASE = process.env.AUDIT_BASE || 'http://localhost:9090'
 
 test('idle — all 4 panels @1920', async ({ page }) => {
   test.setTimeout(90000)

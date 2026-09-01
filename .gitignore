@@ -49,3 +49,6 @@ cgo.exe
 # seekai huge fix
 .seekai/health.json
 .env
+.seekai/
+.env.example
+scripts/seekai-*.js

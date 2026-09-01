@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560">
+<defs><marker id="aBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2563eb"/></marker></defs>
+<rect width="900" height="560" fill="#ffffff"/>
+<rect x="0" y="0" width="900" height="560" rx="0" fill="#f0f6fc"/>
+<text x="70" y="44" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" fill="#5b6472" font-weight="normal" text-anchor="start" font-style="italic">Océan Indien occidental</text>
+<path d="M60 80 C130 110 150 200 135 290 C125 350 100 430 60 520 L0 560 L0 60 Z" fill="#e8e4d8" stroke="#c9c2ae" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="38" y="310" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#5b6472" font-weight="normal" text-anchor="middle" transform="rotate(-90 38 310)">Afrique du Sud</text>
+<path d="M560 150 C600 130 640 150 650 200 C662 260 655 330 635 390 C620 435 585 470 555 450 C525 430 520 370 528 300 C535 240 535 170 560 150 Z" fill="#dcefdc" stroke="#79ad79" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="590" y="300" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#2f6b2f" font-weight="700" text-anchor="middle" transform="rotate(-78 590 300)">MADAGASCAR</text>
+<circle cx="790" cy="330" r="12" fill="#e8e4d8" stroke="#c9c2ae" stroke-width="1.5"/>
+<text x="790" y="360" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="middle">La Réunion</text>
+<circle cx="845" cy="280" r="12" fill="#e8e4d8" stroke="#c9c2ae" stroke-width="1.5"/>
+<text x="845" y="258" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="middle">Maurice</text>
+<circle cx="652" cy="262" r="7" fill="#0d9488" stroke="#fff" stroke-width="2"/>
+<text x="666" y="266" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="600" text-anchor="start">Toamasina</text>
+<circle cx="540" cy="205" r="7" fill="#2563eb" stroke="#fff" stroke-width="2"/>
+<text x="528" y="195" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="600" text-anchor="end">Mahajanga</text>
+<path d="M120 430 C300 500 500 460 652 262" fill="none" stroke="#0d9488" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M652 262 C710 300 760 335 790 330 C815 315 835 295 845 280" fill="none" stroke="#0d9488" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="120" cy="430" r="7" fill="#0d9488" stroke="#fff" stroke-width="2"/>
+<text x="230" y="500" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#0d9488" font-weight="700" text-anchor="start">METISS (2021, 12 Tbit/s, 3 200 km)</text>
+<path d="M100 100 C260 40 430 60 534 199" fill="none" stroke="#2563eb" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M100 100 C60 160 60 260 90 380" fill="none" stroke="#2563eb" stroke-width="3.5" stroke-dasharray="8 5" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="255" y="34" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#2563eb" font-weight="700" text-anchor="start">2Africa (180 Tbit/s à l’échelle du système)</text>
+<rect x="600" y="480" width="280" height="58" rx="8" fill="#fdf3e3" stroke="#d97706" stroke-width="1.6"/>
+<text x="740" y="505.5625" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12.5" fill="#1f2430" font-weight="600" text-anchor="middle">La contrainte n’est plus internationale :</text>
+<text x="740" y="521.1875" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12.5" fill="#1f2430" font-weight="600" text-anchor="middle">elle est au dernier kilomètre radio</text>
+<line x1="640" y1="480" x2="610" y2="400" stroke="#d97706" stroke-width="1.6" stroke-dasharray="4 3"/>
+<line x1="70" y1="536" x2="92" y2="536" stroke="#0d9488" stroke-width="2.5"/>
+<text x="98" y="540" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">Câble METISS</text>
+<line x1="199.2" y1="536" x2="221.2" y2="536" stroke="#2563eb" stroke-width="2.5"/>
+<text x="227.2" y="540" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">Câble 2Africa</text>
+<rect x="335" y="528" width="14" height="14" rx="3" fill="#0d9488"/>
+<text x="355" y="540" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">Point d’atterrissement</text>
+</svg>

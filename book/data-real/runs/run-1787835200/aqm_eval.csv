@@ -1,5 +1,0 @@
-run_id,event_id,profile,qdisc,cc,repetition,rtt_p50_ms,rtt_p95_ms,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,gate_status
-run-1787835200,1,P2,pfifo_fast,cubic,1,101.0,114.0,207.4,100.0,2.3,79,0,114392,0.70,0.0,invalid
-run-1787835200,2,P2,pfifo_fast,bbr,1,101.0,114.0,204.4,100.0,19.6,5628,0,8149344,50.60,0.0,valid
-run-1787835200,3,P2,fq_codel,cubic,1,101.0,114.0,205.8,100.0,2.4,79,0,114392,0.70,0.0,invalid
-run-1787835200,4,P2,fq_codel,bbr,1,101.0,114.0,207.9,100.0,19.3,5272,0,7633856,47.40,0.0,valid

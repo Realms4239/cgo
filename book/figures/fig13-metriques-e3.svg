@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="520" viewBox="0 0 940 520">
+<defs></defs>
+<rect width="940" height="520" fill="#ffffff"/>
+<line x1="70" y1="390" x2="275" y2="390" stroke="#e4e7ec" stroke-width="1"/>
+<text x="62" y="394" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">0</text>
+<line x1="70" y1="324" x2="275" y2="324" stroke="#e4e7ec" stroke-width="1"/>
+<text x="62" y="328" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">20</text>
+<line x1="70" y1="258" x2="275" y2="258" stroke="#e4e7ec" stroke-width="1"/>
+<text x="62" y="262" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">40</text>
+<line x1="70" y1="192" x2="275" y2="192" stroke="#e4e7ec" stroke-width="1"/>
+<text x="62" y="196" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">60</text>
+<line x1="70" y1="126" x2="275" y2="126" stroke="#e4e7ec" stroke-width="1"/>
+<text x="62" y="130" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">80</text>
+<line x1="70" y1="60" x2="275" y2="60" stroke="#e4e7ec" stroke-width="1"/>
+<text x="62" y="64" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">100</text>
+<line x1="70" y1="390" x2="275" y2="390" stroke="#9aa1ac" stroke-width="1.4"/>
+<line x1="70" y1="60" x2="70" y2="390" stroke="#9aa1ac" stroke-width="1.4"/>
+<text x="172.5" y="44" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12.5" fill="#1f2430" font-weight="700" text-anchor="middle">QDI (ms)</text>
+<rect x="83.8" y="221.7" width="34" height="168.3" rx="3" fill="#dc2626" opacity="0.9"/>
+<text x="100.8" y="215.7" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">51</text>
+<text x="100.8" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A0</text>
+<rect x="131.6" y="344.46" width="34" height="45.54000000000002" rx="3" fill="#d97706" opacity="0.9"/>
+<text x="148.6" y="338.46" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">13,8</text>
+<text x="148.6" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A1</text>
+<rect x="179.39999999999998" y="357.825" width="34" height="32.17500000000001" rx="3" fill="#0d9488" opacity="0.9"/>
+<text x="196.39999999999998" y="351.825" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">9,75</text>
+<text x="196.39999999999998" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A2</text>
+<rect x="227.2" y="364.755" width="34" height="25.245000000000005" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="244.2" y="358.755" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">7,65</text>
+<text x="244.2" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A3</text>
+<line x1="297" y1="390" x2="502" y2="390" stroke="#e4e7ec" stroke-width="1"/>
+<text x="289" y="394" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">0</text>
+<line x1="297" y1="324" x2="502" y2="324" stroke="#e4e7ec" stroke-width="1"/>
+<text x="289" y="328" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">5</text>
+<line x1="297" y1="258" x2="502" y2="258" stroke="#e4e7ec" stroke-width="1"/>
+<text x="289" y="262" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">10</text>
+<line x1="297" y1="192" x2="502" y2="192" stroke="#e4e7ec" stroke-width="1"/>
+<text x="289" y="196" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">15</text>
+<line x1="297" y1="126" x2="502" y2="126" stroke="#e4e7ec" stroke-width="1"/>
+<text x="289" y="130" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">20</text>
+<line x1="297" y1="60" x2="502" y2="60" stroke="#e4e7ec" stroke-width="1"/>
+<text x="289" y="64" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">25</text>
+<line x1="297" y1="390" x2="502" y2="390" stroke="#9aa1ac" stroke-width="1.4"/>
+<line x1="297" y1="60" x2="297" y2="390" stroke="#9aa1ac" stroke-width="1.4"/>
+<text x="399.5" y="44" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12.5" fill="#1f2430" font-weight="700" text-anchor="middle">P95 du délai (ms)</text>
+<rect x="310.8" y="-5351.999999999999" width="34" height="5741.999999999999" rx="3" fill="#dc2626" opacity="0.9"/>
+<text x="327.8" y="-5357.999999999999" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">435</text>
+<text x="327.8" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A0</text>
+<rect x="358.6" y="-1695.6" width="34" height="2085.6" rx="3" fill="#d97706" opacity="0.9"/>
+<text x="375.6" y="-1701.6" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">158</text>
+<text x="375.6" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A1</text>
+<rect x="406.4" y="-1312.8" width="34" height="1702.8" rx="3" fill="#0d9488" opacity="0.9"/>
+<text x="423.4" y="-1318.8" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">129</text>
+<text x="423.4" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A2</text>
+<rect x="454.2" y="-976.1999999999998" width="34" height="1366.1999999999998" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="471.2" y="-982.1999999999998" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">103,5</text>
+<text x="471.2" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A3</text>
+<line x1="524" y1="390" x2="729" y2="390" stroke="#e4e7ec" stroke-width="1"/>
+<text x="516" y="394" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">0</text>
+<line x1="524" y1="280" x2="729" y2="280" stroke="#e4e7ec" stroke-width="1"/>
+<text x="516" y="284" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">10</text>
+<line x1="524" y1="170" x2="729" y2="170" stroke="#e4e7ec" stroke-width="1"/>
+<text x="516" y="174" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">20</text>
+<line x1="524" y1="60" x2="729" y2="60" stroke="#e4e7ec" stroke-width="1"/>
+<text x="516" y="64" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">30</text>
+<line x1="524" y1="390" x2="729" y2="390" stroke="#9aa1ac" stroke-width="1.4"/>
+<line x1="524" y1="60" x2="524" y2="390" stroke="#9aa1ac" stroke-width="1.4"/>
+<text x="626.5" y="44" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12.5" fill="#1f2430" font-weight="700" text-anchor="middle">Gigue VoIP (ms)</text>
+<rect x="537.8" y="242.6" width="34" height="147.4" rx="3" fill="#dc2626" opacity="0.9"/>
+<text x="554.8" y="236.6" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">13,4</text>
+<text x="554.8" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A0</text>
+<rect x="585.5999999999999" y="339.4" width="34" height="50.60000000000002" rx="3" fill="#d97706" opacity="0.9"/>
+<text x="602.5999999999999" y="333.4" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">4,6</text>
+<text x="602.5999999999999" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A1</text>
+<rect x="633.4" y="352.6" width="34" height="37.39999999999998" rx="3" fill="#0d9488" opacity="0.9"/>
+<text x="650.4" y="346.6" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">3,4</text>
+<text x="650.4" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A2</text>
+<rect x="681.1999999999999" y="361.95" width="34" height="28.05000000000001" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="698.1999999999999" y="355.95" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">2,55</text>
+<text x="698.1999999999999" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A3</text>
+<line x1="751" y1="390" x2="956" y2="390" stroke="#e4e7ec" stroke-width="1"/>
+<text x="743" y="394" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">0</text>
+<line x1="751" y1="280" x2="956" y2="280" stroke="#e4e7ec" stroke-width="1"/>
+<text x="743" y="284" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">200</text>
+<line x1="751" y1="170" x2="956" y2="170" stroke="#e4e7ec" stroke-width="1"/>
+<text x="743" y="174" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">400</text>
+<line x1="751" y1="60" x2="956" y2="60" stroke="#e4e7ec" stroke-width="1"/>
+<text x="743" y="64" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#5b6472" font-weight="normal" text-anchor="end">600</text>
+<line x1="751" y1="390" x2="956" y2="390" stroke="#9aa1ac" stroke-width="1.4"/>
+<line x1="751" y1="60" x2="751" y2="390" stroke="#9aa1ac" stroke-width="1.4"/>
+<text x="853.5" y="44" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12.5" fill="#1f2430" font-weight="700" text-anchor="middle">TTB (ms)</text>
+<rect x="764.8" y="203" width="34" height="187" rx="3" fill="#dc2626" opacity="0.9"/>
+<text x="781.8" y="197" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">340</text>
+<text x="781.8" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A0</text>
+<rect x="812.5999999999999" y="339.4" width="34" height="50.60000000000002" rx="3" fill="#d97706" opacity="0.9"/>
+<text x="829.5999999999999" y="333.4" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">92</text>
+<text x="829.5999999999999" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A1</text>
+<rect x="860.4" y="355.9" width="34" height="34.10000000000002" rx="3" fill="#0d9488" opacity="0.9"/>
+<text x="877.4" y="349.9" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">62</text>
+<text x="877.4" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A2</text>
+<rect x="908.1999999999999" y="363.875" width="34" height="26.125" rx="3" fill="#2563eb" opacity="0.9"/>
+<text x="925.1999999999999" y="357.875" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10.5" fill="#5b6472" font-weight="normal" text-anchor="middle">47,5</text>
+<text x="925.1999999999999" y="408" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="11.5" fill="#1f2430" font-weight="600" text-anchor="middle">A3</text>
+<rect x="80" y="488" width="14" height="14" rx="3" fill="#dc2626"/>
+<text x="100" y="500" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">A0 pfifo_fast</text>
+<rect x="207.8" y="488" width="14" height="14" rx="3" fill="#d97706"/>
+<text x="227.8" y="500" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">A1 fq_codel défaut</text>
+<rect x="368.6" y="488" width="14" height="14" rx="3" fill="#0d9488"/>
+<text x="388.6" y="500" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">A2 fq_codel réglé</text>
+<rect x="522.8" y="488" width="14" height="14" rx="3" fill="#2563eb"/>
+<text x="542.8" y="500" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#1f2430" font-weight="normal" text-anchor="start">A3 adaptatif</text>
+</svg>
