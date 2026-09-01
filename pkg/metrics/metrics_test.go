@@ -66,3 +66,28 @@ func TestCostARPerHTier(t *testing.T) {
 		t.Fatalf("mobile (%v) doit coûter plus cher que fibre (%v) à volume égal", day, ftth)
 	}
 }
+
+// VoIP R (E-model simplifié) — repères calculés depuis G.107 : fibre calme
+// ~93, VSAT propre ~85 (le E-model tolère le délai < 400 ms), catastrophe
+// (délai max + grosse gigue + perte) chute franchement. R>50 = supportable.
+func TestVoIPR(t *testing.T) {
+	fiber := VoIPR(10, 2, 0)
+	if fiber < 90 || fiber > 93.2 {
+		t.Fatalf("fibre calme R = %v, want 90..93.2", fiber)
+	}
+	vsat := VoIPR(300, 30, 1)
+	if vsat < 68 || vsat > 75 {
+		t.Fatalf("VSAT R = %v, want 68..75 (sévérité ITU au-delà de 177 ms)", vsat)
+	}
+	if vsat >= fiber {
+		t.Fatalf("VSAT (%v) ne doit pas battre la fibre (%v)", vsat, fiber)
+	}
+	// bufferbloat : 400 ms aller + 100 ms de gigue + 5 % de perte
+	bloat := VoIPR(400, 100, 5)
+	if bloat > vsat-10 {
+		t.Fatalf("bufferbloat R=%v doit chute ≥10 pts sous le VSAT R=%v", bloat, vsat)
+	}
+	if bloat < 0 {
+		t.Fatalf("R borné à 0, obtenu %v", bloat)
+	}
+}

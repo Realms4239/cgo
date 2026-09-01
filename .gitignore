@@ -46,3 +46,6 @@ web/frontend/*.log
 # session logs
 /*.log
 cgo.exe
+# seekai huge fix
+.seekai/health.json
+.env

@@ -122,7 +122,7 @@ $ cgo kit status · logs · bootstrap · build · tunnel
 
 Mêmes codes de sortie que l'ancien `engine.sh` (2 usage/build, 3 scan ambigu, 4 hyperviseur, 5 timeout SSH, 6 cross, 7 scp, 8 install), env `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`/`CGO_VM_IP` inchangés. `kit/engine.sh` reste en shim de compatibilité.
 
-**DNS local portable :** `bash kit/install.sh --hosts` (Admin) ajoute `127.0.0.1 meteolink.dev` (host) et `192.168.174.128 meteolink.vm` (VM) — `http://meteolink.dev:9090` et `http://meteolink.vm:9090`. `.dev` est `HSTS` (force `https`) : en local `http` reste OK via `hosts` + `mkcert meteolink.dev` si `https` requis, sinon préférer `http://localhost:9090` (secure context).
+**DNS local portable :** `bash kit/install.sh --hosts` (Admin) ajoute `127.0.0.1 meteolink.dev` (host) et `<ip-vm> meteolink.vm` (auto-découvert via `cgo kit status`) — `http://meteolink.dev:9090` et `http://meteolink.vm:9090`. `.dev` est `HSTS` (force `https`) : en local `http` reste OK via `hosts` + `mkcert meteolink.dev` si `https` requis, sinon préférer `http://localhost:9090` (secure context).
 
 ## Stockage
 
@@ -262,7 +262,7 @@ $ nice -n 19 cgo --serve
 et si vous ne voulez pas l'installer sur votre serveur, vous pouvez encore exécuter l'audit depuis votre machine locale :
 
 ```
-$ ssh -n altfloat@192.168.174.128 'cgo audit --link-type 5g --site "Site X" --duration 30' | cat
+$ ssh -n <user>@<ip-vm> 'cgo audit --link-type 5g --site "Site X" --duration 30' | cat
 ```
 
 ### Dépannage

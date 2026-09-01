@@ -5,7 +5,8 @@ export const EXPLAIN: Record<string, string> = {
   // profils
   P1: 'Profil fibre: 80 Mbit/s, délai 20 ms, gigue 2 ms, sans perte.',
   P2: 'Profil 4G/5G chargé: 20 Mbit/s, délai 100 ms, gigue 15 ms, perte 0,5 %.',
-  P3: 'Profil VSAT: 5 Mbit/s, délai 600 ms, gigue 30 ms, perte 1 % (importable).',
+  P3: 'Profil VSAT: 5 Mbit/s, délai 600 ms, gigue 30 ms, perte 1 % (satellite géostationnaire — stations isolées).',
+  P4: 'Profil Starlink LEO: 100 Mbit/s, délai 40 ms, gigue 20 ms, perte 0,3 % (satellite basse orbite — alternative récente à Madagascar, 226 000 Ar/mois).',
   // files d'attente (AQM)
   pfifo_fast: "File simple premier entré, premier sorti — la référence sans AQM: la file grossit sans limite et la latence explose sous charge.",
   fq_codel: 'AQM qui garde la file courte en marquant les paquets des flux lents — bonnet anti-bufferbloat par défaut du noyau Linux.',
@@ -33,6 +34,7 @@ export const EXPLAIN: Record<string, string> = {
   cost_ar_per_h: "Coût horaire du gaspillage en Ariary — palier Yas Net Month 4,5 Go (25 000 Ar, 5 556 Ar/Go) par défaut. Le forfait change tout : Ye'low One 1 000 Ar/Go, FTTH 490 Ar/Go. GET /api/cost/tiers liste les paliers réels (docs/data-prices.md).",
   deadline_ok: 'Part des petits objets arrivés sous la deadline choisie.',
   QDI: 'Écart p95 − médiane de latence: plus il est petit, plus le lien est régulier.',
+  voip_r: 'Score voix du E-model (ITU-T G.107 simplifié): 0-100, depuis délai + gigue + perte. R>80 excellent, R<50 appel difficile.',
   JFI: 'Équité de partage du lien entre flux (0–1): 1 = parfaitement équitable.',
   deadline: 'Objectif de latence pour les petits objets — il voyage avec la campagne.',
   capacity: 'Capacité du bord façonné — calquez-la sur le plan ISP réel.',

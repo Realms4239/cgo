@@ -25,6 +25,7 @@ import (
 
 // Config — miroir de kit/cgo-vm.yaml, surchargée par CGO_SSH_HOST/PORT,
 // CGO_DASHBOARD_PORT, CGO_VM_IP. Host "auto" = découverte vmrun.
+// NatHostPort : port hôte du port-forward NAT (VirtualBox, défaut 2222).
 type Config struct {
 	SSHUser     string
 	SSHHost     string
@@ -38,6 +39,7 @@ type Config struct {
 	ProjectDir  string
 	DashPort    string
 	GoMinVer    string
+	NatHostPort string
 }
 
 func env(key, def string) string {
@@ -52,7 +54,7 @@ func env(key, def string) string {
 func LoadConfig(path string) (*Config, error) {
 	c := &Config{
 		SSHUser:    env("CGO_SSH_USER", "altfloat"),
-		SSHHost:    env("CGO_SSH_HOST", "192.168.174.128"),
+		SSHHost:    env("CGO_SSH_HOST", "auto"),
 		SSHPort:    env("CGO_SSH_PORT", "22"),
 		SSHKey:     env("CGO_SSH_KEY", "~/.ssh/id_ed25519"),
 		ProjectDir: env("CGO_PROJECT_DIR", "/home/altfloat/cgo"),
@@ -112,6 +114,8 @@ func LoadConfig(path string) (*Config, error) {
 			c.ProjectDir = v
 		case "dashboard_port":
 			c.DashPort = v
+		case "nat_host_port":
+			c.NatHostPort = v
 		case "go_min_version":
 			c.GoMinVer = v
 		}
@@ -289,8 +293,38 @@ func (r *Runner) Doctor(c *Config) int {
 			r.out("  %-10s MANQUANT", t)
 		}
 	}
+	// clé SSH : afficher le chemin résolu et vérifier sa présence
+	key := c.SSHKey
+	if strings.HasPrefix(key, "~/") {
+		if h, err := os.UserHomeDir(); err == nil {
+			key = filepath.Join(h, key[2:])
+		}
+	}
+	if st, err := os.Stat(key); err == nil && !st.IsDir() {
+		r.out("  clé SSH    %s (%d octets)", key, st.Size())
+	} else {
+		r.out("  clé SSH    %s — INTROUVABLE (ssh-keygen -t ed25519, puis ssh-copy-id vers la VM)", key)
+	}
 	for _, h := range vm.Detect() {
 		r.out("  %-10s %s", h.Name(), h.Exe())
+	}
+	// IP : la VM de la config si présente, sans scan disque lourd
+	if c.VMXPath != "" {
+		if p := vm.Primary(); p != nil {
+			if _, err := os.Stat(c.VMXPath); err == nil {
+				live := "éteinte"
+				for _, run := range p.Running() {
+					if strings.EqualFold(filepath.Clean(run), filepath.Clean(c.VMXPath)) {
+						live = "allumée"
+					}
+				}
+				if ip := p.GuestIP(c.VMXPath); ip != "" {
+					r.out("  vm         %s (%s, IP %s)", c.VMXPath, live, ip)
+				} else {
+					r.out("  vm         %s (%s)", c.VMXPath, live)
+				}
+			}
+		}
 	}
 	if runtime.GOOS == "windows" {
 		if _, err := exec.LookPath("tc"); err != nil {
@@ -326,7 +360,10 @@ func (r *Runner) Scan(c *Config, cfgPath string, deep bool) int {
 	return 0
 }
 
-// Ensure — SSH up, sinon boot + attente.
+// Ensure — SSH up, sinon boot headless + attente, avec découverte d'IP
+// dynamique : le bail DHCP peut changer à chaque boot, on interroge
+// l'hyperviseur (getGuestIPAddress) puis la table ARP locale, et on
+// met à jour la config si l'IP bouge.
 func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 	if c.SSHUp() {
 		r.out("[ensure] SSH déjà actif vers %s", c.SSHHost)
@@ -338,20 +375,132 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 		return 3
 	}
 	_ = SaveVMX(cfgPath, vmx, hyp.Name())
+
+	// NAT (VirtualBox) : l'IP invitée 10.0.2.x est injoignable depuis l'hôte.
+	// La voie canonique : rediriger 127.0.0.1:<port> → 22 invité, pointer la
+	// config SSH dessus. Idempotent.
+	natHost, natPort := "", ""
+	if nf, ok := hyp.(vm.NatForwarder); ok {
+		natPort = c.NatHostPort
+		if natPort == "" {
+			natPort = "2222"
+		}
+		if err := nf.EnsureNatSSH(vmx, natPort); err != nil {
+			r.errf("[ensure] port-forward NAT ÉCHEC : %v", err)
+			return 4
+		}
+		natHost = nf.NatHostAddr()
+		r.out("[ensure] NAT : %s:%s → 22 invité (port-forward posé)", natHost, natPort)
+	}
+
 	if err := hyp.Start(vmx); err != nil {
 		r.errf("[ensure] démarrage VM échoué : %v", err)
 		return 4
 	}
-	r.out("[ensure] VM démarrée — attente SSH (max 300 s)")
+	r.out("[ensure] VM démarrée (headless) — attente SSH (max 300 s)")
 	for i := 0; i < 60; i++ {
+		// 1) la cible actuelle répond ?
 		if c.SSHUp() {
-			r.out("[ensure] SSH actif après ~%d s", i*5)
+			r.out("[ensure] SSH actif vers %s:%s après ~%d s", c.SSHHost, c.SSHPort, i*5)
 			return 0
+		}
+		// 2) NAT : essayer le port-forward AVANT toute découverte d'IP.
+		if natHost != "" {
+			saved, savedPort := c.SSHHost, c.SSHPort
+			c.SSHHost, c.SSHPort = natHost, natPort
+			if c.SSHUp() {
+				// le port-forward fonctionne : le fixer dans la config
+				r.out("[ensure] SSH actif via NAT %s:%s — config mise à jour", natHost, natPort)
+				_ = setYAMLKey(cfgPath, "host", natHost)
+				_ = setYAMLKey(cfgPath, "port", natPort)
+				return 0
+			}
+			c.SSHHost, c.SSHPort = saved, savedPort
+		}
+		// 3) IP directe : le bail DHCP a peut-être changé — interroger
+		// l'hyperviseur (getGuestIPAddress / guestproperty) puis le voisinage.
+		if ip := discoverGuestIP(hyp, vmx); ip != "" && ip != c.SSHHost {
+			r.out("[ensure] IP invitée détectée : %s (config avait %s) — mise à jour", ip, c.SSHHost)
+			c.SSHHost = ip
+			_ = setYAMLKey(cfgPath, "host", ip)
 		}
 		time.Sleep(5 * time.Second)
 	}
-	r.errf("[ensure] timeout SSH")
+	r.errf("[ensure] timeout SSH — vérifie le guest en console (login, ip addr)")
 	return 5
+}
+
+// discoverGuestIP — interroge l'hyperviseur puis la table ARP du poste
+// pour trouver l'IP vivante de la VM. Retourne "" si rien de neuf.
+func discoverGuestIP(hyp vm.Hypervisor, vmx string) string {
+	if hyp != nil {
+		if ip := hyp.GuestIP(vmx); ip != "" {
+			return ip
+		}
+	}
+	// repli : voisinage ARP du subnet VMware (192.168.174.0/24 NAT typique)
+	// parcours des IP probables via ping rapide
+	for _, tail := range []string{"128", "129", "130", "131", "132", "133", "134", "135", "136", "137", "138", "139", "140", "141", "142", "143", "144", "145", "146", "147", "148", "149", "150"} {
+		ip := "192.168.174." + tail
+		if pingOne(ip) {
+			return ip
+		}
+	}
+	return ""
+}
+
+func pingOne(ip string) bool {
+	cmd := exec.Command("ping", "-n", "1", "-w", "1500", ip)
+	if runtime.GOOS != "windows" {
+		cmd = exec.Command("ping", "-c", "1", "-W", "2", ip)
+	}
+	return cmd.Run() == nil
+}
+
+// setYAMLKey — remplace ou ajoute une clé dans le cgo-vm.yaml (host, port…).
+// setYAMLKey — remplace ou ajoute une clé dans le cgo-vm.yaml.
+// Les clés SSH (host, port, user, key) vivent sous la section "ssh:",
+// les autres au niveau racine. Réécrit la ligne en place, sinon l'ajoute
+// dans la bonne section.
+func setYAMLKey(path, key, val string) error {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n")
+	sshKeys := map[string]bool{"host": true, "port": true, "user": true, "key": true, "password": true}
+	isSSHKey := sshKeys[key]
+
+	// passer 1 : remplacer en place
+	for i, ln := range lines {
+		t := strings.TrimSpace(strings.Split(ln, "#")[0])
+		if strings.HasPrefix(t, key+":") {
+			indented := len(ln) > 0 && (ln[0] == ' ' || ln[0] == '\t')
+			if (isSSHKey && indented) || (!isSSHKey && !indented) {
+				lines[i] = strings.Repeat(" ", 2) + key + ": " + val
+				return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+			}
+		}
+	}
+	// passer 2 : insérer — clés SSH à la fin de la section ssh, autres à la fin
+	if isSSHKey {
+		for i, ln := range lines {
+			if strings.HasPrefix(strings.TrimSpace(strings.Split(ln, "#")[0]), "ssh:") {
+				// insérer après la dernière clé de section suivante
+				j := i + 1
+				for j < len(lines) && (strings.HasPrefix(lines[j], "  ") || strings.TrimSpace(lines[j]) == "") {
+					j++
+				}
+				rest := append([]string{"  " + key + ": " + val}, lines[j:]...)
+				lines = append(lines[:j], rest...)
+				return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+			}
+		}
+		lines = append(lines, "ssh:", "  "+key+": "+val)
+	} else {
+		lines = append(lines, key+": "+val)
+	}
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
 // Build — porte stricte : go vet + tsc + vite + bundle + vitest.

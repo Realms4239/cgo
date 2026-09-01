@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Hypervisor — un pilote d'hyperviseur (VMware vmrun ou VirtualBox VBoxManage).
@@ -22,8 +23,19 @@ type Hypervisor interface {
 	Running() []string
 	// Start démarre une VM (nogui/headless).
 	Start(vmx string) error
+	// Stop arrête proprement une VM (ACPI, puis forcé après délai).
+	Stop(vmx string) error
 	// GuestIP interroge l'IP invitée d'une VM allumée ("" si inconnue).
 	GuestIP(vmx string) string
+}
+
+// NatForwarder — hyperviseurs en mode NAT (VirtualBox) : l'IP invitée
+// n'est pas joignable depuis l'hôte ; l'accès passe par un port redirigé.
+type NatForwarder interface {
+	// EnsureNatSSH redirige hostPort → 22 invité (idempotent).
+	EnsureNatSSH(vmx, hostPort string) error
+	// NatHostAddr l'adresse d'accès côté hôte (127.0.0.1).
+	NatHostAddr() string
 }
 
 // ---- VMware ----
@@ -59,6 +71,16 @@ func (v *vmware) Start(vmx string) error {
 	return err
 }
 
+// Stop — soft d'abord (invité ACPI), hard en dernier recours après délai.
+func (v *vmware) Stop(vmx string) error {
+	_, err := v.run("stop", vmx, "soft")
+	if err != nil {
+		time.Sleep(10 * time.Second)
+		_, err = v.run("stop", vmx, "hard")
+	}
+	return err
+}
+
 func (v *vmware) GuestIP(vmx string) string {
 	out, err := v.run("getGuestIPAddress", vmx, "-wait", "5")
 	if err != nil {
@@ -84,6 +106,7 @@ func (v *virtualbox) run(args ...string) (string, error) {
 	return string(out), err
 }
 
+// Running — les VMs allumées (chemins .vbox).
 func (v *virtualbox) Running() []string {
 	out, err := v.run("list", "runningvms")
 	if err != nil {
@@ -106,7 +129,72 @@ func (v *virtualbox) Start(vbx string) error {
 	return err
 }
 
-func (v *virtualbox) GuestIP(string) string { return "" } // VBoxManage guestproperty — hors périmètre v1.1
+// Stop — ACPI propre d'abord, forcé après délai.
+func (v *virtualbox) Stop(vbx string) error {
+	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	_, _ = v.run("controlvm", name, "acpipowerbutton")
+	time.Sleep(15 * time.Second)
+	_, _ = v.run("controlvm", name, "poweroff")
+	return nil
+}
+
+// vmID — l'UUID de la VM, requis par guestproperty.
+func (v *virtualbox) vmID(name string) string {
+	out, _ := v.run("showvminfo", name, "--machinereadable")
+	for _, ln := range strings.Split(out, "\n") {
+		if strings.HasPrefix(ln, "UUID=") {
+			return strings.Trim(strings.TrimPrefix(ln, "UUID="), "\"\r")
+		}
+	}
+	return ""
+}
+
+// GuestIP — deux voies complémentaires :
+//  1. guestproperty /VirtualBox/GuestInfo/Net/0/V4/IP (si additions invité installées) ;
+//  2. port-forwarding NAT : ssh de l'hôte vers 127.0.0.1:2222.
+func (v *virtualbox) GuestIP(vbx string) string {
+	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	// voie 1 : guestproperty directe
+	for _, key := range []string{
+		"/VirtualBox/GuestInfo/Net/0/V4/IP",
+		"/VirtualBox/GuestInfo/Net/1/V4/IP",
+	} {
+		out, err := v.run("guestproperty", "get", name, key)
+		if err == nil && strings.Contains(out, "Value:") {
+			f := strings.Fields(out)
+			for i, w := range f {
+				if w == "Value:" && i+1 < len(f) {
+					ip := f[i+1]
+					if strings.Contains(ip, ".") {
+						return ip
+					}
+				}
+			}
+		}
+	}
+	return "" // pas d'additions : l'appelant passe par le port-forward NAT
+}
+
+// EnsureNatSSH — sur une VM VirtualBox en NAT, l'IP invitée 10.0.2.x n'est
+// pas joignable depuis l'hôte. La voie canonique : rediriger le port hôte
+// 2222 vers le 22 invité, et 9090 vers le dashboard, puis la config SSH
+// pointe 127.0.0.1:2222. Idempotent : retire les règles existantes avant.
+func (v *virtualbox) EnsureNatSSH(vbx, hostPort string) error {
+	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	_, _ = v.run("modifyvm", name, "--natpf1", "delete", "cgo-ssh")
+	_, err := v.run("modifyvm", name, "--natpf1",
+		"cgo-ssh,tcp,,"+hostPort+",,22")
+	if err != nil {
+		return err
+	}
+	_, _ = v.run("modifyvm", name, "--natpf1", "delete", "cgo-dashboard")
+	_, err = v.run("modifyvm", name, "--natpf1",
+		"cgo-dashboard,tcp,,9090,,9090")
+	return err
+}
+
+// NatHostAddr — l'adresse d'accès SSH quand la VM est en NAT.
+func (v *virtualbox) NatHostAddr() string { return "127.0.0.1" }
 
 // ---- détection ----
 

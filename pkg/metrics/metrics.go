@@ -107,3 +107,62 @@ func CostARPerHTier(wastedBytes uint64, tier PriceTier) float64 {
 
 // JFI — Jain's fairness index (Σx)² / (n·Σx²), 0..1 (1 = perfectly fair).
 // Inutilisé tant que l'API n'expose pas les valeurs par répétition (computeJFI côté front).
+
+// VoIPR — score R du E-model simplifié (ITU-T G.107) sur les proxys mesurés :
+// délai (rtt/2 aller simple), gigue (p95−p50, absorbée par le jitter buffer),
+// perte (pct). 0 (insupportable) → 100 (excellent). Idl > 50 = MOS > 3.6
+// "utilisable" ; Idl > 80 = très bon. Version simplifiée assumée : sans flux
+// UDP de référence, on applique le modèle aux conditions observées — la
+// méthode (pas les flux) est celle que prévoyait CONGESTION.md pour E3.
+//
+//	Id(élai) = Id(0) + 0.024·d + 0.11·(d−177.3)/[d−177.3+ε]  (d en ms, one-way)
+//	Ie(perte) = γ(1−ln(1−pct/100))                            (γ≈30 pour G.711)
+//	Ij(gigue) ≈ 0.024·jitter  (approx. standard du de-serialiser)
+//	R = 93.2 − Id − Ie − Ij   (93.2 = base pour G.711, niveau ≈ 0)
+func VoIPR(oneWayDelayMs, jitterMs, lossPct float64) float64 {
+	// délai aller simple depuis le RTT mesurés ; le modèle ITU devient sévère
+	// au-delà du seuil magique 177,3 ms (le dénominateur d−177,3)
+	d := oneWayDelayMs
+	if d > 400 {
+		d = 400
+	}
+	id := 0.024 * d
+	if d > 177.3 {
+		id += 0.11 * (d - 177.3)
+	} else {
+		id += 0.11 * d / 50 // zone tolérante sous le seuil
+	}
+	// effet de la gigue : le buffer absorbe mais décale — approximation standard
+	ij := 0.024 * jitterMs
+	// perte : impairment Equipment du G.711, Ie = γ·ln(1/(1−p)) = −γ·ln(1−p)
+	ie := -30.0 * ln(1-lossPct/100)
+	r := 93.2 - id - ie - ij
+	if r < 0 {
+		return 0
+	}
+	if r > 100 {
+		return 100
+	}
+	return r
+}
+
+func ln(v float64) float64 {
+	// log népérien sans importer math (le paquet reste sans dépendance)
+	if v <= 0 {
+		return 0
+	}
+	// série autour de 1 : ln(1-x), x petit
+	x := 1 - v
+	if x > -1e-9 && x < 1e-9 {
+		return 0
+	}
+	// repli : ln(v) = 2·artanh((v-1)/(v+1))
+	t := (v - 1) / (v + 1)
+	s := t
+	p := t
+	for k := 3; k < 40; k += 2 {
+		p *= t * t
+		s += p / float64(k)
+	}
+	return 2 * s
+}

@@ -342,6 +342,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// QDI — dégradation de délai de file : P95 chargé − P50 chargé (ms).
 	// La métrique queue-delay de référence, gelée avec la ligne.
 	ev.QDIPctMs = round1(sumC.P95 - sumC.Median)
+	// VoIP R (E-model G.107 simplifié) — délai aller (RTT/2), gigue (p95−p50),
+	// perte du profil : les conditions de charge vécues par un flux voix.
+	ev.VoIPR = round1(metrics.VoIPR(sumC.Median/2, sumC.P95-sumC.Median, prof.LossPct))
 	sm := metrics.Summarize(chgSmall)
 	ev.Smallp95Ms = round1(sm.P95)
 	ev.DeadlineOKPct = round1(metrics.DeadlineOKPct(chgSmall, d.DeadlineMs))

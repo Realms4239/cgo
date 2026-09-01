@@ -107,11 +107,13 @@ add_hosts_entry() {
 }
 if [ "${1:-}" = "--hosts" ] || [ "${HOSTS:-0}" = "1" ]; then
   # portable : meteolink.dev → VM si présente, sinon localhost
-  _vm_ip="192.168.174.128"
+  _vm_ip=""
   if [ -f kit/cgo-vm.yaml ] && grep -q "host:" kit/cgo-vm.yaml 2>/dev/null; then
     _vm_ip="$(grep -E '^[[:space:]]*host:' kit/cgo-vm.yaml | head -1 | sed 's/.*host:[[:space:]]*//' | tr -d '\"' | tr -d ' ')"
-    [ "$_vm_ip" = "auto" ] && _vm_ip="192.168.174.128"
+    [ "$_vm_ip" = "auto" ] && _vm_ip=""
   fi
+  if [ -z "$_vm_ip" ]; then _vm_ip="$(cgo kit status 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)"; fi
+  if [ -z "$_vm_ip" ]; then _vm_ip="VM-IP-auto-découverte"
   if [ -f /c/Windows/System32/drivers/etc/hosts ]; then
     add_hosts_entry "127.0.0.1" "meteolink.dev" "/c/Windows/System32/drivers/etc/hosts"
     add_hosts_entry "$_vm_ip" "meteolink.vm" "/c/Windows/System32/drivers/etc/hosts"
@@ -134,5 +136,5 @@ Run the cgo server as root, grant the capability to the binary
 or add your user to a sudo-capable group. Without it, cgo runs in
 observation mode only.
 Portable : dashboard sur http://meteolink.dev:9090 après --hosts (sinon http://localhost:9090).
-VM : http://192.168.174.128:9090 ou http://meteolink.vm:9090 si hosts VM ajouté.
+VM : http://<ip-vm>:9090 (auto-découvert, ex. via cgo kit status) ou http://meteolink.vm:9090 si hosts.
 EOF

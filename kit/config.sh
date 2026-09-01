@@ -9,7 +9,7 @@ CFG_FILE="${1:?usage: source config.sh <cgo-vm.yaml>}"
 [ -f "$CFG_FILE" ] || { echo "config not found: $CFG_FILE" >&2; return 1 2>/dev/null || exit 1; }
 
 # defaults
-: "${CFG_SSH_USER:=altfloat}"; : "${CFG_SSH_HOST:=192.168.174.128}"
+: "${CFG_SSH_USER:=altfloat}"; : "${CFG_SSH_HOST:=auto}"
 : "${CFG_SSH_PORT:=22}"; : "${CFG_SSH_KEY:=$HOME/.ssh/id_ed25519}"
 : "${CFG_SSH_PASSWORD:=}"; : "${CFG_VM_NAME:=}"; : "${CFG_VMX_PATH:=}"; : "${CFG_VBOX_PATH:=}"
 : "${CFG_SNAPSHOT:=}"; : "${CFG_PROJECT_DIR:=/home/altfloat/cgo}"
@@ -63,8 +63,11 @@ if [ "${CFG_SSH_HOST}" = "auto" ]; then
       done
     done 2>/dev/null || true
   fi
-  # 3) repli : variable d'env ou localhost (portable, pas d'IP en dur)
-  if [ -z "$_auto_ip" ]; then _auto_ip="${CGO_VM_IP:-192.168.174.128}"; fi
+  # 3) repli : variable d'env ou laisser auto (pas d'IP en dur — le prochain ensure la découvrira)
+  if [ -z "$_auto_ip" ]; then _auto_ip="${CGO_VM_IP:-}"; fi
+  if [ -z "$_auto_ip" ]; then
+    return 0
+  fi
   CFG_SSH_HOST="$_auto_ip"
 fi
 # surcharge env portable : CGO_SSH_HOST, CGO_DASHBOARD_PORT, etc.

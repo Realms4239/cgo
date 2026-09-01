@@ -15,6 +15,10 @@ var Profiles = map[string]Profile{
 	"P1": {ID: "P1", CapacityMbps: 80, DelayMs: 20, JitterMs: 2, LossPct: 0},
 	"P2": {ID: "P2", CapacityMbps: 20, DelayMs: 100, JitterMs: 15, LossPct: 0.5},
 	"P3": {ID: "P3", CapacityMbps: 5, DelayMs: 600, JitterMs: 30, LossPct: 1},
+	// P4 — Starlink LEO (recherche 2026 : 226 000 Ar/mois à Madagascar) :
+	// débit élevé, délai bas par rapport au VSAT géostationnaire, mais gigue
+	// marquée (handovers satellites) et perte ponctuelle — la classe LEO.
+	"P4": {ID: "P4", CapacityMbps: 100, DelayMs: 40, JitterMs: 20, LossPct: 0.3},
 }
 
 type Qdisc string
@@ -82,6 +86,7 @@ type Event struct {
 	RTTp50Ms       float64 `csv:"rtt_p50_ms"        json:"rtt_p50_ms"`
 	RTTp95Ms       float64 `csv:"rtt_p95_ms"        json:"rtt_p95_ms"`
 	QDIPctMs       float64 `csv:"qdi_ms"            json:"qdi_ms"`
+	VoIPR          float64 `csv:"voip_r"            json:"voip_r"`
 	Smallp95Ms     float64 `csv:"small_p95_ms"      json:"small_p95_ms"`
 	DeadlineOKPct  float64 `csv:"deadline_ok_pct"   json:"deadline_ok_pct"`
 	BulkGoodputMbps float64 `csv:"bulk_goodput_mbps" json:"bulk_goodput_mbps"`
@@ -96,7 +101,7 @@ type Event struct {
 // En-têtes aqm_eval.csv (après les colonnes d'identité).
 var AQMEvalHeader = []string{
 	"run_id", "event_id", "profile", "qdisc", "cc", "repetition",
-	"rtt_p50_ms", "rtt_p95_ms", "qdi_ms", "small_p95_ms", "deadline_ok_pct",
+	"rtt_p50_ms", "rtt_p95_ms", "qdi_ms", "voip_r", "small_p95_ms", "deadline_ok_pct",
 	"bulk_goodput_mbps", "drops", "retransmissions", "wasted_bytes",
 	"cost_ar_per_h", "cpu_pct", "gate_status",
 }

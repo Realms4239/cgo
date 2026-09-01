@@ -175,8 +175,8 @@ func runSetup(args []string) int {
 			}
 		}
 		if host == "auto" {
-			host = "192.168.174.128"
-			fmt.Printf("  repli : %s\n", host)
+			// pas d'IP découverte — laisser auto, le prochain ensure la trouvera
+			fmt.Println("  IP non découverte — laissée en auto (cgo kit ensure la résoudra)")
 		}
 		_ = setYAML(cfgPath, "host", host)
 		_ = setYAML(cfgPath, "user", user)
@@ -194,12 +194,21 @@ func runSetup(args []string) int {
 	// 6 — DNS local
 	step(6, "DNS local")
 	if confirm("Ajouter meteolink.dev/meteolink.vm au hosts local ?") {
-		ip := "127.0.0.1"
-		if context == "vm" {
-			ip = "192.168.174.128"
-		}
+		// portable : .dev → local, .vm → IP découverte ou auto
 		addHosts("meteolink.dev", "127.0.0.1")
-		addHosts("meteolink.vm", ip)
+		vmIP := ""
+		for _, v := range vm.ScanVMs(false) {
+			if p := vm.Primary(); p != nil {
+				if ip := p.GuestIP(v); ip != "" {
+					vmIP = ip
+					break
+				}
+			}
+		}
+		if vmIP == "" {
+			vmIP = "auto"
+		}
+		addHosts("meteolink.vm", vmIP)
 		fmt.Println("(sous Windows : relancez en Admin si permission refusée — kit/setup-meteolink-dev.bat)")
 	}
 
