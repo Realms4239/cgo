@@ -1,0 +1,5 @@
+run_id,event_id,profile,qdisc,cc,repetition,rtt_p50_ms,rtt_p95_ms,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,gate_status
+run-1787955228,1,P1,pfifo_fast,cubic,1,21.1,42.4,106.4,100.0,45.4,72,0,104256,0.60,0.0,degraded
+run-1787955228,2,P1,pfifo_fast,bbr,1,20.7,25.5,76.7,100.0,68.0,792,0,1146816,7.10,0.0,degraded
+run-1787955228,3,P1,fq_codel,cubic,1,22.5,55.2,147.3,100.0,27.2,72,0,104256,0.60,0.0,invalid
+run-1787955228,4,P1,fq_codel,bbr,1,20.6,22.9,49.8,100.0,73.7,201,0,291048,1.80,0.0,degraded
