@@ -126,6 +126,15 @@ func (r *Runner) Revert(c *Config, name string, deep bool) int {
 // SSHInteractive — ouvre un shell SSH complet (stdin/stdout/stderr branchés).
 func (r *Runner) SSHInteractive(c *Config) int {
 	key := expandKey(c.SSHKey)
+	// VM propre : pré-diagnostiquer avant d'ouvrir le shell, pour que
+	// l'opérateur voie la cause et la remédiation plutôt qu'un refus ssh sec.
+	if !c.SSHUp() {
+		probe, _ := c.SSH("true")
+		if cls := classifySSHError(probe); cls != "" {
+			r.sshDiag("[ssh]", probe)
+			return 5
+		}
+	}
 	cmd := exec.Command("ssh", "-o", "ConnectTimeout=6", "-o", "StrictHostKeyChecking=accept-new",
 		"-p", c.SSHPort, "-i", key, c.SSHUser+"@"+c.SSHHost)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
@@ -292,7 +301,7 @@ func (r *Runner) Verify(c *Config) int {
 	r.out("[verify] empreintes des archives sur %s…", c.SSHHost)
 	out, err := c.SSH("cd " + c.ProjectDir + " && ./cgo-linux verify 2>&1 || cgo verify 2>&1")
 	if err != nil {
-		r.errf("[verify] SSH échoué : %s", out)
+		r.sshDiag("[verify]", out)
 		return 5
 	}
 	r.out("%s", strings.TrimRight(out, "\n"))

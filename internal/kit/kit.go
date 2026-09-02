@@ -66,6 +66,10 @@ func LoadConfig(path string) (*Config, error) {
 	if err != nil {
 		return c, nil // config absente → défauts + env (portable, pas fatal)
 	}
+	// capture des valeurs env AVANT le yaml : l'environnement gagne
+	// (contrat documenté : CGO_SSH_HOST force la cible, scénario DHCP/VM propre)
+	envHost, envPort, envUser, envKey := c.SSHHost, c.SSHPort, c.SSHUser, c.SSHKey
+	envProject, envDash := c.ProjectDir, c.DashPort
 	section := ""
 	for _, ln := range strings.Split(string(b), "\n") {
 		ln = strings.TrimSpace(strings.Split(ln, "#")[0])
@@ -83,6 +87,7 @@ func LoadConfig(path string) (*Config, error) {
 		}
 		k, v := ln[:i], strings.TrimSpace(ln[i+1:])
 		k = strings.TrimSpace(k)
+		v = strings.Trim(v, `"'`) // yaml plain : pas de guillemets dans la valeur
 		full := k
 		if section != "" && !strings.HasPrefix(ln, "\t") && strings.Contains(ln, ":") {
 			// sous-clé : ssh_user etc. — le yaml plat utilise la section
@@ -119,6 +124,25 @@ func LoadConfig(path string) (*Config, error) {
 		case "go_min_version":
 			c.GoMinVer = v
 		}
+	}
+	// l'environnement reprend la main sur le yaml (contrat tête de fichier)
+	if os.Getenv("CGO_SSH_HOST") != "" {
+		c.SSHHost = envHost
+	}
+	if os.Getenv("CGO_SSH_PORT") != "" {
+		c.SSHPort = envPort
+	}
+	if os.Getenv("CGO_SSH_USER") != "" {
+		c.SSHUser = envUser
+	}
+	if os.Getenv("CGO_SSH_KEY") != "" {
+		c.SSHKey = envKey
+	}
+	if os.Getenv("CGO_PROJECT_DIR") != "" {
+		c.ProjectDir = envProject
+	}
+	if os.Getenv("CGO_DASHBOARD_PORT") != "" {
+		c.DashPort = envDash
 	}
 	// host auto → IP invitée via vmrun sur le .vmx connu
 	if c.SSHHost == "auto" {
@@ -217,6 +241,54 @@ func (c *Config) SSHUp() bool {
 	return err == nil
 }
 
+// portOpen — dial TCP court : distingue « sshd absent » (fermé) de
+// « VM éteinte/réseau coupé » (timeout), sans passer par ssh.
+func portOpen(host, port string) bool {
+	d := net.Dialer{Timeout: 3 * time.Second}
+	conn, err := d.Dial("tcp", net.JoinHostPort(host, port))
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
+// classifySSHError — distingue les trois échecs SSH d'une VM propre :
+// refused (sshd absent/éteint), auth (clé non autorisée), unreachable
+// (VM éteinte, IP fausse, réseau). Vide si la sortie n'est pas un échec SSH.
+func classifySSHError(out string) string {
+	o := strings.ToLower(out)
+	switch {
+	case o == "":
+		return ""
+	case strings.Contains(o, "connection refused"):
+		return "refused"
+	case strings.Contains(o, "permission denied"), strings.Contains(o, "authentication"):
+		return "auth"
+	case strings.Contains(o, "timed out"), strings.Contains(o, "no route"),
+		strings.Contains(o, "unreachable"), strings.Contains(o, "host is down"):
+		return "unreachable"
+	}
+	return "unknown"
+}
+
+// sshAdvice — la remédiation actionnable par classe d'échec. Une VM propre
+// n'a ni sshd configuré ni la clé de l'hôte : seul le canal console permet
+// la première pose, les advice guident jusqu'à SSHUp().
+func sshAdvice(class string) string {
+	switch class {
+	case "refused":
+		return "port 22 fermé : sshd est absent ou éteint dans la VM. Ouvrir la console de la VM (hyperviseur) puis : sudo apt install -y openssh-server && sudo systemctl enable --now ssh"
+	case "auth":
+		return "la VM refuse la clé de l'hôte. Depuis la console VM : mkdir -p ~/.ssh && echo '<votre clé publique>' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys (ou : ssh-copy-id depuis l'hôte)"
+	case "unreachable":
+		return "ni l'IP ni le port-forward ne répondent : VM éteinte ou IP changée. Essayer : cgo kit ensure (redécouverte d'IP + boot), puis cgo kit doctor"
+	case "unknown":
+		return "échec SSH non classé : relancer avec cgo kit doctor pour le diagnostic complet"
+	}
+	return ""
+}
+
 func (c *Config) SCP(local, remote string) error {
 	key := c.SSHKey
 	if strings.HasPrefix(key, "~/") {
@@ -304,6 +376,26 @@ func (r *Runner) Doctor(c *Config) int {
 		r.out("  clé SSH    %s (%d octets)", key, st.Size())
 	} else {
 		r.out("  clé SSH    %s — INTROUVABLE (ssh-keygen -t ed25519, puis ssh-copy-id vers la VM)", key)
+	}
+	// VM propre : port 22 + auth testés séparément, cause affichée au lieu d'un timeout opaque
+	if c.SSHHost != "" {
+		if portOpen(c.SSHHost, c.SSHPort) {
+			r.out("  port 22    %s:%s OUVERT", c.SSHHost, c.SSHPort)
+			if out, err := c.SSH("true"); err != nil {
+				cls := classifySSHError(out)
+				if cls == "auth" {
+					r.out("  auth       REFUSÉE — la clé de l'hôte n'est pas dans authorized_keys")
+					r.out("             → %s", sshAdvice("auth"))
+				} else {
+					r.out("  auth       échec (%s)", cls)
+				}
+			} else {
+				r.out("  auth       OK (SSHUp)")
+			}
+		} else {
+			r.out("  port 22    %s:%s FERMÉ — sshd absent/éteint dans la VM ou VM éteinte", c.SSHHost, c.SSHPort)
+			r.out("             → %s", sshAdvice("refused"))
+		}
 	}
 	for _, h := range vm.Detect() {
 		r.out("  %-10s %s", h.Name(), h.Exe())
@@ -426,7 +518,10 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 		}
 		time.Sleep(5 * time.Second)
 	}
-	r.errf("[ensure] timeout SSH — vérifie le guest en console (login, ip addr)")
+	// VM propre : la dernière sortie SSH classifie la cause réelle
+	lastOut, _ := c.SSH("true")
+	r.sshDiag("[ensure]", lastOut)
+	r.errf("[ensure] timeout SSH après 300 s — voir le conseil ci-dessus")
 	return 5
 }
 
@@ -553,17 +648,23 @@ func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
 		return 6
 	}
 	r.out("[deploy] push binaire + installateur...")
-	if _, err := c.SSH("mkdir -p " + c.ProjectDir + "/kit"); err != nil {
+	mkdirOut, mkdirErr := c.SSH("mkdir -p " + c.ProjectDir + "/kit")
+	if mkdirErr != nil {
+		r.sshDiag("[deploy]", mkdirOut)
 		return 7
 	}
 	if err := c.SCP(bin, c.ProjectDir+"/cgo-linux.new"); err != nil {
+		r.errf("[deploy] scp ÉCHEC (clé/chemin) : %v", err)
 		return 7
 	}
 	if err := c.SCP(filepath.Join(r.Root, "kit", "vm-install.sh"), c.ProjectDir+"/kit/vm-install.sh"); err != nil {
+		r.errf("[deploy] scp installateur ÉCHEC : %v", err)
 		return 7
 	}
 	r.out("[deploy] installation VM...")
-	if _, err := c.SSH("cd " + c.ProjectDir + " && bash kit/vm-install.sh"); err != nil {
+	instOut, instErr := c.SSH("cd " + c.ProjectDir + " && bash kit/vm-install.sh")
+	if instErr != nil {
+		r.sshDiag("[deploy]", instOut)
 		return 8
 	}
 	if c.Health() {
@@ -574,11 +675,29 @@ func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
 	return 8
 }
 
+// sshDiag — échec SSH : classifier la sortie et donner la remédiation.
+// Retourne la sortie brute pour affichage ; imprime la cause probable.
+func (r *Runner) sshDiag(prefix string, out string) string {
+	cls := classifySSHError(out)
+	if cls == "" || cls == "unknown" {
+		r.errf("%s SSH échoue — sortie brute : %s", prefix, strings.TrimSpace(out))
+		return cls
+	}
+	r.errf("%s SSH échoue (%s)", prefix, map[string]string{
+		"refused":     "sshd absent ou éteint dans la VM",
+		"auth":        "clé de l'hôte refusée par la VM",
+		"unreachable": "VM éteinte, IP changée ou réseau coupé",
+	}[cls])
+	r.errf("→ %s", sshAdvice(cls))
+	return cls
+}
+
 // Bootstrap — paquets + veth dans la VM (idempotent).
 func (r *Runner) Bootstrap(c *Config) int {
 	r.out("[bootstrap] paquets VM...")
-	if _, err := c.SSH("sudo apt update && sudo apt install -y iproute2 curl bc && sudo modprobe tcp_bbr || true"); err != nil {
-		r.errf("[bootstrap] apt ÉCHEC")
+	out, err := c.SSH("sudo apt update && sudo apt install -y iproute2 curl bc && sudo modprobe tcp_bbr || true")
+	if err != nil {
+		r.sshDiag("[bootstrap]", out)
 		return 6
 	}
 	if _, err := c.SSH("sudo ip link show veth-c >/dev/null 2>&1 || (sudo ip link add veth-c type veth peer name veth-s && sudo ip link set veth-c up && sudo ip link set veth-s up && echo veth-c/veth-s up)"); err != nil {
@@ -607,6 +726,13 @@ func (r *Runner) Status(c *Config) int {
 				r.out("  vm allumée : %s", v)
 			}
 		}
+		// VM propre : classifier et conseiller au lieu d'un constat sec
+		probe, _ := c.SSH("true")
+		if cls := classifySSHError(probe); cls != "" {
+			r.sshDiag("[status]", probe)
+		} else {
+			r.out("  (auth échouée silencieusement — voir cgo kit doctor)")
+		}
 	}
 	return 0
 }
@@ -615,6 +741,7 @@ func (r *Runner) Status(c *Config) int {
 func (r *Runner) Logs(c *Config, n int) int {
 	out, err := c.SSH("tail -n " + strconv.Itoa(n) + " /tmp/cgo.log")
 	if err != nil {
+		r.sshDiag("[logs]", out)
 		return 8
 	}
 	r.out("%s", out)
