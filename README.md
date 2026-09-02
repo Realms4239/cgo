@@ -123,7 +123,7 @@ $ cgo kit verify       # empreintes SHA-256 des archives, recalculées sur la VM
 $ cgo kit ssh · ps · backup
 ```
 
-18 actions au total. Mêmes codes de sortie que l'ancien `engine.sh` (2 usage/build, 3 scan ambigu, 4 hyperviseur, 5 timeout SSH, 6 cross, 7 scp, 8 install), env `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`/`CGO_VM_IP` inchangés. `kit/engine.sh` reste en shim de compatibilité.
+18 actions au total. Mêmes codes de sortie que l'ancien `engine.sh` (2 usage/build, 3 scan ambigu, 4 hyperviseur, 5 timeout SSH, 6 cross, 7 scp, 8 install), env `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`/`CGO_VM_IP` inchangés (l'env **gagne** sur `cgo-vm.yaml` — forcer une IP après un bail DHCP glissant). `kit/engine.sh` reste en shim de compatibilité. **VM propre sans SSH :** `cgo kit doctor` classe l'échec (sshd absent / clé refusée / VM éteinte) et affiche la remédiation, `cgo kit ensure` gère boot + découverte d'IP.
 
 **DNS local portable :** `bash kit/install.sh --hosts` (Admin) ajoute `127.0.0.1 meteolink.dev` (host) et `<ip-vm> meteolink.vm` (auto-découvert via `cgo kit status`) — `http://meteolink.dev:9090` et `http://meteolink.vm:9090`. `.dev` est `HSTS` (force `https`) : en local `http` reste OK via `hosts` + `mkcert meteolink.dev` si `https` requis, sinon préférer `http://localhost:9090` (secure context).
 

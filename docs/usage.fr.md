@@ -49,6 +49,8 @@ c'est le point d'entrée de la boucle.
 
 ## 2. Préparer le banc
 
+**VM propre sans SSH (première fois).** Le kit diagnostique la cause exacte : `cgo kit doctor` teste le port 22 et l'auth séparément, puis `cgo kit ensure` tente boot + découverte d'IP. Sur une VM fraîche, ouvrir la console de l'hyperviseur une fois : `sudo apt install -y openssh-server && sudo systemctl enable --now ssh`, puis autoriser la clé de l'hôte : `mkdir -p ~/.ssh && echo '<clé publique>' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys`. Ensuite tout passe par le kit.
+
 **Quoi faire.** Sur la machine Linux de mesure, vérifier la santé de
 l'environnement :
 
