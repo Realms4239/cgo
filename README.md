@@ -112,15 +112,18 @@ $ docker run -p 9090:9090 -v ./data/runs:/data/runs meteolink --serve --addr 0.0
 Le banc est une VM `Ubuntu` (`VMware` ou `VirtualBox`). Convention : VMs sous `D:\VMs\` ou `C:\VMs\` (exception racine historique tolérée). Le moteur `cgo kit` (pur Go, multi-OS) remplace l'ancien bash :
 
 ```
-$ cgo kit scan      # trouve les .vmx/.vbox, sauvegarde l'unique
-$ cgo kit ensure    # SSH up, sinon boot + attente
-$ cgo kit align     # NIC vmxnet3 + CPU/mémoire mini (à froid)
-$ cgo kit deploy    # build → cross → push → health
-$ cgo kit doctor    # dépendances + config, tout vert avant d'agir
-$ cgo kit status · logs · bootstrap · build · tunnel
+$ cgo kit scan        # trouve les .vmx/.vbox, sauvegarde l'unique
+$ cgo kit ensure      # SSH up, sinon boot + attente
+$ cgo kit align       # NIC vmxnet3 + CPU/mémoire mini (à froid)
+$ cgo kit deploy      # build → cross → push → health
+$ cgo kit doctor      # dépendances + config, tout vert avant d'agir
+$ cgo kit status · logs · health · bootstrap · build · tunnel
+$ cgo kit snapshot · snapshots · revert   # garde-fou : liste + retour arrière
+$ cgo kit verify       # empreintes SHA-256 des archives, recalculées sur la VM
+$ cgo kit ssh · ps · backup
 ```
 
-Mêmes codes de sortie que l'ancien `engine.sh` (2 usage/build, 3 scan ambigu, 4 hyperviseur, 5 timeout SSH, 6 cross, 7 scp, 8 install), env `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`/`CGO_VM_IP` inchangés. `kit/engine.sh` reste en shim de compatibilité.
+18 actions au total. Mêmes codes de sortie que l'ancien `engine.sh` (2 usage/build, 3 scan ambigu, 4 hyperviseur, 5 timeout SSH, 6 cross, 7 scp, 8 install), env `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`/`CGO_VM_IP` inchangés. `kit/engine.sh` reste en shim de compatibilité.
 
 **DNS local portable :** `bash kit/install.sh --hosts` (Admin) ajoute `127.0.0.1 meteolink.dev` (host) et `<ip-vm> meteolink.vm` (auto-découvert via `cgo kit status`) — `http://meteolink.dev:9090` et `http://meteolink.vm:9090`. `.dev` est `HSTS` (force `https`) : en local `http` reste OK via `hosts` + `mkcert meteolink.dev` si `https` requis, sinon préférer `http://localhost:9090` (secure context).
 
@@ -140,7 +143,7 @@ Voir les [options](docs/api.md) passables à la commande ou dans `GET /api/schem
 
 ```
 $ cgo setup                                      # wizard : de zéro au dashboard
-$ cgo kit doctor|scan|ensure|align|deploy|...    # moteur de déploiement (11 actions)
+$ cgo kit doctor|scan|ensure|align|deploy|...    # moteur de déploiement (18 actions)
 $ cgo run --profiles P2 --reps 3 --deadline 1000 # campagne CLI réelle
 $ cgo tui                                        # terminal 5 onglets
 $ cgo --serve --addr 127.0.0.1:9090 --mode auto  # auto: Linux full, Windows observe

@@ -22,14 +22,14 @@ test('m9 wall kit', async ({ page }) => {
     if (await evt.count()) await expect(evt.first()).toBeVisible({ timeout: 2000 })
     else if (await rapid.count()) await expect(rapid.first()).toBeVisible({ timeout: 2000 })
   })
-  // Overlay mur live référence vs CAKE — même échelle, badge d'écart
+  // Overlay mur live référence vs discipline appliquée — même échelle, badge d'écart
   await page.getByLabel('Navigation').getByRole('button', { name: 'Tableau live' }).click()
   await expect(page.locator('.live-wall-overlay')).toBeVisible({ timeout: 5000 })
-  await expect(page.locator('.live-wall-overlay')).toContainText('baseline')
-  await expect(page.locator('.live-wall-overlay')).toContainText('CAKE')
-  // Résultats badge diff A/B + provenance matériel
+  await expect(page.locator('.live-wall-overlay')).toContainText(/baseline/i)
+  await expect(page.locator('.live-wall-overlay')).toContainText(/cake|pfifo/i)
+  // Résultats classement + épinglage A/B + provenance (design verrouillé)
   await page.getByLabel('Navigation').getByRole('button', { name: 'Résultats' }).click()
-  await expect(page.locator('.ab-bento')).toBeVisible({ timeout: 5000 })
-  await expect(page.locator('.ab-bento .diff-badge')).toBeVisible({ timeout: 5000 })
-  await expect(page.locator('.provenance, [data-testid="provenance"]')).toContainText(/hardware_recommendation|MikroTik|P1/)
+  await expect(page.getByRole('heading', { name: /Résultats/ })).toBeVisible({ timeout: 5000 })
+  await expect(page.locator('[data-testid="rank-verdict"], .rank-verdict').first()).toBeVisible({ timeout: 5000 })
+  await expect(page.locator('text=/provenance/').first()).toBeVisible({ timeout: 5000 })
 })

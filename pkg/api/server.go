@@ -259,7 +259,7 @@ func New(d Deps) Handler {
 			Seconds int    `json:"seconds"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
 		validCC := false
@@ -273,26 +273,26 @@ func New(d Deps) Handler {
 			}
 		}
 		if !validCC {
-			http.Error(w, "cc must be cubic | bbr", http.StatusBadRequest)
+			writeErr(w, r, "cc must be cubic | bbr", http.StatusBadRequest)
 			return
 		}
 		if body.Seconds == 0 {
 			body.Seconds = 4
 		}
 		if mn, mx, ok := paramBounds("burst_seconds"); ok && (body.Seconds < int(mn) || body.Seconds > int(mx)) {
-			http.Error(w, "seconds must be 2–10", http.StatusBadRequest)
+			writeErr(w, r, "seconds must be 2–10", http.StatusBadRequest)
 			return
 		}
 		if d.RunningFn != nil && d.RunningFn() {
-			http.Error(w, "campagne active — le burst se lance hors campagne", http.StatusConflict)
+			writeErr(w, r, "campagne active — le burst se lance hors campagne", http.StatusConflict)
 			return
 		}
 		if d.BurstFn == nil {
-			http.Error(w, "burst engine not wired on this host", http.StatusServiceUnavailable)
+			writeErr(w, r, "burst engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
 		if err := d.BurstFn(body.CC, body.Seconds); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		recordEvent("burst", fmt.Sprintf("burst %s %ds — traverse le bord façonné", body.CC, body.Seconds))
@@ -342,19 +342,19 @@ func New(d Deps) Handler {
 			On bool `json:"on"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
 		if d.WatchFn == nil {
-			http.Error(w, "watch engine not wired on this host", http.StatusServiceUnavailable)
+			writeErr(w, r, "watch engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
 		if body.On && d.RunningFn != nil && d.RunningFn() {
-			http.Error(w, "campagne active — la surveillance se lance hors campagne", http.StatusConflict)
+			writeErr(w, r, "campagne active — la surveillance se lance hors campagne", http.StatusConflict)
 			return
 		}
 		if err := d.WatchFn(body.On); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{"watch": body.On})
@@ -365,7 +365,7 @@ func New(d Deps) Handler {
 		}
 		var req ShapeReq
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
 		code, out := shapeApply(d.ShapeFn, req, d.RunningFn)
@@ -383,30 +383,30 @@ func New(d Deps) Handler {
 		}
 		var opts RunOpts
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&opts); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
 		// prévention — le client est une indication, jamais le contrat (§6) ; l'entrée
 		// est validée même sur les hôtes sans moteur câblé — bornes issues du
 		// même registre que sert GET /api/schema
 		if mn, mx, ok := paramBounds("reps"); ok && (opts.Reps < int(mn) || opts.Reps > int(mx)) {
-			http.Error(w, "reps must be 1–5", http.StatusBadRequest)
+			writeErr(w, r, "reps must be 1–5", http.StatusBadRequest)
 			return
 		}
 		// bornes — la deadline voyage avec le run, dans la même fenêtre
 		// que le tiroir Réglages impose côté client
 		if opts.DeadlineMs != 0 {
 			if mn, mx, ok := paramBounds("deadline_ms"); ok && (float64(opts.DeadlineMs) < mn || float64(opts.DeadlineMs) > mx) {
-				http.Error(w, "deadline_ms must be 200–5000", http.StatusBadRequest)
+				writeErr(w, r, "deadline_ms must be 200–5000", http.StatusBadRequest)
 				return
 			}
 		}
 		if len(opts.Target) > 64 {
-			http.Error(w, "target must be ≤ 64 characters", http.StatusBadRequest)
+			writeErr(w, r, "target must be ≤ 64 characters", http.StatusBadRequest)
 			return
 		}
 		if len(opts.Profiles) == 0 {
-			http.Error(w, "aucun profil sélectionné", http.StatusBadRequest)
+			writeErr(w, r, "aucun profil sélectionné", http.StatusBadRequest)
 			return
 		}
 		var unknown []string
@@ -416,32 +416,32 @@ func New(d Deps) Handler {
 			}
 		}
 		if len(unknown) > 0 {
-			http.Error(w, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
+			writeErr(w, r, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
 			return
 		}
 		if d.StartFn == nil {
-			http.Error(w, "run engine not wired on this host", http.StatusServiceUnavailable)
+			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
 		if err := d.StartFn(opts); err != nil {
-			http.Error(w, err.Error(), http.StatusConflict)
+			writeErr(w, r, err.Error(), http.StatusConflict)
 			return
 		}
 		recordEvent("campagne", fmt.Sprintf("démarrée — %s ×%d, deadline %d ms, cible %s", strings.Join(opts.Profiles, "/"), opts.Reps, opts.DeadlineMs, opts.Target))
 		writeJSON(w, map[string]any{"started": true})
 	})
-	mux.HandleFunc("POST /api/run/stop", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("POST /api/run/stop", func(w http.ResponseWriter, r *http.Request) {
 		if d.StopFn == nil {
-			http.Error(w, "run engine not wired on this host", http.StatusServiceUnavailable)
+			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
 		d.StopFn()
 		recordEvent("campagne", "arrêtée")
 		writeJSON(w, map[string]any{"stopped": true})
 	})
-	mux.HandleFunc("POST /api/run/skip", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("POST /api/run/skip", func(w http.ResponseWriter, r *http.Request) {
 		if d.SkipFn == nil {
-			http.Error(w, "run engine not wired on this host", http.StatusServiceUnavailable)
+			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
 		d.SkipFn()
@@ -462,7 +462,7 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/results/delta", func(w http.ResponseWriter, r *http.Request) {
 		cell := r.URL.Query().Get("cell")
 		if cell == "" || strings.Count(cell, "|") != 2 {
-			http.Error(w, "cell required: profile|qdisc|cc", http.StatusBadRequest)
+			writeErr(w, r, "cell required: profile|qdisc|cc", http.StatusBadRequest)
 			return
 		}
 		runs, _ := filepath.Glob("data/runs/*")
@@ -558,7 +558,7 @@ func New(d Deps) Handler {
 		}
 		groups, _ := results.Scan("data/runs", "")
 		if len(groups) == 0 {
-			http.Error(w, "no data", http.StatusNotFound)
+			writeErr(w, r, "no data", http.StatusNotFound)
 			return
 		}
 		if fmtParam == "csv" {
@@ -589,9 +589,9 @@ func New(d Deps) Handler {
 		}
 	})
 
-	mux.HandleFunc("POST /api/figures/regen", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("POST /api/figures/regen", func(w http.ResponseWriter, r *http.Request) {
 		if err := figures.Generate("data/runs", "data/figures"); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{"ok": true})
@@ -610,24 +610,24 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/replay/stream", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
 		if run == "" {
-			http.Error(w, "run required", http.StatusBadRequest)
+			writeErr(w, r, "run required", http.StatusBadRequest)
 			return
 		}
 		f, err := os.Open(filepath.Join("data/runs", run, "aqm_eval.csv"))
 		if err != nil {
-			http.Error(w, "not found", http.StatusNotFound)
+			writeErr(w, r, "not found", http.StatusNotFound)
 			return
 		}
 		defer f.Close()
 		rd := csv.NewReader(f)
 		rows, _ := rd.ReadAll()
 		if len(rows) <= 1 {
-			http.Error(w, "no data", http.StatusNotFound)
+			writeErr(w, r, "no data", http.StatusNotFound)
 			return
 		}
 		fl, ok := w.(http.Flusher)
 		if !ok {
-			http.Error(w, "stream unsupported", http.StatusInternalServerError)
+			writeErr(w, r, "stream unsupported", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -661,7 +661,7 @@ func New(d Deps) Handler {
 			Target   string `json:"target"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
 		if body.Duration <= 0 {
@@ -678,7 +678,7 @@ func New(d Deps) Handler {
 			body.Site = body.Site[:80]
 		}
 		if len(body.Target) > 64 {
-			http.Error(w, "cible trop longue", http.StatusBadRequest)
+			writeErr(w, r, "cible trop longue", http.StatusBadRequest)
 			return
 		}
 		if body.Target == "" {
@@ -687,7 +687,7 @@ func New(d Deps) Handler {
 		auditMu.Lock()
 		if auditRunning {
 			auditMu.Unlock()
-			http.Error(w, "audit already running", http.StatusConflict)
+			writeErr(w, r, "audit already running", http.StatusConflict)
 			return
 		}
 		auditRunning = true
@@ -745,14 +745,14 @@ func New(d Deps) Handler {
 	mux.HandleFunc("POST /api/audit/toprofile", func(w http.ResponseWriter, r *http.Request) {
 		f, err := os.Open("data/link_audit.csv")
 		if err != nil {
-			http.Error(w, "aucun audit — lancez d'abord cgo audit", http.StatusNotFound)
+			writeErr(w, r, "aucun audit — lancez d'abord cgo audit", http.StatusNotFound)
 			return
 		}
 		defer f.Close()
 		rd := csv.NewReader(f)
 		rows, _ := rd.ReadAll()
 		if len(rows) < 2 {
-			http.Error(w, "audit vide", http.StatusNotFound)
+			writeErr(w, r, "audit vide", http.StatusNotFound)
 			return
 		}
 		hdr := rows[0]
@@ -779,7 +779,7 @@ func New(d Deps) Handler {
 			p.DelayMs = 100
 		}
 		if err := profile.Import(p); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		recordEvent("profil", fmt.Sprintf("%s importé depuis audit — %g Mbit/s, %g ms", id, p.CapacityMbps, p.DelayMs))
@@ -788,7 +788,7 @@ func New(d Deps) Handler {
 	mux.HandleFunc("POST /api/profile/import", func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		if err != nil {
-			http.Error(w, "bad body", http.StatusBadRequest)
+			writeErr(w, r, "bad body", http.StatusBadRequest)
 			return
 		}
 		ct := r.Header.Get("Content-Type")
@@ -797,7 +797,7 @@ func New(d Deps) Handler {
 		if strings.Contains(ct, "text/csv") || (len(body) > 0 && body[0] != '{') {
 			rows, err := csv.NewReader(strings.NewReader(string(body))).ReadAll()
 			if err != nil || len(rows) == 0 {
-				http.Error(w, "bad csv", http.StatusBadRequest)
+				writeErr(w, r, "bad csv", http.StatusBadRequest)
 				return
 			}
 			row := rows[0]
@@ -805,7 +805,7 @@ func New(d Deps) Handler {
 				row = rows[1] // saute la ligne d'en-tête
 			}
 			if len(row) < 2 {
-				http.Error(w, "bad csv row", http.StatusBadRequest)
+				writeErr(w, r, "bad csv row", http.StatusBadRequest)
 				return
 			}
 			num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
@@ -823,15 +823,15 @@ func New(d Deps) Handler {
 				p.LossPct = num(row[4])
 			}
 		} else if err := json.Unmarshal(body, &p); err != nil {
-			http.Error(w, "bad json", http.StatusBadRequest)
+			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
 		if p.ID == "" {
-			http.Error(w, "id required", http.StatusBadRequest)
+			writeErr(w, r, "id required", http.StatusBadRequest)
 			return
 		}
 		if err := profile.Import(p); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{"ok": true, "profile": p})
@@ -859,19 +859,19 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/run/rows", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
 		if id == "" || strings.ContainsAny(id, `/\.`) {
-			http.Error(w, "id de run invalide", http.StatusBadRequest)
+			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
 		path := filepath.Join("data", "runs", id, "aqm_eval.csv")
 		f, err := os.Open(path)
 		if err != nil {
-			http.Error(w, "run introuvable: "+id, http.StatusNotFound)
+			writeErr(w, r, "run introuvable: "+id, http.StatusNotFound)
 			return
 		}
 		defer f.Close()
 		rows, err := csv.NewReader(f).ReadAll()
 		if err != nil || len(rows) < 2 {
-			http.Error(w, "run vide: "+id, http.StatusNotFound)
+			writeErr(w, r, "run vide: "+id, http.StatusNotFound)
 			return
 		}
 		hdr := rows[0]
@@ -901,4 +901,17 @@ func New(d Deps) Handler {
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// writeErr — erreur HTTP négociée : JSON pour les clients fetch().json()
+// du frontend, text/plain inchangé pour curl et les scripts bash.
+func writeErr(w http.ResponseWriter, r *http.Request, msg string, code int) {
+	if strings.Contains(r.Header.Get("Accept"), "application/json") ||
+		strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": msg})
+		return
+	}
+	http.Error(w, msg, code)
 }

@@ -32,11 +32,14 @@ actions :
   status    SSH + process + health dashboard
   logs      tail du journal serveur VM
   tunnel    cloudflared (CLOUDFLARE_TUNNEL_TOKEN requis)
-  snapshot  point de restauration VM (garde-fou avant align/deploy)
-  revert    revenir au dernier snapshot (ou --name NOM)
-  ssh       shell interactif direct dans la VM (Ctrl-D pour sortir)
-  ps        processus dashboard en direct (rafraîchi 2 s, q pour sortir)
-  backup    rapatrie les runs gelés de la VM vers ./backup (tar.gz horodaté)
+   snapshot  point de restauration VM (garde-fou avant align/deploy)
+   revert    revenir au dernier snapshot (ou --name NOM)
+   snapshots liste des instantanés (le nom sert à revert)
+   ssh       shell interactif direct dans la VM (Ctrl-D pour sortir)
+   ps        processus dashboard en direct (rafraîchi 2 s, q pour sortir)
+   backup    rapatrie les runs gelés de la VM vers ./backup (tar.gz horodaté)
+   verify    empreintes SHA-256 des archives, recalculées sur la VM
+   health    état du dashboard distant (JSON + verdict)
 exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
              6 cross-compile/bootstrap, 7 scp, 8 install/logs`)
 		fs.PrintDefaults()
@@ -92,6 +95,12 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.Revert(c, name, *deep)
 	case "ssh":
 		return r.SSHInteractive(c)
+	case "snapshots":
+		return r.Snapshots(c, *deep)
+	case "verify":
+		return r.Verify(c)
+	case "health":
+		return r.Health(c)
 	case "ps":
 		return r.Ps(c)
 	case "backup":
