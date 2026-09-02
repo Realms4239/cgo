@@ -113,39 +113,92 @@ H2('Trois diapositives à sacrifier si le temps manque');
 P('Les diapositives sur la régularité, sur la voix et sur Starlink peuvent être sautées sans casser le fil : le résultat central et la recommandation suffisent. Elles restent en réserve, dans la série de secours, si une question les réclame.');
 
 // ---------------------------------------------------------------- chap 8
-H1('Chapitre 8 : Le kit anti-questions');
-P('Trente questions reviennent presque toujours. Voici les réponses, courtes et calmes. Les citations du jury sont reconstituées dans un langage plausible.', { noindent: true });
-H2('Sur le contexte et le choix du sujet');
-P('« Pourquoi ce sujet ? » La direction des systèmes d\'information devait arbitrer des configurations d\'équipement sans données locales ; le sujet comble ce manque.');
-P('« Pourquoi pas une étude de satisfaction des utilisateurs ? » Le travail visait une mesure objective et reproductible, pas une enquête déclarative.');
-P('« Quel est le lien avec la météorologie ? » Les applications météo produisent exactement le trafic mesuré : télémétrie légère et transferts massifs sur les mêmes liens.');
-H2('Sur la méthode');
-P('« Pourquoi quatre profils seulement ? » Ils couvrent les quatre classes de liens réellement utilisées par l\'institution ; la calibration par site reste une perspective.');
-P('« Pourquoi un seul flux de charge ? » Le protocole compare des disciplines sur une charge identique et maîtrisée ; le multiplexage réaliste compliquerait l\'attribution des effets.');
-P('« Les résultats dépendent-ils de votre machine ? » Une porte de qualité vérifie la charge du processeur à chaque événement, et les événements douteux sont mis en quarantaine.');
-P('« Pourquoi ne pas avoir testé sur le réseau de production ? » La production d\'une institution de sécurité ne se sature pas à des fins d\'essai ; le banc garantit la comparaison reproductible.');
-P('« Quelle est la durée totale d\'une campagne ? » Environ dix-huit minutes pour six événements, trois minutes par événement, cent huit minutes pour la matrice complète.');
-H2('Sur les mesures');
-P('« Pourquoi le p95 plutôt que la moyenne ? » La moyenne noie les cas défavorables ; le p95 décrit ce que subissent les requêtes lentes, qui décident de la sensation de blocage.');
-P('« Le QDI vient d\'où ? » C\'est l\'écart entre le p95 et la médiane, une lecture classique des rapports d\'outils de mesure de latence, gardée sous un nom court dans le mémoire.');
-P('« Le score de voix est-il une mesure réelle d\'appel ? » Non, c\'est l\'application du modèle E de l\'UIT aux conditions mesurées : délai, gigue, perte. La méthode est standard, le flux de voix simulé reste une perspective.');
-P('« Pourquoi une échéance à 220 millisecondes ? » Elle se situe au niveau du p95 mesuré sur le profil 4G : c\'est le seuil où les disciplines se séparent franchement.');
-P('« Le coût en ariary est-il une facturation ? » Non, c\'est une estimation lisible : le volume gaspillé multiplié par le prix au gigaoctet des forfaits réels de 2026, publiés par les opérateurs.');
-H2('Sur les résultats');
-P('« CAKE est-il toujours le meilleur ? » Sur les profils testés, il protège le mieux la latence critique ; sur le profil fibre, fq_codel peut suffire, et c\'est ce que recommande le mémoire.');
-P('« Où est l\'amélioration en débit ? » Il n\'y en a pas à chercher : les disciplines actives préservent le débit tout en réduisant l\'attente, c\'est leur intérêt même.');
-P('« Vos résultats contredisent-ils la littérature ? » Non, ils la confirment sur un contexte peu documenté : liens prépayés à forte latence de base.');
-H2('Sur les limites, à assumer sans se dérober');
-P('« Quelles sont vos trois limites principales ? » Des mesures ciblées sur la latence et le débit, pas exhaustives ; un flux de charge unique, pas un trafic multiplexé réaliste ; un banc qui reconstitue le lien mais pas la couche radio.');
-P('« Pourquoi si peu de répétitions ? » Les campagnes finales ont conduit une répétition par cellule, les vagues antérieures en comptent davantage ; trois répétitions systématiques sont annoncées comme approfondissement.');
-P('« Votre échantillon est-il représentatif ? » Il ne prétend pas l\'être : quatre classes de liens, choisies pour correspondre aux équipements de l\'institution.');
-P('« Peut-on généraliser à tout Madagascar ? » Les tendances se transportent aux liens de même classe ; les valeurs absolues restent propres à chaque profil.');
-H2('Sur la réalisation');
-P('« Combien de temps pour développer l\'outil ? » L\'essentiel du stage, la conception de mesure ayant précédé le développement.');
-P('« Pourquoi un outil maison plutôt qu\'existant ? » Les outils publics mesurent sur des liens réels sans vérité contrôlée et sans gel vérifiable ; le besoin était la comparaison reproductible et l\'ancrage dans les tarifs locaux.');
-P('« Qui maintiendra l\'outil ? » Le code est déposé avec sa documentation, la direction des systèmes peut le reprendre.');
-H2('Phrases de recadrage, en dernier recours');
-P('« C\'est un choix de périmètre documenté dans la méthodologie. » « La réponse complète figure au chapitre correspondant ; l\'essentiel est le suivant. » « Je n\'ai pas cette valeur sous la main ; la démarche pour l\'obtenir serait celle-ci. » « Ce point dépasse mon périmètre, mais voici ce que j\'en comprends. »');
+H1('Chapitre 8 : Le kit anti-questions, armé');
+
+P('Comment utiliser ce kit : chaque réponse suit le même squelette en quatre temps. Nommer la limite sans l\'adoucir. Borner : ce qu\'elle affecte, ce qu\'elle n\'affecte pas. Mitiger : ce qui est fait malgré elle. Refermer : la portée exacte de l\'affirmation. Chaque réponse tient en moins d\'une minute et porte au moins un chiffre exact des archives.', { noindent: true });
+
+H2('Les quatre façons de perdre la soutenance');
+P('Se braquer : le jury pousse une limite pour tester le calme, pas pour humilier ; deux secondes de silence, puis la réponse structurée. S\'excuser : « j\'aurais dû, je n\'ai pas pu » transforme une limite bornée en confession ; une limite est une information de portée, pas un regret. Inventer : un bluff se détecte en une relance et détruit la crédibilité de toutes les réponses précédentes. Tout concéder : si le jury pousse jusqu\'à « donc vous ne pouvez rien affirmer ? », la bonne réponse tient le cap : la limite réduit la portée, pas la conclusion.');
+P('Une règle transversale : ne jamais présenter une contrainte comme une vertu méthodologique qu\'elle n\'était pas. Et citer la page exacte du mémoire quand on annonce une limite : cela change tout.');
+
+H2('D\'où viennent vos données ?');
+P('« Suivez un chiffre de ce tableau : décrivez exactement comment il a été produit, de la commande au fichier. » Le pipeline en quatre étapes : la sonde mesure pendant l\'événement de trois minutes ; l\'événement franchit les huit portes ; la ligne est écrite dans le CSV du run ; le manifeste du run enregistre l\'empreinte SHA-256 du fichier. Exemple : le 60,2 % de la file simple sous BBR, run 1788191429, événement 2, ligne visible dans l\'archive, empreinte vérifiable par cgo verify. Le jury peut suivre ce chemin-là, chiffre par chiffre.');
+
+H2('Vos archives sont « gelées » : que prouve le hash exactement ?');
+P('L\'empreinte prouve l\'intégrité : le fichier n\'a pas changé depuis le gel, toute modification d\'un octet serait détectée. Elle ne prouve pas la validité de la mesure : c\'est le rôle des huit portes. Les deux garanties sont complémentaires et se répondent dans cet ordre quand on les confond.');
+
+H2('Qui a exécuté les campagnes, sur quelle machine, quand ?');
+P('Les 134 runs sont horodatés par leur identifiant même : run-1788191429 commence par un horodatage Unix. La machine du banc : machine virtuelle Ubuntu, deux processeurs virtuels, et chaque événement porte sa colonne d\'utilisation processeur, zéro pour cent sur les six événements du run final : la machine n\'a pas influé. Réinstaller le banc et relancer la même campagne redonnerait des conditions identiques, c\'est l\'objet du banc.');
+
+H2('154 quarantaines pour 83 valides : pourquoi vous croire ?');
+P('Le ratio assume un choix : des portes larges auraient rempli les archives et affaibli les conclusions. Ce qui est en quarantaine : surtout les vagues de mise au point, où chaque durcissement d\'une porte rejetait en bloc les événements antérieurs, et les cellules dont le régime de charge ne s\'établissait pas. Ce que ça n\'affecte pas : les 83 lignes valides, dont chacune a passé les huit contrôles. Le compte est publié, la quarantaine est conservée à côté des valides, et le lecteur peut reconstituer le filtre.');
+
+H2('Une répétition par cellule : pourquoi vous croire ?');
+P('D\'abord nommer : la campagne finale conduit une répétition par cellule. Borner : n égale un interdit les comparaisons fines entre disciplines voisines ; il n\'interdit pas les ordres de grandeur quand l\'effet est massif : soixante contre quatre-vingt-dix-huit pour cent d\'échéances, ce n\'est pas un écart de bruit. Mitiger : les vagues antérieures comptent des répétitions, onze pour la file simple sous BBR sur le profil 4G, sept pour fq_codel, six pour CAKE, cinquante-et-une pour la cellule CUBIC de la fibre, et la fenêtre de charge elle-même agrège environ cent vingt observations de sondes : le p95 ne repose pas sur un point. Refermer : conclusions exploratoires sur les cellules à événement unique, consolidation par trois répétitions systématiques en premier travail futur.');
+
+H2('Votre banc est émulé, pas le réseau réel : quelle valeur ?');
+P('L\'émulation contrôle ce que le terrain ne permet pas : isoler la discipline de file, comparer des configurations à conditions strictement identiques, rejouer. Ce que netem ne capture pas : la couche radio et le multiplexage réel des applications, deux limites nommées dans le mémoire. La revendication exacte : des mécanismes et des ordres de grandeur relatifs, pas des valeurs absolues de site malgache. Et la mesure du réel existe par ailleurs : l\'audit, disponible depuis n\'importe quel poste autorisé, le déploiement multi-sites étant la première perspective.');
+
+H2('Le VSAT P3 : aucune cellule valide. Vous cachez un échec ?');
+P('L\'assumer avant qu\'il soit trouvé : aucune cellule valide sur le profil P3. Un flux soutenu à cinq mégabits devant six cents millisecondes d\'aller-retour ne tient pas la porte du débit cohérent ; aucune combinaison testée n\'y est parvenue. Le résultat est double : la stricte application des portes exclut ce profil, et la physique du satellite géostationnaire place le plancher de latence hors de portée de toute configuration. Le mémoire le publie tel quel, c\'est une borne du dispositif, pas un angle mort.');
+
+H2('Pourquoi pas Flent, l\'outil de référence du domaine ?');
+P('Flent mesure la latence sous charge et est l\'outil de référence des auteurs du domaine ; le principe de la mesure, ici, vient de la même école, RFC 8290. Le besoin du contexte : Flent suppose des exécutables aux deux extrémités du lien, ce qu\'un client institutionnel n\'obtient pas de son opérateur ; iperf3 quantifie la capacité mais perd la victime, la latence du trafic concurrent ; les tests grand public perdent tout sauf le chiffre. L\'outil du mémoire se place entièrement côté client, ajoute l\'échéance, la régularité, le coût en ariary et le gel vérifiable. Flent valide le socle ; cet outil l\'étend au cas malgache.');
+
+H2('Pourquoi 120 secondes de charge, et pas 70 comme le standard RRUL ?');
+P('Deux raisons, assumées : laisser à CUBIC le temps d\'atteindre son régime établi, qui met plusieurs dizaines de secondes à monter sur un lien à cent millisecondes d\'aller-retour ; et borner le volume consommé par campagne, ce que le contexte prépayé impose. Le standard de la communauté fait cinq plus soixante plus cinq secondes : la fenêtre retenue couvre le régime établi des deux contrôles testés, et la répétition des événements compense ce qu\'elle ne couvre pas des effets prolongés. La saturation d\'une journée entière reste une limite nommée.');
+
+H2('Votre p95, sans barre d\'erreur : 40 et 55 millisecondes, est-ce différent ?');
+P('Sur les cellules à répétitions multiples, l\'écart médiane contre p95 des p95 existe et est publié : la cellule CUBIC de la fibre tient une médiane de p95 à cinquante-cinq millisecondes et un p95 des p95 à sept cent quarante-six : la dispersion est visible, pas cachée. Sur les cellules à événement unique, n égale un interdit le test de dispersion : c\'est la limite nommée, et la première perspective la lève. Ce que l\'écart massif soixante contre quatre-vingt-dix-huit pour cent ne risque pas : un chevauchement de bruit.');
+
+H2('Pourquoi p95 plutôt que moyenne, p99 ou maximum ?');
+P('La moyenne noie les cas défavorables qui décident de la sensation de blocage. Le maximum capture la requête la plus malheureuse, dominée par les événements ponctuels de la machine hôte. Le p99, sur cent vingt observations, ne reposerait que sur une douzaine de points : trop maigre. Le p95 agrège environ cent vingt observations par fenêtre et capture la queue de distribution qui caractérise la discipline de file.');
+
+H2('Le coût en ariary : facturation ou estimation ?');
+P('Estimation, et le mémoire le dit : le volume gaspillé multiplié par le prix public du gigaoctet des forfaits de 2026, la fenêtre de trois minutes extrapolée à l\'heure. Les tarifs viennent des grilles publiques des opérateurs, datées et citées : vingt-cinq mille ariary pour quatre virgule cinq gigaoctets, soit cinq mille cinq cent cinquante-six ariary le gigaoctet au palier mensuel, le journalier étant à mille. Le chiffre sert à comparer des options, pas à prédire une facture. Un test automatisé verrouille le calcul : quatre virgule cinq gigaoctets gaspillés à ce palier font cinq cent mille ariary par heure.');
+
+H2('Une ligne de vos données affiche 18 ms de RTT sur le profil 4G : physiquement impossible ?');
+P('La connaître avant le jury : la cellule fq_codel CUBIC du profil 4G, une ligne, affiche un aller-retour p95 à dix-huit millisecondes alors que le profil impose cent. C\'est une ligne dégradée, passée dans un agrégat ancien, dont la médiane de cellule ne repose que sur elle : la ligne existe dans l\'archive, elle est comptée, et c\'est exactement pour cela que les agrégats des vagues anciennes se lisent avec précaution, et que la campagne finale, une répétition par cellule, portes armées, est la référence du mémoire. L\'honnêteté de l\'archive est de garder la ligne ; celle de l\'analyse est de dire laquelle se lit.');
+
+H2('Que fait la direction des systèmes d\'information de vos résultats, lundi matin ?');
+P('Une action, une cible, une trace : activer une discipline active sur le routeur du site cellulaire le plus chargé, la commande est dans le mémoire, une ligne de configuration, calée sous la capacité mesurée du lien. Coût : zéro ariary d\'équipement. Durée : une fenêtre de maintenance. Retour : cinq minutes, la commande est réversible. Et l\'instrument devient sentinelle : toute requête au-delà de l\'échéance alerte au journal. La prescription ne porte que sur les équipements maîtrisés par la direction ; le dernier kilomètre opérateur relève de la discussion avec l\'opérateur, appuyée par les mêmes mesures.');
+
+H2('CAKE est-il toujours le meilleur choix ?');
+P('Sur le profil cellulaire testé, il protège le mieux l\'échéance : quatre-vingt-dix-huit pour cent. Sur la fibre, dont la latence de base est faible, toutes les cellules tiennent l\'échéance : la file simple s\'y comporte convenablement, et fq_codel par défaut y suffit. La recommandation du mémoire est différenciée par classe de lien, pas absolue.');
+
+H2('Vos résultats contredisent-ils la littérature ?');
+P('Ils la confirment sur un contexte peu documenté : des liens prépayés à forte latence de base. La hiérarchie des disciplines actives sur la file simple est celle de la RFC 8290 et des outils du domaine ; l\'écart soixante contre quatre-vingt-dix-huit sur l\'échéance à deux cent vingt millisecondes est l\'apport local : la mesure de ce que la charge fait au trafic critique dans le contexte malgache, convertie en ariary, n\'existait nulle part.');
+
+H2('Combien de temps pour développer l\'outil ?');
+P('La conception de la mesure a précédé le développement : le protocole, les portes et les indicateurs d\'abord, l\'instrument ensuite. Le résultat : un binaire unique de treize mégaoctets, sans dépendance d\'exécution, avec ses tests par paquet, un assistant d\'installation en sept étapes et dix-huit commandes de déploiement et de contrôle.');
+
+H2('Un outil maison plutôt qu\'existant : pourquoi ?');
+P('Deux raisons techniques : les outils publics de mesure s\'exécutent sur des liens réels sans vérité contrôlée, ce qui interdit la comparaison reproductible de configurations ; et aucun n\'archive ses résultats en fichiers gelés vérifiables, prolongeables par les tarifs locaux. L\'apport : l\'échéance comme engagement de service, la régularité comme indicateur de surveillance, le coût en ariary, et la chaîne de preuve du gel.');
+
+H2('Qui maintiendra ce code quand vous serez parti ?');
+P('Les faits : le dépôt est public sous licence libre, le binaire est statique sans dépendance, chaque paquet a ses tests, la documentation couvre l\'usage, le déploiement et l\'architecture. Un technicien de la direction peut reprendre l\'installation et l\'exploitation sans l\'auteur. Le recadrage honnête : c\'est d\'abord un banc de recherche reproductible ; le gel garantit qu\'on peut rejouer et vérifier, pas qu\'un produit est prêt à dépanner.');
+
+H2('Généralisable à tout Madagascar ?');
+P('Les tendances se transportent aux liens de même classe : ce qui protège un lien cellulaire chargé protège un autre lien cellulaire chargé. Les valeurs absolues restent propres à chaque profil et se recalibrent par site : l\'audit de terrain, en première perspective, produit exactement ces profils calés.');
+
+H2('Trois limites principales ?');
+P('Première : le trafic est synthétique, un flux de charge unique ne reproduit pas le multiplexage réel des applications. Deuxième : le banc reconstitue le lien d\'accès, délai, gigue, perte, mais non la couche radio. Troisième : la fenêtre de charge de cent vingt secondes n\'atteint pas la saturation prolongée d\'une journée. Le mémoire en documente six en tout, avec leurs bornes : les trois citées ici sont celles qui touchent l\'interprétation des chiffres, les trois autres, l\'empan du dispositif.');
+
+H2('Starlink à débit fixe : les liens réels varient sans cesse ?');
+P('Juste : le profil P4 tient une capacité fixe et une gigue propre aux relais, pas la variation continue de débit minute par minute des liens cellulaires et orbitaux réels. Ce que le banc en dit : la latence de base passe de six cents à quarante millisecondes, la difficulté se déplace du délai vers la gigue, et la discipline active garde prise sur la gigue de file, pas sur celle de la constellation. La variation continue de capacité est une limite nommée, et l\'adaptation de débit en continu relève des travaux qui existent dans la communauté : c\'est une perspective, pas un acquis.');
+
+H2('Quel résultat vous a surpris ?');
+P('L\'effondrement de CUBIC sur le profil cellulaire : trois cellules mises en quarantaine, non pour leur latence, excellente, mais parce que le contrôle fondé sur la perte interprète la perte de base du lien comme une congestion, réduit sa fenêtre et ne tient plus la charge. Le résultat détourné devient un enseignement : sur un lien cellulaire à perte de base, le choix du contrôle de congestion décide autant que la discipline de file.');
+
+H2('Que faudrait-il pour que votre conclusion principale soit fausse ?');
+P('Une campagne répétée, trois répétitions systématiques par cellule, qui montrerait l\'écart d\'échéance soixante contre quatre-vingt-dix-huit pour cent se refermer ou s\'inverser sur le profil cellulaire. L\'écart actuel est massif et cohérent avec la mécanique des files : mais la réponse exacte est celle-ci, la falsification possible est nommée, et la première perspective la met à l\'épreuve.');
+
+H2('Expliquez votre mémoire à un directeur non technique, en une minute.');
+P('Nos liens téléphoniques prépayés transportent deux choses : les alertes qui sauvent des vies et les téléchargements qui remplissent les disques. Sur nos liens, les alertes attendaient derrière les téléchargements : soixante pour cent seulement arrivaient à temps. Un réglage du routeur, sans nouvel équipement, fait passer quatre-vingt-dix-huit pour cent des alertes à temps, au même prix d\'abonnement. Le réglage tient en une ligne, la preuve est archivée et vérifiable, et le gaspillage évitable se chiffre en ariary.');
+
+H2('Phrases de dernier recours, à n\'utiliser qu\'en déplacement.');
+P('« C\'est un choix de périmètre, documenté au chapitre méthodologie. » « La réponse complète figure dans le mémoire ; l\'essentiel est le suivant. » « Je n\'ai pas cette valeur sous la main ; la démarche pour l\'obtenir serait celle-ci. » « Ce point dépasse mon périmètre ; voici ce que j\'en comprends. » Chacune recadre sans esquiver ; aucune ne remplace une réponse chiffrée.');
+
 
 const doc = new Document({
   sections: [{
