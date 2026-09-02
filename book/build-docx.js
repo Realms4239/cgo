@@ -29,7 +29,7 @@ const OUT = path.join(__dirname, '..', 'thesis-v1.docx');
 // ---------------------------------------------------------------- contenu
 const MODULES = [
   '00-front', '01-intro', '015-organisme', '02-partie1', '03-partie2',
-  '04-partie3', '05-partie4', '06-conclusion', '07-refs',
+  '04-pratique', '06-conclusion', '07-refs',
   '08-glossaire', '09-annexes',
 ].map((m) => require('./content/' + m + '.js'));
 
@@ -113,6 +113,14 @@ function heading3(text) {
     keepNext: true,
     spacing: { before: 280, after: 160, line: LINE_150 },
     children: [new TextRun({ text: `${partNo}.${h2No}.${h3No} ${text}` })],
+  });
+}
+function heading4(text) {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_4,
+    keepNext: true,
+    spacing: { before: 220, after: 120, line: LINE_150 },
+    children: [new TextRun({ text: `${partNo}.${h2No}.${h3No}.0 ${text}`, bold: true })],
   });
 }
 
@@ -300,6 +308,7 @@ function renderBlocks(blocks) {
     else if (b.h2) out.push(heading2(b.h2));
     else if (b.h2annex) out.push(heading2annex(b.h2annex));
     else if (b.h3) out.push(heading3(b.h3));
+    else if (b.h4) out.push(heading4(b.h4));
     else if (b.p) out.push(para(b.p));
     else if (b.pNoIndent) out.push(para(b.pNoIndent, { noIndent: true }));
     else if (b.keywords) out.push(para(b.keywords, { noIndent: true, run: { italics: true } }));
@@ -374,6 +383,11 @@ const doc = new Document({
         id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', quickFormat: true,
         run: { font: FONT, size: 24, bold: true, italics: true, color: '000000' },
         paragraph: { spacing: { before: 280, after: 160, line: LINE_150 } },
+      },
+      {
+        id: 'Heading4', name: 'Heading 4', basedOn: 'Normal', next: 'Normal', quickFormat: true,
+        run: { font: FONT, size: 24, bold: true, color: '000000' },
+        paragraph: { spacing: { before: 220, after: 120, line: LINE_150 } },
       },
     ],
   },
