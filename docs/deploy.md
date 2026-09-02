@@ -1,4 +1,4 @@
-# Déploiement — installation machine propre (Meteolink 1.1.0)
+# Déploiement — installation machine propre (Meteolink 1.2.0)
 
 Ce document couvre l'installation sur une machine vierge : Windows en
 **mode observation**, Linux en **mode complet**, la VM de banc et la
@@ -125,7 +125,7 @@ Pour un banc fixe sur site :
 7. **Réseau** : ouvrir le **port 9090** (dashboard + API) —
    `sudo ufw allow 9090/tcp` ou équivalent.
 8. Vérifier : `curl http://<ip-edge>:9090/api/health` →
-   `{"ok":true,"version":"1.1.0","mode":"full"}`.
+   `{"ok":true,"version":"1.2.0","mode":"full"}`.
 
 Le mini-PC est alors prêt pour la boucle opérateur complète
 (auditer → campagner → façonner → surveiller → comparer → constat),

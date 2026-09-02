@@ -52,3 +52,6 @@ cgo.exe
 .seekai/
 .env.example
 scripts/seekai-*.js
+scripts/tokenrouter-proxy.js
+/package.json
+/package-lock.json
