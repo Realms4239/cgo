@@ -376,3 +376,58 @@ func TestValidationPrevention(t *testing.T) {
 		t.Fatalf("audit start: %d", resp4.StatusCode)
 	}
 }
+
+// RED test — les erreurs des endpoints mutants doivent être JSON quand le
+// client demande du JSON (le frontend fait fetch().json() dessus).
+// Reproduit le bug vu en e2e : 409 text/plain -> SyntaxError côté client.
+func TestWatchConflictReturnsJSON(t *testing.T) {
+	h := New(Deps{
+		Mode:      "full",
+		WatchFn:   func(bool) error { return nil },
+		RunningFn: func() bool { return true },
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	req, _ := http.NewRequest("POST", srv.URL+"/api/watch",
+		bytes.NewReader([]byte(`{"on":true}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", resp.StatusCode)
+	}
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "application/json") {
+		t.Fatalf("Content-Type = %q, want application/json", ct)
+	}
+	var doc map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil {
+		t.Fatalf("body n'est pas du JSON exploitable : %v", err)
+	}
+}
+
+// writeErr sans en-tête JSON : text/plain inchangé (compat curl/scripts).
+func TestWatchConflictPlainForCurl(t *testing.T) {
+	h := New(Deps{
+		Mode:      "full",
+		WatchFn:   func(bool) error { return nil },
+		RunningFn: func() bool { return true },
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	req, _ := http.NewRequest("POST", srv.URL+"/api/watch",
+		bytes.NewReader([]byte(`{"on":true}`)))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "text/plain") {
+		t.Fatalf("Content-Type = %q, want text/plain pour un client sans en-tête JSON", ct)
+	}
+}

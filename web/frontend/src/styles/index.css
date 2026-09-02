@@ -147,8 +147,10 @@ footer .fill { margin-left: auto; }
   .wordmark-lockup { min-width: 0; flex: 1 1 auto; }
   .wordmark-text { font-size: 16px !important; }
   .hd-sub { display: none; }
-  .panel-chooser { flex-wrap: wrap; justify-content: center; padding: 6px 10px; gap: 6px; }
-  .panel-chooser button { padding: 4px 8px; font-size: 10px; }
+  /* mobile : le rail horizontal 48px EST la navigation — le chooser du header
+     wrappait sur ~200px, débordait sa rangée 48px et recouvrait la nav (z-index 10).
+     La nav .rail prend le relais, redondance supprimée. */
+  .panel-chooser { display: none; }
   .hd-right { flex-wrap: wrap; gap: 6px; font-size: 9px; }
   main { overflow-x: hidden; padding-bottom: 64px; }
   .panel-stack { gap: 16px; }

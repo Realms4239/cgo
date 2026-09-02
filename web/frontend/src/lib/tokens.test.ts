@@ -50,3 +50,14 @@ describe('tokens', () => {
     expect(css).toContain('box-shadow: inset')
   })
 })
+
+describe('mobile 390 — nav non recouverte par le header', () => {
+  it('le panel-chooser est masqué <=899px : le rail horizontal est la navigation', () => {
+    const css = read('web/frontend/src/styles/index.css')
+    // bug vu en e2e deep-probe@390 : le chooser wrappait sur ~200px,
+    // débordait la rangée header 48px et interceptait les clics de la nav (z-index 10).
+    const m = css.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)
+    expect(m, 'bloc media max-width:899px présent').not.toBeNull()
+    expect(m![0]).toMatch(/\.panel-chooser \{[^}]*display: none/)
+  })
+})
