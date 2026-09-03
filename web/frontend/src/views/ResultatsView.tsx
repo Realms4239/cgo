@@ -10,11 +10,14 @@ import { CRAFT } from '../lib/chartGrammar'
 import Explain from '../components/Explain'
 import InterpretationView from '../components/InterpretationView'
 import { useUIStore } from '../store/ui'
+import { fmtIQR } from '../lib/format'
+import { GATE_LABELS } from '../lib/gates'
 
 type Group = {
   profile: string; qdisc: string; cc: string
   count: number; quarantined: number
-  rtt_p95_median: number; small_p95_median: number
+  rtt_p95_median: number; rtt_p95_iqr?: [number, number]
+  small_p95_median: number; small_p95_iqr?: [number, number]
   goodput_median: number
   deadline_median?: number; deadline_ok_pct?: number
   wasted_median?: number; cost_median?: number; wasted_bytes?: number; cost_ar_per_h?: number
@@ -43,11 +46,15 @@ export default function ResultatsView() {
   const [fCc, setFCc] = useState('tous')
   const [interpProfile, setInterpProfile] = useState<string | null>(null)
   const [deltas, setDeltas] = useState<Record<string, { small_p95_pct?: number }>>({})
+  const [runSel, setRunSel] = useState('')
+  const [runIds, setRunIds] = useState<string[]>([])
+  const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
+  const [showMethod, setShowMethod] = useState(false)
   const liveSnapRunning = useUIStore((s: any) => !!s.live?.running)
   const scatterRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/results').then(r => r.json()).then(j => {
+    fetch(`/api/results${runSel ? `?run=${encodeURIComponent(runSel)}` : ''}`).then(r => r.json()).then(j => {
       if (j.available) setGroups(j.groups)
       else setErr(j.reason || 'pas de résultats')
     }).catch(e => setErr(String(e)))
@@ -56,6 +63,10 @@ export default function ResultatsView() {
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
       if (id) setHash8(String(id).slice(0, 8))
     }).catch(() => {})
+  }, [runSel])
+  useEffect(() => {
+    fetch('/api/replay/list').then(r => r.json()).then(j => setRunIds(j.runs || [])).catch(() => {})
+    fetch('/api/events').then(r => r.json()).then(j => setEvents((j.events || []).slice(-20).reverse())).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -157,6 +168,37 @@ export default function ResultatsView() {
       )}
       <h1 className="view-title">Résultats — classement complet</h1>
 
+      {/* bandeau benchmark — runs, provenance, version, export (façon DeepSWE/Kaggle) */}
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap' }}>
+        <span className="mono" style={{ fontSize: 12, fontWeight: 700 }}>Meteolink Leaderboard</span>
+        <span className="mono muted" style={{ fontSize: 11 }}>{safeGroups.length} groupes · hash {hash8}</span>
+        <select data-testid="run-select" value={runSel} onChange={e => setRunSel(e.target.value)} style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
+          <option value="">tous runs (gelés)</option>
+          {runIds.map(id => <option key={id} value={id}>{id}</option>)}
+        </select>
+        <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
+        <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>MD</a>
+        <button className="btn" data-testid="method-toggle" onClick={() => setShowMethod(v => !v)}>Méthode & limites</button>
+      </div>
+      {showMethod && (
+        <div className="card" data-testid="method-drawer">
+          <div className="card-head">Méthode & limites</div>
+          <p className="mono" style={{ fontSize: 11, lineHeight: 1.7, color: '#9aa3ad' }}>
+            Médianes des lignes gelées non invalidées · portes G0–G7 ({GATE_LABELS.join(' · ')}) ·
+            n = répétitions par cellule (n=1 : première limite, voir thèse § perspectives) ·
+            IQR [bas–haut] = dispersion des répétitions · provenance hash {hash8} depuis data/runs/*/aqm_eval.csv.
+          </p>
+        </div>
+      )}
+      {events.length > 0 && (
+        <div className="card" data-testid="changelog">
+          <div className="card-head">Changelog — journal opérateur</div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {events.map((e, i) => <li key={i} className="mono" style={{ fontSize: 11, padding: '3px 0', borderBottom: '1px solid var(--hairline-faint)' }}><span style={{ color: '#767b84' }}>{e.ts}</span> <span style={{ color: '#5ad3e3' }}>{e.kind}</span> {e.msg.slice(0, 120)}</li>)}
+          </ul>
+        </div>
+      )}
+
       {/* constat de campagne — le verdict en langage opérateur, cliquable pour l'interprétation riche */}
       <button onClick={() => setInterpProfile(filtered[0]?.profile ?? 'P2')} data-testid="constat-button" style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid ' + (top ? CRAFT.ok : 'var(--hairline)') }}>
@@ -248,7 +290,7 @@ export default function ResultatsView() {
                       <div style={{ flex: 1, height: 6, background: 'var(--hairline-faint)', position: 'relative', minWidth: 80, borderRadius: 2, overflow: 'hidden' }}>
                         <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: i === 0 ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2, filter: i === 0 ? `drop-shadow(0 0 4px ${barColor})` : 'none' }} />
                       </div>
-                      <span style={{ minWidth: 45, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{g.small_p95_median.toFixed(1)}</span>
+                      <span style={{ minWidth: 45, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtIQR(g.small_p95_median, g.small_p95_iqr)}</span>
                       {cellDelta != null && (
                         <span className="mono" title="vs run précédent, même cellule" style={{ fontSize: 9, color: cellDelta <= 0 ? '#1fa348' : '#e22718', fontVariantNumeric: 'tabular-nums' }}>
                           {cellDelta <= 0 ? '↘' : '↗'}{Math.abs(cellDelta)}%
@@ -256,7 +298,7 @@ export default function ResultatsView() {
                       )}
                     </div>
                   </td>
-                  <td>{g.rtt_p95_median.toFixed(1)}</td>
+                  <td>{fmtIQR(g.rtt_p95_median, g.rtt_p95_iqr)}</td>
                   <td>{g.goodput_median.toFixed(1)}</td>
                   <td style={{ fontVariantNumeric: 'tabular-nums', color: deadlineOk == null ? '#9aa0a8' : deadlineOk >= 95 ? '#1fa348' : '#f4b400', textAlign: 'right' }}>{deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'}</td>
                   <td style={{ fontVariantNumeric: 'tabular-nums', color: wasted == null ? '#9aa0a8' : wasted > 0 ? '#e22718' : '#9aa0a8', textAlign: 'right' }}>{wasted == null ? '—' : wasted >= 1048576 ? (wasted / 1048576).toFixed(1) + ' MiB' : wasted >= 1024 ? (wasted / 1024).toFixed(0) + ' KiB' : String(wasted)}</td>
@@ -287,8 +329,6 @@ export default function ResultatsView() {
         <div ref={scatterRef} style={{ height: 220 }} />
       </div>
       <div className="form-row" style={{ gap: 8 }}>
-        <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
-        <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>Exporter MD</a>
         <span className="mono muted" style={{ marginLeft: 8 }}><Explain term="run_rows">médianes mesurées</Explain> · provenance {hash8}</span>
       </div>
       <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${safeGroups.length} groupes · max small ${maxSmall.toFixed(1)} ms · ${hwPerProfile} · hash ${hash8}`} />

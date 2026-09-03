@@ -10,6 +10,7 @@ import { validate } from '../lib/validation'
 import { animateShake } from '../lib/anime'
 import { PeekPopover } from '../components/PeekPopover'
 import { live as liveRing } from '../lib/live'
+import { GATE_LABELS } from '../lib/gates'
 
 const ALL_QDISCS = ['pfifo_fast','fq_codel','cake'] as const
 const ALL_CC = ['cubic','bbr'] as const
@@ -189,7 +190,7 @@ export default function CampagneView() {
             {gates.map((g: boolean|null, i:number) => (
               <div key={i} className={'gate-row ' + (g===null?'na':g?'ok':'fail')}>
                 <span className="gate mono">G{i}</span>
-                <span className="gate-lbl">{gateLabel(i)}</span>
+                <span className="gate-lbl">{GATE_LABELS[i]}</span>
                 <span className="gate-state mono">{g===null?'—':g?'PASS':'FAIL'}</span>
               </div>
             ))}
@@ -322,4 +323,3 @@ export default function CampagneView() {
     </div>
   )
 }
-function gateLabel(i:number){ return ['cible joignable','bulk démarré','sondes actives','latence plausible','débit cohérent','pas de doublon','baseline stable','CPU ok'][i] }
