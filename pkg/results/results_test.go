@@ -88,6 +88,9 @@ func TestScanReadsByName(t *testing.T) {
 	if cake.Smallp95Median != 209.2 || cake.DeadlineMedian != 98.1 || cake.GoodputMedian != 18.1 {
 		t.Fatalf("cake medians wrong: %+v", cake)
 	}
+	if cake.Smallp95IQR != [2]float64{209.2, 209.2} {
+		t.Fatalf("cake Smallp95IQR = %v, want [209.2 209.2]", cake.Smallp95IQR)
+	}
 }
 
 // TestScanMixedLayouts — l'historique mélange 17 colonnes (sans qdi_ms),

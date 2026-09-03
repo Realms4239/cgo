@@ -16,9 +16,10 @@ type Group struct {
 	Count       int    `json:"count"`
 	Quarantined int    `json:"quarantined"`
 
-	RTTp95Median           float64    `json:"rtt_p95_median"`
-	RTTp95IQR              [2]float64 `json:"rtt_p95_iqr"`
-	Smallp95Median         float64    `json:"small_p95_median"`
+	RTTp95Median   float64   `json:"rtt_p95_median"`
+	RTTp95IQR      [2]float64 `json:"rtt_p95_iqr"`
+	Smallp95Median float64    `json:"small_p95_median"`
+	Smallp95IQR    [2]float64 `json:"small_p95_iqr"`
 	GoodputMedian          float64    `json:"goodput_median"`
 	DeadlineMedian         float64    `json:"deadline_median"`
 	WastedMedian           float64    `json:"wasted_median"`
@@ -115,7 +116,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			Profile: b.profile, Qdisc: b.qdisc, CC: b.cc,
 			Count: b.count, Quarantined: b.quarantined,
 			RTTp95Median: rs.Median, RTTp95IQR: [2]float64{rs.IQRLow, rs.IQRHigh},
-			Smallp95Median: ss.Median, GoodputMedian: gs.Median, DeadlineMedian: ds.Median,
+			Smallp95Median: ss.Median, Smallp95IQR: [2]float64{ss.IQRLow, ss.IQRHigh}, GoodputMedian: gs.Median, DeadlineMedian: ds.Median,
 			WastedMedian: ws.Median, CostMedian: cs.Median,
 		})
 	}
