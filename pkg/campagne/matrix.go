@@ -198,17 +198,17 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
 								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
 							}
-					} else if evCtx.Err() != nil && ctx.Err() == nil {
-						// skippé (pas arrêt global) — aucune ligne gelée, reprise
-						// possible ; journalisé si l'hôte pose le hook (le trou
-						// dans le gel reste explicable après coup)
-						if OnSkip != nil {
-							OnSkip(m.RunID, id, pid, string(q), string(cc))
-						}
-						if OnQuarantine != nil {
-							OnQuarantine(m.RunID, id, pid, string(q), string(cc))
-						}
-					} else {
+						} else if evCtx.Err() != nil && ctx.Err() == nil {
+							// skippé (pas arrêt global) — aucune ligne gelée, reprise
+							// possible ; journalisé si l'hôte pose le hook (le trou
+							// dans le gel reste explicable après coup)
+							if OnSkip != nil {
+								OnSkip(m.RunID, id, pid, string(q), string(cc))
+							}
+							if OnQuarantine != nil {
+								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
+							}
+						} else {
 							log.Printf("[campagne] cell %s failed: %v", key, err)
 						}
 						m.setSkipCancel(nil)
