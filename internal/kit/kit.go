@@ -203,7 +203,7 @@ func NewRunner() *Runner {
 	return &Runner{Stdout: os.Stdout, Stderr: os.Stderr, Root: root}
 }
 
-func (r *Runner) out(format string, a ...any) { fmt.Fprintf(r.Stdout, format+"\n", a...) }
+func (r *Runner) out(format string, a ...any)  { fmt.Fprintf(r.Stdout, format+"\n", a...) }
 func (r *Runner) errf(format string, a ...any) { fmt.Fprintf(r.Stderr, format+"\n", a...) }
 
 // runSilent exécute et rend CombinedOutput.

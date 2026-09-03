@@ -134,8 +134,12 @@ func VoIPR(oneWayDelayMs, jitterMs, lossPct float64) float64 {
 	}
 	// effet de la gigue : le buffer absorbe mais décale — approximation standard
 	ij := 0.024 * jitterMs
-	// perte : impairment Equipment du G.711, Ie = γ·ln(1/(1−p)) = −γ·ln(1−p)
-	ie := -30.0 * ln(1-lossPct/100)
+	// perte : impairment Equipment du G.711, Ie = γ·ln(1/(1−p)) = −γ·ln(1−p) ;
+	// math.Log direct (garde p→1 : perte 100 % = lien mort, pas -Inf gelé)
+	ie := 0.0
+	if p := 1 - lossPct/100; p > 0 {
+		ie = -30.0 * math.Log(p)
+	}
 	r := 93.2 - id - ie - ij
 	if r < 0 {
 		return 0
@@ -144,25 +148,4 @@ func VoIPR(oneWayDelayMs, jitterMs, lossPct float64) float64 {
 		return 100
 	}
 	return r
-}
-
-func ln(v float64) float64 {
-	// log népérien sans importer math (le paquet reste sans dépendance)
-	if v <= 0 {
-		return 0
-	}
-	// série autour de 1 : ln(1-x), x petit
-	x := 1 - v
-	if x > -1e-9 && x < 1e-9 {
-		return 0
-	}
-	// repli : ln(v) = 2·artanh((v-1)/(v+1))
-	t := (v - 1) / (v + 1)
-	s := t
-	p := t
-	for k := 3; k < 40; k += 2 {
-		p *= t * t
-		s += p / float64(k)
-	}
-	return 2 * s
 }

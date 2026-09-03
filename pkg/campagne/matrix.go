@@ -109,39 +109,39 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 							return
 						default:
 						}
-					key := fmt.Sprintf("%s/%d", m.RunID, id)
-					if w.seen[key] {
-						m.Done = id
+						key := fmt.Sprintf("%s/%d", m.RunID, id)
+						if w.seen[key] {
+							m.Done = id
+							id++
+							continue
+						}
+						ev := model.Event{
+							RunID: m.RunID, EventID: id, Profile: pid,
+							Qdisc: q, CC: cc, Repetition: rep,
+						}
+						// contexte annulable par event — le skip coupe la cellule
+						// courante sans arrêter la matrice ; la phase de gel reste propre.
+						evCtx, evCancel := context.WithCancel(ctx)
+						m.setSkipCancel(evCancel)
+						done, err := RunEvent(evCtx, ev, prof, deps)
+						evCancel()
+						if err == nil {
+							_ = w.Append(done)
+							m.Done = id
+							// les cellules quarantaine arrivent dans le journal opérateur (Q13)
+							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
+								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
+							}
+						} else if evCtx.Err() != nil && ctx.Err() == nil {
+							// skippé (pas arrêt global) — aucune ligne gelée, reprise possible
+							if OnQuarantine != nil {
+								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
+							}
+						} else {
+							log.Printf("[campagne] cell %s failed: %v", key, err)
+						}
+						m.setSkipCancel(nil)
 						id++
-						continue
-					}
-					ev := model.Event{
-						RunID: m.RunID, EventID: id, Profile: pid,
-						Qdisc: q, CC: cc, Repetition: rep,
-					}
-					// contexte annulable par event — le skip coupe la cellule
-					// courante sans arrêter la matrice ; la phase de gel reste propre.
-					evCtx, evCancel := context.WithCancel(ctx)
-					m.setSkipCancel(evCancel)
-					done, err := RunEvent(evCtx, ev, prof, deps)
-					evCancel()
-					if err == nil {
-						_ = w.Append(done)
-						m.Done = id
-						// les cellules quarantaine arrivent dans le journal opérateur (Q13)
-						if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
-							OnQuarantine(m.RunID, id, pid, string(q), string(cc))
-						}
-					} else if evCtx.Err() != nil && ctx.Err() == nil {
-						// skippé (pas arrêt global) — aucune ligne gelée, reprise possible
-						if OnQuarantine != nil {
-							OnQuarantine(m.RunID, id, pid, string(q), string(cc))
-						}
-					} else {
-						log.Printf("[campagne] cell %s failed: %v", key, err)
-					}
-					m.setSkipCancel(nil)
-					id++
 					}
 				}
 			}

@@ -39,6 +39,8 @@ export default function CampagneView() {
   const [impId, setImpId] = useState('')
   const [impCap, setImpCap] = useState(20)
   const [impDelay, setImpDelay] = useState(100)
+  const [impJitter, setImpJitter] = useState(2)
+  const [impLoss, setImpLoss] = useState(0)
   const [peek, setPeek] = useState<{ rect: DOMRect; data: number[] } | null>(null)
 
   const auditPollRef = useRef<number | null>(null)
@@ -105,13 +107,13 @@ export default function CampagneView() {
   }
 
   const importValidation = validate(
-    { id: impId, capacity: impCap, delay: impDelay },
-    { id: { required: true }, capacity: { min: 0.1 }, delay: { min: 1 } }
+    { id: impId, capacity: impCap, delay: impDelay, jitter: impJitter, loss: impLoss },
+    { id: { required: true }, capacity: { min: 0.1 }, delay: { min: 1 }, jitter: { min: 0 }, loss: { min: 0 } }
   )
 
   const importProfile = () => {
     if (!importValidation.valid) return
-    fetch('/api/profile/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: impId, capacity_mbps: impCap, delay_ms: impDelay }) })
+    fetch('/api/profile/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: impId, capacity_mbps: impCap, delay_ms: impDelay, jitter_ms: impJitter, loss_pct: impLoss }) })
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(() => { setImportMsg(`profil ${impId} importé`); useUIStore.getState().pushToast(`Profil ${impId} importé`, 'ok'); setImportForm(false) })
       .catch(e => { setImportMsg('échec: ' + e.message); useUIStore.getState().pushToast('Échec import: ' + e.message, 'err') })
@@ -301,6 +303,12 @@ export default function CampagneView() {
             </InlineField>
             <InlineField label="RTT (ms)" error={importValidation.errors.delay} helper="> 0">
               <input type="number" min={1} value={impDelay} onChange={e=>setImpDelay(parseInt(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+            </InlineField>
+            <InlineField label="Gigue (ms)" error={importValidation.errors.jitter} helper="≥ 0 — ex. 30 pour VSAT">
+              <input type="number" min={0} step={0.5} value={impJitter} onChange={e=>setImpJitter(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+            </InlineField>
+            <InlineField label="Perte (%)" error={importValidation.errors.loss} helper="≥ 0 — ex. 1 pour VSAT">
+              <input type="number" min={0} step={0.1} value={impLoss} onChange={e=>setImpLoss(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <div className="form-row" style={{gap:8}}>
               <ArmButton label="CONFIRMER IMPORT" onConfirm={importProfile} disabled={!importValidation.valid} />

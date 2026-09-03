@@ -33,7 +33,7 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 		w.Header().Set("Content-Length", strconv.Itoa(len(b)))
 		w.Write(b)
 	})
-	hs := &http.Server{Addr: httpAddr, Handler: mux}
+	hs := &http.Server{Addr: httpAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	ln, err := net.Listen("tcp", bulkAddr)
 	if err != nil {
 		return fmt.Errorf("bulk listen: %w", err)

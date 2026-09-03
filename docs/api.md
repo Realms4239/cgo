@@ -15,7 +15,10 @@
 | `/api/doctor` | GET | — | `{"mode", "checks": [{name, status: ok\|warn\|fail, detail}]}` — mêmes capacités que `cgo doctor` (os, tc, cap_net_admin, bbr, ping) | — |
 | `/api/state` | GET | — | snapshot courant (`GetSnap`) ; `{"running": false}` si non câblé | — |
 | `/api/diagnostics` | GET | — | `{"hub":"ok","time":"<RFC3339 UTC>"}` | — |
-| `/api/stream` | GET (SSE) | — | flux 10 Hz : replay (`Last-Event-ID`, anneau 2048) puis live ; frame complète pour client frais ; event `backpressure` | `503` > 64 abonnés ; `500` flusher non supporté |
+| `/api/stream` | GET (SSE) | — | flux 10 Hz : replay (`Last-Event-ID`, anneau 2048) puis live ; frame complète pour client frais **ou** client périmé (ID antérieur à l'anneau) ; event `backpressure` | `503` > 64 abonnés ; `500` flusher non supporté |
+| `/api/schema` | GET | — | `{"params":[...]}` — registre unique des bornes/défauts (le client rend les champs depuis lui) | — |
+| `/api/cost/tiers` | GET | — | `{"tiers":[...],"default":"yas-month-4.5gb"}` — paliers tarifaires réels | — |
+| `/api/burst` | POST | `{cc: cubic\|bbr, seconds: 2–10 (défaut 4)}` | `{"ok":true,"cc","seconds"}` — sonde bulk à travers le bord façonné, bloquant | `400` JSON invalide, cc/seconds hors bornes ; `409` campagne active ; `501` mode observation ; `503` moteur non câblé ; `500` échec sonde |
 
 ## Profils
 
@@ -44,7 +47,9 @@
 |---|---|---|---|---|
 | `/api/run/start` | POST | `{profiles, reps, deadline_ms, target}` | `{"started": true}` + événement journal | `400` JSON invalide ; `503` moteur de run non câblé ; `409` toute erreur de `StartFn` (campagne déjà active, profils inconnus…) |
 | `/api/run/stop` | POST | — | `{"stopped": true}` + événement journal | `503` moteur non câblé |
-| `/api/results?run=` | GET | — | `{"available": true, "groups": [...]}` (médianes, quarantaine, best) | `{"available": false, "reason": …}` si aucun gel |
+| `/api/run/skip` | POST | — | `{"skipped": true}` — coupe la cellule en cours sans arrêter la matrice (reprise possible) | `503` moteur non câblé |
+| `/api/results?run=` | GET | — | `{"available": true, "groups": [...]}` (médianes sur lignes non `invalid`, quarantaine, best) | `{"available": false, "reason": …}` si aucun gel |
+| `/api/results/delta?cell=P\|q\|cc` | GET | — | `{"available":true,"previous_run","current_run","delta":{small_p95_pct,rtt_p95_pct,goodput_pct}}` — dérive entre les deux derniers runs | `400` cellule mal formée ; `{"available":false}` si < 2 runs ou cellule absente |
 | `/api/run/rows?run=` | GET | — | `{"run", "rows": [lignes brutes aqm_eval.csv]}` | `400` id de run vide ou contenant `/`, `\`, `.` (anti-traversal) ; `404` run introuvable ou vide |
 | `/api/events` | GET | — | `{"events": [{ts, kind, msg}, …]}` — anneau des 50 derniers | — |
 
@@ -62,15 +67,16 @@
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
 | `/api/replay/list` | GET | — | `{"runs": [ids]}` — runs avec `aqm_eval.csv` | — |
-| `/api/replay/stream?run=` | GET (SSE) | — | rejoue chaque ligne de `aqm_eval.csv` en event JSON, **400 ms/ligne**, `phase: "replay"` | `400` run manquant ; `404` introuvable/vide ; `500` flusher non supporté |
+| `/api/replay/stream?run=` | GET (SSE) | — | rejoue chaque ligne de `aqm_eval.csv` en event JSON, **400 ms/ligne**, `phase: "replay"` | `400` run manquant ou contenant `/`, `\`, `.` (anti-traversal) ; `404` introuvable/vide ; `500` flusher non supporté |
 
 ## Audit de lien
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| `/api/audit/start` | POST | `{site, link_type, provider, duration, target}` ; `duration` défaut 30 s, `target` défaut `8.8.8.8` | `{"started": true}` — exécution **asynchrone** (goroutine détachée), résultat appendu à `data/link_audit.csv` | `400` JSON invalide ; `409` audit déjà en cours |
+| `/api/audit/start` | POST | `{site, link_type, provider, duration, target, small_url?}` ; `duration` défaut 30 s, `target` défaut `8.8.8.8` ; sans `small_url`, le petit objet n'est pas mesuré (0 + note, jamais de valeur synthétique) | `{"started": true}` — exécution **asynchrone** (goroutine détachée), résultat appendu à `data/link_audit.csv` | `400` JSON invalide ; `409` audit déjà en cours |
 | `/api/audit/status` | GET | — | `{"running": bool, "last": <Result\|null>}` | — |
 | `/api/audit/list` | GET | — | `{"audits": [lignes de data/link_audit.csv]}` | — (retourne `[]` si absent) |
+| `/api/audit/toprofile` | POST | — | `{"ok":true,"profile"}` — dernière ligne de `link_audit.csv` → profil rejouable (`capacity` = throughput, `delay` = rtt_idle_p95, replis 20/100 documentés) | `404` aucun audit / audit vide ; `500` échec d'import |
 
 ## Traduction matérielle
 

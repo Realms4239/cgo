@@ -84,26 +84,26 @@ const (
 
 // Event is one matrix cell execution.
 type Event struct {
-	RunID      string  `json:"run_id"`
-	EventID    int     `json:"event_id"`
-	Profile    string  `json:"profile"`
-	Qdisc      Qdisc   `json:"qdisc"`
-	CC         CC      `json:"cc"`
-	Repetition int     `json:"repetition"`
+	RunID      string `json:"run_id"`
+	EventID    int    `json:"event_id"`
+	Profile    string `json:"profile"`
+	Qdisc      Qdisc  `json:"qdisc"`
+	CC         CC     `json:"cc"`
+	Repetition int    `json:"repetition"`
 
-	RTTp50Ms       float64 `csv:"rtt_p50_ms"        json:"rtt_p50_ms"`
-	RTTp95Ms       float64 `csv:"rtt_p95_ms"        json:"rtt_p95_ms"`
-	QDIPctMs       float64 `csv:"qdi_ms"            json:"qdi_ms"`
-	VoIPR          float64 `csv:"voip_r"            json:"voip_r"`
-	Smallp95Ms     float64 `csv:"small_p95_ms"      json:"small_p95_ms"`
-	DeadlineOKPct  float64 `csv:"deadline_ok_pct"   json:"deadline_ok_pct"`
+	RTTp50Ms        float64 `csv:"rtt_p50_ms"        json:"rtt_p50_ms"`
+	RTTp95Ms        float64 `csv:"rtt_p95_ms"        json:"rtt_p95_ms"`
+	QDIPctMs        float64 `csv:"qdi_ms"            json:"qdi_ms"`
+	VoIPR           float64 `csv:"voip_r"            json:"voip_r"`
+	Smallp95Ms      float64 `csv:"small_p95_ms"      json:"small_p95_ms"`
+	DeadlineOKPct   float64 `csv:"deadline_ok_pct"   json:"deadline_ok_pct"`
 	BulkGoodputMbps float64 `csv:"bulk_goodput_mbps" json:"bulk_goodput_mbps"`
-	Drops          uint64  `csv:"drops"             json:"drops"`
-	Retransmissions uint64 `csv:"retransmissions"   json:"retransmissions"`
-	WastedBytes    uint64  `csv:"wasted_bytes"      json:"wasted_bytes"`
-	CostARPerH     float64 `csv:"cost_ar_per_h"     json:"cost_ar_per_h"`
-	CPUPct         float64 `csv:"cpu_pct"           json:"cpu_pct"`
-	GateStatus     string  `csv:"gate_status"       json:"gate_status"`
+	Drops           uint64  `csv:"drops"             json:"drops"`
+	Retransmissions uint64  `csv:"retransmissions"   json:"retransmissions"`
+	WastedBytes     uint64  `csv:"wasted_bytes"      json:"wasted_bytes"`
+	CostARPerH      float64 `csv:"cost_ar_per_h"     json:"cost_ar_per_h"`
+	CPUPct          float64 `csv:"cpu_pct"           json:"cpu_pct"`
+	GateStatus      string  `csv:"gate_status"       json:"gate_status"`
 }
 
 // En-têtes aqm_eval.csv (après les colonnes d'identité).

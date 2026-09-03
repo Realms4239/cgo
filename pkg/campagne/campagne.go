@@ -91,37 +91,36 @@ type qdiscRunner interface {
 
 // Live est l'instantané mutable que le hub SSE diffuse.
 type Live struct {
-	mu        sync.Mutex
-	snap      Snapshot
-	subscribe chan struct{}
+	mu   sync.Mutex
+	snap Snapshot
 }
 
 type Snapshot struct {
-	Phase         string  `json:"phase"`
-	Profile       string  `json:"profile"`
-	Qdisc         string  `json:"qdisc"`
-	CC            string  `json:"cc"`
-	Repetition    int     `json:"repetition"`
-	EventID       int     `json:"event_id"`
-	TotalEvents   int     `json:"total_events"`
-	DoneEvents    int     `json:"done_events"`
-	PhaseTotalS   int     `json:"phase_total_s"`
-	LoadStatus    string  `json:"load_status"`
-	RTTp50Ms      float64 `json:"rtt_p50_ms"`
-	RTTp95Ms      float64 `json:"rtt_p95_ms"`
-	Smallp95Ms    float64 `json:"small_p95_ms"`
-	GoodputMbps   float64 `json:"bulk_goodput_mbps"`
-	Drops         uint64  `json:"drops"`
-	WastedBytes   uint64  `json:"wasted_bytes"`
-	CostARPerH    float64 `json:"cost_ar_per_h"`
-	DeadlineOKPct float64 `json:"deadline_ok_pct"`
+	Phase           string  `json:"phase"`
+	Profile         string  `json:"profile"`
+	Qdisc           string  `json:"qdisc"`
+	CC              string  `json:"cc"`
+	Repetition      int     `json:"repetition"`
+	EventID         int     `json:"event_id"`
+	TotalEvents     int     `json:"total_events"`
+	DoneEvents      int     `json:"done_events"`
+	PhaseTotalS     int     `json:"phase_total_s"`
+	LoadStatus      string  `json:"load_status"`
+	RTTp50Ms        float64 `json:"rtt_p50_ms"`
+	RTTp95Ms        float64 `json:"rtt_p95_ms"`
+	Smallp95Ms      float64 `json:"small_p95_ms"`
+	GoodputMbps     float64 `json:"bulk_goodput_mbps"`
+	Drops           uint64  `json:"drops"`
+	WastedBytes     uint64  `json:"wasted_bytes"`
+	CostARPerH      float64 `json:"cost_ar_per_h"`
+	DeadlineOKPct   float64 `json:"deadline_ok_pct"`
 	ProfileCapMbps  float64 `json:"profile_capacity_mbps"`
 	ProfileDelayMs  float64 `json:"profile_delay_ms"`
 	ProfileJitterMs float64 `json:"profile_jitter_ms"`
 	ProfileLossPct  float64 `json:"profile_loss_pct"`
-	Gates         []*bool `json:"gates"` // nil = not assessed
-	Running       bool    `json:"running"`
-	LastTS        int64   `json:"ts"`
+	Gates           []*bool `json:"gates"` // nil = not assessed
+	Running         bool    `json:"running"`
+	LastTS          int64   `json:"ts"`
 }
 
 func NewLive() *Live { return &Live{} }
@@ -130,10 +129,6 @@ func (l *Live) Set(s Snapshot) {
 	l.mu.Lock()
 	l.snap = s
 	l.mu.Unlock()
-	select {
-	case l.subscribe <- struct{}{}:
-	default:
-	}
 }
 func (l *Live) Get() Snapshot { l.mu.Lock(); defer l.mu.Unlock(); return l.snap }
 
@@ -290,7 +285,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	_ = baseSmall
 	set(model.G0TargetReachable, len(baseRTT) > 0)
 	sumB := metrics.Summarize(baseRTT)
-	set(model.G6BaselineStable, len(baseRTT) > 4 && sumB.P95-sumB.Median < maxVal(5, .2*sumB.Median))
+	set(model.G6BaselineStable, len(baseRTT) > 4 && sumB.P95-sumB.Median < max(5, .2*sumB.Median))
 
 	// charge — bulk flood avec le contrôle de congestion de la cellule (vraie matrice CC)
 	push(model.PhaseCharge)
@@ -321,7 +316,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	bulkBytes = <-done
 	set(model.G1BulkStarted, bulkBytes > 0)
 	set(model.G2ProbesProducing, len(chgRTT) > 0 && len(chgSmall) > 0)
-	chargeDur := float64(maxVal(float64(d.ChargeSec), 1)) // dénominateur ≥ 1 s
+	chargeDur := float64(max(float64(d.ChargeSec), 1)) // dénominateur ≥ 1 s
 
 	// goodput : préférer le delta côté récepteur de tc -s aux octets côté émetteur
 	goodput := float64(bulkBytes) * 8 / 1e6 / chargeDur
@@ -398,12 +393,6 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	return ev, nil
 }
 
-func maxVal(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
-}
 func round1(v float64) float64 { return float64(int(v*10+0.5)) / 10 }
 
 func loadFor(phase string) string {
