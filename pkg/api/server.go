@@ -206,13 +206,14 @@ func shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (i
 	}
 	shapeMu.Lock()
 	shapeQdisc, shapeCap, shapeSince = q, cap, time.Now()
+	since := shapeSince.Format(time.RFC3339)
 	shapeMu.Unlock()
 	cond := ""
 	if req.DelayMs > 0 || req.JitterMs > 0 || req.LossPct > 0 {
 		cond = fmt.Sprintf(", conditions %gms/%gms/%g%%", req.DelayMs, req.JitterMs, req.LossPct)
 	}
 	recordEvent("façonnage", fmt.Sprintf("%s @ %g Mbit/s%s", q, cap, cond))
-	return http.StatusOK, map[string]any{"qdisc": q, "capacity_mbps": cap, "since": shapeSince.Format(time.RFC3339)}
+	return http.StatusOK, map[string]any{"qdisc": q, "capacity_mbps": cap, "since": since}
 }
 
 const maxSubs = 64
@@ -303,6 +304,7 @@ func New(d Deps) Handler {
 	})
 	// Profils dynamiques (profil importé inclus):
 	mux.HandleFunc("GET /api/profiles", func(w http.ResponseWriter, _ *http.Request) {
+		model.ProfilesMu.RLock()
 		ids := make([]string, 0, len(model.Profiles))
 		for id := range model.Profiles {
 			ids = append(ids, id)
@@ -321,6 +323,7 @@ func New(d Deps) Handler {
 			p := model.Profiles[id]
 			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, LossPct: p.LossPct, FromImport: id != "P1" && id != "P2" && id != "P3"})
 		}
+		model.ProfilesMu.RUnlock()
 		writeJSON(w, map[string]any{"profiles": out})
 	})
 	// Façonnage du bord — appliquer / observer:
@@ -410,11 +413,13 @@ func New(d Deps) Handler {
 			return
 		}
 		var unknown []string
+		model.ProfilesMu.RLock()
 		for _, id := range opts.Profiles {
 			if _, ok := model.Profiles[id]; !ok {
 				unknown = append(unknown, id)
 			}
 		}
+		model.ProfilesMu.RUnlock()
 		if len(unknown) > 0 {
 			writeErr(w, r, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
 			return
@@ -851,7 +856,15 @@ func New(d Deps) Handler {
 	})
 	mux.HandleFunc("GET /api/profile/list", func(w http.ResponseWriter, _ *http.Request) {
 		profile.Load()
-		writeJSON(w, model.Profiles)
+		// copie sous verrou : l'encodage JSON vers un client lent ne doit pas
+		// retenir le verrou pendant l'écriture réseau
+		model.ProfilesMu.RLock()
+		cp := make(map[string]model.Profile, len(model.Profiles))
+		for k, v := range model.Profiles {
+			cp[k] = v
+		}
+		model.ProfilesMu.RUnlock()
+		writeJSON(w, cp)
 	})
 	mux.HandleFunc("GET /api/diagnostics", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"hub": "ok", "time": time.Now().UTC().Format(time.RFC3339)})

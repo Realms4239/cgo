@@ -93,7 +93,9 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 		defer func() { w.Freeze("config"); m.mu.Lock(); m.Running = false; m.mu.Unlock() }()
 		id := 1
 		for _, pid := range profiles {
+			model.ProfilesMu.RLock()
 			prof, ok := model.Profiles[pid]
+			model.ProfilesMu.RUnlock()
 			if !ok {
 				continue
 			}
