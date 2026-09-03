@@ -55,3 +55,6 @@ scripts/seekai-*.js
 scripts/tokenrouter-proxy.js
 /package.json
 /package-lock.json
+
+# lockfiles temporaires Word/Office
+~$*
