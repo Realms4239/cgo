@@ -658,6 +658,75 @@ func New(d Deps) Handler {
 			}
 			return
 		}
+		// script tc déployable — la recette de la meilleure cellule par profil,
+		// rejouable en l'état sur l'équipement Linux cible (NetDevOps : le
+		// verdict devient un artefact versionnable, pas une ligne isolée)
+		if fmtParam == "sh" {
+			groups, _ := results.Scan("data/runs", "")
+			if len(groups) == 0 {
+				writeErr(w, r, "no data", http.StatusNotFound)
+				return
+			}
+			profByID := map[string]string{}
+			model.ProfilesMu.RLock()
+			ids := make([]string, 0, len(model.Profiles))
+			for id := range model.Profiles {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			for _, id := range ids {
+				profByID[id] = id
+			}
+			model.ProfilesMu.RUnlock()
+			var b strings.Builder
+			b.WriteString("#!/bin/sh\n# Meteolink — recette AQM dérivée des mesures gelées\n")
+			b.WriteString("# provenance : sha256:" + figures.ProvenanceSHA("data/runs") + "\n")
+			b.WriteString("# usage : sh aqm-recipe.sh [interface] (lancer en root)\n")
+			b.WriteString("IF=${1:-eth0}\n\n")
+			for _, id := range ids {
+				var best *results.Group
+				for i := range groups {
+					g := &groups[i]
+					if g.Profile == id && g.Best {
+						best = g
+						break
+					}
+				}
+				if best == nil {
+					continue // profil jamais campagné : pas de recette fabriquée
+				}
+				model.ProfilesMu.RLock()
+				p := model.Profiles[id]
+				model.ProfilesMu.RUnlock()
+				b.WriteString("# ---- " + id + " : best mesuré " + best.Qdisc + "/" + best.CC + " (" + fmt.Sprintf("small p95 %.1f ms", best.Smallp95Median) + ")\n")
+				b.WriteString("tc qdisc del dev $IF root 2>/dev/null\n")
+				b.WriteString(fmt.Sprintf("tc qdisc replace dev $IF root handle 1: netem delay %gms %gms", p.DelayMs, p.JitterMs))
+				if p.LossPct > 0 {
+					b.WriteString(fmt.Sprintf(" loss %g%%", p.LossPct))
+				}
+				b.WriteString("\n")
+				// cake porte sa bande passante ; tbf pour pfifo/fq_codel (même
+				// empilement que le banc, qdisc.ApplyShaper). Bande passante =
+				// goodput mesuré de la cellule ×0,9 — même règle que la
+				// suggestion CLI de translate (le lien réel, pas le profil).
+				shaperMbps := float64(int(best.GoodputMedian * 0.9))
+				if shaperMbps < 1 {
+					shaperMbps = 1
+				}
+				switch best.Qdisc {
+				case "cake":
+					b.WriteString(fmt.Sprintf("tc qdisc replace dev $IF parent 1: handle 10: cake bandwidth %gmbit rtt %gms\n", shaperMbps, p.DelayMs))
+				default:
+					b.WriteString(fmt.Sprintf("tc qdisc replace dev $IF parent 1: handle 10: tbf rate %gmbit burst 256kbit latency 400ms\n", shaperMbps))
+					b.WriteString("tc qdisc replace dev $IF parent 10:1 handle 20: " + best.Qdisc + "\n")
+				}
+			}
+			w.Header().Set("Content-Type", "text/x-shellscript")
+			w.Header().Set("Content-Disposition", "attachment; filename=aqm-recipe.sh")
+			w.Write([]byte(b.String()))
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 		w.Write([]byte("# Meteolink Report\n\n| profil | qdisc | cc | n | small p95 | rtt p95 | goodput | quarant. | best |\n|---|---|---|---|---|---|---|---|---|\n"))
 		for _, g := range groups {

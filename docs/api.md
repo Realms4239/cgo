@@ -59,7 +59,7 @@
 |---|---|---|---|---|
 | `/api/integrity` | GET | — | `{available, runs, manifests, valid, quarantined, run_ids (récents d'abord), breakdown: [{run, rows, valid, quarantined}], updated: <RFC3339 mtime dernier csv>, sha256, hash8}` | `{"available": false}` si aucun run |
 | `/api/quarantine?run=` | GET | — | `{"quarantines": [{run, event_id, profile, qdisc, cc, gate_status}]}` — `run` vide = tous runs (récents d'abord), `[]` si aucune | `400` id invalide (anti-traversal) ; `404` run inconnu |
-| `/api/report/export?format=md\|csv` | GET | — | tableau Markdown (défaut) ou CSV en pièce jointe `report.csv` + ligne de provenance `hash8` | `404` aucune donnée |
+| `/api/report/export?format=md\|csv\|sh` | GET | — | tableau Markdown (défaut), CSV en pièce jointe `report.csv` + ligne de provenance `hash8`, ou **script tc** en pièce jointe `aqm-recipe.sh` : par profil, la meilleure cellule gelée devient une recette rejouable (reset + netem aux conditions du profil + shaper au goodput mesuré ×0,9 — même règle que la suggestion CLI), sans `sudo` préfixé (l'opérateur lance en root) | `404` aucune donnée |
 | `/api/figures/regen` | POST | — | `{"ok": true}` — régénère `data/figures` depuis `data/runs` | `500` échec de génération |
 | `/api/figures/` | GET | — | fichiers statiques de `data/figures/` | — |
 
