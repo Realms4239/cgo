@@ -150,6 +150,7 @@ func TestProfilesBuiltinNotImported(t *testing.T) {
 	delete(model.Profiles, "PWT")
 	model.ProfilesMu.Unlock()
 }
+
 // (300→330 = +10 %), pas sur qdi_ms (50→40 = −20 %).
 func TestResultsDeltaReadsByName(t *testing.T) {
 	dir := chdirTemp(t)
