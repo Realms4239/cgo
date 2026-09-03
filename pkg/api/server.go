@@ -478,26 +478,36 @@ func New(d Deps) Handler {
 			Goodput  float64
 		}
 		readCell := func(runDir string) (cellVals, bool) {
-			b, err := os.ReadFile(filepath.Join(runDir, "aqm_eval.csv"))
-			if err != nil {
+			// Lecture par NOM de colonne : small_p95_ms, pas le voisin qdi_ms
+			// (le delta calculait la dérive du QDI en l'étiquetant small_p95).
+			header, rows, err := results.ReadAQM(filepath.Join(runDir, "aqm_eval.csv"))
+			if err != nil || len(rows) == 0 {
 				return cellVals{}, false
 			}
+			iProf, iQdisc, iCC := results.ColIndex(header, "profile"), results.ColIndex(header, "qdisc"), results.ColIndex(header, "cc")
+			iSmall := results.ColIndex(header, "small_p95_ms")
+			iRTT := results.ColIndex(header, "rtt_p95_ms")
+			iGood := results.ColIndex(header, "bulk_goodput_mbps")
+			iGate := results.ColIndex(header, "gate_status")
+			get := func(row []string, i int) string {
+				if i < 0 || i >= len(row) {
+					return ""
+				}
+				return row[i]
+			}
 			var smalls, rtts, gds []float64
-			for _, ln := range strings.Split(string(b), "\n")[1:] {
-				parts := strings.Split(ln, ",")
-				if len(parts) < 11 {
+			for _, row := range rows {
+				if get(row, iProf)+"|"+get(row, iQdisc)+"|"+get(row, iCC) != cell || get(row, iGate) != "valid" {
 					continue
 				}
-				if parts[2]+"|"+parts[3]+"|"+parts[4] == cell && parts[len(parts)-1] == "valid" {
-					if v, err := strconv.ParseFloat(parts[8], 64); err == nil {
-						smalls = append(smalls, v)
-					}
-					if v, err := strconv.ParseFloat(parts[7], 64); err == nil {
-						rtts = append(rtts, v)
-					}
-					if v, err := strconv.ParseFloat(parts[10], 64); err == nil {
-						gds = append(gds, v)
-					}
+				if v, err := strconv.ParseFloat(get(row, iSmall), 64); err == nil {
+					smalls = append(smalls, v)
+				}
+				if v, err := strconv.ParseFloat(get(row, iRTT), 64); err == nil {
+					rtts = append(rtts, v)
+				}
+				if v, err := strconv.ParseFloat(get(row, iGood), 64); err == nil {
+					gds = append(gds, v)
 				}
 			}
 			if len(smalls) == 0 {
@@ -609,19 +619,19 @@ func New(d Deps) Handler {
 	})
 	mux.HandleFunc("GET /api/replay/stream", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
-		if run == "" {
-			writeErr(w, r, "run required", http.StatusBadRequest)
+		// même garde anti-traversal que /api/run/rows — pas de sortie de data/runs
+		if run == "" || strings.ContainsAny(run, `/\.`) {
+			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
-		f, err := os.Open(filepath.Join("data/runs", run, "aqm_eval.csv"))
+		// Lecture par NOM de colonne : small_p95_ms depuis small_p95_ms (pas
+		// qdi_ms), goodput depuis bulk_goodput_mbps (pas deadline_ok_pct).
+		header, rows, err := results.ReadAQM(filepath.Join("data/runs", run, "aqm_eval.csv"))
 		if err != nil {
 			writeErr(w, r, "not found", http.StatusNotFound)
 			return
 		}
-		defer f.Close()
-		rd := csv.NewReader(f)
-		rows, _ := rd.ReadAll()
-		if len(rows) <= 1 {
+		if len(rows) == 0 {
 			writeErr(w, r, "no data", http.StatusNotFound)
 			return
 		}
@@ -633,17 +643,20 @@ func New(d Deps) Handler {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		// no manual Connection header — hop-by-hop, illegal over HTTP/2 (broke SSE behind cloudflared/CF edge)
-		for i, row := range rows[1:] {
+		for i, row := range rows {
 			select {
 			case <-r.Context().Done():
 				return
 			default:
 			}
-			// row order per model.AQMEvalHeader
 			payload, _ := json.Marshal(map[string]any{
-				"run_id": row[0], "event_id": row[1], "profile": row[2], "qdisc": row[3], "cc": row[4],
-				"repetition": row[5], "rtt_p50_ms": row[6], "rtt_p95_ms": row[7], "small_p95_ms": row[8],
-				"bulk_goodput_mbps": row[10], "drops": row[11], "gate_status": row[16],
+				"run_id": results.Field(header, row, "run_id"), "event_id": results.Field(header, row, "event_id"),
+				"profile": results.Field(header, row, "profile"), "qdisc": results.Field(header, row, "qdisc"), "cc": results.Field(header, row, "cc"),
+				"repetition": results.Field(header, row, "repetition"),
+				"rtt_p50_ms": results.Field(header, row, "rtt_p50_ms"), "rtt_p95_ms": results.Field(header, row, "rtt_p95_ms"),
+				"small_p95_ms": results.Field(header, row, "small_p95_ms"),
+				"bulk_goodput_mbps": results.Field(header, row, "bulk_goodput_mbps"), "drops": results.Field(header, row, "drops"),
+				"gate_status": results.Field(header, row, "gate_status"),
 				"ts": time.Now().UnixMilli(), "running": true, "phase": "replay",
 			})
 			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", i+1, payload)
