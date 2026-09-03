@@ -18,15 +18,19 @@ func BulkSendTo(ctx context.Context, addr, cc string) (uint64, error) {
 
 // BulkSend inonde conn de zéros jusqu'à la fin du ctx; rend les octets envoyés.
 func BulkSend(ctx context.Context, conn net.Conn) (uint64, error) {
+	defer conn.Close()
 	buf := make([]byte, 64*1024) // zeros
 	var total uint64
 	for {
 		select {
 		case <-ctx.Done():
-			conn.Close()
 			return total, nil
 		default:
 		}
+		// échéance d'écriture : une connexion figée (récepteur bloqué, lien
+		// mort) ne doit pas pendre la cellule — le puits du banc lit en
+		// continu, 2 s par write de 64 Ko ≈ 20× la marge VSAT 5 Mb/s.
+		_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
 		n, err := conn.Write(buf)
 		total += uint64(n)
 		if err != nil {

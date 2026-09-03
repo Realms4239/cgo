@@ -18,19 +18,11 @@ import (
 // PingSample is one completed ping round trip.
 type PingSample struct{ RTTms float64 }
 
-type CmdRunner interface {
-	Output(name string, args ...string) ([]byte, error)
-}
-
-type ExecCmdRunner struct{}
-
-func (ExecCmdRunner) Output(name string, args ...string) ([]byte, error) {
-	return exec.Command(name, args...).Output()
-}
-
 // Ping lance `ping -c n -i interval` et rend les RTT analysés en ms.
-// Runner injectable pour les tests.
-func Ping(ctx context.Context, r CmdRunner, target string, count int, intervalMs int) ([]PingSample, error) {
+// Exécution directe sous contexte (timeout = durée attendue + 5 s) : pas de
+// seam injectable — l'interface CmdRunner historique n'était jamais appelée
+// (son contrat sans contexte ne pouvait pas porter le timeout).
+func Ping(ctx context.Context, target string, count int, intervalMs int) ([]PingSample, error) {
 	cctx, cancel := context.WithTimeout(ctx, time.Duration(count*intervalMs+5000)*time.Millisecond)
 	defer cancel()
 	args := []string{"-c", strconv.Itoa(count), "-i", fmt.Sprintf("%.2f", float64(intervalMs)/1000), target}

@@ -51,7 +51,7 @@ func runCLI(profilesStr string, reps, deadlineMs int, target, dataDir string) in
 			s.Smallp95Ms, s.RTTp95Ms, gates, s.EventID, s.TotalEvents))
 	}
 
-	m, err := campagne.StartMatrix(ctx, profiles, reps, deps, nil, dataDir)
+	m, err := campagne.StartMatrix(ctx, profiles, reps, deps, dataDir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "run:", err)
 		return 2

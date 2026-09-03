@@ -57,12 +57,12 @@ func (m *Matrix) IsRunning() bool {
 
 // Start lance la matrice en arrière-plan ; la progression arrive dans Live.
 func StartMatrix(base context.Context, profiles []string, reps int,
-	deps Deps, live *Live, dataDir string) (*Matrix, error) {
-	return StartMatrixWithID(base, newRunID(), profiles, reps, deps, live, dataDir)
+	deps Deps, dataDir string) (*Matrix, error) {
+	return StartMatrixWithID(base, newRunID(), profiles, reps, deps, dataDir)
 }
 
 func StartMatrixWithID(base context.Context, runID string, profiles []string, reps int,
-	deps Deps, live *Live, dataDir string) (*Matrix, error) {
+	deps Deps, dataDir string) (*Matrix, error) {
 	if len(profiles) == 0 {
 		return nil, fmt.Errorf("no profiles")
 	}
@@ -78,13 +78,15 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 	m.Total = total
 	// la progression voyage avec chaque snapshot — un seul canal de vérité
 	deps.TotalEvents = total
-	deps.DoneEvents = m.Done
 
 	w, err := OpenRun(dataDir + "/" + m.RunID)
 	if err != nil {
 		return nil, err
 	}
 	m.Done = len(w.seen)
+	// DoneEvents APRÈS le comptage de reprise : sinon la progression gelée
+	// (reprise d'un run interrompu) reste à 0 dans chaque snapshot
+	deps.DoneEvents = m.Done
 	ctx, cancel := context.WithCancel(base)
 	m.cancel = cancel
 	m.Running = true

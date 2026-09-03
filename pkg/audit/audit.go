@@ -2,7 +2,9 @@ package audit
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/metrics"
@@ -52,7 +54,7 @@ type Deps struct {
 func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	if d.Ping == nil {
 		d.Ping = func(ctx context.Context, t string, n int) []float64 {
-			ss, _ := probe.Ping(ctx, probe.ExecCmdRunner{}, t, n, 200)
+			ss, _ := probe.Ping(ctx, t, n, 200)
 			out := make([]float64, len(ss))
 			for i, s := range ss { out[i] = s.RTTms }
 			return out
@@ -64,7 +66,9 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 			if smallURL != "" {
 				return probe.SmallObject(ctx, http.DefaultClient, smallURL)
 			}
-			return 25, nil
+			// pas d'URL : petit objet NON mesuré (0 + note), jamais de
+			// constante 25 ms synthétique dans le CSV gelé
+			return 0, fmt.Errorf("no small URL")
 		}
 	}
 	start := time.Now()
@@ -73,6 +77,11 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	}
 	var idleRTTs, loadedRTTs, idleSmalls, loadedSmalls []float64
 	var bulkBytes uint64
+	// tentatives ping : le dénominateur de la perte. L'ancien calcul
+	// (durée × 12,5/s) ignorait la durée réelle d'un appel ping (~1 s pour
+	// 5 paquets à 200 ms) et annonçait ~70 % de perte sur un lien parfait.
+	pingCalls := 0
+	const pingPerCall = 5
 	bulkDone := make(chan uint64, 1)
 	// le bulk couvre la fenêtre 12–22 s si >=30 et Bulk présent, sinon le débit reste à 0 avec notes honnêtes
 	go func() {
@@ -90,7 +99,8 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		deadline := time.Now().Add(time.Duration(secs) * time.Second)
 		for time.Now().Before(deadline) {
 			select { case <-ctx.Done(): return; default: }
-			*dstRTT = append(*dstRTT, d.Ping(ctx, p.Target, 5)...)
+			pingCalls++
+			*dstRTT = append(*dstRTT, d.Ping(ctx, p.Target, pingPerCall)...)
 			if v, err := d.Small(ctx); err == nil {
 				*dstSmall = append(*dstSmall, v)
 			}
@@ -119,9 +129,14 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	loadedSummary := metrics.Summarize(loadedRTTs)
 	allSmalls := append(append([]float64(nil), idleSmalls...), loadedSmalls...)
 	sSummary := metrics.Summarize(allSmalls)
-	// estimation de perte : manquants vs attendus (5 par 400 ms → 12,5/s)
-	expectedSamples := float64(p.Duration) * 12.5
+	// estimation de perte : échantillons reçus vs TENTÉS (5 par appel ping).
+	// Compter les appels, pas la durée — un ping lent n'est pas de la perte.
+	expectedSamples := float64(pingCalls * pingPerCall)
 	actualSamples := float64(len(idleRTTs) + len(loadedRTTs))
+	if p.Duration < 30 {
+		// fenêtre unique : loaded = copie honnête d'idle — compter une fois
+		actualSamples = float64(len(idleRTTs))
+	}
 	lossPct := 0.0
 	if expectedSamples > 0 && actualSamples < expectedSamples {
 		lossPct = (expectedSamples - actualSamples) / expectedSamples * 100
@@ -130,12 +145,15 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	}
 	throughput := 0.0
 	dataUsed := 0.0
-	notes := ""
+	var notes []string
 	if bulkBytes > 0 {
 		throughput = float64(bulkBytes) * 8 / 1e6 / 10
 		dataUsed = float64(bulkBytes) / 1e6
 	} else {
-		notes = "throughput non mesuré sans bulk sink (BulkAddr) — iperf3 fallback disponible si installé"
+		notes = append(notes, "throughput non mesuré sans bulk sink (BulkAddr) — iperf3 fallback disponible si installé")
+	}
+	if len(allSmalls) == 0 {
+		notes = append(notes, "petit objet non mesuré (SmallURL absent)")
 	}
 
 	return &Result{
@@ -152,7 +170,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		LossPct:      lossPct,
 		HTTPSmallP95: sSummary.P95,
 		DataUsedMB:   dataUsed,
-		Notes:      notes,
+		Notes:      strings.Join(notes, " ; "),
 	}, nil
 }
 
