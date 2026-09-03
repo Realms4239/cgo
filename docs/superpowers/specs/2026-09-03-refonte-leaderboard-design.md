@@ -31,11 +31,14 @@ Références : artificialanalysis.ai (rigueur-index), deepswe.datacurve.ai
 ## Section 2 — Intégrité (APPROUVÉE, avec micro-route)
 
 - Bandeau preuve resserré (une ligne mono, pas des cartes).
-- Table des runs : run | lignes | valides | quar. | hash8 | résultats ·
-  rejouer. Tri chronologique inverse (aujourd'hui croissant). Données :
+- Table des runs : run | lignes | valides | quar. | résultats · rejouer.
+  Tri chronologique inverse (aujourd'hui croissant). Données :
   champ additif `breakdown` dans `/api/integrity` (un seul appel, pas N+1).
+  Pas de hash8 par run (inexistant dans les gels — le hash8 global reste
+  en tête).
 - Table quarantaine réelle via NOUVELLE route `GET /api/quarantine?run=`
-  (lecture `quarantine.json` gelés, même garde anti-traversal que run/rows).
+  (lecture `quarantine.json` gelés, même garde anti-traversal que run/rows ;
+  `run` vide = tous runs, récents d'abord).
 - Recommandations matérielles : fond inchangé, recartées.
 - Figures : régénération conservée, hash8 en légende des SVG.
 - Replay : boutons conservés vers Live.
@@ -47,7 +50,8 @@ Références : artificialanalysis.ai (rigueur-index), deepswe.datacurve.ai
   inchangés. Timeline : branchée sur `phase`/`phase_total_s` réels, ou
   retirée si impossible honnêtement (aujourd'hui timestamps simulés).
 - Campagne : cockpit conservé ; matrice complète en tableau
-  profil × qdisc × CC avec état par cellule (attente/encours/gelée/skippée)
+  profil × qdisc × CC avec état par cellule (attente/en cours/terminée —
+  « skippée » inobservable depuis les données : abandonnée, pas simulée)
   depuis `live.event_id` + `total_events`.
 - Transverse : tokens existants uniquement, tabulaire partout, français,
   responsive 390/1366/1920, sélecteurs `[data-panel]`, `[data-metric]`
