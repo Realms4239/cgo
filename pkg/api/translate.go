@@ -81,7 +81,7 @@ func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 	}
 	cli := ""
 	if best != nil && profile != "" {
-		cli = fmt.Sprintf("sudo tc qdisc replace dev eth0 root %s bandwidth %dmbit", best.Qdisc, int(max(1, groups[0].GoodputMedian*0.9)))
+		cli = fmt.Sprintf("sudo tc qdisc replace dev eth0 root %s bandwidth %dmbit", best.Qdisc, int(max(1, best.GoodputMedian*0.9)))
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
@@ -96,5 +96,3 @@ func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 		}(),
 	})
 }
-
-func max(a, b float64) float64 { if a > b { return a }; return b }
