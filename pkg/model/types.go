@@ -2,6 +2,8 @@
 // L'ordre des colonnes CSV est défini par csvFieldOrder.
 package model
 
+import "sync"
+
 // Profil — valeurs par défaut, remplacées par les profils importés.
 type Profile struct {
 	ID           string  `json:"id"`
@@ -20,6 +22,12 @@ var Profiles = map[string]Profile{
 	// marquée (handovers satellites) et perte ponctuelle — la classe LEO.
 	"P4": {ID: "P4", CapacityMbps: 100, DelayMs: 40, JitterMs: 20, LossPct: 0.3},
 }
+
+// ProfilesMu garde la carte des profils : un import (POST
+// /api/profile/import) qui écrit pendant que /api/profiles itère ou que la
+// matrice lit = écriture et itération concurrentes de map = fatal Go.
+// Discipline : RLock en lecture, Lock en écriture (profile.Import/Load).
+var ProfilesMu sync.RWMutex
 
 type Qdisc string
 

@@ -15,6 +15,11 @@ func Import(p model.Profile) error {
 	if p.ID == "" {
 		return nil
 	}
+	// Tout sous verrou : deux imports simultanés ne doivent ni perdre une
+	// écriture (lecture-modification-écriture du fichier) ni courir avec un
+	// lecteur de la carte.
+	model.ProfilesMu.Lock()
+	defer model.ProfilesMu.Unlock()
 	model.Profiles[p.ID] = p
 	m := map[string]model.Profile{}
 	if data, err := os.ReadFile(file); err == nil {
@@ -30,6 +35,8 @@ func Import(p model.Profile) error {
 
 // Load fusionne les profils persistés dans model.Profiles.
 func Load() {
+	model.ProfilesMu.Lock()
+	defer model.ProfilesMu.Unlock()
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return

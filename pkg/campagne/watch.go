@@ -79,7 +79,10 @@ func StartWatch(base context.Context, d Deps) (stop func()) {
 					live.Drops = uint64(drp)
 				}
 			}
-			snap := d.Snapshot("surveil", "", live, nil, nil, 0, model.Profiles["P2"], nil)
+			model.ProfilesMu.RLock()
+		p2 := model.Profiles["P2"]
+		model.ProfilesMu.RUnlock()
+		snap := d.Snapshot("surveil", "", live, nil, nil, 0, p2, nil)
 			// watch ≠ campagne — Running doit rester false sinon il bat contre la
 			// vérité de référence de pumpSnapshots et l'app traite chaque frame comme
 			// une fin de campagne (bascule de panneaux en pleine surveillance).
