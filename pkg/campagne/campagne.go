@@ -286,6 +286,10 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	set(model.G0TargetReachable, len(baseRTT) > 0)
 	sumB := metrics.Summarize(baseRTT)
 	set(model.G6BaselineStable, len(baseRTT) > 4 && sumB.P95-sumB.Median < max(5, .2*sumB.Median))
+	// latence au repos gélée avec la ligne : la note bufferbloat Waveform
+	// (écart chargé − repos) exige la référence, pas seulement la charge
+	ev.RTTBaseP50Ms = round1(sumB.Median)
+	ev.RTTBaseP95Ms = round1(sumB.P95)
 
 	// charge — bulk flood avec le contrôle de congestion de la cellule (vraie matrice CC)
 	push(model.PhaseCharge)
