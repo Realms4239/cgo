@@ -11,7 +11,30 @@ const {
   Table, TableRow, TableCell, TableOfContents, SimpleField, Bookmark,
   Footer, PageNumber, AlignmentType, WidthType, BorderStyle,
   ShadingType, VerticalAlign, HeadingLevel, NumberFormat,
+  Math: DMath, MathRun, MathFraction, MathSubScript, MathSuperScript, MathSum, MathRadical,
 } = require('docx');
+
+// Équations OMML natives Word (rendu LaTeX-quality sans LaTeX).
+// Le module content exporte { eq: { build: (helpers) => [...omml], caption } }
+// build reçoit les constructeurs et rend un bloc : formule centrée, numéro (n)
+// à droite, légende « où ... » dessous. Convention INSA : bloc numéroté,
+// toutes variables déclarées, jamais de fraction en ligne.
+let eqNo = 0;
+function equationBlock(spec) {
+  eqNo += 1;
+  const math = new DMath({ children: spec.build({ MathRun, MathFraction, MathSubScript, MathSuperScript, MathSum, MathRadical }) });
+  const out = [new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 160, after: spec.caption ? 40 : 160, line: 300 },
+    children: [math, new TextRun({ text: '   (' + eqNo + ')', size: 24, font: 'Times New Roman' })],
+  })];
+  if (spec.caption) out.push(new Paragraph({
+    alignment: AlignmentType.JUSTIFIED,
+    spacing: { after: 160, line: LINE_150 },
+    children: textToRuns(spec.caption),
+  }));
+  return out;
+}
 
 // ---------------------------------------------------------------- constantes
 const MM = (mm) => Math.round(mm * 56.6929);        // mm -> twips
@@ -316,6 +339,7 @@ function renderBlocks(blocks) {
     else if (b.refs) out.push(...refsBlock(b.refs));
     else if (b.glossaire) out.push(...glossaireBlock(b.glossaire));
     else if (b.fig) out.push(...figureBlock(b.fig));
+    else if (b.eq) out.push(...equationBlock(b.eq));
     else if (b.table) out.push(...tableBlock(b.table));
     else if (b.pagebreak) out.push(new Paragraph({ pageBreakBefore: true, children: [] }));
     else throw new Error('Bloc inconnu : ' + JSON.stringify(Object.keys(b)));
