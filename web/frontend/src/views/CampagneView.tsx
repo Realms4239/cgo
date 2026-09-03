@@ -204,6 +204,29 @@ export default function CampagneView() {
             ))}
           </div>
         </div>
+        {profiles.length > 0 && (
+        <div className="card" data-testid="matrix-table">
+          <div className="card-head">Matrice — état par cellule</div>
+          <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:11 }}>
+            <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
+              <th style={{ padding:'6px 8px' }}>profil</th><th>file × CC</th><th>répétitions</th><th>état</th>
+            </tr></thead><tbody>
+            {profiles.flatMap((p, pi) => ALL_QDISCS.flatMap((q, qi) => ALL_CC.map((c, ci) => {
+              // ordre serveur (matrix.go) : profils × [pfifo, fq_codel, cake] × [cubic, bbr] × reps, event_id dès 1
+              const cellStart = ((pi * ALL_QDISCS.length + qi) * ALL_CC.length + ci) * reps + 1
+              const cur = live?.event_id ?? 0
+              const st = cur === 0 ? 'attente' : (cellStart + reps - 1 < cur ? 'terminée' : (cellStart <= cur ? 'en cours' : 'attente'))
+              const n = Math.max(0, Math.min(reps, cur - cellStart + (st === 'en cours' ? 1 : 0)))
+              const color = st === 'terminée' ? '#1fa348' : st === 'en cours' ? '#5ad3e3' : '#767b84'
+              return (<tr key={`${p}/${q}/${c}`} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
+                <td style={{ padding:'6px 8px' }}>{p}</td><td>{q} × {c}</td>
+                <td style={{ fontVariantNumeric:'tabular-nums' }}>{n}/{reps}</td>
+                <td style={{ color }}>{st}</td></tr>)
+            })))}
+            </tbody></table>
+          <div className="mono muted" style={{ fontSize:10, marginTop:6 }}>ordre serveur : profils × files × CC × répétitions · événement #{live?.event_id ?? '—'}/{live?.total_events ?? '—'}</div>
+        </div>
+        )}
       </div>
       {/* cockpit sheet — matrix + audit + import */}
       <aside className="panel-stack cockpit" style={{position:'fixed', right:0, top:48, bottom:28, width:380, zIndex:40, backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderLeft:'1px solid var(--hairline)', background:'rgba(7,7,7,0.85)', overflowY:'auto', padding:12}}>
