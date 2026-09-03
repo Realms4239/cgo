@@ -941,6 +941,51 @@ func New(d Deps) Handler {
 		}
 		writeJSON(w, map[string]any{"run": id, "rows": out})
 	})
+	// Quarantaine réelle — lignes quarantine.json gelées, tous runs si ?run= vide.
+	mux.HandleFunc("GET /api/quarantine", func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("run")
+		if strings.ContainsAny(id, `/\.`) {
+			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
+			return
+		}
+		type qrow struct {
+			Run     string `json:"run"`
+			EventID int    `json:"event_id"`
+			Profile string `json:"profile"`
+			Qdisc   string `json:"qdisc"`
+			CC      string `json:"cc"`
+			Status  string `json:"gate_status"`
+		}
+		out := []qrow{}
+		collect := func(run string) {
+			b, err := os.ReadFile(filepath.Join("data", "runs", run, "quarantine.json"))
+			if err != nil {
+				return // aucun gel de quarantaine pour ce run : pas une erreur
+			}
+			var rows []qrow
+			if err := json.Unmarshal(b, &rows); err != nil {
+				return
+			}
+			for _, q := range rows {
+				q.Run = run
+				out = append(out, q)
+			}
+		}
+		if id != "" {
+			if st, err := os.Stat(filepath.Join("data", "runs", id)); err != nil || !st.IsDir() {
+				writeErr(w, r, "run introuvable: "+id, http.StatusNotFound)
+				return
+			}
+			collect(id)
+		} else {
+			runs, _ := filepath.Glob(filepath.Join("data", "runs", "*"))
+			sort.Strings(runs)
+			for i := len(runs) - 1; i >= 0; i-- {
+				collect(filepath.Base(runs[i]))
+			}
+		}
+		writeJSON(w, map[string]any{"quarantines": out})
+	})
 	mux.HandleFunc("GET /api/events", func(w http.ResponseWriter, _ *http.Request) {
 		eventsMu.Lock()
 		defer eventsMu.Unlock()
