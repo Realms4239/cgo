@@ -377,6 +377,14 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	recRTT, _ = collect(d.RecupSec, model.PhaseRecup)
 	_ = recRTT
 
+	// annulation de CELLULE (skip) : rendre l'annulation en erreur — sans
+	// elle la cellule se gélait complète malgré le skip (bug : le skip ne
+	// coupait rien). L'arrêt global (Stop) n'annule pas la matrice entière
+	// par cette voie : la boucle matrix vérifie ctx avant chaque cellule.
+	if ctx.Err() != nil {
+		return ev, ctx.Err()
+	}
+
 	status := model.GatePass
 	for g, b := range gates {
 		if b == nil {
