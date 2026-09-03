@@ -16,10 +16,10 @@ type Group struct {
 	Count       int    `json:"count"`
 	Quarantined int    `json:"quarantined"`
 
-	RTTp95Median   float64   `json:"rtt_p95_median"`
-	RTTp95IQR      [2]float64 `json:"rtt_p95_iqr"`
-	Smallp95Median float64    `json:"small_p95_median"`
-	Smallp95IQR    [2]float64 `json:"small_p95_iqr"`
+	RTTp95Median           float64    `json:"rtt_p95_median"`
+	RTTp95IQR              [2]float64 `json:"rtt_p95_iqr"`
+	Smallp95Median         float64    `json:"small_p95_median"`
+	Smallp95IQR            [2]float64 `json:"small_p95_iqr"`
 	GoodputMedian          float64    `json:"goodput_median"`
 	DeadlineMedian         float64    `json:"deadline_median"`
 	WastedMedian           float64    `json:"wasted_median"`
