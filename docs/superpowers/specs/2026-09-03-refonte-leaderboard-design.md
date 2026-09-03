@@ -68,3 +68,46 @@ dans `docs/api.md`).
 `npm run typecheck`, `vitest run`, `npm run build`, tour Edge 5 vues +
 specs existantes (smoke, wall, chart-probe, compare-probe, archives),
 console zéro erreur. Commits `fix(frontend):` / `feat(frontend):` en français.
+
+---
+
+## Backlog grill Q1–Q20 (décisions verrouillées 2026-09-03, implémentation phasée)
+
+Références vérifiées : Waveform (note = pire écart idle vs down-loaded vs
+up-loaded ; A+<5/A<30/B<60/C<200/D<400/F≥400 ms, source waveform.com),
+Flent RRUL (up+down simultanés + ping + flux temps réel), FCC MBA, RFC
+8290/7928/8033.
+
+### Phase A — réalisme mesure (local, sans redéploiement bench)
+
+- **Q8** profils asymétriques : `capacity_down/up_mbps` (défaut up=down,
+  rétrocompatible).
+- **Q2** filtrage sous-matrice qdisc/CC (API + CLI) — les flags --qdiscs/--cc
+  du handoff n'existent pas ; indispensable aux cellules n=1.
+- **Q15** note A+..F : moteur de grade (bandes Waveform verbatim citées) +
+  note audit immédiate (idle/loaded déjà gelés) + gel `rtt_base_p50/p95`
+  (nouvelles colonnes, lecteurs par nom OK, vieux runs = note indisponible
+  honnête).
+- **Q16** panneau triple latence idle/up-loaded/down-loaded (vides honnêtes
+  avant Q9).
+- **Q10** marquage DSCP EF (small) / BE (bulk) via IP_TOS.
+- **Q11** paramètre `flows` (défaut 1 ; JFI réel à 4).
+- **Q12** `loss_burst` optionnel (netem gemodel, défaut off — vérifier kernel).
+- **Q13** export script tc (`/api/report/export?format=sh`, args déjà connus).
+- **Q6** skip journalisé (event + statut `skipped`).
+- **Q20** références RFC/FCC/Flent/Waveform dans methodology + verdicts.
+- **Q1** P1–P4 = classes ; écart Starlink en limites. **Q3** durées uniformes
+  30/120/30. **Q5** QDI chargé documenté tel quel. **Q4** plafond réel du
+  banc à vérifier (P1/pfifo invalid en série) ; règle invalid/degraded gardée.
+- **Q14** alerting : perspective post-soutenance (NON implémenté).
+
+### Phase B — download (après Q9 : bulk inversé + shaper émission serveur)
+
+- **Q9a** bulk inversé + cellules download ; **Q17** cellule combinée
+  RRUL-style (up+down+ping, grade sur pire écart) ; grade down-loaded.
+
+### Phase C — ops bench (campagne P2 en cours terminée + backup + déploy)
+
+- Déploiement binaire neuf, `kit schedule` (**Q19**, timer systemd via kit),
+  campagnes filtrées P1/P4/P3 (+download), STOP si contradiction deck
+  (60,2/96,2/98,1 % · QDI 57→13 · R 92,9/71,5).
