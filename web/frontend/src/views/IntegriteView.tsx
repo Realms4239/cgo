@@ -10,6 +10,8 @@ type Integrity = {
   available: boolean; reason?: string
   runs?: number; manifests?: number; valid?: number; quarantined?: number
   run_ids?: string[]
+  breakdown?: { run: string; rows: number; valid: number; quarantined: number }[]
+  updated?: string
 }
 
 export default function IntegriteView() {
@@ -23,11 +25,13 @@ export default function IntegriteView() {
   const setPanel = useUIStore(s=>s.setPanel)
   const [groups, setGroups] = useState<any[]|null>(null)
   const [peekGroups, setPeekGroups] = useState<any[]|null>(null)
+  const [quar, setQuar] = useState<{run:string;event_id:number;profile:string;qdisc:string;cc:string;gate_status:string}[]>([])
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
     fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(j.runs||[])).catch(()=>{})
     fetch('/api/results').then(r=>r.json()).then(j=>setGroups(j.groups??null)).catch(()=>setGroups(null))
+    fetch('/api/quarantine').then(r=>r.json()).then(j=>setQuar(j.quarantines||[])).catch(()=>{})
   }
   useEffect(()=>{ load() }, [])
   useEffect(()=>{
@@ -75,11 +79,15 @@ export default function IntegriteView() {
         </PeekPopover>
       )}
       <h1 className="view-title">Intégrité — archives gelées</h1>
+      {/* bandeau preuve resserré — une ligne mono, pas des cartes */}
+      <div className="card" data-testid="proof-banner" style={{ display:'flex', gap:16, alignItems:'baseline', flexWrap:'wrap', padding:'10px 14px' }}>
+        <span className="mono" style={{ fontSize:12, fontWeight:700 }}>Preuve gelée</span>
+        <span className="mono" data-testid="proof-runs" style={{ fontSize:11 }}>{data.runs} runs · {data.manifests} manifests</span>
+        <span className="mono" style={{ fontSize:11, color:'var(--t-ok)' }}>{data.valid} valides</span>
+        <span className="mono" style={{ fontSize:11, color:(data.quarantined||0)>0?'var(--t-danger)':'var(--text-muted)' }}>{data.quarantined} quarantaine</span>
+        <span className="mono muted" style={{ fontSize:11, marginLeft:'auto' }}>maj {data.updated || '—'}</span>
+      </div>
       <div className="card">
-        <div className="kv"><span>runs</span><b className="mono">{data.runs}</b></div>
-        <div className="kv"><span>manifests</span><b className="mono">{data.manifests}</b></div>
-        <div className="kv"><span>événements valides</span><b className="mono" style={{color:'var(--t-ok)'}}>{data.valid}</b></div>
-        <div className="kv"><span>quarantaine</span><b className="mono" style={{color: (data.quarantined||0)>0?'var(--t-danger)':'var(--text-muted)'}}>{data.quarantined}</b></div>
         <div className="form-row" style={{gap:8, marginTop:12}}>
           <button className="btn btn-primary" onClick={verify}>Vérifier manifestes</button>
           <a className="btn" href="/api/report/export?format=md" download style={{border:'1px solid var(--hairline)', padding:'7px 16px'}}>Rapport MD</a>
@@ -111,30 +119,33 @@ export default function IntegriteView() {
           </div>
         </div>
       </div>
-      <div className="card">
+      <div className="card" data-testid="runs-table">
         <div className="card-head">Runs archivés</div>
-        {(data.run_ids||[]).length===0 ? <p className="mono muted">aucun run</p> :
-          <ul style={{listStyle:'none', padding:0, margin:0}}>
-            {(data.run_ids||[]).map(id=>(
-              <li key={id} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}} onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:id})} onMouseLeave={()=>setPeek(null)}>
-                <span>{id}</span>
-                <a href={`/api/results?run=${id}`} target="_blank" rel="noreferrer" style={{color:'var(--t-live)'}}>résultats</a>
-              </li>
-            ))}
-          </ul>
-        }
+        <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:12 }}>
+          <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
+            <th style={{ padding:'6px 8px' }}>run</th><th>lignes</th><th>valides</th><th>quar.</th><th></th><th></th>
+          </tr></thead><tbody>
+          {(data.breakdown ?? (data.run_ids||[]).map(id=>({run:id,rows:0,valid:0,quarantined:0}))).map(b=>(
+            <tr key={b.run} style={{ borderBottom:'1px solid var(--hairline-faint)' }} onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
+              <td style={{ padding:'6px 8px' }}>{b.run}</td><td>{b.rows}</td><td>{b.valid}</td><td>{b.quarantined}</td>
+              <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" style={{ color:'var(--t-live)' }}>résultats</a></td>
+              <td><button className="btn btn-primary" onClick={()=>{ startReplay(b.run); setPanel('live') }} style={{ padding:'4px 10px', fontSize:11 }}>Rejouer</button></td>
+            </tr>
+          ))}
+          </tbody></table>
       </div>
-      <div className="card">
-        <div className="card-head">quarantine — table de quarantaine</div>
-        {/* gate_status réel depuis Scan quand disponible */}
-        {(data.quarantined||0)===0 ? (
-          <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="aucune mise en quarantaine (gate_status=valid)" /></div>
-        ) : (
-          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color:'#f4b400', padding:'8px 10px', border:'1px solid #26262a', background:'rgba(244,180,0,0.06)'}}>
-            {data.quarantined} événement(s) en quarantaine — détail gate_status via /api/results
-          </div>
-        )}
-        <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', marginTop:8}}>source: quarantine.json · gate_status != valid</div>
+      <div className="card" data-testid="quarantine-table">
+        <div className="card-head">Quarantaine — lignes invalidées par les portes</div>
+        {quar.length===0 ? <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="aucune mise en quarantaine (gate_status=valid)" /></div> :
+        <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:12 }}>
+          <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
+            <th style={{ padding:'6px 8px' }}>run</th><th>événement</th><th>cellule</th><th>statut</th>
+          </tr></thead><tbody>
+          {quar.map((q,i)=><tr key={i} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
+            <td style={{ padding:'6px 8px' }}>{q.run}</td><td>#{q.event_id}</td><td>{q.profile}·{q.qdisc}·{q.cc}</td><td style={{ color:'#f4b400' }}>{q.gate_status}</td>
+          </tr>)}
+          </tbody></table>}
+        <div className="mono" style={{ fontSize:10, color:'#767b84', marginTop:8 }}>source: quarantine.json · gate_status != valid</div>
       </div>
       <div className="card" style={{ border:'1px solid #26262a' }}>
         <div className="card-head">Recommandations — Traduction Matérielle</div>
@@ -206,8 +217,14 @@ export default function IntegriteView() {
         </div>
         {regenOk && (
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
-            <img src="/api/figures/small_p95.svg" alt="small p95" style={{width:'100%', border:'1px solid var(--hairline)'}} />
-            <img src="/api/figures/scatter.svg" alt="scatter" style={{width:'100%', border:'1px solid var(--hairline)'}} />
+            <div>
+              <img src="/api/figures/small_p95.svg" alt="small p95" style={{width:'100%', border:'1px solid var(--hairline)'}} />
+              <div className="mono muted" style={{fontSize:10, marginTop:4}}>small p95 par configuration · hash {(data as any).hash8 ?? '—'}</div>
+            </div>
+            <div>
+              <img src="/api/figures/scatter.svg" alt="scatter" style={{width:'100%', border:'1px solid var(--hairline)'}} />
+              <div className="mono muted" style={{fontSize:10, marginTop:4}}>compromis latence / débit · hash {(data as any).hash8 ?? '—'}</div>
+            </div>
           </div>
         )}
       </div>
