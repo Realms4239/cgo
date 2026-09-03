@@ -82,10 +82,12 @@ type ShapeReq struct {
 	LossPct  float64 `json:"loss_pct"`
 }
 
-// RunOpts — ce que l'opérateur décide réellement : profils, répétitions,
-// deadline small p95 et cible de mesure.
+// RunOpts — ce que l'opérateur décide réellement : profils, axes qdisc/CC
+// (vides = matrice pleine), répétitions, deadline small p95 et cible.
 type RunOpts struct {
 	Profiles   []string `json:"profiles"`
+	Qdiscs     []string `json:"qdiscs"`
+	CCs        []string `json:"ccs"`
 	Reps       int      `json:"reps"`
 	DeadlineMs int      `json:"deadline_ms"`
 	Target     string   `json:"target"`
@@ -422,6 +424,46 @@ func New(d Deps) Handler {
 		model.ProfilesMu.RUnlock()
 		if len(unknown) > 0 {
 			writeErr(w, r, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
+			return
+		}
+		// axes qdisc/CC : validés ici même sans moteur câblé (prévention §6) ;
+		// vides = matrice pleine (comportement historique)
+		if len(opts.Qdiscs) > 0 {
+			validQ := map[string]bool{}
+			for _, p := range schemaParams {
+				if p.Key == "shape_qdisc" {
+					for _, e := range p.Enum {
+						if e != "none" {
+							validQ[e] = true
+						}
+					}
+				}
+			}
+			for _, q := range opts.Qdiscs {
+				if !validQ[q] {
+					writeErr(w, r, "qdisc inconnu: "+q, http.StatusBadRequest)
+					return
+				}
+			}
+		}
+		if len(opts.CCs) > 0 {
+			validCC := map[string]bool{}
+			for _, p := range schemaParams {
+				if p.Key == "burst_cc" {
+					for _, e := range p.Enum {
+						validCC[e] = true
+					}
+				}
+			}
+			for _, c := range opts.CCs {
+				if !validCC[c] {
+					writeErr(w, r, "cc inconnu: "+c, http.StatusBadRequest)
+					return
+				}
+			}
+		}
+		if len(opts.Qdiscs) == 0 && len(opts.CCs) > 0 || len(opts.Qdiscs) > 0 && len(opts.CCs) == 0 {
+			writeErr(w, r, "qdiscs et ccs se filtrent ensemble", http.StatusBadRequest)
 			return
 		}
 		if d.StartFn == nil {

@@ -122,7 +122,24 @@ func runServer(ctx context.Context, addr, mode string) error {
 		} else {
 			deps.DeadlineMs = defaultDeadline()
 		}
-		m, err := campagne.StartMatrix(ctx, o.Profiles, o.Reps, deps, "data/runs")
+		// axes : vides = matrice pleine ; ciblés = sous-matrice (cellules n=1
+		// rejouables sans 54 min de matrice complète)
+		qdiscs, ccs := o.Qdiscs, o.CCs
+		if len(qdiscs) == 0 {
+			qs := make([]string, len(model.AllQdiscs))
+			for i, q := range model.AllQdiscs {
+				qs[i] = string(q)
+			}
+			qdiscs = qs
+		}
+		if len(ccs) == 0 {
+			cs := make([]string, len(model.AllCC))
+			for i, c := range model.AllCC {
+				cs[i] = string(c)
+			}
+			ccs = cs
+		}
+		m, err := campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, deps, "data/runs")
 		if err != nil {
 			return err
 		}
