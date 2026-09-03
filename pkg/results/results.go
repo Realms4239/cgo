@@ -1,8 +1,6 @@
 package results
 
 import (
-	"encoding/csv"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -48,40 +46,61 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 	}
 	buckets := map[string]*bucket{}
 	for _, f := range files {
-		rows, err := readCSV(f)
+		// Lecture par NOM de colonne (ReadAQM) : l'historique mélange les
+		// schémas 17/18/19 colonnes (insertions qdi_ms puis voip_r), chaque
+		// fichier porte son en-tête. Plus aucun index positionnel.
+		header, rows, err := ReadAQM(f)
 		if err != nil {
 			continue
 		}
+		iProf, iQdisc, iCC := ColIndex(header, "profile"), ColIndex(header, "qdisc"), ColIndex(header, "cc")
+		if iProf < 0 || iQdisc < 0 || iCC < 0 {
+			continue
+		}
+		iRTT := ColIndex(header, "rtt_p95_ms")
+		iSmall := ColIndex(header, "small_p95_ms")
+		iGood := ColIndex(header, "bulk_goodput_mbps")
+		iDead := ColIndex(header, "deadline_ok_pct")
+		iWaste := ColIndex(header, "wasted_bytes")
+		iCost := ColIndex(header, "cost_ar_per_h")
+		iGate := ColIndex(header, "gate_status")
+		get := func(r []string, i int) string {
+			if i < 0 || i >= len(r) {
+				return ""
+			}
+			return r[i]
+		}
+		add := func(dst *[]float64, v string) {
+			if f, err := strconv.ParseFloat(v, 64); err == nil {
+				*dst = append(*dst, f)
+			}
+		}
 		for _, r := range rows {
-			key := r[2]+"|"+r[3]+"|"+r[4] // profile|qdisc|cc
+			profile, qdisc, cc := get(r, iProf), get(r, iQdisc), get(r, iCC)
+			if profile == "" || qdisc == "" || cc == "" {
+				continue
+			}
+			key := profile + "|" + qdisc + "|" + cc
 			b := buckets[key]
 			if b == nil {
-				b = &bucket{profile: r[2], qdisc: r[3], cc: r[4]}
+				b = &bucket{profile: profile, qdisc: qdisc, cc: cc}
 				buckets[key] = b
 			}
 			b.count++
 			// Quarantaine seulement pour invalid — pas dégradé; 7 portes honnêtes.
-			if r[16] == "invalid" {
+			// Les médianes portent les lignes exploitables (non invalid), comme
+			// extract-stats.js — sinon une ligne invalidée par les portes
+			// fausse l'agrégat affiché.
+			if get(r, iGate) == "invalid" {
 				b.quarantined++
+				continue
 			}
-			if v, err := strconv.ParseFloat(r[7], 64); err == nil {
-				b.rtts = append(b.rtts, v)
-			}
-			if v, err := strconv.ParseFloat(r[8], 64); err == nil {
-				b.smalls = append(b.smalls, v)
-			}
-			if v, err := strconv.ParseFloat(r[10], 64); err == nil {
-				b.goodputs = append(b.goodputs, v)
-			}
-			if v, err := strconv.ParseFloat(r[9], 64); err == nil {
-				b.deadlines = append(b.deadlines, v)
-			}
-			if v, err := strconv.ParseFloat(r[13], 64); err == nil {
-				b.wasteds = append(b.wasteds, v)
-			}
-			if v, err := strconv.ParseFloat(r[14], 64); err == nil {
-				b.costs = append(b.costs, v)
-			}
+			add(&b.rtts, get(r, iRTT))
+			add(&b.smalls, get(r, iSmall))
+			add(&b.goodputs, get(r, iGood))
+			add(&b.deadlines, get(r, iDead))
+			add(&b.wasteds, get(r, iWaste))
+			add(&b.costs, get(r, iCost))
 		}
 	}
 	var out []Group
@@ -134,15 +153,4 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		}
 	}
 	return out, nil
-}
-
-func readCSV(path string) ([][]string, error) {
-	f, err := os.Open(path)
-	if err != nil { return nil, err }
-	defer f.Close()
-	r := csv.NewReader(f)
-	rows, err := r.ReadAll()
-	if err != nil { return nil, err }
-	if len(rows) <= 1 { return nil, nil }
-	return rows[1:], nil // skip header
 }
