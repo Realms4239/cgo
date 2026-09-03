@@ -6,9 +6,12 @@ test('compare view probe', async ({ page }) => {
   page.on('pageerror', e => errs.push(String(e).slice(0, 200)))
   await page.goto(BASE + '/')
   await page.locator('[data-panel="resultats"]').click()
-  await expect(page.locator('.data-table')).toBeVisible({ timeout: 8000 })
+  // le classement de la vue Résultats — .data-table seul est ambigu depuis
+  // que matrice (campagne) et runs/quarantaine (intégrité) en portent aussi
+  const board = page.locator('#v-resultats .data-table')
+  await expect(board).toBeVisible({ timeout: 8000 })
   // épingler les deux lignes les plus parlantes (première + dernière)
-  const rows = page.locator('.data-table tbody tr')
+  const rows = board.locator('tbody tr')
   await rows.first().locator('button', { hasText: 'A' }).click()
   await rows.last().locator('button', { hasText: 'B' }).click()
   await expect(page.locator('[data-testid="compare-view"]')).toBeVisible({ timeout: 10000 })
