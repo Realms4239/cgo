@@ -181,6 +181,43 @@ func TestIntegrityBreakdown(t *testing.T) {
 	}
 }
 
+// TestQuarantineRoute — quarantaine réelle depuis quarantine.json gelés.
+func TestQuarantineRoute(t *testing.T) {
+	dir := chdirTemp(t)
+	for _, run := range []string{"run-a", "run-b"} {
+		rd := filepath.Join(dir, "data", "runs", run)
+		if err := os.MkdirAll(rd, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.WriteFile(filepath.Join(dir, "data", "runs", "run-a", "quarantine.json"),
+		[]byte(`[{"event_id":3,"profile":"P2","qdisc":"cake","cc":"bbr","gate_status":"invalid"}]`), 0644)
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	get := func(q string) (int, string) {
+		resp, err := http.Get(srv.URL + "/api/quarantine" + q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+	if code, s := get("?run=run-a"); code != 200 || !strings.Contains(s, `"event_id":3`) {
+		t.Fatalf("run-a: %d %s", code, s)
+	}
+	if code, s := get(""); code != 200 || !strings.Contains(s, `"run":"run-a"`) {
+		t.Fatalf("all runs: %d %s", code, s)
+	}
+	if code, _ := get("?run=../x"); code != 400 {
+		t.Fatalf("traversal: status = %d, want 400", code)
+	}
+	if code, _ := get("?run=nope"); code != 404 {
+		t.Fatalf("unknown run: status = %d, want 404", code)
+	}
+}
+
 // (300→330 = +10 %), pas sur qdi_ms (50→40 = −20 %).
 func TestResultsDeltaReadsByName(t *testing.T) {
 	dir := chdirTemp(t)
