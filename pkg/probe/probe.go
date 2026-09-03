@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,14 +19,19 @@ import (
 // PingSample is one completed ping round trip.
 type PingSample struct{ RTTms float64 }
 
-// Ping lance `ping -c n -i interval` et rend les RTT analysés en ms.
-// Exécution directe sous contexte (timeout = durée attendue + 5 s) : pas de
-// seam injectable — l'interface CmdRunner historique n'était jamais appelée
-// (son contrat sans contexte ne pouvait pas porter le timeout).
+// Ping lance un ping (n paquets) et rend les RTT analysés en ms.
+// Args par OS : `-c/-i` sur Unix, `-n` sur Windows (1/s, sans -i) —
+// `ping -c` exige l'admin sur Windows et rendait l'audit inopérant en mode
+// observation. Timeout = durée attendue + 5 s.
 func Ping(ctx context.Context, target string, count int, intervalMs int) ([]PingSample, error) {
-	cctx, cancel := context.WithTimeout(ctx, time.Duration(count*intervalMs+5000)*time.Millisecond)
-	defer cancel()
 	args := []string{"-c", strconv.Itoa(count), "-i", fmt.Sprintf("%.2f", float64(intervalMs)/1000), target}
+	timeout := time.Duration(count*intervalMs+5000) * time.Millisecond
+	if runtime.GOOS == "windows" {
+		args = []string{"-n", strconv.Itoa(count), target}
+		timeout = time.Duration(count*1000+5000) * time.Millisecond
+	}
+	cctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	cmd := exec.CommandContext(cctx, "ping", args...)
 	out, err := cmd.Output()
 	if err != nil && len(out) == 0 {
@@ -34,26 +40,46 @@ func Ping(ctx context.Context, target string, count int, intervalMs int) ([]Ping
 	return parsePing(string(out)), nil
 }
 
-// parsePing extrait les valeurs `time=XX.X ms` (tolérant aux locales pour
-// Ubuntu VM; documented ceiling: non-English ping output on exotic hosts).
+// parsePing extrait les valeurs `time=XX.X ms` — tolérant EN + FR
+// (`temps=`, Windows francophone : le contexte DSI est francophone) et aux
+// locales Ubuntu VM. `<1ms` → moitié d'intervalle (0,5 : convention
+// documentée, moins biaisée que l'omission qui surestimerait les agrégats).
 func parsePing(out string) []PingSample {
 	var s []PingSample
 	for _, line := range strings.Split(out, "\n") {
-		i := strings.Index(line, "time=")
-		if i < 0 {
-			continue
-		}
-		rest := line[i+5:]
-		end := strings.IndexAny(rest, " m")
-		if end <= 0 {
-			continue
-		}
-		if v, err := strconv.ParseFloat(rest[:end], 64); err == nil {
+		if v, ok := parsePingLine(line); ok {
 			s = append(s, PingSample{RTTms: v})
 		}
 	}
 	sort.Slice(s, func(i, j int) bool { return s[i].RTTms < s[j].RTTms })
 	return s
+}
+
+func parsePingLine(line string) (float64, bool) {
+	norm := strings.Replace(line, "temps=", "time=", 1)
+	norm = strings.Replace(norm, "temps<", "time<", 1)
+	lt := false
+	i := strings.Index(norm, "time=")
+	if i < 0 {
+		i = strings.Index(norm, "time<")
+		if i < 0 {
+			return 0, false
+		}
+		lt = true
+	}
+	rest := norm[i+5:]
+	end := strings.IndexAny(rest, " m")
+	if end <= 0 {
+		return 0, false
+	}
+	v, err := strconv.ParseFloat(rest[:end], 64)
+	if err != nil {
+		return 0, false
+	}
+	if lt {
+		return v / 2, true
+	}
+	return v, true
 }
 
 // SmallObject times one HTTP GET completion in ms.

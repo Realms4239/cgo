@@ -321,7 +321,7 @@ func New(d Deps) Handler {
 		out := make([]prof, 0, len(ids))
 		for _, id := range ids {
 			p := model.Profiles[id]
-			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, LossPct: p.LossPct, FromImport: id != "P1" && id != "P2" && id != "P3"})
+			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, LossPct: p.LossPct, FromImport: !model.BuiltinProfileIDs[id]})
 		}
 		model.ProfilesMu.RUnlock()
 		writeJSON(w, map[string]any{"profiles": out})

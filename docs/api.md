@@ -24,7 +24,7 @@
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| `/api/profiles` | GET | — | `{"profiles":[{id, capacity_mbps, delay_ms, jitter_ms, loss_pct, imported}]}` trié par id ; `imported` = tout id hors P1/P2/P3 | — |
+| `/api/profiles` | GET | — | `{"profiles":[{id, capacity_mbps, delay_ms, jitter_ms, loss_pct, imported}]}` trié par id ; `imported` = id non natif (natifs : P1–P4) | — |
 | `/api/profile/list` | GET | — | map `model.Profiles` (rechargée du disque) | — |
 | `/api/profile/import` | POST | CSV (`text/csv` ou corps ne commençant pas par `{`) : `id,capacity_mbps,delay_ms,jitter_ms,loss_pct` (en-tête optionnel sauté) **ou** JSON `model.Profile` | `{"ok": true, "profile": {...}}` | `400` bad body / bad csv / `id` manquant ; `500` échec d'import |
 
