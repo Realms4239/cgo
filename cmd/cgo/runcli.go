@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/campagne"
+	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/results"
 )
 
@@ -17,10 +18,26 @@ import (
 // imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
 // (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
 // peut campagner par SSH.
-func runCLI(profilesStr string, reps, deadlineMs int, target, dataDir string) int {
+func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, target, dataDir string) int {
 	profiles := strings.Split(profilesStr, ",")
 	for i := range profiles {
 		profiles[i] = strings.TrimSpace(profiles[i])
+	}
+	splitAxis := func(s string) []string {
+		if s == "" {
+			return nil
+		}
+		parts := strings.Split(s, ",")
+		for i := range parts {
+			parts[i] = strings.TrimSpace(parts[i])
+		}
+		return parts
+	}
+	qdiscs := splitAxis(qdiscsStr)
+	ccs := splitAxis(ccsStr)
+	if (qdiscs == nil) != (ccs == nil) {
+		fmt.Fprintln(os.Stderr, "run: --qdiscs et --cc se filtrent ensemble")
+		return 2
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -51,7 +68,22 @@ func runCLI(profilesStr string, reps, deadlineMs int, target, dataDir string) in
 			s.Smallp95Ms, s.RTTp95Ms, gates, s.EventID, s.TotalEvents))
 	}
 
-	m, err := campagne.StartMatrix(ctx, profiles, reps, deps, dataDir)
+	if qdiscs == nil {
+		qs := make([]string, len(model.AllQdiscs))
+		for i, q := range model.AllQdiscs {
+			qs[i] = string(q)
+		}
+		qdiscs = qs
+	}
+	if ccs == nil {
+		cs := make([]string, len(model.AllCC))
+		for i, c := range model.AllCC {
+			cs[i] = string(c)
+		}
+		ccs = cs
+	}
+
+	m, err := campagne.StartMatrixFiltered(ctx, profiles, qdiscs, ccs, reps, deps, dataDir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "run:", err)
 		return 2
