@@ -25,7 +25,11 @@ func AppendLinkAudit(dataDir string, r *Result) error {
 	defer f.Close()
 	w := csv.NewWriter(f)
 	if !exists {
-		if err := w.Write(model.LinkAuditHeader); err != nil {
+		// en-tête étendu : bloat_grade/bloat_verdict en fin de ligne — les
+		// lecteurs par nom (extract-stats) tolèrent l'absence sur l'ancien
+		// historique, les vieux fichiers gardent leurs 14 colonnes
+		hdr := append(append([]string{}, model.LinkAuditHeader...), "bloat_delta_ms", "bloat_grade", "bloat_verdict")
+		if err := w.Write(hdr); err != nil {
 			return err
 		}
 	}
@@ -35,6 +39,7 @@ func AppendLinkAudit(dataDir string, r *Result) error {
 		fmt.Sprintf("%.1f", r.RTTLoadedP50), fmt.Sprintf("%.1f", r.RTTLoadedP95),
 		fmt.Sprintf("%.1f", r.ThroughputMbps), fmt.Sprintf("%.1f", r.LossPct),
 		fmt.Sprintf("%.1f", r.HTTPSmallP95), fmt.Sprintf("%.1f", r.DataUsedMB), r.Notes,
+		fmt.Sprintf("%.1f", r.BloatDeltaMs), r.BloatGrade, r.BloatVerdict,
 	}
 	if err := w.Write(row); err != nil {
 		return err

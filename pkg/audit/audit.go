@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -40,6 +41,13 @@ type Result struct {
 	HTTPSmallP95   float64 `json:"http_small_p95_ms"`
 	DataUsedMB     float64 `json:"data_used_mb"`
 	Notes          string  `json:"notes"`
+
+	// Note bufferbloat (méthode Waveform, bandes verbatim citées) :
+	// écart de latence moyenne idle → chargée. L'audit charge en upload ;
+	// le sens descendant reste non mesuré jusqu'à la campagne download.
+	BloatDeltaMs float64 `json:"bloat_delta_ms"`
+	BloatGrade   string  `json:"bloat_grade"`
+	BloatVerdict string  `json:"bloat_verdict"`
 }
 
 type Deps struct {
@@ -142,6 +150,9 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 
 	idleSummary := metrics.Summarize(idleRTTs)
 	loadedSummary := metrics.Summarize(loadedRTTs)
+	// écart de latence moyenne sous charge (méthode Waveform : moyenne
+	// chargée − moyenne au repos ; note = bandes sur cet écart)
+	bloatDelta := loadedSummary.Median - idleSummary.Median
 	allSmalls := append(append([]float64(nil), idleSmalls...), loadedSmalls...)
 	sSummary := metrics.Summarize(allSmalls)
 	// estimation de perte : échantillons reçus vs TENTÉS (5 par appel ping).
@@ -190,5 +201,11 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		HTTPSmallP95:   sSummary.P95,
 		DataUsedMB:     dataUsed,
 		Notes:          strings.Join(notes, " ; "),
+		// Note Waveform : écart idle → chargé. L'audit charge en upload
+		// (bulk client → sink) : le sens descendant reste NaN jusqu'à la
+		// campagne download — le pire des deux décide (BufferbloatWorst).
+		BloatDeltaMs: bloatDelta,
+		BloatGrade:   metrics.BufferbloatGrade(metrics.BufferbloatWorst(math.NaN(), bloatDelta)),
+		BloatVerdict: metrics.BufferbloatVerdict(metrics.BufferbloatGrade(metrics.BufferbloatWorst(math.NaN(), bloatDelta))),
 	}, nil
 }
