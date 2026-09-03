@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Realms4239/cgo/pkg/model"
 )
 
 // Fixtures au schéma réel gelé (18 colonnes, qdi_ms en 8) — valeurs
@@ -94,7 +96,60 @@ func TestReplayStreamRejectsTraversal(t *testing.T) {
 	}
 }
 
-// TestResultsDeltaReadsByName — la dérive small_p95 se calcule sur small_p95_ms
+// TestProfilesBuiltinNotImported — P4 est natif du binaire, pas importé.
+// Un profil importé (PWT) porte imported=true ; nettoyé après le test pour
+// ne pas fuir dans la carte globale.
+func TestProfilesBuiltinNotImported(t *testing.T) {
+	chdirTemp(t) // profile.Import persiste data/profiles.json relatif au CWD
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	get := func() string {
+		resp, err := http.Get(srv.URL + "/api/profiles")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		return string(body)
+	}
+	s := get()
+	if !strings.Contains(s, `"id":"P4"`) {
+		t.Fatalf("P4 missing from profiles: %s", s)
+	}
+	// aucun natif ne doit porter imported:true
+	for _, id := range []string{"P1", "P2", "P3", "P4"} {
+		marker := `"id":"` + id + `"`
+		at := strings.Index(s, marker)
+		if at < 0 {
+			t.Fatalf("builtin %s missing from profiles", id)
+		}
+		seg := s[at:]
+		if i := strings.Index(seg, "}"); i >= 0 && i < 400 {
+			seg = seg[:i]
+		}
+		if strings.Contains(seg, `"imported":true`) {
+			t.Fatalf("builtin %s flagged imported: %s", id, seg)
+		}
+	}
+
+	req, _ := http.NewRequest("POST", srv.URL+"/api/profile/import", strings.NewReader(`{"id":"PWT","capacity_mbps":9}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	s = get()
+	if !strings.Contains(s, `"id":"PWT"`) || !strings.Contains(s, `"imported":true`) {
+		t.Fatalf("imported PWT must carry imported:true: %s", s)
+	}
+	model.ProfilesMu.Lock()
+	delete(model.Profiles, "PWT")
+	model.ProfilesMu.Unlock()
+}
 // (300→330 = +10 %), pas sur qdi_ms (50→40 = −20 %).
 func TestResultsDeltaReadsByName(t *testing.T) {
 	dir := chdirTemp(t)

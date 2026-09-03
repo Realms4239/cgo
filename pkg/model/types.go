@@ -29,6 +29,17 @@ var Profiles = map[string]Profile{
 // Discipline : RLock en lecture, Lock en écriture (profile.Import/Load).
 var ProfilesMu sync.RWMutex
 
+// BuiltinProfileIDs — natifs du binaire, figés à l'init avant toute
+// importation. Le P4 Starlink est natif : sans cet ensemble, le test
+// `id != P1/P2/P3` de /api/profiles le marquait « importé » à tort.
+var BuiltinProfileIDs = func() map[string]bool {
+	m := make(map[string]bool, len(Profiles))
+	for id := range Profiles {
+		m[id] = true
+	}
+	return m
+}()
+
 type Qdisc string
 
 const (
