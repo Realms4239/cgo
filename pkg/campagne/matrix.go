@@ -13,6 +13,11 @@ import (
 // cellules quarantaine arrivent dans le journal opérateur (Q13). Nil ⇒ silencieux, tests tranquilles.
 var OnQuarantine func(runID string, eventID int, profile, qdisc, cc string)
 
+// OnSkip — hook de niveau package posé par l'hôte : une cellule skippée est
+// journalisée (run, event, cellule) au lieu de laisser un trou muet dans le
+// gel — la reprise re-joue la cellule, l'audit sait pourquoi elle manque.
+var OnSkip func(runID string, eventID int, profile, qdisc, cc string)
+
 // Matrice d'expérimentation complète: profils × files d'attente × CC ×
 // répétitions.
 // profils × qdiscs × CC × répétitions = 36 événements (18 en réduit P2).
@@ -193,12 +198,17 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
 								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
 							}
-						} else if evCtx.Err() != nil && ctx.Err() == nil {
-							// skippé (pas arrêt global) — aucune ligne gelée, reprise possible
-							if OnQuarantine != nil {
-								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
-							}
-						} else {
+					} else if evCtx.Err() != nil && ctx.Err() == nil {
+						// skippé (pas arrêt global) — aucune ligne gelée, reprise
+						// possible ; journalisé si l'hôte pose le hook (le trou
+						// dans le gel reste explicable après coup)
+						if OnSkip != nil {
+							OnSkip(m.RunID, id, pid, string(q), string(cc))
+						}
+						if OnQuarantine != nil {
+							OnQuarantine(m.RunID, id, pid, string(q), string(cc))
+						}
+					} else {
 							log.Printf("[campagne] cell %s failed: %v", key, err)
 						}
 						m.setSkipCancel(nil)

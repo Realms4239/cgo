@@ -41,6 +41,11 @@ func runServer(ctx context.Context, addr, mode string) error {
 	campagne.OnQuarantine = func(runID string, eventID int, profile, qdisc, cc string) {
 		api.RecordEvent("quarantaine", fmt.Sprintf("%s évènement %d %s/%s/%s — cellule invalidée par les portes", runID, eventID, profile, qdisc, cc))
 	}
+	// les cellules skippées aussi — un trou dans le gel doit être
+	// explicable après coup (reprise possible, raison journalisée)
+	campagne.OnSkip = func(runID string, eventID int, profile, qdisc, cc string) {
+		api.RecordEvent("skip", fmt.Sprintf("%s évènement %d %s/%s/%s — cellule coupée par l'opérateur, rejouable à la reprise", runID, eventID, profile, qdisc, cc))
+	}
 	// sentinelle deadline — la surveillance alerter honnêtement quand le lien
 	// tenu hors campagne dépasse l'objectif small p95 de façon soutenue
 	campagne.OnWatchAlert = func(p95, deadline float64) {
