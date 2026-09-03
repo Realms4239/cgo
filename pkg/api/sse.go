@@ -23,6 +23,8 @@ type Hub struct {
 	last     map[string]any // last structural values for delta
 	lastFull string         // full snapshot json (structural included) for fresh-client sync
 	ticker   *time.Ticker
+	done     chan struct{} // fermé par Close : la goroutine Serve s'arrête (pas de fuite)
+	closeOnce sync.Once
 }
 
 type frame struct {
@@ -37,7 +39,7 @@ type sub struct {
 }
 
 func NewHub() *Hub {
-	h := &Hub{subs: map[*sub]struct{}{}, last: map[string]any{}}
+	h := &Hub{subs: map[*sub]struct{}{}, last: map[string]any{}, done: make(chan struct{})}
 	return h
 }
 
@@ -48,16 +50,22 @@ func (h *Hub) Serve(next func() any) {
 	}
 	h.ticker = time.NewTicker(time.Second / frameHz)
 	go func() {
-		for range h.ticker.C {
-			h.Publish(next())
+		for {
+			select {
+			case <-h.done:
+				h.ticker.Stop()
+				return
+			case <-h.ticker.C:
+				h.Publish(next())
+			}
 		}
 	}()
 }
 
+// Close arrête la boucle de diffusion. Idempotent — Serve ne redémarre pas
+// après Close (un seul Serve par New, câblé dans api.New).
 func (h *Hub) Close() {
-	if h.ticker != nil {
-		h.ticker.Stop()
-	}
+	h.closeOnce.Do(func() { close(h.done) })
 }
 
 // Publish sérialise un instantané, encode en delta les clés structurelles et diffuse.
@@ -128,22 +136,33 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many streams", http.StatusServiceUnavailable)
 		return
 	}
-	h.mu.Unlock()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	// pas d'en-tête Connection manuel — hop-by-hop, illégal en HTTP/2 (cassait le SSE derrière cloudflared/bord CF)
 	fmt.Fprint(w, "retry: 2000\n")
 
-	h.mu.Lock()
+	// Section atomique : le comptage et l'insertion sont sous le même verrou
+	// (le test-puis-insertion en deux temps laissait passer > 64 abonnés en
+	// rafale). L'anneau est copié ici, le rejeu s'écrit hors verrou.
 	var from int
-	if les := r.Header.Get("Last-Event-ID"); les != "" {
-		if id, err := strconv.ParseUint(les, 10, 64); err == nil {
+	lastEventID := r.Header.Get("Last-Event-ID")
+	stale := false
+	if lastEventID != "" {
+		if id, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
 			for i := len(h.ring) - 1; i >= 0; i-- {
 				if h.ring[i].id <= id {
 					from = i + 1
 					break
 				}
 			}
+			// ID antérieur au début de l'anneau (rotation) : le client a raté
+			// la base structurelle des deltas — resynchroniser sur le frame
+			// complet, sinon son état reste corrompu.
+			if from == 0 && len(h.ring) > 0 {
+				stale = true
+			}
+		} else {
+			lastEventID = "" // ID illisible ⇒ traiter comme client frais
 		}
 	} else {
 		// Sans Last-Event-ID : rejeu limité aux 5 derniers frames pour éviter une
@@ -157,6 +176,7 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 	for _, f := range h.ring[from:] {
 		replay = append(replay, "id: "+strconv.FormatUint(f.id, 10)+"\ndata: "+f.raw+"\n\n")
 	}
+	lastFull := h.lastFull
 	s := &sub{ch: make(chan string, 16)}
 	h.subs[s] = struct{}{}
 	h.mu.Unlock()
@@ -172,12 +192,10 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// nouveau client (sans Last-Event-ID) : les frames delta omettent les champs
-	// structurels inchangés jamais reçus — synchroniser avec un frame complet d'abord
-	h.mu.Lock()
-	lastFull := h.lastFull
-	h.mu.Unlock()
-	if r.Header.Get("Last-Event-ID") == "" && lastFull != "" {
+	// nouveau client (sans Last-Event-ID) ou client périmé (ID antérieur à
+	// l'anneau) : les frames delta omettent les champs structurels jamais
+	// reçus — synchroniser avec un frame complet d'abord
+	if (lastEventID == "" || stale) && lastFull != "" {
 		fmt.Fprintf(w, "data: %s\n\n", lastFull)
 	}
 	fl.Flush()
