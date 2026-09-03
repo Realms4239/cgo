@@ -546,25 +546,52 @@ func New(d Deps) Handler {
 	})
 	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, _ *http.Request) {
 		runs, _ := filepath.Glob("data/runs/*")
+		sort.Strings(runs)
 		valid, quarantined := 0, 0
 		manifests := 0
 		var runIDs []string
+		type runBreak struct {
+			Run         string `json:"run"`
+			Rows        int    `json:"rows"`
+			Valid       int    `json:"valid"`
+			Quarantined int    `json:"quarantined"`
+		}
+		breakdown := []runBreak{}
 		for _, p := range runs {
 			if st, err := os.Stat(filepath.Join(p, "manifest.json")); err == nil && !st.IsDir() {
 				manifests++
 			}
 			gs, _ := results.Scan("data/runs", filepath.Base(p))
+			b := runBreak{Run: filepath.Base(p)}
 			for _, g := range gs {
 				valid += g.Count - g.Quarantined
 				quarantined += g.Quarantined
+				b.Rows += g.Count
+				b.Valid += g.Count - g.Quarantined
+				b.Quarantined += g.Quarantined
 			}
+			breakdown = append(breakdown, b)
 			runIDs = append(runIDs, filepath.Base(p))
+		}
+		// récents d'abord (run-<unix> : l'ordre lexical inverse = chronologique inverse)
+		for i, j := 0, len(breakdown)-1; i < j; i, j = i+1, j-1 {
+			breakdown[i], breakdown[j] = breakdown[j], breakdown[i]
+		}
+		for i, j := 0, len(runIDs)-1; i < j; i, j = i+1, j-1 {
+			runIDs[i], runIDs[j] = runIDs[j], runIDs[i]
+		}
+		updated := ""
+		if files, _ := filepath.Glob(filepath.Join("data/runs", "*", "aqm_eval.csv")); len(files) > 0 {
+			sort.Strings(files)
+			if st, err := os.Stat(files[len(files)-1]); err == nil {
+				updated = st.ModTime().UTC().Format(time.RFC3339)
+			}
 		}
 		if len(runs) == 0 {
 			writeJSON(w, map[string]any{"available": false, "reason": "intégrité disponible après gel (jalon M2)"})
 			return
 		}
-		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "quarantined": quarantined, "run_ids": runIDs, "sha256": figures.ProvenanceSHA("data/runs"), "hash8": figures.ProvenanceHash8("data/runs")})
+		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "quarantined": quarantined, "run_ids": runIDs, "breakdown": breakdown, "updated": updated, "sha256": figures.ProvenanceSHA("data/runs"), "hash8": figures.ProvenanceHash8("data/runs")})
 	})
 	mux.HandleFunc("GET /api/report/export", func(w http.ResponseWriter, r *http.Request) {
 		fmtParam := r.URL.Query().Get("format")

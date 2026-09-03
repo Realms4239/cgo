@@ -151,6 +151,36 @@ func TestProfilesBuiltinNotImported(t *testing.T) {
 	model.ProfilesMu.Unlock()
 }
 
+// TestIntegrityBreakdown — détail par run + updated, triés du plus récent.
+func TestIntegrityBreakdown(t *testing.T) {
+	dir := chdirTemp(t)
+	writeCSVRun(t, dir, "run-a", header18,
+		"run-a,1,P2,cake,bbr,1,100,114,14,209.2,98.1,18.1,81,0,117288,12.10,0.0,valid",
+		"run-a,2,P2,cake,bbr,2,100,115,15,210.0,97.0,18.0,82,0,117300,12.2,0.0,invalid",
+	)
+	writeCSVRun(t, dir, "run-b", header18,
+		"run-b,1,P1,pfifo_fast,cubic,1,20,25,5,30.0,100,70.0,0,0,0,0,0,valid",
+	)
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/api/integrity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	s := string(body)
+	for _, want := range []string{`"breakdown"`, `"run":"run-b"`, `"run":"run-a"`, `"rows":2`, `"quarantined":1`, `"updated":"`} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("integrity missing %s in %s", want, s)
+		}
+	}
+	if strings.Index(s, "run-b") > strings.Index(s, "run-a") {
+		t.Fatalf("breakdown must list newest run first: %s", s)
+	}
+}
+
 // (300→330 = +10 %), pas sur qdi_ms (50→40 = −20 %).
 func TestResultsDeltaReadsByName(t *testing.T) {
 	dir := chdirTemp(t)
