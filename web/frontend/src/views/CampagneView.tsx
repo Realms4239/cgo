@@ -291,6 +291,7 @@ export default function CampagneView() {
               } catch { useUIStore.getState().pushToast('échec import audit', 'err') }
             }} title="transforme le dernier audit du lien réel en profil rejouable sur le banc" style={{ marginLeft: 'auto', padding: '2px 10px' }}>AUDIT → PROFIL</button>
             <button className="btn" onClick={()=>setImportForm(true)} style={{ padding: '2px 10px' }}>IMPORTER</button>
+            <span className="mono muted" style={{ fontSize: 10 }}>{importMsg}</span>
           </>}
         </div>
         {importForm && <>
@@ -313,7 +314,6 @@ export default function CampagneView() {
             <div className="form-row" style={{gap:8}}>
               <ArmButton label="CONFIRMER IMPORT" onConfirm={importProfile} disabled={!importValidation.valid} />
               <button className="btn" onClick={()=>setImportForm(false)}>ANNULER</button>
-              <span className="mono muted">{importMsg}</span>
             </div>
           </div>
         </>}
