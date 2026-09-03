@@ -548,7 +548,7 @@ export default function LiveView() {
             <div key={i} className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
               <span style={{ color: 'var(--text-faint)' }}>{e.ts.slice(11, 19)}</span>
               <span style={{ color: 'var(--t-live)', minWidth: 84 }}>{e.kind}</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg.slice(0, 120)}</span>
             </div>
           ))}
         </div>

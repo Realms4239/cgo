@@ -149,10 +149,18 @@ export default function CampagneView() {
   const phase = live?.phase || 'idle'
   // Phase idle = '' côté serveur — tester sur les données reçues.
   const hasData = !!(live?.running || liveRing.small.length > 0)
-  const [timeline] = useState(() => {
-    const n = Date.now()
-    return { baselineStart: n - 90000, chargeStart: n - 60000, chargeEnd: n - 15000, recupEnd: n + 15000 }
-  })
+  // Timeline sur les VRAIES bornes de phase (live.phaseSince, ts de première
+  // frame mesurée par phase) — jamais de timestamps simulés ; sans phases
+  // observées, pas de Timeline (vide honnête).
+  const ps = liveRing.phaseSince
+  const now = Date.now()
+  const timeline = {
+    baselineStart: ps.baseline ?? now - 30000,
+    chargeStart: ps.charge ?? ps.baseline ?? now - 15000,
+    chargeEnd: ps.recup ?? (ps.charge ? now : ps.baseline ?? now),
+    recupEnd: (ps.recup ?? ps.charge ?? ps.baseline ?? now) + 15000,
+  }
+  const hasTimeline = ps.baseline != null || ps.charge != null || ps.recup != null
 
   return (
     <div style={{ display: 'flex', height: '100%', minHeight: 0, minWidth: 0, paddingRight: 400, boxSizing: 'border-box' }}>
@@ -172,7 +180,7 @@ export default function CampagneView() {
             </div>
           ))}
         </div>
-        {hasData && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
+        {hasData && hasTimeline && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
         <div className="card">
           <div className="card-head">État — flux SSE</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
