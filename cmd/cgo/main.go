@@ -148,6 +148,7 @@ WantedBy=multi-user.target
 			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
 			Site: *site, LinkType: *linkType, Provider: *provider,
 			Duration: *duration, Target: *target,
+			SmallURL: os.Getenv("CGO_SMALL_URL"),
 		}
 		fmt.Printf("audit %s — %s %s %ds → %s\n", p.AuditID, p.LinkType, p.Site, p.Duration, p.Target)
 		res, err := audit.Run(context.Background(), p, audit.Deps{})

@@ -677,6 +677,7 @@ func New(d Deps) Handler {
 			Provider string `json:"provider"`
 			Duration int    `json:"duration"`
 			Target   string `json:"target"`
+			SmallURL string `json:"small_url"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
@@ -712,7 +713,7 @@ func New(d Deps) Handler {
 		auditMu.Unlock()
 		go func() {
 			defer func() { auditMu.Lock(); auditRunning = false; auditMu.Unlock() }()
-			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target}
+			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target, SmallURL: body.SmallURL}
 			// contexte détaché: l'audit survit à cette requête HTTP
 			res, err := audit.Run(context.Background(), p, audit.Deps{})
 			if err != nil {

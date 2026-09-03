@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/pkg/qdisc"
 )
 
 func fastDeps() Deps {
@@ -259,5 +260,38 @@ func TestStartWatchPublishes(t *testing.T) {
 	defer mu.Unlock()
 	if n > after {
 		t.Fatalf("stop() did not stop the loop: %d → %d", after, n)
+	}
+}
+
+// TestRunEventCounterResetClamped — qdisc remplacé en cours de cellule : les
+// compteurs tc repartent de zéro. Le delta final négatif ne doit ni faire
+// wraper Drops (uint64 → ~1.8e19) ni gonfler le goodput (G4 invalid à tort) —
+// même garde int64 que publishLive.
+func TestRunEventCounterResetClamped(t *testing.T) {
+	d := fastDeps()
+	calls := 0
+	d.StatsFn = func() []qdisc.Stats {
+		calls++
+		// Séquence d'appels SANS OnSnap (fastDeps) : 1 = socle initial,
+		// 2 = re-socle de charge (publishLive inopérant sans OnSnap),
+		// 3 = comptage final. Le qdisc est remplacé entre 2 et 3.
+		if calls <= 2 {
+			return []qdisc.Stats{{Kind: "cake", Bytes: 10_000_000, Drops: 500}}
+		}
+		return []qdisc.Stats{{Kind: "cake", Bytes: 100, Drops: 3}}
+	}
+	ev := model.Event{RunID: "r1", EventID: 9, Profile: "P2", Qdisc: model.Cake, CC: model.Cubic, Repetition: 1}
+	got, err := RunEvent(context.Background(), ev, model.Profiles["P2"], d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Drops != 0 {
+		t.Fatalf("Drops = %d after counter reset, want 0 (no wrap)", got.Drops)
+	}
+	if got.GateStatus != model.GatePass {
+		t.Fatalf("status=%s want valid (sender-side goodput 20 Mbit/s, rx delta ignored)", got.GateStatus)
+	}
+	if got.BulkGoodputMbps < 19 || got.BulkGoodputMbps > 21 {
+		t.Fatalf("goodput = %v, want ~20 (sender side, rx reset ignored)", got.BulkGoodputMbps)
 	}
 }

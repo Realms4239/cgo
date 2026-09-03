@@ -149,7 +149,7 @@ func (l *Live) SetRunning(v bool) {
 func defaults(d *Deps) {
 	if d.Ping == nil {
 		d.Ping = func(ctx context.Context, t string, n int) []float64 {
-			ss, _ := probe.Ping(ctx, probe.ExecCmdRunner{}, t, n, 200)
+			ss, _ := probe.Ping(ctx, t, n, 200)
 			out := make([]float64, len(ss))
 			for i, s := range ss {
 				out[i] = s.RTTms
@@ -329,8 +329,16 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		sts := d.StatsFn()
 		endDrops := qdisc.SumDrops(sts)
 		endBytes := qdisc.SumBytes(sts)
-		ev.Drops = endDrops - startDrops
-		rxBytes := endBytes - startBytes
+		// les compteurs tc repartent de zéro si le qdisc est remplacé en
+		// cours de cellule — un delta négatif (wrap uint64) invaliderait la
+		// cellule à tort (même garde int64 que publishLive)
+		if dd := int64(endDrops) - int64(startDrops); dd > 0 {
+			ev.Drops = uint64(dd)
+		}
+		rxBytes := uint64(0)
+		if db := int64(endBytes) - int64(startBytes); db > 0 {
+			rxBytes = uint64(db)
+		}
 		if rxBytes > 0 {
 			goodput = float64(rxBytes) * 8 / 1e6 / chargeDur
 		}

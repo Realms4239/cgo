@@ -123,7 +123,7 @@ func runServer(ctx context.Context, addr, mode string) error {
 		} else {
 			deps.DeadlineMs = defaultDeadline()
 		}
-		m, err := campagne.StartMatrix(ctx, o.Profiles, o.Reps, deps, live, "data/runs")
+		m, err := campagne.StartMatrix(ctx, o.Profiles, o.Reps, deps, "data/runs")
 		if err != nil {
 			return err
 		}

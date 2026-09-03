@@ -15,7 +15,7 @@ func TestMatrixReducedOrderAndResume(t *testing.T) {
 	deps := fastDeps()
 
 	// Démarrer la matrice réduite : P2 seul = 3 qdisc *2 CC *3 rép =18
-	m, err := StartMatrixWithID(context.Background(), "run-resume-test", []string{"P2"}, 3, deps, NewLive(), dir)
+	m, err := StartMatrixWithID(context.Background(), "run-resume-test", []string{"P2"}, 3, deps, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestMatrixReducedOrderAndResume(t *testing.T) {
 	}
 
 	// Reprise : rouvrir le même runID avec la même matrice, 0 nouvelle ligne (tout déjà vu)
-	m2, err := StartMatrixWithID(context.Background(), "run-resume-test", []string{"P2"}, 3, deps, NewLive(), dir)
+	m2, err := StartMatrixWithID(context.Background(), "run-resume-test", []string{"P2"}, 3, deps, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
