@@ -86,7 +86,7 @@ func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"available": true, "recommendation": rec,
-		"verdict":  smallDiff, "throughput": throughput, "cli": cli,
+		"verdict": smallDiff, "throughput": throughput, "cli": cli,
 		"next_steps": nextSteps,
 		"cell": func() map[string]any {
 			if best == nil {

@@ -16,14 +16,14 @@ const frameHz = 10
 // Hub diffuse des instantanés à 10 Hz avec champs structurels compressés en
 // delta, rejeu Last-Event-ID (anneau 2048) et événements backpressure nommés.
 type Hub struct {
-	mu       sync.Mutex
-	lastID   uint64
-	ring     []frame // cap 2048
-	subs     map[*sub]struct{}
-	last     map[string]any // last structural values for delta
-	lastFull string         // full snapshot json (structural included) for fresh-client sync
-	ticker   *time.Ticker
-	done     chan struct{} // fermé par Close : la goroutine Serve s'arrête (pas de fuite)
+	mu        sync.Mutex
+	lastID    uint64
+	ring      []frame // cap 2048
+	subs      map[*sub]struct{}
+	last      map[string]any // last structural values for delta
+	lastFull  string         // full snapshot json (structural included) for fresh-client sync
+	ticker    *time.Ticker
+	done      chan struct{} // fermé par Close : la goroutine Serve s'arrête (pas de fuite)
 	closeOnce sync.Once
 }
 

@@ -23,8 +23,8 @@ func ProdDeps() Deps {
 	cliIf := env("CGO_CLI_IF", "veth-c")
 	shaperIf := env("CGO_SHAPER_IF", cliIf) // même saut que netem — émission upload
 	return Deps{
-		TC:       qdisc.ExecRunner{},     // netem sur veth-c (ns principal)
-		TCShaper: qdisc.ExecRunner{},     // shaper aussi empilé sur veth-c (émission upload)
+		TC:       qdisc.ExecRunner{}, // netem sur veth-c (ns principal)
+		TCShaper: qdisc.ExecRunner{}, // shaper aussi empilé sur veth-c (émission upload)
 		CliIf:    cliIf,
 		ShaperIf: shaperIf,
 		Target:   target,

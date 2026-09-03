@@ -1,7 +1,8 @@
 // meteolink — alias du binaire unique cgo (même noyau, nom compatible).
 // Usage :
-//   meteolink top [--addr http://localhost:9090] [--interval 250ms]   cartes ASCII, anneaux live
-//   meteolink tui|setup|kit|run|serve|version …                      tout cgo, même moteur
+//
+//	meteolink top [--addr http://localhost:9090] [--interval 250ms]   cartes ASCII, anneaux live
+//	meteolink tui|setup|kit|run|serve|version …                      tout cgo, même moteur
 package main
 
 import (

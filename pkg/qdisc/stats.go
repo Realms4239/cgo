@@ -55,7 +55,7 @@ func parseStats(out string) []Stats {
 		} else if cur != nil && strings.HasPrefix(line, "backlog ") {
 			bl := strings.Fields(line)
 			if len(bl) >= 2 {
-				cur.Backlog = parseU64("backlog " + bl[1], "backlog ", "b")
+				cur.Backlog = parseU64("backlog "+bl[1], "backlog ", "b")
 			}
 		}
 	}

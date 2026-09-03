@@ -146,7 +146,7 @@ WantedBy=multi-user.target
 		_ = fs.Parse(os.Args[2:])
 		p := audit.Params{
 			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
-			Site: *site, LinkType: *linkType, Provider: *provider,
+			Site:    *site, LinkType: *linkType, Provider: *provider,
 			Duration: *duration, Target: *target,
 			SmallURL: os.Getenv("CGO_SMALL_URL"),
 		}

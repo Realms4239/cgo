@@ -659,10 +659,10 @@ func New(d Deps) Handler {
 				"profile": results.Field(header, row, "profile"), "qdisc": results.Field(header, row, "qdisc"), "cc": results.Field(header, row, "cc"),
 				"repetition": results.Field(header, row, "repetition"),
 				"rtt_p50_ms": results.Field(header, row, "rtt_p50_ms"), "rtt_p95_ms": results.Field(header, row, "rtt_p95_ms"),
-				"small_p95_ms": results.Field(header, row, "small_p95_ms"),
+				"small_p95_ms":      results.Field(header, row, "small_p95_ms"),
 				"bulk_goodput_mbps": results.Field(header, row, "bulk_goodput_mbps"), "drops": results.Field(header, row, "drops"),
 				"gate_status": results.Field(header, row, "gate_status"),
-				"ts": time.Now().UnixMilli(), "running": true, "phase": "replay",
+				"ts":          time.Now().UnixMilli(), "running": true, "phase": "replay",
 			})
 			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", i+1, payload)
 			fl.Flush()

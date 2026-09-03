@@ -10,21 +10,21 @@ import (
 
 // Group is one aggregated cell profile×qdisc×cc.
 type Group struct {
-	Profile  string  `json:"profile"`
-	Qdisc    string  `json:"qdisc"`
-	CC       string  `json:"cc"`
-	Count    int     `json:"count"`
-	Quarantined int  `json:"quarantined"`
+	Profile     string `json:"profile"`
+	Qdisc       string `json:"qdisc"`
+	CC          string `json:"cc"`
+	Count       int    `json:"count"`
+	Quarantined int    `json:"quarantined"`
 
-	RTTp95Median   float64 `json:"rtt_p95_median"`
-	RTTp95IQR      [2]float64 `json:"rtt_p95_iqr"`
-	Smallp95Median float64 `json:"small_p95_median"`
-	GoodputMedian  float64 `json:"goodput_median"`
-	DeadlineMedian float64 `json:"deadline_median"`
-	WastedMedian float64 `json:"wasted_median"`
-	CostMedian   float64 `json:"cost_median"`
-	Best           bool    `json:"best,omitempty"`
-	HardwareRecommendation string `json:"hardware_recommendation"`
+	RTTp95Median           float64    `json:"rtt_p95_median"`
+	RTTp95IQR              [2]float64 `json:"rtt_p95_iqr"`
+	Smallp95Median         float64    `json:"small_p95_median"`
+	GoodputMedian          float64    `json:"goodput_median"`
+	DeadlineMedian         float64    `json:"deadline_median"`
+	WastedMedian           float64    `json:"wasted_median"`
+	CostMedian             float64    `json:"cost_median"`
+	Best                   bool       `json:"best,omitempty"`
+	HardwareRecommendation string     `json:"hardware_recommendation"`
 }
 
 // Scan agrège tous les aqm_eval.csv sous dataDir (dernier run, sinon tous).
@@ -40,9 +40,9 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 	}
 	type bucket struct {
 		rtts, smalls, goodputs, deadlines, wasteds, costs []float64
-		quarantined int
-		count int
-		profile, qdisc, cc string
+		quarantined                                       int
+		count                                             int
+		profile, qdisc, cc                                string
 	}
 	buckets := map[string]*bucket{}
 	for _, f := range files {
@@ -120,8 +120,12 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].Profile != out[j].Profile { return out[i].Profile < out[j].Profile }
-		if out[i].Qdisc != out[j].Qdisc { return out[i].Qdisc < out[j].Qdisc }
+		if out[i].Profile != out[j].Profile {
+			return out[i].Profile < out[j].Profile
+		}
+		if out[i].Qdisc != out[j].Qdisc {
+			return out[i].Qdisc < out[j].Qdisc
+		}
 		return out[i].CC < out[j].CC
 	})
 	// mark best smallest small_p95 per profile

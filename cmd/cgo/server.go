@@ -6,7 +6,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -205,7 +204,12 @@ func runServer(ctx context.Context, addr, mode string) error {
 			return nil
 		},
 	})
-	srv := &http.Server{Addr: addr, Handler: handler}
+	srv := &http.Server{
+		Addr: addr, Handler: handler,
+		// Pas de WriteTimeout (SSE + replay tiennent des connexions longues),
+		// mais les en-têtes lentes ne doivent pas pendre un slot (Slowloris).
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 	log.Printf("cgo dashboard on %s", addr)
@@ -239,5 +243,3 @@ func pumpSnapshots(ctx context.Context, live *campagne.Live, getMtx func() *camp
 }
 
 func mtxRunning(m *campagne.Matrix) bool { return m.IsRunning() }
-
-var _ = os.Getenv // keep os import for future env-driven config

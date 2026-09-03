@@ -111,8 +111,8 @@ func pollResults(api string) tea.Cmd {
 		}
 		defer resp.Body.Close()
 		var doc struct {
-			Available bool         `json:"available"`
-			Groups    []resultRow  `json:"groups"`
+			Available bool        `json:"available"`
+			Groups    []resultRow `json:"groups"`
 		}
 		_ = json.NewDecoder(resp.Body).Decode(&doc)
 		if doc.Available {

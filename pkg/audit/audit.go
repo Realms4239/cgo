@@ -17,7 +17,7 @@ type Params struct {
 	Site     string
 	LinkType string // fiber, 5g, 4g, vsat, other
 	Provider string
-	Duration int    // seconds, e.g. 60–300
+	Duration int // seconds, e.g. 60–300
 
 	Target   string // ping target
 	SmallURL string // small object url
@@ -26,20 +26,20 @@ type Params struct {
 
 // Ligne de résultat d'audit.
 type Result struct {
-	AuditID      string  `json:"audit_id"`
-	Timestamp    string  `json:"timestamp"`
-	Site         string  `json:"site"`
-	LinkType     string  `json:"link_type"`
-	Provider     string  `json:"provider"`
-	RTTIdleP50   float64 `json:"rtt_idle_p50_ms"`
-	RTTIdleP95   float64 `json:"rtt_idle_p95_ms"`
-	RTTLoadedP50 float64 `json:"rtt_loaded_p50_ms"`
-	RTTLoadedP95 float64 `json:"rtt_loaded_p95_ms"`
+	AuditID        string  `json:"audit_id"`
+	Timestamp      string  `json:"timestamp"`
+	Site           string  `json:"site"`
+	LinkType       string  `json:"link_type"`
+	Provider       string  `json:"provider"`
+	RTTIdleP50     float64 `json:"rtt_idle_p50_ms"`
+	RTTIdleP95     float64 `json:"rtt_idle_p95_ms"`
+	RTTLoadedP50   float64 `json:"rtt_loaded_p50_ms"`
+	RTTLoadedP95   float64 `json:"rtt_loaded_p95_ms"`
 	ThroughputMbps float64 `json:"throughput_mbps"`
-	LossPct      float64 `json:"loss_pct"`
-	HTTPSmallP95 float64 `json:"http_small_p95_ms"`
-	DataUsedMB   float64 `json:"data_used_mb"`
-	Notes        string  `json:"notes"`
+	LossPct        float64 `json:"loss_pct"`
+	HTTPSmallP95   float64 `json:"http_small_p95_ms"`
+	DataUsedMB     float64 `json:"data_used_mb"`
+	Notes          string  `json:"notes"`
 }
 
 type Deps struct {
@@ -56,7 +56,9 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		d.Ping = func(ctx context.Context, t string, n int) []float64 {
 			ss, _ := probe.Ping(ctx, t, n, 200)
 			out := make([]float64, len(ss))
-			for i, s := range ss { out[i] = s.RTTms }
+			for i, s := range ss {
+				out[i] = s.RTTms
+			}
 			return out
 		}
 	}
@@ -87,7 +89,12 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	go func() {
 		if d.Bulk != nil && p.Duration >= 30 {
 			// attendre l'idle 12 s puis flood 10 s
-			select { case <-time.After(12 * time.Second): case <-ctx.Done(): bulkDone <- 0; return }
+			select {
+			case <-time.After(12 * time.Second):
+			case <-ctx.Done():
+				bulkDone <- 0
+				return
+			}
 			b, _ := d.Bulk(ctx, p.BulkAddr)
 			bulkDone <- b
 		} else {
@@ -98,7 +105,11 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	collectWindow := func(secs int, dstRTT, dstSmall *[]float64) {
 		deadline := time.Now().Add(time.Duration(secs) * time.Second)
 		for time.Now().Before(deadline) {
-			select { case <-ctx.Done(): return; default: }
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 			pingCalls++
 			*dstRTT = append(*dstRTT, d.Ping(ctx, p.Target, pingPerCall)...)
 			if v, err := d.Small(ctx); err == nil {
@@ -123,7 +134,11 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		loadedRTTs = append([]float64(nil), idleRTTs...)
 		loadedSmalls = append([]float64(nil), idleSmalls...)
 	}
-	select { case bulkBytes = <-bulkDone: default: bulkBytes = 0 }
+	select {
+	case bulkBytes = <-bulkDone:
+	default:
+		bulkBytes = 0
+	}
 
 	idleSummary := metrics.Summarize(idleRTTs)
 	loadedSummary := metrics.Summarize(loadedRTTs)
@@ -140,8 +155,12 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	lossPct := 0.0
 	if expectedSamples > 0 && actualSamples < expectedSamples {
 		lossPct = (expectedSamples - actualSamples) / expectedSamples * 100
-		if lossPct < 0 { lossPct = 0 }
-		if lossPct > 100 { lossPct = 100 }
+		if lossPct < 0 {
+			lossPct = 0
+		}
+		if lossPct > 100 {
+			lossPct = 100
+		}
 	}
 	throughput := 0.0
 	dataUsed := 0.0
@@ -157,21 +176,19 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	}
 
 	return &Result{
-		AuditID:    p.AuditID,
-		Timestamp:  start.Format(time.RFC3339),
-		Site:       p.Site,
-		LinkType:   p.LinkType,
-		Provider:   p.Provider,
-		RTTIdleP50: idleSummary.Median,
-		RTTIdleP95: idleSummary.P95,
-		RTTLoadedP50: loadedSummary.Median,
-		RTTLoadedP95: loadedSummary.P95,
+		AuditID:        p.AuditID,
+		Timestamp:      start.Format(time.RFC3339),
+		Site:           p.Site,
+		LinkType:       p.LinkType,
+		Provider:       p.Provider,
+		RTTIdleP50:     idleSummary.Median,
+		RTTIdleP95:     idleSummary.P95,
+		RTTLoadedP50:   loadedSummary.Median,
+		RTTLoadedP95:   loadedSummary.P95,
 		ThroughputMbps: throughput,
-		LossPct:      lossPct,
-		HTTPSmallP95: sSummary.P95,
-		DataUsedMB:   dataUsed,
-		Notes:      strings.Join(notes, " ; "),
+		LossPct:        lossPct,
+		HTTPSmallP95:   sSummary.P95,
+		DataUsedMB:     dataUsed,
+		Notes:          strings.Join(notes, " ; "),
 	}, nil
 }
-
-
