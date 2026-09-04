@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/Realms4239/cgo/pkg/metrics"
 )
@@ -50,7 +51,12 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 	}
 	buckets := map[string]*bucket{}
 	for _, f := range files {
-		// Lecture par NOM de colonne (ReadAQM) : l'historique mélange les
+		// run-smoke* = fixture de test du pipeline, pas une mesure : exclue
+		// du corpus publié (parité avec extract-stats.js — sinon sa ligne
+		// valid factice fait médiane à elle seule côté UI/rapport/figures)
+		if strings.HasPrefix(filepath.Base(filepath.Dir(f)), "run-smoke") {
+			continue
+		}
 		// schémas 17/18/19 colonnes (insertions qdi_ms puis voip_r), chaque
 		// fichier porte son en-tête. Plus aucun index positionnel.
 		header, rows, err := ReadAQM(f)
