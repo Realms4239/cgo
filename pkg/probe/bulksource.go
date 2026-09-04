@@ -3,6 +3,7 @@ package probe
 import (
 	"context"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -29,18 +30,35 @@ func BulkSource(ctx context.Context, conn net.Conn) (uint64, error) {
 	}
 }
 
-// BulkDownloadTo — protocole du banc : dial, premier octet "D" (mode source
-// sur le sink), puis le client RECEVOIT jusqu'au terme du ctx. Rend les
-// octets reçus — la mesure download côté client, comme BulkSendTo est la
-// mesure upload côté client.
-func BulkDownloadTo(ctx context.Context, addr string) (uint64, error) {
-	conn, err := DialWithCC(ctx, addr, "")
+// BulkDownloadTo — protocole du banc : dial, "D" ou "D:<cc>\n" (mode source
+// sur le sink, la CC voyage avec la poignée de main), puis le client
+// RECEVOIT jusqu'au terme du ctx. Rend les octets reçus — la mesure
+// download côté client, comme BulkSendTo est la mesure upload côté client.
+func BulkDownloadTo(ctx context.Context, addr, cc string) (uint64, error) {
+	conn, err := DialWithCC(ctx, addr, cc)
 	if err != nil {
 		return 0, err
 	}
-	if _, err := conn.Write([]byte("D")); err != nil {
+	hello := "D"
+	if cc != "" {
+		hello = "D:" + cc + "\n"
+	}
+	if _, err := conn.Write([]byte(hello)); err != nil {
 		conn.Close()
 		return 0, err
 	}
 	return BulkReceive(ctx, conn, nil)
+}
+
+// ParseDownloadHello — "D" (client historique, CC hôte) ou "D:<cc>" (cellule
+// étiquetée). Tolérant : espaces, \n, casse du préfixe. "" si inconnu.
+func ParseDownloadHello(b []byte) (isDownload bool, cc string) {
+	s := strings.TrimSpace(string(b))
+	if len(s) == 0 || (s[0] != 'D' && s[0] != 'd') {
+		return false, ""
+	}
+	if len(s) > 2 && s[1] == ':' {
+		return true, strings.TrimSpace(s[2:])
+	}
+	return true, ""
 }

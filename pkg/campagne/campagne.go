@@ -340,7 +340,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		cc := string(ev.CC)
 		if d.Direction == "down" {
 			bulkFn = func(c context.Context, addr string) (uint64, error) {
-				return probe.BulkDownloadTo(c, addr)
+				// la CC de la CELLULE pilote l'émetteur download (pas la CC
+				// par-défaut de l'hôte) — sinon bbr/cubic sont indiscernables
+				return probe.BulkDownloadTo(c, addr, string(ev.CC))
 			}
 		} else {
 			bulkFn = func(c context.Context, addr string) (uint64, error) {

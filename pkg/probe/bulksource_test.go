@@ -42,3 +42,23 @@ func TestBulkSourceServesDownload(t *testing.T) {
 	}
 	_ = io.Discard
 }
+
+// TestParseDownloadHello — "D" historique (CC hôte), "D:<cc>" étiqueté,
+// bruit rejeté.
+func TestParseDownloadHello(t *testing.T) {
+	if dl, cc := ParseDownloadHello([]byte("D")); !dl || cc != "" {
+		t.Fatalf("D: dl=%v cc=%q", dl, cc)
+	}
+	if dl, cc := ParseDownloadHello([]byte("D:bbr\n")); !dl || cc != "bbr" {
+		t.Fatalf("D:bbr: dl=%v cc=%q", dl, cc)
+	}
+	if dl, cc := ParseDownloadHello([]byte("d:cubic")); !dl || cc != "cubic" {
+		t.Fatalf("d:cubic: dl=%v cc=%q", dl, cc)
+	}
+	if dl, _ := ParseDownloadHello([]byte("GET / HTTP/1.0")); dl {
+		t.Fatal("bruit HTTP accepté comme download")
+	}
+	if dl, _ := ParseDownloadHello(nil); dl {
+		t.Fatal("vide accepté comme download")
+	}
+}

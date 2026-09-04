@@ -47,15 +47,24 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 			}
 			go func(c net.Conn) {
 				defer c.Close()
-				// protocole du banc : 1er octbe "D" = download (le serveur
-				// INONDE, le client reçoit) ; sinon puits historique (le
-				// client inonde, le serveur discard). Un seul port, deux sens.
-				c.SetReadDeadline(time.Now().Add(2 * time.Second))
-				hdr := make([]byte, 1)
-				if _, err := io.ReadFull(c, hdr); err == nil && hdr[0] == 'D' {
+				// protocole du banc : "D" ou "D:<cc>" = download (le serveur
+				// INONDE avec la CC de la cellule) ; sinon puits historique
+				// (le client inonde, le serveur discard). Un seul port, deux
+				// sens, CC étiquetée. Lecture bornée : un client historique
+				// n'envoie qu'un octet, on ne l'attend pas.
+				c.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+				hdr := make([]byte, 24)
+				nr, _ := io.ReadAtLeast(c, hdr, 1)
+				c.SetReadDeadline(time.Time{})
+				if dl, cc := probe.ParseDownloadHello(hdr[:nr]); dl {
+					if err := probe.SetConnCC(c, cc); err != nil {
+						log.Printf("[src] CC %q refusée: %v (défaut hôte)", cc, err)
+					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 					defer cancel()
-					_, _ = probe.BulkSource(ctx, c) // mode source : download
+					// observabilité de fortune : ce que la source ENVOIE
+					n, _ := probe.BulkSource(ctx, c) // mode source : download
+					log.Printf("[src] download cc=%s: %d octets envoyés", cc, n)
 					return
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
