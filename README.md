@@ -14,7 +14,7 @@ Meteolink rejoue des profils de lien et affiche les données dans le terminal ou
   Tous les panneaux et métriques sont rafraîchis toutes les 100 ms sur le flux `SSE` (10 Hz) et toutes les 250 ms sur la `TUI`. Le `live-wall-overlay` affiche l'écart `Figée vs appliqué` instantanément.
 
 - **Configuration minimale nécessaire**  
-  Il suffit de le lancer sur votre lien d'accès, choisir les profils `P1/P2` et laisser Meteolink exécuter la matrice `pfifo_fast / fq_codel / CAKE × CUBIC / BBR` et vous montrer la comparaison.
+  Il suffit de le lancer sur votre lien d'accès, choisir les profils (`P1`–`P4`) et laisser Meteolink exécuter la matrice `pfifo_fast / fq_codel / CAKE × CUBIC / BBR` et vous montrer la comparaison.
 
 - **Suivi du temps de réponse applicatif**  
   Suivi du `small p95` — les petits objets critiques (télémétrie, alertes) qui souffrent le plus du bufferbloat. Extrêmement utile si vous voulez protéger le trafic qui compte.
@@ -23,7 +23,7 @@ Meteolink rejoue des profils de lien et affiche les données dans le terminal ou
   Meteolink est écrit en `Go`. Pour l'exécuter, seul le binaire est nécessaire — le tableau de bord `React` est embarqué via `go:embed`. Aucune base de données, aucune dépendance de service. Il embarque même son propre serveur `SSE`.
 
 - **Presque tous les scénarios d'accès**  
-  Meteolink accepte tout profil de lien (`P1` fibre 80 Mbit/s, `P2` 4G 20 Mbit/s, `P3` VSAT 5 Mbit/s importable via `POST /api/profile/import`). Les `qdisc` prédéfinis incluent `pfifo_fast`, `fq_codel`, `CAKE` et les `CC` `CUBIC`, `BBR`.
+  Meteolink accepte tout profil de lien (`P1` fibre 80 Mbit/s, `P2` 4G 20 Mbit/s, `P3` VSAT 5 Mbit/s, `P4` Starlink 100 Mbit/s natifs ; profils asymétriques / perte en rafales importables via `POST /api/profile/import`). Les `qdisc` prédéfinis incluent `pfifo_fast`, `fq_codel`, `CAKE` et les `CC` `CUBIC`, `BBR` — en upload comme en download (`--direction down|both`, RRUL séquentiel).
 
 - **Traitement incrémental des campagnes**  
   Besoin de persistance ? Meteolink fige chaque évènement vers `data/runs/<run>/aqm_eval.csv` + `manifest.json` (SHA-256). `cgo verify` les vérifie, `cgo figures` régénère les `SVG` sans `Node`.
@@ -174,7 +174,7 @@ Pour auditer votre lien depuis ce poste (non intrusif, sans admin) :
 
 ```
 $ cgo audit --link-type 5g --site "Dept X" --duration 300
-# → data/link_audit.csv (p50/p95, small p95, goodput)
+# → data/link_audit.csv (p50/p95, small p95, goodput, note bufferbloat A+..F)
 ```
 
 ### Coût du gaspillage — paliers tarifaires réels
@@ -195,6 +195,12 @@ Pour générer un rapport `CSV` sur la sortie standard :
 $ curl "http://localhost:9090/api/report/export?format=csv"
 ```
 
+Pour rejouer la meilleure cellule gelée de chaque profil en script `tc` (recette `aqm-recipe.sh`, même règle que la suggestion CLI) :
+
+```
+$ curl "http://localhost:9090/api/report/export?format=sh" -o aqm-recipe.sh
+```
+
 Meteolink permet aussi une grande flexibilité de filtrage temps réel. Pour diagnostiquer vite le bufferbloat sur le mur live :
 
 ```
@@ -208,6 +214,13 @@ Il existe plusieurs façons d'exécuter plusieurs profils avec Meteolink. La plu
 
 ```
 $ curl -X POST http://localhost:9090/api/run/start -H 'Content-Type: application/json' -d '{"profiles":["P1","P2"],"reps":3}'
+```
+
+Pour rejouer une seule cellule sans la matrice pleine (sous-matrice), ou mesurer le sens download (badge `↓` dans Résultats, jamais comparé à l'upload) :
+
+```
+$ cgo run --profiles P2 --qdiscs cake --cc bbr --reps 1 --direction down
+$ cgo run --profiles P2 --reps 1 --direction both   # RRUL séquentiel : up puis down
 ```
 
 Il est même possible d'importer un profil personnalisé depuis l'UI (`Campagne → Profil personnalisé → P3`) ou via pipe :

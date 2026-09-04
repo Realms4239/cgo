@@ -40,7 +40,14 @@ cgo audit --link-type 5g --site "Site X" --duration 300
 ```
 
 **Ce qu'on obtient.** Une ligne ajoutée à `data/link_audit.csv` : le
-profil réel du lien (latence, gigue, perte observées vers la cible).
+profil réel du lien (latence, gigue, perte observées vers la cible), plus
+la **note bufferbloat** (`bloat_grade` A+..F, `bloat_delta_ms`,
+`bloat_verdict` — bandes Waveform) et la **latence de travail en
+3 cases** : idle, montée chargée (mesurées), descente chargée (vide
+honnête « — après campagne download » tant qu'aucune campagne download
+n'a gelé le sens inverse — le manque s'affiche, il ne se cache pas).
+Le bouton **AUDIT → PROFIL** transforme le dernier audit en profil
+rejouable sur le banc (`POST /api/audit/toprofile`).
 
 **Ce que ça signifie.** C'est la référence avant toute prescription :
 on ne façonne jamais un bord sans avoir mesuré ce que le lien fait à
@@ -77,9 +84,26 @@ enchaîne baseline 30 s → charge 120 s → récupération 30 s. Un arrêt est
 gracieux : relancer la même campagne reprend après les événements déjà
 terminés.
 
+**Campagnes filtrées (sous-matrice).** Le formulaire UI lance la matrice
+pleine (tous qdiscs × toutes CC) ; pour rejouer une cellule ciblée sans
+54 min de matrice complète, passer les axes explicitement (API/CLI) :
+
+```bash
+cgo run --profiles P2 --qdiscs cake --cc bbr --reps 1 --direction down
+# ou : POST /api/run/start {"profiles":["P2"],"qdiscs":["cake"],"ccs":["bbr"],"reps":1,"direction":"down"}
+```
+
+Axes vides = matrice pleine ; axes inconnus = refus explicite.
+
+**Sens de charge (download / RRUL).** `up` (défaut) = upload
+client→sink ; `down` = download source→client (shaper côté serveur) ;
+`both` = RRUL séquentiel (matrice up gélée puis matrice down enchaînée).
+Dans **Résultats**, les cellules download portent le badge **↓** et ne
+se comparent jamais aux cellules up (voir §6).
+
 **Ce qu'on obtient.** Les lignes figées dans
 `data/runs/<run_id>/aqm_eval.csv`, une ligne par cellule
-`{profil, qdisc, cc}`.
+`{profil, qdisc, cc, direction}`.
 
 **Ce que ça signifie.** La campagne produit la matrice de mesure qui
 alimente Résultats et Comparaison. Impossible en mode observation
@@ -117,11 +141,17 @@ transitoires (gigue, pertes, queues AQM) qu'une campagne par blocs de
 ## 6. Comparer
 
 **Quoi faire.** Vue **Résultats + Comparaison** : épingler deux
-cellules **A/B par clic sur une cellule** `{profil, qdisc, cc}`.
+cellules **A/B par clic sur une cellule** `{profil, qdisc, cc}` (les
+cellules download `↓` portent leur sens : up et down ne se comparent
+jamais, `GET /api/results/delta?cell=P|q|cc|dir` refuse le mélange).
 
 **Ce qu'on obtient.** Une **table d'écart** entre A et B : p95 RTT,
 small-object, goodput, pertes, coût Ar/h — plus un **verdict** et des
-exports **CSV + JSON**.
+exports **CSV + MD** (boutons Résultats/Intégrité). La **recette sh**
+(`GET /api/report/export?format=sh`, API uniquement) rejoue la meilleure
+cellule gelée de chaque profil en script `tc` (`aqm-recipe.sh` : reset +
+netem aux conditions du profil + shaper au goodput mesuré ×0,9 — même
+règle que la suggestion CLI, sans `sudo` préfixé).
 
 **Ce que ça signifie.** C'est ici que la prescription naît : l'écart
 mesuré entre deux cellules justifie — ou non — de changer le façonnage.
@@ -158,6 +188,13 @@ l'application, pas à la saisie).
 | `linkJitterMs` | 2 | gigue — levier (ms) |
 | `linkLossPct` | 0 | perte — levier (%) |
 | `target` | `1.1.1.1` | cible de mesure |
+
+**Palier tarifaire** (état **serveur**, pas `localStorage`) : le select
+**Réglages** liste `GET /api/cost/tiers` et fige le forfait actif via
+`POST /api/cost/tier` — tous les coûts affichés/calculés suivent
+(en-mémoire : redémarrage = défaut `yas-month-4.5gb`). La fibre est ~10×
+moins chère au Go que le mobile : le palier change le verdict
+économique.
 
 **Sévérité absolue** (uniforme sur toutes les cartes, indépendante des
 réglages locaux) :
