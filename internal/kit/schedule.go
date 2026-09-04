@@ -69,11 +69,56 @@ func (r *Runner) Schedule(c *Config, at, profiles, qdiscs, ccs, direction string
 		}
 	}
 	if out, err := c.SSH("sudo systemctl daemon-reload && sudo systemctl enable --now meteolink-campaign.timer"); err != nil {
+		// sans privilège (sudo interactif) : repli documenté — cron
+		// utilisateur si présent, sinon la commande root exacte à jouer
 		r.errf("[schedule] activation: %v (%s)", err, out)
-		return 7
+		return r.scheduleFallback(c, at, profiles, qdiscs, ccs, direction, reps)
 	}
 	r.out("[schedule] timer nocturne posé — %s, campagne %s%s", at, profiles, extraSuffix(qdiscs, ccs, direction))
 	return 0
+}
+
+// scheduleFallback — pas de root : cron utilisateur si le binaire existe,
+// sinon on imprime la commande root minimale (une seule, à jouer une fois).
+func (r *Runner) scheduleFallback(c *Config, at, profiles, qdiscs, ccs, direction string, reps int) int {
+	if out, err := c.SSH("command -v crontab"); err == nil && strings.TrimSpace(out) != "" {
+		line := ScheduleCronLine(at, profiles, qdiscs, ccs, direction, reps)
+		if _, err := c.SSH(fmt.Sprintf("(crontab -l 2>/dev/null | grep -v meteolink-campaign; echo %q) | crontab -", line)); err != nil {
+			r.errf("[schedule] crontab: %v", err)
+			return 7
+		}
+		r.out("[schedule] cron utilisateur posé (repli sans root) — %s", line)
+		return 0
+	}
+	r.out("[schedule] ni root ni cron sur le banc — jouer UNE fois en root :")
+	r.out("  sudo apt-get install -y cron && sudo systemctl enable --now cron")
+	r.out("puis relancer : cgo kit schedule --at %s --profiles %s", at, profiles)
+	return 7
+}
+
+// ScheduleCronLine — repli sans privilège : cron utilisateur (pas de sudo,
+// survit au logout si cron tourne). Rend la ligne crontab complète.
+func ScheduleCronLine(at, profiles, qdiscs, ccs, direction string, reps int) string {
+	var hh, mm string
+	if _, err := fmt.Sscanf(at, "%d:%d", &hh, &mm); err != nil {
+		hh, mm = "02", "30"
+	}
+	args := []string{"/usr/local/bin/cgo-linux", "run", "--profiles", profiles}
+	if qdiscs != "" {
+		args = append(args, "--qdiscs", qdiscs)
+	}
+	if ccs != "" {
+		args = append(args, "--cc", ccs)
+	}
+	if direction != "" {
+		args = append(args, "--direction", direction)
+	}
+	if reps <= 0 {
+		reps = 3
+	}
+	args = append(args, "--reps", fmt.Sprint(reps))
+	return fmt.Sprintf("%s %s * * * cd /home/altfloat/cgo && %s >>/home/altfloat/cgo/campaign-cron.log 2>&1",
+		mm, hh, strings.Join(args, " "))
 }
 
 func extraSuffix(qdiscs, ccs, direction string) string {
