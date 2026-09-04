@@ -162,7 +162,77 @@ func (r *Runner) Ps(c *Config) int {
 	}
 }
 
-// ---- backup — rapatrie les preuves gelées.
+// ---- svc — pilotage du dashboard distant (start/stop/restart/status).
+// Le lanceur posé par deploy (start.sh + nohup userspace, voir vm-install.sh)
+// ne demande aucun sudo : tout passe par la clé SSH (keysetup). Zéro GUI.
+
+// Svc — start : lance (idempotent) + attend la santé 15 s ; stop : coupe et
+// vérifie ; restart : stop + start ; status (défaut) : processus + santé.
+func (r *Runner) Svc(c *Config, sub string) int {
+	procs, _ := c.SSH(`pgrep -u "$USER" -f '[c]go-linux --serve' | tr '\n' ' '`)
+	procs = strings.TrimSpace(procs)
+	switch sub {
+	case "", "status":
+		r.out("[svc] process=%s health=%s (%s@%s)", firstOr(procs, "—"),
+			humanBool(c.Health()), c.SSHUser, c.SSHHost)
+		return 0
+	case "stop":
+		if procs == "" {
+			r.out("[svc] déjà arrêté")
+			return 0
+		}
+		_, _ = c.SSH(`pkill -u "$USER" -f '[c]go-linux --serve'`)
+		for i := 0; i < 10; i++ {
+			time.Sleep(time.Second)
+			if out, _ := c.SSH(`pgrep -u "$USER" -f '[c]go-linux --serve'`); strings.TrimSpace(out) == "" {
+				r.out("[svc] arrêté (pid %s)", procs)
+				return 0
+			}
+		}
+		r.errf("[svc] arrêt incomplet, pids restants — voir : cgo kit ps")
+		return 5
+	case "start":
+		if c.Health() {
+			r.out("[svc] déjà en ligne (pid %s)", firstOr(procs, "?"))
+			return 0
+		}
+		if _, err := c.SSH("cd " + c.ProjectDir + " && (setsid nohup ./start.sh >/dev/null 2>&1 &)"); err != nil {
+			r.sshDiag("[svc]", "")
+			return 5
+		}
+		for i := 0; i < 15; i++ {
+			time.Sleep(time.Second)
+			if c.Health() {
+				r.out("[svc] en ligne → http://%s:%s", c.SSHHost, c.DashPort)
+				return 0
+			}
+		}
+		r.errf("[svc] santé KO après 15 s — voir : cgo kit logs")
+		return 8
+	case "restart":
+		if code := r.Svc(c, "stop"); code != 0 {
+			return code
+		}
+		return r.Svc(c, "start")
+	default:
+		r.errf("[svc] sous-commande inconnue : %s (start|stop|restart|status)", sub)
+		return 2
+	}
+}
+
+func firstOr(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
+}
+
+func humanBool(b bool) string {
+	if b {
+		return "OK"
+	}
+	return "KO"
+}
 
 // Backup — tar.gz horodaté de data/runs de la VM vers dest/ (défaut ./backup).
 func (r *Runner) Backup(c *Config, dest string) int {
