@@ -111,3 +111,14 @@ Flent RRUL (up+down simultanés + ping + flux temps réel), FCC MBA, RFC
 - Déploiement binaire neuf, `kit schedule` (**Q19**, timer systemd via kit),
   campagnes filtrées P1/P4/P3 (+download), STOP si contradiction deck
   (60,2/96,2/98,1 % · QDI 57→13 · R 92,9/71,5).
+
+### ARCHIVÉ 2026-09-04 — kit schedule (Q19)
+
+`kit schedule` (+ repli cron, + consigne root) est implémenté, testé et
+vert — mais NON INSTALLÉ sur le banc : systemd exige root (mv +
+systemctl), cron est absent et le lingering est off. L'installation
+attend UNE commande root (`apt-get install -y cron && systemctl enable
+--now cron`) ou un accès sudo. En attendant, les campagnes restent
+lancées à la main (procédure handoff, inchangée). Ne pas réinstaller sans
+revalider : le timer installerait des runs nocturnes qui domineraient les
+agrégats stats.json (36 lignes/nuit en both reps 1).
