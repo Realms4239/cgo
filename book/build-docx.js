@@ -12,6 +12,7 @@ const {
   Footer, PageNumber, AlignmentType, WidthType, BorderStyle,
   ShadingType, VerticalAlign, HeadingLevel, NumberFormat,
   Math: DMath, MathRun, MathFraction, MathSubScript, MathSuperScript, MathSum, MathRadical,
+  HighlightColor,
 } = require('docx');
 
 // Équations OMML natives Word (rendu LaTeX-quality sans LaTeX).
@@ -63,20 +64,35 @@ function pngSize(file) {
 }
 
 // Découpe un texte contenant {figRef:id}/{tabRef:id} en runs + champs REF.
+// Convention jaune : tout segment [[...]] est un placeholder à compléter,
+// rendu surligné en jaune (révision : chercher "[[" dans le docx final).
 const REF_RE = /\{(figRef|tabRef):([A-Za-z0-9]+)\}/g;
+const PH_RE = /\[\[([^\]]+)\]\]/g;
+function phRuns(text, opts = {}) {
+  const runs = [];
+  let last = 0, m;
+  PH_RE.lastIndex = 0;
+  while ((m = PH_RE.exec(text))) {
+    if (m.index > last) runs.push(new TextRun({ text: text.slice(last, m.index), ...opts }));
+    runs.push(new TextRun({ text: m[1], highlight: HighlightColor.YELLOW, bold: true, ...opts }));
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) runs.push(new TextRun({ text: text.slice(last), ...opts }));
+  return runs;
+}
 function textToRuns(text, opts = {}) {
   const runs = [];
   let last = 0, m;
   REF_RE.lastIndex = 0;
   while ((m = REF_RE.exec(text))) {
-    if (m.index > last) runs.push(new TextRun({ text: text.slice(last, m.index), ...opts }));
+    if (m.index > last) runs.push(...phRuns(text.slice(last, m.index), opts));
     const label = m[1] === 'figRef' ? 'Figure' : 'Tableau';
     const mark = (m[1] === 'figRef' ? 'RefFig_' : 'RefTab_') + m[2];
     runs.push(new TextRun({ text: label + ' ', ...opts }));
     runs.push(new SimpleField(`REF ${mark} \\h`, '0'));
     last = m.index + m[0].length;
   }
-  if (last < text.length) runs.push(new TextRun({ text: text.slice(last), ...opts }));
+  if (last < text.length) runs.push(...phRuns(text.slice(last), opts));
   return runs;
 }
 
@@ -125,8 +141,8 @@ function heading2annex(text) {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
     keepNext: true,
-    spacing: { before: 360, after: 200, line: LINE_150 },
-    children: [new TextRun({ text })],
+    spacing: { before: 360, after: 200, line: 360 },
+    children: phRuns(text, { size: 26, font: FONT }),
   });
 }
 function heading3(text) {
@@ -211,7 +227,7 @@ function tableBlock(tab) {
     children: [new Paragraph({
       alignment: isHeader ? AlignmentType.CENTER : AlignmentType.LEFT,
       spacing: { line: 240, after: 0 },
-      children: [new TextRun({ text: String(text), bold: isHeader, size: SIZE_TABLE })],
+      children: phRuns(String(text), { bold: isHeader, size: SIZE_TABLE, font: FONT }),
     })],
   });
   const rows = [
@@ -296,7 +312,7 @@ function titlePage(tp) {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before, after, line: 276 },
-      children: [new TextRun({ text, size, bold, allCaps: caps })],
+      children: phRuns(text, { size, bold, font: FONT, allCaps: caps }),
     });
   const rule = () => new Paragraph({
     alignment: AlignmentType.CENTER,
