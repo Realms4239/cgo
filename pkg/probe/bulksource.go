@@ -50,6 +50,35 @@ func BulkDownloadTo(ctx context.Context, addr, cc string) (uint64, error) {
 	return BulkReceive(ctx, conn, nil)
 }
 
+// BulkDownloadNTo — N dials indépendants vers addr, "D:<cc>" chacun,
+// réception parallèle, per-flow rendu. Le download multi-flux agrège
+// au-delà du plafond ACK d'un flux unique (Mathis sur la perte ACK) ET
+// montre l'équité inter-flux du qdisc download — les deux choses qu'un
+// flux seul ne peut pas dire.
+func BulkDownloadNTo(ctx context.Context, addr, cc string, n int) ([]uint64, error) {
+	if n <= 1 {
+		b, err := BulkDownloadTo(ctx, addr, cc)
+		return []uint64{b}, err
+	}
+	type res struct {
+		i int
+		n uint64
+	}
+	ch := make(chan res, n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			b, _ := BulkDownloadTo(ctx, addr, cc)
+			ch <- res{i: i, n: b}
+		}(i)
+	}
+	out := make([]uint64, n)
+	for i := 0; i < n; i++ {
+		r := <-ch
+		out[r.i] = r.n
+	}
+	return out, nil
+}
+
 // ParseDownloadHello — "D" (client historique, CC hôte) ou "D:<cc>" (cellule
 // étiquetée). Tolérant : espaces, \n, casse du préfixe. "" si inconnu.
 func ParseDownloadHello(b []byte) (isDownload bool, cc string) {

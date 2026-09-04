@@ -25,6 +25,25 @@ La chaîne de mesure s'ancre dans des standards et outils publics :
 - **FCC Measuring Broadband America** — précédent réglementaire de la
   mesure de latence sous charge auprès du grand public.
 
+## 0.1 Asymétrie TCP mesurée (résultat du banc, 2026-09-04)
+
+Sur lien 100 ms / perte 0,5 %, un flux TCP unique plafonne par l'équation
+de Mathis (~2,5 Mb/s cubic) **dès que la perte touche la boucle** — y
+compris la perte des seuls ACK (sens download : données intactes en
+descente, ACK perdus à 0,5 % en montée → BBR mesuré à ~2,5 Mb/s contre
+~19 Mb/s en montée où les ACK sont propres). Conséquences verrouillées
+dans le code :
+
+- la CC de la cellule pilote l'ÉMETTEUR du sens mesuré (protocole `D:<cc>`
+  côté sink, `DialWithCC` côté client) — jamais la CC par-défaut de l'hôte ;
+- la porte G4 juge le sens mesuré (CapUp/CapDown) avec un plancher
+  direction-aware : en download mono-flux, le goodput est horlogé par les
+  ACK (qdisc-indépendant) — le plancher (1 % de CapDown) ne détecte que le
+  tuyau mort, et **le verdict download se joue sur la latence**
+  (small_p95, deadline), pas sur le débit ;
+- le download multi-flux (`flows` > 1) agrège au-delà du plafond ACK
+  mono-flux et montre l'équité inter-flux (JFI gelé per-flow).
+
 ## 1. Questions de recherche
 
 1. **QR1 — Effet de l'AQM** : à conditions de lien identiques, comment le choix

@@ -363,7 +363,14 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	done := make(chan chargeOut, 1)
 	go func() {
 		if d.BulkN != nil && flows > 1 {
-			per, _ := d.BulkN(chgCtx, d.BulkAddr, flows)
+			var per []uint64
+			var err error
+			if d.Direction == "down" {
+				per, err = probe.BulkDownloadNTo(chgCtx, d.BulkAddr, string(ev.CC), flows)
+			} else {
+				per, err = d.BulkN(chgCtx, d.BulkAddr, flows)
+			}
+			_ = err
 			var total uint64
 			for _, b := range per {
 				total += b
@@ -428,12 +435,21 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.CostARPerH = round1(metrics.CostARPerH(ev.WastedBytes))
 	set(model.G3LatencyPlausible, ev.RTTp95Ms < prof.DelayMs*10+200)
 	// G4 juge le goodput du SENS MESURÉ : montant → CapUp, descendant →
-	// CapDown (l'asymétrie est la règle, pas l'exception)
+	// CapDown (l'asymétrie est la règle, pas l'exception).
+	// Plancher direction-aware, prouvé sur le banc (2026-09-04) : en
+	// download mono-flux, le goodput est horlogé par les ACK (Mathis sur la
+	// perte ACK 0,5 % : ~2,5 Mb/s BBR, ~0,5 cubic — IDENTIQUE tous qdiscs,
+	// les ACK ne traversent pas le shaper download). Le plancher down (1 %
+	// de CapDown) ne détecte que le tuyau mort (0, dial cassé, sink absent) ;
+	// le verdict download se joue sur la LATENCE (small/deadline), pas le
+	// débit. En montant, les données traversent le shaper : 50 % pleins.
 	g4Cap := prof.CapUp()
+	g4Floor := g4Cap * 0.5
 	if d.Direction == "down" {
 		g4Cap = prof.CapDown()
+		g4Floor = g4Cap * 0.01
 	}
-	set(model.G4ThroughputCoherent, goodput >= g4Cap*.5 && goodput <= g4Cap*1.1+.5)
+	set(model.G4ThroughputCoherent, goodput >= g4Floor && goodput <= g4Cap*1.1+.5)
 	set(model.G7CPUNotSaturated, cpuAvg < 90)
 	set(model.G5NoDuplicateRows, true) // appliqué par l'écrivain au gel
 	// publier les métriques mises à jour pour que SSE porte la vérité (wasted/cost/deadline) sans dérivation
