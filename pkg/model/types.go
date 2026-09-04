@@ -5,12 +5,16 @@ package model
 import "sync"
 
 // Profil — valeurs par défaut, remplacées par les profils importés.
+// CapacityMbps reste LA capacité de référence (historique) ; CapacityUpMbps
+// optionnel scinde le sens montant (liens réels asymétriques : 4G 20/5,
+// VSAT 5/1). Absent → up = down : comportement symétrique historique.
 type Profile struct {
-	ID           string  `json:"id"`
-	CapacityMbps float64 `json:"capacity_mbps"`
-	DelayMs      float64 `json:"delay_ms"`
-	JitterMs     float64 `json:"jitter_ms"`
-	LossPct      float64 `json:"loss_pct"`
+	ID             string  `json:"id"`
+	CapacityMbps   float64 `json:"capacity_mbps"`
+	CapacityUpMbps float64 `json:"capacity_up_mbps,omitempty"`
+	DelayMs        float64 `json:"delay_ms"`
+	JitterMs       float64 `json:"jitter_ms"`
+	LossPct        float64 `json:"loss_pct"`
 	// Perte en rafales (Gilbert-Elliott, netem gemodel — kernel banc 6.8) :
 	// la vraie vie mobile/satellite où la perte arrive en salves. Champs
 	// optionnels : 0/absents = perte uniforme (comportement historique).
@@ -18,6 +22,19 @@ type Profile struct {
 	LossBurstR float64 `json:"loss_burst_r,omitempty"` // r : bon → mauvais
 	LossBurstH float64 `json:"loss_burst_h,omitempty"` // h : persistance mauvais
 	LossBurstK float64 `json:"loss_burst_k,omitempty"` // k : mauvais → bon
+}
+
+// CapDown — capacité du sens descendant (référence historique).
+func (p Profile) CapDown() float64 { return p.CapacityMbps }
+
+// CapUp — capacité du sens montant : explicite si fournie, sinon = down
+// (symétrique). Plafonnée par CapacityMbps : un up > down est incohérent
+// avec la référence, la borne est le max déclaré.
+func (p Profile) CapUp() float64 {
+	if p.CapacityUpMbps > 0 && p.CapacityUpMbps < p.CapacityMbps {
+		return p.CapacityUpMbps
+	}
+	return p.CapacityMbps
 }
 
 var Profiles = map[string]Profile{
