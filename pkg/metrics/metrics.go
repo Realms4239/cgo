@@ -3,8 +3,10 @@
 package metrics
 
 import (
+	"fmt"
 	"math"
 	"sort"
+	"sync"
 )
 
 // Percentile of a pre-sorted slice (linear interpolation, nearest-rank-ish).
@@ -92,10 +94,37 @@ var Tiers = []PriceTier{
 // DefaultTier — le palier par défaut du calcul.
 var DefaultTier = Tiers[1] // yas-month-4.5gb : contexte cellular DSI
 
+// tierMu garde le palier actif : lectures concurrentes des campagnes et
+// écriture POST /api/cost/tier — une map/var nue serait une course fatale.
+var tierMu sync.RWMutex
+
+// SetDefaultTier choisit le palier actif (nom exact des Tiers) : inconnu =
+// refus, pas de défaut silencieux.
+func SetDefaultTier(name string) error {
+	for _, tr := range Tiers {
+		if tr.Name == name {
+			tierMu.Lock()
+			DefaultTier = tr
+			tierMu.Unlock()
+			return nil
+		}
+	}
+	return fmt.Errorf("palier inconnu: %s", name)
+}
+
+// ActiveTierName rend le nom du palier actif (pour l'UI Réglages).
+func ActiveTierName() string {
+	tierMu.RLock()
+	defer tierMu.RUnlock()
+	return DefaultTier.Name
+}
+
 // CostARPerH — coût horaire du gaspillage au palier courant.
 // wasted × (Ar/Go) / Go = Ar, l'heure vient de la fenêtre d'événement (3 min
 // extrapolée ×20 — documentée dans la méthodologie, pas une facturation).
 func CostARPerH(wastedBytes uint64) float64 {
+	tierMu.RLock()
+	defer tierMu.RUnlock()
 	return CostARPerHTier(wastedBytes, DefaultTier)
 }
 

@@ -21,10 +21,28 @@ const FIELDS: { key: keyof Settings; skey: string; label: string; unit?: string 
 export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const [s, setS] = useState<Settings>(() => loadSettings())
   const [schema, setSchema] = useState<Param[]>([])
+  const [tiers, setTiers] = useState<{ name: string; ar_per_gb: number }[]>([])
+  const [tier, setTier] = useState('')
   const setFlash = useUIStore((st: any) => st.setFlash)
   useEffect(() => { loadSchema().then(setSchema).catch(() => {}) }, [])
-  const apply = () => {
+  useEffect(() => {
+    fetch('/api/cost/tiers').then(r => r.json()).then(j => {
+      setTiers(j.tiers || [])
+      setTier(j.default || '')
+    }).catch(() => {})
+  }, [])
+  const apply = async () => {
     saveSettings(s)
+    // le palier est un état SERVEUR (coûts affichés partout) — l'échec se dit
+    if (tier) {
+      try {
+        const r = await fetch('/api/cost/tier', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tier }) })
+        if (!r.ok) throw new Error(String(r.status))
+      } catch {
+        setFlash({ type: 'danger', msg: 'Réglages locaux OK — palier serveur refusé' })
+        return
+      }
+    }
     setFlash({ type: 'success', msg: 'Réglages enregistrés' })
     onClose()
   }
@@ -49,6 +67,16 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
             </div>
           )
         })}
+        <div className="form-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 2, marginBottom: 12 }}>
+          <label className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
+            Palier tarifaire (coûts affichés)
+          </label>
+          <select data-testid="tier-select" value={tier} onChange={e => setTier(e.target.value)} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+            {tiers.length === 0 && <option value="">—</option>}
+            {tiers.map(t => <option key={t.name} value={t.name}>{t.name} — {t.ar_per_gb} Ar/Go</option>)}
+          </select>
+          <span className="mono" style={{ fontSize: 9, color: '#9aa0a8' }}>le forfait où vit l'institution — tous les coûts affichés suivent</span>
+        </div>
         <div className="form-row" style={{ gap: 8, marginTop: 12 }}>
           <button className="btn btn-primary" onClick={apply}>ENREGISTRER</button>
           <button className="btn" onClick={() => setS({ ...DEFAULTS })}>DÉFAUTS</button>
