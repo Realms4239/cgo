@@ -37,6 +37,7 @@ export default function CampagneView() {
   const [importMsg, setImportMsg] = useState('')
   const [importForm, setImportForm] = useState(false)
   const [auditOpen, setAuditOpen] = useState(false)
+  const [auditLast, setAuditLast] = useState<any>(null)
   const [impId, setImpId] = useState('')
   const [impCap, setImpCap] = useState(20)
   const [impDelay, setImpDelay] = useState(100)
@@ -86,6 +87,7 @@ export default function CampagneView() {
         fetch('/api/audit/status')
           .then((res) => res.json())
           .then((j) => {
+            setAuditLast(j.last ?? null)
             if (!j.running) {
               clearInterval(poll)
               auditPollRef.current = null
@@ -308,6 +310,32 @@ export default function CampagneView() {
           <span className="mono muted">{auditMsg}</span>
         </div>
         </>}
+        {/* latence de travail — 3 cases, vides honnêtes : idle et montée
+            chargée mesurées par l'audit ; la descente chargée attend la
+            campagne download (le manque s'affiche, il ne se cache pas) */}
+        {auditLast && (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:8, marginTop:10 }} data-testid="work-latency">
+          <div style={{ padding:'6px 8px', border:'1px solid var(--hairline)', background:'rgba(90,211,227,0.04)' }}>
+            <div className="mono" style={{ fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099' }}>idle</div>
+            <div className="mono" style={{ fontSize:16, color:'#f2f2f4', fontVariantNumeric:'tabular-nums' }}>{Number(auditLast.rtt_idle_p50_ms ?? 0).toFixed(1)} ms</div>
+          </div>
+          <div style={{ padding:'6px 8px', border:'1px solid var(--hairline)', background:'rgba(90,211,227,0.04)' }}>
+            <div className="mono" style={{ fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099' }}>montée chargée</div>
+            <div className="mono" style={{ fontSize:16, color:'#5ad3e3', fontVariantNumeric:'tabular-nums' }}>{Number(auditLast.rtt_loaded_p50_ms ?? 0).toFixed(1)} ms</div>
+          </div>
+          <div style={{ padding:'6px 8px', border:'1px dashed var(--hairline)' }} title="mesurable après la campagne download (bulk inversé)">
+            <div className="mono" style={{ fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'#767b84' }}>descente chargée</div>
+            <div className="mono" style={{ fontSize:16, color:'#767b84' }}>— après campagne download</div>
+          </div>
+        </div>
+        )}
+        {auditLast?.bloat_grade && (
+        <div className="mono" style={{ fontSize:11, marginTop:8, padding:'6px 8px', border:'1px solid #26262a', background:'rgba(244,180,0,0.06)' }} data-testid="bloat-grade">
+          note bufferbloat : <b style={{ color: auditLast.bloat_grade.startsWith('A') ? '#1fa348' : auditLast.bloat_grade === 'B' ? '#5ad3e3' : '#f4b400' }}>{auditLast.bloat_grade}</b>
+          {' '}({Number(auditLast.bloat_delta_ms ?? 0).toFixed(1)} ms sous charge) — {auditLast.bloat_verdict}
+          <span style={{ color:'#767b84' }}> · bandes Waveform</span>
+        </div>
+        )}
       </div>
 
       <div className="card">
