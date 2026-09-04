@@ -4,6 +4,27 @@ Document orienté mémoire : questions de recherche, plan expérimental, conditi
 de validité et chaîne de provenance. Références code : `pkg/model`,
 `pkg/campagne`, `pkg/metrics`, `pkg/results`.
 
+## 0. Ancrage méthodologique
+
+La chaîne de mesure s'ancre dans des standards et outils publics :
+
+- **RFC 8290** ( fq_codel) et **RFC 7928** (cake) — les disciplines testées,
+  spécifiées ; **RFC 8033** (PIE) pour la famille AQM alternative.
+- **DSCP EF, RFC 3246** — la sonde petit objet est marquée Expedited
+  Forwarding (banc Linux) : la mesure porte la classe temps réel que l'AQM
+  doit protéger, pas un flux best-effort anonyme.
+- **Flent / RRUL** (Toke Høiland-Jørgensen et al.) — la référence
+  académique du test de latence sous charge (flux montants + descendants
+  simultanés + ping) ; le banc en applique la forme mono-sens (charge
+  montante), la forme combinée étant une perspective documentée.
+- **Waveform Bufferbloat Test** (waveform.com/tools/bufferbloat) — la note
+  A+..F de l'audit et des cellules reprend ses bandes verbatim
+  (A+ <5 ms · A <30 · B <60 · C <200 · D <400 · F ≥400) sur l'écart de
+  latence moyenne idle→chargée, pire sens mesuré ; source citée dans le
+  verdict.
+- **FCC Measuring Broadband America** — précédent réglementaire de la
+  mesure de latence sous charge auprès du grand public.
+
 ## 1. Questions de recherche
 
 1. **QR1 — Effet de l'AQM** : à conditions de lien identiques, comment le choix
