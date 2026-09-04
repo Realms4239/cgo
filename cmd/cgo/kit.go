@@ -109,6 +109,30 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 			dest = rest[0]
 		}
 		return r.Backup(c, dest)
+	case "schedule":
+		at := "02:30"
+		profiles := "P2"
+		qdiscs := ""
+		ccs := ""
+		direction := "both"
+		reps := 0
+		for i := 0; i+1 < len(rest); i += 2 {
+			switch rest[i] {
+			case "--at":
+				at = rest[i+1]
+			case "--profiles":
+				profiles = rest[i+1]
+			case "--qdiscs":
+				qdiscs = rest[i+1]
+			case "--cc":
+				ccs = rest[i+1]
+			case "--direction":
+				direction = rest[i+1]
+			case "--reps":
+				fmt.Sscanf(rest[i+1], "%d", &reps)
+			}
+		}
+		return r.Schedule(c, at, profiles, qdiscs, ccs, direction, reps)
 	default:
 		fmt.Fprintf(os.Stderr, "action inconnue : %s\n", action)
 		fs.Usage()
