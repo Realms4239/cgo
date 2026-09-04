@@ -38,10 +38,18 @@ func prodDeps(direction string) Deps {
 	cliIf := env("CGO_CLI_IF", "veth-c")
 	shaperIf := env("CGO_SHAPER_IF", cliIf) // même saut que netem — émission upload
 	var shaper qdisc.TCRunner = qdisc.ExecRunner{}
+	statsIf := cliIf
+	statsRunner := qdisc.TCRunner(qdisc.ExecRunner{})
 	if direction == "down" {
 		srvIf := env("CGO_SRV_IF", "veth-s")
 		shaper = qdisc.NsRunner{Ns: env("CGO_SRV_NS", "cgo-srv")}
 		shaperIf = srvIf
+		// compteurs du SENS MESURÉ : en download, les octets et pertes
+		// vivent sur l'émission serveur (veth-s) — sonder veth-c ne
+		// compterait que les ACK (le gel affichait 0,0 malgré des Mo
+		// reçus : prouvé 2026-09-04, serveur 24 Mo → gel 0,0).
+		statsIf = srvIf
+		statsRunner = qdisc.NsRunner{Ns: env("CGO_SRV_NS", "cgo-srv")}
 	}
 	return Deps{
 		TC:        qdisc.ExecRunner{}, // netem sur veth-c (ns principal)
@@ -57,10 +65,11 @@ func prodDeps(direction string) Deps {
 			return probe.BulkSendNTo(ctx, addr, string(model.Cubic), n)
 		},
 		StatsFn: func() []qdisc.Stats {
-			// sonder UNIQUEMENT le saut client façonné (veth-c) : sommer les deux sauts
-			// double-compte chaque octet (les mêmes paquets traversent veth-c et
-			// veth-s), gonflant le goodput ~2× et cassant la cohérence G4.
-			sts1, err1 := qdisc.PollStats(qdisc.ExecRunner{}, cliIf)
+			// UN SEUL saut, celui du sens mesuré : sommer les deux sauts
+			// double-compte chaque octet (les mêmes paquets traversent veth-c
+			// et veth-s), gonflant le goodput ~2× et cassant la cohérence G4.
+			// up = émission cliente (veth-c), down = émission serveur (veth-s).
+			sts1, err1 := qdisc.PollStats(statsRunner, statsIf)
 			if err1 != nil {
 				return nil
 			}
