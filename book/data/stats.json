@@ -1,8 +1,8 @@
 {
-  "total_runs": 149,
-  "total_rows": 391,
-  "valid": 124,
-  "quarantined": 205,
+  "total_runs": 150,
+  "total_rows": 409,
+  "valid": 133,
+  "quarantined": 214,
   "cells": [
     {
       "cell": "P1|cake|bbr",
@@ -135,6 +135,42 @@
       "deadline_med": 100,
       "goodput_med": 15.5,
       "cost_med": 0
+    },
+    {
+      "cell": "P3|cake|bbr",
+      "n": 3,
+      "small_p95_med": 1212.3,
+      "small_p95_p95": 1750,
+      "rtt_p95_med": 628,
+      "qdi_med": 26.5,
+      "voip_med": 71.5,
+      "deadline_med": 0,
+      "goodput_med": 4.5,
+      "cost_med": 48.9
+    },
+    {
+      "cell": "P3|fq_codel|bbr",
+      "n": 3,
+      "small_p95_med": 1212.7,
+      "small_p95_p95": 1217.7,
+      "rtt_p95_med": 628,
+      "qdi_med": 28,
+      "voip_med": 71.6,
+      "deadline_med": 0,
+      "goodput_med": 4.4,
+      "cost_med": 327.3
+    },
+    {
+      "cell": "P3|pfifo_fast|bbr",
+      "n": 3,
+      "small_p95_med": 1728.4,
+      "small_p95_p95": 1840.6,
+      "rtt_p95_med": 942.8,
+      "qdi_med": 289.8,
+      "voip_med": 61.7,
+      "deadline_med": 0,
+      "goodput_med": 4.5,
+      "cost_med": 173.4
     },
     {
       "cell": "P4|cake|bbr",
