@@ -23,7 +23,7 @@
 <rect x="705" y="320.6666666666667" width="60" height="79.33333333333331" rx="0" fill="#2f8f4f" opacity="0.85"/>
 <text x="735" y="312.6666666666667" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#1f2430" font-weight="700" text-anchor="middle">14.0 ms</text>
 <text x="735" y="424" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="13" fill="#1f2430" font-weight="normal" text-anchor="middle">cake</text>
-<text x="735" y="442" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10" fill="#5b6472" font-weight="normal" text-anchor="middle">n=11</text>
+<text x="735" y="442" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="10" fill="#5b6472" font-weight="normal" text-anchor="middle">n=12</text>
 <text x="450" y="30" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#1f2430" font-weight="700" text-anchor="middle">QDI (p95 − médiane, ms) sous BBR — régularité du lien 4G P2</text>
 <text x="18" y="230" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="12" fill="#5b6472" font-weight="normal" text-anchor="middle" transform="rotate(-90 18 230)">écart p95 − p50</text>
 </svg>
