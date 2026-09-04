@@ -108,6 +108,24 @@ func CostARPerHTier(wastedBytes uint64, tier PriceTier) float64 {
 // JFI — Jain's fairness index (Σx)² / (n·Σx²), 0..1 (1 = perfectly fair).
 // Inutilisé tant que l'API n'expose pas les valeurs par répétition (computeJFI côté front).
 
+// JFI — Jain's fairness index (Σx)² / (n·Σx²), 0..1 (1 = perfectly fair).
+// Per-flow (contributions individuelles), jamais sur le total seul : un
+// total identique peut cacher la famine d'un flux.
+func JFI(xs []uint64) float64 {
+	if len(xs) < 2 {
+		return 0
+	}
+	var sum, sumSq float64
+	for _, x := range xs {
+		sum += float64(x)
+		sumSq += float64(x) * float64(x)
+	}
+	if sumSq == 0 {
+		return 0
+	}
+	return sum * sum / (float64(len(xs)) * sumSq)
+}
+
 // VoIPR — score R du E-model simplifié (ITU-T G.107) sur les proxys mesurés :
 // délai (rtt/2 aller simple), gigue (p95−p50, absorbée par le jitter buffer),
 // perte (pct). 0 (insupportable) → 100 (excellent). Idl > 50 = MOS > 3.6
