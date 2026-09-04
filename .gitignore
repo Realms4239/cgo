@@ -58,3 +58,7 @@ scripts/tokenrouter-proxy.js
 
 # lockfiles temporaires Word/Office
 ~$*
+
+# livrables hors repo (binaires + sources : dépôt séparé)
+*.docx
+*.pptx

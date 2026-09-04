@@ -156,25 +156,29 @@ func LoadConfig(path string) (*Config, error) {
 	return c, nil
 }
 
+// saveConfigValue — écrit clé: "valeur" dans le yaml (ajoute si absent).
+// Factorisé de SaveVMX : keysetup y mémorise ssh_user après une pose réussie.
+func saveConfigValue(path, key, val string) error {
+	b, _ := os.ReadFile(path)
+	lines := strings.Split(string(b), "\n")
+	found := false
+	for i, ln := range lines {
+		if strings.HasPrefix(strings.TrimSpace(ln), key+":") {
+			lines[i] = key + ": \"" + val + "\""
+			found = true
+			break
+		}
+	}
+	if !found {
+		lines = append(lines, key+": \""+val+"\"")
+	}
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+}
+
 // SaveVMX — persiste vm_name/vmx_path/hypervisor dans le yaml (auto-rempli par scan).
 func SaveVMX(path, vmx, hypervisor string) error {
 	name := strings.TrimSuffix(filepath.Base(vmx), filepath.Ext(vmx))
-	set := func(key, val string) {
-		b, _ := os.ReadFile(path)
-		lines := strings.Split(string(b), "\n")
-		found := false
-		for i, ln := range lines {
-			if strings.HasPrefix(strings.TrimSpace(ln), key+":") {
-				lines[i] = key + ": \"" + val + "\""
-				found = true
-				break
-			}
-		}
-		if !found {
-			lines = append(lines, key+": \""+val+"\"")
-		}
-		_ = os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
-	}
+	set := func(key, val string) { _ = saveConfigValue(path, key, val) }
 	if strings.HasSuffix(vmx, ".vbox") {
 		set("vbox_path", vmx)
 	} else {
@@ -280,7 +284,7 @@ func sshAdvice(class string) string {
 	case "refused":
 		return "port 22 fermé : sshd est absent ou éteint dans la VM. Ouvrir la console de la VM (hyperviseur) puis : sudo apt install -y openssh-server && sudo systemctl enable --now ssh"
 	case "auth":
-		return "la VM refuse la clé de l'hôte. Depuis la console VM : mkdir -p ~/.ssh && echo '<votre clé publique>' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys (ou : ssh-copy-id depuis l'hôte)"
+		return "la VM refuse la clé de l'hôte. Sans console : cgo kit keysetup (pose la clé via mot de passe, prompts guidés). Depuis la console VM : mkdir -p ~/.ssh && echo '<votre clé publique>' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys (ou : ssh-copy-id depuis l'hôte)"
 	case "unreachable":
 		return "ni l'IP ni le port-forward ne répondent : VM éteinte ou IP changée. Essayer : cgo kit ensure (redécouverte d'IP + boot), puis cgo kit doctor"
 	case "unknown":

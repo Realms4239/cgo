@@ -1,5 +1,0 @@
-run_id,event_id,profile,qdisc,cc,direction,repetition,rtt_p50_ms,rtt_p95_ms,qdi_ms,voip_r,jfi_pct,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,rtt_base_p50_ms,rtt_base_p95_ms,gate_status
-run-1788514935,1,P2,cake,cubic,down,1,111.0,127.0,16.0,91.2,0.0,373.8,33.3,5.0,82,0,118736,12.30,0.0,109.0,126.9,valid
-run-1788514935,2,P2,cake,bbr,down,1,113.0,137.0,24.0,91.0,0.0,539.0,3.5,1.5,90,0,130320,13.50,0.0,109.0,125.1,valid
-run-1788514935,3,P2,pfifo_fast,cubic,down,1,111.0,131.0,20.0,91.1,0.0,557.6,1.2,5.1,126,0,182448,18.90,0.0,109.0,125.0,valid
-run-1788514935,4,P2,pfifo_fast,bbr,down,1,110.0,127.0,17.0,91.2,0.0,582.1,32.6,0.7,58,0,83984,8.70,0.0,108.0,124.0,valid

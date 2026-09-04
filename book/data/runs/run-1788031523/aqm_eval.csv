@@ -1,3 +1,0 @@
-run_id,event_id,profile,qdisc,cc,repetition,rtt_p50_ms,rtt_p95_ms,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,gate_status
-run-1788031523,1,P1,pfifo_fast,cubic,1,270.0,408.6,788.5,0.0,80.2,134,0,194032,1.20,0.0,invalid
-run-1788031523,2,P1,pfifo_fast,bbr,1,0.0,0.0,0.0,0.0,51.6,204,0,295392,1.80,0.0,invalid

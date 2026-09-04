@@ -1,2 +1,0 @@
-run_id,event_id,profile,qdisc,cc,repetition,rtt_p50_ms,rtt_p95_ms,qdi_ms,voip_r,jfi_pct,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,rtt_base_p50_ms,rtt_base_p95_ms,gate_status
-run-1788488561,1,P2,cake,bbr,1,98.9,114.0,15.2,91.4,0.0,205.1,100.0,19.1,2854,0,4132592,427.70,0.0,98.3,113.0,valid

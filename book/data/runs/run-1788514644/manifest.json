@@ -1,9 +1,0 @@
-{
- "config_sha256": "config",
- "files": [
-  {
-   "File": "aqm_eval.csv",
-   "Sha256": "27b61c98eca842b19911f6e0372eef7a17a25a5d11cbce067742a565fefc0d6a"
-  }
- ]
-}

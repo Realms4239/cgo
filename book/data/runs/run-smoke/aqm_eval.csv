@@ -1,4 +1,0 @@
-run_id,event_id,profile,qdisc,cc,repetition,rtt_p50_ms,rtt_p95_ms,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,gate_status
-run-smoke,1,P2,pfifo_fast,cubic,1,20,25,30,100,15,0,0,0,0,10,valid
-run-smoke,2,P2,pfifo_fast,cubic,2,21,26,31,100,16,0,0,0,0,11,valid
-run-smoke,3,P2,fq_codel,cubic,1,15,18,20,100,14,0,0,0,0,10,valid
