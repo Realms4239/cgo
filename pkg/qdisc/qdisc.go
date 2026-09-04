@@ -78,11 +78,11 @@ func ApplyNetemBurst(r TCRunner, iface string, delayMs, jitterMs, lossPct, gemod
 		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs)}
 	if gemodelP > 0 {
 		args = append(args, "loss", "gemodel",
-			fmt.Sprintf("%g", gemodelP),        // p : proba de perte
-			fmt.Sprintf("%g", gemodelR),        // r : bon → mauvais
-			fmt.Sprintf("%g", gemodelH),        // h : persistance mauvais
-			fmt.Sprintf("%g", 1-gemodelR),      // 1-r
-			fmt.Sprintf("%g", gemodelK))         // k : mauvais → bon
+			fmt.Sprintf("%g", gemodelP),   // p : proba de perte
+			fmt.Sprintf("%g", gemodelR),   // r : bon → mauvais
+			fmt.Sprintf("%g", gemodelH),   // h : persistance mauvais
+			fmt.Sprintf("%g", 1-gemodelR), // 1-r
+			fmt.Sprintf("%g", gemodelK))   // k : mauvais → bon
 	} else if lossPct > 0 {
 		args = append(args, "loss", fmt.Sprintf("%g%%", lossPct))
 	}
