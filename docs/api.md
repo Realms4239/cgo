@@ -49,7 +49,7 @@
 | `/api/run/stop` | POST | — | `{"stopped": true}` + événement journal | `503` moteur non câblé |
 | `/api/run/skip` | POST | — | `{"skipped": true}` — coupe la cellule en cours sans arrêter la matrice (reprise possible) | `503` moteur non câblé |
 | `/api/results?run=` | GET | — | `{"available": true, "groups": [...]}` (médianes sur lignes non `invalid`, quarantaine, best) | `{"available": false, "reason": …}` si aucun gel |
-| `/api/results/delta?cell=P\|q\|cc` | GET | — | `{"available":true,"previous_run","current_run","delta":{small_p95_pct,rtt_p95_pct,goodput_pct}}` — dérive entre les deux derniers runs | `400` cellule mal formée ; `{"available":false}` si < 2 runs ou cellule absente |
+| `/api/results/delta?cell=P\|q\|cc[\|dir]` | GET | — | `{"available":true,"cell":"P\|q\|cc\|dir","previous_run","current_run","delta":{small_p95_pct,rtt_p95_pct,goodput_pct}}` — dérive entre les deux derniers runs ; `dir` = `down` explicite, défaut `up` (les sens ne se comparent jamais) | `400` cellule mal formée ; `{"available":false}` si < 2 runs ou cellule absente |
 | `/api/run/rows?run=` | GET | — | `{"run", "rows": [lignes brutes aqm_eval.csv]}` | `400` id de run vide ou contenant `/`, `\`, `.` (anti-traversal) ; `404` run introuvable ou vide |
 | `/api/events` | GET | — | `{"events": [{ts, kind, msg}, …]}` — anneau des 50 derniers | — |
 

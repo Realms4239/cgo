@@ -218,7 +218,43 @@ func TestQuarantineRoute(t *testing.T) {
 	}
 }
 
-// (300→330 = +10 %), pas sur qdi_ms (50→40 = −20 %).
+// TestResultsDeltaDownCell — cellule 4 parties "P|q|cc|down" : la dérive se
+// calcule sur les lignes download, jamais mélangée à l'upload.
+func TestResultsDeltaDownCell(t *testing.T) {
+	dir := chdirTemp(t)
+	header := "run_id,event_id,profile,qdisc,cc,direction,repetition,rtt_p50_ms,rtt_p95_ms,qdi_ms,voip_r,jfi_pct,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,rtt_base_p50_ms,rtt_base_p95_ms,gate_status"
+	writeCSVRun(t, dir, "run-a", header,
+		"run-a,1,P2,cake,bbr,up,1,100,114,14,91.4,0,200.0,98.0,18.0,81,0,117288,12.1,0.0,98.3,113.0,valid",
+		"run-a,2,P2,cake,bbr,down,1,101,114,13,91.4,0,300.0,90.0,2.0,22,0,31856,3.3,0.0,110.0,126.0,valid",
+	)
+	writeCSVRun(t, dir, "run-b", header,
+		"run-b,1,P2,cake,bbr,up,1,100,114,14,91.4,0,210.0,97.0,18.5,82,0,117300,12.2,0.0,98.3,113.0,valid",
+		"run-b,2,P2,cake,bbr,down,1,101,115,13,91.4,0,330.0,91.0,2.1,23,0,32000,3.4,0.0,110.0,126.0,valid",
+	)
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	get := func(cell string) string {
+		resp, err := http.Get(srv.URL + "/api/results/delta?cell=" + cell)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return string(b)
+	}
+	// up : 200→210 = +5 % (pas 300→330)
+	if s := get("P2%7Ccake%7Cbbr"); !strings.Contains(s, `"small_p95_pct":5`) {
+		t.Fatalf("delta up contaminé par le down: %s", s)
+	}
+	// down explicite : 300→330 = +10 %
+	if s := get("P2%7Ccake%7Cbbr%7Cdown"); !strings.Contains(s, `"small_p95_pct":10`) {
+		t.Fatalf("delta down: %s", s)
+	}
+}
+
+// TestResultsDeltaReadsByName — la dérive small_p95 se calcule sur small_p95_ms
 func TestResultsDeltaReadsByName(t *testing.T) {
 	dir := chdirTemp(t)
 	writeCSVRun(t, dir, "run-a", header18,
