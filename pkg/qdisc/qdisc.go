@@ -95,23 +95,45 @@ func ApplyNetemBurst(r TCRunner, iface string, delayMs, jitterMs, lossPct, gemod
 // ApplyShaper configure capacité + AQM sur le saut de façonnage, empilé enfant
 // du netem 1: pour que délai et débit touchent la même sortie.
 // Si le parent 1: n'existe pas (veth-s sans netem), repli sur la racine.
+// Les sorties tc des tentatives sont conservées dans l'erreur : un "exit
+// status 2" nu a déjà coûté une demi-journée de diagnostic aveugle.
 func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64) error {
+	cakeArgs := func(parent ...string) []string {
+		return append(append([]string{"qdisc", "replace", "dev", iface}, parent...),
+			"handle", "10:", "cake", "bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs))
+	}
+	cakeRootArgs := func() []string {
+		return []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "cake",
+			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs)}
+	}
+	tbfArgs := func(parent ...string) []string {
+		return append(append([]string{"qdisc", "replace", "dev", iface}, parent...),
+			"handle", "10:", "tbf", "rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")
+	}
+	tbfRootArgs := func() []string {
+		return []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
+			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"}
+	}
 	switch q {
 	case model.Cake:
-		if _, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "cake",
-			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs)); err == nil {
+		if out, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:"}, "handle", "10:", "cake",
+			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs))...); err == nil {
+			return nil
+		} else {
+			_ = cakeArgs
+			if out2, err2 := r.Run(cakeRootArgs()...); err2 != nil {
+				return fmt.Errorf("shaper cake %s: parent: %v (%s) ; root: %v (%s)", iface, err, oneLine(out), err2, oneLine(out2))
+			}
 			return nil
 		}
-		_, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "cake",
-			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs))
-		return err
 	case model.FqCodel:
-		if _, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "tbf",
-			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err != nil {
-			if _, err2 := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
-				"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err2 != nil {
-				return err
+		if out, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:"}, "handle", "10:", "tbf",
+			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")...); err != nil {
+			if out2, err2 := r.Run(tbfRootArgs()...); err2 != nil {
+				return fmt.Errorf("shaper tbf %s: parent: %v (%s) ; root: %v (%s)", iface, err, oneLine(out), err2, oneLine(out2))
 			}
+			_ = tbfArgs
+			return nil
 		}
 		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "10:1", "handle", "20:", "fq_codel")
 		if err == nil {
@@ -121,12 +143,24 @@ func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64
 		_, err = r.Run("qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "20:", "fq_codel")
 		return err
 	default: // pfifo_fast cell: tbf as child of netem
-		if _, err := r.Run("qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "tbf",
-			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"); err == nil {
+		if _, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:"}, "handle", "10:", "tbf",
+			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")...); err == nil {
 			return nil
+		} else {
+			_ = tbfArgs
 		}
-		_, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
-			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")
+		_, err := r.Run(tbfRootArgs()...)
 		return err
 	}
+}
+
+func oneLine(b []byte) string {
+	s := strings.TrimSpace(string(b))
+	if i := strings.Index(s, "\n"); i >= 0 {
+		s = s[:i]
+	}
+	if len(s) > 160 {
+		s = s[:160]
+	}
+	return s
 }
