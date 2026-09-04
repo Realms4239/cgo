@@ -65,7 +65,7 @@ func (r *Runner) Schedule(c *Config, at, profiles, qdiscs, ccs, direction string
 		}
 		if out, err := c.SSH("sudo mv /tmp/" + name + " /etc/systemd/system/" + name); err != nil {
 			r.errf("[schedule] installation %s: %v (%s)", name, err, out)
-			return 7
+			return r.scheduleFallback(c, at, profiles, qdiscs, ccs, direction, reps)
 		}
 	}
 	if out, err := c.SSH("sudo systemctl daemon-reload && sudo systemctl enable --now meteolink-campaign.timer"); err != nil {
