@@ -4,6 +4,25 @@ import (
 	"testing"
 )
 
+// TestScanSkipsSmokeFixture — run-smoke* exclu du corpus (parité JS) :
+// sa ligne valid factice ne doit faire médiane nulle part.
+func TestScanSkipsSmokeFixture(t *testing.T) {
+	dir := t.TempDir()
+	writeRun(t, dir, "run-smoke-x", header18,
+		"run-smoke-x,1,P9,pfifo_fast,bbr,1,1,2,0,3,4,5,0,0,0,0,0,valid",
+	)
+	writeRun(t, dir, "run-real", header18,
+		"run-real,1,P9,pfifo_fast,bbr,1,1,2,0,30,4,5,0,0,0,0,0,valid",
+	)
+	groups, err := Scan(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 1 || groups[0].Smallp95Median != 30 {
+		t.Fatalf("fixture smoke contamine: %+v", groups)
+	}
+}
+
 // TestScanNeverMergesDirections — une ligne download et une ligne upload de
 // la MÊME cellule (profil|qdisc|cc) forment DEUX groupes. Sans la colonne
 // direction, les 150 runs d'historique (up implicite) fusionneraient avec
