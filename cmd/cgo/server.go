@@ -119,6 +119,9 @@ func runServer(ctx context.Context, addr, mode string) error {
 			}
 		}
 		deps := campagne.ProdDeps()
+		if o.Direction == "down" {
+			deps = campagne.ProdDepsDown()
+		}
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
 		// la deadline choisie par l'opérateur voyage avec la campagne —
 		// reprise du défaut registre si non fournie (0 interdit : 0% partout)
@@ -149,6 +152,25 @@ func runServer(ctx context.Context, addr, mode string) error {
 			return err
 		}
 		setMtx(m)
+		// RRUL (both) : l'up gélée, enchaîner la matrice down — les deux sens
+		// dans le même run pour la comparaison directe (up puis down
+		// séquentiels : le banc n'a qu'un shaper actif à la fois par iface)
+		if o.Direction == "both" {
+			go func(up *campagne.Matrix) {
+				for i := 0; i < 3600 && up.IsRunning(); i++ {
+					time.Sleep(300 * time.Millisecond)
+				}
+				if up.IsRunning() || ctx.Err() != nil {
+					return
+				}
+				depsDown := campagne.ProdDepsDown()
+				depsDown.DeadlineMs = deps.DeadlineMs
+				depsDown.OnSnap = deps.OnSnap
+				if m2, err := campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, depsDown, "data/runs"); err == nil {
+					setMtx(m2)
+				}
+			}(m)
+		}
 		return nil
 	}
 	stopFn := func() {

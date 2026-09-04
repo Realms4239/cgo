@@ -19,20 +19,39 @@ import (
 // la racine netem à 1: (repli parent 1: d'ApplyShaper). Le façonnage sur l'émission
 // veth-s ne couvre que le téléchargement et laisse l'upload non façonné
 // (G4 échec → lignes invalid).
+// ProdDeps — charge MONTANTE (upload) : shaper sur l'émission client (veth-c).
 func ProdDeps() Deps {
+	return prodDeps("")
+}
+
+// ProdDepsDown — charge DESCENDANTE (download) : shaper sur l'émission
+// serveur, veth-s dans le netns cgo-srv (NsRunner). Le netem reste sur
+// veth-c (le délai s'applique aux deux sens au saut client).
+func ProdDepsDown() Deps {
+	return prodDeps("down")
+}
+
+func prodDeps(direction string) Deps {
 	target := env("CGO_TARGET", "10.200.0.1")
 	small := env("CGO_SMALL_URL", "http://10.200.0.1:8081/small")
 	bulk := env("CGO_BULK_ADDR", "10.200.0.1:5201")
 	cliIf := env("CGO_CLI_IF", "veth-c")
 	shaperIf := env("CGO_SHAPER_IF", cliIf) // même saut que netem — émission upload
+	var shaper qdisc.TCRunner = qdisc.ExecRunner{}
+	if direction == "down" {
+		srvIf := env("CGO_SRV_IF", "veth-s")
+		shaper = qdisc.NsRunner{Ns: env("CGO_SRV_NS", "cgo-srv")}
+		shaperIf = srvIf
+	}
 	return Deps{
-		TC:       qdisc.ExecRunner{}, // netem sur veth-c (ns principal)
-		TCShaper: qdisc.ExecRunner{}, // shaper aussi empilé sur veth-c (émission upload)
-		CliIf:    cliIf,
-		ShaperIf: shaperIf,
-		Target:   target,
-		SmallURL: small,
-		BulkAddr: bulk,
+		TC:        qdisc.ExecRunner{}, // netem sur veth-c (ns principal)
+		TCShaper:  shaper,             // shaper : veth-c (up) ou veth-s via netns (down)
+		CliIf:     cliIf,
+		ShaperIf:  shaperIf,
+		Target:    target,
+		SmallURL:  small,
+		BulkAddr:  bulk,
+		Direction: direction,
 		// fenêtre multi-flux : N connexions vers le sink, per-flow (JFI)
 		BulkN: func(ctx context.Context, addr string, n int) ([]uint64, error) {
 			return probe.BulkSendNTo(ctx, addr, string(model.Cubic), n)

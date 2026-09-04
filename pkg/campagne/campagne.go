@@ -46,6 +46,12 @@ type Deps struct {
 	// fq_codel/cake promettent et qu'un flux unique ne montre jamais.
 	Flows int
 
+	// Direction — sens de la charge : "" ou "up" = upload (client → sink,
+	// shaper sur l'émission cliente, comportement historique) ; "down" =
+	// download (source → client, shaper sur l'émission SERVEUR : le
+	// shaper doit vivre là où le congestionnement naît).
+	Direction string
+
 	BaselineSec int
 	ChargeSec   int
 	RecupSec    int
@@ -199,11 +205,23 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		return ev, fmt.Errorf("netem: %w", err)
 	}
 	shaper := qdiscRunner(d.TC)
+	shaperIf := d.CliIf
 	if d.TCShaper != nil {
 		shaper = d.TCShaper
+		shaperIf = d.ShaperIf
 	}
-	if err := qdisc.ApplyShaper(shaper, d.ShaperIf, ev.Qdisc, prof.CapUp(), prof.DelayMs); err != nil {
-		return ev, fmt.Errorf("shaper: %w", err)
+	// sens download : le shaper se pose sur l'émission SERVEUR — le
+	// congestionnement du download naît côté source. ProdDeps câble
+	// TCShaper sur NsRunner(cgo-srv)/veth-s pour ce cas.
+	capDown := prof.CapDown()
+	if d.Direction == "down" {
+		if err := qdisc.ApplyShaper(shaper, shaperIf, ev.Qdisc, capDown, prof.DelayMs); err != nil {
+			return ev, fmt.Errorf("shaper down: %w", err)
+		}
+	} else {
+		if err := qdisc.ApplyShaper(shaper, shaperIf, ev.Qdisc, prof.CapUp(), prof.DelayMs); err != nil {
+			return ev, fmt.Errorf("shaper: %w", err)
+		}
 	}
 
 	gates := make([]*bool, model.GateCount)
@@ -320,8 +338,14 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	bulkFn := d.Bulk
 	if bulkFn == nil {
 		cc := string(ev.CC)
-		bulkFn = func(c context.Context, addr string) (uint64, error) {
-			return probe.BulkSendTo(c, addr, cc)
+		if d.Direction == "down" {
+			bulkFn = func(c context.Context, addr string) (uint64, error) {
+				return probe.BulkDownloadTo(c, addr)
+			}
+		} else {
+			bulkFn = func(c context.Context, addr string) (uint64, error) {
+				return probe.BulkSendTo(c, addr, cc)
+			}
 		}
 	}
 	// charge — N flux concurrents si BulkN câblé (défaut 1 flux : les
@@ -401,9 +425,13 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.WastedBytes = ev.Drops * 1448
 	ev.CostARPerH = round1(metrics.CostARPerH(ev.WastedBytes))
 	set(model.G3LatencyPlausible, ev.RTTp95Ms < prof.DelayMs*10+200)
-	// G4 juge le goodput du SENS MESURÉ (montant, bulk client → sink) :
-	// plafond = capacité up du profil, pas la référence descendante
-	set(model.G4ThroughputCoherent, goodput >= prof.CapUp()*.5 && goodput <= prof.CapUp()*1.1+.5)
+	// G4 juge le goodput du SENS MESURÉ : montant → CapUp, descendant →
+	// CapDown (l'asymétrie est la règle, pas l'exception)
+	g4Cap := prof.CapUp()
+	if d.Direction == "down" {
+		g4Cap = prof.CapDown()
+	}
+	set(model.G4ThroughputCoherent, goodput >= g4Cap*.5 && goodput <= g4Cap*1.1+.5)
 	set(model.G7CPUNotSaturated, cpuAvg < 90)
 	set(model.G5NoDuplicateRows, true) // appliqué par l'écrivain au gel
 	// publier les métriques mises à jour pour que SSE porte la vérité (wasted/cost/deadline) sans dérivation

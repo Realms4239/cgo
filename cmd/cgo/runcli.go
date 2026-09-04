@@ -18,7 +18,7 @@ import (
 // imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
 // (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
 // peut campagner par SSH.
-func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, target, dataDir string) int {
+func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, target, direction, dataDir string) int {
 	profiles := strings.Split(profilesStr, ",")
 	for i := range profiles {
 		profiles[i] = strings.TrimSpace(profiles[i])
@@ -46,7 +46,17 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, 
 	lastLine := func(s string) {
 		fmt.Printf("\r\033[K%s", s)
 	}
+	switch direction {
+	case "", "up", "down", "both":
+	default:
+		fmt.Fprintln(os.Stderr, "run: --direction doit être up|down|both")
+		return 2
+	}
 	deps := campagne.ProdDeps()
+	if direction == "down" {
+		deps = campagne.ProdDepsDown()
+	}
+	deps.Direction = direction
 	deps.Target = target
 	deps.DeadlineMs = float64(deadlineMs)
 
