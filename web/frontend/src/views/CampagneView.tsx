@@ -40,6 +40,7 @@ export default function CampagneView() {
   const [auditLast, setAuditLast] = useState<any>(null)
   const [impId, setImpId] = useState('')
   const [impCap, setImpCap] = useState(20)
+  const [impCapUp, setImpCapUp] = useState(0)
   const [impDelay, setImpDelay] = useState(100)
   const [impJitter, setImpJitter] = useState(2)
   const [impLoss, setImpLoss] = useState(0)
@@ -116,7 +117,11 @@ export default function CampagneView() {
 
   const importProfile = () => {
     if (!importValidation.valid) return
-    fetch('/api/profile/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: impId, capacity_mbps: impCap, delay_ms: impDelay, jitter_ms: impJitter, loss_pct: impLoss }) })
+    const body: any = { id: impId, capacity_mbps: impCap, delay_ms: impDelay, jitter_ms: impJitter, loss_pct: impLoss }
+    // up asymétrique : 0/vide = symétrique (défaut historique) ; les rafales
+    // Gilbert-Elliott restent à l'import CSV/API (avancé, 4 paramètres couplés)
+    if (impCapUp > 0) body.capacity_up_mbps = impCapUp
+    fetch('/api/profile/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(() => { setImportMsg(`profil ${impId} importé`); useUIStore.getState().pushToast(`Profil ${impId} importé`, 'ok'); setImportForm(false) })
       .catch(e => { setImportMsg('échec: ' + e.message); useUIStore.getState().pushToast('Échec import: ' + e.message, 'err') })
@@ -361,6 +366,9 @@ export default function CampagneView() {
             </InlineField>
             <InlineField label="Capacité (Mbit/s)" error={importValidation.errors.capacity} helper="> 0">
               <input type="number" min={0.1} step={0.1} value={impCap} onChange={e=>setImpCap(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+            </InlineField>
+            <InlineField label="Cap. montante (Mbit/s)" error={undefined} helper="0 = symétrique — ex. 5 pour 4G 20/5">
+              <input type="number" min={0} step={0.1} value={impCapUp} onChange={e=>setImpCapUp(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <InlineField label="RTT (ms)" error={importValidation.errors.delay} helper="> 0">
               <input type="number" min={1} value={impDelay} onChange={e=>setImpDelay(parseInt(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
