@@ -48,7 +48,7 @@ func TestTestbedDownloadProtocol(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	n, err := probe.BulkDownloadTo(ctx, addr)
+	n, err := probe.BulkDownloadTo(ctx, addr, "cubic")
 	if err != nil {
 		t.Fatalf("download: %v", err)
 	}
