@@ -1011,38 +1011,38 @@ func New(d Deps) Handler {
 				writeErr(w, r, "bad csv row", http.StatusBadRequest)
 				return
 			}
-		num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
-		// Ligne CSV: id,capacity,delay,jitter,loss[,capacity_up,loss_burst_p,r,h,k]
-		// — positions 5..9 optionnelles (profils asymétriques + rafales) ;
-		// absentes = symétrique + perte uniforme (historique inchangé)
-		p = model.Profile{ID: strings.TrimSpace(row[0])}
-		if len(row) > 1 {
-			p.CapacityMbps = num(row[1])
-		}
-		if len(row) > 2 {
-			p.DelayMs = num(row[2])
-		}
-		if len(row) > 3 {
-			p.JitterMs = num(row[3])
-		}
-		if len(row) > 4 {
-			p.LossPct = num(row[4])
-		}
-		if len(row) > 5 {
-			p.CapacityUpMbps = num(row[5])
-		}
-		if len(row) > 6 {
-			p.LossBurstP = num(row[6])
-		}
-		if len(row) > 7 {
-			p.LossBurstR = num(row[7])
-		}
-		if len(row) > 8 {
-			p.LossBurstH = num(row[8])
-		}
-		if len(row) > 9 {
-			p.LossBurstK = num(row[9])
-		}
+			num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
+			// Ligne CSV: id,capacity,delay,jitter,loss[,capacity_up,loss_burst_p,r,h,k]
+			// — positions 5..9 optionnelles (profils asymétriques + rafales) ;
+			// absentes = symétrique + perte uniforme (historique inchangé)
+			p = model.Profile{ID: strings.TrimSpace(row[0])}
+			if len(row) > 1 {
+				p.CapacityMbps = num(row[1])
+			}
+			if len(row) > 2 {
+				p.DelayMs = num(row[2])
+			}
+			if len(row) > 3 {
+				p.JitterMs = num(row[3])
+			}
+			if len(row) > 4 {
+				p.LossPct = num(row[4])
+			}
+			if len(row) > 5 {
+				p.CapacityUpMbps = num(row[5])
+			}
+			if len(row) > 6 {
+				p.LossBurstP = num(row[6])
+			}
+			if len(row) > 7 {
+				p.LossBurstR = num(row[7])
+			}
+			if len(row) > 8 {
+				p.LossBurstH = num(row[8])
+			}
+			if len(row) > 9 {
+				p.LossBurstK = num(row[9])
+			}
 		} else if err := json.Unmarshal(body, &p); err != nil {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
