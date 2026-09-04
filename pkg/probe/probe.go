@@ -7,12 +7,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os/exec"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -80,6 +82,30 @@ func parsePingLine(line string) (float64, bool) {
 		return v / 2, true
 	}
 	return v, true
+}
+
+// smallMarkedTransport — transport HTTP dont les connexions portent DSCP EF
+// (Linux uniquement, via dialSmallMarked) : le petit objet vit la classe
+// temps réel que l'AQM doit protéger. Hors Linux : transport standard, sonde
+// best-effort (documenté — la mesure EF n'est interprétable que sur le banc).
+// SmallClient — client HTTP du petit objet : transport marqué DSCP EF
+// (Linux/banc), timeouts 2 s. Client partagé, pas de fuite par sonde.
+func SmallClient() *http.Client {
+	once.Do(func() { markedClient = &http.Client{Timeout: 2 * time.Second, Transport: smallMarkedTransport()} })
+	return markedClient
+}
+
+var (
+	once         sync.Once
+	markedClient *http.Client
+)
+
+func smallMarkedTransport() *http.Transport {
+	base := http.DefaultTransport.(*http.Transport).Clone()
+	base.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return dialSmallMarked(ctx, addr)
+	}
+	return base
 }
 
 // SmallObject times one HTTP GET completion in ms.

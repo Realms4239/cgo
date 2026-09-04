@@ -79,6 +79,8 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 	return s
 }
 
+// httpDefault — repli pour hôtes sans SmallClient marqué (audit client-side :
+// le petit objet y est best-effort, documenté docs/api.md)
 func httpDefault() *http.Client { return &http.Client{Timeout: 2 * time.Second} }
 
 // readCPUIdleGuess — plafond documenté : l'échantillonnage /proc/stat arrive avec
@@ -154,7 +156,9 @@ func defaults(d *Deps) {
 	}
 	if d.Small == nil {
 		d.Small = func(ctx context.Context) (float64, error) {
-			return probe.SmallObject(ctx, httpDefault(), d.SmallURL)
+			// client marqué DSCP EF : la sonde vit la classe temps réel que
+			// l'AQM doit protéger (diffserv exercée, pas supposée)
+			return probe.SmallObject(ctx, probe.SmallClient(), d.SmallURL)
 		}
 	}
 	if d.CPU == nil {
