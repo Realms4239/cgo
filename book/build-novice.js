@@ -83,7 +83,7 @@ P([
 P([
   { t: 'Sur ce lien rejoué, il ' },
   { t: 'compare les remèdes connus', b: true },
-  { t: ' : trois façons de gérer la file d\'attente du routeur, deux façons d\'émettre les données, toutes les combinaisons. Chaque mesure passe ' },
+  { t: ' : trois façons de gérer la file d\'attente du routeur, deux façons d\'émettre les données, dans chaque sens de circulation (montée, descente), toutes les combinaisons. Chaque mesure passe ' },
   { t: 'huit contrôles automatiques', b: true },
   { t: ', puis est ' },
   { t: 'gelée dans un fichier scellé', b: true },
@@ -247,13 +247,13 @@ FIGURE(FIG('figR1-topologie'), 'Le banc : le poste de travail rejoue le lien d\'
 P([
   { t: 'Quatre ' },
   { t: 'profils', b: true },
-  { t: ' (modèles de lien) sont rejoués : P1 la fibre du siège (80 mégabits, 20 millisecondes) ; P2 la 4G de Yas (20 mégabits, 100 millisecondes, 0,5 % de perte), le cas central ; P3 le VSAT (5 mégabits, 600 millisecondes) ; P4 Starlink (100 mégabits, 40 millisecondes, gigue marquée).' },
+  { t: ' (modèles de lien) sont rejoués : P1 la fibre du siège (80 mégabits, 20 millisecondes, gigue 2 ms) ; P2 la 4G de Yas (20 mégabits, 100 millisecondes, gigue 15 ms, 0,5 % de perte), le cas central ; P3 le VSAT (5 mégabits, 600 millisecondes, gigue 30 ms, 1 % de perte) ; P4 Starlink (100 mégabits, 40 millisecondes, gigue 20 ms, 0,3 % de perte).' },
 ]);
 
 P([
   { t: 'Chaque essai, appelé ' },
   { t: 'événement', b: true },
-  { t: ', dure trois minutes, toujours pareil : 30 secondes de calme (mesure du repos), 120 secondes de charge (un téléchargement massif sature le lien, les petites sondes continuent), 30 secondes de récupération.' },
+  { t: ', dure trois minutes, toujours pareil : 30 secondes de calme (mesure du repos), 120 secondes de charge (un transfert massif sature le lien, les petites sondes continuent), 30 secondes de récupération.' },
 ]);
 
 P([
@@ -263,7 +263,7 @@ P([
 ]);
 
 P([
-  { t: 'Le verdict des portes est impitoyable et public : sur 286 lignes mesurées, 83 ont tout passé, 154 ont échoué une porte majeure et sont « en quarantaine » (conservées mais exclues des conclusions). Pourquoi tant d\'échecs ? Les portes ont été durcies pendant la mise au point, et chaque durcissement rejetait en bloc les essais anciens.' },
+  { t: 'Le verdict des portes est impitoyable et public : sur 412 lignes mesurées, 136 ont tout passé, 214 ont échoué une porte majeure et sont « en quarantaine » (conservées mais exclues des conclusions ; les essais partiellement réussis restent exploités). Pourquoi tant d\'échecs ? Les portes ont été durcies pendant la mise au point, et chaque durcissement rejetait en bloc les essais anciens.' },
 ]);
 
 P([
@@ -306,13 +306,13 @@ P([
 FIGURE(FIG('figR2-deadline'), 'Le résultat central : respect de l\'échéance à 220 ms sous charge, profil 4G. La file simple s\'effondre, les disciplines actives tiennent.', 260);
 
 P([
-  { t: 'L\'écart est massif, pas du bruit : sur les vagues antérieures, la même hiérarchie revient, onze répétitions de la file simple, sept de fq_codel, six de CAKE, toutes concordantes. La régularité suit le même ordre : écart de 57 millisecondes sous la file simple, environ 13 sous les actives. ' },
+  { t: 'L\'écart est massif, pas du bruit : sur les vagues antérieures, la même hiérarchie revient, seize répétitions de la file simple, douze de fq_codel, douze de CAKE, toutes concordantes. La régularité suit le même ordre : écart de 57 millisecondes sous la file simple, environ 13 sous les actives. ' },
   { t: 'Un lien régulier est un lien qu\'on peut surveiller', b: true },
   { t: ' : une alerte de latence y veut dire quelque chose.' },
 ]);
 
 P([
-  { t: 'Un résultat inattendu, à connaître : les essais avec CUBIC, l\'émetteur prudent, ont été mis en quarantaine. Pas pour leur latence, excellente, mais parce que sur un lien 4G qui perd naturellement 0,5 % de ses paquets, CUBIC prend chaque perte pour un accident de sa faute, ralentit, et ne tient plus la charge prévue. ' },
+  { t: 'Un résultat inattendu, à connaître : sur le profil 4G en montée, les essais avec CUBIC, l\'émetteur prudent, ont été mis en quarantaine. Pas pour leur latence, excellente, mais parce que sur un lien 4G qui perd naturellement 0,5 % de ses paquets, CUBIC prend chaque perte pour un accident de sa faute, ralentit, et ne tient plus la charge prévue. ' },
   { t: 'Sur un lien cellulaire, le choix de l\'émetteur pèse autant que celui de la file', b: true },
   { t: '.' },
 ]);
@@ -381,7 +381,7 @@ P([
   { t: 'Audit du lien', b: true },
   { t: ' : clique LANCER, renseigne le site, le type de lien (fibre, 4g, vsat...), la durée, la cible. L\'outil mesure ton lien réel, en douceur : latence au repos, latence pendant une courte charge, débit, perte. ' },
   { t: 'Règle d\'or : on ne configure jamais un routeur sans avoir mesuré le lien à vide d\'abord', b: true },
-  { t: '. Terminal : cgo audit --link-type 4g --site "Site X" --duration 30.' },
+  { t: '. Terminal : cgo audit --link-type 5g --site "Site X" --duration 60.' },
 ]);
 
 H2('Geste 3 : lancer ta première campagne');
@@ -406,7 +406,7 @@ H2('Geste 4 : lire et comparer');
 P([
   { t: 'Vue Résultats : le classement des ' },
   { t: 'cellules', b: true },
-  { t: ' (une cellule = une combinaison profil + discipline + émetteur). Épingle une cellule A, une cellule B : la comparaison affiche un ' },
+  { t: ' (une cellule = une combinaison profil + discipline + émetteur + sens de circulation). Épingle une cellule A, une cellule B : la comparaison affiche un ' },
   { t: 'verdict en mots', b: true },
   { t: ' calculé depuis les valeurs, avec une prescription de configuration (le réglage recommandé, prêt à copier).' },
 ]);
@@ -422,11 +422,11 @@ FIGURE(FIG('shot-resultats'), 'La vue Résultats : classement, comparaison épin
 H2('Geste 5 : prouver et exporter');
 
 P([
-  { t: 'Vue Provenance : les comptes (134 campagnes, 83 lignes valides, 154 en quarantaine) et l\'empreinte du dernier gel. Le bouton ' },
+  { t: 'Vue Provenance : les comptes (153 campagnes, 136 lignes valides, 214 en quarantaine) et l\'empreinte du dernier gel. Le bouton ' },
   { t: 'Vérifier manifestes', b: true },
   { t: ' recalcule les empreintes sur place. Le lien ' },
   { t: 'Rapport MD', b: true },
-  { t: ' télécharge le constat complet, prêt à joindre à un courriel de direction. Terminal : cgo verify, cgo figures, cgo kit backup (le kit compte dix-huit commandes, de doctor à backup).' },
+  { t: ' télécharge le constat complet, prêt à joindre à un courriel de direction. Le bouton Exporter CSV donne le tableur, et le script tc rejouable (aqm-recipe.sh) se récupère à l\'adresse /api/report/export?format=sh. Terminal : cgo verify, cgo figures, cgo kit backup (le kit compte dix-huit commandes, de doctor à backup).' },
 ]);
 
 FIGURE(FIG('shot-integrite'), 'La vue Provenance : comptes des archives, empreinte du dernier gel, vérification des manifestes.', 200);
@@ -459,7 +459,7 @@ P([
 ]);
 
 P([
-  { t: '134 campagnes, 286 lignes, 83 valides, 154 en quarantaine', b: true },
+  { t: '153 campagnes, 412 lignes, 136 valides, 214 en quarantaine', b: true },
   { t: ', le tout scellé par SHA-256. Question : « vos chiffres sont-ils vérifiables ? » Réponse : chaque figure se régénère depuis le gel, cgo verify recalcule tout.' },
 ]);
 
@@ -516,7 +516,7 @@ P([
 ]);
 P([
   { t: 'Cellule', b: true },
-  { t: ' : une combinaison profil + discipline + émetteur.' },
+  { t: ' : une combinaison profil + discipline + émetteur + sens de circulation.' },
 ]);
 
 // ---------------------------------------------------------------- doc
