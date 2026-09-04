@@ -40,3 +40,17 @@ func TestScheduleUnitDefaults(t *testing.T) {
 		t.Fatalf("reps=0 doit devenir --reps 3 (l'API refuse 0): %s", unit)
 	}
 }
+
+// TestScheduleCronLine — repli cron sans privilège : heure, commande
+// complète, répertoire de gels, log.
+func TestScheduleCronLine(t *testing.T) {
+	line := ScheduleCronLine("02:30", "P2", "cake", "bbr", "both", 1)
+	if !strings.HasPrefix(line, "30 02 * * * ") {
+		t.Fatalf("champ horaire: %s", line)
+	}
+	for _, want := range []string{"--profiles P2", "--qdiscs cake", "--cc bbr", "--direction both", "--reps 1", "cd /home/altfloat/cgo", "campaign-cron.log"} {
+		if !strings.Contains(line, want) {
+			t.Fatalf("ligne cron sans %q: %s", want, line)
+		}
+	}
+}
