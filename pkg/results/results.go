@@ -143,7 +143,17 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		if out[i].Qdisc != out[j].Qdisc {
 			return out[i].Qdisc < out[j].Qdisc
 		}
-		return out[i].CC < out[j].CC
+		if out[i].CC != out[j].CC {
+			return out[i].CC < out[j].CC
+		}
+		// direction : up (montée, défaut historique) avant down. Sans ce
+		// tiebreak, l'itération aléatoire des maps + sort.Slice non stable
+		// mélangeait les lignes liées à chaque appel, et le constat UI
+		// (find du premier pfifo) basculait entre deux chargements.
+		if out[i].Direction != out[j].Direction {
+			return out[i].Direction == "up"
+		}
+		return false
 	})
 	// mark best smallest small_p95 per profile
 	bestForProfile := map[string]int{}
