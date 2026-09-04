@@ -11,6 +11,13 @@ type Profile struct {
 	DelayMs      float64 `json:"delay_ms"`
 	JitterMs     float64 `json:"jitter_ms"`
 	LossPct      float64 `json:"loss_pct"`
+	// Perte en rafales (Gilbert-Elliott, netem gemodel — kernel banc 6.8) :
+	// la vraie vie mobile/satellite où la perte arrive en salves. Champs
+	// optionnels : 0/absents = perte uniforme (comportement historique).
+	LossBurstP float64 `json:"loss_burst_p,omitempty"` // p : proba de perte en salve
+	LossBurstR float64 `json:"loss_burst_r,omitempty"` // r : bon → mauvais
+	LossBurstH float64 `json:"loss_burst_h,omitempty"` // h : persistance mauvais
+	LossBurstK float64 `json:"loss_burst_k,omitempty"` // k : mauvais → bon
 }
 
 var Profiles = map[string]Profile{

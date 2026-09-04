@@ -62,9 +62,28 @@ func Reset(r TCRunner, iface string) error {
 // ApplyNetem pose délai/gigue/perte en qdisc racine du saut de latence.
 // It uses handle 1: so that a shaper can be stacked as child 1:1.
 func ApplyNetem(r TCRunner, iface string, delayMs, jitterMs, lossPct float64) error {
+	return ApplyNetemBurst(r, iface, delayMs, jitterMs, lossPct, 0, 0, 0, 0)
+}
+
+// ApplyNetemBurst — perte uniforme (défaut historique) ou Gilbert-Elliott
+// quand la proba de perte gemodel est fournie : netem
+// "loss gemodel p r h 1-r k", la vraie vie des liens mobiles/satellite où
+// la perte arrive en rafales, pas en gouttes uniformes. Chaîne à 2 états :
+// p = proba de perte, r = bon→mauvais, h = persistance mauvais,
+// k = mauvais→bon (1-k = mauvais→bon ; netem paramètre 1-r/k à sa guise
+// selon la version — on passe p r h 1-r k, ordre du man netem).
+// Kernel banc 6.8 — support vérifié.
+func ApplyNetemBurst(r TCRunner, iface string, delayMs, jitterMs, lossPct, gemodelP, gemodelR, gemodelH, gemodelK float64) error {
 	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
 		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs)}
-	if lossPct > 0 {
+	if gemodelP > 0 {
+		args = append(args, "loss", "gemodel",
+			fmt.Sprintf("%g", gemodelP),        // p : proba de perte
+			fmt.Sprintf("%g", gemodelR),        // r : bon → mauvais
+			fmt.Sprintf("%g", gemodelH),        // h : persistance mauvais
+			fmt.Sprintf("%g", 1-gemodelR),      // 1-r
+			fmt.Sprintf("%g", gemodelK))         // k : mauvais → bon
+	} else if lossPct > 0 {
 		args = append(args, "loss", fmt.Sprintf("%g%%", lossPct))
 	}
 	if _, err := r.Run(args...); err != nil {
