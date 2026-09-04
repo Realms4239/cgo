@@ -334,15 +334,20 @@ func New(d Deps) Handler {
 		type prof struct {
 			ID         string  `json:"id"`
 			Capacity   float64 `json:"capacity_mbps"`
+			CapacityUp float64 `json:"capacity_up_mbps,omitempty"`
 			DelayMs    float64 `json:"delay_ms"`
 			JitterMs   float64 `json:"jitter_ms"`
 			LossPct    float64 `json:"loss_pct"`
+			LossP      float64 `json:"loss_burst_p,omitempty"`
+			LossR      float64 `json:"loss_burst_r,omitempty"`
+			LossH      float64 `json:"loss_burst_h,omitempty"`
+			LossK      float64 `json:"loss_burst_k,omitempty"`
 			FromImport bool    `json:"imported"`
 		}
 		out := make([]prof, 0, len(ids))
 		for _, id := range ids {
 			p := model.Profiles[id]
-			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, LossPct: p.LossPct, FromImport: !model.BuiltinProfileIDs[id]})
+			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, CapacityUp: p.CapacityUpMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, LossPct: p.LossPct, LossP: p.LossBurstP, LossR: p.LossBurstR, LossH: p.LossBurstH, LossK: p.LossBurstK, FromImport: !model.BuiltinProfileIDs[id]})
 		}
 		model.ProfilesMu.RUnlock()
 		writeJSON(w, map[string]any{"profiles": out})
@@ -1006,20 +1011,38 @@ func New(d Deps) Handler {
 				writeErr(w, r, "bad csv row", http.StatusBadRequest)
 				return
 			}
-			num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
-			p = model.Profile{ID: strings.TrimSpace(row[0])}
-			if len(row) > 1 {
-				p.CapacityMbps = num(row[1])
-			}
-			if len(row) > 2 {
-				p.DelayMs = num(row[2])
-			}
-			if len(row) > 3 {
-				p.JitterMs = num(row[3])
-			}
-			if len(row) > 4 {
-				p.LossPct = num(row[4])
-			}
+		num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
+		// Ligne CSV: id,capacity,delay,jitter,loss[,capacity_up,loss_burst_p,r,h,k]
+		// — positions 5..9 optionnelles (profils asymétriques + rafales) ;
+		// absentes = symétrique + perte uniforme (historique inchangé)
+		p = model.Profile{ID: strings.TrimSpace(row[0])}
+		if len(row) > 1 {
+			p.CapacityMbps = num(row[1])
+		}
+		if len(row) > 2 {
+			p.DelayMs = num(row[2])
+		}
+		if len(row) > 3 {
+			p.JitterMs = num(row[3])
+		}
+		if len(row) > 4 {
+			p.LossPct = num(row[4])
+		}
+		if len(row) > 5 {
+			p.CapacityUpMbps = num(row[5])
+		}
+		if len(row) > 6 {
+			p.LossBurstP = num(row[6])
+		}
+		if len(row) > 7 {
+			p.LossBurstR = num(row[7])
+		}
+		if len(row) > 8 {
+			p.LossBurstH = num(row[8])
+		}
+		if len(row) > 9 {
+			p.LossBurstK = num(row[9])
+		}
 		} else if err := json.Unmarshal(body, &p); err != nil {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return

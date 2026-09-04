@@ -3,9 +3,9 @@
 > Vérifiée contre `pkg/api/server.go`, `sse.go` et `translate.go`. Tout corps
 > JSON est limité à 1 Mio (`http.MaxBytesReader`).
 > **Mode observation** (Windows, ou `--mode observe`) : les endpoints de
-> contrôle — `POST /api/shape`, `POST /api/run/start`, `POST /api/watch` —
-> répondent `501` avec un message pointant vers `docs/deploy.md`. L'audit et
-> la consultation restent fonctionnels.
+> contrôle — `POST /api/shape`, `POST /api/run/start`, `POST /api/watch`,
+> `POST /api/burst` — répondent `501` avec un message pointant vers
+> `docs/deploy.md`. L'audit et la consultation restent fonctionnels.
 
 ## Santé & état
 
@@ -25,9 +25,9 @@
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| `/api/profiles` | GET | — | `{"profiles":[{id, capacity_mbps, delay_ms, jitter_ms, loss_pct, imported}]}` trié par id ; `imported` = id non natif (natifs : P1–P4) | — |
-| `/api/profile/list` | GET | — | map `model.Profiles` (rechargée du disque) | — |
-| `/api/profile/import` | POST | CSV (`text/csv` ou corps ne commençant pas par `{`) : `id,capacity_mbps,delay_ms,jitter_ms,loss_pct` (en-tête optionnel sauté) **ou** JSON `model.Profile` | `{"ok": true, "profile": {...}}` | `400` bad body / bad csv / `id` manquant ; `500` échec d'import |
+| `/api/profiles` | GET | — | `{"profiles":[{id, capacity_mbps, capacity_up_mbps?, delay_ms, jitter_ms, loss_pct, loss_burst_{p,r,h,k}?, imported}]}` trié par id ; `imported` = id non natif (natifs : P1–P4) ; champs `?` omis quand à zéro | — |
+| `/api/profile/list` | GET | — | map `model.Profiles` complète (rechargée du disque) | — |
+| `/api/profile/import` | POST | CSV (`text/csv` ou corps ne commençant pas par `{`) : `id,capacity_mbps,delay_ms,jitter_ms,loss_pct[,capacity_up_mbps,loss_burst_p,loss_burst_r,loss_burst_h,loss_burst_k]` (en-tête optionnel sauté ; positions 5–9 absentes = symétrique + perte uniforme) **ou** JSON `model.Profile` | `{"ok": true, "profile": {...}}` | `400` bad body / bad csv / `id` manquant ; `500` échec d'import |
 
 ## Façonnage du bord
 
@@ -49,7 +49,7 @@
 | `/api/run/start` | POST | `{profiles, qdiscs?, ccs?, reps, deadline_ms, target, direction?}` — `direction` : `up` (défaut) upload client→sink · `down` download source→client (shaper veth-s via netns) · `both` RRUL séquentiel (matrice up puis matrice down dans la même campagne) | `{"started": true}` + événement journal | `400` JSON invalide, direction hors bornes, qdisc/cc inconnu, axes déséquilibrés ; `503` moteur non câblé ; `409` toute erreur de `StartFn` |
 | `/api/run/stop` | POST | — | `{"stopped": true}` + événement journal | `503` moteur non câblé |
 | `/api/run/skip` | POST | — | `{"skipped": true}` — coupe la cellule en cours sans arrêter la matrice (reprise possible) | `503` moteur non câblé |
-| `/api/results?run=` | GET | — | `{"available": true, "groups": [...]}` (médianes sur lignes non `invalid`, quarantaine, best) | `{"available": false, "reason": …}` si aucun gel |
+| `/api/results?run=` | GET | — | `{"available": true, "groups": [...]}` (médianes sur lignes non `invalid`, IQR small/RTT, `direction: up\|down`, quarantaine, best) | `{"available": false, "reason": …}` si aucun gel |
 | `/api/results/delta?cell=P\|q\|cc[\|dir]` | GET | — | `{"available":true,"cell":"P\|q\|cc\|dir","previous_run","current_run","delta":{small_p95_pct,rtt_p95_pct,goodput_pct}}` — dérive entre les deux derniers runs ; `dir` = `down` explicite, défaut `up` (les sens ne se comparent jamais) | `400` cellule mal formée ; `{"available":false}` si < 2 runs ou cellule absente |
 | `/api/run/rows?run=` | GET | — | `{"run", "rows": [lignes brutes aqm_eval.csv]}` | `400` id de run vide ou contenant `/`, `\`, `.` (anti-traversal) ; `404` run introuvable ou vide |
 | `/api/events` | GET | — | `{"events": [{ts, kind, msg}, …]}` — anneau des 50 derniers | — |
