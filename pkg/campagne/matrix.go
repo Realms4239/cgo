@@ -194,6 +194,12 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 						evCtx, evCancel := context.WithCancel(ctx)
 						m.setSkipCancel(evCancel)
 						done, err := RunEvent(evCtx, ev, prof, deps)
+						// ÉTAT FIGÉ AVANT evCancel : l'annulation ci-dessous
+						// empoisonnerait evCtx.Err() et TOUTE erreur ressemblerait
+						// à un skip (bug ancien : evCancel() précédait le test,
+						// chaque échec tc était classé "skippé" + journalisé
+						// quarantaine à tort, et le vrai message logué jamais).
+						wasCancelled := evCtx.Err() != nil
 						evCancel()
 						if err == nil {
 							_ = w.Append(done)
@@ -202,15 +208,14 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
 								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
 							}
-						} else if evCtx.Err() != nil && ctx.Err() == nil {
+						} else if wasCancelled && ctx.Err() == nil {
 							// skippé (pas arrêt global) — aucune ligne gelée, reprise
 							// possible ; journalisé si l'hôte pose le hook (le trou
-							// dans le gel reste explicable après coup)
+							// dans le gel reste explicable après coup). PAS de
+							// quarantaine : une cellule coupée n'est pas invalidée
+							// par les portes, le message mentirait.
 							if OnSkip != nil {
 								OnSkip(m.RunID, id, pid, string(q), string(cc))
-							}
-							if OnQuarantine != nil {
-								OnQuarantine(m.RunID, id, pid, string(q), string(cc))
 							}
 						} else {
 							log.Printf("[campagne] cell %s failed: %v", key, err)
