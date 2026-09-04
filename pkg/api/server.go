@@ -250,7 +250,24 @@ func New(d Deps) Handler {
 	})
 	// paliers tarifaires réels — le client rend le choix de forfait honnêtement
 	mux.HandleFunc("GET /api/cost/tiers", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"tiers": metrics.Tiers, "default": metrics.DefaultTier.Name})
+		writeJSON(w, map[string]any{"tiers": metrics.Tiers, "default": metrics.ActiveTierName()})
+	})
+	// palier actif — le forfait où vit l'institution (les coûts affichés
+	// suivent ; inconnu = 400, pas de défaut silencieux)
+	mux.HandleFunc("POST /api/cost/tier", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Tier string `json:"tier"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+			writeErr(w, r, "bad json", http.StatusBadRequest)
+			return
+		}
+		if err := metrics.SetDefaultTier(body.Tier); err != nil {
+			writeErr(w, r, err.Error(), http.StatusBadRequest)
+			return
+		}
+		recordEvent("tarif", fmt.Sprintf("palier actif : %s", body.Tier))
+		writeJSON(w, map[string]any{"ok": true, "tier": body.Tier})
 	})
 	// test burst — une sonde bulk avec la CC choisie à travers le bord
 	// actuellement façonné, pendant que la surveillance veille. Refusé en

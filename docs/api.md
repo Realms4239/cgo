@@ -17,7 +17,8 @@
 | `/api/diagnostics` | GET | — | `{"hub":"ok","time":"<RFC3339 UTC>"}` | — |
 | `/api/stream` | GET (SSE) | — | flux 10 Hz : replay (`Last-Event-ID`, anneau 2048) puis live ; frame complète pour client frais **ou** client périmé (ID antérieur à l'anneau) ; event `backpressure` | `503` > 64 abonnés ; `500` flusher non supporté |
 | `/api/schema` | GET | — | `{"params":[...]}` — registre unique des bornes/défauts (le client rend les champs depuis lui) | — |
-| `/api/cost/tiers` | GET | — | `{"tiers":[...],"default":"yas-month-4.5gb"}` — paliers tarifaires réels | — |
+| `/api/cost/tiers` | GET | — | `{"tiers":[...],"default":"<palier actif>"}` — paliers tarifaires réels | — |
+| `/api/cost/tier` | POST | `{tier: nom exact}` | `{"ok":true,"tier"}` — le palier actif suit (tous les coûts affichés/calculés ; en-mémoire, redémarrage = défaut) | `400` JSON invalide ou palier inconnu |
 | `/api/burst` | POST | `{cc: cubic\|bbr, seconds: 2–10 (défaut 4)}` | `{"ok":true,"cc","seconds"}` — sonde bulk à travers le bord façonné, bloquant | `400` JSON invalide, cc/seconds hors bornes ; `409` campagne active ; `501` mode observation ; `503` moteur non câblé ; `500` échec sonde |
 
 ## Profils
