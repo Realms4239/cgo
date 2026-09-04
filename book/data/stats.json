@@ -1,7 +1,7 @@
 {
-  "total_runs": 151,
-  "total_rows": 410,
-  "valid": 134,
+  "total_runs": 152,
+  "total_rows": 411,
+  "valid": 135,
   "quarantined": 214,
   "cells": [
     {
@@ -126,14 +126,14 @@
     },
     {
       "cell": "P2|pfifo_fast|cubic",
-      "n": 2,
-      "small_p95_med": 30.5,
-      "small_p95_p95": 31,
-      "rtt_p95_med": 25.5,
-      "qdi_med": null,
-      "voip_med": null,
+      "n": 3,
+      "small_p95_med": 31,
+      "small_p95_p95": 242.6,
+      "rtt_p95_med": 26,
+      "qdi_med": 17,
+      "voip_med": 91.2,
       "deadline_med": 100,
-      "goodput_med": 15.5,
+      "goodput_med": 16,
       "cost_med": 0
     },
     {
