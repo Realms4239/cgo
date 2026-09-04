@@ -119,11 +119,15 @@ const (
 
 // Event is one matrix cell execution.
 type Event struct {
-	RunID      string `json:"run_id"`
-	EventID    int    `json:"event_id"`
-	Profile    string `json:"profile"`
-	Qdisc      Qdisc  `json:"qdisc"`
-	CC         CC     `json:"cc"`
+	RunID   string `json:"run_id"`
+	EventID int    `json:"event_id"`
+	Profile string `json:"profile"`
+	Qdisc   Qdisc  `json:"qdisc"`
+	CC      CC     `json:"cc"`
+	// Direction — sens de charge : "up" (défaut, historique), "down".
+	// Gelée avec la ligne : SANS elle, les cellules download fusionneraient
+	// avec les upload dans Scan et corrompraient 150 runs d'historique.
+	Direction  string `json:"direction"`
 	Repetition int    `json:"repetition"`
 
 	RTTp50Ms        float64 `csv:"rtt_p50_ms"        json:"rtt_p50_ms"`
@@ -149,7 +153,7 @@ type Event struct {
 // rtt_base_* : latence au repos gélée pour la note bufferbloat Waveform ;
 // absente des runs antérieurs (note indisponible honnête).
 var AQMEvalHeader = []string{
-	"run_id", "event_id", "profile", "qdisc", "cc", "repetition",
+	"run_id", "event_id", "profile", "qdisc", "cc", "direction", "repetition",
 	"rtt_p50_ms", "rtt_p95_ms", "qdi_ms", "voip_r", "jfi_pct", "small_p95_ms", "deadline_ok_pct",
 	"bulk_goodput_mbps", "drops", "retransmissions", "wasted_bytes",
 	"cost_ar_per_h", "cpu_pct",

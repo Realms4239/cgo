@@ -10,9 +10,12 @@ import (
 
 // Group is one aggregated cell profile×qdisc×cc.
 type Group struct {
-	Profile     string `json:"profile"`
-	Qdisc       string `json:"qdisc"`
-	CC          string `json:"cc"`
+	Profile string `json:"profile"`
+	Qdisc   string `json:"qdisc"`
+	CC      string `json:"cc"`
+	// Direction — sens de charge ("up" défaut historique, "down"). Les
+	// groupes up/down ne fusionnent jamais : même cellule, physique opposée.
+	Direction   string `json:"direction"`
 	Count       int    `json:"count"`
 	Quarantined int    `json:"quarantined"`
 
@@ -43,7 +46,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		rtts, smalls, goodputs, deadlines, wasteds, costs []float64
 		quarantined                                       int
 		count                                             int
-		profile, qdisc, cc                                string
+		profile, qdisc, cc, direction                     string
 	}
 	buckets := map[string]*bucket{}
 	for _, f := range files {
@@ -65,6 +68,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		iWaste := ColIndex(header, "wasted_bytes")
 		iCost := ColIndex(header, "cost_ar_per_h")
 		iGate := ColIndex(header, "gate_status")
+		iDir := ColIndex(header, "direction")
 		get := func(r []string, i int) string {
 			if i < 0 || i >= len(r) {
 				return ""
@@ -81,10 +85,16 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			if profile == "" || qdisc == "" || cc == "" {
 				continue
 			}
-			key := profile + "|" + qdisc + "|" + cc
+			// direction gelée, défaut "up" pour les 150 runs historiques sans
+			// la colonne : up et down ne fusionnent JAMAIS dans un groupe
+			direction := get(r, iDir)
+			if direction == "" {
+				direction = "up"
+			}
+			key := profile + "|" + qdisc + "|" + cc + "|" + direction
 			b := buckets[key]
 			if b == nil {
-				b = &bucket{profile: profile, qdisc: qdisc, cc: cc}
+				b = &bucket{profile: profile, qdisc: qdisc, cc: cc, direction: direction}
 				buckets[key] = b
 			}
 			b.count++
@@ -113,7 +123,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		ws := metrics.Summarize(b.wasteds)
 		cs := metrics.Summarize(b.costs)
 		out = append(out, Group{
-			Profile: b.profile, Qdisc: b.qdisc, CC: b.cc,
+			Profile: b.profile, Qdisc: b.qdisc, CC: b.cc, Direction: b.direction,
 			Count: b.count, Quarantined: b.quarantined,
 			RTTp95Median: rs.Median, RTTp95IQR: [2]float64{rs.IQRLow, rs.IQRHigh},
 			Smallp95Median: ss.Median, Smallp95IQR: [2]float64{ss.IQRLow, ss.IQRHigh}, GoodputMedian: gs.Median, DeadlineMedian: ds.Median,

@@ -516,10 +516,19 @@ func New(d Deps) Handler {
 	// temporelle sans re-campagne. Ex: GET /api/results/delta?cell=P2|cake|bbr
 	mux.HandleFunc("GET /api/results/delta", func(w http.ResponseWriter, r *http.Request) {
 		cell := r.URL.Query().Get("cell")
-		if cell == "" || strings.Count(cell, "|") != 2 {
-			writeErr(w, r, "cell required: profile|qdisc|cc", http.StatusBadRequest)
+		// cellule "P|q|cc" (up, historique) ou "P|q|cc|down" (explicite) :
+		// les sens ne se comparent jamais entre eux
+		parts := strings.Split(cell, "|")
+		direction := "up"
+		if len(parts) == 4 {
+			direction = parts[3]
+			cell = strings.Join(parts[:3], "|")
+		}
+		if cell == "" || len(parts) < 3 || len(parts) > 4 || (direction != "up" && direction != "down") {
+			writeErr(w, r, "cell required: profile|qdisc|cc[|up|down]", http.StatusBadRequest)
 			return
 		}
+		cellKey := cell + "|" + direction
 		runs, _ := filepath.Glob("data/runs/*")
 		if len(runs) < 2 {
 			writeJSON(w, map[string]any{"available": false})
@@ -544,15 +553,22 @@ func New(d Deps) Handler {
 			iRTT := results.ColIndex(header, "rtt_p95_ms")
 			iGood := results.ColIndex(header, "bulk_goodput_mbps")
 			iGate := results.ColIndex(header, "gate_status")
+			iDir := results.ColIndex(header, "direction")
 			get := func(row []string, i int) string {
 				if i < 0 || i >= len(row) {
 					return ""
 				}
 				return row[i]
 			}
+			dirOf := func(row []string) string {
+				if d := get(row, iDir); d != "" {
+					return d
+				}
+				return "up" // historique sans colonne
+			}
 			var smalls, rtts, gds []float64
 			for _, row := range rows {
-				if get(row, iProf)+"|"+get(row, iQdisc)+"|"+get(row, iCC) != cell || get(row, iGate) != "valid" {
+				if get(row, iProf)+"|"+get(row, iQdisc)+"|"+get(row, iCC) != cell || dirOf(row) != direction || get(row, iGate) != "valid" {
 					continue
 				}
 				if v, err := strconv.ParseFloat(get(row, iSmall), 64); err == nil {
@@ -590,7 +606,7 @@ func New(d Deps) Handler {
 			return &p
 		}
 		writeJSON(w, map[string]any{
-			"available": true, "previous_run": filepath.Base(prev), "current_run": filepath.Base(cur),
+			"available": true, "cell": cellKey, "previous_run": filepath.Base(prev), "current_run": filepath.Base(cur),
 			"delta": map[string]any{"small_p95_pct": pct(pv.SmallP95, cv.SmallP95), "rtt_p95_pct": pct(pv.RTTp95, cv.RTTp95), "goodput_pct": pct(pv.Goodput, cv.Goodput)},
 		})
 	})

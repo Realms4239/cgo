@@ -14,7 +14,7 @@ import { fmtIQR } from '../lib/format'
 import { GATE_LABELS } from '../lib/gates'
 
 type Group = {
-  profile: string; qdisc: string; cc: string
+  profile: string; qdisc: string; cc: string; direction?: string
   count: number; quarantined: number
   rtt_p95_median: number; rtt_p95_iqr?: [number, number]
   small_p95_median: number; small_p95_iqr?: [number, number]
@@ -102,7 +102,9 @@ export default function ResultatsView() {
     if (!groups) return
     let cancelled = false
     Promise.all((Array.isArray(groups) ? groups : []).map(async (g) => {
-      const cell = `${g.profile}|${g.qdisc}|${g.cc}`
+      // cellule 4 parties quand download : up et down ne se comparent jamais
+      const dir = g.direction && g.direction !== 'up' ? `|${g.direction}` : ''
+      const cell = `${g.profile}|${g.qdisc}|${g.cc}${dir}`
       const r = await fetch(`/api/results/delta?cell=${encodeURIComponent(cell)}`).then(x => x.json()).catch(() => null)
       return [cell, r] as const
     })).then(rows => {
@@ -279,11 +281,11 @@ export default function ResultatsView() {
               const wasted: number | null = g.wasted_median ?? g.wasted_bytes ?? null
               const cost: number | null = g.cost_median ?? g.cost_ar_per_h ?? null
               const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
-              const cellDelta = deltas[`${g.profile}|${g.qdisc}|${g.cc}`]?.small_p95_pct
+              const cellDelta = deltas[`${g.profile}|${g.qdisc}|${g.cc}${g.direction && g.direction !== 'up' ? `|${g.direction}` : ''}`]?.small_p95_pct
               return (
-                <tr key={`${g.profile}/${g.qdisc}/${g.cc}`} style={{ borderBottom: '1px solid var(--hairline-faint)', background: i === 0 ? 'rgba(31,163,72,0.08)' : 'transparent', cursor: 'pointer' }} onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), g })} onMouseLeave={() => setPeek(null)} onClick={() => setInterpProfile(g.profile)}>
+                <tr key={`${g.profile}/${g.qdisc}/${g.cc}/${g.direction ?? 'up'}`} style={{ borderBottom: '1px solid var(--hairline-faint)', background: i === 0 ? 'rgba(31,163,72,0.08)' : 'transparent', cursor: 'pointer' }} onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), g })} onMouseLeave={() => setPeek(null)} onClick={() => setInterpProfile(g.profile)}>
                   <td style={{ padding: '6px 8px', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? '#1fa348' : '#a8aeb7' }}>{i + 1}</td>
-                  <td style={{ padding: '6px 8px' }}>{g.profile}</td>
+                  <td style={{ padding: '6px 8px' }}>{g.profile}{g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: '#5ad3e3' }}> ↓</span> : null}</td>
                   <td>{g.qdisc}</td><td>{g.cc}</td><td>{g.count}</td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
