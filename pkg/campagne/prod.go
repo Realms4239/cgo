@@ -1,8 +1,11 @@
 package campagne
 
 import (
+	"context"
 	"os"
 
+	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/pkg/probe"
 	"github.com/Realms4239/cgo/pkg/qdisc"
 )
 
@@ -30,6 +33,10 @@ func ProdDeps() Deps {
 		Target:   target,
 		SmallURL: small,
 		BulkAddr: bulk,
+		// fenêtre multi-flux : N connexions vers le sink, per-flow (JFI)
+		BulkN: func(ctx context.Context, addr string, n int) ([]uint64, error) {
+			return probe.BulkSendNTo(ctx, addr, string(model.Cubic), n)
+		},
 		StatsFn: func() []qdisc.Stats {
 			// sonder UNIQUEMENT le saut client façonné (veth-c) : sommer les deux sauts
 			// double-compte chaque octet (les mêmes paquets traversent veth-c et

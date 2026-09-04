@@ -132,6 +132,7 @@ type Event struct {
 	RTTBaseP95Ms    float64 `csv:"rtt_base_p95_ms"   json:"rtt_base_p95_ms"`
 	QDIPctMs        float64 `csv:"qdi_ms"            json:"qdi_ms"`
 	VoIPR           float64 `csv:"voip_r"            json:"voip_r"`
+	JFI             float64 `csv:"jfi_pct"           json:"jfi_pct"`
 	Smallp95Ms      float64 `csv:"small_p95_ms"      json:"small_p95_ms"`
 	DeadlineOKPct   float64 `csv:"deadline_ok_pct"   json:"deadline_ok_pct"`
 	BulkGoodputMbps float64 `csv:"bulk_goodput_mbps" json:"bulk_goodput_mbps"`
@@ -149,7 +150,7 @@ type Event struct {
 // absente des runs antérieurs (note indisponible honnête).
 var AQMEvalHeader = []string{
 	"run_id", "event_id", "profile", "qdisc", "cc", "repetition",
-	"rtt_p50_ms", "rtt_p95_ms", "qdi_ms", "voip_r", "small_p95_ms", "deadline_ok_pct",
+	"rtt_p50_ms", "rtt_p95_ms", "qdi_ms", "voip_r", "jfi_pct", "small_p95_ms", "deadline_ok_pct",
 	"bulk_goodput_mbps", "drops", "retransmissions", "wasted_bytes",
 	"cost_ar_per_h", "cpu_pct",
 	"rtt_base_p50_ms", "rtt_base_p95_ms", "gate_status",

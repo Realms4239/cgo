@@ -28,6 +28,10 @@ type Deps struct {
 	Ping  func(ctx context.Context, target string, n int) []float64 // sorted ms
 	Small func(ctx context.Context) (float64, error)
 	Bulk  func(ctx context.Context, addr string) (uint64, error) // one charge-window flood
+	// BulkN — fenêtre de charge multi-flux : N connexions concurrentes vers
+	// addr, per-flow. Nil ⇒ un seul flux (comportement historique). L'équité
+	// inter-flux (JFI) ne se mesure que per-flow.
+	BulkN func(ctx context.Context, addr string, n int) ([]uint64, error)
 	CPU   func() float64
 	Now   func() time.Time
 	// StatsFn rend les compteurs par qdisc pour les deltas pertes/octets.
@@ -36,6 +40,11 @@ type Deps struct {
 	// DeadlineMs — objectif small p95: le réglage de l'opérateur voyage
 	// avec la campagne, le CSV exporté reflète la configuration.
 	DeadlineMs float64
+
+	// Flows — nombre de flux de charge concurrents (défaut 1). >1 exige
+	// BulkN câblé par l'hôte ; mesure l'isolation inter-flux (JFI) que
+	// fq_codel/cake promettent et qu'un flux unique ne montre jamais.
+	Flows int
 
 	BaselineSec int
 	ChargeSec   int
@@ -315,14 +324,39 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			return probe.BulkSendTo(c, addr, cc)
 		}
 	}
-	done := make(chan uint64, 1)
-	go func() { b, _ := bulkFn(chgCtx, d.BulkAddr); done <- b }()
+	// charge — N flux concurrents si BulkN câblé (défaut 1 flux : les
+	// médianes historiques restent comparables), per-flow pour le JFI
+	flows := d.Flows
+	if flows <= 0 {
+		flows = 1
+	}
+	type chargeOut struct {
+		total uint64
+		jfi   float64
+	}
+	done := make(chan chargeOut, 1)
+	go func() {
+		if d.BulkN != nil && flows > 1 {
+			per, _ := d.BulkN(chgCtx, d.BulkAddr, flows)
+			var total uint64
+			for _, b := range per {
+				total += b
+			}
+			done <- chargeOut{total: total, jfi: metrics.JFI(per)}
+			return
+		}
+		b, _ := bulkFn(chgCtx, d.BulkAddr)
+		done <- chargeOut{total: b}
+	}()
 	if d.ChargeSec > 0 {
 		time.Sleep(300 * time.Millisecond) // laisser le flood se connecter
 	}
 	chgRTT, chgSmall = collect(d.ChargeSec, model.PhaseCharge)
 	cancel()
-	bulkBytes = <-done
+	out := <-done
+	bulkBytes = out.total
+	ev.JFI = round1(out.jfi * 100) // 0..100 gelé avec la ligne ; 0 = mono-flux/n.a.
+	_ = out
 	set(model.G1BulkStarted, bulkBytes > 0)
 	set(model.G2ProbesProducing, len(chgRTT) > 0 && len(chgSmall) > 0)
 	chargeDur := float64(max(float64(d.ChargeSec), 1)) // dénominateur ≥ 1 s
