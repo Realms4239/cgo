@@ -72,7 +72,7 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 		RTTp50Ms: ev.RTTp50Ms, RTTp95Ms: ev.RTTp95Ms, Smallp95Ms: ev.Smallp95Ms,
 		GoodputMbps: ev.BulkGoodputMbps, Drops: ev.Drops,
 		WastedBytes: ev.WastedBytes, CostARPerH: ev.CostARPerH, DeadlineOKPct: ev.DeadlineOKPct,
-		ProfileCapMbps: prof.CapacityMbps, ProfileDelayMs: prof.DelayMs,
+		ProfileCapMbps: prof.CapUp(), ProfileDelayMs: prof.DelayMs,
 		ProfileJitterMs: prof.JitterMs, ProfileLossPct: prof.LossPct,
 		Gates: gates, Running: true,
 	}
@@ -193,7 +193,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	if d.TCShaper != nil {
 		shaper = d.TCShaper
 	}
-	if err := qdisc.ApplyShaper(shaper, d.ShaperIf, ev.Qdisc, prof.CapacityMbps, prof.DelayMs); err != nil {
+	if err := qdisc.ApplyShaper(shaper, d.ShaperIf, ev.Qdisc, prof.CapUp(), prof.DelayMs); err != nil {
 		return ev, fmt.Errorf("shaper: %w", err)
 	}
 
@@ -367,7 +367,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.WastedBytes = ev.Drops * 1448
 	ev.CostARPerH = round1(metrics.CostARPerH(ev.WastedBytes))
 	set(model.G3LatencyPlausible, ev.RTTp95Ms < prof.DelayMs*10+200)
-	set(model.G4ThroughputCoherent, goodput >= prof.CapacityMbps*.5 && goodput <= prof.CapacityMbps*1.1+.5)
+	// G4 juge le goodput du SENS MESURÉ (montant, bulk client → sink) :
+	// plafond = capacité up du profil, pas la référence descendante
+	set(model.G4ThroughputCoherent, goodput >= prof.CapUp()*.5 && goodput <= prof.CapUp()*1.1+.5)
 	set(model.G7CPUNotSaturated, cpuAvg < 90)
 	set(model.G5NoDuplicateRows, true) // appliqué par l'écrivain au gel
 	// publier les métriques mises à jour pour que SSE porte la vérité (wasted/cost/deadline) sans dérivation
