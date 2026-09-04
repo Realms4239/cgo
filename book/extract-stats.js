@@ -21,16 +21,26 @@ function p95(xs) { const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.
 
 const rows = [];
 for (const run of fs.readdirSync(RUNS)) {
+  // run-smoke* = fixture de test du pipeline, pas une mesure : exclu du
+  // corpus publié (sa seule ligne valid polluait P2|fq_codel|cubic n=1)
+  if (run.startsWith('run-smoke')) continue;
   const f = path.join(RUNS, run, 'aqm_eval.csv');
   if (!fs.existsSync(f)) continue;
   for (const r of parseCSV(fs.readFileSync(f, 'utf8'))) rows.push({ run, ...r });
 }
 
 // cellules P2 récentes (les runs finaux deadline 220 : run-1788191429)
+// cellules : clé profil|qdisc|cc, +|down quand la ligne porte direction=down.
+// Les lignes sans colonne direction (150 runs historiques) sont up par
+// construction — même règle que Go (results.Scan) : up et down ne fusionnent
+// JAMAIS, sinon une cellule download (ex. small 373,8) contaminerait la
+// médiane upload publiée. Les consommateurs par nom exact ('P2|cake|bbr')
+// continuent de voir l'up sans changer une ligne.
 const byCell = {};
 for (const r of rows) {
   if (r.gate_status === 'invalid') continue;
-  const k = `${r.profile}|${r.qdisc}|${r.cc}`;
+  const dir = (r.direction && r.direction !== 'up') ? '|down' : '';
+  const k = `${r.profile}|${r.qdisc}|${r.cc}${dir}`;
   (byCell[k] ||= []).push(r);
 }
 const cells = Object.entries(byCell).map(([k, rs]) => {
