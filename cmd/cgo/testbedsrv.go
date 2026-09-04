@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -46,9 +47,20 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 			}
 			go func(c net.Conn) {
 				defer c.Close()
+				// protocole du banc : 1er octbe "D" = download (le serveur
+				// INONDE, le client reçoit) ; sinon puits historique (le
+				// client inonde, le serveur discard). Un seul port, deux sens.
+				c.SetReadDeadline(time.Now().Add(2 * time.Second))
+				hdr := make([]byte, 1)
+				if _, err := io.ReadFull(c, hdr); err == nil && hdr[0] == 'D' {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+					defer cancel()
+					_, _ = probe.BulkSource(ctx, c) // mode source : download
+					return
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 				defer cancel()
-				_, _ = probe.BulkReceive(ctx, c, nil) // discard
+				_, _ = probe.BulkReceive(ctx, c, nil) // puits : upload
 			}(conn)
 		}
 	}()

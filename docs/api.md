@@ -45,7 +45,7 @@
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| `/api/run/start` | POST | `{profiles, reps, deadline_ms, target}` | `{"started": true}` + événement journal | `400` JSON invalide ; `503` moteur de run non câblé ; `409` toute erreur de `StartFn` (campagne déjà active, profils inconnus…) |
+| `/api/run/start` | POST | `{profiles, qdiscs?, ccs?, reps, deadline_ms, target, direction?}` — `direction` : `up` (défaut) upload client→sink · `down` download source→client (shaper veth-s via netns) · `both` RRUL séquentiel (matrice up puis matrice down dans la même campagne) | `{"started": true}` + événement journal | `400` JSON invalide, direction hors bornes, qdisc/cc inconnu, axes déséquilibrés ; `503` moteur non câblé ; `409` toute erreur de `StartFn` |
 | `/api/run/stop` | POST | — | `{"stopped": true}` + événement journal | `503` moteur non câblé |
 | `/api/run/skip` | POST | — | `{"skipped": true}` — coupe la cellule en cours sans arrêter la matrice (reprise possible) | `503` moteur non câblé |
 | `/api/results?run=` | GET | — | `{"available": true, "groups": [...]}` (médianes sur lignes non `invalid`, quarantaine, best) | `{"available": false, "reason": …}` si aucun gel |

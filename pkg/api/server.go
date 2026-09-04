@@ -83,7 +83,8 @@ type ShapeReq struct {
 }
 
 // RunOpts — ce que l'opérateur décide réellement : profils, axes qdisc/CC
-// (vides = matrice pleine), répétitions, deadline small p95 et cible.
+// (vides = matrice pleine), répétitions, deadline small p95, cible et sens
+// de la charge ("up" défaut, "down" download, "both" RRUL combiné).
 type RunOpts struct {
 	Profiles   []string `json:"profiles"`
 	Qdiscs     []string `json:"qdiscs"`
@@ -91,6 +92,7 @@ type RunOpts struct {
 	Reps       int      `json:"reps"`
 	DeadlineMs int      `json:"deadline_ms"`
 	Target     string   `json:"target"`
+	Direction  string   `json:"direction"`
 }
 
 // Deps relie le serveur au noyau campagne.
@@ -464,6 +466,12 @@ func New(d Deps) Handler {
 		}
 		if len(opts.Qdiscs) == 0 && len(opts.CCs) > 0 || len(opts.Qdiscs) > 0 && len(opts.CCs) == 0 {
 			writeErr(w, r, "qdiscs et ccs se filtrent ensemble", http.StatusBadRequest)
+			return
+		}
+		switch opts.Direction {
+		case "", "up", "down", "both":
+		default:
+			writeErr(w, r, "direction must be up|down|both", http.StatusBadRequest)
 			return
 		}
 		if d.StartFn == nil {
