@@ -36,4 +36,7 @@ func TestScheduleUnitDefaults(t *testing.T) {
 	if strings.Contains(unit, "--qdiscs") || strings.Contains(unit, "--direction") {
 		t.Fatalf("les défauts ne doivent pas passer de flags vides: %s", unit)
 	}
+	if !strings.Contains(unit, "--reps 3") {
+		t.Fatalf("reps=0 doit devenir --reps 3 (l'API refuse 0): %s", unit)
+	}
 }

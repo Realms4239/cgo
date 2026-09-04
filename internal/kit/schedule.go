@@ -22,9 +22,10 @@ func ScheduleUnits(at, profiles, qdiscs, ccs, direction string, reps int) (strin
 	if direction != "" {
 		args = append(args, "--direction", direction)
 	}
-	if reps > 0 {
-		args = append(args, "--reps", fmt.Sprint(reps))
+	if reps <= 0 {
+		reps = 3 // défaut matrice : l'API refuse reps=0, jamais de flag vide
 	}
+	args = append(args, "--reps", fmt.Sprint(reps))
 	cmd := "cgo-linux " + strings.Join(args, " ")
 	service := fmt.Sprintf(`[Unit]
 Description=Meteolink — campagne nocturne (dérive temporelle)
