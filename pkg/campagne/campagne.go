@@ -223,6 +223,14 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		shaper = d.TCShaper
 		shaperIf = d.ShaperIf
 	}
+	// reset du saut shaper AUSSI : en down, veth-s vit dans le netns et
+	// n'est jamais nettoyé — un netem manuel oublié y survit (vu en prod :
+	// RTT doublé 1,2 s, small 3,6 s > timeout, G2 vide "par construction",
+	// 2 cellules cake invalidées par une topologie sale, pas par le lien).
+	// del root emporte toute la hiérarchie (netem + enfants parent 1:).
+	if shaperIf != d.CliIf {
+		_, _ = shaper.Run("qdisc", "del", "dev", shaperIf, "root")
+	}
 	// sens download : le shaper se pose sur l'émission SERVEUR — le
 	// congestionnement du download naît côté source. ProdDeps câble
 	// TCShaper sur NsRunner(cgo-srv)/veth-s pour ce cas.
