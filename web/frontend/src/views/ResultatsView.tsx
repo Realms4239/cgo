@@ -18,6 +18,10 @@ type Group = {
   count: number; quarantined: number
   rtt_p95_median: number; rtt_p95_iqr?: [number, number]
   small_p95_median: number; small_p95_iqr?: [number, number]
+  // valid-only strict (degraded exclus) — preuve pilote, parité mémoire.
+  small_p95_valid_n?: number; small_p95_valid_median?: number
+  small_p95_valid_iqr?: [number, number]; small_p95_valid_ci95?: [number, number]
+  deadline_valid_n?: number; deadline_valid_median?: number; deadline_valid_ci95?: [number, number]
   goodput_median: number
   deadline_median?: number; deadline_ok_pct?: number
   wasted_median?: number; cost_median?: number; wasted_bytes?: number; cost_ar_per_h?: number
@@ -122,8 +126,16 @@ export default function ResultatsView() {
   if (!groups) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="loading" hint="agrégation des réplications" /></div>
 
   const rankMeta = RANKS.find(r => r.key === rankKey) ?? RANKS[0]
+  // coût au palier unique de référence (5556 Ar/Go) depuis le gaspillage
+  // médian gelé — les runs historiques mélangent les paliers (×16,7).
+  const costRef = (g: Group): number | null => {
+    const w = g.wasted_median ?? g.wasted_bytes ?? null
+    if (w == null || w <= 0) return 0
+    return (w / 1073741824) * 5556 * 20
+  }
+  const validN = (g: Group): number => g.small_p95_valid_n ?? g.count
   const val = (g: Group): number => {
-    if (rankKey === 'cost') return g.cost_median ?? g.cost_ar_per_h ?? Number.MAX_SAFE_INTEGER
+    if (rankKey === 'cost') { const c = costRef(g); return c == null ? Number.MAX_SAFE_INTEGER : c }
     const v = (g as any)[rankKey]
     return typeof v === 'number' && v > 0 ? v : Number.MAX_SAFE_INTEGER
   }
@@ -186,9 +198,10 @@ export default function ResultatsView() {
         <div className="card" data-testid="method-drawer">
           <div className="card-head">Méthode & limites</div>
           <p className="mono" style={{ fontSize: 11, lineHeight: 1.7, color: '#9aa3ad' }}>
-            Médianes des lignes gelées non invalidées · portes G0–G7 ({GATE_LABELS.join(' · ')}) ·
-            n = répétitions par cellule (n=1 : première limite, voir thèse § perspectives) ·
-            IQR [bas–haut] = dispersion des répétitions · provenance hash {hash8} depuis data/runs/*/aqm_eval.csv.
+            Médianes valid-only strict (degraded G2/G6 exclus, n = répétitions valides) · portes G0–G7 ({GATE_LABELS.join(' · ')}) ·
+            small p95 : IC95 bootstrap seed 42 · échéance agrégée : échéances opérateur mixtes (indicative, comparer à D fixée) ·
+            coût recalculé au palier unique 5556 Ar/Go depuis wasted gelé (runs historiques multi-paliers) ·
+            provenance hash {hash8} depuis data/runs/*/aqm_eval.csv.
           </p>
         </div>
       )}
@@ -226,7 +239,7 @@ export default function ResultatsView() {
             <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: '#c3c9d1', fontVariantNumeric: 'tabular-nums' }}>
               {val(baselineRow) === Number.MAX_SAFE_INTEGER ? '—' : `${val(baselineRow).toFixed(1)} ${rankMeta.unit}`}
             </div>
-            <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{baselineRow.profile} · n={baselineRow.count}</div>
+            <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{baselineRow.profile} · n={validN(baselineRow)}v</div>
           </div>
           <div className="mono" data-testid="rank-diff" style={{ fontSize: 24, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: diff != null && diff > 0 ? '#1fa348' : '#c3c9d1', textAlign: 'center' }}>
             {diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
@@ -238,7 +251,7 @@ export default function ResultatsView() {
             <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: '#1fa348', fontVariantNumeric: 'tabular-nums' }}>
               {val(top) === Number.MAX_SAFE_INTEGER ? '—' : `${val(top).toFixed(1)} ${rankMeta.unit}`}
             </div>
-            <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{top.profile} · {top.qdisc}/{top.cc} · n={top.count}</div>
+            <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{top.profile} · {top.qdisc}/{top.cc} · n={validN(top)}v</div>
           </div>
         </div>
       )}
@@ -286,13 +299,13 @@ export default function ResultatsView() {
                 <tr key={`${g.profile}/${g.qdisc}/${g.cc}/${g.direction ?? 'up'}`} style={{ borderBottom: '1px solid var(--hairline-faint)', background: i === 0 ? 'rgba(31,163,72,0.08)' : 'transparent', cursor: 'pointer' }} onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), g })} onMouseLeave={() => setPeek(null)} onClick={() => setInterpProfile(g.profile)}>
                   <td style={{ padding: '6px 8px', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? '#1fa348' : '#a8aeb7' }}>{i + 1}</td>
                   <td style={{ padding: '6px 8px' }}>{g.profile}{g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: '#5ad3e3' }}> ↓</span> : null}</td>
-                  <td>{g.qdisc}</td><td>{g.cc}</td><td>{g.count}</td>
+                  <td>{g.qdisc}</td><td>{g.cc}</td><td title={`lignes totales ${g.count} (dont quarantaine ${g.quarantined})`}>{validN(g)}v</td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ flex: 1, height: 6, background: 'var(--hairline-faint)', position: 'relative', minWidth: 80, borderRadius: 2, overflow: 'hidden' }}>
                         <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: i === 0 ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2, filter: i === 0 ? `drop-shadow(0 0 4px ${barColor})` : 'none' }} />
                       </div>
-                      <span style={{ minWidth: 45, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtIQR(g.small_p95_median, g.small_p95_iqr)}</span>
+                      <span style={{ minWidth: 45, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} title={g.small_p95_valid_ci95 ? `valid-only n=${validN(g)} IC95 [${g.small_p95_valid_ci95[0].toFixed(1)}–${g.small_p95_valid_ci95[1].toFixed(1)}]` : 'médiane (toutes lignes non invalidées)'}>{g.small_p95_valid_ci95 ? `${(g.small_p95_valid_median ?? g.small_p95_median).toFixed(1)} [${g.small_p95_valid_ci95[0].toFixed(1)}–${g.small_p95_valid_ci95[1].toFixed(1)}]` : fmtIQR(g.small_p95_median, g.small_p95_iqr)}</span>
                       {cellDelta != null && (
                         <span className="mono" title="vs run précédent, même cellule" style={{ fontSize: 9, color: cellDelta <= 0 ? '#1fa348' : '#e22718', fontVariantNumeric: 'tabular-nums' }}>
                           {cellDelta <= 0 ? '↘' : '↗'}{Math.abs(cellDelta)}%

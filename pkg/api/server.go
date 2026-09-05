@@ -1231,11 +1231,11 @@ func New(d Deps) Handler {
 			Profile string `json:"profile"`
 			Qdisc   string `json:"qdisc"`
 			CC      string `json:"cc"`
-		Status  string `json:"gate_status"`
-		// FailedGates — portes en échec (runs futurs ; absent des archives
-		// passées, champ omis alors — additif).
-		FailedGates []string `json:"failed_gates,omitempty"`
-	}
+			Status  string `json:"gate_status"`
+			// FailedGates — portes en échec (runs futurs ; absent des archives
+			// passées, champ omis alors — additif).
+			FailedGates []string `json:"failed_gates,omitempty"`
+		}
 		out := []qrow{}
 		collect := func(run string) {
 			b, err := os.ReadFile(filepath.Join("data", "runs", run, "quarantine.json"))

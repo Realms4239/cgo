@@ -35,6 +35,14 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
   const [runA, setRunA] = useState<string | null>(null)
   const [runB, setRunB] = useState<string | null>(null)
   const [rows, setRows] = useState<{ a: Row[]; b: Row[] } | null>(null)
+  const [infer, setInfer] = useState<{ mw_p_two_sided?: number; cliff_delta?: number; cliff_interp?: string; n_a?: number; n_b?: number } | null>(null)
+
+  useEffect(() => {
+    setInfer(null)
+    const ca = `${a.profile}|${a.qdisc}|${a.cc}`, cb = `${b.profile}|${b.qdisc}|${b.cc}`
+    fetch(`/api/results/compare?a=${encodeURIComponent(ca)}&b=${encodeURIComponent(cb)}&metric=small_p95_ms`)
+      .then(r => r.json()).then(j => { if (j?.available) setInfer(j) }).catch(() => {})
+  }, [a, b])
 
   useEffect(() => {
     fetch('/api/replay/list').then(r => r.json()).then(j => {
@@ -159,7 +167,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
       queue_type: winner.qdisc,
       mikrotik_v7: routeros[winner.qdisc] ?? null,
       linux_tc: linux[winner.qdisc] ?? null,
-      note: 'prescription calculée depuis les médianes mesurées — appliquez, puis re-mesurez (audit + comparaison avant/après)',
+      note: 'prescription calculée depuis les médianes mesurées — appliquez, puis re-mesurez (audit + comparaison avant/après). Traduction MikroTik indicative RouterOS7, à valider sur banc.',
     }
   })()
 
@@ -195,6 +203,11 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
       {verdict && (
         <div className="mono" style={{ fontSize: 12, color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '8px 12px', background: 'rgba(90,211,227,0.05)' }}>
           Verdict — {verdict}
+          {infer && infer.mw_p_two_sided != null && (
+            <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
+              Agrégat valid-only tous runs — Mann-Whitney p={Number(infer.mw_p_two_sided).toExponential(1)}, Cliff {Number(infer.cliff_delta).toFixed(2)} ({infer.cliff_interp}), n={infer.n_a}/{infer.n_b}
+            </span>
+          )}
         </div>
       )}
       <div ref={chartRef} style={{ height: 240 }} />
