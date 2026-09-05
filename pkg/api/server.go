@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"os"
@@ -1343,7 +1344,10 @@ func New(d Deps) Handler {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
+	// Jamais d'échec silencieux (un NaN donnait un 200 vide : vu en prod).
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("writeJSON: %v", err)
+	}
 }
 
 // writeErr — erreur HTTP négociée : JSON pour les clients fetch().json()
