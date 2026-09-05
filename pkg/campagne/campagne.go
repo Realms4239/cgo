@@ -6,6 +6,7 @@ package campagne
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -40,6 +41,9 @@ type Deps struct {
 	// DeadlineMs — objectif small p95: le réglage de l'opérateur voyage
 	// avec la campagne, le CSV exporté reflète la configuration.
 	DeadlineMs float64
+	// ProfileDelayMs — délai du profil courant : câblé par RunEvent pour
+	// calibrer le timeout de la sonde small (VSAT 600 ms ⇒ 2,4 s, pas 2 s).
+	ProfileDelayMs float64
 
 	// Flows — nombre de flux de charge concurrents (défaut 1). >1 exige
 	// BulkN câblé par l'hôte ; mesure l'isolation inter-flux (JFI) que
@@ -172,8 +176,15 @@ func defaults(d *Deps) {
 	if d.Small == nil {
 		d.Small = func(ctx context.Context) (float64, error) {
 			// client marqué DSCP EF : la sonde vit la classe temps réel que
-			// l'AQM doit protéger (diffserv exercée, pas supposée)
-			return probe.SmallObject(ctx, probe.SmallClient(), d.SmallURL)
+			// l'AQM doit protéger (diffserv exercée, pas supposée).
+			// Timeout calibré sur le profil : le client partagé (2 s) tue la
+			// sonde VSAT par construction (16 Ko à 600 ms > complétion 2 s,
+			// G2 vide) — max(2 s, 4×delay) rend au satellite sa marge.
+			to := 2 * time.Second
+			if d.ProfileDelayMs > 0 {
+				to = time.Duration(math.Max(2000, 4*d.ProfileDelayMs) * float64(time.Millisecond))
+			}
+			return probe.SmallObject(ctx, probe.SmallClientTimeout(to), d.SmallURL)
 		}
 	}
 	if d.CPU == nil {
@@ -195,7 +206,9 @@ func defaults(d *Deps) {
 
 // RunEvent exécute une cellule de bout en bout et rend la ligne gelée.
 func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (model.Event, error) {
+	d.ProfileDelayMs = prof.DelayMs // calibrage sonde small (VSAT) AVANT defaults
 	defaults(&d)
+	ensureQdiscModules()
 
 	// configurer les deux sauts — reset d'abord : le levier de façonnage (ou une
 	// cellule périmée) peut laisser un qdisc étranger à la racine, ce qui ferait échouer chaque apply

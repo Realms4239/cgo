@@ -89,10 +89,20 @@ func parsePingLine(line string) (float64, bool) {
 // temps réel que l'AQM doit protéger. Hors Linux : transport standard, sonde
 // best-effort (documenté — la mesure EF n'est interprétable que sur le banc).
 // SmallClient — client HTTP du petit objet : transport marqué DSCP EF
-// (Linux/banc), timeouts 2 s. Client partagé, pas de fuite par sonde.
+// (Linux/banc). Client partagé, pas de fuite par sonde.
 func SmallClient() *http.Client {
 	once.Do(func() { markedClient = &http.Client{Timeout: 2 * time.Second, Transport: smallMarkedTransport()} })
 	return markedClient
+}
+
+// SmallClientTimeout — variante à timeout calibré : le client partagé fixe
+// 2 s, mortel sur VSAT (16 Ko à travers netem 600 ms + perte : complétion
+// > 2 s → G2 échoue par construction, pas par le lien). Le banc connaît le
+// RTT du profil : max(2 s, 4×delay) donne au satellite la marge qu'il
+// mérite sans dépayser les profils rapides. Rend un client NEUF : à
+// réserver au banc, pas à l'audit (le client partagé y reste).
+func SmallClientTimeout(timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, Transport: smallMarkedTransport()}
 }
 
 var (
