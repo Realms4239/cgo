@@ -60,6 +60,9 @@ type resultRow struct {
 	RTT     float64 `json:"rtt_p95_median"`
 	Good    float64 `json:"goodput_median"`
 	Best    bool    `json:"best"`
+	// valid-only (additif, absent des vieux serveurs → 0 = repli count).
+	ValidN  int        `json:"small_p95_valid_n"`
+	SmallCI [2]float64 `json:"small_p95_valid_ci95"`
 }
 
 type modelTUI struct {
@@ -335,8 +338,16 @@ func (m modelTUI) View() string {
 			if r.Best {
 				mark = " ★"
 			}
-			b.WriteString(fmt.Sprintf("  %-6s %-10s %-5s %9.1fms %9.1fms %8.1fMb%s\n",
-				r.Profile, r.Qdisc, r.CC, r.Small, r.RTT, r.Good, mark))
+			nv := r.ValidN
+			if nv <= 0 {
+				nv = r.Count // vieux serveur sans champ valid : repli honnête
+			}
+			ci := ""
+			if r.SmallCI[0] > 0 || r.SmallCI[1] > 0 {
+				ci = fmt.Sprintf(" [%.0f-%.0f]", r.SmallCI[0], r.SmallCI[1])
+			}
+			b.WriteString(fmt.Sprintf("  %-6s %-10s %-5s %9.1fms %9.1fms %8.1fMb n=%dv%s%s\n",
+				r.Profile, r.Qdisc, r.CC, r.Small, r.RTT, r.Good, nv, ci, mark))
 		}
 	}
 	return b.String() + "\n"

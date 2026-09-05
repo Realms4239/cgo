@@ -28,6 +28,8 @@ type quarantineEntry struct {
 	Qdisc   string `json:"qdisc"`
 	CC      string `json:"cc"`
 	Status  string `json:"gate_status"`
+	// FailedGates — portes en échec (runs futurs ; absent des archives passées).
+	FailedGates []string `json:"failed_gates,omitempty"`
 }
 
 func OpenRun(dir string) (*Writer, error) {
@@ -125,6 +127,7 @@ func (w *Writer) Append(ev model.Event) error {
 	if ev.GateStatus != model.GatePass {
 		w.quarantine = append(w.quarantine, quarantineEntry{
 			EventID: ev.EventID, Profile: string(ev.Profile), Qdisc: string(ev.Qdisc), CC: string(ev.CC), Status: ev.GateStatus,
+			FailedGates: ev.FailedGates,
 		})
 	}
 	row := fmt.Sprintf("%s,%d,%s,%s,%s,%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%.2f,%.1f,%.1f,%.1f,%s",
