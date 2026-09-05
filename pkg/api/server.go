@@ -224,6 +224,62 @@ const maxSubs = 64
 
 // New construit le handler complet avec repli SPA. Le Handler retourné expose
 // CloseHub pour un arrêt propre (stoppe le ticker de diffusion 10 Hz).
+// compareCache — le bootstrap/MW coûte ~ms par cellule : précalcul + cache,
+// invalidé par le hash de provenance (tout nouveau gel change la clé).
+var compareCache struct {
+	sync.Mutex
+	key string
+	val map[string]any
+}
+
+// readValidMetric — valeurs valid-only d'une métrique pour une cellule
+// profile|qdisc|cc + direction (défaut up historique). Ignore run-smoke.
+func readValidMetric(cell, metric, direction string) ([]float64, int) {
+	files, _ := filepath.Glob(filepath.Join("data", "runs", "*", "aqm_eval.csv"))
+	var out []float64
+	n := 0
+	for _, f := range files {
+		if strings.HasPrefix(filepath.Base(filepath.Dir(f)), "run-smoke") {
+			continue
+		}
+		header, rows, err := results.ReadAQM(f)
+		if err != nil {
+			continue
+		}
+		iProf, iQdisc, iCC := results.ColIndex(header, "profile"), results.ColIndex(header, "qdisc"), results.ColIndex(header, "cc")
+		iMet := results.ColIndex(header, metric)
+		iGate := results.ColIndex(header, "gate_status")
+		iDir := results.ColIndex(header, "direction")
+		get := func(row []string, i int) string {
+			if i < 0 || i >= len(row) {
+				return ""
+			}
+			return row[i]
+		}
+		for _, row := range rows {
+			if get(row, iProf)+"|"+get(row, iQdisc)+"|"+get(row, iCC) != cell {
+				continue
+			}
+			d := get(row, iDir)
+			if d == "" {
+				d = "up"
+			}
+			if d != direction || get(row, iGate) != "valid" {
+				continue
+			}
+			n++
+			// small_p95_ms : 0 = sonde vide (convention book) ; deadline 0 %
+			// est une vraie mesure et se garde.
+			if v, err := strconv.ParseFloat(get(row, iMet), 64); err == nil {
+				if metric != "small_p95_ms" || v > 0 {
+					out = append(out, v)
+				}
+			}
+		}
+	}
+	return out, n
+}
+
 func New(d Deps) Handler {
 	hub := NewHub()
 	mux := http.NewServeMux()
@@ -631,6 +687,52 @@ func New(d Deps) Handler {
 			"available": true, "cell": cellKey, "previous_run": filepath.Base(prev), "current_run": filepath.Base(cur),
 			"delta": map[string]any{"small_p95_pct": pct(pv.SmallP95, cv.SmallP95), "rtt_p95_pct": pct(pv.RTTp95, cv.RTTp95), "goodput_pct": pct(pv.Goodput, cv.Goodput)},
 		})
+	})
+	// compare — preuve pilote : Mann-Whitney bilatéral + Cliff sur deux
+	// cellules valid-only. Ex: GET /api/results/compare?a=P2|pfifo_fast|bbr&b=P2|cake|bbr&metric=small_p95_ms
+	// metric ∈ {small_p95_ms, deadline_ok_pct}. deadline agrégée mélange des
+	// échéances opérateur → flag deadline_mixed_D (indicatif seul).
+	mux.HandleFunc("GET /api/results/compare", func(w http.ResponseWriter, r *http.Request) {
+		a, b, metric := r.URL.Query().Get("a"), r.URL.Query().Get("b"), r.URL.Query().Get("metric")
+		direction := r.URL.Query().Get("direction")
+		if direction == "" {
+			direction = "up"
+		}
+		if a == "" || b == "" {
+			writeErr(w, r, "paramètres a et b requis (profile|qdisc|cc)", http.StatusBadRequest)
+			return
+		}
+		if metric != "small_p95_ms" && metric != "deadline_ok_pct" {
+			writeErr(w, r, "metric ∈ {small_p95_ms, deadline_ok_pct}", http.StatusBadRequest)
+			return
+		}
+		key := figures.ProvenanceHash8("data/runs") + "|" + a + "|" + b + "|" + metric + "|" + direction
+		compareCache.Lock()
+		if compareCache.key == key {
+			v := compareCache.val
+			compareCache.Unlock()
+			writeJSON(w, v)
+			return
+		}
+		compareCache.Unlock()
+		xa, na := readValidMetric(a, metric, direction)
+		xb, nb := readValidMetric(b, metric, direction)
+		if len(xa) == 0 || len(xb) == 0 {
+			writeJSON(w, map[string]any{"available": false, "reason": "cellule vide en valid-only"})
+			return
+		}
+		_, p := metrics.MannWhitneyTwoSided(xa, xb)
+		d := metrics.CliffDelta(xa, xb)
+		out := map[string]any{
+			"available": true, "a": a, "b": b, "metric": metric, "direction": direction,
+			"n_a": na, "n_b": nb, "mw_p_two_sided": p,
+			"cliff_delta": d, "cliff_interp": metrics.CliffInterp(d),
+			"deadline_mixed_D": metric == "deadline_ok_pct",
+		}
+		compareCache.Lock()
+		compareCache.key, compareCache.val = key, out
+		compareCache.Unlock()
+		writeJSON(w, out)
 	})
 	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, _ *http.Request) {
 		runs, _ := filepath.Glob("data/runs/*")
@@ -1129,8 +1231,11 @@ func New(d Deps) Handler {
 			Profile string `json:"profile"`
 			Qdisc   string `json:"qdisc"`
 			CC      string `json:"cc"`
-			Status  string `json:"gate_status"`
-		}
+		Status  string `json:"gate_status"`
+		// FailedGates — portes en échec (runs futurs ; absent des archives
+		// passées, champ omis alors — additif).
+		FailedGates []string `json:"failed_gates,omitempty"`
+	}
 		out := []qrow{}
 		collect := func(run string) {
 			b, err := os.ReadFile(filepath.Join("data", "runs", run, "quarantine.json"))
@@ -1160,6 +1265,70 @@ func New(d Deps) Handler {
 			}
 		}
 		writeJSON(w, map[string]any{"quarantines": out})
+	})
+	// Quarantaine/summary — reconstruction live des causes (même heuristique
+	// que l'annexe : low/high/zero/G3, non-exclusives). Aucune constante
+	// gelée : fonctionne sur tout jeu de runs.
+	mux.HandleFunc("GET /api/quarantine/summary", func(w http.ResponseWriter, _ *http.Request) {
+		files, _ := filepath.Glob(filepath.Join("data", "runs", "*", "aqm_eval.csv"))
+		var total, low, high, zero, g3 int
+		for _, f := range files {
+			if strings.HasPrefix(filepath.Base(filepath.Dir(f)), "run-smoke") {
+				continue
+			}
+			header, rows, err := results.ReadAQM(f)
+			if err != nil {
+				continue
+			}
+			iProf := results.ColIndex(header, "profile")
+			iGood := results.ColIndex(header, "bulk_goodput_mbps")
+			iRTT := results.ColIndex(header, "rtt_p95_ms")
+			iGate := results.ColIndex(header, "gate_status")
+			iDir := results.ColIndex(header, "direction")
+			get := func(row []string, i int) string {
+				if i < 0 || i >= len(row) {
+					return ""
+				}
+				return row[i]
+			}
+			for _, row := range rows {
+				if get(row, iGate) != "invalid" {
+					continue
+				}
+				total++
+				gp, _ := strconv.ParseFloat(get(row, iGood), 64)
+				rtt, _ := strconv.ParseFloat(get(row, iRTT), 64)
+				model.ProfilesMu.RLock()
+				prof, ok := model.Profiles[get(row, iProf)]
+				model.ProfilesMu.RUnlock()
+				if !ok {
+					continue
+				}
+				capUp, delay := prof.CapUp(), prof.DelayMs
+				floor := capUp * 0.5
+				if d := get(row, iDir); d == "down" {
+					floor = prof.CapDown() * 0.01
+				}
+				if gp == 0 {
+					zero++
+				}
+				if gp < floor || gp > capUp*1.1+0.5 {
+					if gp < floor {
+						low++
+					} else {
+						high++
+					}
+				}
+				if rtt > delay*10+200 {
+					g3++
+				}
+			}
+		}
+		writeJSON(w, map[string]any{
+			"total_invalid": total, "g4_low": low, "g4_high": high,
+			"empty_probes": zero, "g3_implausible": g3,
+			"note": "catégories non-exclusives ; G4 = porte de régime (Mathis), pas de qualité",
+		})
 	})
 	mux.HandleFunc("GET /api/events", func(w http.ResponseWriter, _ *http.Request) {
 		eventsMu.Lock()
