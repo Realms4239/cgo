@@ -473,11 +473,18 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	}
 
 	status := model.GatePass
+	// noms indexés par Gate (quarantaine lisible, spec §quarantaine).
+	var gateNames = [8]string{
+		"G0TargetReachable", "G1BulkStarted", "G2ProbesProducing",
+		"G3LatencyPlausible", "G4ThroughputCoherent", "G5NoDuplicateRows",
+		"G6BaselineStable", "G7CPUNotSaturated",
+	}
 	for g, b := range gates {
 		if b == nil {
 			continue
 		}
 		if !*b {
+			ev.FailedGates = append(ev.FailedGates, gateNames[g])
 			switch model.Gate(g) {
 			case model.G2ProbesProducing, model.G6BaselineStable:
 				if status == model.GatePass {
