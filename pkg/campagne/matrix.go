@@ -186,7 +186,14 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 							return
 						default:
 						}
-						key := fmt.Sprintf("%s/%d", m.RunID, id)
+						// identité de cellule normalisée : Direction "" = "up"
+						// (défaut historique des archives) — la clé skip et la clé
+						// Append (cellKey) doivent se rejoindre sur le même mot.
+						dir := deps.Direction
+						if dir == "" {
+							dir = "up"
+						}
+						key := fmt.Sprintf("%s/%s/%s/%s/%d", pid, qs, cs, dir, rep)
 						if w.seen[key] {
 							m.Done = id
 							id++
@@ -195,10 +202,7 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 						ev := model.Event{
 							RunID: m.RunID, EventID: id, Profile: pid,
 							Qdisc: q, CC: cc, Repetition: rep,
-							Direction: deps.Direction,
-						}
-						if ev.Direction == "" {
-							ev.Direction = "up" // défaut historique : les 150 runs gelés n'ont pas la colonne
+							Direction: dir,
 						}
 						// contexte annulable par event — le skip coupe la cellule
 						// courante sans arrêter la matrice ; la phase de gel reste propre.

@@ -52,10 +52,13 @@ func OpenRun(dir string) (*Writer, error) {
 					continue
 				}
 				parts := splitCSV(ln)
-				if len(parts) < 2 {
+				// identité de cellule : profil/qdisc/cc/sens/rep (colonnes 3-7).
+				// La position (event_id) ne sert plus : une reprise sous-matrice
+				// renumérote et ferait sauter des cellules jamais gelées.
+				if len(parts) < 7 {
 					continue
 				}
-				w.seen[parts[0]+"/"+parts[1]] = true
+				w.seen[parts[2]+"/"+parts[3]+"/"+parts[4]+"/"+parts[5]+"/"+parts[6]] = true
 			}
 		}
 	}
@@ -71,6 +74,14 @@ func OpenRun(dir string) (*Writer, error) {
 		}
 	}
 	return w, nil
+}
+
+// cellKey — identité d'une cellule indépendante de sa position : une reprise
+// en sous-matrice (--qdiscs cake après une pleine) renumérote les event_id ;
+// la position ne peut pas servir d'identité. (run_id imposé par le CLI de
+// reprise : une nouvelle matrice sans --run-id ne partage jamais le CSV.)
+func cellKey(ev model.Event) string {
+	return fmt.Sprintf("%s/%s/%s/%s/%d", ev.Profile, ev.Qdisc, ev.CC, ev.Direction, ev.Repetition)
 }
 
 func splitLines(s string) []string {
@@ -116,9 +127,10 @@ func joinRow(cols []string) string {
 	return out
 }
 
-// Append écrit une ligne ; les paires (run,event) dupliquées sont rejetées (G5).
+// Append écrit une ligne ; les cellules identiques (profil/qdisc/cc/sens/rep,
+// position indépendante) sont rejetées (G5).
 func (w *Writer) Append(ev model.Event) error {
-	key := fmt.Sprintf("%s/%d", ev.RunID, ev.EventID)
+	key := cellKey(ev)
 	if w.seen[key] {
 		w.dupes++
 		return fmt.Errorf("duplicate event row %s", key)
