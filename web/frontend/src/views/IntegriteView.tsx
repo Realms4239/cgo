@@ -25,13 +25,15 @@ export default function IntegriteView() {
   const setPanel = useUIStore(s=>s.setPanel)
   const [groups, setGroups] = useState<any[]|null>(null)
   const [peekGroups, setPeekGroups] = useState<any[]|null>(null)
-  const [quar, setQuar] = useState<{run:string;event_id:number;profile:string;qdisc:string;cc:string;gate_status:string}[]>([])
+  const [quar, setQuar] = useState<{run:string;event_id:number;profile:string;qdisc:string;cc:string;gate_status:string;failed_gates?:string[]}[]>([])
+  const [quarSum, setQuarSum] = useState<{total_invalid?:number;g4_low?:number;g4_high?:number;empty_probes?:number;g3_implausible?:number}|null>(null)
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
     fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(j.runs||[])).catch(()=>{})
     fetch('/api/results').then(r=>r.json()).then(j=>setGroups(j.groups??null)).catch(()=>setGroups(null))
     fetch('/api/quarantine').then(r=>r.json()).then(j=>setQuar(j.quarantines||[])).catch(()=>{})
+    fetch('/api/quarantine/summary').then(r=>r.json()).then(j=>setQuarSum(j)).catch(()=>{})
   }
   useEffect(()=>{ load() }, [])
   useEffect(()=>{
@@ -139,13 +141,13 @@ export default function IntegriteView() {
         {quar.length===0 ? <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="aucune mise en quarantaine (gate_status=valid)" /></div> :
         <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:12 }}>
           <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
-            <th style={{ padding:'6px 8px' }}>run</th><th>événement</th><th>cellule</th><th>statut</th>
+            <th style={{ padding:'6px 8px' }}>run</th><th>événement</th><th>cellule</th><th>statut</th><th>portes</th>
           </tr></thead><tbody>
           {quar.map((q,i)=><tr key={i} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
-            <td style={{ padding:'6px 8px' }}>{q.run}</td><td>#{q.event_id}</td><td>{q.profile}·{q.qdisc}·{q.cc}</td><td style={{ color:'#f4b400' }}>{q.gate_status}</td>
+            <td style={{ padding:'6px 8px' }}>{q.run}</td><td>#{q.event_id}</td><td>{q.profile}·{q.qdisc}·{q.cc}</td><td style={{ color:'#f4b400' }}>{q.gate_status}</td><td style={{ color:'#8b9099' }}>{(q.failed_gates ?? []).join(' ') || '—'}</td>
           </tr>)}
           </tbody></table>}
-        <div className="mono" style={{ fontSize:10, color:'#767b84', marginTop:8 }}>source: quarantine.json · gate_status != valid</div>
+        <div className="mono" style={{ fontSize:10, color:'#767b84', marginTop:8 }}>source: quarantine.json · gate_status != valid{quarSum && quarSum.total_invalid != null ? ` · synthèse live : ${quarSum.total_invalid} invalid — G4 bas ${quarSum.g4_low}, G4 haut ${quarSum.g4_high}, sondes vides ${quarSum.empty_probes}, G3 ${quarSum.g3_implausible} (non-exclusif, G4 = régime)` : ''}</div>
       </div>
       <div className="card" style={{ border:'1px solid #26262a' }}>
         <div className="card-head">Recommandations — Traduction Matérielle</div>

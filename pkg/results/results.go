@@ -20,23 +20,23 @@ type Group struct {
 	Count       int    `json:"count"`
 	Quarantined int    `json:"quarantined"`
 
-	RTTp95Median           float64    `json:"rtt_p95_median"`
-	RTTp95IQR              [2]float64 `json:"rtt_p95_iqr"`
-	Smallp95Median         float64    `json:"small_p95_median"`
-	Smallp95IQR            [2]float64 `json:"small_p95_iqr"`
-	GoodputMedian          float64    `json:"goodput_median"`
-	DeadlineMedian         float64    `json:"deadline_median"`
-	WastedMedian           float64    `json:"wasted_median"`
-	CostMedian             float64    `json:"cost_median"`
+	RTTp95Median   float64    `json:"rtt_p95_median"`
+	RTTp95IQR      [2]float64 `json:"rtt_p95_iqr"`
+	Smallp95Median float64    `json:"small_p95_median"`
+	Smallp95IQR    [2]float64 `json:"small_p95_iqr"`
+	GoodputMedian  float64    `json:"goodput_median"`
+	DeadlineMedian float64    `json:"deadline_median"`
+	WastedMedian   float64    `json:"wasted_median"`
+	CostMedian     float64    `json:"cost_median"`
 	// Valid-only strict (degraded exclus) — preuve pilote : mêmes fonctions
 	// que pkg/metrics/stats.go (miroir de extract-stats.js, seed 42).
-	Smallp95ValidN      int       `json:"small_p95_valid_n"`
-	Smallp95ValidMedian float64   `json:"small_p95_valid_median"`
-	Smallp95ValidIQR    [2]float64 `json:"small_p95_valid_iqr"`
-	Smallp95ValidCI95   [2]float64 `json:"small_p95_valid_ci95"`
-	DeadlineValidN      int       `json:"deadline_valid_n"`
-	DeadlineValidMedian float64   `json:"deadline_valid_median"`
-	DeadlineValidCI95   [2]float64 `json:"deadline_valid_ci95"`
+	Smallp95ValidN         int        `json:"small_p95_valid_n"`
+	Smallp95ValidMedian    float64    `json:"small_p95_valid_median"`
+	Smallp95ValidIQR       [2]float64 `json:"small_p95_valid_iqr"`
+	Smallp95ValidCI95      [2]float64 `json:"small_p95_valid_ci95"`
+	DeadlineValidN         int        `json:"deadline_valid_n"`
+	DeadlineValidMedian    float64    `json:"deadline_valid_median"`
+	DeadlineValidCI95      [2]float64 `json:"deadline_valid_ci95"`
 	Best                   bool       `json:"best,omitempty"`
 	HardwareRecommendation string     `json:"hardware_recommendation"`
 }
@@ -118,14 +118,14 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			// Les médianes portent les lignes exploitables (non invalid), comme
 			// extract-stats.js — sinon une ligne invalidée par les portes
 			// fausse l'agrégat affiché.
-		if get(r, iGate) == "invalid" {
-			b.quarantined++
-			continue
-		}
-		if get(r, iGate) == "valid" {
-			add(&b.vSmalls, get(r, iSmall))
-			add(&b.vDeadlines, get(r, iDead))
-		}
+			if get(r, iGate) == "invalid" {
+				b.quarantined++
+				continue
+			}
+			if get(r, iGate) == "valid" {
+				add(&b.vSmalls, get(r, iSmall))
+				add(&b.vDeadlines, get(r, iDead))
+			}
 			add(&b.rtts, get(r, iRTT))
 			add(&b.smalls, get(r, iSmall))
 			add(&b.goodputs, get(r, iGood))
