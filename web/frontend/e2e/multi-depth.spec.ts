@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-const BASE = process.env.AUDIT_BASE || 'http://localhost:9090'
+const BASE = process.env.AUDIT_BASE || 'https://localhost:9090'
 
 // Multi-profondeur : chaque action d'interface est instrumentée — requête API
 // observée, erreur console capturée, état vérifié APRÈS l'action. La preuve

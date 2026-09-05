@@ -117,7 +117,7 @@ if [ "${1:-}" = "--hosts" ] || [ "${HOSTS:-0}" = "1" ]; then
   if [ -f /c/Windows/System32/drivers/etc/hosts ]; then
     add_hosts_entry "127.0.0.1" "meteolink.dev" "/c/Windows/System32/drivers/etc/hosts"
     add_hosts_entry "$_vm_ip" "meteolink.vm" "/c/Windows/System32/drivers/etc/hosts"
-    msg "hosts : http://meteolink.dev:9090 (local) et http://meteolink.vm:9090 (VM $_vm_ip) — éditez en Admin si Permission denied"
+    msg "hosts : https://meteolink.dev:9090 (local, certificat auto-signé) et http://meteolink.vm:9090 (VM $_vm_ip) — éditez en Admin si Permission denied"
   elif [ -f /etc/hosts ]; then
     add_hosts_entry "127.0.0.1" "meteolink.dev" "/etc/hosts"
     add_hosts_entry "$_vm_ip" "meteolink.vm" "/etc/hosts"
@@ -135,6 +135,6 @@ Run the cgo server as root, grant the capability to the binary
   sudo setcap cap_net_admin+ep ./cgo
 or add your user to a sudo-capable group. Without it, cgo runs in
 observation mode only.
-Portable : dashboard sur http://meteolink.dev:9090 après --hosts (sinon http://localhost:9090).
+Portable : dashboard sur https://meteolink.dev:9090 après --hosts (certificat local auto-signé, accepter une fois).
 VM : http://<ip-vm>:9090 (auto-découvert, ex. via cgo kit status) ou http://meteolink.vm:9090 si hosts.
 EOF

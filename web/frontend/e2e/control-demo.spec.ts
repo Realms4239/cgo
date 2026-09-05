@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-const BASE = process.env.AUDIT_BASE || 'http://localhost:9090'
+const BASE = process.env.AUDIT_BASE || 'https://localhost:9090'
 
 // Boucle contrôle-et-façonnage pilotée par l'UI (pivot ARG.md) :
 // figer une référence depuis les anneaux live → appliquer CAKE au bord → écart live.
