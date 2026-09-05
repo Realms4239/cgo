@@ -292,7 +292,7 @@ export default function ResultatsView() {
               const pct = Math.min(100, (val(g) / rankMax) * 100)
               const barColor = i === 0 ? 'var(--t-ok)' : g.qdisc === 'cake' ? 'var(--t-bbr)' : g.qdisc === 'fq_codel' ? 'var(--t-live)' : '#6b7078'
               const wasted: number | null = g.wasted_median ?? g.wasted_bytes ?? null
-              const cost: number | null = g.cost_median ?? g.cost_ar_per_h ?? null
+              const cost: number | null = costRef(g) // palier unique, voir title
               const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
               const cellDelta = deltas[`${g.profile}|${g.qdisc}|${g.cc}${g.direction && g.direction !== 'up' ? `|${g.direction}` : ''}`]?.small_p95_pct
               return (
@@ -317,7 +317,7 @@ export default function ResultatsView() {
                   <td>{g.goodput_median.toFixed(1)}</td>
                   <td style={{ fontVariantNumeric: 'tabular-nums', color: deadlineOk == null ? '#9aa0a8' : deadlineOk >= 95 ? '#1fa348' : '#f4b400', textAlign: 'right' }}>{deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'}</td>
                   <td style={{ fontVariantNumeric: 'tabular-nums', color: wasted == null ? '#9aa0a8' : wasted > 0 ? '#e22718' : '#9aa0a8', textAlign: 'right' }}>{wasted == null ? '—' : wasted >= 1048576 ? (wasted / 1048576).toFixed(1) + ' MiB' : wasted >= 1024 ? (wasted / 1024).toFixed(0) + ' KiB' : String(wasted)}</td>
-                  <td style={{ fontVariantNumeric: 'tabular-nums', color: cost == null ? '#9aa0a8' : cost > 0 ? '#f4b400' : '#9aa0a8', textAlign: 'right' }}>{cost == null ? '—' : cost.toFixed(0)}</td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums', color: cost == null ? '#9aa0a8' : cost > 0 ? '#f4b400' : '#9aa0a8', textAlign: 'right' }} title={cost == null ? undefined : `palier unique 5556 Ar/Go (gelé brut : ${(g.cost_median ?? g.cost_ar_per_h ?? 0).toFixed(0)})`}>{cost == null ? '—' : cost >= 1000 ? (cost / 1000).toFixed(1) + ' k' : cost.toFixed(0)}</td>
                   <td>{g.quarantined}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {(() => {
