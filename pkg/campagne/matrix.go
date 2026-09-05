@@ -81,6 +81,17 @@ func StartMatrixWithID(base context.Context, runID string, profiles []string, re
 	return startMatrix(base, runID, profiles, allQdiscStrings(), allCCStrings(), reps, deps, dataDir)
 }
 
+// StartMatrixFilteredWithID — reprise d'une matrice interrompue : les
+// cellules déjà gelées (run/event) sont sautées, seules les manquantes
+// s'exécutent. Refuse un runID vide (pas de reprise fantôme).
+func StartMatrixFilteredWithID(base context.Context, runID string, profiles []string, qdiscs, ccs []string, reps int,
+	deps Deps, dataDir string) (*Matrix, error) {
+	if runID == "" {
+		return nil, fmt.Errorf("run-id vide : reprise impossible")
+	}
+	return startMatrix(base, runID, profiles, qdiscs, ccs, reps, deps, dataDir)
+}
+
 func allQdiscStrings() []string {
 	out := make([]string, len(model.AllQdiscs))
 	for i, q := range model.AllQdiscs {
