@@ -1,7 +1,7 @@
 import { test } from '@playwright/test'
 
 // Phase 1 deep probe — every view × every viewport + console sweep.
-const BASE = process.env.AUDIT_BASE || 'http://localhost:9090'
+const BASE = process.env.AUDIT_BASE || 'https://localhost:9090'
 const VIEWPORTS: [number, number, string][] = [[1920, 1080, '1920'], [1366, 768, '1366'], [390, 844, '390']]
 
 for (const [w, h, tag] of VIEWPORTS) {

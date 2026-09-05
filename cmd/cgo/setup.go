@@ -191,7 +191,7 @@ func runSetup(args []string) int {
 		step(5, "Configuration VM (sans VM — sauté)")
 	}
 
-	// 6 — DNS local
+	// 6 — DNS local (requis : meteolink.dev est l'adresse canonique HTTPS)
 	step(6, "DNS local")
 	if confirm("Ajouter meteolink.dev/meteolink.vm au hosts local ?") {
 		// portable : .dev → local, .vm → IP découverte ou auto
@@ -219,7 +219,7 @@ func runSetup(args []string) int {
 	next := ask("Lancer [dashboard] (cgo --serve), [tui], ou [quitter] ?", "dashboard")
 	switch strings.ToLower(next) {
 	case "dashboard", "d":
-		fmt.Println("→ cgo --serve  (http://localhost:9090)")
+		fmt.Println("→ cgo --serve  (https://meteolink.dev:9090, certificat local auto-signé : accepter une fois dans le navigateur)")
 		return runServe()
 	case "tui", "t":
 		fmt.Println("→ cgo tui")

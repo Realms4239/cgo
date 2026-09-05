@@ -34,7 +34,7 @@ cat > start.sh <<LAUNCHER
 #!/bin/bash
 cd "$PROJECT_DIR"
 # le port vient de la config — une seule source de vérité, pas de 9090 en dur
-exec ./cgo-linux --serve --addr "0.0.0.0:$PORT" >> /tmp/cgo.log 2>&1
+exec ./cgo-linux --serve --addr "0.0.0.0:$PORT" --tls=false --http-addr= >> /tmp/cgo.log 2>&1
 LAUNCHER
 chmod +x start.sh
 ok "start.sh written (port $PORT)"

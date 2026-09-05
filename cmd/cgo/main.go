@@ -1,6 +1,6 @@
 // Meteolink (binaire cgo) — commandes principales:
 //
-//	cgo --serve                          dashboard + API (127.0.0.1:9090 par défaut)
+//	cgo --serve                          dashboard + API (https://meteolink.dev:9090 par défaut, certificat local auto-signé)
 //	cgo setup                            wizard première installation (tout guidé)
 //	cgo kit <action>                     moteur de déploiement (doctor, scan, ensure, deploy…)
 //	cgo audit --link-type T --site S --duration N
@@ -49,14 +49,16 @@ func main() {
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
 		def := os.Getenv("CGO_DASHBOARD__ADDR")
 		if def == "" {
-			def = "127.0.0.1:9090" // interface locale par défaut; 0.0.0.0 pour la VM
+			def = "meteolink.dev:9090" // interface canonique (hosts → 127.0.0.1) ; --tls=false + 0.0.0.0 pour la VM
 		}
 		addr := fs.String("addr", def, "listen address")
+		tlsOn := fs.Bool("tls", true, "HTTPS avec le certificat local meteolink.dev (false = HTTP brut, VM/systemd)")
+		httpAddr := fs.String("http-addr", "127.0.0.1:9080", "redirection HTTP→HTTPS (vide = désactivée)")
 		mode := fs.String("mode", "auto", "observe | full | auto (défaut: OS décide — Windows observe, Linux complet)")
 		_ = fs.Parse(os.Args[2:])
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		if err := runServer(ctx, *addr, doctor.Mode(*mode)); err != nil {
+		if err := runServer(ctx, *addr, doctor.Mode(*mode), *tlsOn, *httpAddr); err != nil {
 			fmt.Fprintln(os.Stderr, "serve:", err)
 			os.Exit(1)
 		}
@@ -97,7 +99,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/cgo --serve --addr 0.0.0.0:9090
+		ExecStart=/usr/local/bin/cgo --serve --addr 0.0.0.0:9090 --tls=false --http-addr=
 Restart=on-failure
 RestartSec=3
 
@@ -182,7 +184,7 @@ WantedBy=multi-user.target
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--mode observe|full|auto]
+	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--tls=false] [--http-addr 127.0.0.1:9080] [--mode observe|full|auto]
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify

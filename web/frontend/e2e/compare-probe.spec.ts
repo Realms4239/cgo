@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-const BASE = process.env.AUDIT_BASE || 'http://localhost:9090'
+const BASE = process.env.AUDIT_BASE || 'https://localhost:9090'
 test('compare view probe', async ({ page }) => {
   test.setTimeout(90000)
   const errs: string[] = []

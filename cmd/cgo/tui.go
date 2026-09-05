@@ -1,12 +1,14 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -77,9 +79,33 @@ type modelTUI struct {
 func initialModelTUI() modelTUI {
 	api := os.Getenv("CGO_API")
 	if api == "" {
-		api = "http://127.0.0.1:9090"
+		api = "https://meteolink.dev:9090"
 	}
 	return modelTUI{apiURL: api}
+}
+
+// apiTransport — HTTPS : racines système + certificat local meteolink.dev
+// (auto-signé accepté, pas de skip-verify). HTTP : transport standard.
+var (
+	httpsTransportOnce sync.Once
+	httpsTransport     *http.Transport
+)
+
+func apiTransport(api string) http.RoundTripper {
+	if !strings.HasPrefix(api, "https://") {
+		return http.DefaultTransport
+	}
+	httpsTransportOnce.Do(func() {
+		pool, err := localCertPool()
+		if err != nil {
+			pool = nil // racines système seules (le TLS échouera proprement)
+		}
+		httpsTransport = &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool}}
+	})
+	if httpsTransport == nil {
+		return http.DefaultTransport
+	}
+	return httpsTransport
 }
 
 // ---- messages de polling ----
@@ -90,7 +116,7 @@ type resultsMsg []resultRow
 
 func pollFrames(api string) tea.Cmd {
 	return tea.Tick(1*time.Second, func(time.Time) tea.Msg {
-		cl := &http.Client{Timeout: 2 * time.Second}
+		cl := &http.Client{Timeout: 2 * time.Second, Transport: apiTransport(api)}
 		resp, err := cl.Get(api + "/api/state")
 		if err != nil {
 			return frameMsg{}
@@ -104,7 +130,7 @@ func pollFrames(api string) tea.Cmd {
 
 func pollResults(api string) tea.Cmd {
 	return func() tea.Msg {
-		cl := &http.Client{Timeout: 3 * time.Second}
+		cl := &http.Client{Timeout: 3 * time.Second, Transport: apiTransport(api)}
 		resp, err := cl.Get(api + "/api/results")
 		if err != nil {
 			return resultsMsg(nil)

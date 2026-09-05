@@ -41,7 +41,7 @@ Meteolink rejoue des profils de lien et affiche les données dans le terminal ou
 
 Meteolink a été conçu pour être un auditeur de lien rapide, basé sur le terminal. Son idée centrale est d'auditer et comparer rapidement les politiques AQM/BBR en temps réel sans toucher à vos routeurs (*idéal si vous voulez analyser vite votre lien 4G via SSH, ou si vous aimez simplement travailler dans le terminal*).
 
-Il sert aussi d'outil pratique pour le diagnostic terrain, facilitant la détection du bufferbloat, du partage inéquitable (`JFI`) et de la capacité gaspillée directement depuis votre lien. Bien que la sortie terminal (`meteolink top`) soit la sortie par défaut, il peut générer un tableau de bord [`HTML`](http://localhost:9090) temps réel complet et autonome, ainsi qu'un rapport [`CSV`](http://localhost:9090/api/report/export?format=csv) et [`Markdown`](http://localhost:9090/api/report/export?format=md).
+Il sert aussi d'outil pratique pour le diagnostic terrain, facilitant la détection du bufferbloat, du partage inéquitable (`JFI`) et de la capacité gaspillée directement depuis votre lien. Bien que la sortie terminal (`meteolink top`) soit la sortie par défaut, il peut générer un tableau de bord [`HTML`](https://localhost:9090) temps réel complet et autonome, ainsi qu'un rapport [`CSV`](https://localhost:9090/api/report/export?format=csv) et [`Markdown`](https://localhost:9090/api/report/export?format=md).
 
 Voyez-le plutôt comme une commande `monitor` pour votre lien d'accès.
 
@@ -65,7 +65,7 @@ Téléchargez, extrayez et exécutez le binaire unique :
 ```
 $ wget https://github.com/Realms4239/cgo/releases/download/v1.2.1/cgo-linux-amd64.tar.gz
 $ tar -xzvf cgo-linux-amd64.tar.gz
-$ ./cgo --serve              # http://127.0.0.1:9090
+$ ./cgo --serve              # https://meteolink.dev:9090 (certificat local auto-signé)
 # ou meteolink --serve (alias de compatibilité)
 ```
 
@@ -98,13 +98,13 @@ $ meteolink --serve
 #### Windows (observation)
 
 ```
-> cgo.exe --serve   # 127.0.0.1:9090, Windows = observe (sans tc)
+> cgo.exe --serve   # https://meteolink.dev:9090, Windows = observe (sans tc)
 ```
 
 #### Docker
 
 ```
-$ docker run -p 9090:9090 -v ./data/runs:/data/runs meteolink --serve --addr 0.0.0.0:9090
+$ docker run -p 9090:9090 -v ./data/runs:/data/runs meteolink --serve --addr 0.0.0.0:9090 --tls=false --http-addr=
 ```
 
 ### Banc VM (le vrai banc `tc`) — `cgo kit`
@@ -127,7 +127,7 @@ $ cgo kit ssh · ps · backup
 
 21 actions au total. Mêmes codes de sortie que l'ancien `engine.sh` (2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH, 6 cross, 7 scp, 8 install), env `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`/`CGO_VM_IP` inchangés (l'env **gagne** sur `cgo-vm.yaml` — forcer une IP après un bail DHCP glissant). `kit/engine.sh` reste en shim de compatibilité. **Machine propre sans SSH :** `cgo kit doctor` classe l'échec (sshd absent / clé refusée / machine éteinte) et affiche la remédiation, `cgo kit keysetup` pose la clé sans console (mot de passe tapé dans ssh), `cgo kit ensure` gère boot + découverte d'IP.
 
-**DNS local portable :** `bash kit/install.sh --hosts` (Admin) ajoute `127.0.0.1 meteolink.dev` (host) et `<ip-vm> meteolink.vm` (auto-découvert via `cgo kit status`) — `http://meteolink.dev:9090` et `http://meteolink.vm:9090`. `.dev` est `HSTS` (force `https`) : en local `http` reste OK via `hosts` + `mkcert meteolink.dev` si `https` requis, sinon préférer `http://localhost:9090` (secure context).
+**DNS local + HTTPS :** `bash kit/install.sh --hosts` (Admin) ou `cgo setup` ajoute `127.0.0.1 meteolink.dev` (host) et `<ip-vm> meteolink.vm` (auto-découvert via `cgo kit status`). Le dashboard écoute `https://meteolink.dev:9090` avec un certificat local auto-signé généré au premier lancement (accepter une fois dans le navigateur, ou installer `%APPDATA%/cgo/cert.pem` dans le magasin de confiance). `.dev` est `HSTS` : le HTTP est redirigé (`127.0.0.1:9080` → HTTPS). La VM reste en HTTP brut : `http://meteolink.vm:9090`.
 
 ## Stockage
 
@@ -148,7 +148,7 @@ $ cgo setup                                      # wizard : de zéro au dashboar
 $ cgo kit doctor|scan|keysetup|ensure|align|deploy|svc|...    # moteur de déploiement (21 actions)
 $ cgo run --profiles P2 --reps 3 --deadline 1000 # campagne CLI réelle
 $ cgo tui                                        # terminal 5 onglets
-$ cgo --serve --addr 127.0.0.1:9090 --mode auto  # auto: Linux full, Windows observe
+$ cgo --serve --addr meteolink.dev:9090 --mode auto  # auto: Linux full, Windows observe
 $ cgo audit --link-type 5g --site "Dept X" --duration 300
 $ cgo verify
 $ cgo figures
@@ -158,14 +158,14 @@ $ cgo shape --restore
 
 ## Utilisation / Exemples
 
-**Note :** le tableau de bord écoute `127.0.0.1:9090` par défaut ; passez `--addr 0.0.0.0:9090` pour exposer en LAN (comme le fait `kit/vm-install.sh`).
+**Note :** le tableau de bord écoute `https://meteolink.dev:9090` par défaut (HTTP redirigé depuis `127.0.0.1:9080`) ; `--tls=false --addr 0.0.0.0:9090` pour exposer en HTTP brut en LAN/VM (comme le fait `kit/vm-install.sh`).
 
 ### Démarrage
 
 Trois peaux, un seul moteur — le web dashboard, le TUI terminal, la CLI :
 
 ```
-$ cgo --serve          # dashboard web — http://localhost:9090
+$ cgo --serve          # dashboard web — https://localhost:9090
 $ cgo tui              # terminal : 5 onglets (Setup Kit Campagne Live Résultats)
 $ cgo run --profiles P2 --reps 3   # campagne CLI : progression, CTRL-C gel, résumé
 ```
@@ -184,7 +184,7 @@ $ cgo audit --link-type 5g --site "Dept X" --duration 300
 Le coût en Ariary suit le forfait réel de l'institution (`GET /api/cost/tiers`, recherche 2026, docs/data-prices.md) :
 
 ```
-$ curl http://localhost:9090/api/cost/tiers
+$ curl -k https://localhost:9090/api/cost/tiers
 # yas-day-1gb 1 000 Ar/Go · yas-month-4.5gb 5 556 · yas-month-100gb 2 000 ·
 # yas-ftth-100gb 490 · orange-month-5gb 2 000 · airtel-month-4.5gb 5 556
 ```
@@ -194,19 +194,19 @@ Défaut : mobile mensuel 4,5 Go (contexte cellular DSI). La fibre est ~10× moin
 Pour générer un rapport `CSV` sur la sortie standard :
 
 ```
-$ curl "http://localhost:9090/api/report/export?format=csv"
+$ curl -k "https://localhost:9090/api/report/export?format=csv"
 ```
 
 Pour rejouer la meilleure cellule gelée de chaque profil en script `tc` (recette `aqm-recipe.sh`, même règle que la suggestion CLI) :
 
 ```
-$ curl "http://localhost:9090/api/report/export?format=sh" -o aqm-recipe.sh
+$ curl -k "https://localhost:9090/api/report/export?format=sh" -o aqm-recipe.sh
 ```
 
 Meteolink permet aussi une grande flexibilité de filtrage temps réel. Pour diagnostiquer vite le bufferbloat sur le mur live :
 
 ```
-$ curl -X POST http://localhost:9090/api/shape -H 'Content-Type: application/json' -d '{"qdisc":"cake","capacity_mbps":20}'
+$ curl -k -X POST https://localhost:9090/api/shape -H 'Content-Type: application/json' -d '{"qdisc":"cake","capacity_mbps":20}'
 # observez le live-wall-overlay Figée vs appliqué — -41% est le produit
 ```
 
@@ -215,7 +215,7 @@ $ curl -X POST http://localhost:9090/api/shape -H 'Content-Type: application/jso
 Il existe plusieurs façons d'exécuter plusieurs profils avec Meteolink. La plus simple est de passer plusieurs profils à la campagne :
 
 ```
-$ curl -X POST http://localhost:9090/api/run/start -H 'Content-Type: application/json' -d '{"profiles":["P1","P2"],"reps":3}'
+$ curl -k -X POST https://localhost:9090/api/run/start -H 'Content-Type: application/json' -d '{"profiles":["P1","P2"],"reps":3}'
 ```
 
 Pour rejouer une seule cellule sans la matrice pleine (sous-matrice), ou mesurer le sens download (badge `↓` dans Résultats, jamais comparé à l'upload) :
@@ -228,7 +228,7 @@ $ cgo run --profiles P2 --reps 1 --direction both   # RRUL séquentiel : up puis
 Il est même possible d'importer un profil personnalisé depuis l'UI (`Campagne → Profil personnalisé → P3`) ou via pipe :
 
 ```
-$ echo '{"id":"P3","capacity_mbps":5,"delay_ms":600}' | curl -X POST http://localhost:9090/api/profile/import -H 'Content-Type: application/json' -d @-
+$ echo '{"id":"P3","capacity_mbps":5,"delay_ms":600}' | curl -k -X POST https://localhost:9090/api/profile/import -H 'Content-Type: application/json' -d @-
 ```
 
 ### Tableau de bord temps réel
@@ -238,7 +238,7 @@ Meteolink peut afficher les données temps réel dans le tableau `HTML`. Vous po
 Le processus de génération d'un tableau temps réel est très similaire à celui d'un rapport statique. Seul `--serve` est nécessaire.
 
 ```
-$ cgo --serve --addr 0.0.0.0:9090
+$ cgo --serve --addr 0.0.0.0:9090 --tls=false --http-addr=
 ```
 
 Pour voir le rapport, naviguez vers `http://<ip>:9090`. Par défaut, Meteolink écoute sur le port `9090`, pour utiliser un autre port :
@@ -250,7 +250,7 @@ $ cgo --serve --addr 0.0.0.0:9870
 Et pour lier le serveur `WebSocket` à une autre adresse que `127.0.0.1` :
 
 ```
-$ cgo --serve --addr 127.0.0.1:9090
+$ cgo --serve --addr meteolink.dev:9090
 ```
 
 ### Filtrage
@@ -264,8 +264,8 @@ Un autre filtre utile est de comparer un seul profil ou une seule `qdisc`. Sur `
 Pour comparer `CUBIC` vs `BBR` à travers le bord façonné sans campagne complète :
 
 ```
-$ curl -X POST http://localhost:9090/api/burst -H 'Content-Type: application/json' -d '{"cc":"bbr","seconds":4}'
-$ curl -X POST http://localhost:9090/api/burst -H 'Content-Type: application/json' -d '{"cc":"cubic","seconds":4}'
+$ curl -k -X POST https://localhost:9090/api/burst -H 'Content-Type: application/json' -d '{"cc":"bbr","seconds":4}'
+$ curl -k -X POST https://localhost:9090/api/burst -H 'Content-Type: application/json' -d '{"cc":"cubic","seconds":4}'
 # observez goodput + RTT sur Tableau live
 ```
 

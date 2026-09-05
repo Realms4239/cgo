@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -19,7 +20,9 @@ import (
 
 // runServer démarre le tableau de bord + l'API avec le cœur de campagne.
 // mode: "full" (Linux bench/edge) or "observe" (Windows workstation).
-func runServer(ctx context.Context, addr, mode string) error {
+// tlsOn: HTTPS avec le certificat local meteolink.dev (défaut) ; false =
+// HTTP brut (VM, systemd). httpAddr: redirection HTTP→HTTPS ("" = off).
+func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr string) error {
 	live := campagne.NewLive()
 
 	// deadline par défaut — même registre que GET /api/schema
@@ -254,20 +257,66 @@ func runServer(ctx context.Context, addr, mode string) error {
 		// mais les en-têtes lentes ne doivent pas pendre un slot (Slowloris).
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+	var extra []*http.Server // redirection HTTP : fermés avec le principal
 	errCh := make(chan error, 1)
-	go func() { errCh <- srv.ListenAndServe() }()
-	log.Printf("cgo dashboard on %s", addr)
+	if tlsOn {
+		certFile, keyFile, err := ensureLocalCert()
+		if err != nil {
+			return err
+		}
+		// Listen explicite (pas ListenAndServeTLS direct) : en cas d'échec
+		// sur meteolink.dev, on explique le hosts au lieu d'une erreur brute.
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			hint := ""
+			if host, _, herr := net.SplitHostPort(addr); herr == nil && host == "meteolink.dev" {
+				hint = " — ajoutez « 127.0.0.1 meteolink.dev » au fichier hosts (cgo setup le propose)"
+			}
+			return fmt.Errorf("écoute %q impossible%s : %w", addr, hint, err)
+		}
+		if httpAddr != "" {
+			redir := &http.Server{Addr: httpAddr, Handler: redirectHTTPS(addr), ReadHeaderTimeout: 5 * time.Second}
+			extra = append(extra, redir)
+			go func() {
+				if err := redir.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					errCh <- err
+				}
+			}()
+			log.Printf("cgo redirect http://%s → https (meteolink.dev)", httpAddr)
+		}
+		go func() { errCh <- srv.ServeTLS(ln, certFile, keyFile) }()
+		log.Printf("cgo dashboard on https://%s (certificat local meteolink.dev)", addr)
+	} else {
+		go func() { errCh <- srv.ListenAndServe() }()
+		log.Printf("cgo dashboard on http://%s (HTTP brut, VM/systemd)", addr)
+	}
 	select {
 	case <-ctx.Done():
 		stopFn()
 		shutCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutCtx)
+		for _, s := range extra {
+			_ = s.Shutdown(shutCtx)
+		}
 		handler.CloseHub() // stop the 10 Hz broadcast ticker — Server.Close never does
 		return nil
 	case err := <-errCh:
 		return err
 	}
+}
+
+// redirectHTTPS renvoie tout vers https://meteolink.dev:<port> + chemin.
+// Le nom canonique plutôt que l'hôte demandé : un seul nom, un seul cert.
+func redirectHTTPS(tlsAddr string) http.Handler {
+	port := "9090"
+	if _, p, err := net.SplitHostPort(tlsAddr); err == nil && p != "" {
+		port = p
+	}
+	target := "https://meteolink.dev:" + port
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target+r.URL.RequestURI(), http.StatusTemporaryRedirect)
+	})
 }
 
 // pumpSnapshots reflète la progression de la matrice dans l'instantané diffus à 10 Hz.
