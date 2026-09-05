@@ -146,6 +146,9 @@ type Event struct {
 	CostARPerH      float64 `csv:"cost_ar_per_h"     json:"cost_ar_per_h"`
 	CPUPct          float64 `csv:"cpu_pct"           json:"cpu_pct"`
 	GateStatus      string  `csv:"gate_status"       json:"gate_status"`
+	// FailedGates — portes en échec (JSON/quarantaine seuls, jamais CSV :
+	// le schéma aqm_eval.csv 23 col est gelé pour les lecteurs historiques).
+	FailedGates []string `json:"failed_gates,omitempty"`
 }
 
 // En-têtes aqm_eval.csv (après les colonnes d'identité).
