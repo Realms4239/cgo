@@ -28,6 +28,15 @@ type Group struct {
 	DeadlineMedian         float64    `json:"deadline_median"`
 	WastedMedian           float64    `json:"wasted_median"`
 	CostMedian             float64    `json:"cost_median"`
+	// Valid-only strict (degraded exclus) — preuve pilote : mêmes fonctions
+	// que pkg/metrics/stats.go (miroir de extract-stats.js, seed 42).
+	Smallp95ValidN      int       `json:"small_p95_valid_n"`
+	Smallp95ValidMedian float64   `json:"small_p95_valid_median"`
+	Smallp95ValidIQR    [2]float64 `json:"small_p95_valid_iqr"`
+	Smallp95ValidCI95   [2]float64 `json:"small_p95_valid_ci95"`
+	DeadlineValidN      int       `json:"deadline_valid_n"`
+	DeadlineValidMedian float64   `json:"deadline_valid_median"`
+	DeadlineValidCI95   [2]float64 `json:"deadline_valid_ci95"`
 	Best                   bool       `json:"best,omitempty"`
 	HardwareRecommendation string     `json:"hardware_recommendation"`
 }
@@ -45,6 +54,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 	}
 	type bucket struct {
 		rtts, smalls, goodputs, deadlines, wasteds, costs []float64
+		vSmalls, vDeadlines                               []float64 // valid-only
 		quarantined                                       int
 		count                                             int
 		profile, qdisc, cc, direction                     string
@@ -108,10 +118,14 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			// Les médianes portent les lignes exploitables (non invalid), comme
 			// extract-stats.js — sinon une ligne invalidée par les portes
 			// fausse l'agrégat affiché.
-			if get(r, iGate) == "invalid" {
-				b.quarantined++
-				continue
-			}
+		if get(r, iGate) == "invalid" {
+			b.quarantined++
+			continue
+		}
+		if get(r, iGate) == "valid" {
+			add(&b.vSmalls, get(r, iSmall))
+			add(&b.vDeadlines, get(r, iDead))
+		}
 			add(&b.rtts, get(r, iRTT))
 			add(&b.smalls, get(r, iSmall))
 			add(&b.goodputs, get(r, iGood))
@@ -128,12 +142,19 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		ds := metrics.Summarize(b.deadlines)
 		ws := metrics.Summarize(b.wasteds)
 		cs := metrics.Summarize(b.costs)
+		vq1, _, vq3 := metrics.Quartiles(b.vSmalls)
+		vlo, vhi := metrics.BootstrapMedianCI95(b.vSmalls, 10000, 42)
+		dlo, dhi := metrics.BootstrapMedianCI95(b.vDeadlines, 10000, 42)
 		out = append(out, Group{
 			Profile: b.profile, Qdisc: b.qdisc, CC: b.cc, Direction: b.direction,
 			Count: b.count, Quarantined: b.quarantined,
 			RTTp95Median: rs.Median, RTTp95IQR: [2]float64{rs.IQRLow, rs.IQRHigh},
 			Smallp95Median: ss.Median, Smallp95IQR: [2]float64{ss.IQRLow, ss.IQRHigh}, GoodputMedian: gs.Median, DeadlineMedian: ds.Median,
 			WastedMedian: ws.Median, CostMedian: cs.Median,
+			Smallp95ValidN: len(b.vSmalls), Smallp95ValidMedian: metrics.Median(b.vSmalls),
+			Smallp95ValidIQR: [2]float64{vq1, vq3}, Smallp95ValidCI95: [2]float64{vlo, vhi},
+			DeadlineValidN: len(b.vDeadlines), DeadlineValidMedian: metrics.Median(b.vDeadlines),
+			DeadlineValidCI95: [2]float64{dlo, dhi},
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
