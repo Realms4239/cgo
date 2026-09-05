@@ -1,6 +1,6 @@
 {
   "name": "meteolink",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Meteolink — self-contained bench for client-side link audit and AQM/BBR comparison on constrained access links",
   "license": "MIT",
   "repository": {
