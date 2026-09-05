@@ -1,4 +1,4 @@
-# Meteolink [![version](https://img.shields.io/badge/version-1.2.0-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
+# Meteolink [![version](https://img.shields.io/badge/version-1.2.1-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
 
 ## Qu'est-ce que c'est ?
 
@@ -63,7 +63,7 @@ Sept étapes idempotentes : détection (OS, go/bun/node/ssh, hyperviseurs) → d
 Téléchargez, extrayez et exécutez le binaire unique :
 
 ```
-$ wget https://github.com/Realms4239/cgo/releases/download/v1.2.0/cgo-linux-amd64.tar.gz
+$ wget https://github.com/Realms4239/cgo/releases/download/v1.2.1/cgo-linux-amd64.tar.gz
 $ tar -xzvf cgo-linux-amd64.tar.gz
 $ ./cgo --serve              # http://127.0.0.1:9090
 # ou meteolink --serve (alias de compatibilité)
@@ -289,7 +289,7 @@ Nous recevons beaucoup de questions. Vérifiez d'abord :
 
 - `cgo doctor` — `tc` présent, `CAP_NET_ADMIN`, `BBR`, `ping` — tout vert avant une campagne.
 - `cgo shape --restore` — nettoie les `qdisc` périmés après un crash.
-- `GET /api/health` → `{"mode":"full","version":"1.2.0"}` — `observe` sur `Windows` est normal, la campagne renvoie `501`.
+- `GET /api/health` → `{"mode":"full","version":"1.2.1"}` — `observe` sur `Windows` est normal, la campagne renvoie `501`.
 - `go vet ./...` a besoin de `web/frontend/dist` — `bun run build` d'abord, sinon `embed.go` échoue.
 - `ECharts` : ne jamais réintroduire `visualMap piecewise` ni `LinearGradient` area — cela plante `LineView` (`coord`) et fige les voisins. `ChartSurface` `init` dans `useEffect`, `dispose` au cleanup.
 
