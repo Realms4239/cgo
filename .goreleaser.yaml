@@ -18,7 +18,8 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
   # le wrapper meteolink re-exécute cgo — gardé comme binaire séparé pour
-  # la compat npm/scripts existants (même archive, mêmes flags).
+  # la compat npm/scripts existants. Pas de -X main.version : ce main
+  # n'a pas de var version (le linker refuserait).
   - id: meteolink
     main: ./cmd/meteolink
     binary: meteolink
@@ -29,7 +30,7 @@ builds:
       - darwin/arm64
       - windows/amd64
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s -w
 
 archives:
   - id: default
