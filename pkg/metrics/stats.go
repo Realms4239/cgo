@@ -14,7 +14,7 @@ func sortedCopy(xs []float64) []float64 {
 
 func quantileSorted(s []float64, q float64) float64 {
 	if len(s) == 0 {
-		return math.NaN()
+		return 0 // convention maison (Percentile) : jamais NaN (JSON)
 	}
 	if len(s) == 1 {
 		return s[0]
@@ -54,7 +54,7 @@ func (r *lcg) next(n int) int {
 // BootstrapMedianCI95 — IC95 percentile de la médiane (seed fixe → stable).
 func BootstrapMedianCI95(xs []float64, resamples int, seed uint64) (lo, hi float64) {
 	if len(xs) == 0 || resamples <= 0 {
-		return math.NaN(), math.NaN()
+		return 0, 0 // vide : convention 0, jamais NaN (JSON)
 	}
 	r := &lcg{s: seed % 2147483647}
 	if r.s == 0 {
@@ -114,10 +114,10 @@ func MannWhitneyTwoSided(a, b []float64) (u, p float64) {
 	return u, p
 }
 
-// CliffDelta — delta de Cliff (b−a dominant → +1).
+// CliffDelta — delta de Cliff (b−a dominant → +1). Vide → 0 (JSON).
 func CliffDelta(a, b []float64) float64 {
 	if len(a) == 0 || len(b) == 0 {
-		return math.NaN()
+		return 0
 	}
 	var more, less float64
 	for _, x := range a {

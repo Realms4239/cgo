@@ -11,6 +11,24 @@ func TestMedianIQR(t *testing.T) {
 	}
 }
 
+// TestEmptyNeverNaN — régression prod : un NaN sérialisé casse encoding/json
+// (200 vide). Convention maison = 0 (comme Percentile).
+func TestEmptyNeverNaN(t *testing.T) {
+	if got := Median(nil); got != 0 {
+		t.Fatalf("median(nil)=%v want 0", got)
+	}
+	if got := IQR(nil); got != 0 {
+		t.Fatalf("iqr(nil)=%v want 0", got)
+	}
+	lo, hi := BootstrapMedianCI95(nil, 10000, 42)
+	if lo != 0 || hi != 0 {
+		t.Fatalf("ci(nil)=[%v,%v] want [0,0]", lo, hi)
+	}
+	if got := CliffDelta(nil, []float64{1}); got != 0 {
+		t.Fatalf("cliff(nil)=%v want 0", got)
+	}
+}
+
 func TestCliffDeltaObvious(t *testing.T) {
 	a := []float64{1, 2, 3}
 	b := []float64{4, 5, 6}
