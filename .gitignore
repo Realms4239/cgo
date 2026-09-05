@@ -59,6 +59,8 @@ scripts/tokenrouter-proxy.js
 # lockfiles temporaires Word/Office
 ~$*
 
-# livrables hors repo (binaires + sources : dépôt séparé)
+# livrables hors repo (binaires + builders + sources + figures : local uniquement,
+# dépôt séparé) — le dépôt GitHub ne contient que l'instrument
 *.docx
 *.pptx
+/book/
