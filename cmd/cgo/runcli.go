@@ -18,7 +18,7 @@ import (
 // imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
 // (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
 // peut campagner par SSH.
-func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, target, direction, dataDir string) int {
+func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, target, direction, dataDir, runID string) int {
 	profiles := strings.Split(profilesStr, ",")
 	for i := range profiles {
 		profiles[i] = strings.TrimSpace(profiles[i])
@@ -93,7 +93,13 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, 
 		ccs = cs
 	}
 
-	m, err := campagne.StartMatrixFiltered(ctx, profiles, qdiscs, ccs, reps, deps, dataDir)
+	var m *campagne.Matrix
+	var err error
+	if runID != "" {
+		m, err = campagne.StartMatrixFilteredWithID(ctx, runID, profiles, qdiscs, ccs, reps, deps, dataDir)
+	} else {
+		m, err = campagne.StartMatrixFiltered(ctx, profiles, qdiscs, ccs, reps, deps, dataDir)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "run:", err)
 		return 2

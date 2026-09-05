@@ -14,6 +14,9 @@ BIN="$HOME/cgo/cgo-linux"
 TBD="$HOME/cgo/testbed"
 
 up() {
+  # disciplines du banc : l'autoload échoue parfois dans le netns (vu en prod :
+  # "Invalid qdisc name" sur la 1re cellule cake après boot) — preload explicite.
+  sudo -n modprobe sch_netem sch_fq_codel sch_cake 2>/dev/null || true
   if ! sudo ip netns list | grep -q "^$NS"; then sudo ip netns add $NS; fi
   if ! sudo ip link show $CLI &>/dev/null; then
     sudo ip link add $CLI type veth peer name $SRV

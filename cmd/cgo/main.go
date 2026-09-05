@@ -173,8 +173,9 @@ WantedBy=multi-user.target
 		deadline := fs.Int("deadline", 1000, "objectif small p95 en ms (200–5000)")
 		target := fs.String("target", "1.1.1.1", "cible de mesure")
 		dataDir := fs.String("data", "data/runs", "répertoire des runs gelés")
+		runID := fs.String("run-id", "", "reprendre ce run (cellules déjà gelées sautées)")
 		_ = fs.Parse(os.Args[2:])
-		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *target, *direction, *dataDir); code != 0 {
+		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *target, *direction, *dataDir, *runID); code != 0 {
 			os.Exit(code)
 		}
 	default:
