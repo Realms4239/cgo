@@ -29,9 +29,9 @@ export const EXPLAIN: Record<string, string> = {
   rtt_p50: 'Latence médiane: la valeur typique ressentie.',
   small_p95: 'Latence de petits objets (télémétrie, alertes) au 95e percentile — c\'est LE trafic critique à protéger.',
   bulk_goodput: 'Débit utile du transfert de masse, mesuré au récepteur.',
-  drops: 'Palets perdus dans la file du bord pendant la charge.',
+  drops: 'Paquets perdus dans la file du bord pendant la charge.',
   wasted: 'Octets retransmis à cause des pertes — de la capacité gaspillée.',
-  cost_ar_per_h: "Coût horaire du gaspillage en Ariary — palier Yas Net Month 4,5 Go (25 000 Ar, 5 556 Ar/Go) par défaut. Le forfait change tout : Ye'low One 1 000 Ar/Go, FTTH 490 Ar/Go. GET /api/cost/tiers liste les paliers réels (docs/data-prices.md).",
+  cost_ar_per_h: "Coût horaire du gaspillage en Ariary, palier unique 5556 Ar/Go — les forfaits changent tout, voir GET /api/cost/tiers.",
   deadline_ok: 'Part des petits objets arrivés sous la deadline choisie.',
   QDI: 'Écart p95 − médiane de latence: plus il est petit, plus le lien est régulier.',
   voip_r: 'Score voix du E-model (ITU-T G.107 simplifié): 0-100, depuis délai + gigue + perte. R>80 excellent, R<50 appel difficile.',
@@ -46,6 +46,8 @@ export const EXPLAIN: Record<string, string> = {
   audit: 'Mesure votre lien réel depuis ce poste: latence, petits objets, débit. Non intrusif, aucun droit requis.',
   constat: 'La preuve exportée: CSV/JSON avec les médianes, l\'écart et la prescription.',
   run_rows: 'Chaque ligne est une cellule de la matrice, gelée et vérifiable par SHA-256.',
+  valid_only: 'Médianes calculées sur les lignes valides seules : les degraded (G2/G6) et la quarantaine sont exclus, pas moyennés.',
+  mixed_deadline: 'Les runs historiques ont des échéances opérateur différentes : la colonne échéance ne se compare qu\u2019à deadline fixée.',
 }
 
 export const explain = (term: string): string => EXPLAIN[term] ?? ''

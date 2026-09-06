@@ -240,7 +240,7 @@ export default function ResultatsView() {
           <div className="card-head">Méthode & limites — lire avant de conclure</div>
           <p className="mono" style={{ fontSize: 11, lineHeight: 1.7, color: '#9aa3ad' }}>
             Médianes valid-only strict (degraded G2/G6 exclus, n = réplications valides) · portes G0–G7 ({GATE_LABELS.join(' · ')}) ·
-            small p95 : IC95 bootstrap seed 42 · échéance agrégée : échéances opérateur mixtes (indicative — ne comparez qu'à D fixée) ·
+            small p95 : IC95 bootstrap seed 42 · <Explain term="mixed_deadline">échéance agrégée mixte</Explain> (indicative — ne comparez qu'à D fixée) ·
             coût recalculé au palier unique 5556 Ar/Go depuis wasted gelé (runs historiques multi-paliers) ·
             P3 : la perte gouverne la sonde, pas la file (0 % d'échéance à D=1500 pour toutes les disciplines, n=3) ·
             provenance hash {hash8} depuis data/runs/*/aqm_eval.csv.
@@ -308,7 +308,7 @@ export default function ResultatsView() {
         {(['tous', ...distinct('cc')] as string[]).map(v => chip(v, fCc === v, () => setFCc(v)))}
       </div>
       <div className="mono" style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 8 }}>
-        source : {runSel === '__all__' ? 'tous runs gelés' : <>⚡ en direct · {shortRun(effectiveRun || newest) || '…'}</>} · médianes valid-only{hash8 !== '────────' ? ` · hash ${hash8}` : ''}
+        source : {runSel === '__all__' ? 'tous runs gelés' : <>⚡ en direct · {shortRun(effectiveRun || newest) || '…'}</>} · <Explain term="valid_only">médianes valid-only</Explain>{hash8 !== '────────' ? ` · hash ${hash8}` : ''}
         {liveSnapRunning ? ' — campagne en cours, rafraîchi au gel' : ''}
       </div>
 
