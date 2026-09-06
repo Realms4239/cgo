@@ -202,6 +202,8 @@ export default function ResultatsView() {
     })
     const opt = {
       ...base,
+      // marge droite élargie : le nom de l'axe X ne doit pas être tronqué
+      grid: { ...base.grid, right: 96 },
       xAxis: { ...base.xAxis, type: 'value' as const, name: `${xm.label} (${xm.unit})` },
       yAxis: { ...base.yAxis, name: `${ym.label} (${ym.unit})` },
       tooltip: { ...base.tooltip, trigger: 'item' as const },
