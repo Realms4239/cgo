@@ -1187,11 +1187,36 @@ func New(d Deps) Handler {
 			writeErr(w, r, "id required", http.StatusBadRequest)
 			return
 		}
+		if profile.Reserved(p.ID) {
+			writeErr(w, r, fmt.Sprintf("profil %s réservé (référentiel P1–P4)", p.ID), http.StatusBadRequest)
+			return
+		}
 		if err := profile.Import(p); err != nil {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{"ok": true, "profile": p})
+	})
+	// Suppression d'un profil importé (le référentiel P1–P4 est intouchable —
+	// refusé par profile.Delete, pas par le vide).
+	mux.HandleFunc("POST /api/profile/delete", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			ID string `json:"id"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+			writeErr(w, r, "bad json", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(body.ID) == "" {
+			writeErr(w, r, "id required", http.StatusBadRequest)
+			return
+		}
+		if err := profile.Delete(strings.TrimSpace(body.ID)); err != nil {
+			writeErr(w, r, err.Error(), http.StatusBadRequest)
+			return
+		}
+		recordEvent("profil", fmt.Sprintf("%s supprimé (import retiré)", strings.TrimSpace(body.ID)))
+		writeJSON(w, map[string]any{"ok": true})
 	})
 	mux.HandleFunc("GET /api/profile/list", func(w http.ResponseWriter, _ *http.Request) {
 		profile.Load()
