@@ -65,6 +65,27 @@ func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 	} else if best != nil {
 		smallDiff = fmt.Sprintf("small p95 mesuré %.1f ms — pas de référence pfifo sur ce profil pour comparer", best.Smallp95Median)
 	}
+	// régime perte : toutes les cellules valides du profil ratent l'échéance
+	// (deadline_med 0 partout) — la retransmission gouverne la sonde, pas la
+	// file. Le verdict le dit au lieu de comparer des disciplines
+	// indiscernables, et la prochaine étape pointe la vraie expérience :
+	// saturer le lien malgré la perte (charge multi-flux) pour que la file
+	// ait quelque chose à arbitrer.
+	regime := ""
+	nValid, nZero := 0, 0
+	for i := range groups {
+		g := groups[i]
+		if g.Profile != profile || g.Count-g.Quarantined <= 0 {
+			continue
+		}
+		nValid++
+		if g.DeadlineMedian == 0 {
+			nZero++
+		}
+	}
+	if nValid >= 2 && nZero == nValid {
+		regime = fmt.Sprintf("régime perte sur %s : %d cellules valides, échéance 0 %% partout — une retransmission coûte un aller simple, aucune discipline ne se distingue ; ne choisissez pas une file sur ce tableau", profile, nValid)
+	}
 	throughput := ""
 	if best != nil && pfifo != nil && pfifo.GoodputMedian > 0 && best.GoodputMedian > 0 {
 		pct := int((pfifo.GoodputMedian - best.GoodputMedian) / pfifo.GoodputMedian * 100)
@@ -78,6 +99,12 @@ func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 		"appliquer la prescription sur un équipement de test, en fenêtre de maintenance",
 		"mesurer 24 h en surveillance continue (deadline alertée au journal)",
 		"comparer ce run au précédent dans Résultats (delta par cellule)",
+	}
+	if regime != "" {
+		smallDiff = regime
+		nextSteps = append([]string{
+			"rejouer la campagne en charge multi-flux (BulkN) : saturer le lien malgré la perte, et seulement là les disciplines se sépareront",
+		}, nextSteps...)
 	}
 	cli := ""
 	if best != nil && profile != "" {
