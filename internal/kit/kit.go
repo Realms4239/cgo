@@ -327,31 +327,22 @@ func (c *Config) dashURL() string {
 	return "https://" + host + ":" + c.DashPort
 }
 
-// HTTPGetJSON — vérification health du dashboard : HTTPS auto-signé
-// d'abord (navigateurs HSTS sur meteolink.dev), HTTP brut en repli.
+// HTTPGetJSON — vérification health du dashboard : HTTPS uniquement.
+// Le HTTP brut a été retiré : un repli HTTP masquait l'état réel (sonde OK
+// sur HTTP pendant que le TLS — la voie des navigateurs HSTS — était cassé).
+// Outil opérateur sur LAN de confiance : auto-signé accepté (voir `kit tls`
+// pour la confiance système + vérification stricte).
 func (c *Config) Health() bool {
 	insecure := &http.Client{Timeout: 4 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 	resp, err := insecure.Get(c.healthURL())
-	if err == nil {
-		defer resp.Body.Close()
-		var doc struct {
-			OK bool `json:"ok"`
-		}
-		_ = json.NewDecoder(resp.Body).Decode(&doc)
-		if doc.OK {
-			return true
-		}
-	}
-	plain := &http.Client{Timeout: 4 * time.Second}
-	resp2, err2 := plain.Get("http://" + c.SSHHost + ":" + c.DashPort + "/api/health")
-	if err2 != nil {
+	if err != nil {
 		return false
 	}
-	defer resp2.Body.Close()
+	defer resp.Body.Close()
 	var doc struct {
 		OK bool `json:"ok"`
 	}
-	_ = json.NewDecoder(resp2.Body).Decode(&doc)
+	_ = json.NewDecoder(resp.Body).Decode(&doc)
 	return doc.OK
 }
 

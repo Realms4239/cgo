@@ -50,7 +50,6 @@ ok "launcher started"
 step "4/4 — health"
 for i in $(seq 1 15); do
   curl -fsS -m 2 -k "https://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && { ok "healthy on :$PORT (TLS) after ${i}s"; exit 0; }
-  curl -fsS -m 2 "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && { ok "healthy on :$PORT (HTTP brut) after ${i}s"; exit 0; }
   sleep 1
 done
 echo "---- last log ----"; tail -n 20 /tmp/cgo.log || true
