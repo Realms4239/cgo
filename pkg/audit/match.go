@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/pkg/profile"
 )
 
 // MatchProfile — quel profil P1–P4 le lien audité ressemble-t-il ?
@@ -14,6 +15,7 @@ import (
 // rapprochement se fait au délai seul et le dit — un audit sans sink ne
 // calibre pas la capacité, il ne prétend pas le faire.
 func MatchProfile(r *Result) (id, delta string) {
+	profile.Load() // référentiel persisté : les imports survivent au redémarrage
 	model.ProfilesMu.RLock()
 	defer model.ProfilesMu.RUnlock()
 	best, bestScore := "", 1e18

@@ -382,6 +382,7 @@ func New(d Deps) Handler {
 	})
 	// Profils dynamiques (profil importé inclus):
 	mux.HandleFunc("GET /api/profiles", func(w http.ResponseWriter, _ *http.Request) {
+		profile.Load() // fusion persistée : un import survit au redémarrage
 		model.ProfilesMu.RLock()
 		ids := make([]string, 0, len(model.Profiles))
 		for id := range model.Profiles {
