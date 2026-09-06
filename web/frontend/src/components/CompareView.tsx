@@ -3,6 +3,7 @@ import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries, CRAFT } from '../lib/chartGrammar'
 import { CardHead } from './ui/CardHead'
 import { EmptyState } from './ui/EmptyState'
+import { asArray } from '../lib/format'
 
 // Métriques du live — Comparaison BBR×AQM « pin A/B » : deux cellules gelées, traces
 // alignées par événement, table d'écart (médianes, p95, pertes, coût Ariary),
@@ -46,7 +47,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
 
   useEffect(() => {
     fetch('/api/replay/list').then(r => r.json()).then(j => {
-      const ids: string[] = j?.runs ?? []
+      const ids = asArray<string>(j?.runs)
       setRuns(ids)
       // l'opérateur vient de lancer la campagne — les runs les plus récents
       // contiennent le plus sûrement les cellules épinglées
@@ -64,7 +65,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
       const r = await fetch(`/api/run/rows?run=${id}`)
       if (r.status === 404) return []
       if (!r.ok) throw new Error(`rows ${id}: HTTP ${r.status}`)
-      return ((await r.json()).rows ?? []) as Row[]
+      return asArray<Row>((await r.json()).rows)
     }
     Promise.all([load(runA), load(runB)]).then(([ra, rb]) => {
       if (cancelled) return
@@ -87,7 +88,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
         try {
           const rr = await fetch(`/api/run/rows?run=${id}`)
           if (!rr.ok) continue
-          const jrows = ((await rr.json()).rows ?? []) as Row[]
+          const jrows = asArray<Row>((await rr.json()).rows)
           if (jrows.some(r => matches(r, pin))) {
             if (side === 'a') setRunA(id)
             else setRunB(id)

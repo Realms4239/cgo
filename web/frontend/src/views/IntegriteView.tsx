@@ -5,6 +5,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { PeekPopover } from '../components/PeekPopover'
 import { hardwareRecommendation } from '../lib/hardware'
+import { asArray } from '../lib/format'
 
 type Integrity = {
   available: boolean; reason?: string
@@ -30,16 +31,16 @@ export default function IntegriteView() {
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
-    fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(j.runs||[])).catch(()=>{})
-    fetch('/api/results').then(r=>r.json()).then(j=>setGroups(j.groups??null)).catch(()=>setGroups(null))
-    fetch('/api/quarantine').then(r=>r.json()).then(j=>setQuar(j.quarantines||[])).catch(()=>{})
+    fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(asArray<string>(j.runs))).catch(()=>{})
+    fetch('/api/results').then(r=>r.json()).then(j=>setGroups(asArray(j.groups))).catch(()=>setGroups([]))
+    fetch('/api/quarantine').then(r=>r.json()).then(j=>setQuar(asArray(j.quarantines))).catch(()=>{})
     fetch('/api/quarantine/summary').then(r=>r.json()).then(j=>setQuarSum(j)).catch(()=>{})
   }
   useEffect(()=>{ load() }, [])
   useEffect(()=>{
     if (!peek) return
     setPeekGroups(null)
-    fetch(`/api/results?run=${encodeURIComponent(peek.run)}`).then(r=>r.json()).then(j=>setPeekGroups(j.groups??j??[])).catch(()=>setPeekGroups(groups))
+    fetch(`/api/results?run=${encodeURIComponent(peek.run)}`).then(r=>r.json()).then(j=>setPeekGroups(asArray(j.groups))).catch(()=>setPeekGroups([]))
   },[peek?.run])
 
   const verify = async () => {
@@ -66,8 +67,8 @@ export default function IntegriteView() {
         <PeekPopover rect={peek.rect}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>run — {peek.run}</div>
           {(() => {
-            const src = peekGroups ?? groups
-            if (!src || src.length===0) return <div className="mono" style={{fontSize:10, color:'#767b84'}}>aucun groupe — gel d'abord</div>
+            const src = asArray<any>(peekGroups).length ? peekGroups as any[] : asArray<any>(groups)
+            if (src.length===0) return <div className="mono" style={{fontSize:10, color:'#767b84'}}>aucun groupe — gel d'abord</div>
             // Meilleur par profil pour ce run, repli sur les 4 premiers.
             const bests = src.filter((g:any)=>g.best)
             const show = bests.length ? bests.slice(0,4) : src.slice(0,4)
@@ -127,7 +128,7 @@ export default function IntegriteView() {
           <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
             <th style={{ padding:'6px 8px' }}>run</th><th>lignes</th><th>valides</th><th>quar.</th><th></th><th></th>
           </tr></thead><tbody>
-          {(data.breakdown ?? (data.run_ids||[]).map(id=>({run:id,rows:0,valid:0,quarantined:0}))).map(b=>(
+          {(Array.isArray(data.breakdown) ? data.breakdown : (asArray<string>(data.run_ids).map(id=>({run:id,rows:0,valid:0,quarantined:0})))).map(b=>(
             <tr key={b.run} style={{ borderBottom:'1px solid var(--hairline-faint)' }} onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
               <td style={{ padding:'6px 8px' }}>{b.run}</td><td>{b.rows}</td><td>{b.valid}</td><td>{b.quarantined}</td>
               <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" style={{ color:'var(--t-live)' }}>résultats</a></td>
@@ -182,10 +183,10 @@ export default function IntegriteView() {
             </tbody>
           </table>
         </div>
-        {groups && groups.filter((g:any)=>g.best).length>0 && (
+        {asArray<any>(groups).filter((g:any)=>g.best).length>0 && (
           <div style={{marginBottom:12, display:'flex', flexDirection:'column', gap:6}}>
             <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>Traduction matérielle par profil (depuis Scan ★ best)</div>
-            {groups.filter((g:any)=>g.best).slice(0,4).map((g:any)=>(
+            {asArray<any>(groups).filter((g:any)=>g.best).slice(0,4).map((g:any)=>(
               <div key={`${g.profile}-${g.qdisc}`} className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, padding:'6px 8px', background:'#070707', border:'1px solid #26262a', color:'#f2f2f4'}}>
                 <span style={{color:'#5ad3e3'}}>{g.profile}</span> · {g.qdisc} → {g.hardware_recommendation || hardwareRecommendation(g.qdisc, g.profile)}
               </div>
