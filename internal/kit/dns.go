@@ -27,9 +27,9 @@ func (r *Runner) DNS(c *Config) int {
 	if addrs, err := net.LookupHost(name); err == nil {
 		for _, a := range addrs {
 			if a == ip {
-			r.out("[dns] %s → %s déjà mappé", name, ip)
-			r.out("[dns] tableau de bord : https://%s:%s", name, c.DashPort)
-			return 0
+				r.out("[dns] %s → %s déjà mappé", name, ip)
+				r.out("[dns] tableau de bord : https://%s:%s", name, c.DashPort)
+				return 0
 			}
 		}
 	}

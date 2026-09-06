@@ -33,6 +33,7 @@ actions :
   svc       pilote le dashboard distant : start|stop|restart|status
   dns       mappe meteolink.dev vers la VM (hosts local, lien stable)
   tls       confiance du certificat dashboard (magasin local + vérif HTTPS)
+  package   zip poste Windows (exe + config exemple + mode d'emploi)
   bootstrap paquets VM + veth (idempotent)
   status    SSH + process + health dashboard
   logs      tail du journal serveur VM
@@ -92,6 +93,8 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.DNS(c)
 	case "tls":
 		return r.TLS(c)
+	case "package":
+		return r.Package(c)
 	case "bootstrap":
 		return r.Bootstrap(c)
 	case "status":
