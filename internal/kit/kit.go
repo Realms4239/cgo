@@ -314,7 +314,7 @@ func (c *Config) SCP(local, remote string) error {
 }
 
 func (c *Config) healthURL() string {
-	return "http://" + c.SSHHost + ":" + c.DashPort + "/api/health"
+	return "https://" + c.SSHHost + ":" + c.DashPort + "/api/health"
 }
 
 // dashURL — l'adresse à donner à l'opérateur : le nom stable d'abord
@@ -331,7 +331,8 @@ func (c *Config) dashURL() string {
 // d'abord (navigateurs HSTS sur meteolink.dev), HTTP brut en repli.
 func (c *Config) Health() bool {
 	insecure := &http.Client{Timeout: 4 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
-	if resp, err := insecure.Get(c.healthURL()); err == nil {
+	resp, err := insecure.Get(c.healthURL())
+	if err == nil {
 		defer resp.Body.Close()
 		var doc struct {
 			OK bool `json:"ok"`
@@ -342,15 +343,15 @@ func (c *Config) Health() bool {
 		}
 	}
 	plain := &http.Client{Timeout: 4 * time.Second}
-	resp, err := plain.Get("http://" + c.SSHHost + ":" + c.DashPort + "/api/health")
-	if err != nil {
+	resp2, err2 := plain.Get("http://" + c.SSHHost + ":" + c.DashPort + "/api/health")
+	if err2 != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer resp2.Body.Close()
 	var doc struct {
 		OK bool `json:"ok"`
 	}
-	_ = json.NewDecoder(resp.Body).Decode(&doc)
+	_ = json.NewDecoder(resp2.Body).Decode(&doc)
 	return doc.OK
 }
 
