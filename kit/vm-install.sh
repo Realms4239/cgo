@@ -33,11 +33,13 @@ step "2/4 — launcher"
 cat > start.sh <<LAUNCHER
 #!/bin/bash
 cd "$PROJECT_DIR"
-# le port vient de la config — une seule source de vérité, pas de 9090 en dur
-exec ./cgo-linux --serve --addr "0.0.0.0:$PORT" --tls=false --http-addr= >> /tmp/cgo.log 2>&1
+# le port vient de la config — une seule source de vérité, pas de 9090 en dur.
+# TLS par défaut : meteolink.dev est préchargé HSTS, les navigateurs refusent
+# le HTTP dessus ; le binaire génère son certificat local au premier démarrage.
+exec ./cgo-linux --serve --addr "0.0.0.0:$PORT" --http-addr= >> /tmp/cgo.log 2>&1
 LAUNCHER
 chmod +x start.sh
-ok "start.sh written (port $PORT)"
+ok "start.sh written (port $PORT, TLS)"
 
 step "3/4 — restart"
 pkill -u "$USER" -f '[c]go-linux --serve' 2>/dev/null || true
@@ -47,7 +49,8 @@ ok "launcher started"
 
 step "4/4 — health"
 for i in $(seq 1 15); do
-  curl -fsS -m 2 "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && { ok "healthy on :$PORT after ${i}s"; exit 0; }
+  curl -fsS -m 2 -k "https://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && { ok "healthy on :$PORT (TLS) after ${i}s"; exit 0; }
+  curl -fsS -m 2 "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && { ok "healthy on :$PORT (HTTP brut) after ${i}s"; exit 0; }
   sleep 1
 done
 echo "---- last log ----"; tail -n 20 /tmp/cgo.log || true
