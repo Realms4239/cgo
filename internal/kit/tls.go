@@ -32,14 +32,22 @@ func (r *Runner) TLS(c *Config) int {
 	r.out("[tls] certificat rapatrié (%d octets)", len(out))
 	// 2. installer dans le magasin de confiance
 	if runtime.GOOS == "windows" {
-		cmd := exec.Command("certutil", "-addstore", "root", tmp)
-		if bs, err := cmd.CombinedOutput(); err != nil {
-			r.errf("[tls] magasin de confiance refusé : %s", firstLine(string(bs)))
-			r.errf("[tls] relancez dans un terminal ADMINISTRATEUR : cgo kit tls")
-			r.errf("[tls] en attendant : accepter l'avertissement une fois dans le navigateur")
-			return 8
+		// magasin machine d'abord (tous utilisateurs, admin requis), repli
+		// magasin utilisateur (utilisateur courant seul, sans admin —
+		// Windows peut demander une confirmation unique à l'écran).
+		if bs, err := exec.Command("certutil", "-addstore", "root", tmp).CombinedOutput(); err != nil {
+			r.out("[tls] magasin machine refusé (pas admin ?) : %s", firstLine(string(bs)))
+			r.out("[tls] repli : magasin de l'utilisateur courant…")
+			if bs2, err2 := exec.Command("certutil", "-user", "-addstore", "root", tmp).CombinedOutput(); err2 != nil {
+				r.errf("[tls] magasin utilisateur refusé : %s", firstLine(string(bs2)))
+				r.errf("[tls] relancez dans un terminal ADMINISTRATEUR : cgo kit tls")
+				r.errf("[tls] en attendant : accepter l'avertissement une fois dans le navigateur")
+				return 8
+			}
+			r.out("[tls] certificat installé dans le magasin de l'utilisateur (%s) — valable pour ce compte Windows", os.Getenv("USERNAME"))
+		} else {
+			r.out("[tls] certificat installé dans le magasin racine Windows")
 		}
-		r.out("[tls] certificat installé dans le magasin racine Windows")
 	} else {
 		r.out("[tls] certificat : %s", tmp)
 		r.out("[tls] confiance système : copiez-le dans votre magasin local")

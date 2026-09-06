@@ -11,7 +11,7 @@
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| `/api/health` | GET | — | `{"ok": true, "version": "1.2.2", "mode": "full\|observe\|\"\"}` | — |
+| `/api/health` | GET | — | `{"ok": true, "version": "1.2.3", "mode": "full\|observe\|\"\"}` | — |
 | `/api/doctor` | GET | — | `{"mode", "checks": [{name, status: ok\|warn\|fail, detail}]}` — mêmes capacités que `cgo doctor` (os, tc, cap_net_admin, bbr, ping) | — |
 | `/api/state` | GET | — | snapshot courant (`GetSnap`) ; `{"running": false}` si non câblé | — |
 | `/api/diagnostics` | GET | — | `{"hub":"ok","time":"<RFC3339 UTC>"}` | — |
