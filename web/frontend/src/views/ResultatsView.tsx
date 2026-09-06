@@ -81,6 +81,7 @@ export default function ResultatsView() {
   const [colorBy, setColorBy] = useState<'profile' | 'qdisc' | 'cc'>('qdisc')
   const liveSnapRunning = useUIStore((s: any) => !!s.live?.running)
   const scatterRef = useRef<HTMLDivElement>(null)
+  const reqSeq = useRef(0)
 
   // runs gelés, du plus récent au plus ancien (run-smoke et scories exclus)
   const orderedRuns = useMemo(() =>
@@ -90,19 +91,19 @@ export default function ResultatsView() {
   const effectiveRun = runSel === '__all__' ? '' : (runSel || newest)
 
   useEffect(() => {
-    // garde anti-course : le 1er fetch (tous runs) peut répondre après le
-    // 2e (run direct) — seule la réponse du run demandé s'affiche
+    // garde anti-course : StrictMode rejoue l'effet (2 fetch tous-runs) et
+    // le 1er peut répondre après le 2e — seul le dernier demandé s'affiche
     const wanted = effectiveRun
-    let cancelled = false
+    const seq = ++reqSeq.current
     fetch(`/api/results${wanted ? `?run=${encodeURIComponent(wanted)}` : ''}`).then(r => r.json()).then(j => {
-      if (cancelled) return
+      if (reqSeq.current !== seq) return
       if (j.available && Array.isArray(j.groups)) setGroups(j.groups)
       else if (j.available) setGroups([])
       // run vide (en-tête seule, campagne tuée) : repli sur tous runs plutôt
       // qu'un écran d'erreur — la source reste affichée et explicite
       else if (wanted) setRunSel('__all__')
       else setErr(j.reason || 'pas de résultats')
-    }).catch(e => { if (!cancelled) setErr(String(e)) })
+    }).catch(e => { if (reqSeq.current === seq) setErr(String(e)) })
     fetch('/api/integrity').then(r => r.json()).then(j => {
       // triple provenance: hash8 = sha256(dernier aqm_eval.csv)[:8]; repli run-id
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
