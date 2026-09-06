@@ -1,4 +1,4 @@
-# Guide opérateur — Meteolink 1.2.2
+# Guide opérateur — Meteolink 1.2.3
 
 Ce guide suit la boucle opérateur, de bout en bout :
 
