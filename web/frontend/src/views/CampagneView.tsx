@@ -9,6 +9,7 @@ import { InlineField } from '../components/InlineField'
 import { validate } from '../lib/validation'
 import { animateShake } from '../lib/anime'
 import { PeekPopover } from '../components/PeekPopover'
+import AuditHistoryModal from '../components/AuditHistoryModal'
 import { live as liveRing } from '../lib/live'
 import { GATE_LABELS } from '../lib/gates'
 
@@ -33,7 +34,13 @@ export default function CampagneView() {
   const [auditMsg, setAuditMsg] = useState('')
   const [auditSite, setAuditSite] = useState('Département X')
   const [auditLink, setAuditLink] = useState('5g')
+  const [auditProvider, setAuditProvider] = useState('')
   const [auditDuration, setAuditDuration] = useState(30)
+  const [auditTarget, setAuditTarget] = useState('8.8.8.8')
+  const [presets, setPresets] = useState<{id:string;label:string;site:string;link_type:string;provider:string;duration:number;target:string;notes:string}[]>([])
+  const [presetNote, setPresetNote] = useState('')
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyN, setHistoryN] = useState<number|null>(null)
   const [importMsg, setImportMsg] = useState('')
   const [importForm, setImportForm] = useState(false)
   const [auditOpen, setAuditOpen] = useState(false)
@@ -80,8 +87,9 @@ export default function CampagneView() {
       const r = await fetch('/api/audit/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site: auditSite, link_type: auditLink, duration: auditDuration }),
+        body: JSON.stringify({ site: auditSite, link_type: auditLink, provider: auditProvider, duration: auditDuration, target: auditTarget || '8.8.8.8' }),
       })
+      if (r.status === 409) throw new Error('un audit tourne déjà')
       if (!r.ok) throw new Error(String(r.status))
       await r.json().catch(() => ({}))
       const poll = window.setInterval(() => {
@@ -92,7 +100,8 @@ export default function CampagneView() {
             if (!j.running) {
               clearInterval(poll)
               auditPollRef.current = null
-              setAuditMsg(j.last ? `audit terminé — p95 ${Number(j.last.rtt_idle_p95_ms).toFixed(1)} ms` : 'audit terminé')
+              setAuditMsg(j.last ? `audit terminé — p95 ${Number(j.last.rtt_idle_p95_ms).toFixed(1)} ms, profil ${j.last.profile_match || '—'}` : 'audit terminé')
+              refreshHistoryN()
             }
           })
           .catch(() => {
@@ -108,6 +117,24 @@ export default function CampagneView() {
       if (auditFormRef.current) animateShake(auditFormRef.current)
       setAuditMsg('échec: ' + e.message)
     }
+  }
+
+  // presets RQ1 + compteur d'historique : chargés à l'ouverture de la carte
+  const refreshHistoryN = () => {
+    fetch('/api/audit/list').then(r => r.json()).then(j => setHistoryN((j.audits || []).length)).catch(() => {})
+  }
+  const toggleAudit = () => {
+    setAuditOpen(o => {
+      if (!o) {
+        fetch('/api/audit/presets').then(r => r.json()).then(j => setPresets(j.presets || [])).catch(() => {})
+        refreshHistoryN()
+      }
+      return !o
+    })
+  }
+  const applyPreset = (p: { site: string; link_type: string; provider: string; duration: number; target: string; notes: string; label: string }) => {
+    setAuditSite(p.site); setAuditLink(p.link_type); setAuditProvider(p.provider)
+    setAuditDuration(p.duration); setAuditTarget(p.target); setPresetNote(p.notes)
   }
 
   const importValidation = validate(
@@ -293,10 +320,19 @@ export default function CampagneView() {
       <div className="card">
         <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span><Explain term="audit">Audit du lien</Explain></span>
-          <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 10 }}>30 s, non intrusif</span>
-          <button className="btn" onClick={() => setAuditOpen(o => !o)} style={{ padding: '2px 10px' }}>{auditOpen ? 'FERMER' : 'LANCER'}</button>
+          <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 10 }}>protocole RQ1 · non intrusif</span>
+          <button className="btn" onClick={() => setHistoryOpen(true)} style={{ padding: '2px 10px' }} title="audits gelés : rapprochement au référentiel, import par ligne">HISTORIQUE{historyN !== null ? ` (${historyN})` : ''}</button>
+          <button className="btn" onClick={toggleAudit} style={{ padding: '2px 10px' }}>{auditOpen ? 'FERMER' : 'LANCER'}</button>
         </div>
         {auditOpen && <>
+        {presets.length > 0 && (
+        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
+          {presets.map(p=>(
+            <button key={p.id} className="btn" style={{ padding:'4px 10px', fontSize:10 }} title={`${p.site} · ${p.link_type} · ${p.duration}s → ${p.target} — ${p.notes}`} onClick={()=>applyPreset(p)}>⚑ {p.label}</button>
+          ))}
+        </div>
+        )}
+        {presetNote && <div className="mono muted" style={{ fontSize:10, marginBottom:8 }}>ⓘ {presetNote}</div>}
         <div ref={auditFormRef} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <InlineField label="Site" error={auditValidation.errors.site} helper={!auditSite ? 'requis' : undefined}>
             <input name="site" value={auditSite} onChange={e=>setAuditSite(e.target.value)} style={{ flex:1, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
@@ -309,12 +345,19 @@ export default function CampagneView() {
           <InlineField label="Durée (s)" error={auditValidation.errors.duration} helper="10–600 s">
             <input type="number" min={10} max={600} value={auditDuration} onChange={e=>setAuditDuration(parseInt(e.target.value)||0)} style={{ width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
           </InlineField>
+          <InlineField label="Fournisseur" helper="ex. yas — gelé avec la ligne">
+            <input name="audit-provider" value={auditProvider} onChange={e=>setAuditProvider(e.target.value)} placeholder="yas" style={{ width:120, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+          </InlineField>
+          <InlineField label="Cible ping" helper="défaut 8.8.8.8">
+            <input name="audit-target" value={auditTarget} onChange={e=>setAuditTarget(e.target.value)} style={{ width:130, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+          </InlineField>
         </div>
         <div className="form-row" style={{ gap:8, marginTop:8 }}>
           <ArmButton label="LANCER AUDIT" confirmLabel="CONFIRMER AUDIT" onConfirm={startAudit} disabled={!auditValidation.valid} />
           <span className="mono muted">{auditMsg}</span>
         </div>
         </>}
+        {historyOpen && <AuditHistoryModal onClose={()=>{ setHistoryOpen(false); refreshHistoryN() }} onImported={m=>setAuditMsg(m)} />}
         {/* latence de travail — 3 cases, vides honnêtes : idle et montée
             chargée mesurées par l'audit ; la descente chargée attend la
             campagne download (le manque s'affiche, il ne se cache pas) */}
@@ -339,6 +382,7 @@ export default function CampagneView() {
           note bufferbloat : <b style={{ color: auditLast.bloat_grade.startsWith('A') ? '#1fa348' : auditLast.bloat_grade === 'B' ? '#5ad3e3' : '#f4b400' }}>{auditLast.bloat_grade}</b>
           {' '}({Number(auditLast.bloat_delta_ms ?? 0).toFixed(1)} ms sous charge) — {auditLast.bloat_verdict}
           <span style={{ color:'#767b84' }}> · bandes Waveform</span>
+          {auditLast.profile_match && <span title={auditLast.match_delta}> · ressemble à <b>{auditLast.profile_match}</b></span>}
         </div>
         )}
       </div>
@@ -352,7 +396,7 @@ export default function CampagneView() {
                 const r = await fetch('/api/audit/toprofile', { method: 'POST' })
                 const j = await r.json().catch(() => ({}))
                 if (!r.ok) { useUIStore.getState().pushToast(j?.error ?? 'échec import audit', 'err'); return }
-                useUIStore.getState().pushToast(`Profil ${j.profile?.id ?? 'P-audit'} importé depuis l'audit — ${j.profile?.capacity_mbps} Mbit/s, ${j.profile?.delay_ms} ms`, 'ok')
+                useUIStore.getState().pushToast(`Profil ${j.profile?.id ?? 'P-audit'} importé depuis l'audit — ${j.profile?.capacity_mbps} Mbit/s, ${j.profile?.delay_ms} ms, perte ${j.profile?.loss_pct ?? 0} %`, 'ok')
               } catch { useUIStore.getState().pushToast('échec import audit', 'err') }
             }} title="transforme le dernier audit du lien réel en profil rejouable sur le banc" style={{ marginLeft: 'auto', padding: '2px 10px' }}>AUDIT → PROFIL</button>
             <button className="btn" onClick={()=>setImportForm(true)} style={{ padding: '2px 10px' }}>IMPORTER</button>
