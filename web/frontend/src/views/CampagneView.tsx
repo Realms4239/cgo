@@ -20,7 +20,28 @@ export default function CampagneView() {
   const live = useUIStore((s: any) => s.live)
   const [profiles, setProfiles] = useState<string[]>(['P2'])
   const [allProfiles, setAllProfiles] = useState<{ id: string; imported: boolean }[]>([{ id: 'P1', imported: false }, { id: 'P2', imported: false }])
-  useEffect(() => { fetch('/api/profiles').then(r => r.json()).then(j => { if (j?.profiles?.length) setAllProfiles(j.profiles.map((x: any) => ({ id: x.id, imported: !!x.imported }))) }).catch(() => { }) }, [])
+  const refreshProfiles = () => fetch('/api/profiles').then(r => r.json()).then(j => { if (j?.profiles?.length) setAllProfiles(j.profiles.map((x: any) => ({ id: x.id, imported: !!x.imported }))) }).catch(() => { })
+  useEffect(() => { refreshProfiles() }, [])
+  // le référentiel P1–P4 ne se mélange pas aux imports : deux groupes
+  // visuels, suppression par ligne importée (le serveur refuse P1–P4).
+  const isRef = (id: string) => /^P[1-4]$/.test(id)
+  const refProfiles = allProfiles.filter(p => isRef(p.id))
+  const impProfiles = allProfiles.filter(p => !isRef(p.id))
+  const delProfile = async (id: string) => {
+    try {
+      const r = await fetch('/api/profile/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j?.error ?? String(r.status))
+      setProfiles(ps => ps.filter(x => x !== id))
+      refreshProfiles()
+      useUIStore.getState().pushToast(`Profil ${id} supprimé`, 'ok')
+    } catch (e: any) { useUIStore.getState().pushToast('Suppression refusée : ' + e.message, 'err') }
+  }
+  const profCheck = (p: { id: string; imported: boolean }, imported: boolean) => (
+    <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))} /> <Explain term={p.id}>{p.id}</Explain>{imported ? <span className="mono muted" title="issu d'un audit réel"> ↧</span> : null}
+      {imported && <button className="btn" title={`supprimer ${p.id} (référentiel intouchable)`} onClick={(e) => { e.preventDefault(); delProfile(p.id) }} style={{ padding: '0 6px', marginLeft: 4, fontSize: 10 }}>×</button>}
+    </label>
+  )
   const [reps, setReps] = useState(3)
   // La deadline voyage avec la campagne: le champ montre la valeur
   // réelle de l'opérateur et suit les Réglages (événement meteolink-settings).
@@ -280,10 +301,14 @@ export default function CampagneView() {
         <div className="form-row">
           <label>Profils</label>
           <div className="check-row">
-            {allProfiles.map(p => (
-              <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles,p.id] : profiles.filter(x=>x!==p.id))} /> <Explain term={p.id}>{p.id}</Explain>{p.imported ? <span className="mono muted" title="issu d'un audit réel"> ↧</span> : null}</label>
-            ))}
+            {refProfiles.map(p => profCheck(p, false))}
           </div>
+          {impProfiles.length > 0 && <>
+            <label style={{ marginTop: 4 }}>Importés <span className="mono muted" title="issus d'audits réels — supprimables par ×, le référentiel ne l'est pas">(audits)</span></label>
+            <div className="check-row">
+              {impProfiles.map(p => profCheck(p, true))}
+            </div>
+          </>}
         </div>
         <div className="form-row">
           <label>Files (AQM)</label><span className="mono muted">{ALL_QDISCS.map((q, i) => <span key={q}><Explain term={q}>{q}</Explain>{i < ALL_QDISCS.length - 1 ? ' · ' : ''}</span>)}</span>
@@ -405,8 +430,8 @@ export default function CampagneView() {
         </div>
         {importForm && <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-            <InlineField label="Identifiant" error={importValidation.errors.id} helper="ex. P3">
-              <input name="import-id" value={impId} onChange={e=>setImpId(e.target.value)} placeholder="P3" style={{ background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+            <InlineField label="Identifiant" error={importValidation.errors.id} helper="jamais P1–P4 (référentiel protégé) — ex. P-site-fibre">
+              <input name="import-id" value={impId} onChange={e=>setImpId(e.target.value)} placeholder="P-site-fibre" style={{ background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <InlineField label="Capacité (Mbit/s)" error={importValidation.errors.capacity} helper="> 0">
               <input type="number" min={0.1} step={0.1} value={impCap} onChange={e=>setImpCap(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
