@@ -1004,6 +1004,7 @@ func New(d Deps) Handler {
 			// contexte détaché: l'audit survit à cette requête HTTP
 			res, err := audit.Run(context.Background(), p, audit.Deps{})
 			if err != nil {
+				recordEvent("audit", fmt.Sprintf("échec — %s (%s) : %s", p.Site, p.LinkType, err))
 				return
 			}
 			auditMu.Lock()
@@ -1018,6 +1019,10 @@ func New(d Deps) Handler {
 		auditMu.Lock()
 		defer auditMu.Unlock()
 		writeJSON(w, map[string]any{"running": auditRunning, "last": lastAudit})
+	})
+	// protocole RQ1 matérialisé : l'opérateur choisit au lieu de recopier.
+	mux.HandleFunc("GET /api/audit/presets", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"presets": audit.Presets()})
 	})
 	mux.HandleFunc("GET /api/audit/list", func(w http.ResponseWriter, _ *http.Request) {
 		// read link_audit.csv
@@ -1047,7 +1052,9 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"audits": out})
 	})
 	// boucle RQ1→RQ2 : l'audit réel devient profil rejouable sur le banc.
-	// Dernière ligne de link_audit.csv → capacity = throughput, delay = rtt_idle_p95.
+	// capacity = throughput, delay = rtt_idle_p95, loss = loss_pct mesurés.
+	// ?audit_id= choisit la ligne (défaut : dernière) — l'opérateur importe
+	// la fibre sans relancer la pointe.
 	mux.HandleFunc("POST /api/audit/toprofile", func(w http.ResponseWriter, r *http.Request) {
 		f, err := os.Open("data/link_audit.csv")
 		if err != nil {
@@ -1063,6 +1070,24 @@ func New(d Deps) Handler {
 		}
 		hdr := rows[0]
 		last := rows[len(rows)-1]
+		// ?audit_id= : la ligne choisie, sinon la dernière
+		if want := r.URL.Query().Get("audit_id"); want != "" {
+			found := false
+			for _, row := range rows[1:] {
+				for i, h := range hdr {
+					if h == "audit_id" && i < len(row) && row[i] == want {
+						last, found = row, true
+					}
+				}
+				if found {
+					break
+				}
+			}
+			if !found {
+				writeErr(w, r, "audit introuvable : "+want, http.StatusNotFound)
+				return
+			}
+		}
 		get := func(col string) string {
 			for i, h := range hdr {
 				if h == col && i < len(last) {
@@ -1073,11 +1098,18 @@ func New(d Deps) Handler {
 		}
 		cap, _ := strconv.ParseFloat(get("throughput_mbps"), 64)
 		delay, _ := strconv.ParseFloat(get("rtt_idle_p95_ms"), 64)
+		loss, _ := strconv.ParseFloat(get("loss_pct"), 64)
 		id := "P-audit"
 		if v := get("audit_id"); v != "" {
 			id = "P-" + v
 		}
-		p := model.Profile{ID: id, CapacityMbps: cap, DelayMs: delay}
+		p := model.Profile{ID: id, CapacityMbps: cap, DelayMs: delay, LossPct: loss}
+		if p.CapacityMbps <= 0 {
+			p.CapacityMbps = 20 // repli documenté — banc par défaut si débit non mesuré
+		}
+		if p.DelayMs <= 0 {
+			p.DelayMs = 100
+		}
 		if p.CapacityMbps <= 0 {
 			p.CapacityMbps = 20 // repli documenté — banc par défaut si débit non mesuré
 		}
@@ -1088,7 +1120,7 @@ func New(d Deps) Handler {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		recordEvent("profil", fmt.Sprintf("%s importé depuis audit — %g Mbit/s, %g ms", id, p.CapacityMbps, p.DelayMs))
+		recordEvent("profil", fmt.Sprintf("%s importé depuis audit — %g Mbit/s, %g ms, perte %g %%", id, p.CapacityMbps, p.DelayMs, p.LossPct))
 		writeJSON(w, map[string]any{"ok": true, "profile": p})
 	})
 	mux.HandleFunc("POST /api/profile/import", func(w http.ResponseWriter, r *http.Request) {

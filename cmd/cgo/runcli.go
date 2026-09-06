@@ -115,19 +115,21 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, 
 				time.Sleep(200 * time.Millisecond)
 			}
 			fmt.Println("gel terminé.")
-			printSummary(dataDir)
+			printSummary(dataDir, runID)
 			return 0
 		case <-time.After(300 * time.Millisecond):
 		}
 	}
 	fmt.Println()
-	printSummary(dataDir)
+	printSummary(dataDir, runID)
 	return 0
 }
 
-// printSummary — médianes gelées de la dernière matrice + verdict + hash.
-func printSummary(dataDir string) {
-	groups, _ := results.Scan(dataDir, "")
+// printSummary — médianes gelées de la matrice + verdict + hash. Filtrée au
+// run exécuté : agréger tout dataDir mélange des échéances différentes
+// (résumé P3-1500 pollué par le P3-600 historique — vu en prod).
+func printSummary(dataDir, runID string) {
+	groups, _ := results.Scan(dataDir, runID)
 	if len(groups) == 0 {
 		fmt.Println("aucune ligne gelée.")
 		return

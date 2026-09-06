@@ -48,6 +48,11 @@ type Result struct {
 	BloatDeltaMs float64 `json:"bloat_delta_ms"`
 	BloatGrade   string  `json:"bloat_grade"`
 	BloatVerdict string  `json:"bloat_verdict"`
+
+	// Rapprochement au référentiel P1–P4 (calibration par site) : calculé
+	// en fin d'audit, gelé avec la ligne comme tout le reste.
+	ProfileMatch string `json:"profile_match"`
+	MatchDelta   string `json:"match_delta"`
 }
 
 type Deps struct {
@@ -150,6 +155,12 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 
 	idleSummary := metrics.Summarize(idleRTTs)
 	loadedSummary := metrics.Summarize(loadedRTTs)
+	// garde anti-ligne-fantôme : zéro sonde = cible injoignable, on refuse
+	// de geler des zéros (un audit aveugle qui passerait pour une mesure
+	// serait pire que pas d'audit — même discipline que les portes G0–G7).
+	if len(idleRTTs) == 0 {
+		return nil, fmt.Errorf("audit %s : aucune sonde ping — cible %s injoignable ?", p.AuditID, p.Target)
+	}
 	// écart de latence moyenne sous charge (méthode Waveform : moyenne
 	// chargée − moyenne au repos ; note = bandes sur cet écart)
 	bloatDelta := loadedSummary.Median - idleSummary.Median
@@ -186,7 +197,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		notes = append(notes, "petit objet non mesuré (SmallURL absent)")
 	}
 
-	return &Result{
+	res := &Result{
 		AuditID:        p.AuditID,
 		Timestamp:      start.Format(time.RFC3339),
 		Site:           p.Site,
@@ -207,5 +218,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		BloatDeltaMs: bloatDelta,
 		BloatGrade:   metrics.BufferbloatGrade(metrics.BufferbloatWorst(math.NaN(), bloatDelta)),
 		BloatVerdict: metrics.BufferbloatVerdict(metrics.BufferbloatGrade(metrics.BufferbloatWorst(math.NaN(), bloatDelta))),
-	}, nil
+	}
+	res.ProfileMatch, res.MatchDelta = MatchProfile(res)
+	return res, nil
 }
