@@ -6,7 +6,7 @@ import { echarts } from '../lib/echarts'
 import { baseOption, scatterSeries } from '../lib/chartGrammar'
 import CompareView, { type Pinned } from '../components/CompareView'
 import { CRAFT } from '../lib/chartGrammar'
-import Explain from '../components/Explain'
+import ResultatsInfoModal from '../components/ResultatsInfoModal'
 import InterpretationView from '../components/InterpretationView'
 import { useUIStore } from '../store/ui'
 import { fmtIQR } from '../lib/format'
@@ -73,6 +73,7 @@ export default function ResultatsView() {
   const [runIds, setRunIds] = useState<string[]>([])
   const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
   const [caption, setCaption] = useState('')
+  const [infoOpen, setInfoOpen] = useState(false)
   // TradeSpace : axes + couleur paramétrables, défaut compromis débit/latence
   const [xKey, setXKey] = useState<TSpaceKey>('goodput')
   const [yKey, setYKey] = useState<TSpaceKey>('small')
@@ -282,7 +283,18 @@ export default function ResultatsView() {
     (fQdisc === 'tous' || g.qdisc === fQdisc) &&
     (fCc === 'tous' || g.cc === fCc))
   const ranked = [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(a) - val(b) : val(b) - val(a))
-  const rankMax = Math.max(...filtered.map(g => hero(g).hi).filter(v => Number.isFinite(v) && v > 0), 1)
+  // échelle de rang : la barre mesure la BONTÉ sur la plage visible
+  // (min→max des valeurs finies), pas la valeur brute sur [0–max] où tout
+  // semble plein. Le meilleur a toujours la barre la plus longue, dans les
+  // deux sens de critère ; les moustaches gardent la position absolue.
+  const finiteVals = filtered.map(val).filter(v => Number.isFinite(v) && v > 0 && v !== Number.MAX_SAFE_INTEGER)
+  const rankMin = finiteVals.length ? Math.min(...finiteVals) : 0
+  const rankMax = finiteVals.length ? Math.max(...finiteVals) : 1
+  const rankSpan = rankMax > rankMin ? rankMax - rankMin : 0
+  const rankPos = (v: number): number => rankSpan > 0
+    ? Math.min(100, Math.max(0, ((v - rankMin) / rankSpan) * 100))
+    : 100
+  const rankFill = (v: number): number => rankMeta.dir === 'down' ? 100 - rankPos(v) : rankPos(v)
   const top = ranked[0]
   const baselineRow = filtered.find(g => g.qdisc === 'pfifo_fast' && (!top || g.profile === top.profile))
     ?? [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(b) - val(a) : val(a) - val(b))[0]
@@ -352,13 +364,9 @@ export default function ResultatsView() {
         </select>
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
         <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>MD</a>
+        <button className="btn" title="Lire le classement : métriques et règles de lecture" aria-label="Lire le classement" onClick={() => setInfoOpen(true)} style={{ padding: '7px 12px', fontSize: 13 }}>ⓘ</button>
       </div>
-      {/* avertissement : ce qu'il faut savoir avant de conclure — court, visible, pas replié */}
-      <div className="mono" data-testid="disclaimer" style={{ fontSize: 11, lineHeight: 1.7, color: '#9aa3ad', padding: '8px 14px', border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.015)' }}>
-        Lecture : <Explain term="valid_only">médianes valid-only</Explain> (n = réplications valides, IC95) ·
-        l'<Explain term="mixed_deadline">échéance</Explain> ne se compare qu'à deadline fixée — les runs historiques la mélangent ·
-        coût au palier unique 5556 Ar/Go · gel SHA-256, hash {hash8}.
-      </div>
+      {infoOpen && <ResultatsInfoModal onClose={() => setInfoOpen(false)} />}
       {events.length > 0 && (
         <div className="card" data-testid="changelog">
           <div className="card-head">Changelog — journal opérateur</div>
@@ -424,12 +432,8 @@ export default function ResultatsView() {
         {(['tous', ...distinct('qdisc')] as string[]).map(v => chip(v, fQdisc === v, () => setFQdisc(v)))}
         {(['tous', ...distinct('cc')] as string[]).map(v => chip(v, fCc === v, () => setFCc(v)))}
       </div>
-      <div className="mono" style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 8 }}>
-        source : {runSel === '__all__' ? 'tous runs gelés' : <>⚡ en direct · {shortRun(effectiveRun || newest) || '…'}</>} · <Explain term="valid_only">médianes valid-only</Explain>{hash8 !== '────────' ? ` · hash ${hash8}` : ''}
-        {liveSnapRunning ? ' — campagne en cours, rafraîchi au gel' : ''}
-      </div>
       {singleVerdict && (
-        <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', margin: '-2px 0 10px', paddingLeft: 2 }}>{singleVerdict}</div>
+        <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', margin: '2px 0 10px', paddingLeft: 2 }}>{singleVerdict}</div>
       )}
 
       {filtered.length === 0 && <div className="card"><EmptyState kind="empty" hint="aucun groupe pour ces filtres — élargissez la sélection" /></div>}
@@ -438,7 +442,7 @@ export default function ResultatsView() {
         {ranked.map((g, i) => {
           const h = hero(g)
           const ok = Number.isFinite(h.v) && h.v > 0 && h.v !== Number.MAX_SAFE_INTEGER
-          const pct = ok ? Math.min(100, (h.v / rankMax) * 100) : 0
+          const pct = ok ? rankFill(h.v) : 0
           const barColor = i === 0 ? 'var(--t-ok)' : (QCOLOR[g.qdisc] ?? '#6b7078')
           const key = `${g.profile}/${g.qdisc}/${g.cc}/${g.direction ?? 'up'}`
           const open = expanded === key
@@ -462,7 +466,7 @@ export default function ResultatsView() {
                     {ok && <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: i === 0 ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2 }} />}
                   </div>
                   {ok && h.hi > h.lo && (
-                    <div title={`IC95 [${h.lo.toFixed(1)}–${h.hi.toFixed(1)}]`} style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(100, (h.lo / rankMax) * 100)}%`, width: `${Math.max(1, Math.min(100, (h.hi / rankMax) * 100) - Math.min(100, (h.lo / rankMax) * 100))}%`, borderLeft: '2px solid #f2f2f4', borderRight: '2px solid #f2f2f4' }} />
+                    <div title={`IC95 [${h.lo.toFixed(1)}–${h.hi.toFixed(1)}]`} style={{ position: 'absolute', top: 0, bottom: 0, left: `${rankPos(h.lo)}%`, width: `${Math.max(1.5, rankPos(h.hi) - rankPos(h.lo))}%`, borderLeft: '2px solid #f2f2f4', borderRight: '2px solid #f2f2f4' }} />
                   )}
                 </div>
                 <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: ok ? (i === 0 ? '#1fa348' : '#f2f2f4') : '#767b84', fontVariantNumeric: 'tabular-nums', minWidth: 120, textAlign: 'right' }}>
