@@ -3,7 +3,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { animateBar } from '../lib/anime'
 import { echarts } from '../lib/echarts'
-import { baseOption } from '../lib/chartGrammar'
+import { baseOption, scatterSeries } from '../lib/chartGrammar'
 import CompareView, { type Pinned } from '../components/CompareView'
 import { CRAFT } from '../lib/chartGrammar'
 import Explain from '../components/Explain'
@@ -165,7 +165,7 @@ export default function ResultatsView() {
     const valOf = (g: Group, k: TSpaceKey): number | null => (k === 'indice' ? ind(g) : raw(g, k))
     const meta = (k: TSpaceKey) => TSPACE.find(t => t.key === k) ?? TSPACE[0]
     const xm = meta(xKey), ym = meta(yKey)
-    const pts = vis.map(g => ({ g, x: valOf(g, xKey), y: valOf(g, yKey) })).filter(p => p.x != null && p.y != null) as { g: Group; x: number; y: number }[]
+    const pts = vis.map(g => ({ g, x: valOf(g, xKey), y: valOf(g, yKey), name: `${g.profile}·${g.qdisc}·${g.cc}` })).filter(p => p.x != null && p.y != null) as { g: Group; x: number; y: number; name: string }[]
     // couleur par dimension — simple et lisible, une famille à la fois
     const fam = (g: Group): string => colorBy === 'profile' ? g.profile : colorBy === 'qdisc' ? g.qdisc : g.cc
     const famVals = Array.from(new Set(pts.map(p => fam(p.g)))).sort()
@@ -179,27 +179,31 @@ export default function ResultatsView() {
     const ro = new ResizeObserver(() => c.resize())
     ro.observe(scatterRef.current)
     const base = baseOption(`${ym.label} / ${xm.label}`, ym.unit)
-    const series = famVals.map(fv => ({
-      name: fv,
-      type: 'scatter' as const,
-      data: pts.filter(p => fam(p.g) === fv).map(p => [p.x, p.y, p.g.best ? 1 : 0, `${p.g.profile}·${p.g.qdisc}·${p.g.cc}`]),
-      itemStyle: { color: famColor(fv) },
-      symbolSize: (v: any) => (v[2] ? 13 : 8),
-      label: { show: true, formatter: (par: any) => par.value[3], color: famColor(fv), fontSize: 10, fontFamily: 'JetBrains Mono' },
-      labelLayout: { hideOverlap: true },
-      emphasis: { scale: 1.4 },
-    }))
+    // séries par la grammaire — une famille = une série, labels nominatifs
+    // anti-collision par-dessus (contrainte testée : grammaire seule)
+    const series = famVals.map(fv => {
+      const famPts = pts.filter(p => fam(p.g) === fv)
+      const s = scatterSeries(fv, famPts.map(p => [p.x, p.y] as [number, number]), famColor(fv),
+        famPts.map((p, i) => (p.g.best ? i : -1)).filter(i => i >= 0))
+      return {
+        ...s,
+        label: { show: true, formatter: (par: any) => famPts[par.dataIndex]?.name ?? '', color: famColor(fv), fontSize: 10, fontFamily: 'JetBrains Mono' },
+        labelLayout: { hideOverlap: true },
+        tooltip: {
+          trigger: 'item' as const,
+          formatter: (par: any) => {
+            const v = par.value as [number, number]
+            const who = famPts[par.dataIndex]?.name ?? String(fv)
+            return `${who}<br/>${xm.label} : ${v[0].toFixed(1)} ${xm.unit}<br/>${ym.label} : ${v[1].toFixed(1)} ${ym.unit}`
+          },
+        },
+      }
+    })
     const opt = {
       ...base,
       xAxis: { ...base.xAxis, type: 'value' as const, name: `${xm.label} (${xm.unit})` },
       yAxis: { ...base.yAxis, name: `${ym.label} (${ym.unit})` },
-      tooltip: {
-        ...base.tooltip, trigger: 'item' as const,
-        formatter: (par: any) => {
-          const v = par.value as [number, number, number, string]
-          return `${v[3]}<br/>${xm.label} : ${v[0].toFixed(1)} ${xm.unit}<br/>${ym.label} : ${v[1].toFixed(1)} ${ym.unit}`
-        },
-      },
+      tooltip: { ...base.tooltip, trigger: 'item' as const },
       series,
     }
     c.setOption(opt as any)
