@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { animateBar } from '../lib/anime'
-import { PeekPopover } from '../components/PeekPopover'
 import { echarts } from '../lib/echarts'
 import { baseOption, scatterSeries } from '../lib/chartGrammar'
 import CompareView, { type Pinned } from '../components/CompareView'
@@ -11,6 +10,7 @@ import Explain from '../components/Explain'
 import InterpretationView from '../components/InterpretationView'
 import { useUIStore } from '../store/ui'
 import { fmtIQR } from '../lib/format'
+import { asArray } from '../lib/format'
 import { GATE_LABELS } from '../lib/gates'
 
 type Group = {
@@ -37,10 +37,11 @@ const RANKS = [
   { key: 'cost', label: 'coût', dir: 'down' as const, unit: 'Ar/h', term: 'cost_ar_per_h' },
 ]
 
+const QCOLOR: Record<string, string> = { cake: 'var(--t-bbr)', fq_codel: 'var(--t-live)', pfifo_fast: '#6b7078' }
+
 export default function ResultatsView() {
   const [groups, setGroups] = useState<Group[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [peek, setPeek] = useState<{ rect: DOMRect; g: Group } | null>(null)
   const [hash8, setHash8] = useState<string>('────────')
   const [pinA, setPinA] = useState<Pinned | null>(null)
   const [pinB, setPinB] = useState<Pinned | null>(null)
@@ -49,7 +50,9 @@ export default function ResultatsView() {
   const [fQdisc, setFQdisc] = useState('tous')
   const [fCc, setFCc] = useState('tous')
   const [interpProfile, setInterpProfile] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
   const [deltas, setDeltas] = useState<Record<string, { small_p95_pct?: number }>>({})
+  // source : '' = EN DIRECT (dernier run gelé), '__all__' = tous runs, sinon run figé
   const [runSel, setRunSel] = useState('')
   const [runIds, setRunIds] = useState<string[]>([])
   const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
@@ -57,9 +60,17 @@ export default function ResultatsView() {
   const liveSnapRunning = useUIStore((s: any) => !!s.live?.running)
   const scatterRef = useRef<HTMLDivElement>(null)
 
+  // runs gelés, du plus récent au plus ancien (run-smoke et scories exclus)
+  const orderedRuns = useMemo(() =>
+    asArray<string>(runIds).filter(id => /^run-\d+$/.test(id)).sort().reverse(),
+    [runIds])
+  const newest = orderedRuns[0] ?? ''
+  const effectiveRun = runSel === '__all__' ? '' : (runSel || newest)
+
   useEffect(() => {
-    fetch(`/api/results${runSel ? `?run=${encodeURIComponent(runSel)}` : ''}`).then(r => r.json()).then(j => {
-      if (j.available) setGroups(j.groups)
+    fetch(`/api/results${effectiveRun ? `?run=${encodeURIComponent(effectiveRun)}` : ''}`).then(r => r.json()).then(j => {
+      if (j.available && Array.isArray(j.groups)) setGroups(j.groups)
+      else if (j.available) setGroups([])
       else setErr(j.reason || 'pas de résultats')
     }).catch(e => setErr(String(e)))
     fetch('/api/integrity').then(r => r.json()).then(j => {
@@ -67,10 +78,10 @@ export default function ResultatsView() {
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
       if (id) setHash8(String(id).slice(0, 8))
     }).catch(() => {})
-  }, [runSel])
+  }, [effectiveRun])
   useEffect(() => {
-    fetch('/api/replay/list').then(r => r.json()).then(j => setRunIds(j.runs || [])).catch(() => {})
-    fetch('/api/events').then(r => r.json()).then(j => setEvents((j.events || []).slice(-20).reverse())).catch(() => {})
+    fetch('/api/replay/list').then(r => r.json()).then(j => setRunIds(asArray<string>(j.runs))).catch(() => {})
+    fetch('/api/events').then(r => r.json()).then(j => setEvents(asArray<{ts:string;kind:string;msg:string}>(j.events).slice(-20).reverse())).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -139,6 +150,22 @@ export default function ResultatsView() {
     const v = (g as any)[rankKey]
     return typeof v === 'number' && v > 0 ? v : Number.MAX_SAFE_INTEGER
   }
+  // héros + incertitude du critère (façon DeepSWE : valeur ±, moustaches IC)
+  const hero = (g: Group): { v: number; lo: number; hi: number; n: number } => {
+    const n = validN(g)
+    if (rankKey === 'small_p95_median') {
+      const v = g.small_p95_valid_median ?? g.small_p95_median
+      const ci = g.small_p95_valid_ci95 ?? g.small_p95_valid_iqr ?? g.small_p95_iqr
+      return { v, lo: ci?.[0] ?? v, hi: ci?.[1] ?? v, n }
+    }
+    if (rankKey === 'rtt_p95_median') {
+      const v = g.rtt_p95_median, iqr = g.rtt_p95_iqr
+      return { v, lo: iqr?.[0] ?? v, hi: iqr?.[1] ?? v, n }
+    }
+    if (rankKey === 'goodput_median') return { v: g.goodput_median, lo: g.goodput_median, hi: g.goodput_median, n }
+    const c = costRef(g) ?? Number.MAX_SAFE_INTEGER
+    return { v: c, lo: c, hi: c, n }
+  }
   // groupes sûrs — évite l'écran d'erreur si la charge est inattendue
   const safeGroups: Group[] = Array.isArray(groups) ? groups : []
   const distinct = (k: 'profile' | 'qdisc' | 'cc') => Array.from(new Set(safeGroups.map(g => g[k]))).sort()
@@ -147,12 +174,33 @@ export default function ResultatsView() {
     (fQdisc === 'tous' || g.qdisc === fQdisc) &&
     (fCc === 'tous' || g.cc === fCc))
   const ranked = [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(a) - val(b) : val(b) - val(a))
-  const rankMax = Math.max(...filtered.map(val).filter(Number.isFinite), 1)
+  const rankMax = Math.max(...filtered.map(g => hero(g).hi).filter(v => Number.isFinite(v) && v > 0), 1)
   const top = ranked[0]
   const baselineRow = filtered.find(g => g.qdisc === 'pfifo_fast' && (!top || g.profile === top.profile))
     ?? [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(b) - val(a) : val(a) - val(b))[0]
   const diff = top && baselineRow && Number.isFinite(val(top)) && val(baselineRow) > 0
     ? Math.round(((val(baselineRow) - val(top)) / val(baselineRow)) * 100) : null
+  // meilleur par profil sur le critère courant — le verdict s'y compare
+  const bestOf = (g: Group): Group => {
+    const same = filtered.filter(x => x.profile === g.profile && Number.isFinite(val(x)))
+    if (!same.length) return g
+    return same.sort((a, b) => rankMeta.dir === 'down' ? val(a) - val(b) : val(b) - val(a))[0]
+  }
+  // verdict vivant : une phrase qui dit ce que la ligne signifie, jamais de
+  // paragraphe. Zéro valide → hors rang. P3 → régime perte, pas file.
+  const verdict = (g: Group, i: number): string => {
+    const n = validN(g)
+    if (n <= 0 || !Number.isFinite(val(g))) return 'aucune ligne valide — hors rang, voir quarantaine'
+    if (g.profile === 'P3' && (g.small_p95_median ?? 0) > 1500)
+      return 'régime perte — la retransmission gouverne, pas la file'
+    if (i === 0 && filtered.length > 1) return `référence ${rankMeta.label} — ${n} réplications valides`
+    const b = bestOf(g)
+    if (b === g) return `meilleur ${g.profile} sur ce critère — ${n} réplications`
+    const gap = rankMeta.dir === 'down'
+      ? Math.round((val(g) / val(b) - 1) * 100)
+      : Math.round((1 - val(g) / val(b)) * 100)
+    return gap <= 0 ? `au coude-à-coude avec ${b.qdisc} — ${n} réplications` : `+${gap} % vs ${b.qdisc}, meilleur ${g.profile} — ${n} réplications`
+  }
   const hwPerProfile = Array.from(new Map(safeGroups.filter(g => g.best).map(g => [g.profile, g.hardware_recommendation ?? '—'])).entries()).map(([p, h]) => `${p}: ${h}`).join(' · ') || '—'
   const maxSmall = Math.max(...safeGroups.map(g => g.small_p95_median), 1)
 
@@ -164,31 +212,21 @@ export default function ResultatsView() {
       color: active ? '#7fd6e8' : '#a8aeb7',
     }}>{label}</button>
   )
+  const shortRun = (id: string) => id.replace(/^run-/, 'run-…').slice(-12)
 
   return (
     <div className="panel-stack" style={{ position: 'relative' }}>
-      {peek && (
-        <PeekPopover rect={peek.rect}>
-          <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099' }}>{peek.g.profile} · {peek.g.qdisc} · {peek.g.cc}</div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'end' }}>
-            <span className="mono" style={{ fontSize: 10, color: '#5ad3e3' }}>{peek.g.small_p95_median.toFixed(1)} ms</span>
-            <span className="mono" style={{ fontSize: 10, color: '#767b84' }}>n={peek.g.count}</span>
-            <div style={{ flex: 1, height: 4, background: 'var(--hairline-faint)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ width: `${(peek.g.small_p95_median / maxSmall) * 100}%`, height: '100%', background: peek.g.best ? 'var(--t-ok)' : '#5ad3e3' }} />
-            </div>
-          </div>
-          {peek.g.hardware_recommendation && <div className="mono" style={{ fontSize: 9, color: '#8b9099', marginTop: 4, maxWidth: 220, whiteSpace: 'normal' }}>{peek.g.hardware_recommendation}</div>}
-        </PeekPopover>
-      )}
-      <h1 className="view-title">Résultats — classement complet</h1>
+      <h1 className="view-title">Résultats — classement</h1>
 
-      {/* bandeau benchmark — runs, provenance, version, export (façon DeepSWE/Kaggle) */}
+      {/* bandeau benchmark — source, provenance, export (façon DeepSWE) */}
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap' }}>
         <span className="mono" style={{ fontSize: 12, fontWeight: 700 }}>Meteolink Leaderboard</span>
         <span className="mono muted" style={{ fontSize: 11 }}>{safeGroups.length} groupes · hash {hash8}</span>
-        <select data-testid="run-select" value={runSel} onChange={e => setRunSel(e.target.value)} style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
-          <option value="">tous runs (gelés)</option>
-          {runIds.map(id => <option key={id} value={id}>{id}</option>)}
+        {liveSnapRunning && <span className="mono" style={{ fontSize: 10, color: '#1fa348', border: '1px solid currentColor', padding: '2px 8px' }}>● CAMPAGNE EN COURS</span>}
+        <select data-testid="run-select" value={runSel} onChange={e => setRunSel(e.target.value)} title="source des chiffres : en direct = dernier run gelé" style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
+          <option value="">{newest ? `⚡ En direct — ${shortRun(newest)}` : '⚡ En direct'}</option>
+          <option value="__all__">tous runs (gelés)</option>
+          {orderedRuns.map(id => <option key={id} value={id}>{id === newest ? `⚡ ${id}` : id}</option>)}
         </select>
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
         <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>MD</a>
@@ -196,11 +234,12 @@ export default function ResultatsView() {
       </div>
       {showMethod && (
         <div className="card" data-testid="method-drawer">
-          <div className="card-head">Méthode & limites</div>
+          <div className="card-head">Méthode & limites — lire avant de conclure</div>
           <p className="mono" style={{ fontSize: 11, lineHeight: 1.7, color: '#9aa3ad' }}>
-            Médianes valid-only strict (degraded G2/G6 exclus, n = répétitions valides) · portes G0–G7 ({GATE_LABELS.join(' · ')}) ·
-            small p95 : IC95 bootstrap seed 42 · échéance agrégée : échéances opérateur mixtes (indicative, comparer à D fixée) ·
+            Médianes valid-only strict (degraded G2/G6 exclus, n = réplications valides) · portes G0–G7 ({GATE_LABELS.join(' · ')}) ·
+            small p95 : IC95 bootstrap seed 42 · échéance agrégée : échéances opérateur mixtes (indicative — ne comparez qu'à D fixée) ·
             coût recalculé au palier unique 5556 Ar/Go depuis wasted gelé (runs historiques multi-paliers) ·
+            P3 : la perte gouverne la sonde, pas la file (0 % d'échéance à D=1500 pour toutes les disciplines, n=3) ·
             provenance hash {hash8} depuis data/runs/*/aqm_eval.csv.
           </p>
         </div>
@@ -229,12 +268,12 @@ export default function ResultatsView() {
       </button>
       {interpProfile && <InterpretationView profile={interpProfile} onClose={() => setInterpProfile(null)} />}
 
-      {/* verdict recalculé sur le critère choisi — toujours mesuré, jamais décoré */}
+      {/* duel critère — avant/après lisible d'un coup d'œil */}
       {top && baselineRow && (
         <div className="card rank-verdict" data-testid="rank-verdict">
           <div>
             <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
-              <Explain term="pfifo_fast">pfifo — avant</Explain>
+              pfifo — avant
             </div>
             <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: '#c3c9d1', fontVariantNumeric: 'tabular-nums' }}>
               {val(baselineRow) === Number.MAX_SAFE_INTEGER ? '—' : `${val(baselineRow).toFixed(1)} ${rankMeta.unit}`}
@@ -246,7 +285,7 @@ export default function ResultatsView() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7fd6e8' }}>
-              <Explain term={rankMeta.term}>1er — {rankMeta.label}</Explain>
+              1er — {rankMeta.label}
             </div>
             <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: '#1fa348', fontVariantNumeric: 'tabular-nums' }}>
               {val(top) === Number.MAX_SAFE_INTEGER ? '—' : `${val(top).toFixed(1)} ${rankMeta.unit}`}
@@ -266,75 +305,71 @@ export default function ResultatsView() {
         {(['tous', ...distinct('cc')] as string[]).map(v => chip(v, fCc === v, () => setFCc(v)))}
       </div>
       <div className="mono" style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 8 }}>
-        vue : classement gelé depuis data/runs (médianes des CSV gelés{hash8 !== '────────' ? ` · hash ${hash8}` : ''})
+        source : {runSel === '__all__' ? 'tous runs gelés' : <>⚡ en direct · {shortRun(effectiveRun || newest) || '…'}</>} · médianes valid-only{hash8 !== '────────' ? ` · hash ${hash8}` : ''}
         {liveSnapRunning ? ' — campagne en cours, rafraîchi au gel' : ''}
       </div>
 
       {filtered.length === 0 && <div className="card"><EmptyState kind="empty" hint="aucun groupe pour ces filtres — élargissez la sélection" /></div>}
-      {filtered.length > 0 && <div className="card" style={{ overflowX: 'auto' }}>
-        <table className='data-table' style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-          <thead>
-            <tr style={{ color: '#c3c9d1', textAlign: 'left', borderBottom: '1px solid var(--hairline)' }}>
-              <th style={{ padding: '6px 8px' }}>#</th>
-              <th style={{ padding: '6px 8px' }}>profil</th><th>qdisc</th><th>cc</th><th>n</th>
-              <th style={{ minWidth: 140 }}><Explain term="small_p95">small p95</Explain></th>
-              <th><Explain term="rtt_p95">rtt p95</Explain></th>
-              <th><Explain term="bulk_goodput">goodput</Explain></th>
-              <th><Explain term="deadline">deadline ok</Explain></th>
-              <th><Explain term="wasted">gaspillé</Explain></th>
-              <th><Explain term="cost_ar_per_h">coût</Explain></th>
-              <th>quar.</th>
-              <th style={{ padding: '6px 8px' }}>comparer</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ranked.map((g, i) => {
-              const pct = Math.min(100, (val(g) / rankMax) * 100)
-              const barColor = i === 0 ? 'var(--t-ok)' : g.qdisc === 'cake' ? 'var(--t-bbr)' : g.qdisc === 'fq_codel' ? 'var(--t-live)' : '#6b7078'
-              const wasted: number | null = g.wasted_median ?? g.wasted_bytes ?? null
-              const cost: number | null = costRef(g) // palier unique, voir title
-              const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
-              const cellDelta = deltas[`${g.profile}|${g.qdisc}|${g.cc}${g.direction && g.direction !== 'up' ? `|${g.direction}` : ''}`]?.small_p95_pct
-              return (
-                <tr key={`${g.profile}/${g.qdisc}/${g.cc}/${g.direction ?? 'up'}`} style={{ borderBottom: '1px solid var(--hairline-faint)', background: i === 0 ? 'rgba(31,163,72,0.08)' : 'transparent', cursor: 'pointer' }} onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), g })} onMouseLeave={() => setPeek(null)} onClick={() => setInterpProfile(g.profile)}>
-                  <td style={{ padding: '6px 8px', fontWeight: i === 0 ? 700 : 400, color: i === 0 ? '#1fa348' : '#a8aeb7' }}>{i + 1}</td>
-                  <td style={{ padding: '6px 8px' }}>{g.profile}{g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: '#5ad3e3' }}> ↓</span> : null}</td>
-                  <td>{g.qdisc}</td><td>{g.cc}</td><td title={`lignes totales ${g.count} (dont quarantaine ${g.quarantined})`}>{validN(g)}v</td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ flex: 1, height: 6, background: 'var(--hairline-faint)', position: 'relative', minWidth: 80, borderRadius: 2, overflow: 'hidden' }}>
-                        <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: i === 0 ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2, filter: i === 0 ? `drop-shadow(0 0 4px ${barColor})` : 'none' }} />
-                      </div>
-                      <span style={{ minWidth: 45, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} title={g.small_p95_valid_ci95 ? `valid-only n=${validN(g)} IC95 [${g.small_p95_valid_ci95[0].toFixed(1)}–${g.small_p95_valid_ci95[1].toFixed(1)}]` : 'médiane (toutes lignes non invalidées)'}>{g.small_p95_valid_ci95 ? `${(g.small_p95_valid_median ?? g.small_p95_median).toFixed(1)} [${g.small_p95_valid_ci95[0].toFixed(1)}–${g.small_p95_valid_ci95[1].toFixed(1)}]` : fmtIQR(g.small_p95_median, g.small_p95_iqr)}</span>
-                      {cellDelta != null && (
-                        <span className="mono" title="vs run précédent, même cellule" style={{ fontSize: 9, color: cellDelta <= 0 ? '#1fa348' : '#e22718', fontVariantNumeric: 'tabular-nums' }}>
-                          {cellDelta <= 0 ? '↘' : '↗'}{Math.abs(cellDelta)}%
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td>{fmtIQR(g.rtt_p95_median, g.rtt_p95_iqr)}</td>
-                  <td>{g.goodput_median.toFixed(1)}</td>
-                  <td style={{ fontVariantNumeric: 'tabular-nums', color: deadlineOk == null ? '#9aa0a8' : deadlineOk >= 95 ? '#1fa348' : '#f4b400', textAlign: 'right' }}>{deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'}</td>
-                  <td style={{ fontVariantNumeric: 'tabular-nums', color: wasted == null ? '#9aa0a8' : wasted > 0 ? '#e22718' : '#9aa0a8', textAlign: 'right' }}>{wasted == null ? '—' : wasted >= 1048576 ? (wasted / 1048576).toFixed(1) + ' MiB' : wasted >= 1024 ? (wasted / 1024).toFixed(0) + ' KiB' : String(wasted)}</td>
-                  <td style={{ fontVariantNumeric: 'tabular-nums', color: cost == null ? '#9aa0a8' : cost > 0 ? '#f4b400' : '#9aa0a8', textAlign: 'right' }} title={cost == null ? undefined : `palier unique 5556 Ar/Go (gelé brut : ${(g.cost_median ?? g.cost_ar_per_h ?? 0).toFixed(0)})`}>{cost == null ? '—' : cost >= 1000 ? (cost / 1000).toFixed(1) + ' k' : cost.toFixed(0)}</td>
-                  <td>{g.quarantined}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    {(() => {
-                      const pin = { profile: g.profile, qdisc: g.qdisc, cc: g.cc }
-                      const isA = pinA?.profile === g.profile && pinA?.qdisc === g.qdisc && pinA?.cc === g.cc
-                      const isB = pinB?.profile === g.profile && pinB?.qdisc === g.qdisc && pinB?.cc === g.cc
-                      return (<>
-                        <button className="btn" title="épingler comme A" onClick={() => setPinA(pin)} style={{ padding: '2px 6px', fontSize: 10, background: isA ? 'rgba(90,211,227,0.15)' : 'transparent', color: isA ? CRAFT.live : 'var(--text-muted)' }}>A</button>
-                        <button className="btn" title="épingler comme B" onClick={() => setPinB(pin)} style={{ padding: '2px 6px', fontSize: 10, marginLeft: 4, background: isB ? 'rgba(31,163,72,0.15)' : 'transparent', color: isB ? CRAFT.ok : 'var(--text-muted)' }}>B</button>
-                      </>)
-                    })()}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      {filtered.length > 0 && <div className="card" style={{ padding: '4px 0' }}>
+        {/* leaderboard façon DeepSWE : une métrique-héros + moustaches IC, le reste en sourdine */}
+        {ranked.map((g, i) => {
+          const h = hero(g)
+          const ok = Number.isFinite(h.v) && h.v > 0 && h.v !== Number.MAX_SAFE_INTEGER
+          const pct = ok ? Math.min(100, (h.v / rankMax) * 100) : 0
+          const barColor = i === 0 ? 'var(--t-ok)' : (QCOLOR[g.qdisc] ?? '#6b7078')
+          const key = `${g.profile}/${g.qdisc}/${g.cc}/${g.direction ?? 'up'}`
+          const open = expanded === key
+          const cellDelta = deltas[`${g.profile}|${g.qdisc}|${g.cc}${g.direction && g.direction !== 'up' ? `|${g.direction}` : ''}`]?.small_p95_pct
+          const wasted: number | null = g.wasted_median ?? g.wasted_bytes ?? null
+          const cost: number | null = costRef(g)
+          const deadlineOk: number | null = g.deadline_median ?? g.deadline_ok_pct ?? null
+          const pin = { profile: g.profile, qdisc: g.qdisc, cc: g.cc }
+          const isA = pinA?.profile === g.profile && pinA?.qdisc === g.qdisc && pinA?.cc === g.cc
+          const isB = pinB?.profile === g.profile && pinB?.qdisc === g.qdisc && pinB?.cc === g.cc
+          return (
+            <div key={key} style={{ padding: '10px 14px', borderBottom: '1px solid var(--hairline-faint)', background: i === 0 && ok ? 'rgba(31,163,72,0.07)' : 'transparent', cursor: 'pointer' }} onClick={() => setExpanded(open ? null : key)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span className="mono" style={{ fontSize: 12, fontWeight: i === 0 ? 700 : 400, color: i === 0 && ok ? '#1fa348' : '#a8aeb7', minWidth: 22 }}>{i + 1}</span>
+                <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: '#f2f2f4', minWidth: 150 }}>
+                  {g.profile} · {g.qdisc} / {g.cc}
+                  {g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: '#5ad3e3' }}> ↓</span> : null}
+                </span>
+                <div style={{ flex: 1, height: 10, position: 'relative', minWidth: 80 }}>
+                  <div style={{ position: 'absolute', inset: '3px 0', background: 'var(--hairline-faint)', borderRadius: 2, overflow: 'hidden' }}>
+                    {ok && <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: i === 0 ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2 }} />}
+                  </div>
+                  {ok && h.hi > h.lo && (
+                    <div title={`IC95 [${h.lo.toFixed(1)}–${h.hi.toFixed(1)}]`} style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(100, (h.lo / rankMax) * 100)}%`, width: `${Math.max(1, Math.min(100, (h.hi / rankMax) * 100) - Math.min(100, (h.lo / rankMax) * 100))}%`, borderLeft: '2px solid #f2f2f4', borderRight: '2px solid #f2f2f4' }} />
+                  )}
+                </div>
+                <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: ok ? (i === 0 ? '#1fa348' : '#f2f2f4') : '#767b84', fontVariantNumeric: 'tabular-nums', minWidth: 120, textAlign: 'right' }}>
+                  {ok ? `${h.v.toFixed(1)} ${rankMeta.unit}` : '—'}
+                  {ok && h.hi > h.lo && <span style={{ fontSize: 10, fontWeight: 400, color: '#8b9099' }}> ±{((h.hi - h.lo) / 2).toFixed(0)}</span>}
+                </span>
+                {cellDelta != null && (
+                  <span className="mono" title="vs run précédent, même cellule" style={{ fontSize: 10, color: cellDelta <= 0 ? '#1fa348' : '#e22718', fontVariantNumeric: 'tabular-nums' }}>
+                    {cellDelta <= 0 ? '↘' : '↗'}{Math.abs(cellDelta)}%
+                  </span>
+                )}
+              </div>
+              <div className="mono" style={{ fontSize: 11, color: ok ? '#9aa3ad' : '#767b84', marginTop: 4, marginLeft: 34 }}>
+                {verdict(g, i)}
+                <span style={{ color: '#5c6169' }}> · n={h.n}v · goodput {(g.goodput_median ?? 0).toFixed(1)} Mb/s · échéance {deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'} · {wasted == null || wasted <= 0 ? '0 gaspillé' : 'gaspillé'} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}</span>
+              </div>
+              {open && (
+                <div className="mono" style={{ fontSize: 11, color: '#9aa3ad', marginTop: 8, marginLeft: 34, padding: '8px 10px', border: '1px solid var(--hairline)', background: 'rgba(255,255,255,0.015)' }}>
+                  <div>rtt p95 {fmtIQR(g.rtt_p95_median, g.rtt_p95_iqr)} · small {fmtIQR(g.small_p95_median, g.small_p95_iqr)}{g.small_p95_valid_ci95 ? ` · IC95 valid-only [${g.small_p95_valid_ci95[0].toFixed(1)}–${g.small_p95_valid_ci95[1].toFixed(1)}]` : ''}</div>
+                  <div style={{ marginTop: 4 }}>quarantaine {g.quarantined}/{g.count}{g.quarantined > 0 ? ' — voir Provenance' : ''}{g.hardware_recommendation ? ` · ${g.hardware_recommendation}` : ''}</div>
+                  <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
+                    <button className="btn" title="épingler comme A" onClick={e => { e.stopPropagation(); setPinA(pin) }} style={{ padding: '2px 8px', fontSize: 10, background: isA ? 'rgba(90,211,227,0.15)' : 'transparent', color: isA ? CRAFT.live : 'var(--text-muted)' }}>A comparer</button>
+                    <button className="btn" title="épingler comme B" onClick={e => { e.stopPropagation(); setPinB(pin) }} style={{ padding: '2px 8px', fontSize: 10, background: isB ? 'rgba(31,163,72,0.15)' : 'transparent', color: isB ? CRAFT.ok : 'var(--text-muted)' }}>B comparer</button>
+                    <button className="btn" onClick={e => { e.stopPropagation(); setInterpProfile(g.profile) }} style={{ padding: '2px 8px', fontSize: 10 }}>interpréter {g.profile} →</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>}
       {pinA && pinB && (
         <CompareView a={pinA} b={pinB} onClose={() => { setPinA(null); setPinB(null) }} />

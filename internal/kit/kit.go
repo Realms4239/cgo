@@ -38,6 +38,7 @@ type Config struct {
 	Snapshot    string
 	ProjectDir  string
 	DashPort    string
+	DashHost    string
 	GoMinVer    string
 	NatHostPort string
 }
@@ -59,6 +60,7 @@ func LoadConfig(path string) (*Config, error) {
 		SSHKey:     env("CGO_SSH_KEY", "~/.ssh/id_ed25519"),
 		ProjectDir: env("CGO_PROJECT_DIR", "/home/altfloat/cgo"),
 		DashPort:   env("CGO_DASHBOARD_PORT", "9090"),
+		DashHost:   env("CGO_DASHBOARD_HOST", "meteolink.dev"),
 		GoMinVer:   "1.25",
 		Hypervisor: "auto",
 	}
@@ -69,7 +71,7 @@ func LoadConfig(path string) (*Config, error) {
 	// capture des valeurs env AVANT le yaml : l'environnement gagne
 	// (contrat documenté : CGO_SSH_HOST force la cible, scénario DHCP/VM propre)
 	envHost, envPort, envUser, envKey := c.SSHHost, c.SSHPort, c.SSHUser, c.SSHKey
-	envProject, envDash := c.ProjectDir, c.DashPort
+	envProject, envDash, envDashHost := c.ProjectDir, c.DashPort, c.DashHost
 	section := ""
 	for _, ln := range strings.Split(string(b), "\n") {
 		ln = strings.TrimSpace(strings.Split(ln, "#")[0])
@@ -119,6 +121,8 @@ func LoadConfig(path string) (*Config, error) {
 			c.ProjectDir = v
 		case "dashboard_port":
 			c.DashPort = v
+		case "dashboard_host":
+			c.DashHost = v
 		case "nat_host_port":
 			c.NatHostPort = v
 		case "go_min_version":
@@ -143,6 +147,9 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if os.Getenv("CGO_DASHBOARD_PORT") != "" {
 		c.DashPort = envDash
+	}
+	if os.Getenv("CGO_DASHBOARD_HOST") != "" {
+		c.DashHost = envDashHost
 	}
 	// host auto → IP invitée via vmrun sur le .vmx connu
 	if c.SSHHost == "auto" {
@@ -309,6 +316,16 @@ func (c *Config) healthURL() string {
 	return "http://" + c.SSHHost + ":" + c.DashPort + "/api/health"
 }
 
+// dashURL — l'adresse à donner à l'opérateur : le nom stable d'abord
+// (meteolink.dev via `kit dns`), l'IP en repli si le nom ne résout pas.
+func (c *Config) dashURL() string {
+	host := c.DashHost
+	if host == "" {
+		host = c.SSHHost
+	}
+	return "http://" + host + ":" + c.DashPort
+}
+
 // HTTPGetJSON — vérification health du dashboard.
 func (c *Config) Health() bool {
 	cl := &http.Client{Timeout: 4 * time.Second}
@@ -365,6 +382,8 @@ func (r *Runner) Doctor(c *Config) int {
 	for _, t := range []string{"go", "bun", "node", "ssh", "scp", "curl"} {
 		if p, err := exec.LookPath(t); err == nil {
 			r.out("  %-10s %s", t, p)
+		} else if runtime.GOOS == "windows" && (t == "ssh" || t == "scp") {
+			r.out("  %-10s MANQUANT — capacité optionnelle Windows : winget install --id Microsoft.OpenSSH.Client --source winget", t)
 		} else {
 			r.out("  %-10s MANQUANT", t)
 		}
@@ -428,6 +447,7 @@ func (r *Runner) Doctor(c *Config) int {
 		}
 	}
 	r.out("  config     %s → %s:%s %s", "<cgo-vm.yaml>", c.SSHHost, c.DashPort, c.ProjectDir)
+	r.out("  tableau    %s  (kit dns pour mapper le nom)", c.dashURL())
 	return 0
 }
 
@@ -672,7 +692,7 @@ func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
 		return 8
 	}
 	if c.Health() {
-		r.out("[deploy] fait → http://%s:%s", c.SSHHost, c.DashPort)
+		r.out("[deploy] fait → %s (IP directe : http://%s:%s)", c.dashURL(), c.SSHHost, c.DashPort)
 		return 0
 	}
 	r.errf("[deploy] health KO sur :%s", c.DashPort)

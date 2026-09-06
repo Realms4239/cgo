@@ -587,7 +587,7 @@ func New(d Deps) Handler {
 		run := r.URL.Query().Get("run")
 		groups, _ := results.Scan("data/runs", run)
 		if len(groups) == 0 {
-			writeJSON(w, map[string]any{"available": false, "reason": "résultats disponibles après gel (jalon M2)"})
+			writeJSON(w, map[string]any{"available": false, "groups": []any{}, "reason": "résultats disponibles après gel (jalon M2)"})
 			return
 		}
 		writeJSON(w, map[string]any{"available": true, "groups": groups})

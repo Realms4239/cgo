@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useUIStore } from '../store/ui'
+import { asArray } from '../lib/format'
 
 // Historique des audits gelés — modale depuis la carte audit de Campagne.
 // Chaque ligne porte son rapprochement au référentiel et s'importe en
@@ -8,7 +9,7 @@ import { useUIStore } from '../store/ui'
 export default function AuditHistoryModal({ onClose, onImported }: { onClose: () => void; onImported: (msg: string) => void }) {
   const [rows, setRows] = useState<Record<string,string>[]|null>(null)
   const load = () => {
-    fetch('/api/audit/list').then(r=>r.json()).then(j=>setRows(j.audits||[])).catch(()=>setRows([]))
+    fetch('/api/audit/list').then(r=>r.json()).then(j=>setRows(asArray(j.audits))).catch(()=>setRows([]))
   }
   useEffect(()=>{ load() },[])
   useEffect(() => {

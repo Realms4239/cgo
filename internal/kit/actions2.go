@@ -203,7 +203,7 @@ func (r *Runner) Svc(c *Config, sub string) int {
 		for i := 0; i < 15; i++ {
 			time.Sleep(time.Second)
 			if c.Health() {
-				r.out("[svc] en ligne → http://%s:%s", c.SSHHost, c.DashPort)
+				r.out("[svc] en ligne → %s", c.dashURL())
 				return 0
 			}
 		}
