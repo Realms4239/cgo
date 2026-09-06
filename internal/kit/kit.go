@@ -705,8 +705,18 @@ func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
 		return 8
 	}
 	if c.Health() {
-		r.out("[deploy] fait → %s (IP directe : http://%s:%s)", c.dashURL(), c.SSHHost, c.DashPort)
+		r.out("[deploy] fait → %s (IP directe : https://%s:%s)", c.dashURL(), c.SSHHost, c.DashPort)
 		return 0
+	}
+	// le redémarrage du service et la poignée TLS peuvent se chevaucher :
+	// re-tenter ~15 s avant de déclarer KO (même discipline que vm-install).
+	r.out("[deploy] health en cours de stabilisation — nouvelle tentative…")
+	for i := 0; i < 14; i++ {
+		time.Sleep(time.Second)
+		if c.Health() {
+			r.out("[deploy] fait → %s (IP directe : https://%s:%s)", c.dashURL(), c.SSHHost, c.DashPort)
+			return 0
+		}
 	}
 	r.errf("[deploy] health KO sur :%s", c.DashPort)
 	return 8
