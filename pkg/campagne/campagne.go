@@ -230,6 +230,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// del root emporte toute la hiérarchie (netem + enfants parent 1:).
 	if shaperIf != d.CliIf {
 		_, _ = shaper.Run("qdisc", "del", "dev", shaperIf, "root")
+		// le saut serveur ne revoit JAMAIS les cellules up : nettoyer en
+		// sortie, même en échec (defer) — sinon un cake-down survit et
+		// étrangle les ACKs/réponses des cellules up suivantes (vu en prod :
+		// RTT 807 ms et small 1843 ms sur P1-fibre pourtant à 20 ms).
+		defer func() { _, _ = shaper.Run("qdisc", "del", "dev", shaperIf, "root") }()
 	}
 	// sens download : le shaper se pose sur l'émission SERVEUR — le
 	// congestionnement du download naît côté source. ProdDeps câble
