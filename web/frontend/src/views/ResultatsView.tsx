@@ -71,6 +71,9 @@ export default function ResultatsView() {
     fetch(`/api/results${effectiveRun ? `?run=${encodeURIComponent(effectiveRun)}` : ''}`).then(r => r.json()).then(j => {
       if (j.available && Array.isArray(j.groups)) setGroups(j.groups)
       else if (j.available) setGroups([])
+      // run vide (en-tête seule, campagne tuée) : repli sur tous runs plutôt
+      // qu'un écran d'erreur — la source reste affichée et explicite
+      else if (effectiveRun) setRunSel('__all__')
       else setErr(j.reason || 'pas de résultats')
     }).catch(e => setErr(String(e)))
     fetch('/api/integrity').then(r => r.json()).then(j => {
