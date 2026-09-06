@@ -11,7 +11,6 @@ import InterpretationView from '../components/InterpretationView'
 import { useUIStore } from '../store/ui'
 import { fmtIQR } from '../lib/format'
 import { asArray } from '../lib/format'
-import { GATE_LABELS } from '../lib/gates'
 
 type Group = {
   profile: string; qdisc: string; cc: string; direction?: string
@@ -73,7 +72,6 @@ export default function ResultatsView() {
   const [runSel, setRunSel] = useState('')
   const [runIds, setRunIds] = useState<string[]>([])
   const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
-  const [showMethod, setShowMethod] = useState(false)
   const [caption, setCaption] = useState('')
   // TradeSpace : axes + couleur paramétrables, défaut compromis débit/latence
   const [xKey, setXKey] = useState<TSpaceKey>('goodput')
@@ -290,17 +288,30 @@ export default function ResultatsView() {
     ?? [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(b) - val(a) : val(a) - val(b))[0]
   const diff = top && baselineRow && Number.isFinite(val(top)) && val(baselineRow) > 0
     ? Math.round(((val(baselineRow) - val(top)) / val(baselineRow)) * 100) : null
+  // régime perte : toutes les cellules valides affichées ratent l'échéance —
+  // la retransmission gouverne la sonde, pas la file. Constaté sur P3 aval
+  // (n=3, dl_med 0 partout) : comparer des disciplines indiscernables serait
+  // du décor. Le constat le dit une fois, pas une fois par ligne.
+  const lossRegime = (() => {
+    const ds = filtered
+      .filter(g => validN(g) > 0)
+      .map(g => g.deadline_median ?? g.deadline_ok_pct ?? null)
+      .filter((v): v is number => v != null)
+    return ds.length >= 2 && ds.every(d => d === 0)
+  })()
   // meilleur par profil sur le critère courant — le verdict s'y compare
   const bestOf = (g: Group): Group => {
     const same = filtered.filter(x => x.profile === g.profile && Number.isFinite(val(x)))
     if (!same.length) return g
     return same.sort((a, b) => rankMeta.dir === 'down' ? val(a) - val(b) : val(b) - val(a))[0]
   }
-  // verdict vivant : une phrase qui dit ce que la ligne signifie, jamais de
-  // paragraphe. Zéro valide → hors rang. P3 → régime perte, pas file.
+  // verdict vivant : une phrase qui dit ce que la ligne signifie. En régime
+  // perte, toutes les lignes disent la même chose — le verdict factorisé
+  // s'affiche une fois au-dessus de la liste, pas N fois dedans.
   const verdict = (g: Group, i: number): string => {
     const n = validN(g)
     if (n <= 0 || !Number.isFinite(val(g))) return 'aucune ligne valide — hors rang, voir quarantaine'
+    if (lossRegime) return 'régime perte — la retransmission gouverne, pas la file'
     if (g.profile === 'P3' && (g.small_p95_median ?? 0) > 1500)
       return 'régime perte — la retransmission gouverne, pas la file'
     if (i === 0 && filtered.length > 1) return `référence ${rankMeta.label} — ${n} réplications valides`
@@ -311,8 +322,9 @@ export default function ResultatsView() {
       : Math.round((1 - val(g) / val(b)) * 100)
     return gap <= 0 ? `au coude-à-coude avec ${b.qdisc} — ${n} réplications` : `+${gap} % vs ${b.qdisc}, meilleur ${g.profile} — ${n} réplications`
   }
-  const hwPerProfile = Array.from(new Map(safeGroups.filter(g => g.best).map(g => [g.profile, g.hardware_recommendation ?? '—'])).entries()).map(([p, h]) => `${p}: ${h}`).join(' · ') || '—'
-  const maxSmall = Math.max(...safeGroups.map(g => g.small_p95_median), 1)
+  // verdict factorisé : s'il est identique partout, une seule banderole
+  const rowVerdicts = ranked.map((g, i) => verdict(g, i))
+  const singleVerdict = ranked.length > 1 && rowVerdicts.every(v => v === rowVerdicts[0]) ? rowVerdicts[0] as string : null
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
     <button key={label} className="btn" onClick={onClick} style={{
@@ -331,7 +343,7 @@ export default function ResultatsView() {
       {/* bandeau benchmark — source, provenance, export (façon DeepSWE) */}
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap' }}>
         <span className="mono" style={{ fontSize: 12, fontWeight: 700 }}>Meteolink Leaderboard</span>
-        <span className="mono muted" style={{ fontSize: 11 }}>{safeGroups.length} groupes · hash {hash8}</span>
+        <span className="mono muted" style={{ fontSize: 11 }}>{safeGroups.length} groupes</span>
         {liveSnapRunning && <span className="mono" style={{ fontSize: 10, color: '#1fa348', border: '1px solid currentColor', padding: '2px 8px' }}>● CAMPAGNE EN COURS</span>}
         <select data-testid="run-select" value={runSel} onChange={e => setRunSel(e.target.value)} title="source des chiffres : en direct = dernier run gelé" style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
           <option value="">{newest ? `⚡ En direct — ${shortRun(newest)}` : '⚡ En direct'}</option>
@@ -340,20 +352,13 @@ export default function ResultatsView() {
         </select>
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
         <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>MD</a>
-        <button className="btn" data-testid="method-toggle" onClick={() => setShowMethod(v => !v)}>Méthode & limites</button>
       </div>
-      {showMethod && (
-        <div className="card" data-testid="method-drawer">
-          <div className="card-head">Méthode & limites — lire avant de conclure</div>
-          <p className="mono" style={{ fontSize: 11, lineHeight: 1.7, color: '#9aa3ad' }}>
-            Médianes valid-only strict (degraded G2/G6 exclus, n = réplications valides) · portes G0–G7 ({GATE_LABELS.join(' · ')}) ·
-            small p95 : IC95 bootstrap seed 42 · <Explain term="mixed_deadline">échéance agrégée mixte</Explain> (indicative — ne comparez qu'à D fixée) ·
-            coût recalculé au palier unique 5556 Ar/Go depuis wasted gelé (runs historiques multi-paliers) ·
-            P3 : la perte gouverne la sonde, pas la file (0 % d'échéance à D=1500 pour toutes les disciplines, n=3) ·
-            provenance hash {hash8} depuis data/runs/*/aqm_eval.csv.
-          </p>
-        </div>
-      )}
+      {/* avertissement : ce qu'il faut savoir avant de conclure — court, visible, pas replié */}
+      <div className="mono" data-testid="disclaimer" style={{ fontSize: 11, lineHeight: 1.7, color: '#9aa3ad', padding: '8px 14px', border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.015)' }}>
+        Lecture : <Explain term="valid_only">médianes valid-only</Explain> (n = réplications valides, IC95) ·
+        l'<Explain term="mixed_deadline">échéance</Explain> ne se compare qu'à deadline fixée — les runs historiques la mélangent ·
+        coût au palier unique 5556 Ar/Go · gel SHA-256, hash {hash8}.
+      </div>
       {events.length > 0 && (
         <div className="card" data-testid="changelog">
           <div className="card-head">Changelog — journal opérateur</div>
@@ -367,9 +372,14 @@ export default function ResultatsView() {
       <button onClick={() => setInterpProfile(filtered[0]?.profile ?? 'P2')} data-testid="constat-button" style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid ' + (top ? CRAFT.ok : 'var(--hairline)') }}>
           <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>constat de campagne</span>
-          {top && baselineRow && diff != null && (
+          {top && baselineRow && diff != null && !lossRegime && (
             <span className="mono" style={{ fontSize: 12, color: diff > 0 ? CRAFT.ok : '#c3c9d1' }}>
               {top.profile} : {top.qdisc}/{top.cc} protège le trafic critique — {diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`} de small p95 vs pfifo
+            </span>
+          )}
+          {top && baselineRow && lossRegime && (
+            <span className="mono" style={{ fontSize: 12, color: '#c3c9d1' }}>
+              {top.profile} : aucune discipline ne sépare — la perte gouverne, pas la file · cliquez pour la prescription quand même applicable
             </span>
           )}
           {(!top || !baselineRow) && <span className="mono muted" style={{ fontSize: 11 }}>cliquez pour l'interprétation complète</span>}
@@ -391,7 +401,7 @@ export default function ResultatsView() {
             <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{baselineRow.profile} · n={validN(baselineRow)}v</div>
           </div>
           <div className="mono" data-testid="rank-diff" style={{ fontSize: 24, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: diff != null && diff > 0 ? '#1fa348' : '#c3c9d1', textAlign: 'center' }}>
-            {diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
+            {lossRegime ? 'égalité' : diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7fd6e8' }}>
@@ -418,6 +428,9 @@ export default function ResultatsView() {
         source : {runSel === '__all__' ? 'tous runs gelés' : <>⚡ en direct · {shortRun(effectiveRun || newest) || '…'}</>} · <Explain term="valid_only">médianes valid-only</Explain>{hash8 !== '────────' ? ` · hash ${hash8}` : ''}
         {liveSnapRunning ? ' — campagne en cours, rafraîchi au gel' : ''}
       </div>
+      {singleVerdict && (
+        <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', margin: '-2px 0 10px', paddingLeft: 2 }}>{singleVerdict}</div>
+      )}
 
       {filtered.length === 0 && <div className="card"><EmptyState kind="empty" hint="aucun groupe pour ces filtres — élargissez la sélection" /></div>}
       {filtered.length > 0 && <div className="card" style={{ padding: '4px 0' }}>
@@ -463,8 +476,8 @@ export default function ResultatsView() {
                 )}
               </div>
               <div className="mono" style={{ fontSize: 11, color: ok ? '#9aa3ad' : '#767b84', marginTop: 4, marginLeft: 34 }}>
-                {verdict(g, i)}
-                <span style={{ color: '#5c6169' }}> · n={h.n}v · goodput {(g.goodput_median ?? 0).toFixed(1)} Mb/s · échéance {deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'} · {wasted == null || wasted <= 0 ? '0 gaspillé' : 'gaspillé'} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}</span>
+                {!singleVerdict && <>{verdict(g, i)} · </>}
+                <span style={{ color: '#5c6169' }}>n={h.n}v · goodput {(g.goodput_median ?? 0).toFixed(1)} Mb/s · échéance {deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'} · {wasted == null || wasted <= 0 ? '0 gaspillé' : 'gaspillé'} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}</span>
               </div>
               {open && (
                 <div className="mono" style={{ fontSize: 11, color: '#9aa3ad', marginTop: 8, marginLeft: 34, padding: '8px 10px', border: '1px solid var(--hairline)', background: 'rgba(255,255,255,0.015)' }}>
@@ -500,10 +513,7 @@ export default function ResultatsView() {
         <div ref={scatterRef} style={{ height: 260 }} />
         <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', marginTop: 6 }}>{caption}</div>
       </div>
-      <div className="form-row" style={{ gap: 8 }}>
-        <span className="mono muted" style={{ marginLeft: 8 }}><Explain term="run_rows">médianes mesurées</Explain> · provenance {hash8}</span>
-      </div>
-      <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${safeGroups.length} groupes · max small ${maxSmall.toFixed(1)} ms · ${hwPerProfile} · hash ${hash8}`} />
+      <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${safeGroups.length} groupes · hash ${hash8}`} />
     </div>
   )
 }
