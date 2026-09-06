@@ -3,7 +3,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
 import { animateBar } from '../lib/anime'
 import { echarts } from '../lib/echarts'
-import { baseOption, scatterSeries } from '../lib/chartGrammar'
+import { baseOption } from '../lib/chartGrammar'
 import CompareView, { type Pinned } from '../components/CompareView'
 import { CRAFT } from '../lib/chartGrammar'
 import Explain from '../components/Explain'
@@ -39,6 +39,23 @@ const RANKS = [
 
 const QCOLOR: Record<string, string> = { cake: 'var(--t-bbr)', fq_codel: 'var(--t-live)', pfifo_fast: '#6b7078' }
 
+// TradeSpace — le nuage paramétrable façon DeepSWE (score vs coût) : axes X/Y
+// au choix parmi les métriques + indice composite, couleur par dimension.
+// L'indice LIEN (/100) combine les 5 métriques normalisées sur les groupes
+// visibles : une seule note qui dit « ce lien tient-il ses promesses ».
+type TSpaceKey = 'small' | 'rtt' | 'goodput' | 'deadline' | 'cost' | 'indice'
+const TSPACE: { key: TSpaceKey; label: string; unit: string; dir: 'down' | 'up' }[] = [
+  { key: 'small', label: 'small p95', unit: 'ms', dir: 'down' },
+  { key: 'rtt', label: 'RTT p95', unit: 'ms', dir: 'down' },
+  { key: 'goodput', label: 'goodput', unit: 'Mb/s', dir: 'up' },
+  { key: 'deadline', label: 'échéance', unit: '%', dir: 'up' },
+  { key: 'cost', label: 'coût', unit: 'Ar/h', dir: 'down' },
+  { key: 'indice', label: 'indice LIEN', unit: '/100', dir: 'up' },
+]
+const PAL_PROFILE = ['#5ad3e3', '#1fa348', '#f4b400', '#b48ce8', '#e2635c', '#8b9099']
+const PAL_QDISC: Record<string, string> = { cake: '#6aa8ff', fq_codel: '#5ad3e3', pfifo_fast: '#8b9099' }
+const PAL_CC: Record<string, string> = { cubic: '#e08a4c', bbr: '#4c9be8' }
+
 export default function ResultatsView() {
   const [groups, setGroups] = useState<Group[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -57,6 +74,11 @@ export default function ResultatsView() {
   const [runIds, setRunIds] = useState<string[]>([])
   const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
   const [showMethod, setShowMethod] = useState(false)
+  const [caption, setCaption] = useState('')
+  // TradeSpace : axes + couleur paramétrables, défaut compromis débit/latence
+  const [xKey, setXKey] = useState<TSpaceKey>('goodput')
+  const [yKey, setYKey] = useState<TSpaceKey>('small')
+  const [colorBy, setColorBy] = useState<'profile' | 'qdisc' | 'cc'>('qdisc')
   const liveSnapRunning = useUIStore((s: any) => !!s.live?.running)
   const scatterRef = useRef<HTMLDivElement>(null)
 
@@ -68,14 +90,19 @@ export default function ResultatsView() {
   const effectiveRun = runSel === '__all__' ? '' : (runSel || newest)
 
   useEffect(() => {
-    fetch(`/api/results${effectiveRun ? `?run=${encodeURIComponent(effectiveRun)}` : ''}`).then(r => r.json()).then(j => {
+    // garde anti-course : le 1er fetch (tous runs) peut répondre après le
+    // 2e (run direct) — seule la réponse du run demandé s'affiche
+    const wanted = effectiveRun
+    let cancelled = false
+    fetch(`/api/results${wanted ? `?run=${encodeURIComponent(wanted)}` : ''}`).then(r => r.json()).then(j => {
+      if (cancelled) return
       if (j.available && Array.isArray(j.groups)) setGroups(j.groups)
       else if (j.available) setGroups([])
       // run vide (en-tête seule, campagne tuée) : repli sur tous runs plutôt
       // qu'un écran d'erreur — la source reste affichée et explicite
-      else if (effectiveRun) setRunSel('__all__')
+      else if (wanted) setRunSel('__all__')
       else setErr(j.reason || 'pas de résultats')
-    }).catch(e => setErr(String(e)))
+    }).catch(e => { if (!cancelled) setErr(String(e)) })
     fetch('/api/integrity').then(r => r.json()).then(j => {
       // triple provenance: hash8 = sha256(dernier aqm_eval.csv)[:8]; repli run-id
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
@@ -97,23 +124,96 @@ export default function ResultatsView() {
 
   useEffect(() => {
     if (!groups || !scatterRef.current) return
+    const sg: Group[] = Array.isArray(groups) ? groups : []
+    const vis = sg.filter(g =>
+      (fProfile === 'tous' || g.profile === fProfile) &&
+      (fQdisc === 'tous' || g.qdisc === fQdisc) &&
+      (fCc === 'tous' || g.cc === fCc))
+    // valeur brute d'une métrique (null = non mesurée, exclue de la moyenne)
+    const raw = (g: Group, k: TSpaceKey): number | null => {
+      if (k === 'small') { const v = g.small_p95_valid_median ?? g.small_p95_median; return typeof v === 'number' && v > 0 ? v : null }
+      if (k === 'rtt') { const v = g.rtt_p95_median; return typeof v === 'number' && v > 0 ? v : null }
+      if (k === 'goodput') { const v = g.goodput_median; return typeof v === 'number' && v >= 0 ? v : null }
+      if (k === 'deadline') { const v = g.deadline_median ?? g.deadline_ok_pct; return typeof v === 'number' ? v : null }
+      if (k === 'cost') {
+        const w = g.wasted_median ?? g.wasted_bytes ?? null
+        if (w == null || w <= 0) return 0
+        return (w / 1073741824) * 5556 * 20
+      }
+      return null
+    }
+    // indice LIEN : moyenne des qualités normalisées 0..1 sur les groupes
+    // visibles (bonté small/RTT inversée, goodput/échéance directe, coût inversé)
+    const ind = (g: Group): number | null => {
+      const parts: number[] = []
+      const norm = (vals: (number | null)[], v: number | null, down: boolean): number | null => {
+        if (v == null) return null
+        const xs = vals.filter((x): x is number => x != null)
+        if (!xs.length) return null
+        const mn = Math.min(...xs), mx = Math.max(...xs)
+        if (!(mx > mn)) return 1
+        return down ? 1 - (v - mn) / (mx - mn) : (v - mn) / (mx - mn)
+      }
+      const cols: [TSpaceKey, boolean][] = [['small', true], ['rtt', true], ['goodput', false], ['deadline', false], ['cost', true]]
+      for (const [k, down] of cols) {
+        const q = norm(vis.map(x => raw(x, k)), raw(g, k), down)
+        if (q != null) parts.push(q)
+      }
+      if (!parts.length) return null
+      return (parts.reduce((a, b) => a + b, 0) / parts.length) * 100
+    }
+    const valOf = (g: Group, k: TSpaceKey): number | null => (k === 'indice' ? ind(g) : raw(g, k))
+    const meta = (k: TSpaceKey) => TSPACE.find(t => t.key === k) ?? TSPACE[0]
+    const xm = meta(xKey), ym = meta(yKey)
+    const pts = vis.map(g => ({ g, x: valOf(g, xKey), y: valOf(g, yKey) })).filter(p => p.x != null && p.y != null) as { g: Group; x: number; y: number }[]
+    // couleur par dimension — simple et lisible, une famille à la fois
+    const fam = (g: Group): string => colorBy === 'profile' ? g.profile : colorBy === 'qdisc' ? g.qdisc : g.cc
+    const famVals = Array.from(new Set(pts.map(p => fam(p.g)))).sort()
+    const famColor = (f: string): string => {
+      if (colorBy === 'qdisc') return PAL_QDISC[f] ?? '#8b9099'
+      if (colorBy === 'cc') return PAL_CC[f] ?? '#8b9099'
+      const i = famVals.indexOf(f)
+      return PAL_PROFILE[i % PAL_PROFILE.length]
+    }
     const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
     const ro = new ResizeObserver(() => c.resize())
     ro.observe(scatterRef.current)
-    // par la grammaire — même base hairline que le mur, nuage propre, sans chrome
-    const base = baseOption('compromis latence / débit', 'ms')
-    const bestIdx = groups.map((g, i) => g.best ? i : -1).filter(i => i >= 0)
+    const base = baseOption(`${ym.label} / ${xm.label}`, ym.unit)
+    const series = famVals.map(fv => ({
+      name: fv,
+      type: 'scatter' as const,
+      data: pts.filter(p => fam(p.g) === fv).map(p => [p.x, p.y, p.g.best ? 1 : 0, `${p.g.profile}·${p.g.qdisc}·${p.g.cc}`]),
+      itemStyle: { color: famColor(fv) },
+      symbolSize: (v: any) => (v[2] ? 13 : 8),
+      label: { show: true, formatter: (par: any) => par.value[3], color: famColor(fv), fontSize: 10, fontFamily: 'JetBrains Mono' },
+      labelLayout: { hideOverlap: true },
+      emphasis: { scale: 1.4 },
+    }))
     const opt = {
       ...base,
-      // value axes override (base defaults to time) — grammar hairlines kept
-      xAxis: { ...base.xAxis, type: 'value' as const, name: 'goodput (Mbit/s)' },
-      yAxis: { ...base.yAxis, name: 'small p95 (ms)' },
-      tooltip: { ...base.tooltip, trigger: 'item' as const },
-      series: [scatterSeries('groupes', groups.map(g => [g.goodput_median, g.small_p95_median] as [number, number]), '#5ad3e3', bestIdx)],
+      xAxis: { ...base.xAxis, type: 'value' as const, name: `${xm.label} (${xm.unit})` },
+      yAxis: { ...base.yAxis, name: `${ym.label} (${ym.unit})` },
+      tooltip: {
+        ...base.tooltip, trigger: 'item' as const,
+        formatter: (par: any) => {
+          const v = par.value as [number, number, number, string]
+          return `${v[3]}<br/>${xm.label} : ${v[0].toFixed(1)} ${xm.unit}<br/>${ym.label} : ${v[1].toFixed(1)} ${ym.unit}`
+        },
+      },
+      series,
     }
     c.setOption(opt as any)
+    // légende-phrase : ce que le nuage dit, en une ligne
+    if (!pts.length) setCaption('aucun point — élargissez les filtres')
+    else {
+      const better = ym.dir === 'up'
+        ? pts.reduce((a, b) => (b.y > a.y ? b : a))
+        : pts.reduce((a, b) => (b.y < a.y ? b : a))
+      const bg = better.g
+      setCaption(`${ym.label} en fonction de ${xm.label} — ${pts.length} groupes · ${bg.profile}·${bg.qdisc}·${bg.cc} en tête (${better.y.toFixed(1)} ${ym.unit})`)
+    }
     return () => { ro.disconnect(); c.dispose() }
-  }, [groups])
+  }, [groups, xKey, yKey, colorBy, fProfile, fQdisc, fCc])
 
   // delta vs run précédent — la dérive temporelle depuis l'historique gelé
   useEffect(() => {
@@ -378,8 +478,20 @@ export default function ResultatsView() {
         <CompareView a={pinA} b={pinB} onClose={() => { setPinA(null); setPinB(null) }} />
       )}
       <div className="card" style={{ padding: 12 }}>
-        <div className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#8b9099', marginBottom: 6 }}>goodput vs small — compromis débit/latence · hash {hash8}</div>
-        <div ref={scatterRef} style={{ height: 220 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+          <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>TradeSpace</span>
+          <label className="mono" style={{ fontSize: 10, color: '#8b9099' }}>X <select value={xKey} onChange={e => setXKey(e.target.value as TSpaceKey)} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '4px 6px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
+            {TSPACE.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+          </select></label>
+          <label className="mono" style={{ fontSize: 10, color: '#8b9099' }}>Y <select value={yKey} onChange={e => setYKey(e.target.value as TSpaceKey)} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '4px 6px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
+            {TSPACE.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+          </select></label>
+          <span className="mono" style={{ fontSize: 10, color: '#8b9099' }}>couleur</span>
+          {(['profile', 'qdisc', 'cc'] as const).map(v => chip({ profile: 'profil', qdisc: 'file', cc: 'CC' }[v], colorBy === v, () => setColorBy(v)))}
+          <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 10 }}>hash {hash8}</span>
+        </div>
+        <div ref={scatterRef} style={{ height: 260 }} />
+        <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', marginTop: 6 }}>{caption}</div>
       </div>
       <div className="form-row" style={{ gap: 8 }}>
         <span className="mono muted" style={{ marginLeft: 8 }}><Explain term="run_rows">médianes mesurées</Explain> · provenance {hash8}</span>
