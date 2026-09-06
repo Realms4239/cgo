@@ -11,6 +11,7 @@ node_modules/
 web/frontend/dist/*
 out/
 bin/
+dist/
 cgo-linux
 cgo-linux.new
 

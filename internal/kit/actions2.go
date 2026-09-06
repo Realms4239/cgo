@@ -197,9 +197,20 @@ func (r *Runner) Svc(c *Config, sub string) int {
 			r.out("[svc] déjà en ligne (pid %s)", firstOr(procs, "?"))
 			return 0
 		}
+		// le lanceur d'un vieux deploy démarre en --tls=false : le soigner
+		// avant de lancer, sinon le health HTTPS échoue sur un dashboard
+		// sain en HTTP brut (faux KO). Idempotent : sans le flag, no-op.
+		if out, _ := c.SSH("cd " + c.ProjectDir + " && grep -q -- '--tls=false' start.sh 2>/dev/null && sed -i 's/--tls=false //' start.sh && echo healed || true"); strings.Contains(out, "healed") {
+			r.out("[svc] lanceur guéri (TLS) — redéployez pour la version canonique (kit deploy)")
+		}
 		if _, err := c.SSH("cd " + c.ProjectDir + " && (setsid nohup ./start.sh >/dev/null 2>&1 &)"); err != nil {
-			r.sshDiag("[svc]", "")
-			return 5
+			// un seul essai manqué ne doit pas laisser le banc sans dashboard
+			// (vu en prod : SSH vide juste après un stop) — on réessaie.
+			time.Sleep(2 * time.Second)
+			if _, err2 := c.SSH("cd " + c.ProjectDir + " && (setsid nohup ./start.sh >/dev/null 2>&1 &)"); err2 != nil {
+				r.sshDiag("[svc]", "")
+				return 5
+			}
 		}
 		for i := 0; i < 15; i++ {
 			time.Sleep(time.Second)
