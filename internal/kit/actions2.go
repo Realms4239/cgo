@@ -384,43 +384,25 @@ func (r *Runner) Verify(c *Config) int {
 
 // Health — état du dashboard distant : JSON complet + verdict une ligne.
 func (r *Runner) Health(c *Config) int {
-	get := func(url string, insecure bool) ([]byte, error) {
-		tr := http.DefaultTransport.(*http.Transport).Clone()
-		if insecure {
-			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		}
-		cl := &http.Client{Timeout: 4 * time.Second, Transport: tr}
-		resp, err := cl.Get(url)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		return io.ReadAll(resp.Body)
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	cl := &http.Client{Timeout: 4 * time.Second, Transport: tr}
+	resp, err := cl.Get(c.healthURL())
+	if err != nil {
+		r.errf("[health] injoignable : %v", err)
+		return 5
 	}
-	// HTTPS auto-signé d'abord (TLS par défaut depuis le basculement
-	// meteolink.dev), HTTP brut en repli pour les vieux dashboards.
-	urls := []struct {
-		url      string
-		insecure bool
-	}{
-		{c.healthURL(), true},
-		{"http://" + c.SSHHost + ":" + c.DashPort + "/api/health", false},
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		r.errf("[health] lecture échouée : %v", err)
+		return 5
 	}
-	var lastErr error
-	for _, u := range urls {
-		body, err := get(u.url, u.insecure)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		r.out("[health] %s", string(body))
-		if !strings.Contains(string(body), `"ok":true`) {
-			return 8
-		}
-		return 0
+	r.out("[health] %s", string(body))
+	if !strings.Contains(string(body), `"ok":true`) {
+		return 8
 	}
-	r.errf("[health] injoignable : %v", lastErr)
-	return 5
+	return 0
 }
 
 func expandKey(k string) string {
