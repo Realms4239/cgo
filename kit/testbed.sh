@@ -18,15 +18,26 @@ up() {
   # "Invalid qdisc name" sur la 1re cellule cake après boot) — preload explicite.
   sudo -n modprobe sch_netem sch_fq_codel sch_cake 2>/dev/null || true
   if ! sudo ip netns list | grep -q "^$NS"; then sudo ip netns add $NS; fi
+  # paire veth : la créer si absente, RÉPARER si à moitié présente (reboot :
+  # veth-c existe sans veth-s dans le ns — l'ancien test tout-ou-rien
+  # laissait le banc cassé sans un mot).
   if ! sudo ip link show $CLI &>/dev/null; then
+    # veth-s orphelin dans la racine ? le supprimer avant de recréer la paire
+    if sudo ip link show $SRV &>/dev/null; then sudo ip link del $SRV 2>/dev/null || true; fi
     sudo ip link add $CLI type veth peer name $SRV
-    sudo ip link set $SRV netns $NS
-    sudo ip addr add $CIP dev $CLI
-    sudo ip link set $CLI up
-    sudo ip netns exec $NS ip addr add $CIDR dev $SRV
-    sudo ip netns exec $NS ip link set $SRV up
-    sudo ip netns exec $NS ip link set lo up
   fi
+  if ! sudo ip netns exec $NS ip link show $SRV &>/dev/null; then
+    # veth-s coincé dans la racine : le rentrer dans le ns (down d'abord)
+    sudo ip link set $SRV down 2>/dev/null || true
+    sudo ip link set $SRV netns $NS
+  fi
+  # adresses idempotentes : n'ajouter que si absentes (l'ajout double
+  # échoue et laissait le script croire le banc prêt)
+  sudo ip addr show dev $CLI | grep -q "${CIP%/*}" || sudo ip addr add $CIP dev $CLI
+  sudo ip link set $CLI up
+  sudo ip netns exec $NS ip addr show dev $SRV | grep -q "${CIDR%/*}" || sudo ip netns exec $NS ip addr add $CIDR dev $SRV
+  sudo ip netns exec $NS ip link set $SRV up
+  sudo ip netns exec $NS ip link set lo up
   mkdir -p "$TBD"
   [ -f "$TBD/obj16.bin" ] || dd if=/dev/urandom of="$TBD/obj16.bin" bs=16384 count=1 status=none
   sudo rm -f "$TBD/testbedsrv.log" /tmp/cgo-testbedsrv.log 2>/dev/null || true
