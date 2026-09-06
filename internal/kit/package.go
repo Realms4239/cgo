@@ -1,20 +1,36 @@
 package kit
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"compress/gzip"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
-// Package — poste opérateur Windows en un zip : l'exe précompilé + exemple
-// de config + mode d'emploi. Le binaire embarque déjà le frontend (go:embed)
-// et ne demande rien d'autre à l'exécution ; seules les opérations kit
-// parlent SSH (doctor le vérifie). Recompiler/redéployer depuis ce poste
-// exige en plus Go 1.25+, bun, node et le dépôt — dit dans le README,
-// pas découvert à l'échec.
-func (r *Runner) Package(c *Config) int {
+// Package — poste opérateur en une archive : binaire précompilé + exemple
+// de config + mode d'emploi. --os windows (défaut, .zip) | linux (.tar.gz).
+// Le binaire embarque déjà le frontend (go:embed) et ne demande rien
+// d'autre à l'exécution ; seules les opérations kit parlent SSH (doctor le
+// vérifie). Recompiler/redéployer depuis ce poste exige en plus Go 1.25+,
+// bun, node et le dépôt — dit dans le README, pas découvert à l'échec.
+func (r *Runner) Package(c *Config, rest []string) int {
+	targetOS := "windows"
+	for i := 0; i < len(rest); i++ {
+		if rest[i] == "--os" && i+1 < len(rest) {
+			targetOS = strings.ToLower(rest[i+1])
+		}
+	}
+	if targetOS == "linux" {
+		return r.packageLinux()
+	}
+	if targetOS != "windows" {
+		r.errf("[package] --os %s inconnu (windows|linux)", targetOS)
+		return 2
+	}
 	exe := filepath.Join(r.Root, "cgo.exe")
 	if _, err := exec.LookPath("go"); err == nil {
 		r.out("[package] compilation fraîche de cgo.exe…")
@@ -71,7 +87,10 @@ func (r *Runner) Package(c *Config) int {
 	if err := add("cgo.exe", exe); err != nil {
 		return fail(fmt.Errorf("exe : %w", err))
 	}
-	if err := add(filepath.Join("kit", "cgo-vm.yaml.example"), filepath.Join(r.Root, "kit", "cgo-vm.yaml.example")); err != nil {
+	// noms d'entrées en '/' obligatoires (spec zip/tar) — filepath.Join
+	// produit '\' sur Windows : l'archive livrerait un fichier littéral
+	// "kit\cgo-vm.yaml.example" au lieu d'un dossier kit/ (vu en prod).
+	if err := add("kit/cgo-vm.yaml.example", filepath.Join(r.Root, "kit", "cgo-vm.yaml.example")); err != nil {
 		return fail(fmt.Errorf("config exemple : %w", err))
 	}
 	if err := addStr("LISEZ-MOI.txt", pcReadme()); err != nil {
@@ -114,5 +133,113 @@ Rôles :
 
 Recompiler/redéployer DEPUIS ce poste exige en plus : Go 1.25+, bun, node
 et le dépôt source (kit deploy recompile). Sans eux : exploitation seulement.
+`
+}
+
+// packageLinux — poste opérateur Ubuntu en .tar.gz : même contenu, binaire
+// linux/amd64 statique (CGO_ENABLED=0 — tourne sur tout Ubuntu 20.04+,
+// prouvé 24.04 noyau 6.8). Testé : VirtualBox/VMware + openssh-client.
+func (r *Runner) packageLinux() int {
+	bin := filepath.Join(r.Root, "dist", "cgo-linux-pkg")
+	if _, err := exec.LookPath("go"); err != nil {
+		r.errf("[package] Go requis pour cross-compiler linux — installez Go 1.25+")
+		return 2
+	}
+	r.out("[package] cross-compile linux/amd64…")
+	cmd := exec.Command("go", "build", "-o", bin, "./cmd/cgo")
+	cmd.Dir = r.Root
+	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		r.errf("[package] go build linux ÉCHEC : %v\n%s", err, firstLine(string(out)))
+		return 2
+	}
+	outDir := filepath.Join(r.Root, "dist")
+	tpath := filepath.Join(outDir, "cgo-linux-amd64.tar.gz")
+	tf, err := os.Create(tpath)
+	if err != nil {
+		r.errf("[package] création tar.gz : %v", err)
+		return 2
+	}
+	gz := gzip.NewWriter(tf)
+	tw := tar.NewWriter(gz)
+	add := func(name, src string, mode int64) error {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return err
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: mode, Size: int64(len(data))}); err != nil {
+			return err
+		}
+		_, err = tw.Write(data)
+		return err
+	}
+	addStr := func(name, s string) error {
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0644, Size: int64(len(s))}); err != nil {
+			return err
+		}
+		_, err = tw.Write([]byte(s))
+		return err
+	}
+	fail := func(err error) int {
+		_ = tw.Close()
+		_ = gz.Close()
+		_ = tf.Close()
+		r.errf("[package] %v", err)
+		return 2
+	}
+	if err := add("cgo", bin, 0755); err != nil {
+		return fail(fmt.Errorf("binaire : %w", err))
+	}
+	if err := add("kit/cgo-vm.yaml.example", filepath.Join(r.Root, "kit", "cgo-vm.yaml.example"), 0644); err != nil {
+		return fail(fmt.Errorf("config exemple : %w", err))
+	}
+	if err := addStr("LISEZ-MOI.txt", linuxReadme()); err != nil {
+		return fail(err)
+	}
+	if err := tw.Close(); err != nil {
+		_ = gz.Close()
+		_ = tf.Close()
+		r.errf("[package] finalisation tar : %v", err)
+		return 2
+	}
+	_ = gz.Close()
+	_ = tf.Close()
+	_ = os.Remove(bin)
+	st, _ := os.Stat(tpath)
+	r.out("[package] %s (%d octets) — copiez sur le poste Ubuntu, tar xzf, lisez LISEZ-MOI.txt", tpath, st.Size())
+	return 0
+}
+
+func linuxReadme() string {
+	return `METEOLINK — poste opérateur Ubuntu
+====================================
+Contenu : cgo (binaire linux/amd64 statique, frontend inclus), exemple de config.
+
+Prérequis : openssh-client (sudo apt install -y openssh-client),
+hyperviseur + VM Ubuntu du banc, python3 (sondes locales, souvent présent).
+
+1. tar xzf cgo-linux-amd64.tar.gz -C ~/cgo-op && cd ~/cgo-op && chmod +x cgo
+2. ./cgo kit doctor — vérifie go/bun/node/ssh/scp/clé/VM.
+   Pas de Go/bun/node ? Normal : l'exploitation n'en a pas besoin.
+   Seul openssh-client est requis (ci-dessus).
+3. Config : cp kit/cgo-vm.yaml.example kit/cgo-vm.yaml et ajustez ip/clé —
+   OU laissez faire : ./cgo kit scan trouve la VM tout seul (tout le PC).
+4. ./cgo kit keysetup — vous demande l'utilisateur, l'hôte, le port, puis
+   LE MOT DE PASSE dans l'invite ssh elle-même (jamais stocké) ; pose la clé.
+5. ./cgo kit ensure — SSH actif vers la VM (boot + IP auto si besoin).
+6. sudo ./cgo kit dns — mappe meteolink.dev vers la VM.
+7. Ouvrez https://meteolink.dev:9090 — avertissement certificat :
+   Avancé → Continuer (une fois), ou sudo ./cgo kit tls pour la
+   confiance totale (magasin système).
+8. ./cgo kit deploy — recompile (exige Go 1.25+, bun, node + dépôt source),
+   pousse le binaire linux sur la VM, sert le dashboard. Sans la chaîne de
+   compilation : tout sauf deploy reste disponible.
+
+Rôles :
+- Ce poste Ubuntu = PILOTAGE (kit, audits terrain ./cgo audit, TUI, exports).
+  Pas de façonnage tc ici non plus sans droits root + modules : les campagnes
+  shaping tournent sur la VM du banc.
+- La VM du banc = MESURE (banc netem + dashboard). Les runs gelés survivent
+  aux deploys dans ~/cgo/data/runs.
 `
 }

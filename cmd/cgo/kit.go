@@ -34,7 +34,7 @@ actions :
   dns       mappe meteolink.dev vers la VM (hosts local, lien stable)
   tls       confiance du certificat dashboard (magasin local + vérif HTTPS)
   shipcheck porte d'embarquement release : DNS→TCP→TLS→cert→health→confiance
-  package   zip poste Windows (exe + config exemple + mode d'emploi)
+  package   zip/tar poste opérateur (--os windows|linux) : binaire + config + mode d'emploi
   bootstrap paquets VM + veth (idempotent)
   status    SSH + process + health dashboard
   logs      tail du journal serveur VM
@@ -97,7 +97,7 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 	case "shipcheck":
 		return r.ShipCheck(c)
 	case "package":
-		return r.Package(c)
+		return r.Package(c, rest)
 	case "bootstrap":
 		return r.Bootstrap(c)
 	case "status":
