@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useUIStore } from '../store/ui'
 import { asArray } from '../lib/format'
 
@@ -30,7 +31,10 @@ export default function AuditHistoryModal({ onClose, onImported }: { onClose: ()
     } catch(e:any) { store.pushToast('Échec import: '+e.message, 'err') }
   }
 
-  return (
+  // portail racine : la section .view porte une animation transform qui
+  // ferait de fixed un positionnement relatif à la carte (modale invisible
+  // coincée dans la barre latérale — vu en prod). Même pattern que PeekPopover.
+  return createPortal(
     <div role="dialog" aria-label="Historique des audits" style={{ position:'fixed', inset:0, zIndex:650, background:'rgba(0,0,0,0.55)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={onClose}>
       <div style={{ maxWidth:860, width:'100%', maxHeight:'85vh', overflowY:'auto', background:'var(--surface-soft, #0b0b0c)', border:'1px solid var(--hairline)', padding:16 }} onClick={e=>e.stopPropagation()}>
         <div className="card-head" style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -63,6 +67,7 @@ export default function AuditHistoryModal({ onClose, onImported }: { onClose: ()
         </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
