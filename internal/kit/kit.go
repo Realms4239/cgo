@@ -6,6 +6,7 @@
 package kit
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -323,13 +324,25 @@ func (c *Config) dashURL() string {
 	if host == "" {
 		host = c.SSHHost
 	}
-	return "http://" + host + ":" + c.DashPort
+	return "https://" + host + ":" + c.DashPort
 }
 
-// HTTPGetJSON — vérification health du dashboard.
+// HTTPGetJSON — vérification health du dashboard : HTTPS auto-signé
+// d'abord (navigateurs HSTS sur meteolink.dev), HTTP brut en repli.
 func (c *Config) Health() bool {
-	cl := &http.Client{Timeout: 4 * time.Second}
-	resp, err := cl.Get(c.healthURL())
+	insecure := &http.Client{Timeout: 4 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+	if resp, err := insecure.Get(c.healthURL()); err == nil {
+		defer resp.Body.Close()
+		var doc struct {
+			OK bool `json:"ok"`
+		}
+		_ = json.NewDecoder(resp.Body).Decode(&doc)
+		if doc.OK {
+			return true
+		}
+	}
+	plain := &http.Client{Timeout: 4 * time.Second}
+	resp, err := plain.Get("http://" + c.SSHHost + ":" + c.DashPort + "/api/health")
 	if err != nil {
 		return false
 	}
