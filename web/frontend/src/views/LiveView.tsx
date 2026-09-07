@@ -421,7 +421,7 @@ export default function LiveView() {
       </div>
       )}
       {/* Q2 — runbook pointer: a crit card always says what to do next */}
-      {rttP95 != null && rttP95 > settings.critMs && (
+      {showLiveSrc && rttP95 != null && rttP95 > settings.critMs && (
         <div className="mono" data-testid="runbook-pointer" style={{ gridColumn: '1 / -1', fontSize: 10, color: 'var(--t-warn, #f4b400)', border: '1px dashed rgba(244,180,0,0.4)', padding: '6px 10px' }}>
           bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
         </div>
@@ -497,7 +497,7 @@ export default function LiveView() {
             <button className="btn btn-primary" onClick={exportConstat} disabled={locked == null || liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 10, marginLeft: 'auto' }}>TÉLÉCHARGER LE CONSTAT</button>
           </div>
           {shapeMsg && <div className="mono" style={{ fontSize: 10, color: shapeMsg.includes('erreur') || shapeMsg.includes('échec') ? CRAFT.danger : CRAFT.ok }}>{shapeMsg}</div>}
-          {locked && liveSmallMedian != null && (
+          {locked && showLiveSrc && liveSmallMedian != null && (
             <div>
               <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
                 <span>avant → maintenant, même fenêtre</span>
