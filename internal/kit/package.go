@@ -283,6 +283,9 @@ hyperviseur + VM Ubuntu du banc, python3 (sondes locales, souvent présent).
    OU laissez faire : ./cgo kit scan trouve la VM tout seul (tout le PC).
 4. ./cgo kit keysetup — vous demande l'utilisateur, l'hôte, le port, puis
    LE MOT DE PASSE dans l'invite ssh elle-même (jamais stocké) ; pose la clé.
+   Si SSH refuse tout (port 22 fermé) : DANS la console Ubuntu de la VM,
+   tapez : sudo apt install -y openssh-server && sudo systemctl enable --now ssh
+   — puis relancez keysetup. (Astuce : ./cgo kit tui fait tout cela en guidé.)
 5. ./cgo kit ensure — SSH actif vers la VM (boot + IP auto si besoin).
 6. sudo ./cgo kit dns — mappe meteolink.dev vers la VM.
 7. Ouvrez https://meteolink.dev:9090 — avertissement certificat :
