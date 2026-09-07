@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { PANELS, useUIStore } from '../store/ui'
 import { createTimeline, stagger } from 'animejs'
-import { prefersReducedMotion } from '../lib/anime'
+import { prefersReducedMotion, EASE } from '../lib/anime'
 
 // Cmd-K palette — filters 4 panels + 3 quick actions
 const QUICK = [
@@ -28,7 +28,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
     const els=listRef.current.querySelectorAll('li')
     if(!els.length) return
     const tl=createTimeline()
-    tl.add(els, { translateY:[8,0], opacity:[0,1], delay: stagger(20, {start:60}), duration:300, ease:'cubicBezier(0.16,1,0.3,1)'} as any, 0)
+    tl.add(els, { translateY:[8,0], opacity:[0,1], delay: stagger(20, {start:60}), duration:300, ease: EASE} as any, 0)
   },[open, q])
 
   useEffect(()=>{
