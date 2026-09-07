@@ -156,8 +156,12 @@ func pcReadme() string {
 Contenu : cgo.exe (tout embarqué, frontend inclus), exemple de config.
 
 1. Dézippez où vous voulez (ex. C:\cgo), ouvrez un terminal ici.
-2. cgo.exe kit doctor — vérifie go/bun/node/ssh/scp/clé/VM.
-   SSH manquant ? winget install --id Microsoft.OpenSSH.Client --source winget
+2. cgo.exe kit tui — CENTRE DE CONTRÔLE interactif (flèches + entrée, rien
+   à taper) : dépendances (OpenSSH installé auto) → scan VMware/VirtualBox
+   → choix + verrouillage VM → clé SSH → deploy → dashboard. Voie normale.
+   Voie manuelle (équivalent exact) :
+   cgo.exe kit doctor — vérifie go/bun/node/ssh/scp/clé/VM.
+   SSH manquant ? Le TUI l'installe, ou : winget install --id Microsoft.OpenSSH.Client --source winget
 3. Config : copiez kit\cgo-vm.yaml.example vers kit\cgo-vm.yaml et ajustez
    ip/clé — OU laissez faire : cgo.exe kit scan trouve la VM tout seul.
 4. cgo.exe kit ensure — SSH actif vers la VM.
@@ -268,9 +272,13 @@ Prérequis : openssh-client (sudo apt install -y openssh-client),
 hyperviseur + VM Ubuntu du banc, python3 (sondes locales, souvent présent).
 
 1. tar xzf cgo-linux-amd64.tar.gz -C ~/cgo-op && cd ~/cgo-op && chmod +x cgo
-2. ./cgo kit doctor — vérifie go/bun/node/ssh/scp/clé/VM.
+2. ./cgo kit tui — CENTRE DE CONTRÔLE interactif (flèches + entrée, rien à
+   taper) : dépendances → scan VM → verrouillage → clé SSH → deploy →
+   dashboard. C'est la voie normale.
+   Voie manuelle (équivalent exact) :
+   ./cgo kit doctor — vérifie go/bun/node/ssh/scp/clé/VM.
    Pas de Go/bun/node ? Normal : l'exploitation n'en a pas besoin.
-   Seul openssh-client est requis (ci-dessus).
+   Seul openssh-client est requis (installé auto par le kit si absent).
 3. Config : cp kit/cgo-vm.yaml.example kit/cgo-vm.yaml et ajustez ip/clé —
    OU laissez faire : ./cgo kit scan trouve la VM tout seul (tout le PC).
 4. ./cgo kit keysetup — vous demande l'utilisateur, l'hôte, le port, puis

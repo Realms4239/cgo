@@ -60,7 +60,15 @@ Sept étapes idempotentes : détection (OS, go/bun/node/ssh, hyperviseurs) → d
 
 ### Poste opérateur depuis une release (Ubuntu + VM du banc)
 
-Téléchargez l'archive du poste (`cgo` linux statique + config exemple + installateur VM + mode d'emploi), puis suivez `LISEZ-MOI.txt` — 8 commandes, mot de passe demandé une seule fois :
+Téléchargez l'archive du poste (`cgo` linux statique + config exemple + installateur VM + mode d'emploi), puis lancez le centre de contrôle — aucune commande à taper :
+
+```
+$ wget https://github.com/Realms4239/cgo/releases/download/v1.2.3/cgo-linux-amd64.tar.gz
+$ wget https://github.com/Realms4239/cgo/releases/download/v1.2.3/cgo-linux-amd64.tar.gz.sha256
+$ sha256sum -c cgo-linux-amd64.tar.gz.sha256
+$ tar xzf cgo-linux-amd64.tar.gz -C ~/cgo-op && cd ~/cgo-op
+$ ./cgo kit tui    # flèches + entrée : dépendances → scan VM → clé SSH → deploy → dashboard
+```
 
 ```
 $ wget https://github.com/Realms4239/cgo/releases/download/v1.2.3/cgo-linux-amd64.tar.gz

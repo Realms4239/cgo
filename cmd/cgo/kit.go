@@ -43,6 +43,7 @@ actions :
    revert    revenir au dernier snapshot (ou --name NOM)
    snapshots liste des instantanés (le nom sert à revert)
    ssh       shell interactif direct dans la VM (Ctrl-D pour sortir)
+  tui       centre de contrôle interactif (flèches + entrée, sans rien taper)
    ps        processus dashboard en direct (rafraîchi 2 s, q pour sortir)
    backup    rapatrie les runs gelés de la VM vers ./backup (tar.gz horodaté)
    verify    empreintes SHA-256 des archives, recalculées sur la VM
@@ -120,6 +121,8 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.Revert(c, name, effDeep)
 	case "ssh":
 		return r.SSHInteractive(c)
+	case "tui":
+		return runKitTUI(*cfgPath, version)
 	case "snapshots":
 		return r.Snapshots(c, effDeep)
 	case "verify":
