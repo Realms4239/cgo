@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { svg, text, animate, stagger } from 'animejs'
-import { prefersReducedMotion } from '../lib/anime'
+import { prefersReducedMotion, EASE } from '../lib/anime'
 
 export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
   const ref = useRef<HTMLSpanElement>(null)
@@ -23,7 +23,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
           translateY: [8, 0],
           opacity: [0, 1],
           duration: 600,
-          ease: 'cubicBezier(0.16,1,0.3,1)',
+          ease: EASE,
           delay: stagger(30, { grid: [4, 2], from: 'center' } as any),
         } as any)
       }

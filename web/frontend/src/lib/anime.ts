@@ -3,6 +3,8 @@ import { animate, createTimeline, stagger, utils, svg, text, createDrawable, spl
 // anime v4 a retiré la forme CHAÎNE 'cubicBezier(...)' (warning console,
 // easing silencieusement ignoré) — la fonction importée, une seule fois.
 const EASE = cubicBezier(0.16, 1, 0.3, 1)
+export const EASE_OUT = cubicBezier(0.4, 0, 0.2, 1)
+export { EASE }
 
 export const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -85,7 +87,7 @@ export function animatePromptExit(el: Element): Promise<void> {
   if (prefersReducedMotion()) return Promise.resolve()
   return new Promise((resolve) => {
     const tl = createTimeline() as any
-    tl.add(el, { translateY: [0, 12], opacity: [1, 0], duration: 300, ease: 'cubicBezier(0.4,0,0.2,1)' } as any, 0)
+    tl.add(el, { translateY: [0, 12], opacity: [1, 0], duration: 300, ease: EASE_OUT } as any, 0)
     setTimeout(resolve, 300)
   })
 }
