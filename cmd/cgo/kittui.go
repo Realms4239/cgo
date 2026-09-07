@@ -51,6 +51,14 @@ type depRow struct {
 	fixID string // "" = rien à installer
 }
 
+// diagRow — un prérequis d'accès avec son état : ok (vert), ko (rouge +
+// remède), wait (gris, en attente d'un prérequis amont).
+type diagRow struct {
+	label  string
+	state  string
+	detail string
+}
+
 type modelKT struct {
 	bus     *ktBus
 	cfgPath string
@@ -71,6 +79,14 @@ type modelKT struct {
 
 	sshState  string // "", "ok", "ko:…"
 	dashState string // "", "ok <ver>", "ko"
+
+	// diagnostic d'accès (étape 3) + saisie inline (aucune commande à taper,
+	// mais l'identité user/hôte/port/clé se configure au clavier).
+	sshDiag    []diagRow
+	diagBusy   bool
+	inputOn    bool
+	inputField string // user|host|port|key
+	inputVal   string
 }
 
 func initialModelKT(cfgPath string, version string) modelKT {
@@ -130,9 +146,15 @@ func (m modelKT) items() []ktItem {
 		return out
 	case ktAcces:
 		return []ktItem{
-			{id: "ensure", label: "Démarrer la VM / vérifier SSH", hint: "boot headless + attente SSH"},
+			{id: "diag", label: "Diagnostiquer l'accès", hint: "clé, port, auth, IP"},
+			{id: "mkkey", label: "Créer la clé locale", hint: "ssh-keygen, sans mot de passe"},
+			{id: "guest-ssh", label: "Installer SSH via les Tools", hint: "mot de passe VM, sans SSH préalable"},
+			{id: "set-user", label: "Utilisateur…", hint: curSSHUser(m)},
+			{id: "set-host", label: "Hôte…", hint: curSSHHost(m)},
+			{id: "set-port", label: "Port…", hint: curSSHPort(m)},
+			{id: "set-key", label: "Clé…", hint: curSSHKey(m)},
 			{id: "keysetup", label: "Poser la clé SSH", hint: "mot de passe demandé une fois"},
-			{id: "retry", label: "Revérifier l'accès", hint: ""},
+			{id: "ensure", label: "Démarrer la VM / réessayer", hint: "boot headless + attente SSH"},
 			{id: "next", label: "Continuer → Déployer", hint: ""},
 		}
 	case ktDeploy:
@@ -289,19 +311,51 @@ func (m *modelKT) scanning() bool { return m.busy == "scan" }
 
 func (m modelKT) viewAcces() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  Cible : %s\n", stKHi.Render(m.sshTarget())))
-	ssh := m.sshState
-	var sshTxt string
-	if ssh == "" {
-		sshTxt = stMuted.Render("non vérifié")
-	} else if ssh == "ok" {
-		sshTxt = stKOK.Render("SSH actif ✓")
-	} else {
-		sshTxt = stKKO.Render(ssh)
+	b.WriteString(fmt.Sprintf("  Cible : %s\n\n", stKHi.Render(m.sshTarget())))
+	// diagnostic par prérequis — chacun dit son état ET son remède.
+	// Fini le « SSH coupé » muet qui bloquait sans explication.
+	if m.diagBusy {
+		b.WriteString("  " + stMuted.Render("diagnostic en cours…") + "\n\n")
+	} else if len(m.sshDiag) > 0 {
+		for _, d := range m.sshDiag {
+			mark := stKOK.Render("  [ok]")
+			if d.state == "ko" {
+				mark = stKKO.Render("  [KO]")
+			} else if d.state == "wait" {
+				mark = stMuted.Render("  [··]")
+			}
+			b.WriteString(fmt.Sprintf("%s %-14s %s\n", mark, d.label, stKDim.Render(d.detail)))
+		}
+		b.WriteString("\n")
+		allOK := len(m.sshDiag) > 0
+		for _, d := range m.sshDiag {
+			if d.state != "ok" {
+				allOK = false
+			}
+		}
+		if allOK {
+			b.WriteString("  " + stKOK.Render("accès prêt — Continuer → Déployer") + "\n\n")
+		}
 	}
-	b.WriteString(fmt.Sprintf("  Accès : %s\n\n", sshTxt))
+	if m.inputOn {
+		b.WriteString(fmt.Sprintf("  %s : %s▍  (entrée = valider, esc = annuler)\n\n", m.inputLabel(), m.inputVal))
+	}
 	b.WriteString(m.viewItems())
 	return b.String()
+}
+
+func (m modelKT) inputLabel() string {
+	switch m.inputField {
+	case "user":
+		return "Utilisateur distant"
+	case "host":
+		return "Hôte distant (IP ou auto)"
+	case "port":
+		return "Port SSH"
+	case "key":
+		return "Clé privée locale"
+	}
+	return m.inputField
 }
 
 func (m modelKT) sshTarget() string {
@@ -309,6 +363,34 @@ func (m modelKT) sshTarget() string {
 		return "—"
 	}
 	return fmt.Sprintf("%s@%s:%s (clé %s)", m.cfg.SSHUser, m.cfg.SSHHost, m.cfg.SSHPort, m.cfg.SSHKey)
+}
+
+func curSSHUser(m modelKT) string {
+	if m.cfg == nil {
+		return ""
+	}
+	return "actuel : " + m.cfg.SSHUser
+}
+
+func curSSHHost(m modelKT) string {
+	if m.cfg == nil {
+		return ""
+	}
+	return "actuel : " + m.cfg.SSHHost
+}
+
+func curSSHPort(m modelKT) string {
+	if m.cfg == nil {
+		return ""
+	}
+	return "actuel : " + m.cfg.SSHPort
+}
+
+func curSSHKey(m modelKT) string {
+	if m.cfg == nil {
+		return ""
+	}
+	return "actuelle : " + m.cfg.SSHKey
 }
 
 func (m modelKT) viewDeploy() string {
