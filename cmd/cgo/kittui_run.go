@@ -32,12 +32,31 @@ type ktSSH struct {
 }
 type ktDash struct{ state string }
 type ktResumed struct{}
+type ktBooted struct{}
+type ktTick struct{}
+
+// ---- bus partagé ----
+
+// ktBus — le *tea.Program change après NewProgram (copie du modèle) : un
+// holder partagé survit à la copie là où un champ prog direct restait nil
+// dans la copie du runtime (bogue vu : toutes les actions fond silencieuses).
+type ktBus struct {
+	prog *tea.Program
+}
+
+func (b *ktBus) Send(msg tea.Msg) {
+	if b != nil && b.prog != nil {
+		b.prog.Send(msg)
+	}
+}
+
+func (b *ktBus) live() bool { return b != nil && b.prog != nil }
 
 // ---- writer vers le TUI ----
 
 type ktWriter struct {
-	prog *tea.Program
-	buf  string
+	bus *ktBus
+	buf string
 }
 
 func (w *ktWriter) Write(p []byte) (int, error) {
@@ -50,7 +69,7 @@ func (w *ktWriter) Write(p []byte) (int, error) {
 		line := strings.TrimRight(w.buf[:i], "\r")
 		w.buf = w.buf[i+1:]
 		if strings.TrimSpace(line) != "" {
-			w.prog.Send(ktLog{line: line})
+			w.bus.Send(ktLog{line: line})
 		}
 	}
 	return len(p), nil
@@ -61,7 +80,7 @@ func (w *ktWriter) Write(p []byte) (int, error) {
 // runBG — action kit en fond, sortie streamée dans le journal. Le modèle
 // reste réactif (spinner, navigation) pendant les minutes de deploy/scan.
 func (m *modelKT) runBG(action string, fn func(r *kit.Runner) int) {
-	if m.prog == nil {
+	if !m.bus.live() {
 		return // hors runtime TUI (tests) : pas d'envoi possible
 	}
 	if m.busy != "" {
@@ -72,13 +91,13 @@ func (m *modelKT) runBG(action string, fn func(r *kit.Runner) int) {
 	m.pushLog("▸ " + action + " …")
 	go func() {
 		r := kit.NewRunner()
-		w := &ktWriter{prog: m.prog}
+		w := &ktWriter{bus: m.bus}
 		r.Stdout, r.Stderr = w, w
 		code := fn(r)
 		if rest := strings.TrimSpace(w.buf); rest != "" {
-			m.prog.Send(ktLog{line: rest})
+			m.bus.Send(ktLog{line: rest})
 		}
-		m.prog.Send(ktDone{action: action, code: code})
+		m.bus.Send(ktDone{action: action, code: code})
 	}()
 }
 
@@ -88,6 +107,50 @@ func (m *modelKT) runSuspend(args ...string) tea.Cmd {
 	return tea.ExecProcess(exec.Command(os.Args[0], args...), func(err error) tea.Msg {
 		return ktResumed{}
 	})
+}
+
+// vmPower — démarre/arrête la VM verrouillée via son hyperviseur.
+// Sortie parlée dans le journal (l'appelant runBG affiche déjà le code).
+func vmPower(c *kit.Config, start bool) int {
+	if c.VMXPath == "" {
+		fmt.Println("aucune VM verrouillée (étape Machine d'abord)")
+		return 3
+	}
+	var hyp vm.Hypervisor
+	for _, h := range vm.Detect() {
+		if c.Hypervisor != "" && h.Name() == c.Hypervisor {
+			hyp = h
+		}
+	}
+	if hyp == nil {
+		for _, h := range vm.Detect() {
+			if (strings.HasSuffix(strings.ToLower(c.VMXPath), ".vmx") && h.Name() == "vmware") ||
+				(strings.HasSuffix(strings.ToLower(c.VMXPath), ".vbox") && h.Name() == "virtualbox") {
+				hyp = h
+			}
+		}
+	}
+	if hyp == nil {
+		fmt.Println("hyperviseur absent (vmrun/VBoxManage) — démarrez à la main")
+		return 4
+	}
+	verb := "arrêt"
+	if start {
+		verb = "démarrage"
+		fmt.Println("démarrage " + c.VMXPath + " (headless)…")
+		if err := hyp.Start(c.VMXPath); err != nil {
+			fmt.Println("échec : " + err.Error())
+			return 4
+		}
+	} else {
+		fmt.Println("arrêt " + c.VMXPath + " (ACPI, puis forcé)…")
+		if err := hyp.Stop(c.VMXPath); err != nil {
+			fmt.Println("échec : " + err.Error())
+			return 4
+		}
+	}
+	fmt.Println(verb + " demandé")
+	return 0
 }
 
 func openBrowser(url string) {
@@ -106,41 +169,59 @@ func openBrowser(url string) {
 // ---- rafraîchissements ----
 
 func (m *modelKT) refreshDeps() {
-	if m.prog == nil {
+	if !m.bus.live() {
 		return
 	}
-	var rows []depRow
-	sshP, _ := exec.LookPath("ssh")
-	scpP, _ := exec.LookPath("scp")
-	if sshP != "" && scpP != "" {
-		rows = append(rows, depRow{label: "Client OpenSSH", ok: true, info: sshP})
-	} else {
-		rows = append(rows, depRow{label: "Client OpenSSH", ok: false, info: "manquant — installable d'ici", fixID: "install-ssh"})
+	// async OBLIGATOIRE : Send depuis Update (boucle d'événements) se
+	// bloquerait elle-même — vu en prod : un seul frame puis silence total.
+	go func() {
+		var rows []depRow
+		sshP, _ := exec.LookPath("ssh")
+		scpP, _ := exec.LookPath("scp")
+		if sshP != "" && scpP != "" {
+			rows = append(rows, depRow{label: "Client OpenSSH", ok: true, info: sshP})
+		} else {
+			rows = append(rows, depRow{label: "Client OpenSSH", ok: false, info: "manquant — installable d'ici", fixID: "install-ssh"})
+		}
+		found := []string{}
+		for _, h := range vm.Detect() {
+			found = append(found, h.Name())
+		}
+		if len(found) > 0 {
+			rows = append(rows, depRow{label: "Hyperviseur", ok: true, info: strings.Join(found, " + ")})
+		} else {
+			rows = append(rows, depRow{label: "Hyperviseur", ok: false, info: "ni vmrun ni VBoxManage — installez VMware/VirtualBox"})
+		}
+		if _, err := exec.LookPath("go"); err == nil {
+			rows = append(rows, depRow{label: "Toolchain Go", ok: true, info: "recompile depuis sources possible"})
+		} else {
+			rows = append(rows, depRow{label: "Toolchain Go", ok: true, info: "absente — deploy précompilé OK"})
+		}
+		if _, err := os.Stat(m.cfgPath); err == nil {
+			rows = append(rows, depRow{label: "Config", ok: true, info: m.cfgPath})
+		} else {
+			rows = append(rows, depRow{label: "Config", ok: true, info: "créée au verrouillage VM"})
+		}
+		// droits élevés : dns/tls les exigent — le montrer AVANT l'échec, pas après.
+		if isElevated() {
+			rows = append(rows, depRow{label: "Droits admin", ok: true, info: "oui — dns/tls disponibles"})
+		} else {
+			rows = append(rows, depRow{label: "Droits admin", ok: false, info: "non — dns/tls demanderont un terminal admin"})
+		}
+		m.bus.Send(ktDepsMsg{rows: rows})
+	}()
+}
+
+// isElevated — admin Windows (net session) ou root unix.
+func isElevated() bool {
+	if runtime.GOOS == "windows" {
+		return exec.Command("net", "session").Run() == nil
 	}
-	found := []string{}
-	for _, h := range vm.Detect() {
-		found = append(found, h.Name())
-	}
-	if len(found) > 0 {
-		rows = append(rows, depRow{label: "Hyperviseur", ok: true, info: strings.Join(found, " + ")})
-	} else {
-		rows = append(rows, depRow{label: "Hyperviseur", ok: false, info: "ni vmrun ni VBoxManage — installez VMware/VirtualBox"})
-	}
-	if _, err := exec.LookPath("go"); err == nil {
-		rows = append(rows, depRow{label: "Toolchain Go", ok: true, info: "recompile depuis sources possible"})
-	} else {
-		rows = append(rows, depRow{label: "Toolchain Go", ok: true, info: "absente — deploy précompilé OK"})
-	}
-	if _, err := os.Stat(m.cfgPath); err == nil {
-		rows = append(rows, depRow{label: "Config", ok: true, info: m.cfgPath})
-	} else {
-		rows = append(rows, depRow{label: "Config", ok: true, info: "créée au verrouillage VM"})
-	}
-	m.prog.Send(ktDepsMsg{rows: rows})
+	return os.Geteuid() == 0
 }
 
 func (m *modelKT) refreshVMs(deep bool) {
-	if m.prog == nil {
+	if !m.bus.live() {
 		return
 	}
 	m.busy = "scan"
@@ -172,22 +253,22 @@ func (m *modelKT) refreshVMs(deep bool) {
 			}
 			out = append(out, vmEntry{path: p, name: strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)), hyp: hyp, live: live})
 		}
-		m.prog.Send(ktVMs{vms: out})
+		m.bus.Send(ktVMs{vms: out})
 	}()
 }
 
 func (m *modelKT) refreshSSH() {
-	if m.prog == nil {
+	if !m.bus.live() {
 		return
 	}
 	go func() {
 		m.reloadCfg()
 		if m.cfg.SSHUp() {
-			m.prog.Send(ktSSH{ok: true})
+			m.bus.Send(ktSSH{ok: true})
 			return
 		}
 		out, _ := m.cfg.SSH("true")
-		m.prog.Send(ktSSH{ok: false, detail: shortSSHDiag(out)})
+		m.bus.Send(ktSSH{ok: false, detail: shortSSHDiag(out)})
 	}()
 }
 
@@ -214,16 +295,16 @@ func shortSSHDiag(out string) string {
 }
 
 func (m *modelKT) refreshDash() {
-	if m.prog == nil {
+	if !m.bus.live() {
 		return
 	}
 	go func() {
 		m.reloadCfg()
 		if !m.cfg.Health() {
-			m.prog.Send(ktDash{state: "ko"})
+			m.bus.Send(ktDash{state: "ko"})
 			return
 		}
-		m.prog.Send(ktDash{state: "ok"})
+		m.bus.Send(ktDash{state: "ok"})
 	}()
 }
 
@@ -292,6 +373,11 @@ func (m *modelKT) activate(id string) tea.Cmd {
 		sub := strings.TrimPrefix(id, "svc-")
 		m.runBG("svc "+sub, func(r *kit.Runner) int { return r.Svc(m.cfg, sub) })
 		return nil
+	case "vm-start", "vm-stop":
+		m.runBG("vm "+strings.TrimPrefix(id, "vm-"), func(r *kit.Runner) int {
+			return vmPower(m.cfg, strings.TrimPrefix(id, "vm-") == "start")
+		})
+		return nil
 	case "logs":
 		m.runBG("logs", func(r *kit.Runner) int { return r.Logs(m.cfg, 40) })
 		return nil
@@ -337,6 +423,17 @@ func (m *modelKT) activate(id string) tea.Cmd {
 
 func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ktBooted:
+		m.refreshDeps()
+		return m, ktTickCmd()
+	case ktTick:
+		// balayage lent : les états SSH/dashboard suivent la réalité sans
+		// toucher au clavier — jamais pendant une action (bruit + courses).
+		if m.busy == "" {
+			m.refreshSSH()
+			m.refreshDash()
+		}
+		return m, ktTickCmd()
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
@@ -346,6 +443,11 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch msg.String() {
 		case "q", "ctrl+c":
+			if m.busy != "" && !m.quitArm {
+				m.quitArm = true
+				m.pushLog("« " + m.busy + " » tourne — q à nouveau pour forcer la sortie")
+				return m, nil
+			}
 			return m, tea.Quit
 		case "1", "2", "3", "4", "5":
 			m.step = ktStep(int(msg.String()[0] - '1'))
@@ -381,6 +483,7 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case ktDone:
 		m.busy = ""
+		m.quitArm = false
 		if msg.code == 0 {
 			m.pushLog("✓ " + msg.action + " terminé")
 		} else {
@@ -432,12 +535,16 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func runKitTUI(cfgPath, version string) int {
 	m := initialModelKT(cfgPath, version)
 	p := tea.NewProgram(m, tea.WithAltScreen())
-	m.prog = p
-	// partage du pointeur programme avec la copie du runtime : les goroutines
-	// d'actions envoient leurs lignes via m.prog.Send.
+	// le programme COPIE le modèle : on publie le *tea.Program dans le bus
+	// partagé (pas dans un champ direct, resté nil dans la copie).
+	m.bus.prog = p
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "kit tui exige un terminal interactif : "+err.Error())
 		return 2
 	}
 	return 0
+}
+
+func ktTickCmd() tea.Cmd {
+	return tea.Tick(30*time.Second, func(time.Time) tea.Msg { return ktTick{} })
 }

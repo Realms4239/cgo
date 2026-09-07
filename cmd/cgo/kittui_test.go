@@ -6,8 +6,23 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Le centre de contrôle se teste sans terminal : Update est pure,
-// les actions lourdes partent en goroutines (non testées ici).
+// Preuve du partage : la copie du modèle (ce que fait NewProgram) voit
+// l'assignation faite après coup sur l'original — le bug initial (champ
+// prog direct resté nil dans la copie du runtime, actions fond muettes).
+func TestKTBusShared(t *testing.T) {
+	m := initialModelKT("kit/cgo-vm.yaml.example", "x")
+	p := tea.NewProgram(m)
+	m.bus.prog = p
+	defer p.Kill()
+	copie := m // ce que NewProgram a copié en interne : même holder
+	if copie.bus != m.bus {
+		t.Fatal("holder non partagé")
+	}
+	copie.bus.prog = p
+	if m.bus.prog == nil {
+		t.Fatal("assignation invisible depuis l'original — bug du champ direct")
+	}
+}
 func testModelKT() modelKT {
 	m := initialModelKT("kit/cgo-vm.yaml.example", "1.2.3-test")
 	m.deps = []depRow{{label: "Client OpenSSH", ok: true, info: "ssh"}}

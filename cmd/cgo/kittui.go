@@ -52,15 +52,16 @@ type depRow struct {
 }
 
 type modelKT struct {
-	prog    *tea.Program
+	bus     *ktBus
 	cfgPath string
 	cfg     *kit.Config
 	version string
 
-	step   ktStep
-	cursor int
-	width  int
-	height int
+	step    ktStep
+	cursor  int
+	quitArm bool
+	width   int
+	height  int
 
 	deps []depRow
 	vms  []vmEntry
@@ -74,7 +75,7 @@ type modelKT struct {
 
 func initialModelKT(cfgPath string, version string) modelKT {
 	c, _ := kit.LoadConfig(cfgPath)
-	return modelKT{cfgPath: cfgPath, cfg: c, version: version}
+	return modelKT{bus: &ktBus{}, cfgPath: cfgPath, cfg: c, version: version}
 }
 
 func (m *modelKT) pushLog(s string) {
@@ -146,6 +147,8 @@ func (m modelKT) items() []ktItem {
 			{id: "svc-start", label: "Démarrer dashboard", hint: ""},
 			{id: "svc-stop", label: "Arrêter dashboard", hint: ""},
 			{id: "svc-restart", label: "Redémarrer dashboard", hint: ""},
+			{id: "vm-start", label: "Démarrer la VM", hint: "headless"},
+			{id: "vm-stop", label: "Arrêter la VM", hint: "ACPI puis forcé"},
 			{id: "logs", label: "Journal (40 lignes)", hint: ""},
 			{id: "dns", label: "Mapper meteolink.dev", hint: "admin requis"},
 			{id: "tls", label: "Confiance HTTPS", hint: "admin requis"},
@@ -184,7 +187,9 @@ var (
 	stKBox   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(lipgloss.Color("26262a")).Padding(0, 1)
 )
 
-func (m modelKT) Init() tea.Cmd { return nil }
+func (m modelKT) Init() tea.Cmd {
+	return func() tea.Msg { return ktBooted{} }
+}
 
 func (m modelKT) View() string {
 	var b strings.Builder
