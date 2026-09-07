@@ -6,6 +6,7 @@ import { Provenance } from '../components/ui/Provenance'
 import { PeekPopover } from '../components/PeekPopover'
 import { hardwareRecommendation } from '../lib/hardware'
 import { asArray } from '../lib/format'
+import { paginate, Paginate } from '../components/ui/Paginate'
 
 type Integrity = {
   available: boolean; reason?: string
@@ -28,6 +29,9 @@ export default function IntegriteView() {
   const [peekGroups, setPeekGroups] = useState<any[]|null>(null)
   const [quar, setQuar] = useState<{run:string;event_id:number;profile:string;qdisc:string;cc:string;gate_status:string;failed_gates?:string[]}[]>([])
   const [quarSum, setQuarSum] = useState<{total_invalid?:number;g4_low?:number;g4_high?:number;empty_probes?:number;g3_implausible?:number}|null>(null)
+  // pagination runs (U6h) — 407 lignes rendues d'un bloc noyait la vue
+  const [runsPage, setRunsPage] = useState(1)
+  const RUNS_PAGE_SIZE = 12
 
   const load = () => {
     fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
@@ -128,7 +132,7 @@ export default function IntegriteView() {
           <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
             <th style={{ padding:'6px 8px' }}>run</th><th>lignes</th><th>valides</th><th>quar.</th><th></th><th></th>
           </tr></thead><tbody>
-          {(Array.isArray(data.breakdown) ? data.breakdown : (asArray<string>(data.run_ids).map(id=>({run:id,rows:0,valid:0,quarantined:0})))).map(b=>(
+          {paginate(Array.isArray(data.breakdown) ? data.breakdown : (asArray<string>(data.run_ids).map(id=>({run:id,rows:0,valid:0,quarantined:0}))), runsPage, RUNS_PAGE_SIZE).map(b=>(
             <tr key={b.run} style={{ borderBottom:'1px solid var(--hairline-faint)' }} onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
               <td style={{ padding:'6px 8px' }}>{b.run}</td><td>{b.rows}</td><td>{b.valid}</td><td>{b.quarantined}</td>
               <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" style={{ color:'var(--t-live)' }}>résultats</a></td>
@@ -136,6 +140,10 @@ export default function IntegriteView() {
             </tr>
           ))}
           </tbody></table>
+          <Paginate
+            total={(Array.isArray(data.breakdown) ? data.breakdown : asArray<string>(data.run_ids)).length}
+            page={runsPage} pageSize={RUNS_PAGE_SIZE} onPage={setRunsPage}
+          />
       </div>
       <div className="card" data-testid="quarantine-table">
         <div className="card-head">Quarantaine — lignes invalidées par les portes</div>

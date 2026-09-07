@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useUIStore } from '../store/ui'
 import { asArray } from '../lib/format'
+import { paginate, Paginate } from './ui/Paginate'
 
 // Historique des audits gelés — modale depuis la carte audit de Campagne.
 // Chaque ligne porte son rapprochement au référentiel et s'importe en
@@ -9,6 +10,9 @@ import { asArray } from '../lib/format'
 // la fibre quand la pointe est la dernière).
 export default function AuditHistoryModal({ onClose, onImported }: { onClose: () => void; onImported: (msg: string) => void }) {
   const [rows, setRows] = useState<Record<string,string>[]|null>(null)
+  // pagination (U6h) — la table peut croître avec les audits gelés
+  const [pg, setPg] = useState(1)
+  const PG_SIZE = 10
   const load = () => {
     fetch('/api/audit/list').then(r=>r.json()).then(j=>setRows(asArray(j.audits))).catch(()=>setRows([]))
   }
@@ -51,7 +55,7 @@ export default function AuditHistoryModal({ onClose, onImported }: { onClose: ()
             <th>site</th><th>lien</th><th>idle p50/p95</th><th>chargé p50/p95</th><th>grade</th><th>rapprochement</th><th></th>
           </tr></thead>
           <tbody>
-          {rows.map((a,i)=>(
+          {rows !== null && paginate(rows, pg, PG_SIZE).map((a,i)=>(
             <tr key={i} style={{borderTop:'1px solid var(--hairline)'}}>
               <td>{a.site}<br/><span style={{color:'#767b84', fontSize:10}}>{(a.timestamp||'').slice(0,10)} {a.provider}</span></td>
               <td>{a.link_type}</td>
@@ -66,6 +70,7 @@ export default function AuditHistoryModal({ onClose, onImported }: { onClose: ()
         </table>
         </div>
         )}
+        {rows !== null && rows.length > 0 && <Paginate total={rows.length} page={pg} pageSize={PG_SIZE} onPage={setPg} />}
       </div>
     </div>,
     document.body

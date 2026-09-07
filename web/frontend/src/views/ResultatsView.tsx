@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
-import { animateBar } from '../lib/anime'
+import { animateBar, animateBarWidth, flashRowUp, prefersReducedMotion } from '../lib/anime'
 import { echarts } from '../lib/echarts'
 import { baseOption, scatterSeries } from '../lib/chartGrammar'
 import CompareView, { type Pinned } from '../components/CompareView'
@@ -11,6 +11,8 @@ import InterpretationView from '../components/InterpretationView'
 import { useUIStore } from '../store/ui'
 import { fmtIQR } from '../lib/format'
 import { asArray } from '../lib/format'
+import { lienScore, components as lienComponents, type LienMetrics } from '../lib/lien'
+import { paginate, Paginate } from '../components/ui/Paginate'
 
 type Group = {
   profile: string; qdisc: string; cc: string; direction?: string
@@ -36,7 +38,11 @@ const RANKS = [
   { key: 'cost', label: 'coût', dir: 'down' as const, unit: 'Ar/h', term: 'cost_ar_per_h' },
 ]
 
-const QCOLOR: Record<string, string> = { cake: 'var(--t-bbr)', fq_codel: 'var(--t-live)', pfifo_fast: '#6b7078' }
+// identité couleur AQM × CC — chaque file une teinte contrastée, chaque CC
+// un marqueur : une ligne P1-cake/BBR se distingue de P2-pfifo/cubic d'un
+// coup d'œil, sans lire. Teintes hors tricolore identité (DESIGN.md).
+const QCOLOR: Record<string, string> = { cake: '#1fd4a0', fq_codel: '#5ad3e3', pfifo_fast: '#9aa3ad' }
+const CCMARK: Record<string, string> = { cubic: '◆', bbr: '◇' }
 
 // TradeSpace — le nuage paramétrable façon DeepSWE (score vs coût) : axes X/Y
 // au choix parmi les métriques + indice composite, couleur par dimension.
@@ -52,8 +58,18 @@ const TSPACE: { key: TSpaceKey; label: string; unit: string; dir: 'down' | 'up' 
   { key: 'indice', label: 'indice LIEN', unit: '/100', dir: 'up' },
 ]
 const PAL_PROFILE = ['#5ad3e3', '#1fa348', '#f4b400', '#b48ce8', '#e2635c', '#8b9099']
-const PAL_QDISC: Record<string, string> = { cake: '#6aa8ff', fq_codel: '#5ad3e3', pfifo_fast: '#8b9099' }
+const PAL_QDISC: Record<string, string> = { cake: '#1fd4a0', fq_codel: '#5ad3e3', pfifo_fast: '#9aa3ad' }
 const PAL_CC: Record<string, string> = { cubic: '#e08a4c', bbr: '#4c9be8' }
+
+// valeurs brutes LIEN d'un groupe (null = non mesurée, exclue de la moyenne)
+// — coût au palier unique de référence (5556 Ar/Go), comme costRef ci-bas
+const groupLien = (g: Group): LienMetrics => ({
+  small: (() => { const v = g.small_p95_valid_median ?? g.small_p95_median; return typeof v === 'number' && v > 0 ? v : null })(),
+  rtt: (() => { const v = g.rtt_p95_median; return typeof v === 'number' && v > 0 ? v : null })(),
+  goodput: (() => { const v = g.goodput_median; return typeof v === 'number' && v >= 0 ? v : null })(),
+  deadline: (() => { const v = g.deadline_median ?? g.deadline_ok_pct; return typeof v === 'number' ? v : null })(),
+  cost: (() => { const w = g.wasted_median ?? g.wasted_bytes ?? null; if (w == null || w <= 0) return 0; return (w / 1073741824) * 5556 * 20 })(),
+})
 
 export default function ResultatsView() {
   const [groups, setGroups] = useState<Group[] | null>(null)
@@ -72,6 +88,9 @@ export default function ResultatsView() {
   const [runSel, setRunSel] = useState('')
   const [runIds, setRunIds] = useState<string[]>([])
   const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
+  // pagination changelog (U6h) — tout l'historique au lieu des 20 dernières
+  const [evPage, setEvPage] = useState(1)
+  const EV_PAGE_SIZE = 8
   const [caption, setCaption] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
   // TradeSpace : Y = le critère du classement (un seul modèle mental),
@@ -140,13 +159,46 @@ export default function ResultatsView() {
   }, [effectiveRun])
   useEffect(() => {
     fetch('/api/replay/list').then(r => r.json()).then(j => setRunIds(asArray<string>(j.runs))).catch(() => {})
-    fetch('/api/events').then(r => r.json()).then(j => setEvents(asArray<{ts:string;kind:string;msg:string}>(j.events).slice(-20).reverse())).catch(() => {})
+    fetch('/api/events').then(r => r.json()).then(j => setEvents(asArray<{ts:string;kind:string;msg:string}>(j.events).reverse())).catch(() => {})
   }, [])
 
+  // U6d/U6e : identité stable des barres (valeur animée) + rangs précédents
+  // (flash de la ligne remontée — pas de FLIP, le DOM se réordonne)
+  const lastWidths = useRef(new Map<string, string>())
+  const prevRanks = useRef(new Map<string, number>())
   useEffect(() => {
     if (!groups) return
     const id = requestAnimationFrame(() => {
-      document.querySelectorAll('.leader-bar').forEach(el => animateBar(el))
+      try {
+        const bars = document.querySelectorAll('.leader-bar')
+        if (!bars.length) return
+        const seen = new Set<string>()
+        bars.forEach((el, idx) => {
+          const h = el as HTMLElement
+          const lid = h.dataset.leader ?? ''
+          const target = h.style.width
+          if (!lid) { try { animateBar(el) } catch {} return }
+          seen.add(lid)
+          const prevIdx = prevRanks.current.get(lid)
+          if (prevIdx !== undefined && prevIdx > idx) {
+            const row = h.closest('.lb-row')
+            if (row) flashRowUp(row)
+          }
+          try {
+            if (prefersReducedMotion()) { h.style.width = target }
+            else {
+              const prev = lastWidths.current.get(lid)
+              if (prev && prev !== target) animateBarWidth(el, prev, target)
+              else animateBar(el)
+            }
+          } catch { try { h.style.width = target } catch {} }
+          lastWidths.current.set(lid, target)
+          prevRanks.current.set(lid, idx)
+        })
+        for (const k of [...prevRanks.current.keys()]) {
+          if (!seen.has(k)) { prevRanks.current.delete(k); lastWidths.current.delete(k) }
+        }
+      } catch { /* robustesse echarts-style : l'animation ne casse jamais le rendu */ }
     })
     return () => cancelAnimationFrame(id)
   }, [groups])
@@ -160,37 +212,13 @@ export default function ResultatsView() {
       (fCc === 'tous' || g.cc === fCc))
     // valeur brute d'une métrique (null = non mesurée, exclue de la moyenne)
     const raw = (g: Group, k: TSpaceKey): number | null => {
-      if (k === 'small') { const v = g.small_p95_valid_median ?? g.small_p95_median; return typeof v === 'number' && v > 0 ? v : null }
-      if (k === 'rtt') { const v = g.rtt_p95_median; return typeof v === 'number' && v > 0 ? v : null }
-      if (k === 'goodput') { const v = g.goodput_median; return typeof v === 'number' && v >= 0 ? v : null }
-      if (k === 'deadline') { const v = g.deadline_median ?? g.deadline_ok_pct; return typeof v === 'number' ? v : null }
-      if (k === 'cost') {
-        const w = g.wasted_median ?? g.wasted_bytes ?? null
-        if (w == null || w <= 0) return 0
-        return (w / 1073741824) * 5556 * 20
-      }
-      return null
+      if (k === 'indice') return null // géré par ind() ci-bas
+      return groupLien(g)[k]
     }
     // indice LIEN : moyenne des qualités normalisées 0..1 sur les groupes
     // visibles (bonté small/RTT inversée, goodput/échéance directe, coût inversé)
-    const ind = (g: Group): number | null => {
-      const parts: number[] = []
-      const norm = (vals: (number | null)[], v: number | null, down: boolean): number | null => {
-        if (v == null) return null
-        const xs = vals.filter((x): x is number => x != null)
-        if (!xs.length) return null
-        const mn = Math.min(...xs), mx = Math.max(...xs)
-        if (!(mx > mn)) return 1
-        return down ? 1 - (v - mn) / (mx - mn) : (v - mn) / (mx - mn)
-      }
-      const cols: [TSpaceKey, boolean][] = [['small', true], ['rtt', true], ['goodput', false], ['deadline', false], ['cost', true]]
-      for (const [k, down] of cols) {
-        const q = norm(vis.map(x => raw(x, k)), raw(g, k), down)
-        if (q != null) parts.push(q)
-      }
-      if (!parts.length) return null
-      return (parts.reduce((a, b) => a + b, 0) / parts.length) * 100
-    }
+    const lienAll = vis.map(groupLien)
+    const ind = (g: Group): number | null => lienScore(lienAll, groupLien(g))
     const valOf = (g: Group, k: TSpaceKey): number | null => (k === 'indice' ? ind(g) : raw(g, k))
     const meta = (k: TSpaceKey) => TSPACE.find(t => t.key === k) ?? TSPACE[0]
     // X auto-informative : si l'axe choisi écrase tous les points au même
@@ -331,6 +359,8 @@ export default function ResultatsView() {
     (fProfile === 'tous' || g.profile === fProfile) &&
     (fQdisc === 'tous' || g.qdisc === fQdisc) &&
     (fCc === 'tous' || g.cc === fCc))
+  // qualités LIEN sur les groupes visibles — même échelle que le TradeSpace
+  const lienAll: LienMetrics[] = filtered.map(groupLien)
   const ranked = [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(a) - val(b) : val(b) - val(a))
   // échelle de rang : la barre mesure la BONTÉ sur la plage visible
   // (min→max des valeurs finies), pas la valeur brute sur [0–max] où tout
@@ -438,8 +468,20 @@ export default function ResultatsView() {
         <div className="card" data-testid="changelog">
           <div className="card-head">Changelog — journal opérateur</div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {events.map((e, i) => <li key={i} className="mono" style={{ fontSize: 11, padding: '3px 0', borderBottom: '1px solid var(--hairline-faint)' }}><span style={{ color: '#767b84' }}>{e.ts}</span> <span style={{ color: '#5ad3e3' }}>{e.kind}</span> {e.msg.slice(0, 120)}</li>)}
+            {paginate(events, evPage, EV_PAGE_SIZE).map((e, i) => {
+              // pastille de nature — campagne cyan, profil violet, audit ambre, reste acier
+              const kc = /campagne/i.test(e.kind) ? '#5ad3e3' : /profil/i.test(e.kind) ? '#b48ae0' : /audit/i.test(e.kind) ? '#f4b400' : '#9aa3ad'
+              return (
+                <li key={i} className="mono" style={{ fontSize: 12, padding: '5px 0', borderBottom: '1px solid var(--hairline-faint)', display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                  <span style={{ color: '#a9aeb6', fontVariantNumeric: 'tabular-nums' }}>{e.ts}</span>
+                  <span title={e.kind} style={{ color: kc }}>●</span>
+                  <span style={{ flex: 1, color: '#d6d8dd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg.slice(0, 120)}</span>
+                  <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: kc }}>{e.kind}</span>
+                </li>
+              )
+            })}
           </ul>
+          <Paginate total={events.length} page={evPage} pageSize={EV_PAGE_SIZE} onPage={setEvPage} />
         </div>
       )}
 
@@ -500,6 +542,11 @@ export default function ResultatsView() {
         {(['tous', ...distinct('profile')] as string[]).map(v => chip(v, fProfile === v, () => setFProfile(v)))}
         {(['tous', ...distinct('qdisc')] as string[]).map(v => chip(v, fQdisc === v, () => setFQdisc(v)))}
         {(['tous', ...distinct('cc')] as string[]).map(v => chip(v, fCc === v, () => setFCc(v)))}
+        {/* clé couleur — chaque file sa teinte, chaque congestion son signe */}
+        <span style={{ width: 12 }} />
+        <span className="mono" style={{ fontSize: 11, color: '#a9aeb6' }} title="chaque discipline de file a sa couleur, chaque congestion son signe">
+          <span style={{ color: QCOLOR.pfifo_fast }}>■</span> pfifo <span style={{ color: QCOLOR.fq_codel }}>■</span> fq_codel <span style={{ color: QCOLOR.cake }}>■</span> cake · ◆ cubic ◇ bbr
+        </span>
       </div>
       {singleVerdict && (
         <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', margin: '2px 0 10px', paddingLeft: 2 }}>{singleVerdict}</div>
@@ -527,12 +574,12 @@ export default function ResultatsView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className="mono" style={{ fontSize: 11, fontWeight: 400, opacity: 0.4, color: '#a8aeb7', minWidth: 22, textAlign: 'right' }}>{i + 1}</span>
                 <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: '#f2f2f4', minWidth: 170 }}>
-                  {g.profile} · {g.qdisc} / {g.cc}
+                  {g.profile} · {g.qdisc} / {g.cc} <span title={g.cc === 'bbr' ? 'contrôle de congestion BBR (Google) — sonde le débit, peu agressif' : 'contrôle de congestion CUBIC — remplit les files, agressif'} style={{ color: barColor }}>{CCMARK[g.cc] ?? ''}</span>
                   {g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: '#5ad3e3' }}> ↓</span> : null}
                 </span>
                 <div style={{ flex: 1, height: 14, position: 'relative', minWidth: 80 }}>
                   <div style={{ position: 'absolute', inset: '2px 0', background: 'rgba(255,255,255,0.04)', borderRadius: 2, overflow: 'hidden' }}>
-                    {ok && <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, transformOrigin: 'left center', borderRadius: 2 }} />}
+                    {ok && <div className="leader-bar" data-leader={key} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, transformOrigin: 'left center', borderRadius: 2 }} />}
                   </div>
                   {ok && h.hi > h.lo && (
                     <div title={`IC95 [${h.lo.toFixed(1)}–${h.hi.toFixed(1)}]`} style={{ position: 'absolute', top: '50%', marginTop: -0.5, height: 1, left: `${rankPos(h.lo)}%`, width: `${Math.max(1.5, rankPos(h.hi) - rankPos(h.lo))}%`, borderLeft: '1px solid rgba(242,242,244,0.7)', borderRight: '1px solid rgba(242,242,244,0.7)', background: 'rgba(242,242,244,0.7)' }} />
@@ -550,7 +597,7 @@ export default function ResultatsView() {
               </div>
               <div className="mono" style={{ fontSize: 12, color: ok ? '#a9aeb6' : '#767b84', marginTop: 6, marginLeft: 34 }}>
                 {!singleVerdict && <span style={{ color: '#c3c9d1' }}>{verdict(g, i)} · </span>}
-                <span>{h.n} mesures valides · débit {(g.goodput_median ?? 0).toFixed(1)} Mb/s · échéances respectées {deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'} · {wasted == null || wasted <= 0 ? 'rien gaspillé' : (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB gaspillés' : wasted + ' o gaspillés')} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}</span>
+                <span>{h.n} mesures valides · débit {(g.goodput_median ?? 0).toFixed(1)} Mb/s · échéances respectées {deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'} · {wasted == null || wasted <= 0 ? 'rien gaspillé' : (wasted >= 1048576 ? (wasted / 1048576).toFixed(1) + ' MiB gaspillés' : wasted >= 1024 ? (wasted / 1024).toFixed(0) + ' Kio gaspillés' : wasted + ' o gaspillés')} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}</span>
               </div>
               {open && (
                 <div style={{ marginTop: 10, marginLeft: 34, padding: '12px 14px', border: '1px solid var(--hairline)', background: 'rgba(255,255,255,0.015)' }}>
@@ -581,6 +628,41 @@ export default function ResultatsView() {
                       </div>
                     )}
                   </div>
+                  {(() => {
+                    const comp = lienComponents(lienAll, groupLien(g))
+                    const score = lienScore(lienAll, groupLien(g))
+                    if (score == null) return null
+                    const rows: { label: string; q: number | null; color: string }[] = [
+                      { label: 'small p95', q: comp.small, color: '#f4b400' },
+                      { label: 'RTT', q: comp.rtt, color: '#5ad3e3' },
+                      { label: 'goodput', q: comp.goodput, color: '#b48ae0' },
+                      { label: 'échéances', q: comp.deadline, color: '#1fa348' },
+                      { label: 'coût', q: comp.cost, color: '#9aa3ad' },
+                    ]
+                    return (
+                      <div data-testid="lien-score" style={{ marginTop: 10 }}>
+                        <div className="mono" style={{ fontSize: 13, color: '#d6d8dd' }}>
+                          Score LIEN : {Math.round(score)}/100 — comment il se décompose
+                        </div>
+                        <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+                          {rows.map(r => (
+                            <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span className="mono" style={{ fontSize: 12, color: '#a9aeb6', minWidth: 80 }}>{r.label}</span>
+                              <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${r.q == null ? 0 : Math.round(r.q * 100)}%`, background: r.color, borderRadius: 3 }} />
+                              </div>
+                              <span className="mono" style={{ fontSize: 12, color: '#a9aeb6', minWidth: 92, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                {r.q == null ? '— · 20 %' : `${Math.round(r.q * 100)}/100 · 20 %`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mono" style={{ fontSize: 12, color: '#a9aeb6', marginTop: 8 }}>
+                          Moyenne de 5 critères ramenés à l'échelle des groupes visibles (0 = pire visible, 100 = meilleur visible), 20 % chacun : réactivité, latence, débit, échéances, coût.
+                        </div>
+                      </div>
+                    )
+                  })()}
                   <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
                     <button className="btn" title="épingler comme A" onClick={e => { e.stopPropagation(); setPinA(pin) }} style={{ padding: '4px 10px', fontSize: 10, background: isA ? 'rgba(90,211,227,0.15)' : 'transparent', color: isA ? CRAFT.live : 'var(--text-muted)' }}>A comparer</button>
                     <button className="btn" title="épingler comme B" onClick={e => { e.stopPropagation(); setPinB(pin) }} style={{ padding: '4px 10px', fontSize: 10, background: isB ? 'rgba(31,163,72,0.15)' : 'transparent', color: isB ? CRAFT.ok : 'var(--text-muted)' }}>B comparer</button>
