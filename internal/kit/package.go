@@ -70,6 +70,23 @@ func (r *Runner) Package(c *Config, rest []string) int {
 		_, err = w.Write(data)
 		return err
 	}
+	// addExec — comme add mais avec le bit +x conservé (le compagnon linux
+	// part vers la VM via scp ; l'installateur rechmod de toute façon, mais
+	// un zip honnête porte les perms d'origine).
+	addExec := func(name, src string) error {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return err
+		}
+		h := &zip.FileHeader{Name: name, Method: zip.Deflate}
+		h.SetMode(0755)
+		w, err := zw.CreateHeader(h)
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(data)
+		return err
+	}
 	addStr := func(name, s string) error {
 		w, err := zw.Create(name)
 		if err != nil {
@@ -86,6 +103,27 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	}
 	if err := add("cgo.exe", exe); err != nil {
 		return fail(fmt.Errorf("exe : %w", err))
+	}
+	// compagnon linux : le poste Windows pilote une VM Ubuntu — `kit deploy`
+	// depuis ce zip pousse CE binaire (précompilé, pas de toolchain requise
+	// côté opérateur). Sans Go ici : zip sans compagnon (observation seule).
+	if _, err := exec.LookPath("go"); err == nil {
+		r.out("[package] compagnon linux pour deploy VM…")
+		tmpLin := filepath.Join(outDir, "cgo-linux-pkg.exe-tmp")
+		cmd := exec.Command("go", "build", "-o", tmpLin, "./cmd/cgo")
+		cmd.Dir = r.Root
+		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			_ = os.Remove(tmpLin)
+			return fail(fmt.Errorf("compagnon linux : %v\n%s", err, firstLine(string(out))))
+		}
+		if err := addExec("cgo-linux", tmpLin); err != nil {
+			_ = os.Remove(tmpLin)
+			return fail(fmt.Errorf("compagnon linux : %w", err))
+		}
+		_ = os.Remove(tmpLin)
+	} else {
+		r.out("[package] Go absent : zip SANS compagnon linux (kit deploy VM impossible depuis ce zip — observation + audits seuls)")
 	}
 	// noms d'entrées en '/' obligatoires (spec zip/tar) — filepath.Join
 	// produit '\' sur Windows : l'archive livrerait un fichier littéral
@@ -136,8 +174,11 @@ Rôles :
   20.04+ convient : netem/cake/netns requis) survit aux deploys : les runs
   gelés restent dans ~/cgo/data/runs.
 
-Recompiler/redéployer DEPUIS ce poste exige en plus : Go 1.25+, bun, node
-et le dépôt source (kit deploy recompile). Sans eux : exploitation seulement.
+Recompiler DEPUIS ce poste exige en plus : Go 1.25+, bun, node
+et le dépôt source. Mais cgo.exe kit deploy pousse le compagnon
+cgo-linux (dans ce zip) vers la VM SANS toolchain — le plein pilotage
+(scan, clé, boot, deploy, dashboard) ne demande que ce zip + le mot de
+passe de la VM.
 `
 }
 
