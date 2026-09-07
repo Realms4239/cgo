@@ -74,20 +74,47 @@ export default function ResultatsView() {
   const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
   const [caption, setCaption] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
-  // TradeSpace : axes + couleur paramétrables, défaut compromis débit/latence
+  // TradeSpace : Y = le critère du classement (un seul modèle mental),
+  // X au choix + couleur paramétrables. L'indice LIEN (/100) combine les 5
+  // métriques normalisées sur les groupes visibles.
   const [xKey, setXKey] = useState<TSpaceKey>('goodput')
-  const [yKey, setYKey] = useState<TSpaceKey>('small')
   const [colorBy, setColorBy] = useState<'profile' | 'qdisc' | 'cc'>('qdisc')
+  // Y du TradeSpace = critère du classement — un seul modèle mental
+  const yKey: TSpaceKey = ({ small_p95_median: 'small', rtt_p95_median: 'rtt', goodput_median: 'goodput', cost: 'cost' } as Record<string, TSpaceKey>)[rankKey] ?? 'small'
+  // X jamais confondu avec Y : repli si le critère de rang devient l'axe X
+  const xk: TSpaceKey = xKey === yKey ? (yKey === 'goodput' ? 'cost' : 'goodput') : xKey
   const liveSnapRunning = useUIStore((s: any) => !!s.live?.running)
   const scatterRef = useRef<HTMLDivElement>(null)
   const reqSeq = useRef(0)
+  // run touché par l'opérateur ? Le repli tous-runs sur run vide n'est légitime
+  // qu'au chargement initial — un choix explicite mérite un écran explicite
+  const runTouched = useRef(false)
 
   // runs gelés, du plus récent au plus ancien (run-smoke et scories exclus)
   const orderedRuns = useMemo(() =>
     asArray<string>(runIds).filter(id => /^run-\d+$/.test(id)).sort().reverse(),
     [runIds])
-  const newest = orderedRuns[0] ?? ''
-  const effectiveRun = runSel === '__all__' ? '' : (runSel || newest)
+  // "En direct" = dernier run GELÉ AVEC DONNÉES — un run tué/tout-quarantaine
+  // (coquille d'en-tête ou deadline de test) ne doit pas écraser la vue
+  // directe d'un écran vide. Le fetch results?run=X sur la coquille répond
+  // 0 groupe ; on teste donc à la volée et on descend jusqu'au premier run
+  // qui répond. Cache local pour ne pas re-scanner à chaque render.
+  const [newest, setNewest] = useState('')
+  useEffect(() => {
+    if (!orderedRuns.length) return
+    let dead = 0
+    const probe = async (i: number) => {
+      const id = orderedRuns[i]
+      if (!id) return
+      try {
+        const j = await fetch(`/api/results?run=${encodeURIComponent(id)}`).then(r => r.json())
+        if (j?.available && Array.isArray(j.groups) && j.groups.length > 0 && j.groups.some((g: any) => (g.small_p95_valid_n ?? g.count) > 0)) setNewest(id)
+        else { dead++; if (dead < 12) probe(i + 1) }
+      } catch { /* réseau : garde le défaut */ }
+    }
+    probe(0)
+  }, [orderedRuns])
+  const effectiveRun = runSel === '__all__' ? '' : (runSel || newest || orderedRuns[0] || '')
 
   useEffect(() => {
     // garde anti-course : StrictMode rejoue l'effet (2 fetch tous-runs) et
@@ -98,9 +125,11 @@ export default function ResultatsView() {
       if (reqSeq.current !== seq) return
       if (j.available && Array.isArray(j.groups)) setGroups(j.groups)
       else if (j.available) setGroups([])
-      // run vide (en-tête seule, campagne tuée) : repli sur tous runs plutôt
-      // qu'un écran d'erreur — la source reste affichée et explicite
-      else if (wanted) setRunSel('__all__')
+      // run vide (en-tête seule, campagne tuée) : en direct (charge initiale,
+      // newest vide) → repli sur tous runs ; run choisi explicitement → écran
+      // vide EXPLICITE — jamais de bascule silencieuse derrière l'opérateur
+      else if (wanted && !runTouched.current) setRunSel('__all__')
+      else if (wanted) setGroups([])
       else setErr(j.reason || 'pas de résultats')
     }).catch(e => { if (reqSeq.current === seq) setErr(String(e)) })
     fetch('/api/integrity').then(r => r.json()).then(j => {
@@ -164,8 +193,8 @@ export default function ResultatsView() {
     }
     const valOf = (g: Group, k: TSpaceKey): number | null => (k === 'indice' ? ind(g) : raw(g, k))
     const meta = (k: TSpaceKey) => TSPACE.find(t => t.key === k) ?? TSPACE[0]
-    const xm = meta(xKey), ym = meta(yKey)
-    const pts = vis.map(g => ({ g, x: valOf(g, xKey), y: valOf(g, yKey), name: `${g.profile}·${g.qdisc}·${g.cc}` })).filter(p => p.x != null && p.y != null) as { g: Group; x: number; y: number; name: string }[]
+    const xm = meta(xk), ym = meta(yKey)
+    const pts = vis.map(g => ({ g, x: valOf(g, xk), y: valOf(g, yKey), name: `${g.profile}·${g.qdisc}·${g.cc}` })).filter(p => p.x != null && p.y != null) as { g: Group; x: number; y: number; name: string }[]
     // couleur par dimension — simple et lisible, une famille à la fois
     const fam = (g: Group): string => colorBy === 'profile' ? g.profile : colorBy === 'qdisc' ? g.qdisc : g.cc
     const famVals = Array.from(new Set(pts.map(p => fam(p.g)))).sort()
@@ -175,6 +204,15 @@ export default function ResultatsView() {
       const i = famVals.indexOf(f)
       return PAL_PROFILE[i % PAL_PROFILE.length]
     }
+    // top-3 par Y (ou best-of-family si moins de 3 familles) — seuls eux
+    // portent un label, halo sombre anti-collision sur le nuage
+    const better = (p: { y: number }) => ym.dir === 'up' ? p.y : -p.y
+    const nFam = new Set(pts.map(p => fam(p.g))).size
+    const labelSet = new Set(
+      [...pts].sort((a, b) => better(b) - better(a))
+        .slice(0, Math.max(1, Math.min(3, nFam)))
+        .map(p => p.name)
+    )
     const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
     const ro = new ResizeObserver(() => c.resize())
     ro.observe(scatterRef.current)
@@ -183,11 +221,19 @@ export default function ResultatsView() {
     // anti-collision par-dessus (contrainte testée : grammaire seule)
     const series = famVals.map(fv => {
       const famPts = pts.filter(p => fam(p.g) === fv)
-      const s = scatterSeries(fv, famPts.map(p => [p.x, p.y] as [number, number]), famColor(fv),
-        famPts.map((p, i) => (p.g.best ? i : -1)).filter(i => i >= 0))
+      const bestIdx = famPts.map((p, i) => (p.g.best ? i : -1)).filter(i => i >= 0)
+      const s = scatterSeries(fv, famPts.map(p => [p.x, p.y] as [number, number]), famColor(fv), bestIdx)
       return {
         ...s,
-        label: { show: true, formatter: (par: any) => famPts[par.dataIndex]?.name ?? '', color: famColor(fv), fontSize: 10, fontFamily: 'JetBrains Mono' },
+        label: {
+          show: true,
+          formatter: (par: any) => labelSet.has(famPts[par.dataIndex]?.name) ? famPts[par.dataIndex].name : '',
+          color: famColor(fv),
+          fontSize: 11,
+          fontFamily: 'JetBrains Mono',
+          textBorderColor: '#0b0b0c',
+          textBorderWidth: 3,
+        },
         labelLayout: { hideOverlap: true },
         tooltip: {
           trigger: 'item' as const,
@@ -201,25 +247,22 @@ export default function ResultatsView() {
     })
     const opt = {
       ...base,
-      // marge droite élargie : le nom de l'axe X ne doit pas être tronqué
-      grid: { ...base.grid, right: 96 },
-      xAxis: { ...base.xAxis, type: 'value' as const, name: `${xm.label} (${xm.unit})` },
-      yAxis: { ...base.yAxis, name: `${ym.label} (${ym.unit})` },
+      grid: { ...base.grid, left: 56, right: 28, top: 20, bottom: 44 },
+      xAxis: { ...base.xAxis, type: 'value' as const },
+      // pas de nom d'axe : la légende-phrase sous le graphe le dit
+      yAxis: { ...base.yAxis, name: '' },
       tooltip: { ...base.tooltip, trigger: 'item' as const },
       series,
     }
     c.setOption(opt as any)
-    // légende-phrase : ce que le nuage dit, en une ligne
+    // légende-phrase : axes + ce que le nuage dit, en une ligne sous le graphe
     if (!pts.length) setCaption('aucun point — élargissez les filtres')
     else {
-      const better = ym.dir === 'up'
-        ? pts.reduce((a, b) => (b.y > a.y ? b : a))
-        : pts.reduce((a, b) => (b.y < a.y ? b : a))
-      const bg = better.g
-      setCaption(`${ym.label} en fonction de ${xm.label} — ${pts.length} groupes · ${bg.profile}·${bg.qdisc}·${bg.cc} en tête (${better.y.toFixed(1)} ${ym.unit})`)
+      const bp = [...pts].sort((a, b) => better(b) - better(a))[0]
+      setCaption(`Y : ${ym.label} (${ym.unit}) · X : ${xm.label} (${xm.unit}) — ${pts.length} groupes · ${bp.g.profile}·${bp.g.qdisc}·${bp.g.cc} en tête (${bp.y.toFixed(1)} ${ym.unit})`)
     }
     return () => { ro.disconnect(); c.dispose() }
-  }, [groups, xKey, yKey, colorBy, fProfile, fQdisc, fCc])
+  }, [groups, xk, yKey, colorBy, fProfile, fQdisc, fCc])
 
   // delta vs run précédent — la dérive temporelle depuis l'historique gelé
   useEffect(() => {
@@ -346,7 +389,14 @@ export default function ResultatsView() {
       color: active ? '#7fd6e8' : '#a8aeb7',
     }}>{label}</button>
   )
+  // méta source : le run qui nourrit les chiffres, pas un compte muet
+  const validTotal = safeGroups.reduce((a, g) => a + validN(g), 0)
+  const metaRun = effectiveRun || 'tous runs'
   const shortRun = (id: string) => id.replace(/^run-/, 'run-…').slice(-12)
+  // coin du TradeSpace : où vit l'optimum (down = plus bas = mieux)
+  const yd = (TSPACE.find(t => t.key === yKey)?.dir ?? 'down') === 'down'
+  const xd = (TSPACE.find(t => t.key === xk)?.dir ?? 'down') === 'down'
+  const cornerArrow = yd ? (xd ? '↙' : '↘') : (xd ? '↖' : '↗')
 
   return (
     <div className="panel-stack" style={{ position: 'relative' }}>
@@ -354,10 +404,10 @@ export default function ResultatsView() {
 
       {/* bandeau benchmark — source, provenance, export (façon DeepSWE) */}
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap' }}>
-        <span className="mono" style={{ fontSize: 12, fontWeight: 700 }}>Meteolink Leaderboard</span>
-        <span className="mono muted" style={{ fontSize: 11 }}>{safeGroups.length} groupes</span>
+        <span className="mono" style={{ fontSize: 12, fontWeight: 500 }}>Meteolink Leaderboard</span>
+        <span className="mono muted" style={{ fontSize: 11 }}>{safeGroups.length} groupes · {metaRun} · {validTotal} valides</span>
         {liveSnapRunning && <span className="mono" style={{ fontSize: 10, color: '#1fa348', border: '1px solid currentColor', padding: '2px 8px' }}>● CAMPAGNE EN COURS</span>}
-        <select data-testid="run-select" value={runSel} onChange={e => setRunSel(e.target.value)} title="source des chiffres : en direct = dernier run gelé" style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
+        <select data-testid="run-select" value={runSel} onChange={e => { runTouched.current = true; setRunSel(e.target.value) }} title="source des chiffres : en direct = dernier run gelé" style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
           <option value="">{newest ? `⚡ En direct — ${shortRun(newest)}` : '⚡ En direct'}</option>
           <option value="__all__">tous runs (gelés)</option>
           {orderedRuns.map(id => <option key={id} value={id}>{id === newest ? `⚡ ${id}` : id}</option>)}
@@ -376,52 +426,57 @@ export default function ResultatsView() {
         </div>
       )}
 
-      {/* constat de campagne — le verdict en langage opérateur, cliquable pour l'interprétation riche */}
-      <button onClick={() => setInterpProfile(filtered[0]?.profile ?? 'P2')} data-testid="constat-button" style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: '1px solid ' + (top ? CRAFT.ok : 'var(--hairline)') }}>
+      {/* constat de campagne — le verdict en langage opérateur, l'action
+          d'interprétation est un vrai bouton, plus une carte-cible géante */}
+      <div className="card" style={{ padding: '10px 14px', border: '1px solid ' + (top ? CRAFT.ok : 'var(--hairline)') }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>constat de campagne</span>
-          {top && baselineRow && diff != null && !lossRegime && (
-            <span className="mono" style={{ fontSize: 12, color: diff > 0 ? CRAFT.ok : '#c3c9d1' }}>
-              {top.profile} : {top.qdisc}/{top.cc} protège le trafic critique — {diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`} de small p95 vs pfifo
-            </span>
-          )}
-          {top && baselineRow && lossRegime && (
-            <span className="mono" style={{ fontSize: 12, color: '#c3c9d1' }}>
-              {top.profile} : aucune discipline ne sépare — la perte gouverne, pas la file · cliquez pour la prescription quand même applicable
-            </span>
-          )}
-          {(!top || !baselineRow) && <span className="mono muted" style={{ fontSize: 11 }}>cliquez pour l'interprétation complète</span>}
-          <span className="mono" style={{ marginLeft: 'auto', fontSize: 10, color: CRAFT.live }}>interpréter →</span>
+          <button className="btn" data-testid="constat-button" onClick={() => setInterpProfile(filtered[0]?.profile ?? 'P2')} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 10 }}>Interprétation complète →</button>
         </div>
-      </button>
+        <p className="mono" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.6, color: '#c3c9d1', maxWidth: '68ch' }}>
+          {top && baselineRow && lossRegime
+            ? 'P3 : aucune discipline ne sépare — la retransmission gouverne, pas la file (échéance 0 % partout)'
+            : top && baselineRow && diff != null
+              ? `${top.profile} : ${top.qdisc}/${top.cc} protège le trafic critique — ${diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`} de small p95 vs pfifo (n=${validN(top)} réplications valides)`
+              : 'aucun groupe — lancez une campagne ou élargissez les filtres'}
+        </p>
+      </div>
       {interpProfile && <InterpretationView profile={interpProfile} onClose={() => setInterpProfile(null)} />}
 
-      {/* duel critère — avant/après lisible d'un coup d'œil */}
-      {top && baselineRow && (
-        <div className="card rank-verdict" data-testid="rank-verdict">
+      {/* duel critère — référence vs 1er, barres à échelle commune */}
+      {top && baselineRow && (() => {
+        const maxScale = Math.max(val(baselineRow), val(top), 1)
+        const bv = val(baselineRow), tv = val(top)
+        const bOk = Number.isFinite(bv) && bv !== Number.MAX_SAFE_INTEGER
+        const tOk = Number.isFinite(tv) && tv !== Number.MAX_SAFE_INTEGER
+        const row = (label: string, ok: boolean, v: number, n: number, fill: string) => (
           <div>
-            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
-              pfifo — avant
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <span className="mono" style={{ fontSize: 10, color: '#8b9099', paddingTop: 2 }}>{label}</span>
+              <span className="mono" style={{ fontSize: 13, color: '#c3c9d1', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
+                {ok ? `${v.toFixed(1)} ${rankMeta.unit}` : '—'}
+                <span style={{ display: 'block', fontSize: 10, color: '#9aa0a8' }}>n={n}</span>
+              </span>
             </div>
-            <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: '#c3c9d1', fontVariantNumeric: 'tabular-nums' }}>
-              {val(baselineRow) === Number.MAX_SAFE_INTEGER ? '—' : `${val(baselineRow).toFixed(1)} ${rankMeta.unit}`}
+            {/* régime perte : même largeur — pas de vainqueur visuel quand la
+                retransmission gouverne ; sinon largeur = valeur sur l'échelle commune */}
+            <div style={{ height: 8, background: 'var(--hairline-faint)', borderRadius: 2, overflow: 'hidden', marginTop: 3 }}>
+              <div style={{ height: '100%', width: `${!ok ? 0 : lossRegime && bOk && tOk ? 100 : Math.max(2, (v / maxScale) * 100)}%`, background: fill, transition: 'width 0.4s ease', borderRadius: 2 }} />
             </div>
-            <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{baselineRow.profile} · n={validN(baselineRow)}v</div>
           </div>
-          <div className="mono" data-testid="rank-diff" style={{ fontSize: 24, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: diff != null && diff > 0 ? '#1fa348' : '#c3c9d1', textAlign: 'center' }}>
-            {lossRegime ? 'égalité' : diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7fd6e8' }}>
-              1er — {rankMeta.label}
+        )
+        return (
+          <div className="card rank-verdict" data-testid="rank-verdict" style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 220, display: 'grid', gap: 10 }}>
+              {row('pfifo_fast — référence', bOk, bv, validN(baselineRow), '#767b84')}
+              {row(`1er — ${top.qdisc}/${top.cc}`, tOk, tv, validN(top), CRAFT.ok)}
             </div>
-            <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: '#1fa348', fontVariantNumeric: 'tabular-nums' }}>
-              {val(top) === Number.MAX_SAFE_INTEGER ? '—' : `${val(top).toFixed(1)} ${rankMeta.unit}`}
+            <div className="mono" data-testid="rank-diff" style={{ fontSize: 20, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: diff != null && diff > 0 ? '#1fa348' : '#c3c9d1', textAlign: 'center' }}>
+              {lossRegime ? 'égalité — régime perte' : diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
             </div>
-            <div className="mono" style={{ fontSize: 10, color: '#9aa0a8' }}>{top.profile} · {top.qdisc}/{top.cc} · n={validN(top)}v</div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* critère + filtres — une ligne, pas de paragraphe */}
       <div className="form-row" style={{ gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
@@ -436,14 +491,14 @@ export default function ResultatsView() {
         <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', margin: '2px 0 10px', paddingLeft: 2 }}>{singleVerdict}</div>
       )}
 
-      {filtered.length === 0 && <div className="card"><EmptyState kind="empty" hint="aucun groupe pour ces filtres — élargissez la sélection" /></div>}
+      {filtered.length === 0 && <div className="card"><EmptyState kind="empty" hint={safeGroups.length === 0 && effectiveRun ? 'run vide ou supprimé — passez à tous runs' : 'aucun groupe pour ces filtres — élargissez la sélection'} /></div>}
       {filtered.length > 0 && <div className="card" style={{ padding: '4px 0' }}>
         {/* leaderboard façon DeepSWE : une métrique-héros + moustaches IC, le reste en sourdine */}
         {ranked.map((g, i) => {
           const h = hero(g)
           const ok = Number.isFinite(h.v) && h.v > 0 && h.v !== Number.MAX_SAFE_INTEGER
           const pct = ok ? rankFill(h.v) : 0
-          const barColor = i === 0 ? 'var(--t-ok)' : (QCOLOR[g.qdisc] ?? '#6b7078')
+          const barColor = QCOLOR[g.qdisc] ?? '#6b7078'
           const key = `${g.profile}/${g.qdisc}/${g.cc}/${g.direction ?? 'up'}`
           const open = expanded === key
           const cellDelta = deltas[`${g.profile}|${g.qdisc}|${g.cc}${g.direction && g.direction !== 'up' ? `|${g.direction}` : ''}`]?.small_p95_pct
@@ -454,22 +509,22 @@ export default function ResultatsView() {
           const isA = pinA?.profile === g.profile && pinA?.qdisc === g.qdisc && pinA?.cc === g.cc
           const isB = pinB?.profile === g.profile && pinB?.qdisc === g.qdisc && pinB?.cc === g.cc
           return (
-            <div key={key} style={{ padding: '10px 14px', borderBottom: '1px solid var(--hairline-faint)', background: i === 0 && ok ? 'rgba(31,163,72,0.07)' : 'transparent', cursor: 'pointer' }} onClick={() => setExpanded(open ? null : key)}>
+            <div key={key} className="lb-row" style={{ padding: '10px 14px', borderBottom: '1px solid var(--hairline-faint)', background: 'transparent', cursor: 'pointer' }} onClick={() => setExpanded(open ? null : key)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span className="mono" style={{ fontSize: 12, fontWeight: i === 0 ? 700 : 400, color: i === 0 && ok ? '#1fa348' : '#a8aeb7', minWidth: 22 }}>{i + 1}</span>
-                <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: '#f2f2f4', minWidth: 150 }}>
+                <span className="mono" style={{ fontSize: 11, fontWeight: 400, opacity: 0.4, color: '#a8aeb7', minWidth: 22, textAlign: 'right' }}>{i + 1}</span>
+                <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: '#f2f2f4', minWidth: 170 }}>
                   {g.profile} · {g.qdisc} / {g.cc}
                   {g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: '#5ad3e3' }}> ↓</span> : null}
                 </span>
-                <div style={{ flex: 1, height: 10, position: 'relative', minWidth: 80 }}>
-                  <div style={{ position: 'absolute', inset: '3px 0', background: 'var(--hairline-faint)', borderRadius: 2, overflow: 'hidden' }}>
-                    {ok && <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, boxShadow: i === 0 ? `0 0 6px ${barColor}` : 'none', transformOrigin: 'left center', borderRadius: 2 }} />}
+                <div style={{ flex: 1, height: 14, position: 'relative', minWidth: 80 }}>
+                  <div style={{ position: 'absolute', inset: '2px 0', background: 'rgba(255,255,255,0.04)', borderRadius: 2, overflow: 'hidden' }}>
+                    {ok && <div className="leader-bar" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: barColor, transformOrigin: 'left center', borderRadius: 2 }} />}
                   </div>
                   {ok && h.hi > h.lo && (
-                    <div title={`IC95 [${h.lo.toFixed(1)}–${h.hi.toFixed(1)}]`} style={{ position: 'absolute', top: 0, bottom: 0, left: `${rankPos(h.lo)}%`, width: `${Math.max(1.5, rankPos(h.hi) - rankPos(h.lo))}%`, borderLeft: '2px solid #f2f2f4', borderRight: '2px solid #f2f2f4' }} />
+                    <div title={`IC95 [${h.lo.toFixed(1)}–${h.hi.toFixed(1)}]`} style={{ position: 'absolute', top: '50%', marginTop: -0.5, height: 1, left: `${rankPos(h.lo)}%`, width: `${Math.max(1.5, rankPos(h.hi) - rankPos(h.lo))}%`, borderLeft: '1px solid rgba(242,242,244,0.7)', borderRight: '1px solid rgba(242,242,244,0.7)', background: 'rgba(242,242,244,0.7)' }} />
                   )}
                 </div>
-                <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: ok ? (i === 0 ? '#1fa348' : '#f2f2f4') : '#767b84', fontVariantNumeric: 'tabular-nums', minWidth: 120, textAlign: 'right' }}>
+                <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: ok ? '#f2f2f4' : '#767b84', fontVariantNumeric: 'tabular-nums', minWidth: 110, textAlign: 'right' }}>
                   {ok ? `${h.v.toFixed(1)} ${rankMeta.unit}` : '—'}
                   {ok && h.hi > h.lo && <span style={{ fontSize: 10, fontWeight: 400, color: '#8b9099' }}> ±{((h.hi - h.lo) / 2).toFixed(0)}</span>}
                 </span>
@@ -479,7 +534,7 @@ export default function ResultatsView() {
                   </span>
                 )}
               </div>
-              <div className="mono" style={{ fontSize: 11, color: ok ? '#9aa3ad' : '#767b84', marginTop: 4, marginLeft: 34 }}>
+              <div className="mono" style={{ fontSize: 11, color: ok ? '#9aa3ad' : '#767b84', marginTop: 6, marginLeft: 34 }}>
                 {!singleVerdict && <>{verdict(g, i)} · </>}
                 <span style={{ color: '#5c6169' }}>n={h.n}v · goodput {(g.goodput_median ?? 0).toFixed(1)} Mb/s · échéance {deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'} · {wasted == null || wasted <= 0 ? '0 gaspillé' : 'gaspillé'} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}</span>
               </div>
@@ -497,25 +552,40 @@ export default function ResultatsView() {
             </div>
           )
         })}
+        {/* échelle partagée sous la dernière rangée — les barres partagent
+            UNE échelle implicite (bonté : 100 % = meilleur visible).
+            Sans ligne valide (coquille/quarantaine), pas d'échelle à lire. */}
+        {finiteVals.length > 0 && (() => {
+          const worst = rankMeta.dir === 'down' ? rankMax : rankMin
+          const best = rankMeta.dir === 'down' ? rankMin : rankMax
+          const fmt = (v: number) => rankSpan > 0 ? `${v.toFixed(1)} ${rankMeta.unit}` : '—'
+          return (
+            <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 14px 10px', borderTop: '1px solid var(--hairline-faint)', fontSize: 10, color: '#767b84' }}>
+              <span>← {fmt(worst)}</span><span>25 %</span><span>50 %</span><span>75 %</span><span>{fmt(best)} →</span>
+            </div>
+          )
+        })()}
       </div>}
       {pinA && pinB && (
         <CompareView a={pinA} b={pinB} onClose={() => { setPinA(null); setPinB(null) }} />
       )}
-      <div className="card" style={{ padding: 12 }}>
+      <div className="card" style={{ padding: 12, position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
           <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>TradeSpace</span>
-          <label className="mono" style={{ fontSize: 10, color: '#8b9099' }}>X <select value={xKey} onChange={e => setXKey(e.target.value as TSpaceKey)} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '4px 6px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
-            {TSPACE.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-          </select></label>
-          <label className="mono" style={{ fontSize: 10, color: '#8b9099' }}>Y <select value={yKey} onChange={e => setYKey(e.target.value as TSpaceKey)} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '4px 6px', fontFamily: 'JetBrains Mono', fontSize: 11 }}>
-            {TSPACE.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-          </select></label>
+          <span className="mono" title="Y = le critère du classement" style={{ fontSize: 10, color: '#5ad3e3' }}>Y {TSPACE.find(t => t.key === yKey)?.label}</span>
+          <span className="mono" style={{ fontSize: 10, color: '#8b9099' }}>X</span>
+          {TSPACE.filter(t => t.key !== yKey).map(t => chip(t.label, xk === t.key, () => setXKey(t.key)))}
           <span className="mono" style={{ fontSize: 10, color: '#8b9099' }}>couleur</span>
           {(['profile', 'qdisc', 'cc'] as const).map(v => chip({ profile: 'profil', qdisc: 'file', cc: 'CC' }[v], colorBy === v, () => setColorBy(v)))}
           <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 10 }}>hash {hash8}</span>
         </div>
-        <div ref={scatterRef} style={{ height: 260 }} />
-        <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', marginTop: 6 }}>{caption}</div>
+        <div style={{ position: 'relative' }}>
+          <span className="mono" style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, color: 'var(--text-faint)', pointerEvents: 'none', zIndex: 1 }}>
+            optimal {cornerArrow}
+          </span>
+          <div ref={scatterRef} style={{ height: 320 }} />
+        </div>
+        <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>{caption}</div>
       </div>
       <Provenance source="data/runs/*/aqm_eval.csv" state="live" extra={`${safeGroups.length} groupes · hash ${hash8}`} />
     </div>
