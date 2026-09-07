@@ -179,18 +179,42 @@ func (v *virtualbox) GuestIP(vbx string) string {
 // pas joignable depuis l'hôte. La voie canonique : rediriger le port hôte
 // 2222 vers le 22 invité, et 9090 vers le dashboard, puis la config SSH
 // pointe 127.0.0.1:2222. Idempotent : retire les règles existantes avant.
+// modifyvm exige la VM ÉTEINTE — si elle tourne déjà (démarrée à la main),
+// controlvm applique les mêmes règles À CHAUD. Vu en revue : modifyvm seul
+// échouait sur VM allumée et ensure abandonnait alors que tout était prêt.
 func (v *virtualbox) EnsureNatSSH(vbx, hostPort string) error {
 	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
-	_, _ = v.run("modifyvm", name, "--natpf1", "delete", "cgo-ssh")
-	_, err := v.run("modifyvm", name, "--natpf1",
-		"cgo-ssh,tcp,,"+hostPort+",,22")
-	if err != nil {
+	running := false
+	for _, r := range v.Running() {
+		if strings.Contains(r, name) {
+			running = true
+		}
+	}
+	nat := func(verb string, args ...string) error {
+		full := append([]string{verb, name}, args...)
+		_, err := v.run(full...)
 		return err
 	}
-	_, _ = v.run("modifyvm", name, "--natpf1", "delete", "cgo-dashboard")
-	_, err = v.run("modifyvm", name, "--natpf1",
-		"cgo-dashboard,tcp,,9090,,9090")
-	return err
+	// efface puis pose, dans le mode adapté à l'état de la VM
+	tool := "modifyvm"
+	if running {
+		tool = "controlvm"
+	}
+	_ = nat(tool, "--natpf1", "delete", "cgo-ssh")
+	if err := nat(tool, "--natpf1", "cgo-ssh,tcp,,"+hostPort+",,22"); err != nil {
+		// dernier recours : l'autre mode (état race entre-temps)
+		other := "controlvm"
+		if tool == "controlvm" {
+			other = "modifyvm"
+		}
+		_ = nat(other, "--natpf1", "delete", "cgo-ssh")
+		if err2 := nat(other, "--natpf1", "cgo-ssh,tcp,,"+hostPort+",,22"); err2 != nil {
+			return err
+		}
+	}
+	_ = nat(tool, "--natpf1", "delete", "cgo-dashboard")
+	_ = nat(tool, "--natpf1", "cgo-dashboard,tcp,,9090,,9090")
+	return nil
 }
 
 // NatHostAddr — l'adresse d'accès SSH quand la VM est en NAT.
@@ -288,6 +312,41 @@ func roots() []string {
 	return []string{"/"}
 }
 
+// extraRoots — emplacements VMs hors conventions, scannés à profondeur
+// bornée (5) dans TOUS les modes : ~/vmware (défaut VMware), /media et /mnt
+// (disques externes/2e disque). Séparés de roots() : un scan profond à 100
+// sur un disque externe de 2 To prendrait des minutes à chaque ensure.
+func extraRoots() []string {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	var out []string
+	if h, err := os.UserHomeDir(); err == nil {
+		out = append(out, filepath.Join(h, "vmware"))
+	}
+	if entries, err := os.ReadDir("/media"); err == nil {
+		for _, u := range entries {
+			if !u.IsDir() {
+				continue
+			}
+			sub, _ := os.ReadDir(filepath.Join("/media", u.Name()))
+			for _, m := range sub {
+				if m.IsDir() {
+					out = append(out, filepath.Join("/media", u.Name(), m.Name()))
+				}
+			}
+		}
+	}
+	if entries, err := os.ReadDir("/mnt"); err == nil {
+		for _, m := range entries {
+			if m.IsDir() {
+				out = append(out, filepath.Join("/mnt", m.Name()))
+			}
+		}
+	}
+	return out
+}
+
 // ScanVMs — recherche .vmx/.vbox : d'abord les conventions D:/VMs, C:/VMs
 // (profondeur 2), puis la racine des disques (profondeur 3, --deep pour tout).
 // Retourne les chemins canoniques triés.
@@ -346,6 +405,11 @@ func ScanVMs(deep bool) []string {
 	}
 	for _, r := range roots() {
 		scanDir(r, depth)
+	}
+
+	// 4) emplacements VMs hors conventions — profondeur bornée 5, deep ou non
+	for _, r := range extraRoots() {
+		scanDir(r, 5)
 	}
 
 	sort.Strings(out)

@@ -612,15 +612,120 @@ func discoverGuestIP(hyp vm.Hypervisor, vmx string) string {
 			return ip
 		}
 	}
-	// repli : voisinage ARP du subnet VMware (192.168.174.0/24 NAT typique)
-	// parcours des IP probables via ping rapide
-	for _, tail := range []string{"128", "129", "130", "131", "132", "133", "134", "135", "136", "137", "138", "139", "140", "141", "142", "143", "144", "145", "146", "147", "148", "149", "150"} {
-		ip := "192.168.174." + tail
+	// repli 1 (instantané, subnet-agnostique) : la table ARP du poste —
+	// une VM bridgée/NAT qui a parlé au réseau y figure déjà, quel que soit
+	// le subnet (VMware ne donne pas toujours 192.168.174.x, VirtualBox
+	// bridgé vit sur le LAN du poste).
+	for _, ip := range arpAlive() {
 		if pingOne(ip) {
 			return ip
 		}
 	}
+	// repli 2 : voisinage ARP du subnet VMware (192.168.174.0/24 NAT typique)
+	// + subnets des interfaces du poste (bridgé, NAT custom) — queues
+	// probables 128-150 (baux DHCP VMware/VBox), parcours des IP probables
+	// via ping rapide
+	seen := map[string]bool{}
+	tails := []string{"128", "129", "130", "131", "132", "133", "134", "135", "136", "137", "138", "139", "140", "141", "142", "143", "144", "145", "146", "147", "148", "149", "150"}
+	subs := []string{"192.168.174."}
+	for _, s := range hostSubnets() {
+		if s != "192.168.174." && len(subs) < 3 {
+			subs = append(subs, s)
+		}
+	}
+	for _, sub := range subs {
+		for _, tail := range tails {
+			ip := sub + tail
+			if seen[ip] {
+				continue
+			}
+			seen[ip] = true
+			if pingOne(ip) {
+				return ip
+			}
+		}
+	}
 	return ""
+}
+
+// arpAlive — IPv4 REACHABLE/STALE de la table ARP du poste (voisins qui ont
+// parlé récemment). Instantané, aucune hypothèse de subnet : couvre le
+// NAT custom VMware, le bridgé, le 2e sous-réseau.
+func arpAlive() []string {
+	var out []string
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("arp", "-a")
+	} else {
+		cmd = exec.Command("ip", "neigh", "show")
+		if _, err := exec.LookPath("ip"); err != nil {
+			cmd = exec.Command("arp", "-a")
+		}
+	}
+	bs, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	for _, f := range strings.Fields(string(bs)) {
+		// 192.168.x.x ou 10.x — jamais 127.*, jamais v6
+		if !strings.Contains(f, ".") || strings.Contains(f, ":") {
+			continue
+		}
+		ip := strings.Trim(f, "()")
+		if net.ParseIP(ip) == nil || !net.ParseIP(ip).IsPrivate() || strings.HasPrefix(ip, "127.") {
+			continue
+		}
+		if !seen[ip] {
+			seen[ip] = true
+			out = append(out, ip)
+		}
+		if len(out) >= 24 {
+			break
+		}
+	}
+	return out
+}
+
+// hostSubnets — préfixes /24 privés des interfaces UP du poste (bridgé,
+// NAT custom, 2e NIC). Le sweep ne sonde que les queues DHCP probables.
+func hostSubnets() []string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, it := range ifaces {
+		if it.Flags&net.FlagUp == 0 || it.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := it.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, a := range addrs {
+			var ip net.IP
+			switch v := a.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || !ip.IsPrivate() || ip.To4() == nil {
+				continue
+			}
+			prefix := strings.Join(strings.Split(ip.String(), ".")[:3], ".") + "."
+			if !seen[prefix] {
+				seen[prefix] = true
+				out = append(out, prefix)
+			}
+		}
+		if len(out) >= 3 {
+			break
+		}
+	}
+	return out
 }
 
 func pingOne(ip string) bool {
