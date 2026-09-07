@@ -1,4 +1,4 @@
-# Meteolink [![version](https://img.shields.io/badge/version-1.2.2-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
+# Meteolink [![version](https://img.shields.io/badge/version-1.2.3-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
 
 ## Qu'est-ce que c'est ?
 
@@ -58,18 +58,26 @@ $ go run ./cmd/cgo setup
 
 Sept étapes idempotentes : détection (OS, go/bun/node/ssh, hyperviseurs) → dépendances → build frontend+binaire → contexte (observe/full/VM) → config VM (scan, IP invité auto) → DNS local (`meteolink.dev`) → doctor + menu final (dashboard/TUI). Modes : `--yes` (CI, défauts), `--no-vm` (sans hyperviseur).
 
-### Compilation depuis une release
+### Poste opérateur depuis une release (Ubuntu + VM du banc)
 
-Téléchargez, extrayez et exécutez le binaire unique :
+Téléchargez l'archive du poste (`cgo` linux statique + config exemple + installateur VM + mode d'emploi), puis suivez `LISEZ-MOI.txt` — 8 commandes, mot de passe demandé une seule fois :
 
 ```
-$ wget https://github.com/Realms4239/cgo/releases/download/v1.2.2/cgo-linux-amd64.tar.gz
-$ tar -xzvf cgo-linux-amd64.tar.gz
-$ ./cgo --serve              # https://meteolink.dev:9090 (certificat local auto-signé)
-# ou meteolink --serve (alias de compatibilité)
+$ wget https://github.com/Realms4239/cgo/releases/download/v1.2.3/cgo-linux-amd64.tar.gz
+$ wget https://github.com/Realms4239/cgo/releases/download/v1.2.3/cgo-linux-amd64.tar.gz.sha256
+$ sha256sum -c cgo-linux-amd64.tar.gz.sha256
+$ tar xzf cgo-linux-amd64.tar.gz -C ~/cgo-op && cd ~/cgo-op
+$ ./cgo kit doctor     # dépendances (openssh-client installé auto si absent)
+$ ./cgo kit scan       # trouve la VM sur tout le PC (vmrun/VBoxManage)
+$ ./cgo kit keysetup   # pose la clé SSH (mot de passe tapé dans ssh, jamais stocké)
+$ ./cgo kit ensure     # boot VM + SSH actif
+$ sudo ./cgo kit dns   # meteolink.dev → VM
+$ ./cgo kit deploy     # pousse CE binaire testé, sert le dashboard (sans recompiler)
+$ sudo ./cgo kit tls   # confiance HTTPS totale (magasin système)
+# → https://meteolink.dev:9090
 ```
 
-Vérifiez avec `checksums.txt` (SHA-256).
+Pré-requis côté VM invitée : `open-vm-tools` (découverte d'IP) + `openssh-server` — `kit ensure` dit la commande console exacte s'il manque. Serveur du dashboard : `./cgo kit svc start|stop|restart|status`.
 
 ### Compilation depuis GitHub (développement)
 
@@ -127,7 +135,7 @@ $ cgo kit ssh · ps · backup
 
 21 actions au total. Mêmes codes de sortie que l'ancien `engine.sh` (2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH, 6 cross, 7 scp, 8 install), env `CGO_SSH_HOST`/`CGO_DASHBOARD_PORT`/`CGO_VM_IP` inchangés (l'env **gagne** sur `cgo-vm.yaml` — forcer une IP après un bail DHCP glissant). `kit/engine.sh` reste en shim de compatibilité. **Machine propre sans SSH :** `cgo kit doctor` classe l'échec (sshd absent / clé refusée / machine éteinte) et affiche la remédiation, `cgo kit keysetup` pose la clé sans console (mot de passe tapé dans ssh), `cgo kit ensure` gère boot + découverte d'IP.
 
-**DNS local + HTTPS :** `bash kit/install.sh --hosts` (Admin) ou `cgo setup` ajoute `127.0.0.1 meteolink.dev` (host) et `<ip-vm> meteolink.vm` (auto-découvert via `cgo kit status`). Le dashboard écoute `https://meteolink.dev:9090` avec un certificat local auto-signé généré au premier lancement (accepter une fois dans le navigateur, ou installer `%APPDATA%/cgo/cert.pem` dans le magasin de confiance). `.dev` est `HSTS` : le HTTP est redirigé (`127.0.0.1:9080` → HTTPS). La VM reste en HTTP brut : `http://meteolink.vm:9090`.
+**DNS local + HTTPS (obligatoire, HSTS préchargé) :** `sudo cgo kit dns` mappe `meteolink.dev` vers la VM ; le dashboard n'écoute QU'en HTTPS (`https://meteolink.dev:9090`, certificat auto-signé généré au premier lancement) — `sudo cgo kit tls` l'installe dans le magasin système pour un accès sans avertissement. Sans confiance installée : accepter une fois dans le navigateur (HSTS interdit le contournement au clic pour un hôte inconnu — installez le certificat).
 
 ## Stockage
 
@@ -289,7 +297,7 @@ Nous recevons beaucoup de questions. Vérifiez d'abord :
 
 - `cgo doctor` — `tc` présent, `CAP_NET_ADMIN`, `BBR`, `ping` — tout vert avant une campagne.
 - `cgo shape --restore` — nettoie les `qdisc` périmés après un crash.
-- `GET /api/health` → `{"mode":"full","version":"1.2.2"}` — `observe` sur `Windows` est normal, la campagne renvoie `501`.
+- `GET /api/health` → `{"mode":"full","version":"1.2.3"}` — `observe` sur `Windows` est normal, la campagne renvoie `501`.
 - `go vet ./...` a besoin de `web/frontend/dist` — `bun run build` d'abord, sinon `embed.go` échoue.
 - `ECharts` : ne jamais réintroduire `visualMap piecewise` ni `LinearGradient` area — cela plante `LineView` (`coord`) et fige les voisins. `ChartSurface` `init` dans `useEffect`, `dispose` au cleanup.
 
