@@ -68,7 +68,7 @@ const groupLien = (g: Group): LienMetrics => ({
   rtt: (() => { const v = g.rtt_p95_median; return typeof v === 'number' && v > 0 ? v : null })(),
   goodput: (() => { const v = g.goodput_median; return typeof v === 'number' && v >= 0 ? v : null })(),
   deadline: (() => { const v = g.deadline_median ?? g.deadline_ok_pct; return typeof v === 'number' ? v : null })(),
-  cost: (() => { const w = g.wasted_median ?? g.wasted_bytes ?? null; if (w == null || w <= 0) return 0; return (w / 1073741824) * 5556 * 20 })(),
+  cost: (() => { const w = g.wasted_median ?? g.wasted_bytes ?? null; if (w == null) return null; if (w <= 0) return 0; return (w / 1073741824) * 5556 * 20 })(),
 })
 
 export default function ResultatsView() {
@@ -122,18 +122,24 @@ export default function ResultatsView() {
   useEffect(() => {
     if (!orderedRuns.length) return
     let dead = 0
+    let stale = false // garde d'annulation : une chaîne lente issue d'un
+    // orderedRuns périmé (StrictMode, refetch) ne doit pas écraser la plus fraîche
     const probe = async (i: number) => {
       const id = orderedRuns[i]
-      if (!id) return
+      if (!id || stale) return
       try {
         const j = await fetch(`/api/results?run=${encodeURIComponent(id)}`).then(r => r.json())
+        if (stale) return
         if (j?.available && Array.isArray(j.groups) && j.groups.length > 0 && j.groups.some((g: any) => (g.small_p95_valid_n ?? g.count) > 0)) setNewest(id)
         else { dead++; if (dead < 12) probe(i + 1) }
       } catch { /* réseau : garde le défaut */ }
     }
     probe(0)
+    return () => { stale = true }
   }, [orderedRuns])
-  const effectiveRun = runSel === '__all__' ? '' : (runSel || newest || orderedRuns[0] || '')
+  // tant que la sonde n'a pas tranché, NE PAS demander orderedRuns[0] (peut
+  // être une coquille vide) : pas de fetch, écran de chargement honnête
+  const effectiveRun = runSel === '__all__' ? '' : (runSel || newest || '')
 
   useEffect(() => {
     // garde anti-course : StrictMode rejoue l'effet (2 fetch tous-runs) et
@@ -142,11 +148,11 @@ export default function ResultatsView() {
     const seq = ++reqSeq.current
     fetch(`/api/results${wanted ? `?run=${encodeURIComponent(wanted)}` : ''}`).then(r => r.json()).then(j => {
       if (reqSeq.current !== seq) return
-      if (j.available && Array.isArray(j.groups)) setGroups(j.groups)
-      else if (j.available) setGroups([])
-      // run vide (en-tête seule, campagne tuée) : en direct (charge initiale,
-      // newest vide) → repli sur tous runs ; run choisi explicitement → écran
-      // vide EXPLICITE — jamais de bascule silencieuse derrière l'opérateur
+      // run vide (0 groupe : en-tête seule, campagne tuée) = run vide tout
+      // autant que !available : au chargement initial → repli tous-runs,
+      // choix explicite → écran vide EXPLICITE, jamais de bascule silencieuse
+      const empty = !j.available || !(Array.isArray(j.groups) && j.groups.length > 0)
+      if (!empty) setGroups(j.groups)
       else if (wanted && !runTouched.current) setRunSel('__all__')
       else if (wanted) setGroups([])
       else setErr(j.reason || 'pas de résultats')
@@ -327,13 +333,19 @@ export default function ResultatsView() {
   // médian gelé — les runs historiques mélangent les paliers (×16,7).
   const costRef = (g: Group): number | null => {
     const w = g.wasted_median ?? g.wasted_bytes ?? null
-    if (w == null || w <= 0) return 0
+    // null = jamais mesuré (exclu du score, hors rang) ; 0 = mesuré, rien
+    // gaspillé (le moins cher possible). Les confondre faussait le rang coût.
+    if (w == null) return null
+    if (w <= 0) return 0
     return (w / 1073741824) * 5556 * 20
   }
   const validN = (g: Group): number => g.small_p95_valid_n ?? g.count
   const val = (g: Group): number => {
     if (rankKey === 'cost') { const c = costRef(g); return c == null ? Number.MAX_SAFE_INTEGER : c }
     const v = (g as any)[rankKey]
+    // goodput mesuré à 0 (lien mort) ≠ donnée absente : 0 se classe dernier,
+    // l'absence sort du rang. Latences : seules les valeurs > 0 existent.
+    if (rankKey === 'goodput_median') return typeof v === 'number' && v >= 0 ? v : Number.MAX_SAFE_INTEGER
     return typeof v === 'number' && v > 0 ? v : Number.MAX_SAFE_INTEGER
   }
   // héros + incertitude du critère (façon DeepSWE : valeur ±, moustaches IC)
@@ -366,7 +378,9 @@ export default function ResultatsView() {
   // (min→max des valeurs finies), pas la valeur brute sur [0–max] où tout
   // semble plein. Le meilleur a toujours la barre la plus longue, dans les
   // deux sens de critère ; les moustaches gardent la position absolue.
-  const finiteVals = filtered.map(val).filter(v => Number.isFinite(v) && v > 0 && v !== Number.MAX_SAFE_INTEGER)
+  const finiteVals = rankKey === 'goodput_median'
+    ? filtered.map(val).filter(v => Number.isFinite(v) && v >= 0 && v !== Number.MAX_SAFE_INTEGER)
+    : filtered.map(val).filter(v => Number.isFinite(v) && v > 0 && v !== Number.MAX_SAFE_INTEGER)
   const rankMin = finiteVals.length ? Math.min(...finiteVals) : 0
   const rankMax = finiteVals.length ? Math.max(...finiteVals) : 1
   const rankSpan = rankMax > rankMin ? rankMax - rankMin : 0
@@ -375,8 +389,13 @@ export default function ResultatsView() {
     : 100
   const rankFill = (v: number): number => rankMeta.dir === 'down' ? 100 - rankPos(v) : rankPos(v)
   const top = ranked[0]
-  const baselineRow = filtered.find(g => g.qdisc === 'pfifo_fast' && (!top || g.profile === top.profile))
+  // la référence dit son vrai nom : pfifo quand présent, sinon le pire du
+  // filtre (le duel reste honnête : "cake — avant" si l'opérateur a filtré
+  // les files sur cake seul). baselineIsPfifo décide du libellé partout.
+  const pfifoRef = filtered.find(g => g.qdisc === 'pfifo_fast' && (!top || g.profile === top.profile))
+  const baselineRow = pfifoRef
     ?? [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(b) - val(a) : val(a) - val(b))[0]
+  const baselineIsPfifo = !!pfifoRef
   const diff = top && baselineRow && Number.isFinite(val(top)) && val(baselineRow) > 0
     ? Math.round(((val(baselineRow) - val(top)) / val(baselineRow)) * 100) : null
   // régime perte : toutes les cellules valides affichées ratent l'échéance —
@@ -496,7 +515,7 @@ export default function ResultatsView() {
           {top && baselineRow && lossRegime
             ? 'P3 : aucune discipline ne sépare — la retransmission gouverne, pas la file (échéance 0 % partout)'
             : top && baselineRow && diff != null
-              ? `${top.profile} : ${top.qdisc}/${top.cc} protège le trafic critique — ${diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`} de small p95 vs pfifo (n=${validN(top)} réplications valides)`
+              ? `${top.profile} : ${top.qdisc}/${top.cc} protège le trafic critique — ${diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`} de small p95 vs ${baselineIsPfifo ? 'pfifo' : baselineRow.qdisc} (n=${validN(top)} réplications valides)`
               : 'aucun groupe — lancez une campagne ou élargissez les filtres'}
         </p>
       </div>
@@ -519,7 +538,7 @@ export default function ResultatsView() {
         )
         return (
           <div className="card rank-verdict" data-testid="rank-verdict" style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', padding: '18px 20px' }}>
-            {col(`pfifo — avant`, bOk, bv, validN(baselineRow), '#a9aeb6')}
+            {col(`${baselineIsPfifo ? 'pfifo' : baselineRow.qdisc} — avant`, bOk, bv, validN(baselineRow), '#a9aeb6')}
             <div style={{ textAlign: 'center' }}>
               <div className="mono" data-testid="rank-diff" style={{ fontSize: 34, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: diff != null && diff > 0 ? '#1fa348' : '#d6d8dd', lineHeight: 1 }}>
                 {lossRegime ? 'égalité' : diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
@@ -557,7 +576,9 @@ export default function ResultatsView() {
         {/* leaderboard façon DeepSWE : une métrique-héros + moustaches IC, le reste en sourdine */}
         {ranked.map((g, i) => {
           const h = hero(g)
-          const ok = Number.isFinite(h.v) && h.v > 0 && h.v !== Number.MAX_SAFE_INTEGER
+          const ok = rankKey === 'goodput_median'
+            ? Number.isFinite(h.v) && h.v >= 0 && h.v !== Number.MAX_SAFE_INTEGER
+            : Number.isFinite(h.v) && h.v > 0 && h.v !== Number.MAX_SAFE_INTEGER
           const pct = ok ? rankFill(h.v) : 0
           const barColor = QCOLOR[g.qdisc] ?? '#6b7078'
           const key = `${g.profile}/${g.qdisc}/${g.cc}/${g.direction ?? 'up'}`
@@ -570,7 +591,7 @@ export default function ResultatsView() {
           const isA = pinA?.profile === g.profile && pinA?.qdisc === g.qdisc && pinA?.cc === g.cc
           const isB = pinB?.profile === g.profile && pinB?.qdisc === g.qdisc && pinB?.cc === g.cc
           return (
-            <div key={key} className="lb-row" style={{ padding: '10px 14px', borderBottom: '1px solid var(--hairline-faint)', background: 'transparent', cursor: 'pointer', opacity: expanded && !open ? 0.35 : 1, filter: expanded && !open ? 'saturate(0.5)' : 'none', transition: 'opacity 250ms ease, filter 250ms ease' }} onClick={() => setExpanded(open ? null : key)}>
+            <div key={key} className="lb-row" role="button" tabIndex={0} aria-expanded={open} aria-label={`${g.profile} ${g.qdisc} ${g.cc} — détails`} style={{ padding: '10px 14px', borderBottom: '1px solid var(--hairline-faint)', background: 'transparent', cursor: 'pointer', opacity: expanded && !open ? 0.35 : 1, filter: expanded && !open ? 'saturate(0.5)' : 'none', transition: 'opacity 250ms ease, filter 250ms ease' }} onClick={() => setExpanded(open ? null : key)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(open ? null : key) } }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className="mono" style={{ fontSize: 11, fontWeight: 400, opacity: 0.4, color: '#a8aeb7', minWidth: 22, textAlign: 'right' }}>{i + 1}</span>
                 <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: '#f2f2f4', minWidth: 170 }}>
