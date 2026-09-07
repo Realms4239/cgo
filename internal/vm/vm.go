@@ -27,6 +27,10 @@ type Hypervisor interface {
 	Stop(vmx string) error
 	// GuestIP interroge l'IP invitée d'une VM allumée ("" si inconnue).
 	GuestIP(vmx string) string
+	// RunGuest exécute un programme DANS l'invité (user/pass = compte invité,
+	// jamais persistés par l'appelant). VMware : Tools requis. VirtualBox :
+	// Additions invité requises. Sortie combinée ; erreur = échec/auth/Tools.
+	RunGuest(user, pass, vmx, prog string, args ...string) (string, error)
 }
 
 // NatForwarder — hyperviseurs en mode NAT (VirtualBox) : l'IP invitée
@@ -91,6 +95,25 @@ func (v *vmware) GuestIP(vmx string) string {
 		return ""
 	}
 	return ip
+}
+
+// vmwareGuestArgs — argv pur (testé) : -gu/-gp AVANT le sous-ordre, jamais
+// dans les logs de l'appelant (le mot de passe transite en mémoire + ligne
+// de commande du seul processus vmrun éphémère).
+func vmwareGuestArgs(user, pass, vmx, sub, prog string, args []string) []string {
+	out := []string{"-T", "ws", "-gu", user, "-gp", pass, sub, vmx}
+	if prog != "" {
+		out = append(out, prog)
+		out = append(out, args...)
+	}
+	return out
+}
+
+// RunGuest — runProgramInGuest (Tools requis, prouvé live : listProcesses,
+// echo ; copyFile host↔guest INDISPONIBLE sur open-vm-tools — ne pas
+// proposer de push par ce canal, l'apt+ssh reste la voie).
+func (v *vmware) RunGuest(user, pass, vmx, prog string, args ...string) (string, error) {
+	return v.run(vmwareGuestArgs(user, pass, vmx, "runProgramInGuest", prog, args)...)
 }
 
 // ---- VirtualBox ----
@@ -219,6 +242,21 @@ func (v *virtualbox) EnsureNatSSH(vbx, hostPort string) error {
 
 // NatHostAddr — l'adresse d'accès SSH quand la VM est en NAT.
 func (v *virtualbox) NatHostAddr() string { return "127.0.0.1" }
+
+// vboxGuestArgs — argv pur (relu sur doc stable, pas de banc VBox sous la
+// main pour le live-test : guestcontrol exige les Additions invité).
+func vboxGuestArgs(user, pass, name, prog string, args []string) []string {
+	out := []string{"guestcontrol", name, "run", "--username", user, "--password", pass,
+		"--wait-stdout", "--wait-stderr", "--exe", prog, "--"}
+	out = append(out, args...)
+	return out
+}
+
+// RunGuest — guestcontrol run (Additions invité requises).
+func (v *virtualbox) RunGuest(user, pass, vmx, prog string, args ...string) (string, error) {
+	name := strings.TrimSuffix(filepath.Base(vmx), ".vbox")
+	return v.run(vboxGuestArgs(user, pass, name, prog, args)...)
+}
 
 // ---- détection ----
 

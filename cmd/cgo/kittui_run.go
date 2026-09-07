@@ -4,9 +4,12 @@ package main
 // sortie en direct, suspensions TTY (keysetup, shell), rafraîchissements.
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -34,6 +37,174 @@ type ktDash struct{ state string }
 type ktResumed struct{}
 type ktBooted struct{}
 type ktTick struct{}
+type ktDiagMsg struct{ rows []diagRow }
+
+// expandKey — ~/… vers le home réel (SUDO_USER sous sudo, comme kit).
+func expandKeyTUI(k string) string {
+	if strings.HasPrefix(k, "~/") {
+		h := ""
+		if su := os.Getenv("SUDO_USER"); su != "" {
+			if u, err := user.Lookup(su); err == nil {
+				h = u.HomeDir
+			}
+		}
+		if h == "" {
+			h, _ = os.UserHomeDir()
+		}
+		if h != "" {
+			return filepath.Join(h, k[2:])
+		}
+	}
+	return k
+}
+
+// curSSHVal — valeur actuelle d'un champ ssh pour pré-remplir la saisie.
+func curSSHVal(m *modelKT, field string) string {
+	if m.cfg == nil {
+		return ""
+	}
+	switch field {
+	case "user":
+		return m.cfg.SSHUser
+	case "host":
+		return m.cfg.SSHHost
+	case "port":
+		return m.cfg.SSHPort
+	case "key":
+		return m.cfg.SSHKey
+	}
+	return ""
+}
+
+// mkLocalKey — crée la paire ed25519 si absente (sinon : rien à faire,
+// dit honnêtement au lieu d'écraser ou d'échouer en chinois).
+func mkLocalKey(c *kit.Config) int {
+	if c == nil {
+		fmt.Println("pas de config — verrouillez d'abord")
+		return 2
+	}
+	pub := expandKeyTUI(c.SSHKey)
+	if _, err := os.Stat(pub); err == nil {
+		fmt.Println("clé déjà présente : " + pub + " — rien à faire")
+		return 0
+	}
+	if _, err := exec.LookPath("ssh-keygen"); err != nil {
+		fmt.Println("ssh-keygen introuvable — installez le client OpenSSH (étape 1)")
+		return 2
+	}
+	_ = os.MkdirAll(filepath.Dir(pub), 0700)
+	cmd := exec.Command("ssh-keygen", "-t", "ed25519", "-N", "", "-f", pub, "-q")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Println("ssh-keygen : " + strings.TrimSpace(string(out)))
+		return 2
+	}
+	fmt.Println("clé créée : " + pub + " — posez-la ensuite (mot de passe, une fois)")
+	return 0
+}
+
+// diagnose — l'état de chaque prérequis d'accès, avec son remède.
+// Rapide (<15 s) : dial 3 s + ssh 6 s max, en fond.
+func (m *modelKT) diagnose() {
+	if !m.bus.live() {
+		return
+	}
+	m.diagBusy = true
+	go func() {
+		m.reloadCfg()
+		rows := []diagRow{}
+		if m.cfg == nil {
+			m.bus.Send(ktDiagMsg{rows: []diagRow{{label: "Config", state: "ko", detail: "illisible — " + m.cfgPath}}})
+			return
+		}
+		// 1. clé locale
+		keyPath := expandKeyTUI(m.cfg.SSHKey)
+		keyOK := false
+		if st, err := os.Stat(keyPath); err == nil && !st.IsDir() {
+			keyOK = true
+			rows = append(rows, diagRow{label: "Clé locale", state: "ok", detail: fmt.Sprintf("%s (%d o)", keyPath, st.Size())})
+		} else {
+			rows = append(rows, diagRow{label: "Clé locale", state: "ko", detail: "absente — « Créer la clé locale » ci-dessous"})
+		}
+		// 2. IP (auto → hyperviseur, sinon la valeur configurée)
+		host := m.cfg.SSHHost
+		if host == "" || host == "auto" {
+			host = m.guestIP()
+			if host == "" {
+				rows = append(rows, diagRow{label: "IP invitée", state: "wait", detail: "non résolue — VM éteinte ? Démarrer / réessayer"})
+			} else {
+				rows = append(rows, diagRow{label: "IP invitée", state: "ok", detail: host + " (hyperviseur)"})
+			}
+		} else {
+			rows = append(rows, diagRow{label: "IP invitée", state: "ok", detail: host + " (configuré)"})
+		}
+		// 3. port 22 (seulement si on a une IP)
+		portOK := false
+		if host != "" {
+			d := net.Dialer{Timeout: 3 * time.Second}
+			cn, err := d.Dial("tcp", net.JoinHostPort(host, m.cfg.SSHPort))
+			if err == nil {
+				_ = cn.Close()
+				portOK = true
+				rows = append(rows, diagRow{label: "Port 22", state: "ok", detail: "ouvert sur " + host})
+			} else {
+				rows = append(rows, diagRow{label: "Port 22", state: "ko", detail: "fermé — « Installer SSH via les Tools » ci-dessous, ou DANS la VM : sudo apt install -y openssh-server && sudo systemctl enable --now ssh"})
+			}
+		} else {
+			rows = append(rows, diagRow{label: "Port 22", state: "wait", detail: "sans IP, intestable"})
+		}
+		// 4. clé autorisée (seulement si port ouvert + clé présente)
+		if portOK && keyOK {
+			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4",
+				"-o", "StrictHostKeyChecking=accept-new", "-p", m.cfg.SSHPort, "-i", keyPath,
+				m.cfg.SSHUser+"@"+host, "true")
+			if out, err := cmd.CombinedOutput(); err == nil {
+				rows = append(rows, diagRow{label: "Clé autorisée", state: "ok", detail: m.cfg.SSHUser + "@" + host + " accepte la clé"})
+			} else {
+				o := strings.ToLower(string(out))
+				if strings.Contains(o, "permission denied") || strings.Contains(o, "denied") {
+					rows = append(rows, diagRow{label: "Clé autorisée", state: "ko", detail: "refusée — « Poser la clé SSH » (mot de passe, une fois)"})
+				} else {
+					rows = append(rows, diagRow{label: "Clé autorisée", state: "ko", detail: "échec : " + firstLineTUI(string(out))})
+				}
+			}
+		} else {
+			rows = append(rows, diagRow{label: "Clé autorisée", state: "wait", detail: "après clé locale + port 22"})
+		}
+		m.bus.Send(ktDiagMsg{rows: rows})
+	}()
+}
+
+func firstLineTUI(s string) string {
+	if i := strings.Index(s, "\n"); i >= 0 {
+		s = s[:i]
+	}
+	s = strings.TrimSpace(s)
+	if len(s) > 90 {
+		s = s[:90]
+	}
+	if s == "" {
+		return "sans détail"
+	}
+	return s
+}
+
+// guestIP — IP via l'hyperviseur de la VM verrouillée ("" si inconnue).
+func (m *modelKT) guestIP() string {
+	if m.cfg == nil || m.cfg.VMXPath == "" {
+		return ""
+	}
+	for _, h := range vm.Detect() {
+		if m.cfg.Hypervisor != "" && h.Name() != m.cfg.Hypervisor {
+			continue
+		}
+		if ip := h.GuestIP(m.cfg.VMXPath); ip != "" {
+			return ip
+		}
+	}
+	return ""
+}
 
 // ---- bus partagé ----
 
@@ -319,6 +490,7 @@ func (m *modelKT) activate(id string) tea.Cmd {
 		}
 		if m.step == ktAcces {
 			m.refreshSSH()
+			m.diagnose()
 		}
 		if m.step == ktDeploy || m.step == ktControle {
 			m.refreshDash()
@@ -352,11 +524,22 @@ func (m *modelKT) activate(id string) tea.Cmd {
 	case "ensure":
 		m.runBG("ensure", func(r *kit.Runner) int { return r.Ensure(m.cfg, m.cfgPath, true) })
 		return nil
-	case "retry":
-		m.refreshSSH()
+	case "diag":
+		m.diagnose()
+		return nil
+	case "mkkey":
+		m.runBG("créer-clé", func(r *kit.Runner) int { return mkLocalKey(m.cfg) })
+		return nil
+	case "set-user", "set-host", "set-port", "set-key":
+		m.inputOn = true
+		m.inputField = strings.TrimPrefix(id, "set-")
+		m.inputVal = curSSHVal(m, m.inputField)
+		m.cursor = 0
 		return nil
 	case "keysetup":
 		return m.runSuspend("kit", "keysetup", "--config", m.cfgPath)
+	case "guest-ssh":
+		return m.runSuspend("kit", "guest-ssh", "--config", m.cfgPath)
 	case "deploy":
 		m.runBG("deploy", func(r *kit.Runner) int { return r.Deploy(m.cfg, m.cfgPath, true) })
 		return nil
@@ -413,10 +596,20 @@ func (m *modelKT) activate(id string) tea.Cmd {
 			m.step = ktAcces
 			m.cursor = 0
 			m.refreshSSH()
+			m.diagnose()
 		}
 		return nil
 	}
 	return nil
+}
+
+// fieldVal — la valeur saisie ne remplit que SON champ (les autres vides
+// sont ignorés par SaveSSHTarget : edit partiel sans perte).
+func fieldVal(field, want, val string) string {
+	if field == want {
+		return val
+	}
+	return ""
 }
 
 // ---- Update ----
@@ -441,6 +634,41 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.busy != "" && msg.String() != "q" && msg.String() != "ctrl+c" {
 			return m, nil // verrou doux pendant une action (q reste possible)
 		}
+		// mode saisie : le clavier écrit dans le champ, pas dans la navigation.
+		if m.inputOn {
+			switch msg.String() {
+			case "enter":
+				val := strings.TrimSpace(m.inputVal)
+				if val != "" {
+					if err := kit.SaveSSHTarget(m.cfgPath, fieldVal(m.inputField, "user", val), fieldVal(m.inputField, "host", val), fieldVal(m.inputField, "port", val), fieldVal(m.inputField, "key", val)); err != nil {
+						m.pushLog("sauvegarde : " + err.Error())
+					} else {
+						m.pushLog(m.inputLabel() + " → " + val)
+					}
+					m.reloadCfg()
+				}
+				m.inputOn = false
+				m.inputVal = ""
+				m.diagnose()
+				return m, nil
+			case "esc":
+				m.inputOn = false
+				m.inputVal = ""
+				return m, nil
+			case "backspace":
+				if len(m.inputVal) > 0 {
+					m.inputVal = m.inputVal[:len(m.inputVal)-1]
+				}
+				return m, nil
+			case "ctrl+u":
+				m.inputVal = ""
+				return m, nil
+			}
+			if msg.Type == tea.KeyRunes && len(m.inputVal) < 64 {
+				m.inputVal += string(msg.Runes)
+			}
+			return m, nil
+		}
 		switch msg.String() {
 		case "q", "ctrl+c":
 			if m.busy != "" && !m.quitArm {
@@ -449,6 +677,13 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, tea.Quit
+		case "esc":
+			// retour : une étape en arrière, jamais bloqué nulle part.
+			if m.step > ktDeps {
+				m.step--
+				m.cursor = 0
+			}
+			return m, nil
 		case "1", "2", "3", "4", "5":
 			m.step = ktStep(int(msg.String()[0] - '1'))
 			m.cursor = 0
@@ -457,6 +692,7 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.step == ktAcces {
 				m.refreshSSH()
+				m.diagnose()
 			}
 			if m.step == ktDeploy || m.step == ktControle {
 				m.refreshDash()
@@ -478,6 +714,21 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+	case ktDiagMsg:
+		m.diagBusy = false
+		m.sshDiag = msg.rows
+		allOK := len(msg.rows) > 0
+		for _, d := range msg.rows {
+			if d.state != "ok" {
+				allOK = false
+			}
+		}
+		if allOK {
+			m.sshState = "ok"
+		} else if m.sshState == "ok" {
+			m.sshState = ""
+		}
+		return m, nil
 	case ktLog:
 		m.pushLog(msg.line)
 		return m, nil
@@ -491,9 +742,10 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.reloadCfg()
 		switch msg.action {
-		case "install-ssh", "ensure", "svc start", "svc stop", "svc restart", "dns", "tls", "svc status":
+		case "install-ssh", "créer-clé", "ensure", "svc start", "svc stop", "svc restart", "dns", "tls", "svc status":
 			m.refreshSSH()
 			m.refreshDash()
+			m.diagnose()
 		case "deploy":
 			m.refreshSSH()
 			m.refreshDash()
@@ -525,6 +777,7 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshDeps()
 		m.refreshSSH()
 		m.refreshDash()
+		m.diagnose()
 		m.pushLog("retour au centre de contrôle")
 		return m, nil
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -113,6 +114,14 @@ func TestKTViewRenders(t *testing.T) {
 	m.vms = []vmEntry{{path: `D:\VMs\ubu\ubu.vmx`, name: "ubu", hyp: "vmware", live: true}}
 	m.sshState = "ok"
 	m.dashState = "ok 1.2.3"
+	m.sshDiag = []diagRow{
+		{label: "Clé locale", state: "ok", detail: "~/.ssh/id_ed25519"},
+		{label: "Port 22", state: "ko", detail: "fermé — installer openssh-server"},
+		{label: "Clé autorisée", state: "wait", detail: "après port 22"},
+	}
+	m.inputOn = true
+	m.inputField = "host"
+	m.inputVal = "192.168.1."
 	m.pushLog("ligne test")
 	for s := ktDeps; s <= ktControle; s++ {
 		m.step = s
@@ -121,5 +130,73 @@ func TestKTViewRenders(t *testing.T) {
 		if len(out) < 100 {
 			t.Fatalf("vue %d trop courte (%d)", s, len(out))
 		}
+	}
+}
+
+// Saisie inline : ouvre, écrit, valide → config + retour navigation.
+func TestKTInputCommit(t *testing.T) {
+	dir := t.TempDir()
+	cfg := dir + "/cgo-vm.yaml"
+	os.WriteFile(cfg, []byte("ssh:\n  user: altfloat\n  host: auto\n  port: 22\n  key: ~/.ssh/id_ed25519\n"), 0644)
+	m := initialModelKT(cfg, "x")
+	m.step = ktAcces
+	// curseur sur "Utilisateur…" (diag, mkkey, guest-ssh, set-user)
+	mm, _ := m.Update(keyMsg("enter"))
+	m = mm.(modelKT)
+	// l'item set-user est à l'index 3 — on l'active directement
+	m.cursor = 3
+	mm, _ = m.Update(keyMsg("enter"))
+	m = mm.(modelKT)
+	if !m.inputOn || m.inputField != "user" {
+		t.Fatalf("saisie non ouverte : on=%v field=%q", m.inputOn, m.inputField)
+	}
+	// ctrl+u efface le pré-remplissage, puis frappe du neuf
+	mm, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlU})
+	m = mm.(modelKT)
+	for _, r := range "marie" {
+		mm, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		m = mm.(modelKT)
+	}
+	mm, _ = m.Update(keyMsg("enter"))
+	m = mm.(modelKT)
+	if m.inputOn {
+		t.Fatal("saisie non refermée après entrée")
+	}
+	if m.cfg.SSHUser != "marie" {
+		t.Fatalf("user non persisté : %q", m.cfg.SSHUser)
+	}
+}
+
+// Diagnostic : message appliqué, état global suit.
+func TestKTDiagApplies(t *testing.T) {
+	m := testModelKT()
+	m.sshState = "ok"
+	mm, _ := m.Update(ktDiagMsg{rows: []diagRow{
+		{label: "Clé locale", state: "ok"},
+		{label: "Port 22", state: "ko"},
+	}})
+	m = mm.(modelKT)
+	if len(m.sshDiag) != 2 {
+		t.Fatalf("diag non appliqué : %d lignes", len(m.sshDiag))
+	}
+	if m.sshState == "ok" {
+		t.Fatal("état global resté ok malgré un KO")
+	}
+}
+
+// Esc : ferme la saisie d'abord, puis recule d'une étape (jamais bloqué).
+func TestKTEscBack(t *testing.T) {
+	m := testModelKT()
+	m.step = ktDeploy
+	mm, _ := m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	m = mm.(modelKT)
+	if m.step != ktAcces {
+		t.Fatalf("esc ne recule pas : step=%d", m.step)
+	}
+	m.inputOn = true
+	mm, _ = m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	m = mm.(modelKT)
+	if m.inputOn || m.step != ktAcces {
+		t.Fatal("esc devrait fermer la saisie avant de reculer")
 	}
 }

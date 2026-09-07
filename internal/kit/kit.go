@@ -184,6 +184,21 @@ func saveConfigValue(path, key, val string) error {
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
+// SaveSSHTarget — mémorise user/host/port/key dans la section ssh: du yaml
+// (centre de contrôle TUI : l'identité par défaut altfloat/auto ne convient
+// pas à chaque poste — valeurs vides ignorées pour les edits partiels).
+func SaveSSHTarget(path, user, host, port, key string) error {
+	for k, v := range map[string]string{"user": user, "host": host, "port": port, "key": key} {
+		if v == "" {
+			continue
+		}
+		if err := setYAMLKey(path, k, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // SaveVMX — persiste vm_name/vmx_path/hypervisor dans le yaml (auto-rempli par scan).
 func SaveVMX(path, vmx, hypervisor string) error {
 	name := strings.TrimSuffix(filepath.Base(vmx), filepath.Ext(vmx))

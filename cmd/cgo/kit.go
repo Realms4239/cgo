@@ -26,6 +26,7 @@ actions :
   doctor    dépendances locales + config (tout vert avant d'agir)
   scan      trouve les .vmx/.vbox sur TOUT le PC (défaut), sauvegarde l'unique
   keysetup  pose la clé SSH sur la cible via mot de passe (prompts, zéro GUI)
+  guest-ssh installe openssh-server DANS l'invité via Tools (sans SSH préalable)
   ensure    SSH up, sinon boot VM + attente (300 s max) + IP auto-découverte
   align     NIC + CPU/mémoire mini du banc (à froid, snapshot auto avant)
   build     porte stricte : go vet + tsc + vite + bundle <600 KB + vitest
@@ -73,6 +74,8 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.Scan(c, *cfgPath, effDeep)
 	case "keysetup":
 		return r.KeySetup(c, *cfgPath, rest)
+	case "guest-ssh":
+		return r.GuestSSH(c, *cfgPath, effDeep)
 	case "ensure":
 		return r.Ensure(c, *cfgPath, effDeep)
 	case "align":
