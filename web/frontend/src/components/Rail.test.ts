@@ -18,10 +18,10 @@ describe('Rail', () => {
     expect(s).toContain('railPinned')
     expect(s).toContain('miniSparkline')
   })
-  it('store adds railPinned and density', () => {
+  it('store adds railPinned (density system removed)', () => {
     const s = readAny(['web/frontend/src/store/ui.ts','src/store/ui.ts','C:/cgo/.worktrees/observatory2/web/frontend/src/store/ui.ts'])
     expect(s).toContain('railPinned')
-    expect(s).toContain('density')
+    expect(s).not.toContain('density')
   })
 })
 describe('Rail — largeur de la barre latérale', () => {
@@ -42,6 +42,6 @@ describe('Rail polish', () => {
     expect(r).toContain('ICONS')
     const css=readAny(['web/frontend/src/styles/index.css','src/styles/index.css'])
     expect(css).toContain('#v-campagne .panel-stack')
-    expect(css).toMatch(/max-width:\s*1280/)
+    expect(css).toMatch(/max-width:\s*1180/)
   })
 })

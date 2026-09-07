@@ -16,7 +16,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 #shell {
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
-  grid-template-rows: 48px 1fr 28px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas: "hd hd" "side main" "ft ft";
   height: 100vh;
 }
@@ -28,7 +28,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 /* header — bien placé, non tronqué : min-width:0 + garde flex, repli wordmark #f2f2f4 ;
    z-index:10 — le chooser wrappe sur 2 lignes, sa moitié basse doit rester cliquable
    au-dessus de main (sans z-index, main le recouvre car il suit dans le DOM) */
-header { grid-area: hd; position: relative; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); min-width: 0; }
+header { grid-area: hd; position: relative; z-index: 10; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); min-width: 0; min-height: 48px; }
 .stripe { display: flex; flex-direction: column; width: 4px; height: 18px; gap: 2px; flex: none; }
 .stripe i { flex: 1; }
 .stripe i:nth-child(1) { background: var(--brand-1); }
@@ -67,11 +67,12 @@ aside.sidebar { grid-area: side; display: flex; flex-direction: column; border-r
 /* main / view */
 main { grid-area: main; overflow-y: auto; position: relative; }
 /* vues toutes montées, masquées par l'attribut hidden — le CSS ne pilote plus l'affichage */
-.view { height: 100%; padding: var(--sp-5); animation: fadeIn 0.35s ease; }
+/* view — respire sur grand écran, tient sur projection 1366×768 (clamp) */
+.view { height: 100%; padding: clamp(12px, 2.2vw, 28px); animation: fadeIn 0.35s ease; }
 .view[hidden] { display: none; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 /* view-title — centered breathing */
-.view-title { font: 600 var(--fs-head) var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary); text-align: center; margin: 24px auto; max-width: 1280px; width: 100%; }
+.view-title { font: 600 var(--fs-head) var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary); text-align: center; margin: 24px auto; max-width: 1180px; width: 100%; }
 
 /* card — container query breathing */
 .card { border: 1px solid var(--hairline); background: var(--surface-card); padding: var(--sp-4); container-type: inline-size; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
@@ -96,17 +97,23 @@ main { grid-area: main; overflow-y: auto; position: relative; }
 .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
 .btn-danger { background: var(--t-danger); color: #fff; border-color: var(--t-danger); }
 
-/* panel-stack — tidy+breathing well-placed */
-.panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 1280px; width: 100%; margin: 0 auto; }
-/* respiration bento — scopée au mur (#wall), la densité pilote --gap (Q6 B) */
-[data-density='airy'] { --gap: 24px; }
-[data-density='dense'] { --gap: 16px; }
+/* panel-stack — colonne lisible sur 1920, pas de lignes étirées */
+.panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 1180px; width: 100%; margin: 0 auto; }
+/* respiration bento — gap fixe scopée au mur (#wall) */
 #wall { gap: var(--gap); container-type: inline-size; }
 /* bento 2-col scoped to campagne/live — resultats/integrite tables stay full */
 @media (min-width: 1100px) {
-  [data-density='airy'] #v-campagne .panel-stack:not(.cockpit), [data-density='airy'] #v-live .panel-stack { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
-  [data-density='airy'] #v-campagne .panel-stack > .banner, [data-density='airy'] #v-live .panel-stack > .banner { grid-column: 1 / -1; }
-  [data-density='airy'] #v-campagne .panel-stack > *:first-child { grid-column: 1 / -1; }
+  #v-campagne .panel-stack:not(.cockpit), #v-live .panel-stack { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  #v-campagne .panel-stack > .banner, #v-live .panel-stack > .banner { grid-column: 1 / -1; }
+  #v-campagne .panel-stack > *:first-child { grid-column: 1 / -1; }
+}
+
+/* écrans bas (projection 1366×768, laptop) — reserrer sans casser le mur */
+@media (max-height: 820px) {
+  .view { padding: 12px; }
+  .view-title { margin: 12px auto; }
+  :root { --gap: 14px; }
+  .card { padding: 12px; }
 }
 
 /* footer 28 ticker */
@@ -132,7 +139,7 @@ footer .fill { margin-left: auto; }
 .brush .selection { fill: rgba(90,211,227,0.08); stroke: rgba(90,211,227,0.4); }
 
 @media (max-width: 899px) {
-  #shell, #shell.rail-min { grid-template-columns: 1fr; grid-template-rows: 48px auto 1fr 28px; grid-template-areas: "hd" "side" "main" "ft"; }
+  #shell, #shell.rail-min { grid-template-columns: 1fr; grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "hd" "side" "main" "ft"; }
   /* surcharge largeur inline par classe — le rail devient bande horizontale 48px */
   .rail, .rail.pinned, .rail:not(.pinned) { flex-direction: row; align-items: center; border-right: none; border-bottom: 1px solid var(--hairline); overflow-x: auto; width: 100% !important; height: 48px; flex-wrap: nowrap; }
   .rail .miniSparkline, .rail .live-peek, .rail .foot-ticker, .rail .rail-foot, .side-status { display: none; }

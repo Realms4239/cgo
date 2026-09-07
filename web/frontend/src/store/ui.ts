@@ -10,8 +10,6 @@ export const PANELS = [
 
 export type PanelId = (typeof PANELS)[number]['id'];
 
-export type Density = 'airy' | 'dense'
-
 type ToastKind = '' | 'ok' | 'err' | 'blue'
 export interface ToastItem { id: number; msg: string; cls: ToastKind }
 let toastSeq = 1
@@ -27,12 +25,10 @@ interface UIState {
   toasts: ToastItem[]; pushToast: (msg: string, cls?: ToastKind) => void; dropToast: (id: number) => void
   flash: FlashItem | null; setFlash: (f: FlashItem | null) => void
   replayRunning: boolean; replayRunId: string | null; setReplay: (running: boolean, id: string | null) => void
-  railPinned: boolean; density: Density; setRailPinned: (v: boolean) => void; setDensity: (d: Density) => void
+  railPinned: boolean; setRailPinned: (v: boolean) => void
 }
 
 const getRailPinned = () => false
-// dense par défaut — un NOC montre plus de données par écran; airy reste au toggle (soutenance/projection)
-const getDensity = (): Density => { try { const v = typeof localStorage !== 'undefined' ? localStorage.getItem('density') as Density : null; return v === 'airy' ? 'airy' : 'dense' } catch { return 'dense' } }
 
 export const useUIStore = create<UIState>((set) => ({
   panel: 'campagne', setPanel: (panel) => set({ panel }),
@@ -48,7 +44,6 @@ export const useUIStore = create<UIState>((set) => ({
   dropToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   flash: null, setFlash: (flash) => set({ flash }),
   replayRunning: false, replayRunId: null, setReplay: (replayRunning, replayRunId) => set({ replayRunning, replayRunId }),
-  railPinned: getRailPinned(), density: getDensity(),
+  railPinned: getRailPinned(),
   setRailPinned: (railPinned) => { try { localStorage.setItem('railPinned', railPinned ? '1' : '0') } catch {} ; set({ railPinned }) },
-  setDensity: (density) => { try { localStorage.setItem('density', density) } catch {} ; set({ density }) },
 }));

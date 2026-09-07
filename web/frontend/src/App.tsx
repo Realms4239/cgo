@@ -24,8 +24,6 @@ export default function App() {
   const live = useUIStore((s) => s.live)
   const connected = useUIStore((s) => s.connected)
   const sseStatus = useUIStore((s) => s.sseStatus)
-  const density = useUIStore((s) => s.density)
-  const setDensity = useUIStore((s) => s.setDensity)
   const railPinned = useUIStore((s) => s.railPinned)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -84,7 +82,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <WebGLMesh />
-      <div id="shell" data-density={density} className={railPinned ? '' : 'rail-min'}>
+      <div id="shell" className={railPinned ? '' : 'rail-min'}>
         <a className="skip-link" href="#main">Aller au contenu</a>
         <header style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '0 16px', borderBottom: '1px solid var(--hairline, #26262a)', background: 'var(--surface-soft, #0b0b0c)', minWidth: 0 }}>
           <MeteolinkWordmark />
@@ -94,7 +92,6 @@ export default function App() {
           <div className="hd-right">
             {mode === 'observe' && <span className="mono" title="Audit et consultation uniquement — campagne et façonnage vivent sur l'hôte Linux (docs/deploy.md)" style={{ color: 'var(--t-warn, #f4b400)', border: '1px solid currentColor', padding: '2px 8px', fontSize: 10, letterSpacing: '0.08em' }}>OBSERVATION</span>}
             <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
-            <button onClick={() => setDensity(density === 'airy' ? 'dense' : 'airy')} aria-label="Densité">{density}</button>
             <span className="mono" style={{ color: connected ? 'var(--t-ok)' : 'var(--t-danger)' }}>{connected ? '● connecté' : '○ déconnecté'}</span>
             <span id="hd-state" className="mono">{live?.phase ?? 'idle'}</span>
           </div>
