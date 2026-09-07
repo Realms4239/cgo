@@ -31,6 +31,8 @@ export default function IntegriteView() {
   const [quarSum, setQuarSum] = useState<{total_invalid?:number;g4_low?:number;g4_high?:number;empty_probes?:number;g3_implausible?:number}|null>(null)
   // pagination runs (U6h) — 407 lignes rendues d'un bloc noyait la vue
   const [runsPage, setRunsPage] = useState(1)
+  const [quarPage, setQuarPage] = useState(1)
+  const QUAR_PAGE_SIZE = 12
   const RUNS_PAGE_SIZE = 12
 
   const load = () => {
@@ -152,10 +154,14 @@ export default function IntegriteView() {
           <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
             <th style={{ padding:'6px 8px' }}>run</th><th>événement</th><th>cellule</th><th>statut</th><th>portes</th>
           </tr></thead><tbody>
-          {quar.map((q,i)=><tr key={i} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
+          {paginate(quar, quarPage, QUAR_PAGE_SIZE).map((q,i)=><tr key={i} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
             <td style={{ padding:'6px 8px' }}>{q.run}</td><td>#{q.event_id}</td><td>{q.profile}·{q.qdisc}·{q.cc}</td><td style={{ color:'#f4b400' }}>{q.gate_status}</td><td style={{ color:'#8b9099' }}>{(q.failed_gates ?? []).join(' ') || '—'}</td>
           </tr>)}
           </tbody></table>}
+        <Paginate
+          total={quar.length}
+          page={quarPage} pageSize={QUAR_PAGE_SIZE} onPage={setQuarPage}
+        />
         <div className="mono" style={{ fontSize:10, color:'#767b84', marginTop:8 }}>source: quarantine.json · gate_status != valid{quarSum && quarSum.total_invalid != null ? ` · synthèse live : ${quarSum.total_invalid} invalid — G4 bas ${quarSum.g4_low}, G4 haut ${quarSum.g4_high}, sondes vides ${quarSum.empty_probes}, G3 ${quarSum.g3_implausible} (non-exclusif, G4 = régime)` : ''}</div>
       </div>
       <div className="card" style={{ border:'1px solid #26262a' }}>
