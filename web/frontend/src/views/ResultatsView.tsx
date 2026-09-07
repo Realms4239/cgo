@@ -12,7 +12,6 @@ import { useUIStore } from '../store/ui'
 import { fmtIQR } from '../lib/format'
 import { asArray } from '../lib/format'
 import { lienScore, components as lienComponents, type LienMetrics } from '../lib/lien'
-import { paginate, Paginate } from '../components/ui/Paginate'
 
 type Group = {
   profile: string; qdisc: string; cc: string; direction?: string
@@ -87,10 +86,6 @@ export default function ResultatsView() {
   // source : '' = EN DIRECT (dernier run gelé), '__all__' = tous runs, sinon run figé
   const [runSel, setRunSel] = useState('')
   const [runIds, setRunIds] = useState<string[]>([])
-  const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
-  // pagination changelog (U6h) — tout l'historique au lieu des 20 dernières
-  const [evPage, setEvPage] = useState(1)
-  const EV_PAGE_SIZE = 8
   const [caption, setCaption] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
   // TradeSpace : Y = le critère du classement (un seul modèle mental),
@@ -165,7 +160,6 @@ export default function ResultatsView() {
   }, [effectiveRun])
   useEffect(() => {
     fetch('/api/replay/list').then(r => r.json()).then(j => setRunIds(asArray<string>(j.runs))).catch(() => {})
-    fetch('/api/events').then(r => r.json()).then(j => setEvents(asArray<{ts:string;kind:string;msg:string}>(j.events).reverse())).catch(() => {})
   }, [])
 
   // U6d/U6e : identité stable des barres (valeur animée) + rangs précédents
@@ -488,26 +482,6 @@ export default function ResultatsView() {
         <button className="btn" title="Lire le classement : métriques et règles de lecture" aria-label="Lire le classement" onClick={() => setInfoOpen(true)} style={{ padding: '7px 12px', fontSize: 13 }}>ⓘ</button>
       </div>
       {infoOpen && <ResultatsInfoModal onClose={() => setInfoOpen(false)} />}
-      {events.length > 0 && (
-        <div className="card" data-testid="changelog">
-          <div className="card-head">Changelog — journal opérateur</div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {paginate(events, evPage, EV_PAGE_SIZE).map((e, i) => {
-              // pastille de nature — campagne cyan, profil violet, audit ambre, reste acier
-              const kc = /campagne/i.test(e.kind) ? '#5ad3e3' : /profil/i.test(e.kind) ? '#b48ae0' : /audit/i.test(e.kind) ? '#f4b400' : '#9aa3ad'
-              return (
-                <li key={i} className="mono" style={{ fontSize: 12, padding: '5px 0', borderBottom: '1px solid var(--hairline-faint)', display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                  <span style={{ color: '#a9aeb6', fontVariantNumeric: 'tabular-nums' }}>{e.ts}</span>
-                  <span title={e.kind} style={{ color: kc }}>●</span>
-                  <span style={{ flex: 1, color: '#d6d8dd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg.slice(0, 120)}</span>
-                  <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: kc }}>{e.kind}</span>
-                </li>
-              )
-            })}
-          </ul>
-          <Paginate total={events.length} page={evPage} pageSize={EV_PAGE_SIZE} onPage={setEvPage} />
-        </div>
-      )}
 
       {/* constat de campagne — le verdict en langage opérateur, l'action
           d'interprétation est un vrai bouton, plus une carte-cible géante */}

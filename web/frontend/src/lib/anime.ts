@@ -1,4 +1,8 @@
-import { animate, createTimeline, stagger, utils, svg, text, createDrawable, splitText, createAnimatable } from 'animejs'
+import { animate, createTimeline, stagger, utils, svg, text, createDrawable, splitText, createAnimatable, cubicBezier } from 'animejs'
+
+// anime v4 a retiré la forme CHAÎNE 'cubicBezier(...)' (warning console,
+// easing silencieusement ignoré) — la fonction importée, une seule fois.
+const EASE = cubicBezier(0.16, 1, 0.3, 1)
 
 export const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -9,13 +13,13 @@ export function animateViewEnter() {
   if (prefersReducedMotion()) return
   const tl = createTimeline()
   // fondu simple — le blur animé sur .view entier coûtait trop au switch
-  tl.add('.view:not([hidden])', { translateY: [8, 0], opacity: [0, 1], duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+  tl.add('.view:not([hidden])', { translateY: [8, 0], opacity: [0, 1], duration: 300, ease: EASE } as any, 0)
 }
 
 export function animateCardStagger() {
   if (prefersReducedMotion()) return
   const tl = createTimeline()
-  tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+  tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: EASE } as any, 0)
 }
 
 export function animateBar(el: Element) {
@@ -23,7 +27,7 @@ export function animateBar(el: Element) {
   const h = el as HTMLElement
   h.style.transformOrigin = 'left center'
   utils.set(h, { scaleX: 0 } as any)
-  animate(h, { scaleX: [0, 1], duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any)
+  animate(h, { scaleX: [0, 1], duration: 600, ease: EASE } as any)
 }
 
 // U6d: largeur animée par CHANGEMENT DE VALEUR (live campaign) — l'enter
@@ -33,7 +37,7 @@ export function animateBarWidth(el: Element, from: string, to: string) {
   try {
     if (prefersReducedMotion()) { h.style.width = to; return }
     h.style.width = from
-    animate(h, { width: [from, to], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } as any)
+    animate(h, { width: [from, to], duration: 500, ease: EASE } as any)
   } catch { try { h.style.width = to } catch {} }
 }
 
@@ -43,7 +47,7 @@ export function animateBarWidth(el: Element, from: string, to: string) {
 export function flashRowUp(el: Element) {
   if (prefersReducedMotion()) return
   try {
-    animate(el as HTMLElement, { backgroundColor: ['rgba(31,163,72,0.15)', 'rgba(31,163,72,0)'], duration: 800, ease: 'cubicBezier(0.16,1,0.3,1)' } as any)
+    animate(el as HTMLElement, { backgroundColor: ['rgba(31,163,72,0.15)', 'rgba(31,163,72,0)'], duration: 800, ease: EASE } as any)
   } catch {}
 }
 
@@ -64,17 +68,17 @@ export function animateBannerPulse(el: Element) {
 export function animateLiveEnter() {
   if (prefersReducedMotion()) return
   const tl = createTimeline()
-  tl.add('.card', { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'], duration: 700, delay: stagger(50, { start: 80 }), ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+  tl.add('.card', { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'], duration: 700, delay: stagger(50, { start: 80 }), ease: EASE } as any, 0)
 }
 
 // largeur animée par la transition CSS var(--rail-w) — anime écrirait la var
 
 export function animatePromptEnter(el: Element) {
   if (prefersReducedMotion()) return
-  const tl = createTimeline({ defaults: { duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } } as any)
-  tl.add(el, { translateY: [12, 0], opacity: [0, 1], filter: ['blur(4px)', 'blur(0)'], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+  const tl = createTimeline({ defaults: { duration: 500, ease: EASE } } as any)
+  tl.add(el, { translateY: [12, 0], opacity: [0, 1], filter: ['blur(4px)', 'blur(0)'], duration: 500, ease: EASE } as any, 0)
   const btns = (el as HTMLElement).querySelectorAll('button')
-  if (btns.length) tl.add(btns, { translateY: [8, 0], opacity: [0, 1], delay: stagger(40, { start: 60 }), duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+  if (btns.length) tl.add(btns, { translateY: [8, 0], opacity: [0, 1], delay: stagger(40, { start: 60 }), duration: 400, ease: EASE } as any, 0)
 }
 
 export function animatePromptExit(el: Element): Promise<void> {
@@ -93,13 +97,13 @@ export function animateShake(el: Element) {
 
 export function animateFlash(el: Element) {
   if (prefersReducedMotion()) return
-  animate(el as HTMLElement, { translateY: [-16, 0], opacity: [0, 1], duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any)
+  animate(el as HTMLElement, { translateY: [-16, 0], opacity: [0, 1], duration: 300, ease: EASE } as any)
 }
 
 export function animateToasts(els: Element[]) {
   if (prefersReducedMotion() || !els.length) return
   const tl = createTimeline() as any
-  tl.add(els, { translateY: [16, 0], opacity: [0, 1], delay: stagger(20), duration: 300, ease: 'cubicBezier(0.16,1,0.3,1)' } as any, 0)
+  tl.add(els, { translateY: [16, 0], opacity: [0, 1], delay: stagger(20), duration: 300, ease: EASE } as any, 0)
 }
 
 // --- dense: svg/text/animatable/layout — animejs@4.5.0 ---
@@ -117,7 +121,7 @@ export function animateMeteolinkShimmer(el: Element) {
   void splitText; void createDrawable
   const chars: Element[] = splitter?.chars ?? []
   if (chars.length) {
-    animate(chars as any, { translateY: [8, 0], opacity: [0, 1], duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(30, { grid: [4, 2], from: 'center' } as any) } as any)
+    animate(chars as any, { translateY: [8, 0], opacity: [0, 1], duration: 600, ease: EASE, delay: stagger(30, { grid: [4, 2], from: 'center' } as any) } as any)
   }
 }
 
@@ -147,7 +151,7 @@ export function animateGrid(els: Element[]) {
   if (prefersReducedMotion() || !els.length) return
   // timeline unique séquentielle, grille [4,2] centre → [2,3] — évite le double-time
   const tl = createTimeline()
-  tl.add(els as any, { translateY: [12, 0], opacity: [0, 1], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [4, 2], from: 'center' } as any) } as any, 0)
-    .add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: 'cubicBezier(0.16,1,0.3,1)', delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 200)
+  tl.add(els as any, { translateY: [12, 0], opacity: [0, 1], duration: 500, ease: EASE, delay: stagger(40, { grid: [4, 2], from: 'center' } as any) } as any, 0)
+    .add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: EASE, delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 200)
   return () => { try { (tl as any).pause?.() } catch {} }
 }
