@@ -22,25 +22,12 @@ export default function CampagneView() {
   const [allProfiles, setAllProfiles] = useState<{ id: string; imported: boolean }[]>([{ id: 'P1', imported: false }, { id: 'P2', imported: false }])
   const refreshProfiles = () => fetch('/api/profiles').then(r => r.json()).then(j => { if (j?.profiles?.length) setAllProfiles(j.profiles.map((x: any) => ({ id: x.id, imported: !!x.imported }))) }).catch(() => { })
   useEffect(() => { refreshProfiles() }, [])
-  // le référentiel P1–P4 ne se mélange pas aux imports : deux groupes
-  // visuels, suppression par ligne importée (le serveur refuse P1–P4).
+  // le cockpit ne montre que le référentiel P1–P4 ; les imports restent
+  // joignables par l'API (pkg/profile) mais n'entrent plus dans la vue.
   const isRef = (id: string) => /^P[1-4]$/.test(id)
   const refProfiles = allProfiles.filter(p => isRef(p.id))
-  const impProfiles = allProfiles.filter(p => !isRef(p.id))
-  const delProfile = async (id: string) => {
-    try {
-      const r = await fetch('/api/profile/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-      const j = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(j?.error ?? String(r.status))
-      setProfiles(ps => ps.filter(x => x !== id))
-      refreshProfiles()
-      useUIStore.getState().pushToast(`Profil ${id} supprimé`, 'ok')
-    } catch (e: any) { useUIStore.getState().pushToast('Suppression refusée : ' + e.message, 'err') }
-  }
-  const profCheck = (p: { id: string; imported: boolean }, imported: boolean) => (
-    <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))} /> <Explain term={p.id}>{p.id}</Explain>{imported ? <span className="mono muted" title="issu d'un audit réel"> ↧</span> : null}
-      {imported && <button className="btn" title={`supprimer ${p.id} (référentiel intouchable)`} onClick={(e) => { e.preventDefault(); delProfile(p.id) }} style={{ padding: '0 6px', marginLeft: 4, fontSize: 10 }}>×</button>}
-    </label>
+  const profCheck = (p: { id: string; imported: boolean }) => (
+    <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))} /> <Explain term={p.id}>{p.id}</Explain></label>
   )
   const [reps, setReps] = useState(3)
   // La deadline voyage avec la campagne: le champ montre la valeur
@@ -301,14 +288,8 @@ export default function CampagneView() {
         <div className="form-row">
           <label>Profils</label>
           <div className="check-row">
-            {refProfiles.map(p => profCheck(p, false))}
+            {refProfiles.map(p => profCheck(p))}
           </div>
-          {impProfiles.length > 0 && <>
-            <label style={{ marginTop: 4 }}>Importés <span className="mono muted" title="issus d'audits réels — supprimables par ×, le référentiel ne l'est pas">(audits)</span></label>
-            <div className="check-row">
-              {impProfiles.map(p => profCheck(p, true))}
-            </div>
-          </>}
         </div>
         <div className="form-row">
           <label>Files (AQM)</label><span className="mono muted">{ALL_QDISCS.map((q, i) => <span key={q}><Explain term={q}>{q}</Explain>{i < ALL_QDISCS.length - 1 ? ' · ' : ''}</span>)}</span>

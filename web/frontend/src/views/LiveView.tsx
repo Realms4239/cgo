@@ -363,6 +363,7 @@ export default function LiveView() {
         <EventBadge />
         {phaseTotalHint}
       </div>
+      {showLiveSrc && (
       <Card
         head="Petits objets p95"
         sub="p95 · fenêtre 180 s"
@@ -374,11 +375,13 @@ export default function LiveView() {
           <ChartSurface title="Petits objets p95" unit="ms" domId="chart-small" height="100%" empty={heroEmpty} hint="en attente — démarrez une campagne" onReady={small.onReady} />
         </div>
       </Card>
+      )}
       {!liveSnap && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
       {/* Q4 metric pill — toggles the metric groups; one 5-col bento, 10 cells, no misaligned rows */}
       {/* Q4 metric pill — responsive bento owned by CSS (container queries:
           5 col → 2 @1100 → 1 @640); the inline gridTemplateColumns variant
           overrode the breakpoints and cropped every card on mobile */}
+      {showLiveSrc && (
       <div data-wall-cards="metric-groups" className={'bento-5 wall-span' + (tri.metric ? '' : ' hidden')}>
         <MetricCard term="small_p95" label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(smallP95, settings)]} spark={spark(live.small)} trend={trendOf(spark(live.small))} />
         <MetricCard term="rtt_p95" label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP95, settings)]} spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
@@ -396,6 +399,8 @@ export default function LiveView() {
         <MetricCard term="wasted" label="wasted" value={wasted == null ? '—' : wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color={wasted == null ? 'var(--text-faint)' : CRAFT.threshold} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
         <MetricCard term="cost_ar_per_h" label="cost_ar_per_h" value={costAr == null ? '—' : costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
       </div>
+      )}
+      {showLiveSrc && (
       <div className="wall-span duo" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap, 24px)' }}>
         <Card
           head="RTT"
@@ -414,13 +419,14 @@ export default function LiveView() {
           <ChartSurface title="Bulk goodput" unit="Mbit/s" domId="chart-goodput" height={180} empty={goodputEmpty} hint="goodput — en attente de flux" onReady={goodput.onReady} />
         </Card>
       </div>
+      )}
       {/* Q2 — runbook pointer: a crit card always says what to do next */}
       {rttP95 != null && rttP95 > settings.critMs && (
         <div className="mono" data-testid="runbook-pointer" style={{ gridColumn: '1 / -1', fontSize: 10, color: 'var(--t-warn, #f4b400)', border: '1px dashed rgba(244,180,0,0.4)', padding: '6px 10px' }}>
           bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
         </div>
       )}
-      {hasData && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={tEnd} currentPhase={live.phase || 'idle'} />}
+      {hasData && showLiveSrc && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={tEnd} currentPhase={live.phase || 'idle'} />}
 
       {/* live-wall-overlay: baseline grey dashed vs CAKE cyan solid same scale; source pill gates live|frozen|both */}
       <div className="live-wall-overlay card" data-testid="live-wall-overlay" style={{ gridColumn: '1 / -1', border: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>

@@ -102,7 +102,7 @@ export default function PanelChooser() {
       {/* labeled controls — the control name is always visible, no cryptic one-word chrome */}
       <Pill label="groupes" value={tri.metric ? 'on' : 'off'} on={tri.metric} onClick={() => setTri(t => ({ ...t, metric: !t.metric }))} title="groupes de métriques on/off" />
       <Pill label="craft" value={tri.chart} on={tri.chart !== 'line'} onClick={() => setTri(t => ({ ...t, chart: t.chart === 'line' ? 'bar' : t.chart === 'bar' ? 'area' : 'line' }))} title="chart craft line|bar|area" />
-      <Pill label="source" value={tri.source} on={tri.source !== 'live'} onClick={() => setTri(t => ({ ...t, source: t.source === 'live' ? 'frozen' : t.source === 'frozen' ? 'both' : 'live' }))} title="source live|frozen|both" />
+      <Pill label="source" value={tri.source} on={tri.source !== 'live'} onClick={() => setTri(t => ({ ...t, source: t.source === 'live' ? 'frozen' : t.source === 'frozen' ? 'both' : 'live' }))} title="source : live = mesures en cours uniquement · gelé = archives uniquement" />
       <select value={tri.source} onChange={e=>setTri(t=>({...t, source:e.target.value as 'live'|'frozen'|'both'}))} aria-label="source live|frozen|both" className="sr-only" tabIndex={-1}>
         <option value="live">live</option><option value="frozen">frozen</option><option value="both">both</option>
       </select>

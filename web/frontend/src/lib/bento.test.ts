@@ -6,7 +6,7 @@ function read(p:string){
   return readFileSync(p as any,'utf8' as any)
 }
 describe('bento',()=>{
-  it('wall bento scoped — density var(--gap) only on #wall',()=>{
+  it('wall bento scoped — gap var(--gap) only on #wall',()=>{
     const css=read('web/frontend/src/styles/index.css')
     expect(css).toContain('#wall')
     expect(css).toContain('gap: var(--gap)')
