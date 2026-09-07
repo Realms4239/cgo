@@ -76,8 +76,10 @@ const bentoGone = await p.evaluate(() => !document.querySelector('[data-wall-car
 ok('live: source=frozen cache les métriques', bentoGone)
 await pill.click(); await sleep(300) // frozen -> both : retour
 
-// ---------- 4. RESULTATS ----------
+// ---------- 4. RESULTATS (campagne toujours en cours → badge + polling) ----------
 await p.click('.rail .nav-btn[data-panel="resultats"]'); await sleep(2200)
+const badgeOn = await p.evaluate(() => document.body.textContent.includes('CAMPAGNE EN COURS'))
+ok('resultats: badge campagne affiché (store suit le live)', badgeOn)
 try { await p.waitForSelector('#v-resultats .leader-bar', { timeout: 8000 }) } catch { }
 const leaders = await p.$$eval('#v-resultats .leader-bar', els => els.length)
 ok('resultats: lignes leaderboard', leaders > 0, `${leaders} lignes`)
@@ -140,7 +142,10 @@ const live2 = await p.evaluate(async () => (await (await fetch('/api/state')).js
 ok('live: actif après navigation', !!live2?.running || !!live2?.phase, live2?.phase ?? '—')
 if (started.ok) {
   await p.evaluate(async () => { await fetch('/api/run/stop', { method: 'POST' }) })
-  ok('live: arrêt propre', true)
+  await p.click('.rail .nav-btn[data-panel="resultats"]'); await sleep(6000) // le store suit via SSE (running:false) — badge et polling s'arrêtent
+  const badgeOff = await p.evaluate(() => !document.body.textContent.includes('CAMPAGNE EN COURS'))
+  ok('live: badge retiré après arrêt (store suit)', badgeOff)
+  ok('live: campagne arrêtée proprement', true)
 }
 ok('zero erreur JS', jsErrs.length === 0, jsErrs.slice(0, 3).join(' | '))
 

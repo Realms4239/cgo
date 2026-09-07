@@ -96,24 +96,13 @@ $ go build -o bin/cgo ./cmd/cgo && ./bin/cgo --serve
 $ go install github.com/Realms4239/cgo/cmd/cgo@latest
 ```
 
-#### npm (wrapper)
-
-```
-$ npm i -g meteolink
-$ meteolink --serve
-```
-
-#### Windows (observation)
+#### Windows (observation + pilotage kit)
 
 ```
 > cgo.exe --serve   # https://meteolink.dev:9090, Windows = observe (sans tc)
 ```
 
-#### Docker
-
-```
-$ docker run -p 9090:9090 -v ./data/runs:/data/runs meteolink --serve --addr 0.0.0.0:9090 --tls=false --http-addr=
-```
+Voir « Poste opérateur depuis une release » ci-dessus pour le pilotage VM complet depuis Windows (compagnon `cgo-linux` embarqué dans le zip).
 
 ### Banc VM (le vrai banc `tc`) — `cgo kit`
 
@@ -166,7 +155,7 @@ $ cgo shape --restore
 
 ## Utilisation / Exemples
 
-**Note :** le tableau de bord écoute `https://meteolink.dev:9090` par défaut (HTTP redirigé depuis `127.0.0.1:9080`) ; `--tls=false --addr 0.0.0.0:9090` pour exposer en HTTP brut en LAN/VM (comme le fait `kit/vm-install.sh`).
+**Note :** le tableau de bord écoute `https://meteolink.dev:9090` (HTTPS uniquement — `.dev` est HSTS préchargé, aucun HTTP). `cgo kit dns` mappe le nom, `cgo kit tls` installe la confiance.
 
 ### Démarrage
 
@@ -241,25 +230,13 @@ $ echo '{"id":"P3","capacity_mbps":5,"delay_ms":600}' | curl -k -X POST https://
 
 ### Tableau de bord temps réel
 
-Meteolink peut afficher les données temps réel dans le tableau `HTML`. Vous pouvez même envoyer le dossier `data/runs` par email puisqu'il est composé de simples `CSV` sans dépendance externe.
-
-Le processus de génération d'un tableau temps réel est très similaire à celui d'un rapport statique. Seul `--serve` est nécessaire.
+Le dashboard vit à `https://meteolink.dev:9090` (HTTPS uniquement, HSTS — `cgo kit dns` + `cgo kit tls` sur le poste opérateur). Les campagnes gèlent chaque cellule dans `data/runs/<run_id>/aqm_eval.csv` (+ `manifest.json` SHA-256) ; `Résultats` lit ces CSV gelés, `Provenance` les vérifie.
 
 ```
-$ cgo --serve --addr 0.0.0.0:9090 --tls=false --http-addr=
+$ cgo --serve --addr meteolink.dev:9090   # poste local (TLS, certificat auto-signé)
 ```
 
-Pour voir le rapport, naviguez vers `http://<ip>:9090`. Par défaut, Meteolink écoute sur le port `9090`, pour utiliser un autre port :
-
-```
-$ cgo --serve --addr 0.0.0.0:9870
-```
-
-Et pour lier le serveur `WebSocket` à une autre adresse que `127.0.0.1` :
-
-```
-$ cgo --serve --addr meteolink.dev:9090
-```
+Pour exposer en LAN (debug seul, jamais en soutenance) : `--tls=false --addr 0.0.0.0:9090`.
 
 ### Filtrage
 

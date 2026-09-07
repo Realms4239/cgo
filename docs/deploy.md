@@ -22,11 +22,8 @@ Vérification : `GET /api/health` → `{ok, version, mode}`.
 Deux voies, au choix :
 
 ```powershell
-# a) Binaire précompilé depuis GitHub Releases
+# Binaire précompilé depuis GitHub Releases
 #    Télécharger l'archive de plateforme, décompresser, lancer cgo.exe
-
-# b) Wrapper npm (télécharge le binaire de plateforme à l'installation)
-npm i -g meteolink
 ```
 
 Aucune dépendance système : le mode observation n'a pas besoin de `tc`
@@ -96,7 +93,7 @@ sortie que l'ancien bash ; `kit/engine.sh --action X` reste un shim de compat) :
 ```bash
 cgo kit scan      # trouver le .vmx/.vbox, sauvegarder l'unique
 cgo kit ensure    # démarrer la VM si SSH est down, attendre SSH
-cgo kit deploy    # build frontend+binaire, push, install, health-check
+cgo kit deploy    # push + install + health-check (recompile si sources dispo, sinon binaire précompilé)
 cgo kit status    # SSH + process + santé du dashboard
 cgo kit logs      # tail du log serveur sur la VM
 cgo kit align     # NIC vmxnet3 + CPU/mémoire mini du banc (à froid)
@@ -118,14 +115,14 @@ Pour un banc fixe sur site :
 
 1. **Debian** vierge, accès sudo.
 2. Installer les prérequis : `bash kit/install.sh`.
-3. Installer le binaire (Releases GitHub ou `npm i -g meteolink`).
+3. Installer le binaire (archive de la Release GitHub : `cgo-linux-amd64.tar.gz`).
 4. Diagnostic : `cgo doctor` — tout vert.
 5. Privilèges : `sudo setcap cap_net_admin+ep ./cgo`.
 6. Service : `cgo service install`.
 7. **Réseau** : ouvrir le **port 9090** (dashboard + API) —
    `sudo ufw allow 9090/tcp` ou équivalent.
-8. Vérifier : `curl http://<ip-edge>:9090/api/health` →
-   `{"ok":true,"version":"1.2.3","mode":"full"}`.
+8. Vérifier : `curl -k https://<ip-edge>:9090/api/health` →
+   `{"ok":true,"version":"1.2.3","mode":"full"}` (-k : certificat auto-signé).
 
 Le mini-PC est alors prêt pour la boucle opérateur complète
 (auditer → campagner → façonner → surveiller → comparer → constat),
