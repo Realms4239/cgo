@@ -136,7 +136,10 @@ export default function ResultatsView() {
   // être une coquille vide) : pas de fetch, écran de chargement honnête
   const effectiveRun = runSel === '__all__' ? '' : (runSel || newest || '')
 
-  useEffect(() => {
+  // refresh — charge les groupes (+hash). quiet=true (polling campagne) :
+  // jamais de bascule silencieuse ni d'erreur écrasante — on garde les
+  // chiffres affichés si le fetch rate ou revient vide entre deux cellules.
+  const refresh = (quiet: boolean) => {
     // garde anti-course : StrictMode rejoue l'effet (2 fetch tous-runs) et
     // le 1er peut répondre après le 2e — seul le dernier demandé s'affiche
     const wanted = effectiveRun
@@ -147,17 +150,27 @@ export default function ResultatsView() {
       // autant que !available : au chargement initial → repli tous-runs,
       // choix explicite → écran vide EXPLICITE, jamais de bascule silencieuse
       const empty = !j.available || !(Array.isArray(j.groups) && j.groups.length > 0)
-      if (!empty) setGroups(j.groups)
+      if (!empty) { setGroups(j.groups); setErr(null) }
+      else if (quiet) return
       else if (wanted && !runTouched.current) setRunSel('__all__')
       else if (wanted) setGroups([])
       else setErr(j.reason || 'pas de résultats')
-    }).catch(e => { if (reqSeq.current === seq) setErr(String(e)) })
+    }).catch(e => { if (reqSeq.current === seq && !quiet) setErr(String(e)) })
     fetch('/api/integrity').then(r => r.json()).then(j => {
       // triple provenance: hash8 = sha256(dernier aqm_eval.csv)[:8]; repli run-id
       const id = j?.hash8 ?? String(j?.run_ids?.[0] ?? '').slice(0, 8)
       if (id) setHash8(String(id).slice(0, 8))
     }).catch(() => {})
-  }, [effectiveRun])
+  }
+  useEffect(() => { refresh(false) }, [effectiveRun])
+  // campagne en cours : les cellules gèlent au fil de l'eau — recharger
+  // toutes les 10 s pour voir le classement BOUGER (barres animées par
+  // valeur, flash des lignes remontées). Arrêt net avec la campagne.
+  useEffect(() => {
+    if (!liveSnapRunning) return
+    const t = setInterval(() => refresh(true), 10000)
+    return () => clearInterval(t)
+  }, [liveSnapRunning, effectiveRun])
   useEffect(() => {
     fetch('/api/replay/list').then(r => r.json()).then(j => setRunIds(asArray<string>(j.runs))).catch(() => {})
   }, [])
