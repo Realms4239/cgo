@@ -256,7 +256,9 @@ export default function CampagneView() {
             {profiles.flatMap((p, pi) => ALL_QDISCS.flatMap((q, qi) => ALL_CC.map((c, ci) => {
               // ordre serveur (matrix.go) : profils × [pfifo, fq_codel, cake] × [cubic, bbr] × reps, event_id dès 1
               const cellStart = ((pi * ALL_QDISCS.length + qi) * ALL_CC.length + ci) * reps + 1
-              const cur = live?.event_id ?? 0
+              // campagne arrêtée/terminée : event_id restant est un fantôme —
+              // la progression ne se lit que sur un run ACTIF, sinon tout est en attente
+              const cur = live?.running ? live?.event_id ?? 0 : 0
               const st = cur === 0 ? 'attente' : (cellStart + reps - 1 < cur ? 'terminée' : (cellStart <= cur ? 'en cours' : 'attente'))
               const n = Math.max(0, Math.min(reps, cur - cellStart + (st === 'en cours' ? 1 : 0)))
               const color = st === 'terminée' ? '#1fa348' : st === 'en cours' ? '#5ad3e3' : '#767b84'
