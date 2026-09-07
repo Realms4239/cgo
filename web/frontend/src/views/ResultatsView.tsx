@@ -193,8 +193,12 @@ export default function ResultatsView() {
     }
     const valOf = (g: Group, k: TSpaceKey): number | null => (k === 'indice' ? ind(g) : raw(g, k))
     const meta = (k: TSpaceKey) => TSPACE.find(t => t.key === k) ?? TSPACE[0]
-    const xm = meta(xk), ym = meta(yKey)
-    const pts = vis.map(g => ({ g, x: valOf(g, xk), y: valOf(g, yKey), name: `${g.profile}·${g.qdisc}·${g.cc}` })).filter(p => p.x != null && p.y != null) as { g: Group; x: number; y: number; name: string }[]
+    // X auto-informative : si l'axe choisi écrase tous les points au même
+    // endroit (variance quasi nulle — vu en prod : goodput 0.3–0.8 sur
+    // l'échelle 0–1.4, nuage en ligne verticale), l'axe le plus DISPERSANT
+    // prend le relais (effXKey, calculé au niveau composant pour le rendu).
+    const xm = meta(effXKey), ym = meta(yKey)
+    const pts = vis.map(g => ({ g, x: valOf(g, effXKey), y: valOf(g, yKey), name: `${g.profile}·${g.qdisc}·${g.cc}` })).filter(p => p.x != null && p.y != null) as { g: Group; x: number; y: number; name: string }[]
     // couleur par dimension — simple et lisible, une famille à la fois
     const fam = (g: Group): string => colorBy === 'profile' ? g.profile : colorBy === 'qdisc' ? g.qdisc : g.cc
     const famVals = Array.from(new Set(pts.map(p => fam(p.g)))).sort()
@@ -204,15 +208,14 @@ export default function ResultatsView() {
       const i = famVals.indexOf(f)
       return PAL_PROFILE[i % PAL_PROFILE.length]
     }
-    // top-3 par Y (ou best-of-family si moins de 3 familles) — seuls eux
-    // portent un label, halo sombre anti-collision sur le nuage
+    // top-3 par Y — seuls eux portent un label, NOM COURT (qdisc seul : la
+    // couleur encode déjà la famille, le nom long P·q/cc recouvre les points
+    // voisins), position DÉCALÉE au-dessus du point, halo sombre 3px. Un point
+    // sans label n'est pas muet : le tooltip et la légende le nomment.
     const better = (p: { y: number }) => ym.dir === 'up' ? p.y : -p.y
     const nFam = new Set(pts.map(p => fam(p.g))).size
-    const labelSet = new Set(
-      [...pts].sort((a, b) => better(b) - better(a))
-        .slice(0, Math.max(1, Math.min(3, nFam)))
-        .map(p => p.name)
-    )
+    const labeled = [...pts].sort((a, b) => better(b) - better(a))
+      .slice(0, Math.max(1, Math.min(3, nFam)))
     const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
     const ro = new ResizeObserver(() => c.resize())
     ro.observe(scatterRef.current)
@@ -227,11 +230,14 @@ export default function ResultatsView() {
         ...s,
         label: {
           show: true,
-          formatter: (par: any) => labelSet.has(famPts[par.dataIndex]?.name) ? famPts[par.dataIndex].name : '',
+          // nom court (qdisc/cc) — le nom long P·q/cc recouvre les voisins
+          formatter: (par: any) => labeled.includes(famPts[par.dataIndex]) ? famPts[par.dataIndex].g.qdisc : '',
+          position: 'top' as const,
+          distance: 8,
           color: famColor(fv),
           fontSize: 11,
           fontFamily: 'JetBrains Mono',
-          textBorderColor: '#0b0b0c',
+          textBorderColor: '#070707',
           textBorderWidth: 3,
         },
         labelLayout: { hideOverlap: true },
@@ -382,11 +388,11 @@ export default function ResultatsView() {
   const singleVerdict = ranked.length > 1 && rowVerdicts.every(v => v === rowVerdicts[0]) ? rowVerdicts[0] as string : null
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <button key={label} className="btn" onClick={onClick} style={{
-      padding: '2px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
+    <button key={label} className="btn" onClick={onClick} title={label} style={{
+      padding: '3px 10px', fontSize: 11, fontFamily: 'var(--font-mono)',
       border: '1px solid ' + (active ? '#3a3a40' : 'var(--hairline)'),
       background: active ? 'rgba(90,211,227,0.12)' : 'transparent',
-      color: active ? '#7fd6e8' : '#a8aeb7',
+      color: active ? '#7fd6e8' : '#a9aeb6',
     }}>{label}</button>
   )
   // méta source : le run qui nourrit les chiffres, pas un compte muet
@@ -395,8 +401,19 @@ export default function ResultatsView() {
   const shortRun = (id: string) => id.replace(/^run-/, 'run-…').slice(-12)
   // coin du TradeSpace : où vit l'optimum (down = plus bas = mieux)
   const yd = (TSPACE.find(t => t.key === yKey)?.dir ?? 'down') === 'down'
-  const xd = (TSPACE.find(t => t.key === xk)?.dir ?? 'down') === 'down'
-  const cornerArrow = yd ? (xd ? '↙' : '↘') : (xd ? '↖' : '↗')
+  // l'axe X affiché peut différer du choix si le choix était dégénéré
+  // (variance quasi nulle) — la flèche du coin suit l'axe RÉELlement tracé
+  const xSp = (k: TSpaceKey): number => {
+    const xs = filtered.map(g => (k === 'indice' ? null : (g as any)[{ small: 'small_p95_valid_median', rtt: 'rtt_p95_median', goodput: 'goodput_median', deadline: 'deadline_median', cost: 'cost_median' }[k] ?? ''])).filter((v): v is number => typeof v === 'number' && v > 0)
+    if (xs.length < 2) return 0
+    const mx = Math.max(...xs.map(Math.abs), 1e-9)
+    return (Math.max(...xs) - Math.min(...xs)) / mx
+  }
+  const effXKey: TSpaceKey = xSp(xk) < 0.18
+    ? (TSPACE.filter(t => t.key !== yKey && t.key !== 'indice').sort((a, b) => xSp(b.key) - xSp(a.key))[0]?.key ?? xk)
+    : xk
+  const xdEff = (TSPACE.find(t => t.key === effXKey)?.dir ?? 'down') === 'down'
+  const cornerArrow = yd ? (xdEff ? '↙' : '↘') : (xdEff ? '↖' : '↗')
 
   return (
     <div className="panel-stack" style={{ position: 'relative' }}>
@@ -443,37 +460,34 @@ export default function ResultatsView() {
       </div>
       {interpProfile && <InterpretationView profile={interpProfile} onClose={() => setInterpProfile(null)} />}
 
-      {/* duel critère — référence vs 1er, barres à échelle commune */}
+      {/* duel critère — référence vs 1er : deux colonnes, delta énorme au
+          centre (retour à la mise en page de référence) */}
       {top && baselineRow && (() => {
-        const maxScale = Math.max(val(baselineRow), val(top), 1)
         const bv = val(baselineRow), tv = val(top)
         const bOk = Number.isFinite(bv) && bv !== Number.MAX_SAFE_INTEGER
         const tOk = Number.isFinite(tv) && tv !== Number.MAX_SAFE_INTEGER
-        const row = (label: string, ok: boolean, v: number, n: number, fill: string) => (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-              <span className="mono" style={{ fontSize: 10, color: '#8b9099', paddingTop: 2 }}>{label}</span>
-              <span className="mono" style={{ fontSize: 13, color: '#c3c9d1', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
-                {ok ? `${v.toFixed(1)} ${rankMeta.unit}` : '—'}
-                <span style={{ display: 'block', fontSize: 10, color: '#9aa0a8' }}>n={n}</span>
-              </span>
+        const col = (label: string, ok: boolean, v: number, n: number, color: string) => (
+          <div style={{ flex: 1, minWidth: 180, textAlign: 'center' }}>
+            <div className="mono" style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#a9aeb6', marginBottom: 6 }}>{label}</div>
+            <div className="mono" style={{ fontSize: 26, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color, lineHeight: 1 }}>
+              {ok ? v.toFixed(1) : '—'}
             </div>
-            {/* régime perte : même largeur — pas de vainqueur visuel quand la
-                retransmission gouverne ; sinon largeur = valeur sur l'échelle commune */}
-            <div style={{ height: 8, background: 'var(--hairline-faint)', borderRadius: 2, overflow: 'hidden', marginTop: 3 }}>
-              <div style={{ height: '100%', width: `${!ok ? 0 : lossRegime && bOk && tOk ? 100 : Math.max(2, (v / maxScale) * 100)}%`, background: fill, transition: 'width 0.4s ease', borderRadius: 2 }} />
-            </div>
+            <div className="mono" style={{ fontSize: 12, color: '#a9aeb6', marginTop: 4 }}>{rankMeta.unit} · {n} mesures valides</div>
           </div>
         )
         return (
-          <div className="card rank-verdict" data-testid="rank-verdict" style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 220, display: 'grid', gap: 10 }}>
-              {row('pfifo_fast — référence', bOk, bv, validN(baselineRow), '#767b84')}
-              {row(`1er — ${top.qdisc}/${top.cc}`, tOk, tv, validN(top), CRAFT.ok)}
+          <div className="card rank-verdict" data-testid="rank-verdict" style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', padding: '18px 20px' }}>
+            {col(`pfifo — avant`, bOk, bv, validN(baselineRow), '#a9aeb6')}
+            <div style={{ textAlign: 'center' }}>
+              <div className="mono" data-testid="rank-diff" style={{ fontSize: 34, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: diff != null && diff > 0 ? '#1fa348' : '#d6d8dd', lineHeight: 1 }}>
+                {lossRegime ? 'égalité' : diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
+              </div>
+              {!lossRegime && diff != null && diff > 0 && (
+                <div className="mono" style={{ fontSize: 13, color: '#1fa348', marginTop: 4, lineHeight: 1 }}>↓</div>
+              )}
+              <div className="mono" style={{ fontSize: 11, color: '#a9aeb6', marginTop: 6, maxWidth: 130 }}>{rankMeta.label}</div>
             </div>
-            <div className="mono" data-testid="rank-diff" style={{ fontSize: 20, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: diff != null && diff > 0 ? '#1fa348' : '#c3c9d1', textAlign: 'center' }}>
-              {lossRegime ? 'égalité — régime perte' : diff != null ? (diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`) : '—'}
-            </div>
+            {col(`1er — ${top.qdisc}/${top.cc}`, tOk, tv, validN(top), diff != null && diff > 0 ? '#1fa348' : '#d6d8dd')}
           </div>
         )
       })()}
@@ -509,7 +523,7 @@ export default function ResultatsView() {
           const isA = pinA?.profile === g.profile && pinA?.qdisc === g.qdisc && pinA?.cc === g.cc
           const isB = pinB?.profile === g.profile && pinB?.qdisc === g.qdisc && pinB?.cc === g.cc
           return (
-            <div key={key} className="lb-row" style={{ padding: '10px 14px', borderBottom: '1px solid var(--hairline-faint)', background: 'transparent', cursor: 'pointer' }} onClick={() => setExpanded(open ? null : key)}>
+            <div key={key} className="lb-row" style={{ padding: '10px 14px', borderBottom: '1px solid var(--hairline-faint)', background: 'transparent', cursor: 'pointer', opacity: expanded && !open ? 0.35 : 1, filter: expanded && !open ? 'saturate(0.5)' : 'none', transition: 'opacity 250ms ease, filter 250ms ease' }} onClick={() => setExpanded(open ? null : key)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className="mono" style={{ fontSize: 11, fontWeight: 400, opacity: 0.4, color: '#a8aeb7', minWidth: 22, textAlign: 'right' }}>{i + 1}</span>
                 <span className="mono" style={{ fontSize: 13, fontWeight: 500, color: '#f2f2f4', minWidth: 170 }}>
@@ -534,18 +548,43 @@ export default function ResultatsView() {
                   </span>
                 )}
               </div>
-              <div className="mono" style={{ fontSize: 11, color: ok ? '#9aa3ad' : '#767b84', marginTop: 6, marginLeft: 34 }}>
-                {!singleVerdict && <>{verdict(g, i)} · </>}
-                <span style={{ color: '#5c6169' }}>n={h.n}v · goodput {(g.goodput_median ?? 0).toFixed(1)} Mb/s · échéance {deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'} · {wasted == null || wasted <= 0 ? '0 gaspillé' : 'gaspillé'} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}</span>
+              <div className="mono" style={{ fontSize: 12, color: ok ? '#a9aeb6' : '#767b84', marginTop: 6, marginLeft: 34 }}>
+                {!singleVerdict && <span style={{ color: '#c3c9d1' }}>{verdict(g, i)} · </span>}
+                <span>{h.n} mesures valides · débit {(g.goodput_median ?? 0).toFixed(1)} Mb/s · échéances respectées {deadlineOk == null ? '—' : deadlineOk.toFixed(0) + '%'} · {wasted == null || wasted <= 0 ? 'rien gaspillé' : (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB gaspillés' : wasted + ' o gaspillés')} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}</span>
               </div>
               {open && (
-                <div className="mono" style={{ fontSize: 11, color: '#9aa3ad', marginTop: 8, marginLeft: 34, padding: '8px 10px', border: '1px solid var(--hairline)', background: 'rgba(255,255,255,0.015)' }}>
-                  <div>rtt p95 {fmtIQR(g.rtt_p95_median, g.rtt_p95_iqr)} · small {fmtIQR(g.small_p95_median, g.small_p95_iqr)}{g.small_p95_valid_ci95 ? ` · IC95 valid-only [${g.small_p95_valid_ci95[0].toFixed(1)}–${g.small_p95_valid_ci95[1].toFixed(1)}]` : ''}</div>
-                  <div style={{ marginTop: 4 }}>quarantaine {g.quarantined}/{g.count}{g.quarantined > 0 ? ' — voir Provenance' : ''}{g.hardware_recommendation ? ` · ${g.hardware_recommendation}` : ''}</div>
-                  <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
-                    <button className="btn" title="épingler comme A" onClick={e => { e.stopPropagation(); setPinA(pin) }} style={{ padding: '2px 8px', fontSize: 10, background: isA ? 'rgba(90,211,227,0.15)' : 'transparent', color: isA ? CRAFT.live : 'var(--text-muted)' }}>A comparer</button>
-                    <button className="btn" title="épingler comme B" onClick={e => { e.stopPropagation(); setPinB(pin) }} style={{ padding: '2px 8px', fontSize: 10, background: isB ? 'rgba(31,163,72,0.15)' : 'transparent', color: isB ? CRAFT.ok : 'var(--text-muted)' }}>B comparer</button>
-                    <button className="btn" onClick={e => { e.stopPropagation(); setInterpProfile(g.profile) }} style={{ padding: '2px 8px', fontSize: 10 }}>interpréter {g.profile} →</button>
+                <div style={{ marginTop: 10, marginLeft: 34, padding: '12px 14px', border: '1px solid var(--hairline)', background: 'rgba(255,255,255,0.015)' }}>
+                  {/* mesures en langue opérateur — chaque ligne dit ce que c'est,
+                      la valeur, et ce que ça signifie. Fini le dialecte CSV. */}
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <div className="mono" style={{ fontSize: 12, color: '#d6d8dd', fontVariantNumeric: 'tabular-nums' }}>
+                      Latence du lien <span style={{ color: '#8b9099' }}>(RTT p95)</span> : <b style={{ fontWeight: 600 }}>{fmtIQR(g.rtt_p95_median, g.rtt_p95_iqr)}</b> ms
+                      <span style={{ color: '#a9aeb6' }}> — temps d'aller-retour des paquets sous charge</span>
+                    </div>
+                    <div className="mono" style={{ fontSize: 12, color: '#d6d8dd', fontVariantNumeric: 'tabular-nums' }}>
+                      Réactivité des petits objets <span style={{ color: '#8b9099' }}>(small p95)</span> : <b style={{ fontWeight: 600 }}>{fmtIQR(g.small_p95_median, g.small_p95_iqr)}</b> ms
+                      <span style={{ color: '#a9aeb6' }}> — charger une page/mesure pendant un transfert lourd</span>
+                    </div>
+                    {g.small_p95_valid_ci95 && (
+                      <div className="mono" style={{ fontSize: 12, color: '#a9aeb6', fontVariantNumeric: 'tabular-nums' }}>
+                        Marge d'incertitude : {g.small_p95_valid_ci95[0].toFixed(0)}–{g.small_p95_valid_ci95[1].toFixed(0)} ms — fourchette où se trouve la vraie valeur 95 fois sur 100
+                      </div>
+                    )}
+                    <div className="mono" style={{ fontSize: 12, color: g.quarantined > 0 ? '#f4b400' : '#a9aeb6' }}>
+                      {g.quarantined > 0
+                        ? `${g.quarantined} mesure(s) sur ${g.count} écartée(s) — incohérentes, exclues du calcul (détail : vue Provenance)`
+                        : `les ${g.count} mesures sont cohérentes — aucune écartée`}
+                    </div>
+                    {g.hardware_recommendation && (
+                      <div className="mono" style={{ fontSize: 12, color: '#5ad3e3', lineHeight: 1.5 }}>
+                        Recommandation terrain : {g.hardware_recommendation}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
+                    <button className="btn" title="épingler comme A" onClick={e => { e.stopPropagation(); setPinA(pin) }} style={{ padding: '4px 10px', fontSize: 10, background: isA ? 'rgba(90,211,227,0.15)' : 'transparent', color: isA ? CRAFT.live : 'var(--text-muted)' }}>A comparer</button>
+                    <button className="btn" title="épingler comme B" onClick={e => { e.stopPropagation(); setPinB(pin) }} style={{ padding: '4px 10px', fontSize: 10, background: isB ? 'rgba(31,163,72,0.15)' : 'transparent', color: isB ? CRAFT.ok : 'var(--text-muted)' }}>B comparer</button>
+                    <button className="btn" onClick={e => { e.stopPropagation(); setInterpProfile(g.profile) }} style={{ padding: '4px 10px', fontSize: 10 }}>interpréter {g.profile} →</button>
                   </div>
                 </div>
               )}
@@ -560,7 +599,7 @@ export default function ResultatsView() {
           const best = rankMeta.dir === 'down' ? rankMin : rankMax
           const fmt = (v: number) => rankSpan > 0 ? `${v.toFixed(1)} ${rankMeta.unit}` : '—'
           return (
-            <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 14px 10px', borderTop: '1px solid var(--hairline-faint)', fontSize: 10, color: '#767b84' }}>
+            <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px 12px', borderTop: '1px solid var(--hairline-faint)', fontSize: 11, color: '#a9aeb6' }}>
               <span>← {fmt(worst)}</span><span>25 %</span><span>50 %</span><span>75 %</span><span>{fmt(best)} →</span>
             </div>
           )
