@@ -26,7 +26,6 @@ actions :
   doctor    dépendances locales + config (tout vert avant d'agir)
   scan      trouve les .vmx/.vbox sur TOUT le PC (défaut), sauvegarde l'unique
   keysetup  pose la clé SSH sur la cible via mot de passe (prompts, zéro GUI)
-  guest-ssh installe openssh-server DANS l'invité via Tools (sans SSH préalable)
   ensure    SSH up, sinon boot VM + attente (300 s max) + IP auto-découverte
   align     NIC + CPU/mémoire mini du banc (à froid, snapshot auto avant)
   build     porte stricte : go vet + tsc + vite + bundle <600 KB + vitest
@@ -44,6 +43,7 @@ actions :
    revert    revenir au dernier snapshot (ou --name NOM)
    snapshots liste des instantanés (le nom sert à revert)
    ssh       shell interactif direct dans la VM (Ctrl-D pour sortir)
+  netinfo   réseau invité en lecture seule (adresses, route, DNS)
   tui       centre de contrôle interactif (flèches + entrée, sans rien taper)
    ps        processus dashboard en direct (rafraîchi 2 s, q pour sortir)
    backup    rapatrie les runs gelés de la VM vers ./backup (tar.gz horodaté)
@@ -74,8 +74,6 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.Scan(c, *cfgPath, effDeep)
 	case "keysetup":
 		return r.KeySetup(c, *cfgPath, rest)
-	case "guest-ssh":
-		return r.GuestSSH(c, *cfgPath, effDeep)
 	case "ensure":
 		return r.Ensure(c, *cfgPath, effDeep)
 	case "align":
@@ -124,6 +122,8 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.Revert(c, name, effDeep)
 	case "ssh":
 		return r.SSHInteractive(c)
+	case "netinfo":
+		return r.Netinfo(c)
 	case "tui":
 		return runKitTUI(*cfgPath, version)
 	case "snapshots":

@@ -27,10 +27,10 @@ type Hypervisor interface {
 	Stop(vmx string) error
 	// GuestIP interroge l'IP invitée d'une VM allumée ("" si inconnue).
 	GuestIP(vmx string) string
-	// RunGuest exécute un programme DANS l'invité (user/pass = compte invité,
-	// jamais persistés par l'appelant). VMware : Tools requis. VirtualBox :
-	// Additions invité requises. Sortie combinée ; erreur = échec/auth/Tools.
-	RunGuest(user, pass, vmx, prog string, args ...string) (string, error)
+	// NetMode lit le mode réseau configuré SANS allumer la VM : ponté (accès
+	// direct), nat (port-forward requis), hôte-only, inconnu. VMware : lu
+	// dans le .vmx (ethernet0.connectionType). VirtualBox : showvminfo nicN.
+	NetMode(vmx string) string
 }
 
 // NatForwarder — hyperviseurs en mode NAT (VirtualBox) : l'IP invitée
@@ -97,23 +97,41 @@ func (v *vmware) GuestIP(vmx string) string {
 	return ip
 }
 
-// vmwareGuestArgs — argv pur (testé) : -gu/-gp AVANT le sous-ordre, jamais
-// dans les logs de l'appelant (le mot de passe transite en mémoire + ligne
-// de commande du seul processus vmrun éphémère).
-func vmwareGuestArgs(user, pass, vmx, sub, prog string, args []string) []string {
-	out := []string{"-T", "ws", "-gu", user, "-gp", pass, sub, vmx}
-	if prog != "" {
-		out = append(out, prog)
-		out = append(out, args...)
+// NetMode — ethernetX.connectionType du .vmx, première NIC trouvée :
+// bridged → "ponté", nat → "nat", hostonly → "hôte-only", custom → son nom.
+// Fichier illisible = "inconnu" (jamais d'erreur : c'est un affichage).
+func (v *vmware) NetMode(vmx string) string {
+	data, err := os.ReadFile(vmx)
+	if err != nil {
+		return "inconnu"
 	}
-	return out
-}
-
-// RunGuest — runProgramInGuest (Tools requis, prouvé live : listProcesses,
-// echo ; copyFile host↔guest INDISPONIBLE sur open-vm-tools — ne pas
-// proposer de push par ce canal, l'apt+ssh reste la voie).
-func (v *vmware) RunGuest(user, pass, vmx, prog string, args ...string) (string, error) {
-	return v.run(vmwareGuestArgs(user, pass, vmx, "runProgramInGuest", prog, args)...)
+	best := ""
+	for _, ln := range strings.Split(string(data), "\n") {
+		ln = strings.TrimSpace(strings.ToLower(ln))
+		if !strings.HasPrefix(ln, "ethernet") || !strings.Contains(ln, "connectiontype") {
+			continue
+		}
+		parts := strings.SplitN(ln, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		val := strings.Trim(strings.TrimSpace(parts[1]), `"`)
+		if best == "" {
+			best = val // ethernet0 d'abord (ordre du fichier)
+		}
+	}
+	switch best {
+	case "bridged":
+		return "ponté"
+	case "nat":
+		return "nat"
+	case "hostonly":
+		return "hôte-only"
+	case "":
+		return "inconnu"
+	default:
+		return best
+	}
 }
 
 // ---- VirtualBox ----
@@ -243,19 +261,35 @@ func (v *virtualbox) EnsureNatSSH(vbx, hostPort string) error {
 // NatHostAddr — l'adresse d'accès SSH quand la VM est en NAT.
 func (v *virtualbox) NatHostAddr() string { return "127.0.0.1" }
 
-// vboxGuestArgs — argv pur (relu sur doc stable, pas de banc VBox sous la
-// main pour le live-test : guestcontrol exige les Additions invité).
-func vboxGuestArgs(user, pass, name, prog string, args []string) []string {
-	out := []string{"guestcontrol", name, "run", "--username", user, "--password", pass,
-		"--wait-stdout", "--wait-stderr", "--exe", prog, "--"}
-	out = append(out, args...)
-	return out
-}
-
-// RunGuest — guestcontrol run (Additions invité requises).
-func (v *virtualbox) RunGuest(user, pass, vmx, prog string, args ...string) (string, error) {
-	name := strings.TrimSuffix(filepath.Base(vmx), ".vbox")
-	return v.run(vboxGuestArgs(user, pass, name, prog, args)...)
+// NetMode — attachement de la première NIC (showvminfo --machinereadable :
+// nic1="nat"|"bridged"|"hostonly"|...) : nat → "nat", bridged → "ponté".
+// VM inconnue de VirtualBox = "inconnu" (jamais d'erreur : affichage).
+func (v *virtualbox) NetMode(vbx string) string {
+	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	out, err := v.run("showvminfo", name, "--machinereadable")
+	if err != nil {
+		return "inconnu"
+	}
+	for _, ln := range strings.Split(out, "\n") {
+		ln = strings.TrimSpace(ln)
+		if !strings.HasPrefix(ln, "nic1=") {
+			continue
+		}
+		val := strings.Trim(strings.TrimPrefix(ln, "nic1="), "\"\r")
+		switch val {
+		case "bridged":
+			return "ponté"
+		case "nat":
+			return "nat"
+		case "hostonly":
+			return "hôte-only"
+		case "none", "":
+			return "inconnu"
+		default:
+			return val
+		}
+	}
+	return "inconnu"
 }
 
 // ---- détection ----

@@ -11,7 +11,7 @@ import (
 // temporelle se lit dans delta sans intervention). Rend (service, timer).
 // Un serveur HTTP ne se cronifie pas lui-même : le timer est versionnable
 // et auditable côté banc, la campagne tourne dans son répertoire de gels.
-func ScheduleUnits(at, profiles, qdiscs, ccs, direction string, reps int) (string, string) {
+func ScheduleUnits(projectDir, at, profiles, qdiscs, ccs, direction string, reps int) (string, string) {
 	args := []string{"run", "--profiles", profiles}
 	if qdiscs != "" {
 		args = append(args, "--qdiscs", qdiscs)
@@ -34,9 +34,9 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/altfloat/cgo
+WorkingDirectory=%s
 ExecStart=/usr/local/bin/%s
-`, cmd)
+`, projectDir, cmd)
 	timer := fmt.Sprintf(`[Unit]
 Description=Meteolink — déclencheur nocturne de campagne
 
@@ -53,7 +53,7 @@ WantedBy=timers.target
 // Schedule — pose les unités sur la VM et active le timer (idempotent).
 // Utilise c.SSH + ssh-cat stdin (mêmes primitives que Deploy/Backup).
 func (r *Runner) Schedule(c *Config, at, profiles, qdiscs, ccs, direction string, reps int) int {
-	service, timer := ScheduleUnits(at, profiles, qdiscs, ccs, direction, reps)
+	service, timer := ScheduleUnits(c.ProjectDir, at, profiles, qdiscs, ccs, direction, reps)
 	for name, content := range map[string]string{"meteolink-campaign.service": service, "meteolink-campaign.timer": timer} {
 		cat := exec.Command("ssh", "-o", "ConnectTimeout=6", "-o", "StrictHostKeyChecking=accept-new",
 			"-p", c.SSHPort, "-i", expandKey(c.SSHKey),
@@ -82,7 +82,7 @@ func (r *Runner) Schedule(c *Config, at, profiles, qdiscs, ccs, direction string
 // sinon on imprime la commande root minimale (une seule, à jouer une fois).
 func (r *Runner) scheduleFallback(c *Config, at, profiles, qdiscs, ccs, direction string, reps int) int {
 	if out, err := c.SSH("command -v crontab"); err == nil && strings.TrimSpace(out) != "" {
-		line := ScheduleCronLine(at, profiles, qdiscs, ccs, direction, reps)
+		line := ScheduleCronLine(c.ProjectDir, at, profiles, qdiscs, ccs, direction, reps)
 		if _, err := c.SSH(fmt.Sprintf("(crontab -l 2>/dev/null | grep -v meteolink-campaign; echo %q) | crontab -", line)); err != nil {
 			r.errf("[schedule] crontab: %v", err)
 			return 7
@@ -98,7 +98,7 @@ func (r *Runner) scheduleFallback(c *Config, at, profiles, qdiscs, ccs, directio
 
 // ScheduleCronLine — repli sans privilège : cron utilisateur (pas de sudo,
 // survit au logout si cron tourne). Rend la ligne crontab complète.
-func ScheduleCronLine(at, profiles, qdiscs, ccs, direction string, reps int) string {
+func ScheduleCronLine(projectDir, at, profiles, qdiscs, ccs, direction string, reps int) string {
 	var hh, mm string
 	if _, err := fmt.Sscanf(at, "%d:%d", &hh, &mm); err != nil {
 		hh, mm = "02", "30"
@@ -117,8 +117,8 @@ func ScheduleCronLine(at, profiles, qdiscs, ccs, direction string, reps int) str
 		reps = 3
 	}
 	args = append(args, "--reps", fmt.Sprint(reps))
-	return fmt.Sprintf("%s %s * * * cd /home/altfloat/cgo && %s >>/home/altfloat/cgo/campaign-cron.log 2>&1",
-		mm, hh, strings.Join(args, " "))
+	return fmt.Sprintf("%s %s * * * cd %s && %s >>%s/campaign-cron.log 2>&1",
+		mm, hh, projectDir, strings.Join(args, " "), projectDir)
 }
 
 func extraSuffix(qdiscs, ccs, direction string) string {

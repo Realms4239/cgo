@@ -15,10 +15,10 @@ func TestClassifySSHError(t *testing.T) {
 		out  string
 		want string
 	}{
-		{"refused", "ssh: connect to host 192.168.174.131 port 22: Connection refused", "refused"},
+		{"refused", "ssh: connect to host 198.51.100.23 port 22: Connection refused", "refused"},
 		{"refused nat", "ssh: connect to host 127.0.0.1 port 2222: Connection refused", "refused"},
 		{"no route", "ssh: connect to host 10.0.2.15 port 22: No route to host", "unreachable"},
-		{"timeout", "ssh: connect to host 192.168.174.131 port 22: Connection timed out", "unreachable"},
+		{"timeout", "ssh: connect to host 198.51.100.23 port 22: Connection timed out", "unreachable"},
 		{"auth", "ubuntu@x: Permission denied (publickey,password).", "auth"},
 		{"auth key", "ubuntu@127.0.0.1: Permission denied (publickey).", "auth"},
 		{"ok vide", "", ""},
@@ -29,6 +29,28 @@ func TestClassifySSHError(t *testing.T) {
 				t.Errorf("classifySSHError(%q) = %q, want %q", c.out, got, c.want)
 			}
 		})
+	}
+}
+
+// TestLoadConfigFlatAfterSection — régression : les clés plates APRÈS la
+// section ssh: (vm_name, project_dir…) étaient préfixées ssh_ et jetées en
+// silence (relues vides). L'indentation décide, pas la position.
+func TestLoadConfigFlatAfterSection(t *testing.T) {
+	dir := t.TempDir()
+	yaml := dir + "/cgo-vm.yaml"
+	os.WriteFile(yaml, []byte("ssh:\n  user: testuser\n  host: 198.51.100.23\n  port: 22\n  key: ~/.ssh/id_ed25519\nvm_name: \"ubu\"\nvmx_path: \"D:/VMs/ubu/ubu.vmx\"\nproject_dir: /home/testuser/cgo\ndashboard_port: 9091\n"), 0644)
+	c, err := LoadConfig(yaml)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SSHUser != "testuser" || c.SSHHost != "198.51.100.23" {
+		t.Fatalf("section ssh perdue : user=%q host=%q", c.SSHUser, c.SSHHost)
+	}
+	if c.VMName != "ubu" || c.VMXPath != "D:/VMs/ubu/ubu.vmx" {
+		t.Fatalf("clés plates perdues : name=%q vmx=%q", c.VMName, c.VMXPath)
+	}
+	if c.ProjectDir != "/home/testuser/cgo" || c.DashPort != "9091" {
+		t.Fatalf("clés plates perdues : proj=%q port=%q", c.ProjectDir, c.DashPort)
 	}
 }
 
@@ -64,7 +86,7 @@ func TestSSHAdviceRefusedMentionsSSHService(t *testing.T) {
 func TestLoadConfigEnvOverridesYAML(t *testing.T) {
 	dir := t.TempDir()
 	yaml := dir + "/cgo-vm.yaml"
-	if err := os.WriteFile(yaml, []byte("ssh:\n  host: 192.168.174.131\n  port: \"22\"\n  user: altfloat\n"), 0644); err != nil {
+	if err := os.WriteFile(yaml, []byte("ssh:\n  host: 198.51.100.23\n  port: \"22\"\n  user: testuser\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CGO_SSH_HOST", "10.11.12.13")
@@ -79,7 +101,7 @@ func TestLoadConfigEnvOverridesYAML(t *testing.T) {
 	if c.SSHPort != "2229" {
 		t.Errorf("SSHPort = %q, want l'env 2229", c.SSHPort)
 	}
-	if c.SSHUser != "altfloat" {
-		t.Errorf("SSHUser = %q, want altfloat (du yaml, non surchargé)", c.SSHUser)
+	if c.SSHUser != "testuser" {
+		t.Errorf("SSHUser = %q, want testuser (du yaml, non surchargé)", c.SSHUser)
 	}
 }
