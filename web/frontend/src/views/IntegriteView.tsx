@@ -28,6 +28,10 @@ export default function IntegriteView() {
   const [groups, setGroups] = useState<any[]|null>(null)
   const [peekGroups, setPeekGroups] = useState<any[]|null>(null)
   const [quar, setQuar] = useState<{run:string;event_id:number;profile:string;qdisc:string;cc:string;gate_status:string;failed_gates?:string[]}[]>([])
+  // journal opérateur — vit ici (archives), plus dans Résultats (classement)
+  const [events, setEvents] = useState<{ ts: string; kind: string; msg: string }[]>([])
+  const [evPage, setEvPage] = useState(1)
+  const EV_PAGE_SIZE = 8
   const [quarSum, setQuarSum] = useState<{total_invalid?:number;g4_low?:number;g4_high?:number;empty_probes?:number;g3_implausible?:number}|null>(null)
   // pagination runs (U6h) — 407 lignes rendues d'un bloc noyait la vue
   const [runsPage, setRunsPage] = useState(1)
@@ -40,9 +44,10 @@ export default function IntegriteView() {
     fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(asArray<string>(j.runs))).catch(()=>{})
     fetch('/api/results').then(r=>r.json()).then(j=>setGroups(asArray(j.groups))).catch(()=>setGroups([]))
     fetch('/api/quarantine').then(r=>r.json()).then(j=>setQuar(asArray(j.quarantines))).catch(()=>{})
+    fetch('/api/events').then(r=>r.json()).then(j=>setEvents(asArray<{ts:string;kind:string;msg:string}>(j.events).reverse())).catch(()=>{})
     fetch('/api/quarantine/summary').then(r=>r.json()).then(j=>setQuarSum(j)).catch(()=>{})
   }
-  useEffect(()=>{ load() }, [])
+  useEffect(()=>{ load(); const t=setInterval(load,10000); return ()=>clearInterval(t) }, [])
   useEffect(()=>{
     if (!peek) return
     setPeekGroups(null)
@@ -246,6 +251,26 @@ export default function IntegriteView() {
         )}
       </div>
       <Provenance source="data/runs/*/manifest.json" state="live" />
+      {events.length > 0 && (
+        <div className="card" data-testid="changelog">
+          <div className="card-head">Changelog — journal opérateur</div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {paginate(events, evPage, EV_PAGE_SIZE).map((e, i) => {
+              // pastille de nature — campagne cyan, profil violet, audit ambre, reste acier
+              const kc = /campagne/i.test(e.kind) ? '#5ad3e3' : /profil/i.test(e.kind) ? '#b48ae0' : /audit/i.test(e.kind) ? '#f4b400' : '#9aa3ad'
+              return (
+                <li key={i} className="mono" style={{ fontSize: 12, padding: '5px 0', borderBottom: '1px solid var(--hairline-faint)', display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                  <span style={{ color: '#a9aeb6', fontVariantNumeric: 'tabular-nums' }}>{e.ts}</span>
+                  <span title={e.kind} style={{ color: kc }}>●</span>
+                  <span style={{ flex: 1, color: '#d6d8dd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg.slice(0, 120)}</span>
+                  <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: kc }}>{e.kind}</span>
+                </li>
+              )
+            })}
+          </ul>
+          <Paginate total={events.length} page={evPage} pageSize={EV_PAGE_SIZE} onPage={setEvPage} />
+        </div>
+      )}
       <div className="card">
         <div className="card-head">Replay {replayRunning && <span className="mono" style={{color:'var(--t-live)', marginLeft:8}}>● en cours</span>}</div>
         {replayRunning ? (

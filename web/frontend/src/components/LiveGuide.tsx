@@ -53,11 +53,12 @@ function entries(s: Settings): Entry[] {
   ]
 }
 
-// Guide de lecture du mur — repliable, mémorisé (ouvert par défaut).
+// Guide de lecture du mur — repliable, mémorisé (REPLIÉ par défaut : le mur
+// respire, l'opérateur déplie au besoin).
 export function LiveGuide() {
   const [settings, setSettings] = useState<Settings>(loadSettings())
   const [open, setOpen] = useState<boolean>(() => {
-    try { const r = localStorage.getItem('live-guide-open'); return r === null ? true : r === '1' } catch { return true }
+    try { const r = localStorage.getItem('live-guide-open'); return r === '1' } catch { return false }
   })
   useEffect(() => {
     const on = () => setSettings({ ...loadSettings() })

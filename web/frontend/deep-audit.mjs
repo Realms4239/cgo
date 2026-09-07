@@ -118,7 +118,7 @@ const corner = await p.$$eval('span', els => els.filter(e => /optimal ↗|optima
 ok('resultats: coin optimal annoté', corner > 0)
 await p.screenshot({ path: path.join(OUT, 'resultats.png') })
 
-// ---------- 5. INTEGRITE ----------
+// ---------- 5. INTEGRITE (runs + quarantaine + changelog) ----------
 await p.click('.rail .nav-btn[data-panel="integrite"]'); await sleep(1800)
 const intRows = await p.$$eval('[data-testid="runs-table"] tbody tr', els => els.length).catch(() => 0)
 ok('integrite: runs paginés', intRows > 0 && intRows <= 12, `${intRows} lignes/page`)
@@ -126,7 +126,13 @@ const quarRows = await p.$$eval('[data-testid="quarantine-table"] tbody tr', els
 ok('integrite: quarantaine paginée', quarRows <= 12, `${quarRows} lignes/page`)
 const intPag = await p.$('#v-integrite [data-testid="paginate"]')
 ok('integrite: pagination 1..n', intPag !== null)
+const changelog = await p.$('[data-testid="changelog"]')
+ok('integrite: changelog déménagé ici', changelog !== null)
 await p.screenshot({ path: path.join(OUT, 'integrite.png') })
+// changelog ABSENT de resultats
+await p.click('.rail .nav-btn[data-panel="resultats"]'); await sleep(1500)
+const changelogGone = await p.evaluate(() => !document.querySelector('#v-resultats [data-testid="changelog"]'))
+ok('resultats: changelog retiré', changelogGone)
 
 // ---------- 6. arrêt propre ----------
 await p.click('.rail .nav-btn[data-panel="live"]'); await sleep(1200)
