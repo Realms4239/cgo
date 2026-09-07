@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -218,6 +219,23 @@ func NewRunner() *Runner {
 func (r *Runner) out(format string, a ...any)  { fmt.Fprintf(r.Stdout, format+"\n", a...) }
 func (r *Runner) errf(format string, a ...any) { fmt.Fprintf(r.Stderr, format+"\n", a...) }
 
+// userHome — $HOME, sauf sous sudo où ~/ désigne l'utilisateur d'origine
+// (sudo ./cgo kit tls/dns résoudrait sinon /root/.ssh/id_ed25519, absent —
+// vu en prod : clé introuvable alors qu'elle existe chez l'opérateur).
+func userHome() string {
+	if os.Geteuid() == 0 {
+		if su := os.Getenv("SUDO_USER"); su != "" {
+			if u, err := user.Lookup(su); err == nil && u.HomeDir != "" {
+				return u.HomeDir
+			}
+		}
+	}
+	if h, err := os.UserHomeDir(); err == nil {
+		return h
+	}
+	return ""
+}
+
 // runSilent exécute et rend CombinedOutput.
 func runSilent(dir string, env []string, name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
@@ -233,7 +251,7 @@ func runSilent(dir string, env []string, name string, args ...string) (string, e
 func (c *Config) sshCmd() []string {
 	key := c.SSHKey
 	if strings.HasPrefix(key, "~/") {
-		if h, err := os.UserHomeDir(); err == nil {
+		if h := userHome(); h != "" {
 			key = filepath.Join(h, key[2:])
 		}
 	}
@@ -304,7 +322,7 @@ func sshAdvice(class string) string {
 func (c *Config) SCP(local, remote string) error {
 	key := c.SSHKey
 	if strings.HasPrefix(key, "~/") {
-		if h, err := os.UserHomeDir(); err == nil {
+		if h := userHome(); h != "" {
 			key = filepath.Join(h, key[2:])
 		}
 	}
@@ -396,7 +414,7 @@ func (r *Runner) Doctor(c *Config) int {
 	// clé SSH : afficher le chemin résolu et vérifier sa présence
 	key := c.SSHKey
 	if strings.HasPrefix(key, "~/") {
-		if h, err := os.UserHomeDir(); err == nil {
+		if h := userHome(); h != "" {
 			key = filepath.Join(h, key[2:])
 		}
 	}
@@ -663,7 +681,15 @@ func (r *Runner) crossCompile() (string, error) {
 }
 
 // Deploy — build + ensure + cross-compile + scp + install + health.
+// SANS source (poste opérateur depuis l'archive : pas de ./cmd/cgo ni de
+// toolchain) : mode PRÉCOMPILÉ — on pousse le binaire qui tourne, sans
+// recompiler. Le banc reçoit exactement ce qui a été testé, pas ce qui
+// aurait été recompilé. Refusé depuis un binaire non-linux (un .exe Windows
+// sur la VM Ubuntu = brique silencieuse).
 func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
+	if _, err := os.Stat(filepath.Join(r.Root, "cmd", "cgo")); err != nil {
+		return r.deployPrebuilt(c, cfgPath, deep)
+	}
 	if code := r.Build(); code != 0 {
 		return code
 	}
@@ -676,6 +702,35 @@ func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
 		r.errf("[deploy] cross-compile ÉCHEC : %v", err)
 		return 6
 	}
+	return r.deployPush(c, bin)
+}
+
+// deployPrebuilt — poste opérateur SANS source : pousse le binaire qui tourne.
+func (r *Runner) deployPrebuilt(c *Config, cfgPath string, deep bool) int {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		r.errf("[deploy] binaire %s/%s : déploiement précompilé impossible vers la VM linux/amd64", runtime.GOOS, runtime.GOARCH)
+		r.errf("[deploy] depuis ce poste : rapatriez cgo-linux-amd64.tar.gz (binaire linux précompilé) OU clonez le dépôt + toolchain Go")
+		return 6
+	}
+	self, err := os.Executable()
+	if err != nil {
+		r.errf("[deploy] binaire courant introuvable : %v", err)
+		return 6
+	}
+	inst := filepath.Join(r.Root, "kit", "vm-install.sh")
+	if _, err := os.Stat(inst); err != nil {
+		r.errf("[deploy] installateur absent : %s — ré-extrayez l'archive complète", inst)
+		return 6
+	}
+	r.out("[deploy] mode précompilé : pas de source ici, on pousse le binaire testé tel quel (pas de recompilation)")
+	if code := r.Ensure(c, cfgPath, deep); code != 0 {
+		return code
+	}
+	return r.deployPush(c, self)
+}
+
+// deployPush — queue commune : scp binaire + installateur, install, health.
+func (r *Runner) deployPush(c *Config, bin string) int {
 	r.out("[deploy] push binaire + installateur...")
 	mkdirOut, mkdirErr := c.SSH("mkdir -p " + c.ProjectDir + "/kit")
 	if mkdirErr != nil {

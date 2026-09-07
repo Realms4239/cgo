@@ -48,10 +48,28 @@ func (r *Runner) TLS(c *Config) int {
 		} else {
 			r.out("[tls] certificat installé dans le magasin racine Windows")
 		}
+	} else if os.Geteuid() == 0 {
+		// root : installation directe dans le magasin système — `sudo ./cgo
+		// kit tls` donne la confiance totale sans autre commande.
+		dst := "/usr/local/share/ca-certificates/meteolink-dev.crt"
+		data, err := os.ReadFile(tmp)
+		if err != nil {
+			r.errf("[tls] relecture certificat : %v", err)
+			return 8
+		}
+		if err := os.WriteFile(dst, data, 0644); err != nil {
+			r.errf("[tls] écriture %s : %v", dst, err)
+			return 8
+		}
+		if out, err := exec.Command("update-ca-certificates").CombinedOutput(); err != nil {
+			r.errf("[tls] update-ca-certificates : %s", firstLine(string(out)))
+			return 8
+		}
+		r.out("[tls] certificat installé dans le magasin système (update-ca-certificates OK)")
 	} else {
 		r.out("[tls] certificat : %s", tmp)
-		r.out("[tls] confiance système : copiez-le dans votre magasin local")
-		r.out("[tls]   Debian/Ubuntu : sudo cp %s /usr/local/share/ca-certificates/meteolink-dev.crt && sudo update-ca-certificates", tmp)
+		r.out("[tls] confiance système : relancez avec sudo pour l'installer, ou à la main :")
+		r.out("[tls]   sudo cp %s /usr/local/share/ca-certificates/meteolink-dev.crt && sudo update-ca-certificates", tmp)
 	}
 	// 3. vérification HTTPS avec confiance système (pas de -k)
 	name := c.DashHost
