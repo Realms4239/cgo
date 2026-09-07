@@ -41,6 +41,7 @@ type vmEntry struct {
 	path string
 	name string
 	hyp  string // vmware | virtualbox | ?
+	mode string // ponté | nat | hôte-only | inconnu (config, sans allumer)
 	live bool   // allumée
 }
 
@@ -87,6 +88,12 @@ type modelKT struct {
 	inputOn    bool
 	inputField string // user|host|port|key
 	inputVal   string
+
+	// état machine suivi (header global) : rafraîchi au verrou, au scan,
+	// au ticker — jamais par render (showvminfo/vmrun coûteraient par touche).
+	vmLive bool
+	vmSeen bool // on sait (vs inconnu)
+	vmMode string
 }
 
 func initialModelKT(cfgPath string, version string) modelKT {
@@ -137,20 +144,29 @@ func (m modelKT) items() []ktItem {
 	case ktVM:
 		out := []ktItem{{id: "rescan", label: "↻ Rescanner tout le PC", hint: "vmware + virtualbox, profond"}}
 		for i, v := range m.vms {
-			state := "éteinte"
+			dot := "○"
 			if v.live {
-				state = "allumée"
+				dot = "●"
 			}
-			out = append(out, ktItem{id: fmt.Sprintf("vm:%d", i), label: v.name, hint: v.hyp + " · " + state})
+			hint := v.hyp
+			if v.mode != "" && v.mode != "inconnu" {
+				hint += " · " + v.mode
+			}
+			if v.live {
+				hint += " · allumée"
+			} else {
+				hint += " · éteinte"
+			}
+			out = append(out, ktItem{id: fmt.Sprintf("vm:%d", i), label: dot + " " + v.name, hint: hint})
 		}
 		return out
 	case ktAcces:
 		return []ktItem{
 			{id: "diag", label: "Diagnostiquer l'accès", hint: "clé, port, auth, IP"},
 			{id: "mkkey", label: "Créer la clé locale", hint: "ssh-keygen, sans mot de passe"},
-			{id: "guest-ssh", label: "Installer SSH via les Tools", hint: "mot de passe VM, sans SSH préalable"},
 			{id: "set-user", label: "Utilisateur…", hint: curSSHUser(m)},
 			{id: "set-host", label: "Hôte…", hint: curSSHHost(m)},
+			{id: "rediscover", label: "Redécouvrir l'IP", hint: "oublie le fixe, résout via hyperviseur"},
 			{id: "set-port", label: "Port…", hint: curSSHPort(m)},
 			{id: "set-key", label: "Clé…", hint: curSSHKey(m)},
 			{id: "keysetup", label: "Poser la clé SSH", hint: "mot de passe demandé une fois"},
@@ -171,6 +187,7 @@ func (m modelKT) items() []ktItem {
 			{id: "svc-restart", label: "Redémarrer dashboard", hint: ""},
 			{id: "vm-start", label: "Démarrer la VM", hint: "headless"},
 			{id: "vm-stop", label: "Arrêter la VM", hint: "ACPI puis forcé"},
+			{id: "netinfo", label: "Réseau invité", hint: "adresses + routes live"},
 			{id: "logs", label: "Journal (40 lignes)", hint: ""},
 			{id: "dns", label: "Mapper meteolink.dev", hint: "admin requis"},
 			{id: "tls", label: "Confiance HTTPS", hint: "admin requis"},
@@ -216,6 +233,7 @@ func (m modelKT) Init() tea.Cmd {
 func (m modelKT) View() string {
 	var b strings.Builder
 	b.WriteString(stTitle.Render("Meteolink Kit — centre de contrôle") + "  " + stMuted.Render(m.version) + "\n")
+	b.WriteString(m.header() + "\n")
 	for i, name := range ktStepNames {
 		if ktStep(i) == m.step {
 			b.WriteString(stKStep_.Render(name))
@@ -403,6 +421,43 @@ func (m modelKT) viewDeploy() string {
 	b.WriteString(fmt.Sprintf("  État dashboard : %s\n\n", m.dashStateOr("-")))
 	b.WriteString(m.viewItems())
 	return b.String()
+}
+
+// header — l'état du monde en UNE ligne sur chaque écran : machine
+// (● allumée / ○ éteinte / ? inconnue + mode réseau), SSH, dashboard, IP
+// et sa voie d'accès. Fini le « que se passe-t-il ? ».
+func (m modelKT) header() string {
+	vm := "—"
+	if name := m.lockedVM(); name != "" {
+		dot, state := "?", "inconnue"
+		if m.vmSeen {
+			if m.vmLive {
+				dot, state = "●", "allumée"
+			} else {
+				dot, state = "○", "éteinte"
+			}
+		}
+		vm = fmt.Sprintf("%s %s %s", dot, name, state)
+		if m.vmMode != "" && m.vmMode != "inconnu" {
+			vm += " · " + m.vmMode
+		}
+	}
+	ip := "—"
+	if m.cfg != nil && m.cfg.SSHHost != "" {
+		ip = m.cfg.SSHHost
+		if m.cfg.Hypervisor == "virtualbox" && (m.vmMode == "nat" || m.vmMode == "inconnu") {
+			ip += " (via 127.0.0.1:" + m.natPort() + ")"
+		}
+	}
+	return fmt.Sprintf("  %s   SSH %s   Dashboard %s   IP %s",
+		vm, sshShort(m.sshState), m.dashStateOr("—"), stKDim.Render(ip))
+}
+
+func (m modelKT) natPort() string {
+	if m.cfg != nil && m.cfg.NatHostPort != "" {
+		return m.cfg.NatHostPort
+	}
+	return "2222"
 }
 
 func (m modelKT) dashStateOr(fb string) string {

@@ -9,7 +9,7 @@ import (
 // filtrée : l'unité générée doit être un timer + service valides, la
 // commande porte les filtres et la direction, et l'heure est configurable.
 func TestScheduleUnit(t *testing.T) {
-	unit, timer := ScheduleUnits("02:30", "P2", "cake,fq_codel", "bbr", "both", 1)
+	unit, timer := ScheduleUnits("/home/testuser/cgo", "02:30", "P2", "cake,fq_codel", "bbr", "both", 1)
 	if !strings.Contains(timer, "OnCalendar=*-*-* 02:30:00") {
 		t.Fatalf("timer sans OnCalendar 02:30: %s", timer)
 	}
@@ -32,7 +32,7 @@ func TestScheduleUnit(t *testing.T) {
 
 // TestScheduleUnitDefaults — sans filtres : la matrice pleine, direction up.
 func TestScheduleUnitDefaults(t *testing.T) {
-	unit, _ := ScheduleUnits("03:00", "P2", "", "", "", 0)
+	unit, _ := ScheduleUnits("/home/testuser/cgo", "03:00", "P2", "", "", "", 0)
 	if strings.Contains(unit, "--qdiscs") || strings.Contains(unit, "--direction") {
 		t.Fatalf("les défauts ne doivent pas passer de flags vides: %s", unit)
 	}
@@ -44,11 +44,11 @@ func TestScheduleUnitDefaults(t *testing.T) {
 // TestScheduleCronLine — repli cron sans privilège : heure, commande
 // complète, répertoire de gels, log.
 func TestScheduleCronLine(t *testing.T) {
-	line := ScheduleCronLine("02:30", "P2", "cake", "bbr", "both", 1)
+	line := ScheduleCronLine("/home/testuser/cgo", "02:30", "P2", "cake", "bbr", "both", 1)
 	if !strings.HasPrefix(line, "30 02 * * * ") {
 		t.Fatalf("champ horaire: %s", line)
 	}
-	for _, want := range []string{"--profiles P2", "--qdiscs cake", "--cc bbr", "--direction both", "--reps 1", "cd /home/altfloat/cgo", "campaign-cron.log"} {
+	for _, want := range []string{"--profiles P2", "--qdiscs cake", "--cc bbr", "--direction both", "--reps 1", "cd /home/testuser/cgo", "campaign-cron.log"} {
 		if !strings.Contains(line, want) {
 			t.Fatalf("ligne cron sans %q: %s", want, line)
 		}

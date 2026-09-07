@@ -8,12 +8,11 @@ set -uo pipefail
 CFG_FILE="${1:?usage: source config.sh <cgo-vm.yaml>}"
 [ -f "$CFG_FILE" ] || { echo "config not found: $CFG_FILE" >&2; return 1 2>/dev/null || exit 1; }
 
-# defaults
-: "${CFG_SSH_USER:=altfloat}"; : "${CFG_SSH_HOST:=auto}"
+# defaults — aucune identité en dur : vide = demandé par l'opérateur
+: "${CFG_SSH_USER:=}"; : "${CFG_SSH_HOST:=auto}"
 : "${CFG_SSH_PORT:=22}"; : "${CFG_SSH_KEY:=$HOME/.ssh/id_ed25519}"
 : "${CFG_SSH_PASSWORD:=}"; : "${CFG_VM_NAME:=}"; : "${CFG_VMX_PATH:=}"; : "${CFG_VBOX_PATH:=}"
-: "${CFG_SNAPSHOT:=}"; : "${CFG_PROJECT_DIR:=/home/altfloat/cgo}"
-: "${CFG_DASHBOARD_PORT:=9090}"; : "${CFG_GO_MIN_VERSION:=1.25}"; : "${CFG_HYPERVISOR:=auto}"
+: "${CFG_SNAPSHOT:=}"; : "${CFG_PROJECT_DIR:=}"; : "${CFG_DASHBOARD_PORT:=9090}"; : "${CFG_GO_MIN_VERSION:=1.25}"; : "${CFG_HYPERVISOR:=auto}"
 
 _expand() {
   local v="$1"

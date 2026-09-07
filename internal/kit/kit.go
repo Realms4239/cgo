@@ -56,11 +56,14 @@ func env(key, def string) string {
 // puis les surcharges d'environnement — une seule source par priorité.
 func LoadConfig(path string) (*Config, error) {
 	c := &Config{
-		SSHUser:    env("CGO_SSH_USER", "altfloat"),
+		// PAS d'identité par défaut : ni utilisateur, ni IP, ni chemin home.
+		// Un produit qui suppose « altfloat@192.168.174.131 » configure la
+		// mauvaise VM chez les autres. Vide = le TUI/CLI demande (ou dérive).
+		SSHUser:    env("CGO_SSH_USER", ""),
 		SSHHost:    env("CGO_SSH_HOST", "auto"),
 		SSHPort:    env("CGO_SSH_PORT", "22"),
 		SSHKey:     env("CGO_SSH_KEY", "~/.ssh/id_ed25519"),
-		ProjectDir: env("CGO_PROJECT_DIR", "/home/altfloat/cgo"),
+		ProjectDir: env("CGO_PROJECT_DIR", ""),
 		DashPort:   env("CGO_DASHBOARD_PORT", "9090"),
 		DashHost:   env("CGO_DASHBOARD_HOST", "meteolink.dev"),
 		GoMinVer:   "1.25",
@@ -75,11 +78,20 @@ func LoadConfig(path string) (*Config, error) {
 	envHost, envPort, envUser, envKey := c.SSHHost, c.SSHPort, c.SSHUser, c.SSHKey
 	envProject, envDash, envDashHost := c.ProjectDir, c.DashPort, c.DashHost
 	section := ""
-	for _, ln := range strings.Split(string(b), "\n") {
-		ln = strings.TrimSpace(strings.Split(ln, "#")[0])
+	for _, raw := range strings.Split(string(b), "\n") {
+		// l'indentation se lit AVANT trim : elle distingue les sous-clés
+		// ssh: (indentées) des clés plates (vm_name, project_dir…).
+		// Sans ça, toute clé plate APRÈS ssh: était préfixée ssh_ et jetée
+		// en silence (vu en prod : vm_name/vmx_path relus vides).
+		stripped := strings.Split(raw, "#")[0]
+		indented := len(stripped) > 0 && (stripped[0] == ' ' || stripped[0] == '\t')
+		ln := strings.TrimSpace(stripped)
 		ln = strings.TrimSuffix(ln, "\r")
 		if ln == "" {
 			continue
+		}
+		if !indented {
+			section = ""
 		}
 		if strings.HasSuffix(ln, ":") && !strings.Contains(ln, " ") {
 			section = strings.TrimSuffix(ln, ":")
@@ -93,12 +105,9 @@ func LoadConfig(path string) (*Config, error) {
 		k = strings.TrimSpace(k)
 		v = strings.Trim(v, `"'`) // yaml plain : pas de guillemets dans la valeur
 		full := k
-		if section != "" && !strings.HasPrefix(ln, "\t") && strings.Contains(ln, ":") {
-			// sous-clé : ssh_user etc. — le yaml plat utilise la section
+		if indented && section != "" {
+			// sous-clé indentée : ssh_user etc.
 			full = section + "_" + k
-			if strings.Contains(v, ":") {
-				full = section + "_" + k
-			}
 		}
 		switch full {
 		case "ssh_user":
@@ -153,14 +162,20 @@ func LoadConfig(path string) (*Config, error) {
 	if os.Getenv("CGO_DASHBOARD_HOST") != "" {
 		c.DashHost = envDashHost
 	}
-	// host auto → IP invitée via vmrun sur le .vmx connu
+	// host auto → IP invitée via vmrun sur le .vmx connu, sinon vide (le
+	// TUI/ensure redécouvre ; jamais d'IP en dur — pas de subnet supposé).
 	if c.SSHHost == "auto" {
-		c.SSHHost = env("CGO_VM_IP", "192.168.174.128")
+		c.SSHHost = env("CGO_VM_IP", "")
 		if p := vm.Primary(); p != nil && c.VMXPath != "" {
 			if ip := p.GuestIP(c.VMXPath); ip != "" {
 				c.SSHHost = ip
 			}
 		}
+	}
+	// project dir dérivé de l'utilisateur configuré (layout Ubuntu standard)
+	// — pas de /home/<quelqu-un> en dur.
+	if c.ProjectDir == "" && c.SSHUser != "" {
+		c.ProjectDir = "/home/" + c.SSHUser + "/cgo"
 	}
 	return c, nil
 }
@@ -185,8 +200,8 @@ func saveConfigValue(path, key, val string) error {
 }
 
 // SaveSSHTarget — mémorise user/host/port/key dans la section ssh: du yaml
-// (centre de contrôle TUI : l'identité par défaut altfloat/auto ne convient
-// pas à chaque poste — valeurs vides ignorées pour les edits partiels).
+// (centre de contrôle TUI : pas d'identité supposée — valeurs vides ignorées
+// pour les edits partiels).
 func SaveSSHTarget(path, user, host, port, key string) error {
 	for k, v := range map[string]string{"user": user, "host": host, "port": port, "key": key} {
 		if v == "" {
@@ -629,22 +644,21 @@ func discoverGuestIP(hyp vm.Hypervisor, vmx string) string {
 	}
 	// repli 1 (instantané, subnet-agnostique) : la table ARP du poste —
 	// une VM bridgée/NAT qui a parlé au réseau y figure déjà, quel que soit
-	// le subnet (VMware ne donne pas toujours 192.168.174.x, VirtualBox
-	// bridgé vit sur le LAN du poste).
+	// le subnet (NAT custom, bridgé sur le LAN du poste).
 	for _, ip := range arpAlive() {
 		if pingOne(ip) {
 			return ip
 		}
 	}
-	// repli 2 : voisinage ARP du subnet VMware (192.168.174.0/24 NAT typique)
-	// + subnets des interfaces du poste (bridgé, NAT custom) — queues
+	// repli 2 : subnets des interfaces du poste (bridgé, NAT custom) — queues
 	// probables 128-150 (baux DHCP VMware/VBox), parcours des IP probables
-	// via ping rapide
+	// via ping rapide. AUCUN subnet en dur : ni 192.168.174.x ni autre —
+	// l'ARP (repli 1) et les interfaces locales décident.
 	seen := map[string]bool{}
 	tails := []string{"128", "129", "130", "131", "132", "133", "134", "135", "136", "137", "138", "139", "140", "141", "142", "143", "144", "145", "146", "147", "148", "149", "150"}
-	subs := []string{"192.168.174."}
+	var subs []string
 	for _, s := range hostSubnets() {
-		if s != "192.168.174." && len(subs) < 3 {
+		if len(subs) < 3 {
 			subs = append(subs, s)
 		}
 	}

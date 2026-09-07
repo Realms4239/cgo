@@ -9,7 +9,7 @@ import (
 func TestSaveSSHTarget(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "cgo-vm.yaml")
-	os.WriteFile(p, []byte("ssh:\n  user: altfloat\n  host: auto\n  port: 22\n  key: ~/.ssh/id_ed25519\n"), 0644)
+	os.WriteFile(p, []byte("ssh:\n  user: testuser\n  host: auto\n  port: 22\n  key: ~/.ssh/id_ed25519\n"), 0644)
 	if err := SaveSSHTarget(p, "marie", "192.168.1.50", "", ""); err != nil {
 		t.Fatal(err)
 	}

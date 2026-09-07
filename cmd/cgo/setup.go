@@ -164,7 +164,7 @@ func runSetup(args []string) int {
 				fmt.Printf("  sélectionnée : %s (%s)\n", p, hn)
 			}
 		}
-		user := ask("utilisateur SSH VM", "altfloat")
+		user := ask("utilisateur SSH VM (vide = demandé à chaque fois)", "")
 		host := ask("hôte SSH VM (auto = découverte vmrun)", "auto")
 		if host == "auto" && len(vms) > 0 {
 			if p := vm.Primary(); p != nil && len(vms) > 0 {

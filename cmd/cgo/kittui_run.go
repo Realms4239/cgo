@@ -37,6 +37,7 @@ type ktDash struct{ state string }
 type ktResumed struct{}
 type ktBooted struct{}
 type ktTick struct{}
+type ktVMLive struct{ live bool }
 type ktDiagMsg struct{ rows []diagRow }
 
 // expandKey — ~/… vers le home réel (SUDO_USER sous sudo, comme kit).
@@ -399,11 +400,16 @@ func (m *modelKT) refreshVMs(deep bool) {
 	m.pushLog("▸ scan des VMs …")
 	go func() {
 		paths := vm.ScanVMs(deep)
+		hyps := vm.Detect()
 		running := map[string]bool{}
-		for _, h := range vm.Detect() {
+		for _, h := range hyps {
 			for _, r := range h.Running() {
 				running[r] = true
 			}
+		}
+		byName := map[string]vm.Hypervisor{}
+		for _, h := range hyps {
+			byName[h.Name()] = h
 		}
 		var out []vmEntry
 		for _, p := range paths {
@@ -422,9 +428,75 @@ func (m *modelKT) refreshVMs(deep bool) {
 					}
 				}
 			}
-			out = append(out, vmEntry{path: p, name: strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)), hyp: hyp, live: live})
+			// mode réseau lu dans les fichiers (instantané, sans allumer)
+			mode := "inconnu"
+			if h, ok := byName[hyp]; ok {
+				mode = h.NetMode(p)
+			}
+			out = append(out, vmEntry{path: p, name: strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)), hyp: hyp, mode: mode, live: live})
 		}
 		m.bus.Send(ktVMs{vms: out})
+	}()
+}
+
+// syncLockedVM — reporte l'état/mode de la VM verrouillée depuis la liste
+// scannée (header global à jour sans hyperviseur à chaque touche).
+func (m *modelKT) syncLockedVM() {
+	if m.cfg == nil || m.cfg.VMXPath == "" {
+		return
+	}
+	for _, v := range m.vms {
+		if v.path == m.cfg.VMXPath {
+			m.vmSeen = true
+			m.vmLive = v.live
+			if v.mode != "" && v.mode != "inconnu" {
+				m.vmMode = v.mode
+			}
+			return
+		}
+	}
+}
+
+// syncVMMode — mode réseau de la VM verrouillée, synchrone et rapide
+// (.vmx lu en fichier ; showvminfo VBox ~200ms, une fois au boot).
+func (m *modelKT) syncVMMode() {
+	if m.cfg == nil || m.cfg.VMXPath == "" {
+		return
+	}
+	for _, h := range vm.Detect() {
+		if m.cfg.Hypervisor != "" && h.Name() != m.cfg.Hypervisor {
+			continue
+		}
+		if mode := h.NetMode(m.cfg.VMXPath); mode != "" && mode != "inconnu" {
+			m.vmMode = mode
+			return
+		}
+	}
+}
+
+// refreshVMLive — état allumé/éteint de la VM verrouillée (ticker lent).
+func (m *modelKT) refreshVMLive() {
+	if !m.bus.live() || m.cfg == nil || m.cfg.VMXPath == "" {
+		return
+	}
+	path, hypName := m.cfg.VMXPath, m.cfg.Hypervisor
+	go func() {
+		live := false
+		seen := false
+		for _, h := range vm.Detect() {
+			if hypName != "" && h.Name() != hypName {
+				continue
+			}
+			seen = true
+			for _, r := range h.Running() {
+				if r == path || strings.Contains(strings.ToLower(r), strings.ToLower(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)))) {
+					live = true
+				}
+			}
+		}
+		if seen {
+			m.bus.Send(ktVMLive{live: live})
+		}
 	}()
 }
 
@@ -527,6 +599,22 @@ func (m *modelKT) activate(id string) tea.Cmd {
 	case "diag":
 		m.diagnose()
 		return nil
+	case "rediscover":
+		// oublie l'IP fixe, repasse en auto et résout via l'hyperviseur.
+		// Le fixe écrasé est dit avant (pas de perte silencieuse).
+		old := ""
+		if m.cfg != nil {
+			old = m.cfg.SSHHost
+		}
+		if err := kit.SaveSSHTarget(m.cfgPath, "", "auto", "", ""); err != nil {
+			m.pushLog("redécouverte : " + err.Error())
+			return nil
+		}
+		m.reloadCfg()
+		m.pushLog(fmt.Sprintf("IP %s oubliée → redécouverte auto…", firstNonEmptyTUI(old, "vide")))
+		m.refreshSSH()
+		m.diagnose()
+		return nil
 	case "mkkey":
 		m.runBG("créer-clé", func(r *kit.Runner) int { return mkLocalKey(m.cfg) })
 		return nil
@@ -538,8 +626,6 @@ func (m *modelKT) activate(id string) tea.Cmd {
 		return nil
 	case "keysetup":
 		return m.runSuspend("kit", "keysetup", "--config", m.cfgPath)
-	case "guest-ssh":
-		return m.runSuspend("kit", "guest-ssh", "--config", m.cfgPath)
 	case "deploy":
 		m.runBG("deploy", func(r *kit.Runner) int { return r.Deploy(m.cfg, m.cfgPath, true) })
 		return nil
@@ -563,6 +649,9 @@ func (m *modelKT) activate(id string) tea.Cmd {
 		return nil
 	case "logs":
 		m.runBG("logs", func(r *kit.Runner) int { return r.Logs(m.cfg, 40) })
+		return nil
+	case "netinfo":
+		m.runBG("netinfo", func(r *kit.Runner) int { return r.Netinfo(m.cfg) })
 		return nil
 	case "dns":
 		m.runBG("dns", func(r *kit.Runner) int { return r.DNS(m.cfg) })
@@ -592,6 +681,9 @@ func (m *modelKT) activate(id string) tea.Cmd {
 				return nil
 			}
 			m.reloadCfg()
+			m.vmSeen = true
+			m.vmLive = v.live
+			m.vmMode = v.mode
 			m.pushLog("verrouillée : " + v.name + " (" + v.hyp + ")")
 			m.step = ktAcces
 			m.cursor = 0
@@ -612,19 +704,33 @@ func fieldVal(field, want, val string) string {
 	return ""
 }
 
+// firstNonEmptyTUI — même idée que firstNonEmpty (kittui.go), nom distinct
+// pour rester grep-able depuis ici.
+func firstNonEmptyTUI(v, fb string) string {
+	if v != "" {
+		return v
+	}
+	return fb
+}
+
 // ---- Update ----
 
 func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ktBooted:
 		m.refreshDeps()
+		m.refreshSSH()
+		m.refreshDash()
+		m.refreshVMLive()
+		m.syncVMMode()
 		return m, ktTickCmd()
 	case ktTick:
-		// balayage lent : les états SSH/dashboard suivent la réalité sans
+		// balayage lent : les états SSH/dashboard/VM suivent la réalité sans
 		// toucher au clavier — jamais pendant une action (bruit + courses).
 		if m.busy == "" {
 			m.refreshSSH()
 			m.refreshDash()
+			m.refreshVMLive()
 		}
 		return m, ktTickCmd()
 	case tea.WindowSizeMsg:
@@ -729,6 +835,10 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sshState = ""
 		}
 		return m, nil
+	case ktVMLive:
+		m.vmSeen = true
+		m.vmLive = msg.live
+		return m, nil
 	case ktLog:
 		m.pushLog(msg.line)
 		return m, nil
@@ -758,6 +868,7 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.busy = ""
 		m.vms = msg.vms
 		m.pushLog(fmt.Sprintf("%d VM(s) trouvée(s)", len(msg.vms)))
+		m.syncLockedVM()
 		return m, nil
 	case ktDepsMsg:
 		m.deps = msg.rows

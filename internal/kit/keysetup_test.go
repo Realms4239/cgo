@@ -13,7 +13,7 @@ func TestValidateKeySetupTarget(t *testing.T) {
 		name, user, host, port string
 		wantErr                bool
 	}{
-		{"nominal", "altfloat", "192.168.174.131", "22", false},
+		{"nominal", "testuser", "198.51.100.23", "22", false},
 		{"user vide", "", "h", "22", true},
 		{"user espace", "a b", "h", "22", true},
 		{"user injection", "a;rm", "h", "22", false}, // ; seul n'est pas bloquant (pas d'espace/séparateur ssh)

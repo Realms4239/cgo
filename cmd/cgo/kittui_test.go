@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -111,7 +112,7 @@ func TestKTDoneClearsBusy(t *testing.T) {
 
 func TestKTViewRenders(t *testing.T) {
 	m := testModelKT()
-	m.vms = []vmEntry{{path: `D:\VMs\ubu\ubu.vmx`, name: "ubu", hyp: "vmware", live: true}}
+	m.vms = []vmEntry{{path: `D:\VMs\ubu\ubu.vmx`, name: "ubu", hyp: "vmware", mode: "nat", live: true}}
 	m.sshState = "ok"
 	m.dashState = "ok 1.2.3"
 	m.sshDiag = []diagRow{
@@ -133,18 +134,40 @@ func TestKTViewRenders(t *testing.T) {
 	}
 }
 
+// Header global : VM + état + mode + SSH + dashboard + IP sur chaque écran.
+func TestKTHeader(t *testing.T) {
+	dir := t.TempDir()
+	cfg := dir + "/cgo-vm.yaml"
+	os.WriteFile(cfg, []byte("ssh:\n  user: testuser\n  host: 198.51.100.23\n  port: 22\n  key: ~/.ssh/id_ed25519\nvm_name: \"ubu\"\nvmx_path: \"D:/VMs/ubu/ubu.vmx\"\n"), 0644)
+	m := initialModelKT(cfg, "x")
+	m.vmSeen = true
+	m.vmLive = true
+	m.vmMode = "nat"
+	m.sshState = "ok"
+	m.dashState = "ok 1.2.3"
+	for s := ktDeps; s <= ktControle; s++ {
+		m.step = s
+		out := m.View()
+		for _, want := range []string{"ubu", "allumée", "nat", "198.51.100.23"} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("vue %d : header sans %q", s, want)
+			}
+		}
+	}
+}
+
 // Saisie inline : ouvre, écrit, valide → config + retour navigation.
 func TestKTInputCommit(t *testing.T) {
 	dir := t.TempDir()
 	cfg := dir + "/cgo-vm.yaml"
-	os.WriteFile(cfg, []byte("ssh:\n  user: altfloat\n  host: auto\n  port: 22\n  key: ~/.ssh/id_ed25519\n"), 0644)
+	os.WriteFile(cfg, []byte("ssh:\n  user: testuser\n  host: auto\n  port: 22\n  key: ~/.ssh/id_ed25519\n"), 0644)
 	m := initialModelKT(cfg, "x")
 	m.step = ktAcces
-	// curseur sur "Utilisateur…" (diag, mkkey, guest-ssh, set-user)
+	// curseur sur "Utilisateur…" (diag, mkkey, set-user)
 	mm, _ := m.Update(keyMsg("enter"))
 	m = mm.(modelKT)
-	// l'item set-user est à l'index 3 — on l'active directement
-	m.cursor = 3
+	// l'item set-user est à l'index 2 — on l'active directement
+	m.cursor = 2
 	mm, _ = m.Update(keyMsg("enter"))
 	m = mm.(modelKT)
 	if !m.inputOn || m.inputField != "user" {
