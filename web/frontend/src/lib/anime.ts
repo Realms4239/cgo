@@ -26,6 +26,27 @@ export function animateBar(el: Element) {
   animate(h, { scaleX: [0, 1], duration: 600, ease: 'cubicBezier(0.16,1,0.3,1)' } as any)
 }
 
+// U6d: largeur animée par CHANGEMENT DE VALEUR (live campaign) — l'enter
+// scaleX ci-dessus reste réservé à la première peinture.
+export function animateBarWidth(el: Element, from: string, to: string) {
+  const h = el as HTMLElement
+  try {
+    if (prefersReducedMotion()) { h.style.width = to; return }
+    h.style.width = from
+    animate(h, { width: [from, to], duration: 500, ease: 'cubicBezier(0.16,1,0.3,1)' } as any)
+  } catch { try { h.style.width = to } catch {} }
+}
+
+// U6e: les lignes se réordonnent dans le DOM — pas de FLIP layout, le flash
+// vert sur la ligne remontée suffit à convey le mouvement. Nouvel entrant :
+// l'enter scaleX de sa barre fait office de fondu d'entrée.
+export function flashRowUp(el: Element) {
+  if (prefersReducedMotion()) return
+  try {
+    animate(el as HTMLElement, { backgroundColor: ['rgba(31,163,72,0.15)', 'rgba(31,163,72,0)'], duration: 800, ease: 'cubicBezier(0.16,1,0.3,1)' } as any)
+  } catch {}
+}
+
 export function animateArmButton(el: Element) {
   if (prefersReducedMotion()) return
   const tl = createTimeline()

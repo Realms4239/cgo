@@ -12,6 +12,7 @@ import { lttb } from '../lib/lttb'
 import { useRafLoop } from '../lib/hooks'
 import { animateBannerPulse, animateLiveEnter } from '../lib/anime'
 import { MetricCard } from '../components/ui/MetricCard'
+import { LiveGuide } from '../components/LiveGuide'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Card } from '../components/ui/Card'
 import { EmptyChart } from '../components/ui/EmptyChart'
@@ -377,6 +378,8 @@ export default function LiveView() {
       </Card>
       )}
       {!liveSnap && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
+      {/* guide de lecture (U6a) — que disent ces chiffres, repliable, au-dessus du bento */}
+      <LiveGuide />
       {/* Q4 metric pill — toggles the metric groups; one 5-col bento, 10 cells, no misaligned rows */}
       {/* Q4 metric pill — responsive bento owned by CSS (container queries:
           5 col → 2 @1100 → 1 @640); the inline gridTemplateColumns variant
