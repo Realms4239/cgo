@@ -1,7 +1,17 @@
 // Paginate — pagination intelligente 1 … 4 5 6 … n (U6h) : anti-overflow
 // pour les longues listes. Exporte aussi le slice zéro-index.
+// La page est CLAMPÉE ici (un seul endroit) : si total rétrécit sous la page
+// courante (nouveau fetch, filtre resserré), le slice ne tombe jamais dans
+// le vide et la liste des pages reste cohérente — aucun appelant ne gère ça.
+export function totalPagesOf(total: number, size: number): number {
+  return Math.max(1, Math.ceil(total / size))
+}
+export function clampPage(page: number, total: number, size: number): number {
+  return Math.min(Math.max(1, page), totalPagesOf(total, size))
+}
 export function paginate<T>(arr: T[], page: number, size: number): T[] {
-  return arr.slice((page - 1) * size, page * size)
+  const p = clampPage(page, arr.length, size)
+  return arr.slice((p - 1) * size, p * size)
 }
 
 export function pageList(page: number, totalPages: number): (number | '…')[] {
@@ -17,13 +27,14 @@ export function pageList(page: number, totalPages: number): (number | '…')[] {
   return list
 }
 
-export function Paginate({ total, page, pageSize, onPage }: {
+export function Paginate({ total, page: propsPage, pageSize, onPage }: {
   total: number
   page: number
   pageSize: number
   onPage: (p: number) => void
 }) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const totalPages = totalPagesOf(total, pageSize)
+  const page = clampPage(propsPage, total, pageSize)
   if (totalPages <= 1) return null
   const btn = (label: string, p: number | null, active: boolean, disabled: boolean) => (
     <button

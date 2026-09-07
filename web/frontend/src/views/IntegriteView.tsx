@@ -88,7 +88,7 @@ export default function IntegriteView() {
       <h1 className="view-title">Intégrité — archives gelées</h1>
       {/* bandeau preuve resserré — une ligne mono, pas des cartes */}
       <div className="card" data-testid="proof-banner" style={{ display:'flex', gap:16, alignItems:'baseline', flexWrap:'wrap', padding:'10px 14px' }}>
-        <span className="mono" style={{ fontSize:12, fontWeight:700 }}>Preuve gelée</span>
+        <span className="mono" style={{ fontSize:12, fontWeight:600 }}>Preuve gelée</span>
         <span className="mono" data-testid="proof-runs" style={{ fontSize:11 }}>{data.runs} runs · {data.manifests} manifests</span>
         <span className="mono" style={{ fontSize:11, color:'var(--t-ok)' }}>{data.valid} valides</span>
         <span className="mono" style={{ fontSize:11, color:(data.quarantined||0)>0?'var(--t-danger)':'var(--text-muted)' }}>{data.quarantined} quarantaine</span>
@@ -102,7 +102,7 @@ export default function IntegriteView() {
         </div>
       </div>
       {/* RDF provenance — important look, not debug dump */}
-      <div className="card" style={{ border:'1px solid #26262a', background:'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%), #101012' }}>
+      <div className="card" style={{ border:'1px solid #26262a', background:'var(--surface-card)' }}>
         <div className="card-head" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
           <span>RDF — provenance gelée</span>
           <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', letterSpacing:'0.08em', textTransform:'uppercase'}}>frozen-wave</span>
