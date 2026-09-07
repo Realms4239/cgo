@@ -845,17 +845,34 @@ func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
 	return r.deployPush(c, bin)
 }
 
-// deployPrebuilt — poste opérateur SANS source : pousse le binaire qui tourne.
+// deployPrebuilt — poste opérateur SANS source : pousse un binaire linux
+// précompilé, sans recompiler. Sur poste linux : le binaire qui tourne.
+// Sur poste Windows/Mac (zip opérateur) : le compagnon `cgo-linux` livré
+// à côté de l'exe dans l'archive. Le banc reçoit exactement ce qui a été
+// testé. Refus explicite si aucun binaire linux n'est disponible.
 func (r *Runner) deployPrebuilt(c *Config, cfgPath string, deep bool) int {
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
-		r.errf("[deploy] binaire %s/%s : déploiement précompilé impossible vers la VM linux/amd64", runtime.GOOS, runtime.GOARCH)
-		r.errf("[deploy] depuis ce poste : rapatriez cgo-linux-amd64.tar.gz (binaire linux précompilé) OU clonez le dépôt + toolchain Go")
-		return 6
-	}
-	self, err := os.Executable()
-	if err != nil {
-		r.errf("[deploy] binaire courant introuvable : %v", err)
-		return 6
+	bin := ""
+	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
+		self, err := os.Executable()
+		if err != nil {
+			r.errf("[deploy] binaire courant introuvable : %v", err)
+			return 6
+		}
+		bin = self
+	} else {
+		ex, err := os.Executable()
+		if err != nil {
+			r.errf("[deploy] binaire courant introuvable : %v", err)
+			return 6
+		}
+		cand := filepath.Join(filepath.Dir(ex), "cgo-linux")
+		if _, err := os.Stat(cand); err != nil {
+			r.errf("[deploy] pas de binaire linux ici (%s absent)", cand)
+			r.errf("[deploy] rapatriez cgo-linux-amd64.tar.gz (binaire linux précompilé) OU clonez le dépôt + toolchain Go")
+			return 6
+		}
+		bin = cand
+		r.out("[deploy] compagnon linux trouvé à côté de l'exe — push vers la VM")
 	}
 	inst := filepath.Join(r.Root, "kit", "vm-install.sh")
 	if _, err := os.Stat(inst); err != nil {
@@ -866,7 +883,7 @@ func (r *Runner) deployPrebuilt(c *Config, cfgPath string, deep bool) int {
 	if code := r.Ensure(c, cfgPath, deep); code != 0 {
 		return code
 	}
-	return r.deployPush(c, self)
+	return r.deployPush(c, bin)
 }
 
 // deployPush — queue commune : scp binaire + installateur, install, health.
