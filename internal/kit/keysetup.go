@@ -121,7 +121,7 @@ func validateKeySetupTarget(user, host, port string) error {
 // silencieusement absente.
 func resolvePubkey(key string) (string, error) {
 	if strings.HasPrefix(key, "~/") {
-		if h, err := os.UserHomeDir(); err == nil {
+		if h := userHome(); h != "" {
 			key = filepath.Join(h, key[2:])
 		}
 	}

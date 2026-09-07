@@ -93,6 +93,11 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	if err := add("kit/cgo-vm.yaml.example", filepath.Join(r.Root, "kit", "cgo-vm.yaml.example")); err != nil {
 		return fail(fmt.Errorf("config exemple : %w", err))
 	}
+	// l'installateur voyage avec le poste : le deploy précompilé (sans
+	// source) en a besoin sur la VM — sans lui, push impossible.
+	if err := add("kit/vm-install.sh", filepath.Join(r.Root, "kit", "vm-install.sh")); err != nil {
+		return fail(fmt.Errorf("installateur : %w", err))
+	}
 	if err := addStr("LISEZ-MOI.txt", pcReadme()); err != nil {
 		return fail(err)
 	}
@@ -193,6 +198,9 @@ func (r *Runner) packageLinux() int {
 	if err := add("kit/cgo-vm.yaml.example", filepath.Join(r.Root, "kit", "cgo-vm.yaml.example"), 0644); err != nil {
 		return fail(fmt.Errorf("config exemple : %w", err))
 	}
+	if err := add("kit/vm-install.sh", filepath.Join(r.Root, "kit", "vm-install.sh"), 0644); err != nil {
+		return fail(fmt.Errorf("installateur : %w", err))
+	}
 	if err := addStr("LISEZ-MOI.txt", linuxReadme()); err != nil {
 		return fail(err)
 	}
@@ -230,10 +238,11 @@ hyperviseur + VM Ubuntu du banc, python3 (sondes locales, souvent présent).
 6. sudo ./cgo kit dns — mappe meteolink.dev vers la VM.
 7. Ouvrez https://meteolink.dev:9090 — avertissement certificat :
    Avancé → Continuer (une fois), ou sudo ./cgo kit tls pour la
-   confiance totale (magasin système).
-8. ./cgo kit deploy — recompile (exige Go 1.25+, bun, node + dépôt source),
-   pousse le binaire linux sur la VM, sert le dashboard. Sans la chaîne de
-   compilation : tout sauf deploy reste disponible.
+   confiance totale (installé dans le magasin système).
+8. ./cgo kit deploy — pousse CE binaire testé sur la VM et sert le
+   dashboard (mode précompilé : aucune recompilation, aucune chaîne Go
+   requise). Avec le dépôt source + Go 1.25+, bun, node : le deploy
+   recompile depuis les sources à la place.
 
 Rôles :
 - Ce poste Ubuntu = PILOTAGE (kit, audits terrain ./cgo audit, TUI, exports).

@@ -418,7 +418,7 @@ func (r *Runner) Health(c *Config) int {
 
 func expandKey(k string) string {
 	if strings.HasPrefix(k, "~/") {
-		if h, err := os.UserHomeDir(); err == nil {
+		if h := userHome(); h != "" {
 			return filepath.Join(h, k[2:])
 		}
 	}
