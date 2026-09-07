@@ -392,10 +392,15 @@ export default function ResultatsView() {
   // la référence dit son vrai nom : pfifo quand présent, sinon le pire du
   // filtre (le duel reste honnête : "cake — avant" si l'opérateur a filtré
   // les files sur cake seul). baselineIsPfifo décide du libellé partout.
-  const pfifoRef = filtered.find(g => g.qdisc === 'pfifo_fast' && (!top || g.profile === top.profile))
+  const pfifoRef = filtered.find(g => g.qdisc === 'pfifo_fast' && validN(g) > 0 && (!top || g.profile === top.profile))
+  // candidats à données valides UNIQUEMENT : comparer contre une ligne à 0
+  // mesure valide affichait "−100 % ↓" face au vide (vu en prod, filtre cake).
+  const validCands = filtered.filter(g => validN(g) > 0)
   const baselineRow = pfifoRef
-    ?? [...filtered].sort((a, b) => rankMeta.dir === 'down' ? val(b) - val(a) : val(a) - val(b))[0]
+    ?? [...validCands].sort((a, b) => rankMeta.dir === 'down' ? val(b) - val(a) : val(a) - val(b))[0]
   const baselineIsPfifo = !!pfifoRef
+  // duel seulement si les DEUX côtés ont des mesures valides — sinon rien à comparer
+  const duelReady = !!top && !!baselineRow && validN(top) > 0 && validN(baselineRow) > 0
   const diff = top && baselineRow && Number.isFinite(val(top)) && val(baselineRow) > 0
     ? Math.round(((val(baselineRow) - val(top)) / val(baselineRow)) * 100) : null
   // régime perte : toutes les cellules valides affichées ratent l'échéance —
@@ -512,18 +517,18 @@ export default function ResultatsView() {
           <button className="btn" data-testid="constat-button" onClick={() => setInterpProfile(filtered[0]?.profile ?? 'P2')} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 10 }}>Interprétation complète →</button>
         </div>
         <p className="mono" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.6, color: '#c3c9d1', maxWidth: '68ch' }}>
-          {top && baselineRow && lossRegime
+          {duelReady && lossRegime
             ? 'P3 : aucune discipline ne sépare — la retransmission gouverne, pas la file (échéance 0 % partout)'
-            : top && baselineRow && diff != null
-              ? `${top.profile} : ${top.qdisc}/${top.cc} protège le trafic critique — ${diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`} de small p95 vs ${baselineIsPfifo ? 'pfifo' : baselineRow.qdisc} (n=${validN(top)} réplications valides)`
-              : 'aucun groupe — lancez une campagne ou élargissez les filtres'}
+            : duelReady && diff != null
+              ? `${top.profile} : ${top.qdisc}/${top.cc} protège le trafic critique — ${diff > 0 ? `−${diff} %` : `+${Math.abs(diff)} %`} de small p95 vs ${baselineIsPfifo ? 'pfifo' : (baselineRow as Group).qdisc} (n=${validN(top as Group)} réplications valides)`
+              : 'aucun groupe comparable — lancez une campagne ou élargissez les filtres'}
         </p>
       </div>
       {interpProfile && <InterpretationView profile={interpProfile} onClose={() => setInterpProfile(null)} />}
 
       {/* duel critère — référence vs 1er : deux colonnes, delta énorme au
           centre (retour à la mise en page de référence) */}
-      {top && baselineRow && (() => {
+      {duelReady && (() => {
         const bv = val(baselineRow), tv = val(top)
         const bOk = Number.isFinite(bv) && bv !== Number.MAX_SAFE_INTEGER
         const tOk = Number.isFinite(tv) && tv !== Number.MAX_SAFE_INTEGER
