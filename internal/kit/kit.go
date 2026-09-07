@@ -266,6 +266,35 @@ func (c *Config) SSH(cmdLine string) (string, error) {
 	return string(out), err
 }
 
+// ensureSSHClient — le client SSH local existe-t-il ? Sinon, sur Linux,
+// l'installer (sudo apt, stdio hérité pour le mot de passe) plutôt que de
+// laisser chaque action accuser la VM ("port fermé", "machine éteinte")
+// alors que c'est le POSTE qui n'a pas ssh. Entrée du chemin setup.
+func (r *Runner) ensureSSHClient() bool {
+	if _, err := exec.LookPath("ssh"); err == nil {
+		if _, err := exec.LookPath("scp"); err == nil {
+			return true
+		}
+	}
+	if runtime.GOOS != "linux" {
+		r.errf("[kit] client SSH manquant — Windows : winget install --id Microsoft.OpenSSH.Client --source winget")
+		return false
+	}
+	r.out("[kit] client SSH manquant — installation (sudo apt install -y openssh-client)…")
+	cmd := exec.Command("sudo", "apt-get", "install", "-y", "openssh-client")
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, r.Stdout, r.Stderr
+	if err := cmd.Run(); err != nil {
+		r.errf("[kit] installation refusée : sudo apt install -y openssh-client (puis relancez)")
+		return false
+	}
+	if _, err := exec.LookPath("ssh"); err != nil {
+		r.errf("[kit] ssh toujours introuvable après installation")
+		return false
+	}
+	r.out("[kit] client SSH installé")
+	return true
+}
+
 func (c *Config) SSHUp() bool {
 	_, err := c.SSH("true")
 	return err == nil
@@ -504,6 +533,9 @@ func (r *Runner) Scan(c *Config, cfgPath string, deep bool) int {
 // l'hyperviseur (getGuestIPAddress) puis la table ARP locale, et on
 // met à jour la config si l'IP bouge.
 func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
+	if !r.ensureSSHClient() {
+		return 2
+	}
 	if c.SSHUp() {
 		r.out("[ensure] SSH déjà actif vers %s", c.SSHHost)
 		return 0
@@ -687,6 +719,9 @@ func (r *Runner) crossCompile() (string, error) {
 // aurait été recompilé. Refusé depuis un binaire non-linux (un .exe Windows
 // sur la VM Ubuntu = brique silencieuse).
 func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
+	if !r.ensureSSHClient() {
+		return 2
+	}
 	if _, err := os.Stat(filepath.Join(r.Root, "cmd", "cgo")); err != nil {
 		return r.deployPrebuilt(c, cfgPath, deep)
 	}

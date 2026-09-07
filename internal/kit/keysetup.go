@@ -21,6 +21,9 @@ import (
 // confirmation explicite OUI → ssh par mot de passe → vérification par la
 // clé (SSHUp) → ssh_user mémorisé dans le yaml.
 func (r *Runner) KeySetup(c *Config, cfgPath string, rest []string) int {
+	if !r.ensureSSHClient() {
+		return 2
+	}
 	host, user, port := c.SSHHost, c.SSHUser, c.SSHPort
 	for i := 0; i+1 < len(rest); i += 2 {
 		switch rest[i] {
