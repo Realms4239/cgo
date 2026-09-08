@@ -238,6 +238,7 @@ func (m modelKT) items() []ktItem {
 			{id: "vm-start", label: "Démarrer la VM", hint: "headless"},
 			{id: "vm-stop", label: "Arrêter la VM", hint: "ACPI puis forcé"},
 			{id: "netinfo", label: "Réseau invité", hint: "adresses + routes live"},
+			m.nicToggle(),
 			{id: "logs", label: "Journal (40 lignes)", hint: ""},
 			{id: "dns", label: "Mapper meteolink.dev", hint: "admin requis"},
 			{id: "tls", label: "Confiance HTTPS", hint: "admin requis"},
@@ -508,6 +509,15 @@ func (m modelKT) natPort() string {
 		return m.cfg.NatHostPort
 	}
 	return "2222"
+}
+
+// nicToggle — l'item réseau propose l'AUTRE mode (bascule en un clic) :
+// déjà nat → pont (IP directe), sinon → NAT (bench isolé).
+func (m modelKT) nicToggle() ktItem {
+	if m.vmMode == "nat" {
+		return ktItem{id: "nic-bridged", label: "Carte en pont", hint: "IP directe LAN, VM éteinte requise"}
+	}
+	return ktItem{id: "nic-nat", label: "Carte en NAT", hint: "bench isolé, VM éteinte requise"}
 }
 
 func (m modelKT) dashStateOr(fb string) string {

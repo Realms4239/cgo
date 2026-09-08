@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -67,5 +68,29 @@ func TestNetModeVmx(t *testing.T) {
 	}
 	if got := v.NetMode(dir + "/absent.vmx"); got != "inconnu" {
 		t.Errorf("fichier absent: got %q", got)
+	}
+}
+
+func TestApplyVmxNetMode(t *testing.T) {
+	orig := "ethernet0.present = \"TRUE\"\nethernet0.connectionType = \"hostonly\"\nethernet0.virtualDev = \"vmxnet3\"\n"
+	got := applyVmxNetMode(orig, "nat")
+	if !strings.Contains(got, `ethernet0.connectionType = "nat"`) {
+		t.Fatalf("non remplacé:\n%s", got)
+	}
+	if strings.Contains(got, "hostonly") {
+		t.Fatalf("ancien mode resté:\n%s", got)
+	}
+	// ordre et autres lignes intacts
+	if !strings.Contains(got, `ethernet0.virtualDev = "vmxnet3"`) {
+		t.Fatalf("voisin perdu:\n%s", got)
+	}
+	// absent → ajouté après le bloc ethernet0
+	got2 := applyVmxNetMode("memsize = \"4096\"\nethernet0.present = \"TRUE\"\n", "bridged")
+	if !strings.Contains(got2, `ethernet0.connectionType = "bridged"`) {
+		t.Fatalf("non ajouté:\n%s", got2)
+	}
+	// idempotent
+	if again := applyVmxNetMode(got, "nat"); again != got {
+		t.Fatalf("non idempotent:\n%s", again)
 	}
 }

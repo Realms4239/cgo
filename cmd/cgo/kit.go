@@ -44,6 +44,7 @@ actions :
    snapshots liste des instantanés (le nom sert à revert)
    ssh       shell interactif direct dans la VM (Ctrl-D pour sortir)
   netinfo   réseau invité en lecture seule (adresses, route, DNS)
+  nic       mode réseau NIC1 (affiche, ou nat|bridged|hostonly — VM éteinte)
   tui       centre de contrôle interactif (flèches + entrée, sans rien taper)
    ps        processus dashboard en direct (rafraîchi 2 s, q pour sortir)
    backup    rapatrie les runs gelés de la VM vers ./backup (tar.gz horodaté)
@@ -124,6 +125,8 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.SSHInteractive(c)
 	case "netinfo":
 		return r.Netinfo(c)
+	case "nic":
+		return r.Nic(c, *cfgPath, rest, effDeep)
 	case "tui":
 		return runKitTUI(*cfgPath, version)
 	case "snapshots":
