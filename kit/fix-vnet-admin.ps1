@@ -1,4 +1,4 @@
-<#PSScriptInfo>
+﻿<#PSScriptInfo>
 .VERSION 1.2.3
 .AUTHOR Meteolink
 .DESCRIPTION Repare le reseau hote VMware (VMnet8 retombe en APIPA 169.254.x : invitée saine mais injoignable). A executer ELEVE : clic-droit -> Executer en tant qu'administrateur. Idempotent.
