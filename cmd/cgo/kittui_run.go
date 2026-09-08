@@ -676,6 +676,12 @@ func (m *modelKT) activate(id string) tea.Cmd {
 	case "netinfo":
 		m.runBG("netinfo", func(r *kit.Runner) int { return r.Netinfo(m.cfg) })
 		return nil
+	case "nic-nat":
+		m.runBG("nic-nat", func(r *kit.Runner) int { return r.Nic(m.cfg, m.cfgPath, []string{"nat"}, true) })
+		return nil
+	case "nic-bridged":
+		m.runBG("nic-bridged", func(r *kit.Runner) int { return r.Nic(m.cfg, m.cfgPath, []string{"bridged"}, true) })
+		return nil
 	case "dns":
 		m.runBG("dns", func(r *kit.Runner) int { return r.DNS(m.cfg) })
 		return nil

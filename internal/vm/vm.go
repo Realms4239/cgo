@@ -36,6 +36,10 @@ type Hypervisor interface {
 	// direct), nat (port-forward requis), hôte-only, inconnu. VMware : lu
 	// dans le .vmx (ethernet0.connectionType). VirtualBox : showvminfo nicN.
 	NetMode(vmx string) string
+	// SetNetMode bascule la NIC1 (nat|bridged|hostonly selon pilote) — VM
+	// ÉTEINTE exigée, refus explicite sinon. VBox : modifyvm. VMware :
+	// réécriture ethernet0.connectionType dans le .vmx.
+	SetNetMode(vmx, mode string) error
 }
 
 // NatForwarder — hyperviseurs en mode NAT (VirtualBox) : l'IP invitée
@@ -146,6 +150,57 @@ func (v *vmware) NetMode(vmx string) string {
 	}
 }
 
+// applyVmxNetMode — réécriture pure (testée) de ethernet0.connectionType.
+// Ajoute la ligne si absente (après le bloc ethernet0, sinon fin de fichier).
+func applyVmxNetMode(content, mode string) string {
+	var out []string
+	done := false
+	ethIdx := -1
+	for _, ln := range strings.Split(content, "\n") {
+		t := strings.TrimSpace(strings.ToLower(ln))
+		if strings.HasPrefix(t, "ethernet") {
+			ethIdx = len(out)
+		}
+		if strings.HasPrefix(t, "ethernet0.connectiontype") {
+			eq := strings.Index(ln, "=")
+			if eq >= 0 {
+				ln = ln[:eq+1] + ` "` + mode + `"`
+				done = true
+			}
+		}
+		out = append(out, ln)
+	}
+	if !done {
+		line := `ethernet0.connectionType = "` + mode + `"`
+		if ethIdx >= 0 && ethIdx+1 <= len(out) {
+			out = append(out[:ethIdx+1], append([]string{line}, out[ethIdx+1:]...)...)
+		} else {
+			out = append(out, line)
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+// SetNetMode — nat|bridged|hostonly dans le .vmx (VM éteinte exigée :
+// VMware ignore/réécrit la config d'une VM allumée).
+func (v *vmware) SetNetMode(vmx, mode string) error {
+	for _, r := range v.Running() {
+		if SameVM(r, vmx) {
+			return fmt.Errorf("VM allumée — éteignez-la d'abord (la config live serait écrasée)")
+		}
+	}
+	data, err := os.ReadFile(vmx)
+	if err != nil {
+		return err
+	}
+	// sauvegarde une fois (jamais de .bak en double)
+	bak := vmx + ".meteolink-bak"
+	if _, err := os.Stat(bak); err != nil {
+		_ = os.WriteFile(bak, data, 0644)
+	}
+	return os.WriteFile(vmx, []byte(applyVmxNetMode(string(data), mode)), 0644)
+}
+
 // ---- VirtualBox ----
 
 type virtualbox struct{ exe string }
@@ -203,21 +258,98 @@ func (v *virtualbox) Running() []string {
 }
 
 func (v *virtualbox) Start(vbx string) error {
-	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
-	_, err := v.run("startvm", name, "--type", "headless")
+	name, err := v.ensureRegistered(vbx)
+	if err != nil {
+		return err
+	}
+	_, err = v.run("startvm", name, "--type", "headless")
 	return err
+}
+
+// resolveName — nom enregistré correspondant au .vbox, SANS effet de bord :
+// nom direct vérifié par CfgFile, sinon balayage des enregistrées (renommée
+// dans le manager : "ubuntu Fanasina" vs fichier). "" si introuvable.
+func (v *virtualbox) resolveName(vbx string) string {
+	want := normPath(vbx)
+	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	if v.cfgFile(name) == want {
+		return name
+	}
+	out, _ := v.run("list", "vms")
+	for _, ln := range strings.Split(out, "\n") {
+		nm := quotedName(ln)
+		if nm == "" || nm == name {
+			continue
+		}
+		if v.cfgFile(nm) == want {
+			return nm
+		}
+	}
+	return ""
+}
+
+// cfgFile — le .vbox enregistré sous ce nom ("", si inconnu).
+func (v *virtualbox) cfgFile(name string) string {
+	out, err := v.run("showvminfo", name, "--machinereadable")
+	if err != nil {
+		return ""
+	}
+	for _, ln := range strings.Split(out, "\n") {
+		if strings.HasPrefix(ln, "CfgFile=") {
+			return normPath(strings.Trim(strings.TrimPrefix(ln, "CfgFile="), "\"\r"))
+		}
+	}
+	return ""
+}
+
+func normPath(s string) string {
+	return strings.ToLower(filepath.ToSlash(s))
+}
+
+func quotedName(ln string) string {
+	i := strings.Index(ln, "\"")
+	if i < 0 {
+		return ""
+	}
+	rest := ln[i+1:]
+	if j := strings.Index(rest, "\""); j > 0 {
+		return rest[:j]
+	}
+	return ""
+}
+
+// ensureRegistered — enregistre le .vbox s'il est orphelin (trouvé par scan
+// disque mais absent du manager) puis rend son nom. C'est le chaînon qui
+// manquait : tout le reste échouait en silence sur VM non enregistrée.
+func (v *virtualbox) ensureRegistered(vbx string) (string, error) {
+	if n := v.resolveName(vbx); n != "" {
+		return n, nil
+	}
+	if _, err := v.run("registervm", vbx); err != nil {
+		return "", fmt.Errorf("enregistrement impossible (%s) : %v — ajoutez-la dans VirtualBox (Machine > Ajouter)", vbx, err)
+	}
+	if n := v.resolveName(vbx); n != "" {
+		return n, nil
+	}
+	return "", fmt.Errorf("enregistrée mais introuvable : %s", vbx)
 }
 
 // StartGUI — ouvre la fenêtre VirtualBox sur la VM.
 func (v *virtualbox) StartGUI(vbx string) error {
-	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
-	_, err := v.run("startvm", name, "--type", "gui")
+	name, err := v.ensureRegistered(vbx)
+	if err != nil {
+		return err
+	}
+	_, err = v.run("startvm", name, "--type", "gui")
 	return err
 }
 
 // Stop — ACPI propre d'abord, forcé après délai.
 func (v *virtualbox) Stop(vbx string) error {
-	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	name := v.resolveName(vbx)
+	if name == "" {
+		return fmt.Errorf("VM inconnue de VirtualBox : %s (ajoutez-la : Machine > Ajouter)", vbx)
+	}
 	_, _ = v.run("controlvm", name, "acpipowerbutton")
 	time.Sleep(15 * time.Second)
 	_, _ = v.run("controlvm", name, "poweroff")
@@ -239,7 +371,10 @@ func (v *virtualbox) vmID(name string) string {
 //  1. guestproperty /VirtualBox/GuestInfo/Net/0/V4/IP (si additions invité installées) ;
 //  2. port-forwarding NAT : ssh de l'hôte vers 127.0.0.1:2222.
 func (v *virtualbox) GuestIP(vbx string) string {
-	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	name := v.resolveName(vbx)
+	if name == "" {
+		return ""
+	}
 	// voie 1 : guestproperty directe
 	for _, key := range []string{
 		"/VirtualBox/GuestInfo/Net/0/V4/IP",
@@ -269,7 +404,10 @@ func (v *virtualbox) GuestIP(vbx string) string {
 // déjà, controlvm applique les mêmes règles À CHAUD (syntaxe nue `natpf1`,
 // SANS `--` : le flag long est rejeté à chaud).
 func (v *virtualbox) EnsureNatSSH(vbx, hostPort, dashPort string) error {
-	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	name, err := v.ensureRegistered(vbx)
+	if err != nil {
+		return err
+	}
 	if hostPort == "" {
 		hostPort = "2222"
 	}
@@ -351,7 +489,10 @@ func (v *virtualbox) NatHostAddr() string { return "127.0.0.1" }
 // nic1="nat"|"bridged"|"hostonly"|...) : nat → "nat", bridged → "ponté".
 // VM inconnue de VirtualBox = "inconnu" (jamais d'erreur : affichage).
 func (v *virtualbox) NetMode(vbx string) string {
-	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	name := v.resolveName(vbx)
+	if name == "" {
+		return "inconnu"
+	}
 	out, err := v.run("showvminfo", name, "--machinereadable")
 	if err != nil {
 		return "inconnu"
@@ -376,6 +517,24 @@ func (v *virtualbox) NetMode(vbx string) string {
 		}
 	}
 	return "inconnu"
+}
+
+// SetNetMode — nat|bridged|hostonly sur NIC1 (modifyvm exige la VM ÉTEINTE).
+// oser demander à chaud serait mentir : VirtualBox rejette, on refuse avant.
+func (v *virtualbox) SetNetMode(vbx, mode string) error {
+	name, err := v.ensureRegistered(vbx)
+	if err != nil {
+		return err
+	}
+	for _, r := range v.Running() {
+		if SameVM(r, vbx) {
+			return fmt.Errorf("VM allumée — éteignez-la d'abord (modifyvm refuse à chaud)")
+		}
+	}
+	if _, err := v.run("modifyvm", name, "--nic1", mode); err != nil {
+		return fmt.Errorf("modifyvm --nic1 %s : %v", mode, err)
+	}
+	return nil
 }
 
 // ---- détection ----
