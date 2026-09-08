@@ -5,6 +5,8 @@
 package vm
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +25,9 @@ type Hypervisor interface {
 	Running() []string
 	// Start démarre une VM (nogui/headless).
 	Start(vmx string) error
+	// StartGUI ouvre la console graphique de la VM (pour coller une commande
+	// dedans à la main : installation openssh-server, dépannage réseau).
+	StartGUI(vmx string) error
 	// Stop arrête proprement une VM (ACPI, puis forcé après délai).
 	Stop(vmx string) error
 	// GuestIP interroge l'IP invitée d'une VM allumée ("" si inconnue).
@@ -36,8 +41,9 @@ type Hypervisor interface {
 // NatForwarder — hyperviseurs en mode NAT (VirtualBox) : l'IP invitée
 // n'est pas joignable depuis l'hôte ; l'accès passe par un port redirigé.
 type NatForwarder interface {
-	// EnsureNatSSH redirige hostPort → 22 invité (idempotent).
-	EnsureNatSSH(vmx, hostPort string) error
+	// EnsureNatSSH redirige hostPort → 22 invité + dashPort → 9090 invité
+	// (idempotent). Échoue en clair si ports occupés ou VM inverrouillable.
+	EnsureNatSSH(vmx, hostPort, dashPort string) error
 	// NatHostAddr l'adresse d'accès côté hôte (127.0.0.1).
 	NatHostAddr() string
 }
@@ -72,6 +78,12 @@ func (v *vmware) Running() []string {
 
 func (v *vmware) Start(vmx string) error {
 	_, err := v.run("start", vmx, "nogui")
+	return err
+}
+
+// StartGUI — ouvre la fenêtre Workstation sur la VM.
+func (v *vmware) StartGUI(vmx string) error {
+	_, err := v.run("-T", "ws", "start", vmx, "gui")
 	return err
 }
 
@@ -147,26 +159,59 @@ func (v *virtualbox) run(args ...string) (string, error) {
 	return string(out), err
 }
 
-// Running — les VMs allumées (chemins .vbox).
-func (v *virtualbox) Running() []string {
+// parseRunningVMs — `list runningvms` rend `"Nom" {uuid}` (ni chemin ni
+// .vbox) : extrait les UUID, jamais de match sur ".vbox" (l'ancien parse
+// rendait toujours vide → toute VM allumée passait pour éteinte).
+func parseRunningVMs(out string) []string {
+	var uuids []string
+	for _, ln := range strings.Split(out, "\n") {
+		i := strings.Index(ln, "{")
+		j := strings.Index(ln, "}")
+		if i >= 0 && j > i {
+			uuids = append(uuids, strings.TrimSpace(ln[i+1:j]))
+		}
+	}
+	return uuids
+}
+
+// runningPaths — résout chaque UUID allumé vers son .vbox (showvminfo).
+func (v *virtualbox) runningPaths() []string {
 	out, err := v.run("list", "runningvms")
 	if err != nil {
 		return nil
 	}
-	var vms []string
-	for _, ln := range strings.Split(out, "\n") {
-		if i := strings.Index(ln, ".vbox"); i > 0 {
-			if j := strings.LastIndex(ln[:i], "\""); j >= 0 {
-				vms = append(vms, strings.Trim(ln[j:], "\""))
+	var paths []string
+	for _, u := range parseRunningVMs(out) {
+		info, err := v.run("showvminfo", u, "--machinereadable")
+		if err != nil {
+			continue
+		}
+		for _, ln := range strings.Split(info, "\n") {
+			if strings.HasPrefix(ln, "CfgFile=") {
+				p := strings.Trim(strings.TrimPrefix(ln, "CfgFile="), "\"\r")
+				// chemins invité Windows (backslashes) normalisés
+				paths = append(paths, filepath.FromSlash(strings.ReplaceAll(p, "\\", "/")))
 			}
 		}
 	}
-	return vms
+	return paths
+}
+
+// Running — les VMs allumées (chemins .vbox résolus, pas les noms).
+func (v *virtualbox) Running() []string {
+	return v.runningPaths()
 }
 
 func (v *virtualbox) Start(vbx string) error {
 	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
 	_, err := v.run("startvm", name, "--type", "headless")
+	return err
+}
+
+// StartGUI — ouvre la fenêtre VirtualBox sur la VM.
+func (v *virtualbox) StartGUI(vbx string) error {
+	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	_, err := v.run("startvm", name, "--type", "gui")
 	return err
 }
 
@@ -218,44 +263,85 @@ func (v *virtualbox) GuestIP(vbx string) string {
 
 // EnsureNatSSH — sur une VM VirtualBox en NAT, l'IP invitée 10.0.2.x n'est
 // pas joignable depuis l'hôte. La voie canonique : rediriger le port hôte
-// 2222 vers le 22 invité, et 9090 vers le dashboard, puis la config SSH
-// pointe 127.0.0.1:2222. Idempotent : retire les règles existantes avant.
-// modifyvm exige la VM ÉTEINTE — si elle tourne déjà (démarrée à la main),
-// controlvm applique les mêmes règles À CHAUD. Vu en revue : modifyvm seul
-// échouait sur VM allumée et ensure abandonnait alors que tout était prêt.
-func (v *virtualbox) EnsureNatSSH(vbx, hostPort string) error {
+// (2222 par défaut) vers le 22 invité, et le port dashboard vers le 9090
+// invité, puis la config SSH pointe 127.0.0.1. Idempotent : retire les
+// règles existantes avant. modifyvm exige la VM ÉTEINTE — si elle tourne
+// déjà, controlvm applique les mêmes règles À CHAUD (syntaxe nue `natpf1`,
+// SANS `--` : le flag long est rejeté à chaud).
+func (v *virtualbox) EnsureNatSSH(vbx, hostPort, dashPort string) error {
 	name := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	if hostPort == "" {
+		hostPort = "2222"
+	}
+	if dashPort == "" {
+		dashPort = "9090"
+	}
+	// ports libres AVANT de toucher la VM : un occupant existant (2e VM,
+	// service) rendrait l'échec opaque.
+	if busyPort(hostPort) {
+		return fmt.Errorf("port hôte %s déjà occupé — libérez-le ou configurez nat_host_port", hostPort)
+	}
+	if busyPort(dashPort) {
+		return fmt.Errorf("port hôte %s déjà occupé (dashboard) — libérez-le", dashPort)
+	}
 	running := false
 	for _, r := range v.Running() {
-		if strings.Contains(r, name) {
+		if SameVM(r, vbx) {
 			running = true
 		}
 	}
-	nat := func(verb string, args ...string) error {
-		full := append([]string{verb, name}, args...)
+	// verbe nu à chaud (controlvm), verbe --modifyvm à froid
+	apply := func(hot bool, args ...string) error {
+		if hot {
+			full := append([]string{"controlvm", name}, args...)
+			_, err := v.run(full...)
+			return err
+		}
+		full := append([]string{"modifyvm", name}, args...)
 		_, err := v.run(full...)
 		return err
 	}
-	// efface puis pose, dans le mode adapté à l'état de la VM
-	tool := "modifyvm"
-	if running {
-		tool = "controlvm"
-	}
-	_ = nat(tool, "--natpf1", "delete", "cgo-ssh")
-	if err := nat(tool, "--natpf1", "cgo-ssh,tcp,,"+hostPort+",,22"); err != nil {
-		// dernier recours : l'autre mode (état race entre-temps)
-		other := "controlvm"
-		if tool == "controlvm" {
-			other = "modifyvm"
+	if !running {
+		_ = apply(false, "--natpf1", "delete", "cgo-ssh")
+		_ = apply(false, "--natpf1", "delete", "cgo-dashboard")
+		if err := apply(false, "--natpf1", "cgo-ssh,tcp,,"+hostPort+",,22"); err != nil {
+			return fmt.Errorf("règle SSH : %v", err)
 		}
-		_ = nat(other, "--natpf1", "delete", "cgo-ssh")
-		if err2 := nat(other, "--natpf1", "cgo-ssh,tcp,,"+hostPort+",,22"); err2 != nil {
-			return err
+		if err := apply(false, "--natpf1", "cgo-dashboard,tcp,,"+dashPort+",,9090"); err != nil {
+			return fmt.Errorf("règle dashboard : %v", err)
 		}
+		return nil
 	}
-	_ = nat(tool, "--natpf1", "delete", "cgo-dashboard")
-	_ = nat(tool, "--natpf1", "cgo-dashboard,tcp,,9090,,9090")
+	// VM allumée : modifyvm est rejeté (session verrouillée) → controlvm à
+	// chaud, syntaxe NUE `natpf1` (le flag --natpf1 y est invalide).
+	_ = apply(true, "natpf1", "delete", "cgo-ssh")
+	if err := apply(true, "natpf1", "cgo-ssh,tcp,,"+hostPort+",,22"); err != nil {
+		return fmt.Errorf("règle SSH à chaud : %v (VM verrouillée ?)", err)
+	}
+	_ = apply(true, "natpf1", "delete", "cgo-dashboard")
+	if err := apply(true, "natpf1", "cgo-dashboard,tcp,,"+dashPort+",,9090"); err != nil {
+		return fmt.Errorf("règle dashboard à chaud : %v", err)
+	}
 	return nil
+}
+
+// SameVM — même machine malgré les variantes de casse/séparateurs
+// (chemin .vbox vs nom enregistré, slashes Windows/Unix).
+func SameVM(a, b string) bool {
+	norm := func(s string) string {
+		return strings.ToLower(filepath.ToSlash(s))
+	}
+	return norm(a) == norm(b)
+}
+
+// busyPort — quelque chose écoute déjà ce port TCP local ?
+func busyPort(port string) bool {
+	ln, err := net.Listen("tcp", "127.0.0.1:"+port)
+	if err != nil {
+		return true
+	}
+	_ = ln.Close()
+	return false
 }
 
 // NatHostAddr — l'adresse d'accès SSH quand la VM est en NAT.

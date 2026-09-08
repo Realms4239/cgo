@@ -9,9 +9,11 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Realms4239/cgo/internal/kit"
 	tea "github.com/charmbracelet/bubbletea"
@@ -106,6 +108,53 @@ func (m *modelKT) pushLog(s string) {
 	if len(m.log) > 200 {
 		m.log = m.log[len(m.log)-200:]
 	}
+	appendLogFile(s)
+}
+
+// ktLogFh — journal persistant à côté du binaire (kit-tui-<date>.log) :
+// une panne devient envoyable au support au lieu de s'évaporer à la
+// fermeture. Ouvert une fois, jamais bloquant (erreurs ignorées).
+var ktLogFh = struct {
+	f   *os.File
+	key string
+}{}
+
+func appendLogFile(s string) {
+	day := time.Now().Format("20060102")
+	exe, err := os.Executable()
+	dir := ""
+	if err == nil {
+		dir = filepath.Dir(exe)
+	}
+	clean := strings.Map(func(r rune) rune {
+		if r < 32 && r != '\t' {
+			return -1
+		}
+		return r
+	}, s)
+	line := time.Now().Format("15:04:05") + " " + clean + "\n"
+	try := func(dir string) bool {
+		if dir == "" {
+			return false
+		}
+		p := filepath.Join(dir, "kit-tui-"+day+".log")
+		if ktLogFh.f != nil && ktLogFh.key == p {
+			_, _ = ktLogFh.f.WriteString(line)
+			return true
+		}
+		if f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			if ktLogFh.f != nil {
+				_ = ktLogFh.f.Close()
+			}
+			ktLogFh.f, ktLogFh.key = f, p
+			_, _ = f.WriteString(line)
+			return true
+		}
+		return false
+	}
+	if !try(dir) {
+		try(os.TempDir())
+	}
 }
 
 func (m *modelKT) reloadCfg() {
@@ -170,6 +219,7 @@ func (m modelKT) items() []ktItem {
 			{id: "set-port", label: "Port…", hint: curSSHPort(m)},
 			{id: "set-key", label: "Clé…", hint: curSSHKey(m)},
 			{id: "keysetup", label: "Poser la clé SSH", hint: "mot de passe demandé une fois"},
+			{id: "console", label: "Ouvrir la console VM", hint: "fenêtre graphique — pour la console Ubuntu"},
 			{id: "ensure", label: "Démarrer la VM / réessayer", hint: "boot headless + attente SSH"},
 			{id: "next", label: "Continuer → Déployer", hint: ""},
 		}
@@ -222,7 +272,7 @@ var (
 	stKStep_ = lipgloss.NewStyle().Padding(0, 2).Foreground(lipgloss.Color("5ad3e3")).Bold(true).Underline(true)
 	stKOK    = lipgloss.NewStyle().Foreground(lipgloss.Color("1fa348"))
 	stKKO    = lipgloss.NewStyle().Foreground(lipgloss.Color("e22718"))
-	stKDim   = lipgloss.NewStyle().Foreground(lipgloss.Color("8b9099"))
+	stKDim   = lipgloss.NewStyle().Foreground(lipgloss.Color("a9aeb6"))
 	stKBox   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).BorderForeground(lipgloss.Color("26262a")).Padding(0, 1)
 )
 
@@ -232,8 +282,8 @@ func (m modelKT) Init() tea.Cmd {
 
 func (m modelKT) View() string {
 	var b strings.Builder
-	b.WriteString(stTitle.Render("Meteolink Kit — centre de contrôle") + "  " + stMuted.Render(m.version) + "\n")
-	b.WriteString(m.header() + "\n")
+	b.WriteString(stTitle.Render("Meteolink Kit — centre de contrôle") + "  " + stKDim.Render(m.version) + "\n")
+	b.WriteString(m.header() + "\n\n")
 	for i, name := range ktStepNames {
 		if ktStep(i) == m.step {
 			b.WriteString(stKStep_.Render(name))
@@ -256,11 +306,11 @@ func (m modelKT) View() string {
 		b.WriteString(m.viewControle())
 	}
 
-	// journal (8 dernières lignes)
+	// journal (10 dernières lignes — le fichier kit-tui-<date>.log garde tout)
 	b.WriteString("\n" + stMuted.Render("── journal ──") + "\n")
 	lines := m.log
-	if len(lines) > 8 {
-		lines = lines[len(lines)-8:]
+	if len(lines) > 10 {
+		lines = lines[len(lines)-10:]
 	}
 	if len(lines) == 0 {
 		b.WriteString(stMuted.Render("  (silence — choisissez une action)") + "\n")
@@ -295,7 +345,7 @@ func (m modelKT) viewDeps() string {
 	var b strings.Builder
 	b.WriteString(stTitle.Render("Dépendances du poste") + "\n\n")
 	if len(m.deps) == 0 {
-		b.WriteString("  " + stMuted.Render("contrôle en cours…") + "\n\n")
+		b.WriteString("  " + stKDim.Render("contrôle en cours…") + "\n\n")
 	} else {
 		for _, d := range m.deps {
 			st := stKOK.Render("  [ok]")
@@ -319,7 +369,7 @@ func (m modelKT) viewVMs() string {
 		b.WriteString("  " + stWarn.Render("Aucune machine verrouillée — choisissez dans la liste.") + "\n\n")
 	}
 	if len(m.vms) == 0 && !m.scanning() {
-		b.WriteString("  " + stMuted.Render("aucune VM trouvée — Rescanner.") + "\n\n")
+		b.WriteString("  " + stKDim.Render("aucune VM trouvée — Rescanner.") + "\n\n")
 	}
 	b.WriteString(m.viewItems())
 	return b.String()
@@ -333,7 +383,7 @@ func (m modelKT) viewAcces() string {
 	// diagnostic par prérequis — chacun dit son état ET son remède.
 	// Fini le « SSH coupé » muet qui bloquait sans explication.
 	if m.diagBusy {
-		b.WriteString("  " + stMuted.Render("diagnostic en cours…") + "\n\n")
+		b.WriteString("  " + stKDim.Render("diagnostic en cours…") + "\n\n")
 	} else if len(m.sshDiag) > 0 {
 		for _, d := range m.sshDiag {
 			mark := stKOK.Render("  [ok]")

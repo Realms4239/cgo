@@ -325,6 +325,26 @@ func vmPower(c *kit.Config, start bool) int {
 	return 0
 }
 
+// openConsole — fenêtre graphique de la VM verrouillée (coller la commande
+// console dedans quand SSH est inaccessible).
+func openConsole(c *kit.Config) int {
+	if c.VMXPath == "" {
+		fmt.Println("aucune VM verrouillée (étape Machine d'abord)")
+		return 3
+	}
+	for _, h := range vm.Detect() {
+		if c.Hypervisor != "" && h.Name() != c.Hypervisor {
+			continue
+		}
+		if err := h.StartGUI(c.VMXPath); err == nil {
+			fmt.Println("console ouverte — collez-y la commande, puis Réessayer ici")
+			return 0
+		}
+	}
+	fmt.Println("ouverture impossible — lancez VMware/VirtualBox à la main")
+	return 4
+}
+
 func openBrowser(url string) {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
@@ -626,6 +646,9 @@ func (m *modelKT) activate(id string) tea.Cmd {
 		return nil
 	case "keysetup":
 		return m.runSuspend("kit", "keysetup", "--config", m.cfgPath)
+	case "console":
+		m.runBG("console", func(r *kit.Runner) int { return openConsole(m.cfg) })
+		return nil
 	case "deploy":
 		m.runBG("deploy", func(r *kit.Runner) int { return r.Deploy(m.cfg, m.cfgPath, true) })
 		return nil
@@ -738,7 +761,10 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		if m.busy != "" && msg.String() != "q" && msg.String() != "ctrl+c" {
-			return m, nil // verrou doux pendant une action (q reste possible)
+			// touche avalée PENDANT une action : le dire au lieu du silence
+			// (bogue perçu « bouton mort » pendant scans longs).
+			m.pushLog("◌ « " + m.busy + " » en cours — patientez (q = forcer)")
+			return m, nil
 		}
 		// mode saisie : le clavier écrit dans le champ, pas dans la navigation.
 		if m.inputOn {
@@ -834,6 +860,13 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else if m.sshState == "ok" {
 			m.sshState = ""
 		}
+		n, tot := 0, len(msg.rows)
+		for _, d := range msg.rows {
+			if d.state == "ok" {
+				n++
+			}
+		}
+		m.pushLog(fmt.Sprintf("diagnostic %s — %d/%d verts", time.Now().Format("15:04:05"), n, tot))
 		return m, nil
 	case ktVMLive:
 		m.vmSeen = true
@@ -897,6 +930,7 @@ func (m modelKT) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // runKitTUI — centre de contrôle kit : scan → verrou → clé → deploy → pilotage.
 func runKitTUI(cfgPath, version string) int {
+	appendLogFile("=== session kit tui " + version + " — config " + cfgPath + " ===")
 	m := initialModelKT(cfgPath, version)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	// le programme COPIE le modèle : on publie le *tea.Program dans le bus

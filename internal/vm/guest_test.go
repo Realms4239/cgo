@@ -1,9 +1,46 @@
 package vm
 
 import (
+	"net"
 	"os"
+	"strconv"
 	"testing"
 )
+
+func TestParseRunningVMs(t *testing.T) {
+	out := "Total running VMs: 2\r\n\"Ubuntu 24.04\" {a1b2c3d4-e5f6-7890-abcd-ef1234567890}\r\n\"srv\" {11111111-2222-3333-4444-555555555555}\r\n"
+	got := parseRunningVMs(out)
+	if len(got) != 2 || got[0] != "a1b2c3d4-e5f6-7890-abcd-ef1234567890" {
+		t.Fatalf("got %q", got)
+	}
+	if got := parseRunningVMs("Total running VMs: 0\r\n"); len(got) != 0 {
+		t.Fatalf("vide attendu, got %q", got)
+	}
+}
+
+func TestSameVM(t *testing.T) {
+	if !SameVM(`D:\VMs\ubu\ubu.vbox`, "d:/vms/ubu/ubu.vbox") {
+		t.Fatal("même VM non reconnue (casse/séparateurs)")
+	}
+	if SameVM(`D:\VMs\ubu\ubu.vbox`, `D:\VMs\autre\autre.vbox`) {
+		t.Fatal("faux positif")
+	}
+}
+
+func TestBusyPort(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Skip("pas de socket locale")
+	}
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+	if !busyPort(strconv.Itoa(port)) {
+		t.Fatal("port occupé non détecté")
+	}
+	if busyPort("1") {
+		t.Fatal("port 1 détecté occupé (droits ?)")
+	}
+}
 
 // NetMode se lit dans le fichier, sans hyperviseur : ponté/nat/hôte-only.
 // NOTE — runProgramInGuest/copyFile PROUVÉS INOPÉRANTS sur open-vm-tools 13
@@ -13,8 +50,8 @@ import (
 func TestNetModeVmx(t *testing.T) {
 	dir := t.TempDir()
 	cases := map[string]string{
-		`ethernet0.connectionType = "bridged"`: "ponté",
-		`ethernet0.connectionType = "nat"`:     "nat",
+		`ethernet0.connectionType = "bridged"`:  "ponté",
+		`ethernet0.connectionType = "nat"`:      "nat",
 		`ethernet0.connectionType = "hostonly"`: "hôte-only",
 		`ethernet0.present = "TRUE"`:            "inconnu",
 	}

@@ -579,26 +579,47 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 
 	// NAT (VirtualBox) : l'IP invitée 10.0.2.x est injoignable depuis l'hôte.
 	// La voie canonique : rediriger 127.0.0.1:<port> → 22 invité, pointer la
-	// config SSH dessus. Idempotent.
+	// config SSH dessus. Idempotent. MAIS seulement si la NIC est vraiment
+	// en NAT : en ponté/hôte-only, l'invité a sa propre IP joignable et les
+	// règles natpf sont invalides — on saute en l'expliquant (pas d'échec).
 	natHost, natPort := "", ""
 	if nf, ok := hyp.(vm.NatForwarder); ok {
-		natPort = c.NatHostPort
-		if natPort == "" {
-			natPort = "2222"
+		switch hyp.NetMode(vmx) {
+		case "ponté":
+			r.out("[ensure] NIC en pont : pas de port-forward (accès direct à l'IP invitée)")
+		case "hôte-only":
+			r.out("[ensure] NIC en hôte-only : pas de port-forward (IP 192.168.56.x directe)")
+		default:
+			natPort = c.NatHostPort
+			if natPort == "" {
+				natPort = "2222"
+			}
+			if err := nf.EnsureNatSSH(vmx, natPort, c.DashPort); err != nil {
+				r.errf("[ensure] port-forward NAT ÉCHEC : %v", err)
+				r.errf("[ensure] pistes : VM verrouillée ? autre VM sur le port ? NIC en pont ? (voir mode ci-dessus)")
+				return 4
+			}
+			natHost = nf.NatHostAddr()
+			r.out("[ensure] NAT : %s:%s → 22 invité (port-forward posé)", natHost, natPort)
 		}
-		if err := nf.EnsureNatSSH(vmx, natPort); err != nil {
-			r.errf("[ensure] port-forward NAT ÉCHEC : %v", err)
-			return 4
-		}
-		natHost = nf.NatHostAddr()
-		r.out("[ensure] NAT : %s:%s → 22 invité (port-forward posé)", natHost, natPort)
 	}
 
-	if err := hyp.Start(vmx); err != nil {
+	// VM déjà allumée (démarrée à la main) : ne pas la redémarrer — startvm
+	// échoue sur session verrouillée et vmrun grogne sur VM active.
+	alreadyUp := false
+	for _, r := range hyp.Running() {
+		if vm.SameVM(r, vmx) {
+			alreadyUp = true
+		}
+	}
+	if alreadyUp {
+		r.out("[ensure] VM déjà allumée — pas de (re)démarrage, vérification SSH directe")
+	} else if err := hyp.Start(vmx); err != nil {
 		r.errf("[ensure] démarrage VM échoué : %v", err)
 		return 4
+	} else {
+		r.out("[ensure] VM démarrée (headless) — attente SSH (max 300 s)")
 	}
-	r.out("[ensure] VM démarrée (headless) — attente SSH (max 300 s)")
 	for i := 0; i < 60; i++ {
 		// 1) la cible actuelle répond ?
 		if c.SSHUp() {
