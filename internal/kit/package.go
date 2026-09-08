@@ -196,6 +196,8 @@ Contenu : cgo.exe (tout embarqué, frontend inclus), exemple de config.
 1. Dézippez où vous voulez (ex. C:\cgo).
    VOIE SIMPLE : double-cliquez cgo-gui.exe — le centre de contrôle
    graphique fait tout (boutons + journal, aucune commande).
+   Chaque bouton répond en quelques secondes et raconte tout dans le
+   journal ; en cas de doute : cgo-gui-<date>.log à côté de l'exe.
    VOIE EXPRESS (un script, zéro kit) : clic-droit host-tunnel.ps1 →
    « Exécuter avec PowerShell » — tunnel complet (forwards, hosts, clé,
    confiance, vérification) avec -WhatIf pour répéter sans rien toucher.

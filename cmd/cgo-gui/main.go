@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -64,24 +66,29 @@ var controlActions = []buttonDef{
 }
 
 type app struct {
-	hwnd    windows.HWND
-	hfont   uintptr
-	vmList  windows.HWND
-	logEdit windows.HWND
-	status  windows.HWND
-	locked  windows.HWND
-	sshLbl  windows.HWND
-	dashLbl windows.HWND
-	cgoExe   string
-	cfgPath  string
-	mu       sync.Mutex
-	busy     string
-	pending  []string
-	logText  []string
-	vmRows   []vmRow
-	stSSH    string
-	stDash   string
-	stLocked string
+	hwnd       windows.HWND
+	hfont      uintptr
+	vmList     windows.HWND
+	logEdit    windows.HWND
+	status     windows.HWND
+	locked     windows.HWND
+	sshLbl     windows.HWND
+	dashLbl    windows.HWND
+	cgoExe     string
+	cfgPath    string
+	mu         sync.Mutex
+	busy       string
+	pending    []string
+	logText    []string
+	logDirty   bool
+	tick       uint64
+	statFlight atomic.Bool // une sonde SSH à la fois
+	cfgHost    string      // dernière IP invitée connue (fond) — évite vmrun sur le thread UI
+	cfgAt      time.Time
+	vmRows     []vmRow
+	stSSH      string
+	stDash     string
+	stLocked   string
 }
 
 type vmRow struct {
