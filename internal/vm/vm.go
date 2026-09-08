@@ -5,6 +5,7 @@
 package vm
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -60,7 +61,14 @@ func (v *vmware) Name() string { return "vmware" }
 func (v *vmware) Exe() string  { return v.exe }
 
 func (v *vmware) run(args ...string) (string, error) {
-	cmd := exec.Command(v.exe, args...)
+	return v.runCtx(context.Background(), args...)
+}
+
+// runCtx — vmrun borné : les REQUÊTES (list, getGuestIPAddress…) ne doivent
+// jamais pendre le thread appelant. getGuestIPAddress -wait bloque déjà
+// côté vmrun ; start/stop gardent le contexte libre (pilotés en fond).
+func (v *vmware) runCtx(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, v.exe, args...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -102,7 +110,9 @@ func (v *vmware) Stop(vmx string) error {
 }
 
 func (v *vmware) GuestIP(vmx string) string {
-	out, err := v.run("getGuestIPAddress", vmx, "-wait", "5")
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+	out, err := v.runCtx(ctx, "getGuestIPAddress", vmx, "-wait", "5")
 	if err != nil {
 		return ""
 	}
@@ -209,7 +219,14 @@ func (v *virtualbox) Name() string { return "virtualbox" }
 func (v *virtualbox) Exe() string  { return v.exe }
 
 func (v *virtualbox) run(args ...string) (string, error) {
-	cmd := exec.Command(v.exe, args...)
+	return v.runCtx(context.Background(), args...)
+}
+
+// runCtx — VBoxManage borné : guestproperty sur VM éteinte répond vite,
+// mais un manager gelé ne doit jamais pendre l'appelant (le GUI clique
+// sur le thread UI — 10 s max, jamais l'infini).
+func (v *virtualbox) runCtx(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, v.exe, args...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -322,6 +339,11 @@ func quotedName(ln string) string {
 // disque mais absent du manager) puis rend son nom. C'est le chaînon qui
 // manquait : tout le reste échouait en silence sur VM non enregistrée.
 func (v *virtualbox) ensureRegistered(vbx string) (string, error) {
+	return v.EnsureRegistered(vbx)
+}
+
+// EnsureRegistered — version exportée (GUI, scripts) : idempotente.
+func (v *virtualbox) EnsureRegistered(vbx string) (string, error) {
 	if n := v.resolveName(vbx); n != "" {
 		return n, nil
 	}
@@ -375,12 +397,14 @@ func (v *virtualbox) GuestIP(vbx string) string {
 	if name == "" {
 		return ""
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	// voie 1 : guestproperty directe
 	for _, key := range []string{
 		"/VirtualBox/GuestInfo/Net/0/V4/IP",
 		"/VirtualBox/GuestInfo/Net/1/V4/IP",
 	} {
-		out, err := v.run("guestproperty", "get", name, key)
+		out, err := v.runCtx(ctx, "guestproperty", "get", name, key)
 		if err == nil && strings.Contains(out, "Value:") {
 			f := strings.Fields(out)
 			for i, w := range f {
@@ -540,15 +564,23 @@ func (v *virtualbox) SetNetMode(vbx, mode string) error {
 // ---- détection ----
 
 // candidates retourne les chemins de binaire plausibles par OS.
+// Windows 64 bits d'abord (natif), x86 ensuite : un vmrun/VBoxManage
+// 32 bits fonctionne mais le 64 bits est préféré (mémoire, pilotes).
 func candidates(tool string) []string {
 	switch runtime.GOOS {
 	case "windows":
-		return []string{
+		paths := []string{}
+		if runtime.GOARCH == "amd64" {
+			paths = append(paths,
+				filepath.Join(`C:\Program Files\VMware\VMware Workstation`, tool),
+				filepath.Join(`C:\Program Files\Oracle\VirtualBox`, tool),
+			)
+		}
+		return append(paths,
 			filepath.Join(`C:\Program Files (x86)\VMware\VMware Workstation`, tool),
-			filepath.Join(`C:\Program Files\VMware\VMware Workstation`, tool),
 			filepath.Join(`C:\Program Files\Oracle\VirtualBox`, tool),
 			tool, // dans le PATH
-		}
+		)
 	case "darwin":
 		return []string{
 			filepath.Join("/Applications/VMware Fusion.app/Contents/Library", tool),

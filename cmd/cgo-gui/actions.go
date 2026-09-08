@@ -4,19 +4,67 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/sys/windows"
 	"github.com/Realms4239/cgo/internal/kit"
 	"github.com/Realms4239/cgo/internal/vm"
+	"golang.org/x/sys/windows"
 )
 
 // ---- journal thread-safe ----
+
+// guiLogFh — miroir fichier du journal (cgo-gui-<date>.log à côté de
+// l'exe, sinon %TEMP%) : une panne devient envoyable au support.
+var guiLogFh = struct {
+	f   *os.File
+	key string
+}{}
+
+func appendGUIFile(s string) {
+	day := time.Now().Format("20060102")
+	exe, err := os.Executable()
+	dir := ""
+	if err == nil {
+		dir = filepath.Dir(exe)
+	}
+	clean := strings.Map(func(r rune) rune {
+		if r < 32 && r != '\t' {
+			return -1
+		}
+		return r
+	}, s)
+	line := time.Now().Format("15:04:05") + " " + clean + "\n"
+	try := func(dir string) bool {
+		if dir == "" {
+			return false
+		}
+		p := filepath.Join(dir, "cgo-gui-"+day+".log")
+		if guiLogFh.f != nil && guiLogFh.key == p {
+			_, _ = guiLogFh.f.WriteString(line)
+			return true
+		}
+		if f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			if guiLogFh.f != nil {
+				_ = guiLogFh.f.Close()
+			}
+			guiLogFh.f, guiLogFh.key = f, p
+			_, _ = f.WriteString(line)
+			return true
+		}
+		return false
+	}
+	if !try(dir) {
+		try(os.TempDir())
+	}
+}
 
 func (a *app) appendLog(line string) {
 	a.mu.Lock()
@@ -24,7 +72,26 @@ func (a *app) appendLog(line string) {
 	if len(a.logText) > 300 {
 		a.logText = a.logText[len(a.logText)-300:]
 	}
-	text := strings.Join(a.logText, "\r\n")
+	a.logDirty = true
+	a.mu.Unlock()
+	appendGUIFile(line)
+}
+
+// flushLog — rendu effectif vers le contrôle (5 images/s max) : réécrire
+// 30 Ko + reflow à CHAQUE ligne saturait le thread UI pendant les actions
+// bavardes (deploy) — c'était le « freeze à chaque clic ».
+func (a *app) flushLog() {
+	a.mu.Lock()
+	if !a.logDirty {
+		a.mu.Unlock()
+		return
+	}
+	a.logDirty = false
+	start := 0
+	if len(a.logText) > 120 {
+		start = len(a.logText) - 120
+	}
+	text := strings.Join(a.logText[start:], "\r\n")
 	a.mu.Unlock()
 	setText(a.logEdit, text)
 	sendMsg(a.logEdit, emSetsel, ^uintptr(0)>>1, ^uintptr(0)>>1)
@@ -134,7 +201,29 @@ func (a *app) kitRunner() *kit.Runner {
 
 func (a *app) loadCfg() *kit.Config {
 	c, _ := kit.LoadConfig(a.cfgPath)
+	// cache 45 s : LoadConfig résout l'IP invitée via vmrun (secondes)
+	// quand SSHHost=auto — SANS cache, CHAQUE clic pend le thread UI.
+	a.mu.Lock()
+	if c.SSHHost == "" || c.SSHHost == "auto" {
+		if a.cfgHost != "" && time.Since(a.cfgAt) < 45*time.Second {
+			c.SSHHost = a.cfgHost
+		}
+	} else {
+		a.cfgHost, a.cfgAt = c.SSHHost, time.Now()
+	}
+	a.mu.Unlock()
 	return c
+}
+
+// noteHost — mémorise une IP résolue en fond (refreshStatus/ensure) pour
+// les clics suivants. Jamais d'hyperviseur sur le thread UI.
+func (a *app) noteHost(ip string) {
+	if ip == "" || ip == "auto" {
+		return
+	}
+	a.mu.Lock()
+	a.cfgHost, a.cfgAt = ip, time.Now()
+	a.mu.Unlock()
 }
 
 // runKit — action kit NON interactive en fond (sortie streamée).
@@ -196,58 +285,75 @@ func (a *app) runKitConsole(label string, args ...string) {
 
 // ---- rafraîchissements (directs, pas de parsing de sortie) ----
 
+// refreshVMs — corps SYNCHRONE (les appelants préfixent déjà `go`) :
+// l'ancienne double-goroutine effaçait `busy` AVANT la fin du scan.
 func (a *app) refreshVMs() {
-	go func() {
-		paths := vm.ScanVMs(false)
-		hyps := vm.Detect()
-		byName := map[string]vm.Hypervisor{}
-		running := map[string]bool{}
-		for _, h := range hyps {
-			byName[h.Name()] = h
-			for _, r := range h.Running() {
-				running[r] = true
-			}
+	paths := vm.ScanVMs(false)
+	hyps := vm.Detect()
+	byName := map[string]vm.Hypervisor{}
+	running := map[string]bool{}
+	for _, h := range hyps {
+		byName[h.Name()] = h
+		for _, r := range h.Running() {
+			running[r] = true
 		}
-		var rows []vmRow
-		for _, p := range paths {			hyp := "?"
-			lower := strings.ToLower(p)
-			if strings.HasSuffix(lower, ".vmx") {
-				hyp = "vmware"
-			} else if strings.HasSuffix(lower, ".vbox") {
-				hyp = "virtualbox"
-			}
-			live := running[p]
-			if !live {
-				base := strings.ToLower(strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)))
-				for rp := range running {
-					if strings.Contains(strings.ToLower(rp), base) {
-						live = true
-					}
+	}
+	var rows []vmRow
+	for _, p := range paths {
+		hyp := "?"
+		lower := strings.ToLower(p)
+		if strings.HasSuffix(lower, ".vmx") {
+			hyp = "vmware"
+		} else if strings.HasSuffix(lower, ".vbox") {
+			hyp = "virtualbox"
+		}
+		live := running[p]
+		if !live {
+			base := strings.ToLower(strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)))
+			for rp := range running {
+				if strings.Contains(strings.ToLower(rp), base) {
+					live = true
 				}
 			}
-			mode := "inconnu"
-			if h, ok := byName[hyp]; ok {
-				mode = h.NetMode(p)
-			}
-			rows = append(rows, vmRow{p, strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)), hyp, mode, live})
 		}
-		a.mu.Lock()
-		a.vmRows = rows
-		a.mu.Unlock()
-		postMsg(a.hwnd, wmAppVMs)
-		postMsg(a.hwnd, wmAppDone2)
-	}()
+		mode := "inconnu"
+		if h, ok := byName[hyp]; ok {
+			mode = h.NetMode(p)
+		}
+		rows = append(rows, vmRow{p, strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)), hyp, mode, live})
+	}
+	a.mu.Lock()
+	a.vmRows = rows
+	a.mu.Unlock()
+	postMsg(a.hwnd, wmAppVMs)
+	postMsg(a.hwnd, wmAppDone2)
 }
 
+// refreshStatus — UNE sonde à la fois (single-flight) : sans garde, un
+// clic + le ticker 30 s lançaient DEUX ssh.exe concurrents et le clic
+// paraissait « freeze » le temps des handshakes sériels.
 func (a *app) refreshStatus() {
+	if !a.statFlight.CompareAndSwap(false, true) {
+		return
+	}
 	go func() {
+		defer a.statFlight.Store(false)
 		c := a.loadCfg()
+		if c.SSHHost != "" && c.SSHHost != "auto" {
+			a.noteHost(c.SSHHost)
+		}
 		ssh := "—"
-		if c.SSHUp() {
-			ssh = "actif"
+		// pré-test TCP instantané (0 ressource) : distingue « VM éteinte »
+		// de « sshd absent » SANS payer un handshake ssh de 4 s pour rien.
+		if c.SSHHost == "" || c.SSHHost == "auto" || portOpenGUI(c.SSHHost, c.SSHPort) {
+			if c.SSHUp() {
+				ssh = "actif"
+			} else if c.SSHHost != "" && c.SSHHost != "auto" {
+				out, _ := c.SSH("true")
+				ssh = "coupé (" + shortDiag(out) + ")"
+			}
 		} else {
-			out, _ := c.SSH("true")
-			ssh = "coupé (" + shortDiag(out) + ")"
+			ssh = "VM éteinte / réseau coupé"
 		}
 		dash := "—"
 		if ver, ok := dashHealth(c); ok {
@@ -266,6 +372,20 @@ func (a *app) refreshStatus() {
 		a.mu.Unlock()
 		postMsg(a.hwnd, wmAppStatus)
 	}()
+}
+
+// portOpenGUI — dial TCP court, miroir kit.portOpen (non exporté là-bas).
+func portOpenGUI(host, port string) bool {
+	if host == "" || port == "" {
+		return false
+	}
+	d := net.Dialer{Timeout: 2 * time.Second}
+	cn, err := d.Dial("tcp", net.JoinHostPort(host, port))
+	if err != nil {
+		return false
+	}
+	_ = cn.Close()
+	return true
 }
 
 func shortDiag(out string) string {
@@ -409,7 +529,14 @@ func (a *app) onButton(id int) {
 		}
 		a.runKit("svc "+sub, func(r *kit.Runner) int { return r.Svc(a.loadCfg(), sub) })
 	case kind == "bg:logs":
-		a.runKit("logs", func(r *kit.Runner) int { return r.Logs(a.loadCfg(), 40) })
+		a.runKit("logs", func(r *kit.Runner) int {
+			c := a.loadCfg()
+			if c.VMXPath == "" && c.SSHHost == "" {
+				fmt.Println("rien à lire : verrouillez d'abord une VM (liste ci-dessus)")
+				return 3
+			}
+			return r.Logs(c, 40)
+		})
 	case kind == "bg:verify":
 		a.runKit("verify", func(r *kit.Runner) int { return r.Verify(a.loadCfg()) })
 	case kind == "bg:backup":
@@ -419,11 +546,11 @@ func (a *app) onButton(id int) {
 	case kind == "bg:netinfo":
 		a.runKit("netinfo", func(r *kit.Runner) int { return r.Netinfo(a.loadCfg()) })
 	case kind == "bg:vmon":
-		a.runKit("vm-start", func(r *kit.Runner) int { return vmPowerGUI(a.loadCfg(), true) })
+		a.runKit("vm-start", func(r *kit.Runner) int { return vmPowerGUI(a.loadCfg(), r, true) })
 	case kind == "bg:vmoff":
-		a.runKit("vm-stop", func(r *kit.Runner) int { return vmPowerGUI(a.loadCfg(), false) })
+		a.runKit("vm-stop", func(r *kit.Runner) int { return vmPowerGUI(a.loadCfg(), r, false) })
 	case kind == "bg:nic-toggle":
-		a.runKit("nic-toggle", func(r *kit.Runner) int { return nicToggleGUI(a.loadCfg(), a.cfgPath) })
+		a.runKit("nic-toggle", func(r *kit.Runner) int { return nicToggleGUI(a.loadCfg(), r, a.cfgPath) })
 	case kind == "console:keysetup":
 		a.runKitConsole("poser-clé", "keysetup")
 	case kind == "console:dns":

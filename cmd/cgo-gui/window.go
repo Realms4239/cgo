@@ -48,6 +48,9 @@ func (a *app) run() error {
 	a.setIcon()
 	pShowWindow.Call(uintptr(a.hwnd), swShowNormal)
 	pUpdateWindow.Call(uintptr(a.hwnd))
+	// ticker 200 ms : flush du journal (5 img/s max) + balayage lent.
+	// SANS ce timer, rien ne rafraîchit : le handler wmTimer existait seul.
+	pSetTimer.Call(uintptr(a.hwnd), 1, 200, 0)
 	// état initial : scan léger en fond
 	go a.refreshVMs()
 	go a.refreshStatus()
@@ -101,7 +104,11 @@ func wndProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 		a.onScanDone()
 		return 0
 	case wmTimer:
-		if a != nil && a.busy == "" {
+		a.flushLog()
+		a.tick++
+		// balayage lent toutes les ~30 s seulement : un SSH toutes les
+		// 200 ms serait une tempête (5 connexions/s vers la VM).
+		if a != nil && a.busy == "" && a.tick%150 == 0 {
 			go a.refreshStatus()
 		}
 		return 0

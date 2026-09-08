@@ -278,6 +278,10 @@ func runSilent(dir string, env []string, name string, args ...string) (string, e
 }
 
 // SSH — une commande distante via la config (BatchMode, clé explicite).
+// Linux/macOS : ControlMaster (UNE poignée de main par session, socket
+// partagé) amortit handshakes et scans. Windows : ssh.exe ne supporte
+// PAS le multiplexage (mm_send_fd: Broken pipe — prouvé sur le banc),
+// les options sont donc omises là.
 func (c *Config) sshCmd() []string {
 	key := c.SSHKey
 	if strings.HasPrefix(key, "~/") {
@@ -285,9 +289,29 @@ func (c *Config) sshCmd() []string {
 			key = filepath.Join(h, key[2:])
 		}
 	}
-	return []string{"ssh", "-o", "ConnectTimeout=4", "-o", "BatchMode=yes",
-		"-o", "StrictHostKeyChecking=accept-new", "-p", c.SSHPort, "-i", key,
-		c.SSHUser + "@" + c.SSHHost}
+	var mux []string
+	if runtime.GOOS != "windows" {
+		mux = []string{"-o", "ControlMaster=auto", "-o", "ControlPath=" + muxSocket(c.SSHHost, c.SSHPort), "-o", "ControlPersist=30"}
+	}
+	return append([]string{"ssh",
+		"-o", "ConnectTimeout=4", "-o", "BatchMode=yes",
+		"-o", "StrictHostKeyChecking=accept-new",
+		"-p", c.SSHPort, "-i", key},
+		append(mux, c.SSHUser+"@"+c.SSHHost)...)
+}
+
+// muxSocket — socket de multiplexage stable par (host,port) : XDG runtime
+// si possible, sinon /tmp. (Jamais appelé sous Windows.)
+func muxSocket(host, port string) string {
+	h := host
+	if h == "" {
+		h = "none"
+	}
+	base := "/tmp"
+	if x := os.Getenv("XDG_RUNTIME_DIR"); x != "" {
+		base = x
+	}
+	return filepath.Join(base, "cgo-ssh-"+h+"-"+port+".mux")
 }
 
 func (c *Config) SSH(cmdLine string) (string, error) {
@@ -385,9 +409,17 @@ func (c *Config) SCP(local, remote string) error {
 			key = filepath.Join(h, key[2:])
 		}
 	}
-	return exec.Command("scp", "-o", "ConnectTimeout=4", "-o", "BatchMode=yes",
-		"-P", c.SSHPort, "-i", key, local,
-		c.SSHUser+"@"+c.SSHHost+":"+remote).Run()
+	ctrl := ""
+	if runtime.GOOS != "windows" {
+		ctrl = muxSocket(c.SSHHost, c.SSHPort)
+	}
+	args := []string{"scp", "-o", "ConnectTimeout=4", "-o", "BatchMode=yes",
+		"-P", c.SSHPort, "-i", key}
+	if ctrl != "" {
+		args = append(args, "-o", "ControlMaster=auto", "-o", "ControlPath="+ctrl, "-o", "ControlPersist=30")
+	}
+	args = append(args, local, remote)
+	return exec.Command(args[0], args[1:]...).Run()
 }
 
 func (c *Config) healthURL() string {
@@ -601,6 +633,12 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 			}
 			natHost = nf.NatHostAddr()
 			r.out("[ensure] NAT : %s:%s → 22 invité (port-forward posé)", natHost, natPort)
+			// vérifie que le forward ÉCOUTE vraiment (règle acceptée mais
+			// inactive = 300 s de confusion sinon). L'invité peut être en
+			// boot : seul le listener hôte est testé ici, pas sshd.
+			if !portOpen(natHost, natPort) {
+				r.errf("[ensure] forward posé mais %s:%s n'écoute pas — redémarrez la VM (règle à froid prise au boot)", natHost, natPort)
+			}
 		}
 	}
 

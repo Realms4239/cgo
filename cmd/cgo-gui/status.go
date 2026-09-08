@@ -143,9 +143,10 @@ func openConsoleGUI(c *kit.Config, r *kit.Runner) int {	if c.VMXPath == "" {
 	return 4
 }
 
-func vmPowerGUI(c *kit.Config, start bool) int {
+func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
+	w := r.Stdout
 	if c.VMXPath == "" {
-		fmt.Println("aucune VM verrouillée")
+		fmt.Fprintln(w, "aucune VM verrouillée — verrouillez-en une dans la liste")
 		return 3
 	}
 	var hyp vm.Hypervisor
@@ -156,29 +157,73 @@ func vmPowerGUI(c *kit.Config, start bool) int {
 		hyp = h
 	}
 	if hyp == nil {
-		fmt.Println("hyperviseur absent")
+		fmt.Fprintln(w, "hyperviseur absent — installez VMware Workstation ou VirtualBox")
 		return 4
+	}
+	// Enregistre si orpheline (trouvée par scan disque, absente du manager) :
+	// SANS ça, startvm échoue sur un nom inconnu. VMware travaille par
+	// chemin ; seul VirtualBox exige l'enregistrement.
+	if vb, ok := hyp.(interface {
+		EnsureRegistered(string) (string, error)
+	}); ok {
+		name, err := vb.EnsureRegistered(c.VMXPath)
+		if err != nil {
+			fmt.Fprintln(w, "enregistrement impossible : "+err.Error())
+			return 4
+		}
+		fmt.Fprintln(w, "VM enregistrée : "+name)
 	}
 	var err error
 	if start {
-		err = hyp.Start(c.VMXPath)
+		err = hyp.Start(c.VMXPath) // headless/nogui — le banc n'a pas besoin d'écran
 	} else {
 		err = hyp.Stop(c.VMXPath)
 	}
 	if err != nil {
-		fmt.Println("échec : " + err.Error())
+		fmt.Fprintln(w, "échec : "+err.Error())
 		return 4
 	}
-	fmt.Println("demandé")
+	if start {
+		// Attend l'IP invitée (boot) : sans ça l'utilisateur clique
+		// « Démarrer » puis « Déployer » 3 s plus tard et échoue.
+		fmt.Fprintln(w, "démarrage headless — attente de l'IP invitée (max 90 s)…")
+		deadline := time.Now().Add(90 * time.Second)
+		for time.Now().Before(deadline) {
+			time.Sleep(5 * time.Second)
+			if ip := hyp.GuestIP(c.VMXPath); ip != "" {
+				fmt.Fprintln(w, "VM en ligne, IP : "+ip)
+				if host := c.SSHHost; host == "" || host == "auto" || host != ip {
+					fmt.Fprintln(w, "→ si l'IP a changé, « Diagnostiquer » la détectera et mettra la config à jour")
+				}
+				return 0
+			}
+			if !vmRunningGUI(hyp, c.VMXPath) {
+				fmt.Fprintln(w, "VM éteinte à nouveau — vérifiez le disque/BIOS dans la console")
+				return 4
+			}
+		}
+		fmt.Fprintln(w, "IP non vue en 90 s (tools pas encore prêts ?) — l'état SSH se rafraîchira seul")
+	} else {
+		fmt.Fprintln(w, "arrêt demandé")
+	}
 	return 0
 }
 
-func nicToggleGUI(c *kit.Config, cfgPath string) int {
-	r := kit.NewRunner()
+// vmRunningGUI — la VM est-elle dans la liste des allumées ?
+func vmRunningGUI(hyp vm.Hypervisor, vmx string) bool {
+	for _, r := range hyp.Running() {
+		if strings.EqualFold(filepath.Clean(r), filepath.Clean(vmx)) {
+			return true
+		}
+	}
+	return false
+}
+
+func nicToggleGUI(c *kit.Config, r *kit.Runner, cfgPath string) int {
 	// mode actuel via le même résolveur que partout
 	hyp, vmx, err := pickVMGUI(c)
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Fprintln(r.Stdout, err.Error())
 		return 3
 	}
 	mode := hyp.NetMode(vmx)
