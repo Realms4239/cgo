@@ -403,12 +403,27 @@ func sshAdvice(class string) string {
 }
 
 func (c *Config) SCP(local, remote string) error {
+	out, key, err := c.SCPOut(local, remote)
+	if err != nil {
+		return fmt.Errorf("%w — scp: %s (clé %s → %s@%s:%s)", err, strings.TrimSpace(out), key, c.SSHUser, c.SSHHost, c.SSHPort)
+	}
+	return nil
+}
+
+// scpKey — clé résolue (~/ → home réel, SUDO_USER respecté).
+func (c *Config) scpKey() string {
 	key := c.SSHKey
 	if strings.HasPrefix(key, "~/") {
 		if h := userHome(); h != "" {
 			key = filepath.Join(h, key[2:])
 		}
 	}
+	return key
+}
+
+// SCPOut — scp avec sortie capturée (diagnostic) : rend (sortie, clé, err).
+func (c *Config) SCPOut(local, remote string) (string, string, error) {
+	key := c.scpKey()
 	ctrl := ""
 	if runtime.GOOS != "windows" {
 		ctrl = muxSocket(c.SSHHost, c.SSHPort)
@@ -418,8 +433,15 @@ func (c *Config) SCP(local, remote string) error {
 	if ctrl != "" {
 		args = append(args, "-o", "ControlMaster=auto", "-o", "ControlPath="+ctrl, "-o", "ControlPersist=30")
 	}
-	args = append(args, local, remote)
-	return exec.Command(args[0], args[1:]...).Run()
+	args = append(args, local, c.SSHUser+"@"+c.SSHHost+":"+remote)
+	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+	return string(out), key, err
+}
+
+// SCPOutErr — compat : l'erreur seule (la sortie va au diagnostic appelant).
+func (c *Config) SCPOutErr(local, remote string) error {
+	_, _, err := c.SCPOut(local, remote)
+	return err
 }
 
 func (c *Config) healthURL() string {
@@ -982,12 +1004,14 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 		r.sshDiag("[deploy]", mkdirOut)
 		return 7
 	}
-	if err := c.SCP(bin, c.ProjectDir+"/cgo-linux.new"); err != nil {
-		r.errf("[deploy] scp ÉCHEC (clé/chemin) : %v", err)
+	if out, key, err := c.SCPOut(bin, c.ProjectDir+"/cgo-linux.new"); err != nil {
+		r.errf("[deploy] scp ÉCHEC : %v — clé=%s port=%s cible=%s@%s src=%s", err, key, c.SSHPort, c.SSHUser, c.SSHHost, bin)
+		r.errf("[deploy] sortie scp : %s", strings.TrimSpace(out))
 		return 7
 	}
-	if err := c.SCP(filepath.Join(r.Root, "kit", "vm-install.sh"), c.ProjectDir+"/kit/vm-install.sh"); err != nil {
-		r.errf("[deploy] scp installateur ÉCHEC : %v", err)
+	if out, key, err := c.SCPOut(filepath.Join(r.Root, "kit", "vm-install.sh"), c.ProjectDir+"/kit/vm-install.sh"); err != nil {
+		r.errf("[deploy] scp installateur ÉCHEC : %v — clé=%s port=%s cible=%s@%s", err, key, c.SSHPort, c.SSHUser, c.SSHHost)
+		r.errf("[deploy] sortie scp : %s", strings.TrimSpace(out))
 		return 7
 	}
 	r.out("[deploy] installation VM...")
