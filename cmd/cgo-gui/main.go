@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
-	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -31,39 +30,6 @@ const (
 	idDash   = 106
 )
 
-type buttonDef struct {
-	id    int
-	label string
-	x, y  int
-	w     int
-}
-
-var groupActions = []buttonDef{
-	{201, "Rescanner", 20, 0, 110},
-	{202, "Verrouiller", 140, 0, 110},
-	{203, "Ouvrir la console", 260, 0, 150},
-	{204, "Carte en NAT", 420, 0, 120},
-}
-
-var accessActions = []buttonDef{
-	{211, "Diagnostiquer", 20, 0, 120},
-	{212, "Créer la clé", 150, 0, 110},
-	{213, "Poser la clé", 270, 0, 100},
-	{214, "Démarrer / Réessayer", 380, 0, 160},
-}
-
-var deployActions = []buttonDef{
-	{221, "DÉPLOYER", 20, 0, 160},
-	{222, "Ouvrir le dashboard", 190, 0, 160},
-}
-
-var controlActions = []buttonDef{
-	{231, "État", 0, 0, 60}, {232, "Start", 0, 0, 60}, {233, "Stop", 0, 0, 60}, {234, "Restart", 0, 0, 70},
-	{235, "Logs", 0, 0, 60}, {236, "DNS", 0, 0, 55}, {237, "TLS", 0, 0, 55}, {238, "Vérifier", 0, 0, 75},
-	{239, "Backup", 0, 0, 70}, {240, "Snapshot", 0, 0, 85},
-	{241, "Réseau invité", 0, 0, 110}, {242, "Démarrer VM", 0, 0, 105}, {243, "Arrêter VM", 0, 0, 95},
-	{244, "Carte NAT/pont", 0, 0, 115},
-}
 
 type app struct {
 	hwnd       windows.HWND
@@ -81,19 +47,14 @@ type app struct {
 	pending    []string
 	logText    []string
 	logDirty   bool
+	shown      int // lignes déjà rendues (flush append-only)
 	tick       uint64
 	statFlight atomic.Bool // une sonde SSH à la fois
-	cfgHost    string      // dernière IP invitée connue (fond) — évite vmrun sur le thread UI
-	cfgAt      time.Time
+	cfg        cfgCache   // IP invitée connue (fond) — évite vmrun sur le thread UI
 	vmRows     []vmRow
 	stSSH      string
 	stDash     string
 	stLocked   string
-}
-
-type vmRow struct {
-	path, name, hyp, mode string
-	live                  bool
 }
 
 var theApp *app
