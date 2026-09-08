@@ -33,9 +33,10 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	}
 	exe := filepath.Join(r.Root, "cgo.exe")
 	if _, err := exec.LookPath("go"); err == nil {
-		r.out("[package] compilation fraîche de cgo.exe…")
+		r.out("[package] compilation fraîche de cgo.exe (windows/amd64)…")
 		cmd := exec.Command("go", "build", "-o", exe, "./cmd/cgo")
 		cmd.Dir = r.Root
+		cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			r.errf("[package] go build ÉCHEC : %v\n%s", err, firstLine(string(out)))
 			return 2
@@ -132,6 +133,7 @@ func (r *Runner) Package(c *Config, rest []string) int {
 		tmpGUI := filepath.Join(outDir, "cgo-gui-pkg.exe-tmp")
 		cmd := exec.Command("go", "build", "-ldflags", "-H windowsgui", "-o", tmpGUI, "./cmd/cgo-gui")
 		cmd.Dir = r.Root
+		cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			_ = os.Remove(tmpGUI)
 			r.out("[package] GUI ignorée (build) : " + firstLine(string(out)))
@@ -162,6 +164,16 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	if err := add("kit/vm-install.sh", filepath.Join(r.Root, "kit", "vm-install.sh")); err != nil {
 		return fail(fmt.Errorf("installateur : %w", err))
 	}
+	// guest-setup.sh : la voie manuelle côté invité (console Ubuntu, sans SSH
+	// préalable) — le LISEZ-MOI et le guide y renvoient pour le cas sans kit.
+	if err := add("kit/guest-setup.sh", filepath.Join(r.Root, "kit", "guest-setup.sh")); err != nil {
+		return fail(fmt.Errorf("guest-setup : %w", err))
+	}
+	// host-tunnel.ps1 à la RACINE du zip (visible immédiatement) : tunnel
+	// Host->VM sans kit — forwards, hosts, clé, confiance, vérification.
+	if err := add("host-tunnel.ps1", filepath.Join(r.Root, "kit", "host-tunnel.ps1")); err != nil {
+		return fail(fmt.Errorf("host-tunnel : %w", err))
+	}
 	if err := addStr("LISEZ-MOI.txt", pcReadme()); err != nil {
 		return fail(err)
 	}
@@ -184,6 +196,9 @@ Contenu : cgo.exe (tout embarqué, frontend inclus), exemple de config.
 1. Dézippez où vous voulez (ex. C:\cgo).
    VOIE SIMPLE : double-cliquez cgo-gui.exe — le centre de contrôle
    graphique fait tout (boutons + journal, aucune commande).
+   VOIE EXPRESS (un script, zéro kit) : clic-droit host-tunnel.ps1 →
+   « Exécuter avec PowerShell » — tunnel complet (forwards, hosts, clé,
+   confiance, vérification) avec -WhatIf pour répéter sans rien toucher.
    Windows SmartScreen peut prévenir au premier lancement (binaire non
    signé) : « Informations complémentaires » → Exécuter quand même.
 2. Voie terminal : ouvrez un terminal ici, cgo.exe kit tui — CENTRE DE
@@ -276,6 +291,9 @@ func (r *Runner) packageLinux() int {
 	}
 	if err := add("kit/vm-install.sh", filepath.Join(r.Root, "kit", "vm-install.sh"), 0644); err != nil {
 		return fail(fmt.Errorf("installateur : %w", err))
+	}
+	if err := add("kit/guest-setup.sh", filepath.Join(r.Root, "kit", "guest-setup.sh"), 0644); err != nil {
+		return fail(fmt.Errorf("guest-setup : %w", err))
 	}
 	if err := addStr("LISEZ-MOI.txt", linuxReadme()); err != nil {
 		return fail(err)
