@@ -85,6 +85,7 @@ const (
 	emSetsel      = 0x00B1
 	emScrollcaret = 0x00B7
 	emGetlinecount = 0x00BA
+	emReplacesel  = 0x00C2
 
 	wmSeticon = 0x0080
 	imageIcon = 1

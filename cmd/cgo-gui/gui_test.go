@@ -1,5 +1,3 @@
-//go:build windows
-
 package main
 
 import (
@@ -54,6 +52,16 @@ func TestGUIConsoleActions(t *testing.T) {
 		kind, _ := buttonAction(id)
 		if !strings.HasPrefix(kind, "console:") {
 			t.Errorf("bouton %d : %q devrait être console:", id, kind)
+		}
+	}
+}
+
+// Nouveaux boutons intégration scripts : mappés, jamais muets.
+func TestGUIScriptButtons(t *testing.T) {
+	for id, want := range map[int]string{245: "bg:hosttun", 246: "bg:guest", 247: "bg:vnet"} {
+		kind, _ := buttonAction(id)
+		if kind != want {
+			t.Errorf("bouton %d : %q, voulu %q", id, kind, want)
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"unsafe"
 
@@ -18,6 +19,12 @@ var (
 )
 
 func (a *app) run() error {
+	// VITAL : la pompe GetMessage + toutes les fenêtres DOIVENT vivre sur
+	// le MÊME thread OS (contrat Win32 : file de messages par thread).
+	// Sans ça, Go migre la goroutine, les PostMessage arrivent sur l'ancien
+	// thread que plus personne ne pompe (freeze total, CPU idle) ou
+	// GetMessage échoue et l'app s'éteint en silence. C'ÉTAIT le freeze.
+	runtime.LockOSThread()
 	className := utf16("MeteolinkKitWnd")
 	var wc wndClassex
 	wc.size = uint32(unsafe.Sizeof(wc))
@@ -187,7 +194,7 @@ func (a *app) buildControls() {
 		byID[b.id] = b
 	}
 	cy := 36
-	for _, row := range [][]int{{231, 232, 233, 234}, {235, 236, 237, 238}, {239, 240}, {241, 242}, {243, 244}} {
+	for _, row := range [][]int{{231, 232, 233, 234}, {235, 236, 237, 238}, {239, 240}, {241, 242}, {243, 244}, {245, 246, 247}} {
 		bx := 612
 		for _, id := range row {
 			b := byID[id]

@@ -174,6 +174,11 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	if err := add("host-tunnel.ps1", filepath.Join(r.Root, "kit", "host-tunnel.ps1")); err != nil {
 		return fail(fmt.Errorf("host-tunnel : %w", err))
 	}
+	// fix-vnet-admin.ps1 idem : répare le VMnet8 tombé en APIPA (hôte
+	// injoignable alors que la VM est saine) — clic-droit admin, une fois.
+	if err := add("fix-vnet-admin.ps1", filepath.Join(r.Root, "kit", "fix-vnet-admin.ps1")); err != nil {
+		return fail(fmt.Errorf("fix-vnet : %w", err))
+	}
 	if err := addStr("LISEZ-MOI.txt", pcReadme()); err != nil {
 		return fail(err)
 	}
@@ -287,6 +292,17 @@ func (r *Runner) packageLinux() int {
 	}
 	if err := add("cgo", bin, 0755); err != nil {
 		return fail(fmt.Errorf("binaire : %w", err))
+	}
+	// GUI Linux (Fyne) : compilée SUR Ubuntu (CGO/GL natifs — pas de
+	// cross depuis Windows). Le build VM dépose dist/cgo-gui-linux ;
+	// absent → tarball sans GUI (kit tui couvre), jamais d'échec.
+	if gl, err := os.Stat(filepath.Join(r.Root, "dist", "cgo-gui-linux")); err == nil && !gl.IsDir() {
+		if err := add("cgo-gui", filepath.Join(r.Root, "dist", "cgo-gui-linux"), 0755); err != nil {
+			return fail(fmt.Errorf("gui linux : %w", err))
+		}
+		r.out("[package] GUI Linux embarquée (double-clic sur bureau Ubuntu)")
+	} else {
+		r.out("[package] sans cgo-gui (buildez sur Ubuntu : go build -o dist/cgo-gui-linux ./cmd/cgo-gui)")
 	}
 	if err := add("kit/cgo-vm.yaml.example", filepath.Join(r.Root, "kit", "cgo-vm.yaml.example"), 0644); err != nil {
 		return fail(fmt.Errorf("config exemple : %w", err))

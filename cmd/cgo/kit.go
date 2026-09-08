@@ -127,6 +127,16 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.Netinfo(c)
 	case "nic":
 		return r.Nic(c, *cfgPath, rest, effDeep)
+	case "vnet":
+		return r.Vnet(c)
+	case "guest":
+		check := false
+		for _, a := range rest {
+			if a == "--check" {
+				check = true
+			}
+		}
+		return r.Guest(c, check)
 	case "tui":
 		return runKitTUI(*cfgPath, version)
 	case "snapshots":
