@@ -3,13 +3,16 @@
 #  CGO — guest-setup.sh : prépare TOUT côté invité Ubuntu, à la main.
 #  Usage (console de la VM, droits sudo) :
 #    bash guest-setup.sh [--tarball CHEMIN] [--port 9090] [--project ~/cgo]
+#    bash guest-setup.sh --check   # audit lecture seule (code 1 si manque)
 #  Idempotent : chaque étape vérifie d'abord, n'installe que le manquant.
 #  Hors-ligne : les étapes apt sont sautées proprement (message clair),
 #  tout le reste (SSH déjà là ? binaire ? dashboard ?) continue.
 #  Zéro identité en dur : utilisateur = $USER, IP = détectée, jamais tapée.
+#  Journal auto : /tmp/guest-setup-<date>.log (preuves envoyables).
 # ================================================================
 set -uo pipefail
-GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'; YEL='\033[0;33m'; NC='\033[0m'
+# Couleurs seulement sur terminal (logs propres quand redirigé).
+if [ -t 1 ]; then GREEN='\033[0;32m'; CYAN='\033[0;36m'; RED='\033[0;31m'; YEL='\033[0;33m'; NC='\033[0m'; else GREEN=''; CYAN=''; RED=''; YEL=''; NC=''; fi
 step(){ echo -e "\n${CYAN}>>${NC} $1"; }
 ok(){ echo -e "  ${GREEN}[OK]${NC} $1"; }
 warn(){ echo -e "  ${YEL}[..]${NC} $1"; }
@@ -18,15 +21,21 @@ fail(){ echo -e "  ${RED}[X]${NC} $1"; exit 1; }
 TARBALL=""
 PORT="9090"
 PROJECT="$HOME/cgo"
+CHECK=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --tarball) TARBALL="${2:-}"; shift 2;;
     --port) PORT="${2:-9090}"; shift 2;;
     --project) PROJECT="${2:-$HOME/cgo}"; shift 2;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0;;
+    --check) CHECK=1; shift;;
+    -h|--help) sed -n '2,11p' "$0"; exit 0;;
     *) fail "option inconnue : $1 (voir --help)";;
   esac
 done
+
+LOG="/tmp/guest-setup-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOG") 2>&1
+echo "journal : $LOG"
 
 if [ -f /etc/os-release ]; then . /etc/os-release; else ID="unknown"; fi
 if [ "$ID" != "ubuntu" ] && [ "$ID" != "debian" ]; then
@@ -45,6 +54,23 @@ have_net() {
 need_pkg() { ! dpkg -s "$1" >/dev/null 2>&1; }
 is_elf() { [ "$(head -c 4 "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "7f454c46" ]; }
 ME="${USER:-$(id -un 2>/dev/null || echo unknown)}"
+MISS=0
+chk() { if eval "$2"; then ok "$1"; else warn "$1 — MANQUANT"; MISS=$((MISS+1)); fi }
+
+# --check : audit lecture seule, zéro mutation. Sortie 0 = prêt, 1 = manque.
+do_check() {
+  step "audit (lecture seule)"
+  chk "internet" "have_net"
+  chk "apt présent" "command -v apt-get >/dev/null 2>&1"
+  chk "openssh-server installé" "! need_pkg openssh-server"
+  chk "sshd actif" "systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null"
+  chk "port 22 en écoute" "ss -ltn 2>/dev/null | grep -q ':22 '"
+  chk "binaire $PROJECT/cgo-linux" '[ -x "$PROJECT/cgo-linux" ]'
+  chk "dashboard :$PORT sain (TLS)" "curl -fsS -m 2 -k \"https://127.0.0.1:$PORT/api/health\" 2>/dev/null | grep -q '\"ok\":true'"
+  if [ "$MISS" = "0" ]; then ok "PRÊT — rien à faire"; else warn "$MISS point(s) à corriger — relancez sans --check"; fi
+  exit "$MISS"
+}
+[ "$CHECK" = "1" ] && do_check
 
 step "0/5 — réseau et droits"
 if have_net; then ok "internet joignable"; else warn "HORS-LIGNE : les installations apt seront sautées, le reste continue"; fi
@@ -63,9 +89,18 @@ if have_net && command -v apt-get >/dev/null 2>&1; then
   if [ -z "$MISSING" ]; then
     ok "tout est déjà installé ($WANT)"
   else
-    $SUDO apt-get update -qq && $SUDO apt-get install -y -qq $MISSING \
-      && ok "installé :$MISSING" \
-      || fail "apt a échoué — relancez avec internet : sudo apt install -y$MISSING"
+    # apt transient (miroir occupé, stall) : 3 tentatives espacées
+    TRY=0
+    until [ "$TRY" -ge 3 ]; do
+      TRY=$((TRY+1))
+      if $SUDO apt-get update -qq && $SUDO apt-get install -y -qq $MISSING; then
+        ok "installé :$MISSING (tentative $TRY)"
+        break
+      fi
+      [ "$TRY" -ge 3 ] && fail "apt a échoué 3× — relancez avec internet : sudo apt install -y$MISSING"
+      warn "apt tentative $TRY échouée — nouvel essai dans 5 s…"
+      sleep 5
+    done
   fi
 else
   warn "sauté (pas d'apt ou pas d'internet) — vérifiez à la main : sshd ? ip ?"
@@ -80,6 +115,17 @@ else
   ok "sshd démarré + activé au boot"
 fi
 ss -ltn 2>/dev/null | grep -q ':22 ' && ok "port 22 en écoute" || warn "port 22 non vu en écoute — vérifiez le pare-feu (ufw allow ssh)"
+# pare-feu actif ? ouvre 22 + dashboard (sinon le host ne joindra jamais).
+# $SUDO (jamais sudo nu) : en mode -n, échec silencieux → message manuel.
+if command -v ufw >/dev/null 2>&1 && $SUDO ufw status 2>/dev/null | grep -q "Status: active"; then
+  for p in 22 "$PORT"; do
+    if $SUDO ufw status 2>/dev/null | grep -q "$p/tcp.*ALLOW"; then
+      ok "ufw : $p/tcp autorisé"
+    else
+      $SUDO ufw allow "$p/tcp" >/dev/null 2>&1 && ok "ufw : $p/tcp ouvert à l'instant" || warn "ufw actif mais $p/tcp fermé — à la main : sudo ufw allow $p/tcp"
+    fi
+  done
+fi
 
 step "3/5 — binaire"
 mkdir -p "$PROJECT" || fail "création $PROJECT impossible"

@@ -41,6 +41,17 @@ function Ok($t) { Write-Host "  [OK] $t" -ForegroundColor Green }
 function Info($t) { Write-Host "  [..] $t" -ForegroundColor Yellow }
 function Die($t) { Write-Host "  [X] $t" -ForegroundColor Red; try { Stop-Transcript | Out-Null } catch { }; exit 1 }
 
+function Test-TcpRapide($Host_, $Port, $Ms = 5000) {
+  # Test-NetConnection peut pendre 20 s+ ; TcpClient + timeout explicite.
+  $c = New-Object Net.Sockets.TcpClient
+  try {
+    $iar = $c.BeginConnect($Host_, [int]$Port, $null, $null)
+    if (-not $iar.AsyncWaitHandle.WaitOne($Ms)) { return $false }
+    $c.EndConnect($iar)
+    return $true
+  } catch { return $false } finally { $c.Close() }
+}
+
 function Find-Exe($names, $paths) {
   foreach ($n in $names) {
     $c = Get-Command $n -ErrorAction SilentlyContinue
@@ -201,17 +212,19 @@ $certTmp = Join-Path $env:TEMP "meteolink-dev-cert.pem"
 & scp -P $SshPortEff -i $KeyPath -o BatchMode=yes "$User@${SshTarget}:.config/cgo/cert.pem" $certTmp 2>$null
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $certTmp)) { Die "certificat non rapatrie — dashboard demarre ? (kit deploy / guest-setup.sh etape 4)" }
 if ($IsAdmin) {
-  & certutil -addstore root $certTmp | Out-Null
-  Ok "certificat dans le magasin machine"
+  $cOut = & certutil -addstore root $certTmp 2>&1 | Out-String
+  if ($cOut -match "déjà|already") { Ok "certificat déjà présent dans le magasin machine" }
+  else { Ok "certificat dans le magasin machine" }
 } else {
-  & certutil -user -addstore root $certTmp | Out-Null
+  $cOut = & certutil -user -addstore root $certTmp 2>&1 | Out-String
   if ($LASTEXITCODE -eq 0) { Ok "certificat dans le magasin utilisateur (ce compte)" }
+  elseif ($cOut -match "déjà|already") { Ok "certificat déjà présent (ce compte)" }
   else { Write-Host "  [..] admin requis pour la confiance totale — en attendant : accepter une fois dans le navigateur" -ForegroundColor Yellow }
 }
 
 Step "6/7 — verification de bout en bout"
-if (-not (Test-NetConnection -ComputerName $SshTarget -Port $DashPort -WarningAction SilentlyContinue).TcpTestSucceeded) {
-  Die "port $DashPort ferme sur $SshTarget — dashboard eteint ? forward manquant ?"
+if (-not (Test-TcpRapide $SshTarget $DashPort 5000)) {
+  Die "port $DashPort ferme sur $SshTarget (5 s) — dashboard eteint ? forward manquant ?"
 }
 Ok "TCP :$DashPort ouvert"
 try {
@@ -223,5 +236,10 @@ try {
 Step "7/7 — ouverture"
 if (-not $NoBrowser) { Start-Process "https://meteolink.dev:$DashPort" }
 Write-Host ""
+Write-Host "RÉCAP — tout est en place :" -ForegroundColor Green
+Write-Host ("  VM       : {0} ({1})" -f $VmRegName, $Hypervisor)
+Write-Host ("  SSH      : {0}@{1}:{2}  (clé {3})" -f $User, $SshTarget, $SshPortEff, $KeyPath)
+Write-Host ("  Dashboard: https://meteolink.dev:{0}" -f $DashPort)
+Write-Host ("  Journal  : voir le fichier .log à côté du script")
 Write-Host "TERMINE — https://meteolink.dev:$DashPort" -ForegroundColor Green
 try { Stop-Transcript | Out-Null } catch { }
