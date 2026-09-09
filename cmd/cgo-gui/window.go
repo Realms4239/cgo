@@ -164,7 +164,7 @@ func (a *app) buildControls() {
 	y += 118
 	bx := 16
 	for _, b := range groupActions {
-		a.mkCtl("BUTTON", b.label, bsPushbutton|wsTabstop, bx, y, b.w, 28, b.id)
+		a.btns = append(a.btns, a.mkCtl("BUTTON", b.label, bsPushbutton|wsTabstop, bx, y, b.w, 28, b.id))
 		bx += b.w + 8
 	}
 	y += 40
@@ -175,14 +175,14 @@ func (a *app) buildControls() {
 	a.sshLbl = a.mkCtl("STATIC", "SSH : —", 0, 20, yy, 150, 18, idSSH)
 	a.mkCtl("STATIC", "Utilisateur Ubuntu :", 0, 180, yy, 125, 18, 0)
 	a.userEdit = a.mkCtl("EDIT", "", esAutohscroll|wsBorder|wsTabstop, 310, yy, 140, 22, idUser)
-	a.mkCtl("BUTTON", "Sauver", bsPushbutton|wsTabstop, 458, yy-3, 80, 26, 248)
+	a.btns = append(a.btns, a.mkCtl("BUTTON", "Sauver", bsPushbutton|wsTabstop, 458, yy-3, 80, 26, 248))
 	if u := cfgSSHUser(a.cfgPath); u != "" {
 		setText(a.userEdit, u)
 	}
 	yy += 22
 	bx = 20
 	for _, b := range accessActions {
-		a.mkCtl("BUTTON", b.label, bsPushbutton|wsTabstop, bx, yy, b.w, 28, b.id)
+		a.btns = append(a.btns, a.mkCtl("BUTTON", b.label, bsPushbutton|wsTabstop, bx, yy, b.w, 28, b.id))
 		bx += b.w + 8
 	}
 	y += 128
@@ -192,7 +192,7 @@ func (a *app) buildControls() {
 	yy += 22
 	bx = 20
 	for _, b := range deployActions {
-		a.mkCtl("BUTTON", b.label, bsPushbutton|wsTabstop, bx, yy, b.w, 30, b.id)
+		a.btns = append(a.btns, a.mkCtl("BUTTON", b.label, bsPushbutton|wsTabstop, bx, yy, b.w, 30, b.id))
 		bx += b.w + 8
 	}
 	// colonne droite : contrôle
@@ -206,7 +206,7 @@ func (a *app) buildControls() {
 		bx := 612
 		for _, id := range row {
 			b := byID[id]
-			a.mkCtl("BUTTON", b.label, bsPushbutton|wsTabstop, bx, cy, b.w, 28, b.id)
+			a.btns = append(a.btns, a.mkCtl("BUTTON", b.label, bsPushbutton|wsTabstop, bx, cy, b.w, 28, b.id))
 			bx += b.w + 8
 		}
 		cy += 36

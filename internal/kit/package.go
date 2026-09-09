@@ -191,6 +191,11 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	if err := addStr("LISEZ-MOI.txt", pcReadme()); err != nil {
 		return fail(err)
 	}
+	// DEMARRER.bat : double-clic qui lance le centre de contrôle depuis
+	// n'importe où (le .bat cale le dossier, start détache sans console).
+	if err := addStr("DEMARRER.bat", "@echo off\r\ncd /d \"%~dp0\"\r\nstart \"\" \"%~dp0cgo-gui.exe\"\r\n"); err != nil {
+		return fail(fmt.Errorf("demarrer : %w", err))
+	}
 	if err := zw.Close(); err != nil {
 		_ = zf.Close()
 		r.errf("[package] finalisation : %v", err)
@@ -243,7 +248,7 @@ un dashboard muet vient toujours d'un palier amont (clé, réseau…).
 
 VOIE GUI (recommandée, zéro commande)
 -------------------------------------
-Double-cliquez cgo-gui.exe.
+Double-cliquez DEMARRER.bat (ou cgo-gui.exe directement).
 
   - Liste des VM (VirtualBox/VMware) : Rescanner, double-clic = verrouiller.
   - Champ « Utilisateur Ubuntu » + Sauver (ex. fanasina) : SANS lui,
@@ -253,7 +258,9 @@ Double-cliquez cgo-gui.exe.
     clé, deploy, dashboard, DNS, confiance — chacun son bouton aussi).
   - Bouton « Guide » : réaffiche ce texte dans le journal.
   - Journal : chaque action raconte tout ; garde anti-double-clic
-    (« patience — … tourne déjà »).
+    (« patience — … tourne déjà ») + boutons d'action grisés pendant
+    qu'une action tourne (la liste des VM reste sélectionnable).
+  - Démarrages longs (boot, deploy) : progression journalisée en continu.
   - Preuves : cgo-gui-<date>.log à côté de l'exe (envoyable au support).
 
 VOIE TERMINAL

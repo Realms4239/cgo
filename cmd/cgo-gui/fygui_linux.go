@@ -420,6 +420,8 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 		f.runBg("vm-stop", func(r *kit.Runner) int { return vmPowerGUI(f.loadCfg(), r, false) })
 	case kind == "bg:nic-toggle":
 		f.runBg("nic-toggle", func(r *kit.Runner) int { return nicToggleGUI(f.loadCfg(), r, f.cfgPth) })
+	case kind == "bg:nic":
+		f.runBg("nic-nat", func(r *kit.Runner) int { return r.Nic(f.loadCfg(), f.cfgPth, args, true) })
 	case kind == "bg:hosttun":
 		// Linux : pas de .ps1 — la même chaîne en Go natif (hosts,
 		// confiance, santé, navigateur) via les actions kit existantes.
