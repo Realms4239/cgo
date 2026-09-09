@@ -68,11 +68,27 @@ func (a *app) lockSelected() {
 func (a *app) onStatus() {
 	a.mu.Lock()
 	ssh, dash, locked := a.stSSH, a.stDash, a.stLocked
+	next := a.stNext
+	done := a.stNextDone
 	a.mu.Unlock()
 	setText(a.sshLbl, "SSH : "+orDash(ssh))
 	setText(a.dashLbl, "Dashboard : "+orDash(dash))
 	if locked != "" {
 		setText(a.locked, "Verrouillée : "+locked)
+	}
+	if done && next != "" {
+		setText(a.nextLbl, "→ Prochaine : "+next)
+		a.mu.Lock()
+		changed := a.lastNext != next
+		if changed {
+			a.lastNext = next
+		}
+		a.mu.Unlock()
+		if changed {
+			a.appendLog("→ Prochaine : " + next)
+		}
+	} else if !done {
+		setText(a.nextLbl, "→ Prochaine : calcul en cours…")
 	}
 }
 

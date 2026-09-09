@@ -59,7 +59,7 @@ func TestGUIConsoleActions(t *testing.T) {
 
 // Nouveaux boutons intégration scripts : mappés, jamais muets.
 func TestGUIScriptButtons(t *testing.T) {
-	for id, want := range map[int]string{245: "bg:hosttun", 246: "bg:guest", 247: "bg:vnet", 248: "direct:saveuser"} {
+	for id, want := range map[int]string{245: "bg:hosttun", 246: "bg:guest", 247: "bg:vnet", 248: "direct:saveuser", 249: "bg:guide", 250: "direct:suite"} {
 		kind, _ := buttonAction(id)
 		if kind != want {
 			t.Errorf("bouton %d : %q, voulu %q", id, kind, want)

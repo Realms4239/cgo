@@ -454,7 +454,20 @@ func (c *Config) SCPOutErr(local, remote string) error {
 }
 
 func (c *Config) healthURL() string {
-	return "https://" + c.SSHHost + ":" + c.DashPort + "/api/health"
+	// Même repli que dashURL, jamais d'hôte vide (avant : « https://:9090 »
+	// quand ssh_host était vide — erreur incompréhensible).
+	host := c.DashHost
+	if host == "" {
+		host = c.SSHHost
+	}
+	if host == "" || host == "auto" {
+		host = "meteolink.dev"
+	}
+	port := c.DashPort
+	if port == "" {
+		port = "9090"
+	}
+	return "https://" + host + ":" + port + "/api/health"
 }
 
 // dashURL — l'adresse à donner à l'opérateur : le nom stable d'abord

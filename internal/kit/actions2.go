@@ -353,8 +353,14 @@ func (r *Runner) Snapshots(c *Config, deep bool) int {
 		vboxName := strings.TrimSuffix(filepath.Base(vmx), ".vbox")
 		out, err := runCmd(hyp.Exe(), "snapshot", vboxName, "list", "--machinereadable")
 		if err != nil {
-			r.errf("[snapshots] VBoxManage échoué : %s", out)
-			return 4
+			// VBoxManage sort en ERREUR quand il n'y a aucun snapshot
+			// (« does not have any snapshots ») — état bénin, pas échec.
+			if mentionsNoSnapshots(out) {
+				out = ""
+			} else {
+				r.errf("[snapshots] VBoxManage échoué : %s", out)
+				return 4
+			}
 		}
 		for _, ln := range strings.Split(out, "\n") {
 			if strings.HasPrefix(ln, "SnapshotName") {
@@ -375,6 +381,15 @@ func (r *Runner) Snapshots(c *Config, deep bool) int {
 	}
 	r.out("retour : cgo kit revert <nom>")
 	return 0
+}
+
+// mentionsNoSnapshots — VBoxManage échoue AVEC ce texte quand la VM n'a
+// aucun snapshot : état bénin (liste vide), pas une erreur d'exécution.
+func mentionsNoSnapshots(out string) bool {
+	o := strings.ToLower(out)
+	return strings.Contains(o, "does not have any snapshots") ||
+		strings.Contains(o, "no snapshot") ||
+		strings.Contains(o, "could not find a snapshot")
 }
 
 // Verify — recalcul des empreintes SHA-256 des manifests SUR LA VM.
@@ -400,7 +415,7 @@ func (r *Runner) Health(c *Config) int {
 	cl := &http.Client{Timeout: 4 * time.Second, Transport: tr}
 	resp, err := cl.Get(c.healthURL())
 	if err != nil {
-		r.errf("[health] injoignable : %v", err)
+		r.errf("[health] injoignable (%s) : %v", c.healthURL(), err)
 		return 5
 	}
 	defer resp.Body.Close()

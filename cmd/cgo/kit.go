@@ -129,6 +129,11 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.Nic(c, *cfgPath, rest, effDeep)
 	case "vnet":
 		return r.Vnet(c)
+	case "next":
+		return r.Next(c)
+	case "readme":
+		fmt.Println(kit.Readme())
+		return 0
 	case "guest":
 		check := false
 		for _, a := range rest {

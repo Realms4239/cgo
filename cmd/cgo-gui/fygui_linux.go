@@ -41,6 +41,11 @@ type fyApp struct {
 	journal *widget.Entry
 	jScroll *container.Scroll
 	status  *widget.Label
+	nextLbl *widget.Label
+	nextKind string
+	nextArgs []string
+	nextDone bool
+	lastNext string
 	sshLbl  *widget.Label
 	userEdit *widget.Entry
 	dashLbl *widget.Label
@@ -122,6 +127,30 @@ func (f *fyApp) refreshStatus() {
 		f.dashLbl.SetText("Dashboard : " + orDashF(dash))
 		if locked != "" {
 			f.lockLbl.SetText("Verrouillée : " + locked)
+		}
+		nx := kit.FirstOpen(kit.GatherNext(c))
+		f.mu.Lock()
+		var banner, nk string
+		var na []string
+		if nx == nil {
+			banner = "tout est vert — dashboard prêt"
+		} else if nx.Remedy != "" {
+			banner = nx.Label + " — " + nx.Remedy
+			nk, na = nx.Verb, nx.Args
+		} else {
+			banner = nx.Label + " (" + nx.Detail + ")"
+			nk, na = nx.Verb, nx.Args
+		}
+		changed := f.lastNext != banner
+		if changed {
+			f.lastNext = banner
+		}
+		f.nextKind, f.nextArgs = nk, na
+		f.nextDone = true
+		f.mu.Unlock()
+		f.nextLbl.SetText("→ Prochaine : " + banner)
+		if changed {
+			f.log("→ Prochaine : " + banner)
 		}
 	}()
 }
@@ -305,6 +334,12 @@ func (f *fyApp) dispatch(id int) {
 	if kind == "" {
 		return
 	}
+	f.dispatchKind(kind, args)
+}
+
+// dispatchKind — même factorisation que Win32 runKind : « Suite » rejoue
+// le verbe de l'étape calculée par le même chemin que son bouton.
+func (f *fyApp) dispatchKind(kind string, args []string) {
 	switch {
 	case kind == "direct:lock":
 		f.lockSelected()
@@ -394,6 +429,27 @@ func (f *fyApp) dispatch(id int) {
 		f.runTerm("dns", "dns")
 	case kind == "console:tls":
 		f.runTerm("tls", "tls")
+	case kind == "bg:guide":
+		f.runBg("guide", func(r *kit.Runner) int {
+			for _, ln := range strings.Split(kit.Readme(), "\n") {
+				fmt.Fprintln(r.Stdout, ln)
+			}
+			return 0
+		})
+	case kind == "direct:suite":
+		f.mu.Lock()
+		done, nk, na := f.nextDone, f.nextKind, f.nextArgs
+		f.mu.Unlock()
+		if !done {
+			f.log("analyse en cours — patientez 10 s puis Suite")
+			return
+		}
+		if nk == "" {
+			f.log("tout est vert — rien à faire (Rescanner pour revérifier)")
+			return
+		}
+		f.log("▶ suite : " + nk)
+		f.dispatchKind(nk, na)
 	}
 }
 
@@ -471,6 +527,7 @@ func (f *fyApp) buildUI() {
 	f.journal.Wrapping = fyne.TextWrapWord
 	f.jScroll = container.NewScroll(f.journal)
 	f.status = widget.NewLabel("Prêt.")
+	f.nextLbl = widget.NewLabel("→ Prochaine : …")
 
 	left := container.NewVBox(
 		widget.NewLabel("Machine virtuelle (VirtualBox / VMware) :"),
@@ -494,6 +551,7 @@ func (f *fyApp) buildUI() {
 		widget.NewLabel("Journal"),
 		f.jScroll,
 		f.status,
+		f.nextLbl,
 	)
 	f.win.SetContent(container.NewHSplit(left, right))
 }

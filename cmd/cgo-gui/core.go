@@ -97,7 +97,12 @@ var controlActions = []buttonDef{
 	{241, "Réseau invité", 0, 0, 110}, {242, "Démarrer VM", 0, 0, 105}, {243, "Arrêter VM", 0, 0, 95},
 	{244, "Carte NAT/pont", 0, 0, 115},
 	{245, "Tunnel hôte", 0, 0, 95}, {246, "Invité", 0, 0, 70}, {247, "Réseau hôte", 0, 0, 95},
+	{249, "Guide", 0, 0, 70}, {250, "▶ Suite", 0, 0, 85},
 }
+
+// note : le bouton Sauver (248, « direct:saveuser ») n'est dans AUCUN
+// groupe : placé à côté du champ utilisateur (Win32 + Fyne), pas dans
+// la colonne Contrôle.
 
 func itoa(n int) string {
 	if n == 0 {
@@ -232,6 +237,10 @@ func buttonAction(id int) (string, []string) {
 		return "bg:vnet", nil
 	case 248:
 		return "direct:saveuser", nil
+	case 249:
+		return "bg:guide", nil
+	case 250:
+		return "direct:suite", nil
 	}
 	return "", nil
 }

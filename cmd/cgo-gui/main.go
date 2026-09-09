@@ -29,6 +29,7 @@ const (
 	idSSH    = 105
 	idDash   = 106
 	idUser   = 107
+	idNext   = 108
 )
 
 
@@ -41,6 +42,7 @@ type app struct {
 	locked  windows.HWND
 	sshLbl  windows.HWND
 	dashLbl windows.HWND
+	nextLbl windows.HWND
 	userEdit windows.HWND
 	cgoExe     string
 	cfgPath    string
@@ -57,6 +59,11 @@ type app struct {
 	stSSH      string
 	stDash     string
 	stLocked   string
+	stNext     string
+	stNextKind string
+	stNextArgs []string
+	stNextDone bool
+	lastNext   string // dernier bandeau journalisé (transitions seules)
 }
 
 var theApp *app

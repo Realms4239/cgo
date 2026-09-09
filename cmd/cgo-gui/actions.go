@@ -248,6 +248,20 @@ func (a *app) refreshStatus() {
 		a.stSSH, a.stDash, a.stLocked = ssh, dash, locked
 		a.mu.Unlock()
 		postMsg(a.hwnd, wmAppStatus)
+		// Prochaine étape : coûteux (~10-25 s), calculé APRÈS l'affichage
+		// du statut pour ne pas le retarder, même single-flight.
+		nx := kit.FirstOpen(kit.GatherNext(c))
+		a.mu.Lock()
+		if nx == nil {
+			a.stNext, a.stNextKind, a.stNextArgs = "tout est vert — dashboard prêt", "", nil
+		} else if nx.Remedy != "" {
+			a.stNext, a.stNextKind, a.stNextArgs = nx.Label+" — "+nx.Remedy, nx.Verb, nx.Args
+		} else {
+			a.stNext, a.stNextKind, a.stNextArgs = nx.Label+" ("+nx.Detail+")", nx.Verb, nx.Args
+		}
+		a.stNextDone = true
+		a.mu.Unlock()
+		postMsg(a.hwnd, wmAppStatus)
 	}()
 }
 
@@ -262,6 +276,13 @@ func (a *app) onButton(id int) {
 	if kind == "" {
 		return
 	}
+	a.runKind(kind, args)
+}
+
+// runKind — exécute un verbe (bouton ou « Suite » qui rejoue le verbe de
+// la prochaine étape calculée). Factorisé de onButton pour que Suite
+// emprunte exactement le même chemin que le bouton d'origine.
+func (a *app) runKind(kind string, args []string) {
 	switch {
 	case kind == "direct:lock":
 		a.lockSelected()
@@ -351,6 +372,27 @@ func (a *app) onButton(id int) {
 		a.runKitConsole("dns", "dns")
 	case kind == "console:tls":
 		a.runKitConsole("tls", "tls")
+	case kind == "bg:guide":
+		a.runKit("guide", func(r *kit.Runner) int {
+			for _, ln := range strings.Split(kit.Readme(), "\n") {
+				fmt.Fprintln(r.Stdout, ln)
+			}
+			return 0
+		})
+	case kind == "direct:suite":
+		a.mu.Lock()
+		done, nk, na := a.stNextDone, a.stNextKind, a.stNextArgs
+		a.mu.Unlock()
+		if !done {
+			a.appendLog("analyse en cours — patientez 10 s puis Suite")
+			return
+		}
+		if nk == "" {
+			a.appendLog("tout est vert — rien à faire (Rescanner pour revérifier)")
+			return
+		}
+		a.appendLog("▶ suite : " + nk)
+		a.runKind(nk, na)
 	}
 }
 
