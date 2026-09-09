@@ -12,7 +12,7 @@ import (
 // l'assignation faite après coup sur l'original — le bug initial (champ
 // prog direct resté nil dans la copie du runtime, actions fond muettes).
 func TestKTBusShared(t *testing.T) {
-	m := initialModelKT("kit/cgo-vm.yaml.example", "x")
+	m := initialModelKT(t.TempDir()+"/cgo-vm.yaml", "x")
 	p := tea.NewProgram(m)
 	m.bus.prog = p
 	defer p.Kill()
@@ -25,8 +25,12 @@ func TestKTBusShared(t *testing.T) {
 		t.Fatal("assignation invisible depuis l'original — bug du champ direct")
 	}
 }
-func testModelKT() modelKT {
-	m := initialModelKT("kit/cgo-vm.yaml.example", "1.2.3-test")
+func testModelKT(t *testing.T) modelKT {
+	t.Helper()
+	dir := t.TempDir()
+	cfg := dir + "/cgo-vm.yaml"
+	os.WriteFile(cfg, []byte("ssh:\n  user: testuser\n"), 0644)
+	m := initialModelKT(cfg, "1.2.3-test")
 	m.deps = []depRow{{label: "Client OpenSSH", ok: true, info: "ssh"}}
 	return m
 }
@@ -48,7 +52,7 @@ func keyMsg(s string) tea.KeyMsg {
 }
 
 func TestKTStepsItems(t *testing.T) {
-	m := testModelKT()
+	m := testModelKT(t)
 	// étape dépendances : recheck + next (dep ok → pas d'install)
 	if got := len(m.items()); got != 2 {
 		t.Fatalf("deps items = %d, veux 2", got)
@@ -72,7 +76,7 @@ func TestKTStepsItems(t *testing.T) {
 }
 
 func TestKTNextAdvance(t *testing.T) {
-	m := testModelKT()
+	m := testModelKT(t)
 	m.cursor = 1 // "Continuer → Machine"
 	mm, _ := m.Update(keyMsg("enter"))
 	m = mm.(modelKT)
@@ -85,7 +89,7 @@ func TestKTNextAdvance(t *testing.T) {
 }
 
 func TestKTVMLock(t *testing.T) {
-	m := testModelKT()
+	m := testModelKT(t)
 	m.step = ktVM
 	m.vms = []vmEntry{{path: `D:\VMs\ubu\ubu.vmx`, name: "ubu", hyp: "vmware"}}
 	// items : rescan + 1 VM → curseur 1 = la VM
@@ -98,7 +102,7 @@ func TestKTVMLock(t *testing.T) {
 }
 
 func TestKTDoneClearsBusy(t *testing.T) {
-	m := testModelKT()
+	m := testModelKT(t)
 	m.busy = "deploy"
 	mm, _ := m.Update(ktDone{action: "deploy", code: 0})
 	m = mm.(modelKT)
@@ -111,7 +115,7 @@ func TestKTDoneClearsBusy(t *testing.T) {
 }
 
 func TestKTViewRenders(t *testing.T) {
-	m := testModelKT()
+	m := testModelKT(t)
 	m.vms = []vmEntry{{path: `D:\VMs\ubu\ubu.vmx`, name: "ubu", hyp: "vmware", mode: "nat", live: true}}
 	m.sshState = "ok"
 	m.dashState = "ok 1.2.3"
@@ -192,7 +196,7 @@ func TestKTInputCommit(t *testing.T) {
 
 // Diagnostic : message appliqué, état global suit.
 func TestKTDiagApplies(t *testing.T) {
-	m := testModelKT()
+	m := testModelKT(t)
 	m.sshState = "ok"
 	mm, _ := m.Update(ktDiagMsg{rows: []diagRow{
 		{label: "Clé locale", state: "ok"},
@@ -209,7 +213,7 @@ func TestKTDiagApplies(t *testing.T) {
 
 // Esc : ferme la saisie d'abord, puis recule d'une étape (jamais bloqué).
 func TestKTEscBack(t *testing.T) {
-	m := testModelKT()
+	m := testModelKT(t)
 	m.step = ktDeploy
 	mm, _ := m.Update(tea.KeyMsg{Type: tea.KeyEscape})
 	m = mm.(modelKT)

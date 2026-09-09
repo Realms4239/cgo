@@ -162,13 +162,15 @@ func LoadConfig(path string) (*Config, error) {
 	if os.Getenv("CGO_DASHBOARD_HOST") != "" {
 		c.DashHost = envDashHost
 	}
-	// host auto → IP invitée via vmrun sur le .vmx connu, sinon vide (le
-	// TUI/ensure redécouvre ; jamais d'IP en dur — pas de subnet supposé).
+	// host auto → IP invitée via LE PILOTE DU CHEMIN (jamais le primaire
+	// aveugle : Primary()=vmware sur un .vbox interrogeait vmrun pour rien).
 	if c.SSHHost == "auto" {
 		c.SSHHost = env("CGO_VM_IP", "")
-		if p := vm.Primary(); p != nil && c.VMXPath != "" {
-			if ip := p.GuestIP(c.VMXPath); ip != "" {
-				c.SSHHost = ip
+		if c.VMXPath != "" {
+			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMXPath); err == nil {
+				if ip := h.GuestIP(c.VMXPath); ip != "" {
+					c.SSHHost = ip
+				}
 			}
 		}
 	}
@@ -276,7 +278,7 @@ func userHome() string {
 
 // runSilent exécute et rend CombinedOutput.
 func runSilent(dir string, env []string, name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	cmd := bgCmd(name, args...)
 	cmd.Dir = dir
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
@@ -324,7 +326,7 @@ func muxSocket(host, port string) string {
 
 func (c *Config) SSH(cmdLine string) (string, error) {
 	args := append(c.sshCmd(), cmdLine)
-	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+	out, err := bgCmd(args[0], args[1:]...).CombinedOutput()
 	return string(out), err
 }
 
@@ -441,7 +443,7 @@ func (c *Config) SCPOut(local, remote string) (string, string, error) {
 		args = append(args, "-o", "ControlMaster=auto", "-o", "ControlPath="+ctrl, "-o", "ControlPersist=30")
 	}
 	args = append(args, local, c.SSHUser+"@"+c.SSHHost+":"+shq(remote))
-	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+	out, err := bgCmd(args[0], args[1:]...).CombinedOutput()
 	return string(out), key, err
 }
 
@@ -487,34 +489,54 @@ func (c *Config) Health() bool {
 // pickVM résout la VM courante : config d'abord, sinon scan+unique.
 func (r *Runner) pickVM(c *Config, deep bool) (vm.Hypervisor, string, error) {
 	hs := vm.Detect()
-	var hyp vm.Hypervisor
-	if c.Hypervisor == "auto" || c.Hypervisor == "vmware" {
-		for _, h := range hs {
-			if h.Name() == "vmware" {
-				hyp = h
-			}
-		}
-	}
-	if hyp == nil {
-		for _, h := range hs {
-			if h.Name() == "virtualbox" {
-				hyp = h
-			}
-		}
-	}
-	if hyp == nil {
+	if len(hs) == 0 {
 		return nil, "", errors.New("aucun hyperviseur (vmrun/VBoxManage) — démarrez la VM manuellement")
 	}
+	path := ""
 	if c.VMXPath != "" {
 		if _, err := os.Stat(c.VMXPath); err == nil {
-			return hyp, c.VMXPath, nil
+			path = c.VMXPath
 		}
 	}
-	vms := vm.ScanVMs(deep)
-	if p := vm.Pick(vms, c.VMName); p != "" {
-		return hyp, p, nil
+	if path == "" {
+		vms := vm.ScanVMs(deep)
+		if p := vm.Pick(vms, c.VMName); p != "" {
+			path = p
+		}
 	}
-	return hyp, "", fmt.Errorf("scan ambigu (%d candidates) — précisez vm_name/vmx_path dans la config ou --deep", len(vms))
+	if path == "" {
+		return nil, "", fmt.Errorf("scan ambigu — précisez vm_name/vmx_path dans la config ou --deep")
+	}
+	hyp, err := selectDriver(hs, c.Hypervisor, path)
+	if err != nil {
+		return nil, "", err
+	}
+	return hyp, path, nil
+}
+
+// selectDriver — le CHEMIN décide d'abord (extension), la config ensuite :
+// un .vbox ne part jamais chez vmrun même si vmrun est détecté en premier
+// (même bug racine que le scan). Erreur explicite si le pilote manque.
+func selectDriver(hs []vm.Hypervisor, cfgHyp, path string) (vm.Hypervisor, error) {
+	byName := map[string]vm.Hypervisor{}
+	for _, h := range hs {
+		byName[h.Name()] = h
+	}
+	if want := vm.HypForPath(path); want != "" {
+		if h, ok := byName[want]; ok {
+			return h, nil
+		}
+		return nil, fmt.Errorf("VM %s : pilote %s introuvable — installez-le (%s ?)", filepath.Base(path), want, map[string]string{"virtualbox": "VirtualBox", "vmware": "VMware Workstation"}[want])
+	}
+	if h, ok := byName[cfgHyp]; ok {
+		return h, nil
+	}
+	for _, h := range hs {
+		if h.Name() == "vmware" {
+			return h, nil
+		}
+	}
+	return hs[0], nil
 }
 
 // ---- actions ----
@@ -596,7 +618,9 @@ func (r *Runner) Doctor(c *Config) int {
 
 // Scan — trouve les VMs, sauvegarde la machine unique dans la config.
 func (r *Runner) Scan(c *Config, cfgPath string, deep bool) int {
-	vms := vm.ScanVMs(deep)
+	vms := vm.ScanVMsProgress(deep, func(dir string) {
+		r.out("  … %s", dir)
+	})
 	if len(vms) == 0 {
 		r.errf("aucun .vmx/.vbox trouvé (%s) — passez --deep", map[bool]string{true: "profond", false: "peu profond"}[deep])
 		return 3
@@ -604,19 +628,28 @@ func (r *Runner) Scan(c *Config, cfgPath string, deep bool) int {
 	for _, v := range vms {
 		r.out("  vm: %s", v)
 	}
-	hyp := vm.Primary()
 	p := vm.Pick(vms, c.VMName)
 	if p == "" {
 		r.errf("scan ambigu (%d candidates) — précisez vm_name dans %s", len(vms), cfgPath)
 		return 3
 	}
-	hypName := "vmware"
-	if hyp != nil && hyp.Name() == "virtualbox" {
-		hypName = "virtualbox"
-	}
+	hypName := hypNameForScan(p, vm.Primary())
 	_ = SaveVMX(cfgPath, p, hypName)
 	r.out("[scan] sélectionnée : %s (hyperviseur %s)", p, hypName)
 	return 0
+}
+
+// hypNameForScan — l'extension décide, le primaire ne départage que les
+// chemins ambigus. (Avant : primaire d'abord → .vbox étiqueté "vmware"
+// dès que Workstation était installé.)
+func hypNameForScan(pick string, primary vm.Hypervisor) string {
+	if w := vm.HypForPath(pick); w != "" {
+		return w
+	}
+	if primary != nil && primary.Name() == "virtualbox" {
+		return "virtualbox"
+	}
+	return "vmware"
 }
 
 // Ensure — SSH up, sinon boot headless + attente, avec découverte d'IP
@@ -790,11 +823,11 @@ func arpAlive() []string {
 	var out []string
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("arp", "-a")
+		cmd = bgCmd("arp", "-a")
 	} else {
-		cmd = exec.Command("ip", "neigh", "show")
+		cmd = bgCmd("ip", "neigh", "show")
 		if _, err := exec.LookPath("ip"); err != nil {
-			cmd = exec.Command("arp", "-a")
+			cmd = bgCmd("arp", "-a")
 		}
 	}
 	bs, err := cmd.Output()
@@ -864,9 +897,9 @@ func hostSubnets() []string {
 }
 
 func pingOne(ip string) bool {
-	cmd := exec.Command("ping", "-n", "1", "-w", "1500", ip)
+	cmd := bgCmd("ping", "-n", "1", "-w", "1500", ip)
 	if runtime.GOOS != "windows" {
-		cmd = exec.Command("ping", "-c", "1", "-W", "2", ip)
+		cmd = bgCmd("ping", "-c", "1", "-W", "2", ip)
 	}
 	return cmd.Run() == nil
 }

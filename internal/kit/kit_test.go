@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/Realms4239/cgo/internal/vm"
 )
 
 // classifySSHError — une VM propre échoue SSH de trois façons distinctes,
@@ -119,6 +121,69 @@ func TestShq(t *testing.T) {
 	} {
 		if got := shq(in); got != want {
 			t.Errorf("shq(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// fakeHyp — pilote factice (nom seul utile : les décisions testées ne
+// touchent jamais au binaire).
+type fakeHyp struct{ name string }
+
+func (f *fakeHyp) Name() string                    { return f.name }
+func (f *fakeHyp) Exe() string                     { return "" }
+func (f *fakeHyp) Running() []string               { return nil }
+func (f *fakeHyp) Start(vmx string) error          { return nil }
+func (f *fakeHyp) StartGUI(vmx string) error       { return nil }
+func (f *fakeHyp) Stop(vmx string) error           { return nil }
+func (f *fakeHyp) GuestIP(vmx string) string       { return "" }
+func (f *fakeHyp) NetMode(vmx string) string       { return "" }
+func (f *fakeHyp) SetNetMode(vmx, mode string) error { return nil }
+
+// selectDriver — même bug racine, côté ensure/deploy : le .vbox obtient
+// le pilote virtualbox même si vmware est détecté en premier.
+func TestSelectDriver(t *testing.T) {
+	vb := &fakeHyp{name: "virtualbox"}
+	vw := &fakeHyp{name: "vmware"}
+	both := []vm.Hypervisor{vw, vb} // vmware EN PREMIER (ordre Detect)
+	vbox := `D:\VMs\ubuntu Fanasina\ubuntu Fanasina.vbox`
+	vmx := `D:\ubuntu.vmx`
+	if h, err := selectDriver(both, "auto", vbox); err != nil || h.Name() != "virtualbox" {
+		t.Fatalf("vbox+auto → virtualbox, got %v err %v", h, err)
+	}
+	if h, err := selectDriver(both, "vmware", vbox); err != nil || h.Name() != "virtualbox" {
+		t.Fatalf("vbox+config vmware → virtualbox quand même, got %v err %v", h, err)
+	}
+	if h, err := selectDriver(both, "auto", vmx); err != nil || h.Name() != "vmware" {
+		t.Fatalf("vmx+auto → vmware, got %v err %v", h, err)
+	}
+	if _, err := selectDriver([]vm.Hypervisor{vw}, "auto", vbox); err == nil {
+		t.Fatal("vbox sans VBoxManage devrait échouer explicitement")
+	}
+	if h, err := selectDriver(both, "virtualbox", `D:\bizarre`); err != nil || h.Name() != "virtualbox" {
+		t.Fatalf("chemin ambigu + config vbox → virtualbox, got %v err %v", h, err)
+	}
+}
+// hypNameForScan — régression du bug racine : un .vbox reste virtualbox
+// même quand vmrun existe (primaire vmware). Le primaire ne sert que
+// pour les chemins sans extension connue.
+func TestHypNameForScan(t *testing.T) {
+	vb := &fakeHyp{name: "virtualbox"}
+	vw := &fakeHyp{name: "vmware"}
+	for _, tc := range []struct {
+		pick, want string
+		prim       vm.Hypervisor
+	}{
+		{`D:\VMs\ubuntu Fanasina\ubuntu Fanasina.vbox`, "virtualbox", vw},
+		{`D:\VMs\ubuntu Fanasina\ubuntu Fanasina.vbox`, "virtualbox", vb},
+		{`D:\VMs\ubuntu Fanasina\ubuntu Fanasina.vbox`, "virtualbox", nil},
+		{`D:\ubuntu.vmx`, "vmware", vb},
+		{`D:\ubuntu.vmx`, "vmware", nil},
+		{`D:\bizarre`, "virtualbox", vb},
+		{`D:\bizarre`, "vmware", vw},
+		{`D:\bizarre`, "vmware", nil},
+	} {
+		if got := hypNameForScan(tc.pick, tc.prim); got != tc.want {
+			t.Errorf("hypNameForScan(%q) = %q, want %q", tc.pick, got, tc.want)
 		}
 	}
 }

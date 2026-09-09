@@ -2,6 +2,8 @@ package kit
 
 import (
 	"strings"
+
+	"github.com/Realms4239/cgo/internal/vm"
 )
 
 // Guest — prépare TOUT côté invité via le script embarqué guest-setup.sh
@@ -9,12 +11,25 @@ import (
 // openssh-server, outils invité, sshd, ufw 22+dashboard, binaire, dashboard
 // TLS + santé. Idempotent (le script ne réinstalle que le manquant).
 // check=true : audit lecture seule (--check), code 1 + liste si manque.
-func (r *Runner) Guest(c *Config, check bool) int {
+// Hôte vide/auto : résolu via le pilote du chemin (VM verrouillée) et
+// persisté — plus de « hôte vide » alors que la VM est connue.
+func (r *Runner) Guest(c *Config, cfgPath string, check bool) int {
 	if !r.ensureSSHClient() {
 		return 2
 	}
-	if strings.TrimSpace(c.SSHHost) == "" {
-		r.errf("[guest] hôte vide — verrouillez la VM / configurez ssh_host d'abord")
+	if strings.TrimSpace(c.SSHHost) == "" || c.SSHHost == "auto" {
+		if c.VMXPath != "" {
+			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMXPath); err == nil {
+				if ip := h.GuestIP(c.VMXPath); ip != "" {
+					c.SSHHost = ip
+					_ = SaveSSHTarget(cfgPath, "", ip, "", "")
+					r.out("[guest] hôte résolu : %s", ip)
+				}
+			}
+		}
+	}
+	if strings.TrimSpace(c.SSHHost) == "" || c.SSHHost == "auto" {
+		r.errf("[guest] hôte vide — verrouillez la VM (allumée, additions invité) puis relancez")
 		return 2
 	}
 	script := findKitFile(r, "guest-setup.sh")

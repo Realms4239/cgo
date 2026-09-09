@@ -34,7 +34,7 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	exe := filepath.Join(r.Root, "cgo.exe")
 	if _, err := exec.LookPath("go"); err == nil {
 		r.out("[package] compilation fraîche de cgo.exe (windows/amd64)…")
-		cmd := exec.Command("go", "build", "-o", exe, "./cmd/cgo")
+		cmd := bgCmd("go", "build", "-o", exe, "./cmd/cgo")
 		cmd.Dir = r.Root
 		cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64")
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -111,7 +111,7 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	if _, err := exec.LookPath("go"); err == nil {
 		r.out("[package] compagnon linux pour deploy VM…")
 		tmpLin := filepath.Join(outDir, "cgo-linux-pkg.exe-tmp")
-		cmd := exec.Command("go", "build", "-o", tmpLin, "./cmd/cgo")
+		cmd := bgCmd("go", "build", "-o", tmpLin, "./cmd/cgo")
 		cmd.Dir = r.Root
 		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -131,7 +131,7 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	if _, err := exec.LookPath("go"); err == nil {
 		r.out("[package] mini-GUI Windows…")
 		tmpGUI := filepath.Join(outDir, "cgo-gui-pkg.exe-tmp")
-		cmd := exec.Command("go", "build", "-ldflags", "-H windowsgui", "-o", tmpGUI, "./cmd/cgo-gui")
+		cmd := bgCmd("go", "build", "-ldflags", "-H windowsgui", "-o", tmpGUI, "./cmd/cgo-gui")
 		cmd.Dir = r.Root
 		cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64")
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -249,7 +249,7 @@ func (r *Runner) packageLinux() int {
 		return 2
 	}
 	r.out("[package] cross-compile linux/amd64…")
-	cmd := exec.Command("go", "build", "-o", bin, "./cmd/cgo")
+	cmd := bgCmd("go", "build", "-o", bin, "./cmd/cgo")
 	cmd.Dir = r.Root
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
 	if out, err := cmd.CombinedOutput(); err != nil {

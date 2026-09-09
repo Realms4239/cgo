@@ -2,7 +2,6 @@ package kit
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 )
 
@@ -58,7 +57,7 @@ func (r *Runner) Schedule(c *Config, at, profiles, qdiscs, ccs, direction string
 		// via sshCmd (pas de ssh artisanal) : BatchMode + timeouts + mux
 		// unifiés — un ssh nu ici pendait le schedule sans limite.
 		base := c.sshCmd()
-		cat := exec.Command(base[0], append(base[1:], "cat > /tmp/"+name)...)
+		cat := bgCmd(base[0], append(base[1:], "cat > /tmp/"+name)...)
 		cat.Stdin = strings.NewReader(content)
 		if out, err := cat.CombinedOutput(); err != nil {
 			r.errf("[schedule] écriture %s: %v (%s)", name, err, string(out))

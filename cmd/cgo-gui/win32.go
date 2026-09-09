@@ -60,6 +60,7 @@ const (
 	esMultiline  = 0x0004
 	esReadonly   = 0x0800
 	esAutovscroll = 0x0040
+	esAutohscroll = 0x0080
 
 	ssLeft = 0x0000
 

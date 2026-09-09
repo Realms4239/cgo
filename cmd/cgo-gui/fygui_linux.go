@@ -42,6 +42,7 @@ type fyApp struct {
 	jScroll *container.Scroll
 	status  *widget.Label
 	sshLbl  *widget.Label
+	userEdit *widget.Entry
 	dashLbl *widget.Label
 	lockLbl *widget.Label
 	vmList  *widget.List
@@ -307,6 +308,18 @@ func (f *fyApp) dispatch(id int) {
 	switch {
 	case kind == "direct:lock":
 		f.lockSelected()
+	case kind == "direct:saveuser":
+		u := strings.TrimSpace(f.userEdit.Text)
+		if u == "" {
+			f.log("utilisateur vide — tapez le nom Ubuntu puis Sauver")
+			return
+		}
+		if err := kit.SaveSSHTarget(f.cfgPth, u, "", "", ""); err != nil {
+			f.log("sauvegarde : " + err.Error())
+			return
+		}
+		f.log("utilisateur SSH : " + u + " — Diagnostiquer pour vérifier")
+		f.refreshStatus()
 	case kind == "direct:open":
 		_ = exec.Command("xdg-open", f.dashURL()).Start()
 		f.log("navigateur → " + f.dashURL())
@@ -372,7 +385,7 @@ func (f *fyApp) dispatch(id int) {
 			return 5
 		})
 	case kind == "bg:guest":
-		f.runBg("invité", func(r *kit.Runner) int { return r.Guest(f.loadCfg(), false) })
+		f.runBg("invité", func(r *kit.Runner) int { return r.Guest(f.loadCfg(), f.cfgPth, false) })
 	case kind == "bg:vnet":
 		f.runBg("réseau-hôte", func(r *kit.Runner) int { return r.Vnet(f.loadCfg()) })
 	case kind == "console:keysetup":
@@ -442,6 +455,16 @@ func (f *fyApp) buildUI() {
 
 	f.lockLbl = widget.NewLabel("Aucune machine verrouillée.")
 	f.sshLbl = widget.NewLabel("SSH : —")
+	f.userEdit = widget.NewEntry()
+	f.userEdit.SetPlaceHolder("utilisateur Ubuntu (ex. fanasina)")
+	if u := cfgSSHUser(f.cfgPth); u != "" {
+		f.userEdit.SetText(u)
+	}
+	userRow := container.NewHBox(
+		widget.NewLabel("Utilisateur :"),
+		f.userEdit,
+		widget.NewButton("Sauver", func() { f.dispatch(248) }),
+	)
 	f.dashLbl = widget.NewLabel("Dashboard : —")
 	f.journal = widget.NewMultiLineEntry()
 	f.journal.Disable()
@@ -456,6 +479,7 @@ func (f *fyApp) buildUI() {
 		f.lockLbl,
 		widget.NewLabel("Accès SSH — diagnostiquer, clé, boot"),
 		f.sshLbl,
+		userRow,
 		mkRow(accessActions),
 		widget.NewLabel("Déployer"),
 		f.dashLbl,

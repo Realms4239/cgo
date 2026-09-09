@@ -262,7 +262,7 @@ func (r *Runner) Backup(c *Config, dest string) int {
 	local := filepath.Join(dest, "runs-"+stamp+".tar.gz")
 	// scp : c.SCP pousse local→distant ; ici il faut l'inverse : ssh cat.
 	key := expandKey(c.SSHKey)
-	cat := exec.Command("ssh", "-o", "ConnectTimeout=6", "-p", c.SSHPort, "-i", key,
+	cat := bgCmd("ssh", "-o", "ConnectTimeout=6", "-p", c.SSHPort, "-i", key,
 		c.SSHUser+"@"+c.SSHHost, "cat "+shq(remote))
 	f, err := os.Create(local)
 	if err != nil {
@@ -426,7 +426,7 @@ func expandKey(k string) string {
 }
 
 func runCmd(exe string, args ...string) (string, error) {
-	out, err := exec.Command(exe, args...).CombinedOutput()
+	out, err := bgCmd(exe, args...).CombinedOutput()
 	return string(out), err
 }
 

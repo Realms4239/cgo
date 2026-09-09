@@ -136,7 +136,7 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 				check = true
 			}
 		}
-		return r.Guest(c, check)
+		return r.Guest(c, *cfgPath, check)
 	case "tui":
 		return runKitTUI(*cfgPath, version)
 	case "snapshots":

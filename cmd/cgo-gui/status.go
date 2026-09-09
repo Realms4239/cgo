@@ -90,3 +90,20 @@ func (a *app) onScanDone() {
 	a.setStatus("Prêt.")
 	a.appendLog("✓ scan terminé")
 }
+
+// saveUser — enregistre l'utilisateur Ubuntu tapé (le chaînon manquant :
+// sans ssh_user, diagnostic + invité + deploy avortent avec des messages
+// qui n'expliquent pas où le renseigner — ICI).
+func (a *app) saveUser() {
+	u := strings.TrimSpace(getText(a.userEdit))
+	if u == "" {
+		a.appendLog("utilisateur vide — tapez le nom Ubuntu (ex. fanasina) puis Sauver")
+		return
+	}
+	if err := kit.SaveSSHTarget(a.cfgPath, u, "", "", ""); err != nil {
+		a.appendLog("sauvegarde : " + err.Error())
+		return
+	}
+	a.appendLog("utilisateur SSH : " + u + " — Diagnostiquer pour vérifier")
+	go a.refreshStatus()
+}

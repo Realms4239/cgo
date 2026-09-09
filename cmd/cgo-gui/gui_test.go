@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -58,10 +59,26 @@ func TestGUIConsoleActions(t *testing.T) {
 
 // Nouveaux boutons intégration scripts : mappés, jamais muets.
 func TestGUIScriptButtons(t *testing.T) {
-	for id, want := range map[int]string{245: "bg:hosttun", 246: "bg:guest", 247: "bg:vnet"} {
+	for id, want := range map[int]string{245: "bg:hosttun", 246: "bg:guest", 247: "bg:vnet", 248: "direct:saveuser"} {
 		kind, _ := buttonAction(id)
 		if kind != want {
 			t.Errorf("bouton %d : %q, voulu %q", id, kind, want)
 		}
+	}
+}
+
+// cfgSSHUser — lecture pure du yaml, sans hyperviseur ni réseau.
+func TestCfgSSHUser(t *testing.T) {
+	dir := t.TempDir()
+	p := dir + "/cgo-vm.yaml"
+	yml := "ssh:\n  user: fanasina\n  host: auto\n  port: 22\nvm_name: \"ubuntu Fanasina\"\n"
+	if err := os.WriteFile(p, []byte(yml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := cfgSSHUser(p); got != "fanasina" {
+		t.Fatalf("got %q, want fanasina", got)
+	}
+	if got := cfgSSHUser(dir + "/absent.yaml"); got != "" {
+		t.Fatalf("manquant → vide, got %q", got)
 	}
 }

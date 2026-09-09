@@ -230,6 +230,8 @@ func buttonAction(id int) (string, []string) {
 		return "bg:guest", nil
 	case 247:
 		return "bg:vnet", nil
+	case 248:
+		return "direct:saveuser", nil
 	}
 	return "", nil
 }
@@ -250,7 +252,7 @@ func mkKeyGUI(c *kit.Config, r *kit.Runner) int {
 		return 2
 	}
 	_ = os.MkdirAll(filepath.Dir(key), 0700)
-	cmd := exec.Command("ssh-keygen", "-t", "ed25519", "-N", "", "-f", key, "-q")
+	cmd := kit.BgCmd("ssh-keygen", "-t", "ed25519", "-N", "", "-f", key, "-q")
 	cmd.Stdout, cmd.Stderr = r.Stdout, r.Stderr
 	if err := cmd.Run(); err != nil {
 		return 2
@@ -437,7 +439,7 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 	fmt.Fprintln(r.Stdout, ok+" port "+port+" ouvert sur "+host)
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4",
+	cmd := kit.BgCmdCtx(ctx, "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4",
 		"-o", "StrictHostKeyChecking=accept-new", "-p", port, "-i", key,
 		c.SSHUser+"@"+host, "true")
 	if out, err := cmd.CombinedOutput(); err == nil {
@@ -575,6 +577,33 @@ func (g *cfgCache) note(ip string) {
 	g.mu.Lock()
 	g.host, g.at = ip, time.Now()
 	g.mu.Unlock()
+}
+
+// cfgSSHUser — lit le seul ssh_user du yaml (fichier seul, millisecondes,
+// JAMAIS d'hyperviseur/réseau) : pré-remplit le champ utilisateur des GUI
+// sans pendre le thread UI (LoadConfig résoudrait l'IP invitée via vmrun).
+func cfgSSHUser(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	inSSH := false
+	for _, raw := range strings.Split(string(b), "\n") {
+		ln := strings.TrimSpace(strings.Split(raw, "#")[0])
+		if ln == "" {
+			continue
+		}
+		if !strings.HasPrefix(raw, " ") && !strings.HasPrefix(raw, "\t") {
+			inSSH = ln == "ssh:"
+			continue
+		}
+		if inSSH {
+			if i := strings.Index(ln, ":"); i > 0 && strings.TrimSpace(ln[:i]) == "user" {
+				return strings.Trim(strings.TrimSpace(ln[i+1:]), `"'`)
+			}
+		}
+	}
+	return ""
 }
 
 // hostTunCmd — invoque le script embarqué host-tunnel.ps1 (7 étapes :
