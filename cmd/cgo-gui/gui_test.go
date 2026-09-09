@@ -22,7 +22,7 @@ func TestGUIButtonMap(t *testing.T) {
 		}
 	}
 	// actions critiques présentes
-	for _, want := range []string{"bg:scan", "bg:deploy", "bg:diag", "bg:mkkey", "console:keysetup", "bg:ensure", "bg:svc", "bg:nic-toggle"} {
+	for _, want := range []string{"bg:scan", "bg:deploy", "bg:diag", "bg:mkkey", "console:keysetup", "bg:ensure", "bg:svc", "bg:nic-toggle", "bg:nic"} {
 		found := false
 		for _, group := range [][]buttonDef{groupActions, accessActions, deployActions, controlActions} {
 			for _, b := range group {
@@ -132,5 +132,38 @@ func TestShortDiagSSHUser(t *testing.T) {
 	}
 	if got := shortDiag("dial tcp: connection refused"); got != "port 22 fermé" {
 		t.Fatalf("regression refused : %q", got)
+	}
+}
+
+// TestAllVerbsHandled — régression incident v1.2.12 (bouton 204 bg:nic
+// mappé mais sans case dans les switches : clic muet). Chaque verbe que
+// buttonAction peut retourner doit avoir un `case kind == "verbe":` dans
+// Win32 runKind (actions.go) ET Fyne dispatchKind (fygui_linux.go).
+func TestAllVerbsHandled(t *testing.T) {
+	verbs := map[string]bool{}
+	for id := 0; id < 400; id++ {
+		if kind, _ := buttonAction(id); kind != "" {
+			verbs[kind] = true
+		}
+	}
+	if len(verbs) == 0 {
+		t.Fatal("aucun verbe collecté — buttonAction injoignable ?")
+	}
+	win, err := os.ReadFile("actions.go")
+	if err != nil {
+		t.Fatalf("lecture actions.go : %v", err)
+	}
+	fy, err := os.ReadFile("fygui_linux.go")
+	if err != nil {
+		t.Fatalf("lecture fygui_linux.go : %v", err)
+	}
+	for verb := range verbs {
+		needle := `case kind == "` + verb + `":`
+		if !strings.Contains(string(win), needle) {
+			t.Errorf("verbe %q sans case dans Win32 runKind (actions.go)", verb)
+		}
+		if !strings.Contains(string(fy), needle) {
+			t.Errorf("verbe %q sans case dans Fyne dispatchKind (fygui_linux.go)", verb)
+		}
 	}
 }

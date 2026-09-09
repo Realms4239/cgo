@@ -48,6 +48,7 @@ type app struct {
 	cfgPath    string
 	mu         sync.Mutex
 	busy       string
+	btns       []windows.HWND // boutons d'action (grisés pendant busy)
 	pending    []string
 	logText    []string
 	logDirty   bool

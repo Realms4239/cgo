@@ -119,9 +119,7 @@ func (a *app) onDone() {
 	if d == nil {
 		return
 	}
-	a.mu.Lock()
-	a.busy = ""
-	a.mu.Unlock()
+	a.setBusy("")
 	if d.code == 0 {
 		a.appendLog("✓ " + d.label + " terminé")
 	} else {
@@ -160,6 +158,24 @@ func (a *app) loadCfg() *kit.Config { return a.cfg.load(a.cfgPath) }
 
 func (a *app) noteHost(ip string) { a.cfg.note(ip) }
 
+// setBusy — état occupant + grise/réactive les boutons d'action.
+// Appelé depuis le thread UI (handlers) et depuis la goroutine de fin
+// de scan — EnableWindow vers nos propres fenêtres est servi par la
+// pompe (invariante LockOSThread), donc sans interblocage.
+func (a *app) setBusy(label string) {
+	a.mu.Lock()
+	a.busy = label
+	btns := a.btns
+	a.mu.Unlock()
+	var en uintptr
+	if label == "" {
+		en = 1
+	}
+	for _, b := range btns {
+		pEnableWindow.Call(uintptr(b), en)
+	}
+}
+
 // runKit — action kit NON interactive en fond (sortie streamée).
 func (a *app) runKit(label string, fn func(r *kit.Runner) int) {
 	a.mu.Lock()
@@ -169,8 +185,8 @@ func (a *app) runKit(label string, fn func(r *kit.Runner) int) {
 		a.appendLog("patience — « " + busy + " » tourne déjà")
 		return
 	}
-	a.busy = label
 	a.mu.Unlock()
+	a.setBusy(label)
 	a.setStatus("◌ " + label + " …")
 	a.appendLog("▸ " + label + " …")
 	go func() {
@@ -192,8 +208,8 @@ func (a *app) runKitConsole(label string, args ...string) {
 		a.appendLog("patience — « " + busy + " » tourne déjà")
 		return
 	}
-	a.busy = label
 	a.mu.Unlock()
+	a.setBusy(label)
 	a.setStatus("◌ " + label + " (console) …")
 	a.appendLog("▸ " + label + " — tapez dans la console noire, fermez-la au retour …")
 	go func() {
@@ -293,15 +309,11 @@ func (a *app) runKind(kind string, args []string) {
 		a.appendLog("navigateur → " + a.dashURL())
 	case kind == "bg:scan":
 		a.appendLog("▸ scan des VMs …")
-		a.mu.Lock()
-		a.busy = "scan"
-		a.mu.Unlock()
+		a.setBusy("scan")
 		a.setStatus("◌ scan …")
 		go func() {
 			a.refreshVMs()
-			a.mu.Lock()
-			a.busy = ""
-			a.mu.Unlock()
+			a.setBusy("")
 			// PAS de wmAppDone2 ici : refreshVMs le poste déjà
 			// (wmAppVMs + wmAppDone2) — doublon = « ✓ scan terminé » × 2.
 		}()
@@ -345,6 +357,8 @@ func (a *app) runKind(kind string, args []string) {
 		a.runKit("vm-stop", func(r *kit.Runner) int { return vmPowerGUI(a.loadCfg(), r, false) })
 	case kind == "bg:nic-toggle":
 		a.runKit("nic-toggle", func(r *kit.Runner) int { return nicToggleGUI(a.loadCfg(), r, a.cfgPath) })
+	case kind == "bg:nic":
+		a.runKit("nic-nat", func(r *kit.Runner) int { return r.Nic(a.loadCfg(), a.cfgPath, args, true) })
 	case kind == "bg:hosttun":
 		a.runKit("tunnel-hôte", func(r *kit.Runner) int {
 			c := a.loadCfg()

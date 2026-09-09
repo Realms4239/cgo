@@ -98,9 +98,7 @@ func orDash(s string) string {
 }
 
 func (a *app) onScanDone() {
-	a.mu.Lock()
-	a.busy = ""
-	a.mu.Unlock()
+	a.setBusy("")
 	a.setStatus("Prêt.")
 	a.appendLog("✓ scan terminé")
 }

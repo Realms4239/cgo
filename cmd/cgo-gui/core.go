@@ -352,9 +352,12 @@ func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
 	if start {
 		// Attend l'IP invitée (boot) : sans ça l'utilisateur clique
 		// « Démarrer » puis « Déployer » 3 s plus tard et échoue.
+		// Progression journalisée (sinon 90 s de silence passent pour un freeze).
 		deadline := time.Now().Add(90 * time.Second)
+		tries := 0
 		for time.Now().Before(deadline) {
 			time.Sleep(5 * time.Second)
+			tries++
 			if ip := hyp.GuestIP(c.VMPath()); ip != "" {
 				fmt.Fprintln(w, "VM en ligne, IP : "+ip)
 				if host := c.SSHHost; host == "" || host == "auto" || host != ip {
@@ -365,6 +368,9 @@ func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
 			if !vmRunningGUI(hyp, c.VMPath()) {
 				fmt.Fprintln(w, "VM éteinte à nouveau — vérifiez le disque/BIOS dans la console")
 				return 4
+			}
+			if tries%3 == 0 {
+				fmt.Fprintf(w, "… attente IP invitée (%ds)\n", tries*5)
 			}
 		}
 		fmt.Fprintln(w, "IP non vue en 90 s (tools pas encore prêts ?) — l'état SSH se rafraîchira seul")
