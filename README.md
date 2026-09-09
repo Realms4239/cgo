@@ -1,4 +1,4 @@
-# Meteolink [![version](https://img.shields.io/badge/version-1.2.10-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
+# Meteolink [![version](https://img.shields.io/badge/version-1.2.11-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
 
 ## Qu'est-ce que c'est ?
 

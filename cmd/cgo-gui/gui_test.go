@@ -4,6 +4,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/Realms4239/cgo/internal/kit"
+	"github.com/Realms4239/cgo/internal/vm"
 )
 
 // Exhaustivité : chaque bouton câblé a une action, chaque action existe.
@@ -80,5 +83,54 @@ func TestCfgSSHUser(t *testing.T) {
 	}
 	if got := cfgSSHUser(dir + "/absent.yaml"); got != "" {
 		t.Fatalf("manquant → vide, got %q", got)
+	}
+}
+
+// fakeHyp — pilote factice : seul Name() compte pour hypForDrivers.
+type fakeHyp struct{ name string }
+
+func (f *fakeHyp) Name() string              { return f.name }
+func (f *fakeHyp) Exe() string               { return "" }
+func (f *fakeHyp) Running() []string         { return nil }
+func (f *fakeHyp) Start(vmx string) error    { return nil }
+func (f *fakeHyp) StartGUI(vmx string) error { return nil }
+func (f *fakeHyp) Stop(vmx string) error     { return nil }
+func (f *fakeHyp) GuestIP(vmx string) string { return "" }
+func (f *fakeHyp) NetMode(vmx string) string { return "" }
+func (f *fakeHyp) SetNetMode(vmx, mode string) error { return nil }
+
+// hypForDrivers — l'extension gagne sur l'ordre de détection ET sur le
+// nom configuré : un .vbox ne part jamais chez vmrun (bug racine GUI).
+func TestHypForDrivers(t *testing.T) {
+	vw := &fakeHyp{name: "vmware"}
+	vb := &fakeHyp{name: "virtualbox"}
+	hs := []vm.Hypervisor{vw, vb} // vmware DÉTECTÉ EN PREMIER (pire cas)
+	mkCfg := func(path, hyp string) *kit.Config {
+		return &kit.Config{VMXPath: path, VBoxPath: "", Hypervisor: hyp}
+	}
+	if h := hypForDrivers(hs, mkCfg(`D:\VMs\ubuntu Fanasina\ubuntu Fanasina.vbox`, "vmware")); h == nil || h.Name() != "virtualbox" {
+		t.Fatalf(".vbox + detect[vmware..] + config vmware → virtualbox, got %v", h)
+	}
+	if h := hypForDrivers(hs, mkCfg(`D:\ubuntu.vmx`, "virtualbox")); h == nil || h.Name() != "vmware" {
+		t.Fatalf(".vmx + config virtualbox → vmware, got %v", h)
+	}
+	if h := hypForDrivers(hs, mkCfg("", "")); h == nil || h.Name() != "vmware" {
+		t.Fatalf("sans chemin → premier détecté, got %v", h)
+	}
+	if h := hypForDrivers(nil, mkCfg(`D:\x.vbox`, "")); h != nil {
+		t.Fatalf("aucun pilote → nil, got %v", h)
+	}
+	if h := hypForDrivers([]vm.Hypervisor{vb}, mkCfg(`D:\x.vbox`, "")); h == nil || h.Name() != "virtualbox" {
+		t.Fatalf("seul vbox détecté → virtualbox, got %v", h)
+	}
+}
+
+// shortDiag — le sentinel utilisateur vide a son libellé (pas « voir journal »).
+func TestShortDiagSSHUser(t *testing.T) {
+	if got := shortDiag("ssh_user vide"); got != "utilisateur vide" {
+		t.Fatalf("got %q", got)
+	}
+	if got := shortDiag("dial tcp: connection refused"); got != "port 22 fermé" {
+		t.Fatalf("regression refused : %q", got)
 	}
 }

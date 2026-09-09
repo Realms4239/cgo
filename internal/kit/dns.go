@@ -2,7 +2,6 @@ package kit
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"runtime"
 	"strings"
@@ -23,8 +22,9 @@ func (r *Runner) DNS(c *Config) int {
 	if name == "" {
 		name = "meteolink.dev"
 	}
-	// déjà bon ? ne rien toucher
-	if addrs, err := net.LookupHost(name); err == nil {
+	// déjà bon ? ne rien toucher (résolution bornée : le DNS externe
+	// injoignable pendait ici en silence — vu en prod sur `kit dns`).
+	if addrs, err := lookupHostFast(name); err == nil {
 		for _, a := range addrs {
 			if a == ip {
 				r.out("[dns] %s → %s déjà mappé", name, ip)
@@ -76,8 +76,8 @@ func (r *Runner) DNS(c *Config) int {
 		r.errf("[dns]   %s %s", ip, name)
 		return 8
 	}
-	// vérification : le nom doit résoudre vers l'IP
-	if addrs, err := net.LookupHost(name); err != nil {
+	// vérification : le nom doit résoudre vers l'IP (bornée, idem)
+	if addrs, err := lookupHostFast(name); err != nil {
 		r.errf("[dns] écrit mais %s ne résout pas (%v) — cache DNS ? ipconfig /flushdns", name, err)
 		return 8
 	} else {

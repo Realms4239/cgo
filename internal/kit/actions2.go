@@ -148,11 +148,23 @@ func (r *Runner) SSHInteractive(c *Config) int {
 // Ps — rafraîchit le processus serveur + santé toutes les 2 s ; q pour sortir.
 func (r *Runner) Ps(c *Config) int {
 	r.out("[ps] Ctrl-C pour sortir")
+	bad := 0
 	for {
 		out, err := c.SSH("ps -o pid,etime,pcpu,pmem,cmd -C cgo-linux --no-headers 2>/dev/null || pgrep -af cgo-linux")
 		if err != nil {
-			r.out("\r\033[K[ps] SSH injoignable")
+			bad++
+			if bad == 1 {
+				// Une fois, pas en boucle : le spam « injoignable » noyait
+				// le journal (vu en prod). 5 échecs de suite → sortie 5.
+				r.sshDiag("[ps]", out)
+			} else {
+				r.out("\r\033[K[ps] SSH injoignable (%d/5)", bad)
+			}
+			if bad >= 5 {
+				return 5
+			}
 		} else {
+			bad = 0
 			health := "KO"
 			if c.Health() {
 				health = "OK"
@@ -170,6 +182,13 @@ func (r *Runner) Ps(c *Config) int {
 // Svc — start : lance (idempotent) + attend la santé 15 s ; stop : coupe et
 // vérifie ; restart : stop + start ; status (défaut) : processus + santé.
 func (r *Runner) Svc(c *Config, sub string) int {
+	// Sonde d'abord : sans elle, le texte d'erreur SSH passait pour des
+	// pids (« arrêt incomplet » sur VM injoignable — vu en prod).
+	probe, probeErr := c.SSH("true")
+	if probeErr != nil {
+		r.sshDiag("[svc]", probe)
+		return 5
+	}
 	procs, _ := c.SSH(`pgrep -u "$USER" -f '[c]go-linux --serve' | tr '\n' ' '`)
 	procs = strings.TrimSpace(procs)
 	switch sub {

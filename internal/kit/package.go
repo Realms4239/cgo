@@ -46,7 +46,15 @@ func (r *Runner) Package(c *Config, rest []string) int {
 		r.errf("[package] ni Go (compilation impossible) ni cgo.exe présent — construisez d'abord (go build -o cgo.exe ./cmd/cgo)")
 		return 2
 	} else {
-		r.out("[package] Go absent : on embarque le cgo.exe existant (vérifiez qu'il est à jour)")
+		// Sourceless explicit : le dossier cmd/cgo est la preuve de source.
+		// Sans lui NI Go, le zip embarquerait un cgo.exe d'âge inconnu —
+		// dire lequel, au lieu d'un repli muet (poste opérateur du zip).
+		if _, err := os.Stat(filepath.Join(r.Root, "cmd", "cgo")); err != nil {
+			ver := selfVersion()
+			r.out("[package] poste SANS source ni Go — j'embarque le cgo.exe présent (version %s ; c'est la version testée du zip, rien à faire)", ver)
+		} else {
+			r.out("[package] Go absent avec source présente : installez Go 1.25+ pour compiler, sinon j'embarque le cgo.exe existant (vérifiez qu'il est à jour)")
+		}
 	}
 	outDir := filepath.Join(r.Root, "dist")
 	if err := os.MkdirAll(outDir, 0755); err != nil {
@@ -202,6 +210,15 @@ func Readme() string {
 		return pcReadme()
 	}
 	return linuxReadme()
+}
+
+// selfVersion — version embarquée à la compilation (cmd/cgo la lie via
+// -ldflags ; repli local si absent). Pour le message sourceless.
+func selfVersion() string {
+	if v := os.Getenv("CGO_VERSION"); v != "" {
+		return v
+	}
+	return "inconnue"
 }
 
 func pcReadme() string {

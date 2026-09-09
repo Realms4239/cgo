@@ -108,6 +108,27 @@ func TestLoadConfigEnvOverridesYAML(t *testing.T) {
 	}
 }
 
+// LoadConfigFast — même parse que LoadConfig, SANS résolution réseau :
+// même avec host:auto + un chemin VM, aucun subprocess (garantie thread UI).
+func TestLoadConfigFastNoResolve(t *testing.T) {
+	dir := t.TempDir()
+	yaml := dir + "/cgo-vm.yaml"
+	yml := "ssh:\n  user: testuser\n  host: auto\n  port: \"22\"\nvm_name: \"ubu\"\nvmx_path: \"D:/VMs/ubu/ubu.vmx\"\ndashboard_host: \"meteolink.dev\"\n"
+	if err := os.WriteFile(yaml, []byte(yml), 0644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := LoadConfigFast(yaml)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SSHHost != "auto" {
+		t.Errorf("SSHHost = %q, want auto (pas de résolution en Fast)", c.SSHHost)
+	}
+	if c.SSHUser != "testuser" || c.VMName != "ubu" || c.DashHost != "meteolink.dev" {
+		t.Errorf("parse incomplet : %+v", c)
+	}
+}
+
 // shq — un chemin distant avec espace, quote, $ ou ; doit survivre au
 // shell distant intact (vérifié en rejouant via sh -c sur le poste).
 func TestShq(t *testing.T) {
@@ -274,6 +295,21 @@ func TestHypNameForScan(t *testing.T) {
 	} {
 		if got := hypNameForScan(tc.pick, tc.prim); got != tc.want {
 			t.Errorf("hypNameForScan(%q) = %q, want %q", tc.pick, got, tc.want)
+		}
+	}
+}
+
+// keepExplicitTarget — le forward NAT manuel (loopback) est sacré :
+// l'auto-découverte ne l'écrase jamais, même avec une IP invitée valide.
+func TestKeepExplicitTarget(t *testing.T) {
+	for host, want := range map[string]bool{
+		"127.0.0.1": true, "127.0.0.2": true, "localhost": true,
+		"::1": true, "[::1]": true, "  127.0.0.1  ": true,
+		"192.168.174.128": false, "10.0.2.15": false, "": false,
+		"auto": false, "meteolink.dev": false,
+	} {
+		if got := keepExplicitTarget(host); got != want {
+			t.Errorf("keepExplicitTarget(%q) = %v, want %v", host, got, want)
 		}
 	}
 }

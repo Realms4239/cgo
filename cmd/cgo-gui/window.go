@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -115,7 +114,10 @@ func wndProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 		a.tick++
 		// balayage lent toutes les ~30 s seulement : un SSH toutes les
 		// 200 ms serait une tempête (5 connexions/s vers la VM).
-		if a != nil && a.busy == "" && a.tick%150 == 0 {
+		a.mu.Lock()
+		idle := a.busy == ""
+		a.mu.Unlock()
+		if a != nil && idle && a.tick%150 == 0 {
 			go a.refreshStatus()
 		}
 		return 0
@@ -214,5 +216,4 @@ func (a *app) buildControls() {
 	a.logEdit = a.mkCtl("EDIT", "", esMultiline|esReadonly|esAutovscroll|wsVscroll|wsBorder|wsTabstop, 16, y+24, 880, 112, idLog)
 	a.status = a.mkCtl("STATIC", "Prêt.", 0, 16, y+142, 880, 18, idStatus)
 	a.nextLbl = a.mkCtl("STATIC", "→ Prochaine : …", 0, 16, y+160, 880, 18, idNext)
-	_ = strings.TrimSpace("")
 }

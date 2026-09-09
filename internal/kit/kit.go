@@ -6,6 +6,7 @@
 package kit
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -66,6 +67,17 @@ func env(key, def string) string {
 // LoadConfig lit le yaml (sous-ensemble clé: valeur), applique les défauts
 // puis les surcharges d'environnement — une seule source par priorité.
 func LoadConfig(path string) (*Config, error) {
+	return loadConfig(path, true)
+}
+
+// LoadConfigFast — parse seul, SANS résolution GuestIP (pas de subprocess,
+// pas de réseau) : pour le thread UI (dashURL) et les vues. Le cache
+// cfgCache des GUI superpose l'hôte connu.
+func LoadConfigFast(path string) (*Config, error) {
+	return loadConfig(path, false)
+}
+
+func loadConfig(path string, resolve bool) (*Config, error) {
 	c := &Config{
 		// PAS d'identité par défaut : ni utilisateur, ni IP, ni chemin home.
 		// Un produit qui suppose « altfloat@192.168.174.131 » configure la
@@ -175,7 +187,8 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	// host auto → IP invitée via LE PILOTE DU CHEMIN (jamais le primaire
 	// aveugle : Primary()=vmware sur un .vbox interrogeait vmrun pour rien).
-	if c.SSHHost == "auto" {
+	// Sauté en mode Fast (vues UI) : aucun subprocess sur le thread UI.
+	if resolve && c.SSHHost == "auto" {
 		c.SSHHost = env("CGO_VM_IP", "")
 		if c.VMPath() != "" {
 			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath()); err == nil {
@@ -338,10 +351,18 @@ func muxSocket(host, port string) string {
 }
 
 func (c *Config) SSH(cmdLine string) (string, error) {
+	// Garde anti-dump : sans ssh_user, ssh crache son usage brut sur
+	// stderr — chaque action affichait ce pavé (vu en prod sur status).
+	// Un sentinel classé « config » donne le remède partout, d'un coup.
+	if strings.TrimSpace(c.SSHUser) == "" {
+		return "ssh_user vide", errNoSSHUser
+	}
 	args := append(c.sshCmd(), cmdLine)
 	out, err := bgCmd(args[0], args[1:]...).CombinedOutput()
 	return string(out), err
 }
+
+var errNoSSHUser = errors.New("ssh_user vide — renseignez-le (GUI : champ Utilisateur + Sauver, ou cgo kit keysetup --user …)")
 
 // ensureSSHClient — le client SSH local existe-t-il ? Sinon, sur Linux,
 // l'installer (sudo apt, stdio hérité pour le mot de passe) plutôt que de
@@ -377,6 +398,25 @@ func (c *Config) SSHUp() bool {
 	return err == nil
 }
 
+// keepExplicitTarget — une cible loopback (127./localhost/::1) est un
+// montage NAT explicite de l'opérateur : l'auto-découverte ne doit JAMAIS
+// l'écraser par l'IP invitée brute (sinon boucle 10.0.2.15:2222 — vu en
+// prod : ensure sabotait le yaml qui marchait, et deploy héritait).
+func keepExplicitTarget(host string) bool {
+	h := strings.TrimSpace(host)
+	return strings.HasPrefix(h, "127.") || h == "localhost" || h == "::1" ||
+		strings.HasPrefix(h, "[::1]")
+}
+
+// lookupHostFast — résolution bornée (4 s) : net.LookupHost nu peut
+// pendre des dizaines de secondes (DNS externes injoignables, domaines
+// search) — perçu comme un freeze (vu en prod sur `kit dns`).
+func lookupHostFast(name string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	return net.DefaultResolver.LookupHost(ctx, name)
+}
+
 // portOpen — dial TCP court : distingue « sshd absent » (fermé) de
 // « VM éteinte/réseau coupé » (timeout), sans passer par ssh.
 func portOpen(host, port string) bool {
@@ -397,6 +437,8 @@ func classifySSHError(out string) string {
 	switch {
 	case o == "":
 		return ""
+	case strings.Contains(o, "ssh_user vide"):
+		return "config"
 	case strings.Contains(o, "connection refused"):
 		return "refused"
 	case strings.Contains(o, "permission denied"), strings.Contains(o, "authentication"):
@@ -421,6 +463,8 @@ func sshAdvice(class string) string {
 		return "ni l'IP ni le port-forward ne répondent : VM éteinte ou IP changée. Essayer : cgo kit ensure (redécouverte d'IP + boot), puis cgo kit doctor"
 	case "unknown":
 		return "échec SSH non classé : relancer avec cgo kit doctor pour le diagnostic complet"
+	case "config":
+		return "ssh_user vide : renseignez l'utilisateur Ubuntu (GUI : champ Utilisateur + Sauver, ou cgo kit keysetup --user …)"
 	}
 	return ""
 }
@@ -750,35 +794,48 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 		// JAMAIS muet : chaque tentative dit son numéro, sa cible et son
 		// verdict — un silence de 2 min passe pour un freeze (vu en prod).
 		r.out("[ensure] tentative %d/60 (~%ds) : ssh %s:%s…", i+1, i*5, c.SSHHost, c.SSHPort)
-		// 1) la cible actuelle répond ?
-		if c.SSHUp() {
-			r.out("[ensure] SSH actif vers %s:%s après ~%d s", c.SSHHost, c.SSHPort, i*5)
-			return 0
-		}
-		r.out("[ensure] ssh %s:%s sans réponse — autres voies…", c.SSHHost, c.SSHPort)
-		// 2) NAT : essayer le port-forward AVANT toute découverte d'IP.
+		// 1) NAT forward D'ABORD quand il est posé (VBox NAT : l'IP invitée
+		// 10.0.2.x est injoignable depuis l'hôte PAR CONSTRUCTION — la
+		// sonder en premier ne sert qu'à perdre 4 s par tour).
 		if natHost != "" {
 			saved, savedPort := c.SSHHost, c.SSHPort
 			c.SSHHost, c.SSHPort = natHost, natPort
 			if c.SSHUp() {
-				// le port-forward fonctionne : le fixer dans la config
 				r.out("[ensure] SSH actif via NAT %s:%s — config mise à jour", natHost, natPort)
 				_ = setYAMLKey(cfgPath, "host", natHost)
 				_ = setYAMLKey(cfgPath, "port", natPort)
 				return 0
 			}
+			r.out("[ensure] forward %s:%s muet — cible directe…", natHost, natPort)
 			c.SSHHost, c.SSHPort = saved, savedPort
 		}
+		// 2) la cible configurée répond ?
+		if c.SSHUp() {
+			r.out("[ensure] SSH actif vers %s:%s après ~%d s", c.SSHHost, c.SSHPort, i*5)
+			return 0
+		}
+		r.out("[ensure] ssh %s:%s sans réponse — autres voies…", c.SSHHost, c.SSHPort)
 		// 3) IP directe : le bail DHCP a peut-être changé — interroger
 		// l'hyperviseur (getGuestIPAddress / guestproperty) puis le voisinage.
 		// Balayage LARGE (ping de tout le /24) seulement si on n'a AUCUNE
 		// cible : avec une cible configurée, vmrun+ARP suffisent (sinon
 		// chaque itération coûte ~2 min de silence).
+		// RÉÉCRITURE GARDÉE : une cible loopback (forward NAT explicite de
+		// l'opérateur) n'est JAMAIS écrasée par l'IP invitée — sinon boucle
+		// 10.0.2.15:2222 (vu en prod : ensure sabotait le yaml qui marchait).
+		// Hors loopback : on ne remplace que par une IP qui répond (TCP).
 		lost := c.SSHHost == "" || c.SSHHost == "auto"
 		if ip := discoverGuestIP(hyp, vmx, lost); ip != "" && ip != c.SSHHost {
-			r.out("[ensure] IP invitée détectée : %s (config avait %s) — mise à jour", ip, c.SSHHost)
-			c.SSHHost = ip
-			_ = setYAMLKey(cfgPath, "host", ip)
+			switch {
+			case keepExplicitTarget(c.SSHHost):
+				r.out("[ensure] IP invitée vue : %s — cible explicite %s:%s conservée", ip, c.SSHHost, c.SSHPort)
+			case lost || portOpen(ip, c.SSHPort):
+				r.out("[ensure] IP invitée détectée : %s (config avait %s) — mise à jour", ip, c.SSHHost)
+				c.SSHHost = ip
+				_ = setYAMLKey(cfgPath, "host", ip)
+			default:
+				r.out("[ensure] IP vue %s muette — on garde %s", ip, c.SSHHost)
+			}
 		}
 		if (i+1)%6 == 0 {
 			r.out("[ensure] toujours pas de SSH après ~%ds — sshd ? clé ? `kit vnet` pour le réseau hôte (Ctrl+C pour arrêter)", (i+1)*5)
@@ -1157,29 +1214,28 @@ func (r *Runner) Bootstrap(c *Config) int {
 
 // Status — SSH + process + health.
 func (r *Runner) Status(c *Config) int {
-	if c.SSHUp() {
-		r.out("[status] SSH : actif")
-		out, _ := c.SSH("pgrep -af 'cgo-linux --serve' || echo 'cgo-linux: pas en cours'")
-		r.out("  %s", strings.TrimSpace(out))
-		if c.Health() {
-			r.out("[status] dashboard : sain sur :%s", c.DashPort)
-		} else {
-			r.out("[status] dashboard : injoignable")
-		}
-	} else {
+	probe, probeErr := c.SSH("true")
+	if probeErr != nil {
 		r.out("[status] SSH : coupé")
-		if p := vm.Primary(); p != nil {
-			for _, v := range p.Running() {
-				r.out("  vm allumée : %s", v)
+		// Contexte : VMs allumées sur TOUS les hyperviseurs détectés
+		// (pas seulement le primaire — PC mixtes VMware+VirtualBox).
+		for _, h := range vm.Detect() {
+			for _, v := range h.Running() {
+				r.out("  vm allumée [%s] : %s", h.Name(), v)
 			}
 		}
-		// VM propre : classifier et conseiller au lieu d'un constat sec
-		probe, _ := c.SSH("true")
-		if cls := classifySSHError(probe); cls != "" {
-			r.sshDiag("[status]", probe)
-		} else {
-			r.out("  (auth échouée silencieusement — voir cgo kit doctor)")
-		}
+		// Sortie 5 (pas 0) : les scripts s'appuient sur le code — un
+		// constat vert sur SSH mort cassait les contrats (vu en prod).
+		r.sshDiag("[status]", probe)
+		return 5
+	}
+	r.out("[status] SSH : actif")
+	out, _ := c.SSH("pgrep -af 'cgo-linux --serve' || echo 'cgo-linux: pas en cours'")
+	r.out("  %s", strings.TrimSpace(out))
+	if c.Health() {
+		r.out("[status] dashboard : sain sur :%s", c.DashPort)
+	} else {
+		r.out("[status] dashboard : injoignable")
 	}
 	return 0
 }
@@ -1203,17 +1259,31 @@ func (r *Runner) Align(c *Config, deep bool) int {
 		return 3
 	}
 	r.out("[align] VM %s (hyperviseur %s)", vmx, hyp.Name())
+	if hyp.Name() != "vmware" {
+		r.errf("[align] réservé VMware (.vmx) — pour VirtualBox : cgo kit nic (NAT/pont/host-only)")
+		return 4
+	}
 	// arrêt si en cours — la modif .vmx se fait à froid
 	for _, v := range hyp.Running() {
-		if strings.EqualFold(filepath.Clean(v), filepath.Clean(vmx)) && hyp.Name() == "vmware" {
+		if strings.EqualFold(filepath.Clean(v), filepath.Clean(vmx)) {
 			r.out("[align] arrêt soft de la VM...")
-			_, _ = runSilent(".", nil, hyp.Exe(), "stop", vmx, "soft")
+			if out, err := runSilent(".", nil, hyp.Exe(), "stop", vmx, "soft"); err != nil {
+				r.errf("[align] arrêt refusé : %s", strings.TrimSpace(out))
+				return 4
+			}
 			time.Sleep(3 * time.Second)
 		}
 	}
-	_ = os.Rename(vmx, vmx+".bak")
-	b, err := os.ReadFile(vmx)
+	if err := os.Rename(vmx, vmx+".bak"); err != nil {
+		r.errf("[align] rename %s : %v (VM verrouillée ?)", vmx, err)
+		return 3
+	}
+	// Note : on relit le .bak — le rename a déplacé l'original (l'ancien
+	// code relisait vmx, donc échouait TOUJOURS en silence après un rename
+	// réussi : c'était le « exit 3 sans message »).
+	b, err := os.ReadFile(vmx + ".bak")
 	if err != nil {
+		r.errf("[align] lecture %s : %v", vmx+".bak", err)
 		return 3
 	}
 	_ = os.WriteFile(vmx, b, 0644)
@@ -1230,7 +1300,14 @@ func (r *Runner) Align(c *Config, deep bool) int {
 	}
 	set("ethernet0.virtualDev", "vmxnet3")
 	r.out("[align] NIC → vmxnet3")
-	_ = os.WriteFile(vmx, []byte(strings.Join(lines, "\n")), 0644)
+	if err := os.WriteFile(vmx, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+		// restaure l'original : sans ça, un disque plein laissait la VM
+		// SANS .vmx (fichier parti du rename) — perte pure.
+		_ = os.Rename(vmx+".bak", vmx)
+		r.errf("[align] écriture %s : %v — original restauré", vmx, err)
+		return 3
+	}
+	_ = os.Remove(vmx + ".bak")
 	r.out("[align] ok — redémarrez via ensure/deploy")
 	return 0
 }

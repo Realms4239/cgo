@@ -18,7 +18,7 @@ import (
 
 func (a *app) appendLog(line string) {
 	a.mu.Lock()
-	a.logText = append(a.logText, line)
+	a.logText = append(a.logText, strings.ReplaceAll(line, "\x00", ""))
 	if len(a.logText) > 300 {
 		a.logText = a.logText[len(a.logText)-300:]
 	}
@@ -130,7 +130,7 @@ func (a *app) onDone() {
 	a.setStatus("Prêt.")
 	go a.refreshStatus()
 	if d.label == "deploy" && d.code == 0 {
-		a.appendLog("dashboard : https://meteolink.dev:9090")
+		a.appendLog("dashboard : " + a.dashURL())
 	}
 }
 
@@ -302,7 +302,8 @@ func (a *app) runKind(kind string, args []string) {
 			a.mu.Lock()
 			a.busy = ""
 			a.mu.Unlock()
-			postMsg(a.hwnd, wmAppDone2)
+			// PAS de wmAppDone2 ici : refreshVMs le poste déjà
+			// (wmAppVMs + wmAppDone2) — doublon = « ✓ scan terminé » × 2.
 		}()
 	case kind == "bg:diag":
 		a.appendLog("diagnostic : clé, port, auth, IP — voir journal")
@@ -325,7 +326,7 @@ func (a *app) runKind(kind string, args []string) {
 		a.runKit("logs", func(r *kit.Runner) int {
 			c := a.loadCfg()
 			if c.VMPath() == "" && c.SSHHost == "" {
-				fmt.Println("rien à lire : verrouillez d'abord une VM (liste ci-dessus)")
+				a.appendLog("rien à lire : verrouillez d'abord une VM (liste ci-dessus)")
 				return 3
 			}
 			return r.Logs(c, 40)
@@ -398,7 +399,9 @@ func (a *app) runKind(kind string, args []string) {
 
 func (a *app) dashURL() string {
 	host, port := "meteolink.dev", "9090"
-	if c := a.loadCfg(); c != nil {
+	// loadFast : JAMAIS de GuestIP ici — dashURL tourne sur le thread UI
+	// (clic « Ouvrir le dashboard »), LoadConfig résoudrait via vmrun.
+	if c := a.cfg.loadFast(a.cfgPath); c != nil {
 		if c.DashHost != "" {
 			host = c.DashHost
 		}

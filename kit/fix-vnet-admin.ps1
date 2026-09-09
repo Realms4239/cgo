@@ -6,6 +6,20 @@
 #Requires -RunAsAdministrator
 param([string]$GwIp = "192.168.174.1")  # passerelle du subnet NAT (kit vnet la connaît ; défaut = VMware standard)
 $ErrorActionPreference = 'Stop'
+# GARDE : 10.0.2.x = espace invité VirtualBox (injoignable depuis l'hôte).
+# L'assigner à un adaptateur hôte casse le réseau au lieu de le réparer
+# (incident v1.2.10 : 10.0.2.1/24 posé sur VMnet8 — rollback :
+# Remove-NetIPAddress -IPAddress 10.0.2.1).
+if ($GwIp -match '^10\.0\.2\.') {
+  Write-Host "  [X] REFUS : $GwIp est dans l'espace invité VirtualBox (10.0.2.x)," -ForegroundColor Red
+  Write-Host "      injoignable depuis l'hôte. Pour VirtualBox NAT, utilisez le"
+  Write-Host "      port-forward (cgo.exe kit ensure), pas une adresse hôte."
+  exit 3
+}
+if ($GwIp -notmatch '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)[0-9.]+\.[0-9]+$') {
+  Write-Host "  [X] REFUS : $GwIp n'est pas une IPv4 privée valide." -ForegroundColor Red
+  exit 3
+}
 $Alias = "VMware Network Adapter VMnet8"
 $Gw = $GwIp
 
