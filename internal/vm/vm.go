@@ -68,7 +68,7 @@ func (v *vmware) run(args ...string) (string, error) {
 // jamais pendre le thread appelant. getGuestIPAddress -wait bloque déjà
 // côté vmrun ; start/stop gardent le contexte libre (pilotés en fond).
 func (v *vmware) runCtx(ctx context.Context, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, v.exe, args...)
+	cmd := bgCmdCtx(ctx, v.exe, args...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -226,7 +226,7 @@ func (v *virtualbox) run(args ...string) (string, error) {
 // mais un manager gelé ne doit jamais pendre l'appelant (le GUI clique
 // sur le thread UI — 10 s max, jamais l'infini).
 func (v *virtualbox) runCtx(ctx context.Context, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, v.exe, args...)
+	cmd := bgCmdCtx(ctx, v.exe, args...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -638,10 +638,14 @@ func Primary() Hypervisor {
 // roots — disques à scanner selon l'OS (Git-Bash : /c, /d…).
 func roots() []string {
 	if runtime.GOOS == "windows" {
-		// énumération réelle des lecteurs
+		// énumération réelle des lecteurs FIXES seuls (ni réseau, ni CD,
+		// ni amovibles : un WalkDir SMB en profondeur 3 = minutes de stall).
 		var out []string
 		for c := 'A'; c <= 'Z'; c++ {
 			d := string(c) + `:\`
+			if !fixedDrive(d) {
+				continue
+			}
 			if st, err := os.Stat(d); err == nil && st.IsDir() {
 				out = append(out, d)
 			}
@@ -700,14 +704,24 @@ func extraRoots() []string {
 // (profondeur 2), puis la racine des disques (profondeur 3, --deep pour tout).
 // Retourne les chemins canoniques triés.
 func ScanVMs(deep bool) []string {
+	return ScanVMsProgress(deep, nil)
+}
+
+// ScanVMsProgress — idem + rappel fn(dir) par répertoire scanné (le scan
+// profond dure des minutes : sans vie, ça passe pour un freeze).
+func ScanVMsProgress(deep bool, fn func(string)) []string {
 	seen := map[string]bool{}
 	var out []string
 
 	add := func(p string) {
-		if p == "" || seen[p] {
+		if p == "" {
 			return
 		}
-		seen[p] = true
+		k := normKey(p)
+		if seen[k] {
+			return
+		}
+		seen[k] = true
 		out = append(out, p)
 	}
 
@@ -720,6 +734,9 @@ func ScanVMs(deep bool) []string {
 
 	// 2) conventions par disque : <drive>/VMs, <drive>/vms, <home>/VirtualBox VMs
 	scanDir := func(dir string, depth int) {
+		if fn != nil {
+			fn(dir)
+		}
 		if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 			return
 		}
@@ -763,6 +780,33 @@ func ScanVMs(deep bool) []string {
 
 	sort.Strings(out)
 	return out
+}
+
+// HypForPath — hyperviseur impliqué par l'extension : un .vbox ne va
+// JAMAIS à vmrun, un .vmx jamais à VBoxManage — quel que soit l'ordre de
+// détection ou la config. (Bug racine : le scan écrivait hypervisor:
+// "vmware" pour une VM VirtualBox dès que Workstation était installé,
+// et toute la chaîne partait sur la mauvaise branche.)
+func HypForPath(p string) string {
+	switch strings.ToLower(filepath.Ext(p)) {
+	case ".vbox":
+		return "virtualbox"
+	case ".vmx":
+		return "vmware"
+	}
+	return ""
+}
+
+// normKey — clé de dédup d'un chemin VM : Clean + slashes + casse
+// neutralisée sous Windows. Sans elle, la même VM listée par deux voies
+// (inventaire hyperviseur en C:\… vs scan disque en c:\…) apparaissait
+// deux fois (« 2 VM(s) » pour 1 VM).
+func normKey(p string) string {
+	s := filepath.ToSlash(filepath.Clean(p))
+	if runtime.GOOS == "windows" {
+		s = strings.ToLower(s)
+	}
+	return s
 }
 
 // Pick — choisit la VM : nom exact si précisé, sinon l'unique trouvée,

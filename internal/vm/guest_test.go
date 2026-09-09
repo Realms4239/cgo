@@ -28,6 +28,35 @@ func TestSameVM(t *testing.T) {
 	}
 }
 
+func TestHypForPath(t *testing.T) {
+	for p, want := range map[string]string{
+		`D:\VMs\ubuntu Fanasina\ubuntu Fanasina.vbox`: "virtualbox",
+		`/home/u/VirtualBox VMs/x.vbox`:              "virtualbox",
+		`D:\ubuntu.vmx`:                              "vmware",
+		`./rel.vmx`:                                  "vmware",
+		`D:\x.VBOX`:                                  "virtualbox",
+		`D:\x.VMX`:                                   "vmware",
+		`D:\sans-ext`:                                "",
+		`D:\x.vmdk`:                                  "",
+	} {
+		if got := HypForPath(p); got != want {
+			t.Errorf("HypForPath(%q) = %q, want %q", p, got, want)
+		}
+	}
+}
+
+func TestNormKeyDedup(t *testing.T) {
+	a := normKey(`D:\VMs\Ubu\ubu.vbox`)
+	b := normKey(`d:/vms/ubu/ubu.vbox`)
+	c := normKey(`D:\VMs\Ubu\ubu.vbox`)
+	if a != b || a != c {
+		t.Fatalf("clés %q %q %q — même fichier, clés différentes", a, b, c)
+	}
+	if normKey(`D:\a\ubu.vbox`) == normKey(`D:\b\ubu.vbox`) {
+		t.Fatal("faux positif entre dossiers")
+	}
+}
+
 func TestBusyPort(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

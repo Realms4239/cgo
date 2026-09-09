@@ -28,6 +28,7 @@ const (
 	idLocked = 104
 	idSSH    = 105
 	idDash   = 106
+	idUser   = 107
 )
 
 
@@ -37,9 +38,10 @@ type app struct {
 	vmList     windows.HWND
 	logEdit    windows.HWND
 	status     windows.HWND
-	locked     windows.HWND
-	sshLbl     windows.HWND
-	dashLbl    windows.HWND
+	locked  windows.HWND
+	sshLbl  windows.HWND
+	dashLbl windows.HWND
+	userEdit windows.HWND
 	cgoExe     string
 	cfgPath    string
 	mu         sync.Mutex

@@ -170,7 +170,13 @@ func (a *app) buildControls() {
 	y += 30
 	a.mkCtl("BUTTON", "Accès SSH — diagnostiquer, clé, boot", bsGroupbox, 8, y, 584, 118, 0)
 	yy := y + 22
-	a.sshLbl = a.mkCtl("STATIC", "SSH : —", 0, 20, yy, 560, 18, idSSH)
+	a.sshLbl = a.mkCtl("STATIC", "SSH : —", 0, 20, yy, 150, 18, idSSH)
+	a.mkCtl("STATIC", "Utilisateur Ubuntu :", 0, 180, yy, 125, 18, 0)
+	a.userEdit = a.mkCtl("EDIT", "", esAutohscroll|wsBorder|wsTabstop, 310, yy, 140, 22, idUser)
+	a.mkCtl("BUTTON", "Sauver", bsPushbutton|wsTabstop, 458, yy-3, 80, 26, 248)
+	if u := cfgSSHUser(a.cfgPath); u != "" {
+		setText(a.userEdit, u)
+	}
 	yy += 22
 	bx = 20
 	for _, b := range accessActions {

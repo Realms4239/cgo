@@ -265,6 +265,8 @@ func (a *app) onButton(id int) {
 	switch {
 	case kind == "direct:lock":
 		a.lockSelected()
+	case kind == "direct:saveuser":
+		a.saveUser()
 	case kind == "direct:open":
 		openBrowser(a.dashURL())
 		a.appendLog("navigateur → " + a.dashURL())
@@ -329,7 +331,7 @@ func (a *app) onButton(id int) {
 				fmt.Println(blocked)
 				return 3
 			}
-			cmd := exec.Command("powershell", argv...)
+			cmd := kit.BgCmd("powershell", argv...)
 			cmd.Stdout, cmd.Stderr = r.Stdout, r.Stderr
 			if err := cmd.Run(); err != nil {
 				if ee, ok := err.(*exec.ExitError); ok {
@@ -340,7 +342,7 @@ func (a *app) onButton(id int) {
 			return 0
 		})
 	case kind == "bg:guest":
-		a.runKit("invité", func(r *kit.Runner) int { return r.Guest(a.loadCfg(), false) })
+		a.runKit("invité", func(r *kit.Runner) int { return r.Guest(a.loadCfg(), a.cfgPath, false) })
 	case kind == "bg:vnet":
 		a.runKit("réseau-hôte", func(r *kit.Runner) int { return r.Vnet(a.loadCfg()) })
 	case kind == "console:keysetup":

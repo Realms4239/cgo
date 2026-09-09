@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -113,11 +112,11 @@ func checkOSTrust(name string) (bool, string) {
 	if runtime.GOOS != "windows" {
 		return false, "vérification manuelle hors Windows (magasin système)"
 	}
-	if out, err := exec.Command("certutil", "-store", "root").CombinedOutput(); err == nil &&
+	if out, err := bgCmd("certutil", "-store", "root").CombinedOutput(); err == nil &&
 		strings.Contains(strings.ToLower(string(out)), strings.ToLower(name)) {
 		return true, name + " présent dans le magasin racine Windows (machine)"
 	}
-	if out, err := exec.Command("certutil", "-user", "-store", "root").CombinedOutput(); err == nil &&
+	if out, err := bgCmd("certutil", "-user", "-store", "root").CombinedOutput(); err == nil &&
 		strings.Contains(strings.ToLower(string(out)), strings.ToLower(name)) {
 		return true, name + " présent dans le magasin racine Windows (utilisateur courant)"
 	}

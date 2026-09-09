@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -131,7 +130,7 @@ func virtIfaces() []string {
 func elevated() bool {
 	if runtime.GOOS == "windows" {
 		// `net session` ne réussit qu'élevé (contrat Windows stable).
-		return exec.Command("net", "session").Run() == nil
+		return bgCmd("net", "session").Run() == nil
 	}
 	return os.Geteuid() == 0
 }
@@ -158,7 +157,7 @@ func (r *Runner) vnetFixWindows(sub string) int {
 		// qui dériverait) ; repli inline si zip incomplet.
 		if script != "" {
 			r.out("[vnet] élevé : %s -GwIp %s…", script, gw)
-			cmd := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+			cmd := bgCmd("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
 				"-File", script, "-GwIp", gw)
 			cmd.Stdout, cmd.Stderr = r.Stdout, r.Stderr
 			if err := cmd.Run(); err != nil {
@@ -169,7 +168,7 @@ func (r *Runner) vnetFixWindows(sub string) int {
 		}
 		r.out("[vnet] élevé : restauration %s/24 sur « %s »…", gw, alias)
 		ps := fmt.Sprintf("New-NetIPAddress -InterfaceAlias '%s' -IPAddress %s -PrefixLength 24; Restart-Service -Name 'VMware NAT Service' -Force; Restart-Service -Name 'VMware DHCP Service' -Force", alias, gw)
-		if out, err := exec.Command("powershell", "-NoProfile", "-Command", ps).CombinedOutput(); err != nil {
+		if out, err := bgCmd("powershell", "-NoProfile", "-Command", ps).CombinedOutput(); err != nil {
 			r.errf("[vnet] restauration refusée : %s", strings.TrimSpace(string(out)))
 			return 3
 		}
@@ -207,7 +206,7 @@ func (r *Runner) vnetFixLinux(sub string) int {
 	cmd := fmt.Sprintf("sudo ip addr add %s/24 dev %s && sudo ip link set %s up", gw, dev, dev)
 	if elevated() {
 		r.out("[vnet] root : %s", cmd)
-		if err := exec.Command("sh", "-c", cmd).Run(); err != nil {
+		if err := bgCmd("sh", "-c", cmd).Run(); err != nil {
 			r.errf("[vnet] refusé : %v", err)
 			return 3
 		}
