@@ -1,4 +1,4 @@
-# Meteolink [![version](https://img.shields.io/badge/version-1.2.3-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
+# Meteolink [![version](https://img.shields.io/badge/version-1.2.10-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
 
 ## Qu'est-ce que c'est ?
 
@@ -57,6 +57,10 @@ $ go run ./cmd/cgo setup
 ```
 
 Sept étapes idempotentes : détection (OS, go/bun/node/ssh, hyperviseurs) → dépendances → build frontend+binaire → contexte (observe/full/VM) → config VM (scan, IP invité auto) → DNS local (`meteolink.dev`) → doctor + menu final (dashboard/TUI). Modes : `--yes` (CI, défauts), `--no-vm` (sans hyperviseur).
+
+### Sans source : les releases (Windows + Ubuntu, zéro toolchain)
+
+Chaque [release](https://github.com/Realms4239/cgo/releases) livre des archives prêtes : `cgo-gui` (centre de contrôle graphique, même 27 boutons sur les deux OS), `cgo kit tui` (équivalent terminal), scripts hôte/invité. Le pipeline est toujours le même — `cgo kit next` l'affiche palier par palier avec la prochaine commande exacte. Détail complet dans le `LISEZ-MOI` de l'archive (aussi : `cgo kit readme`).
 
 ### Poste opérateur depuis une release (Ubuntu + VM du banc)
 

@@ -46,20 +46,34 @@ func GatherNext(c *Config) []NextStep {
 	}
 
 	// 1. VM verrouillée + pilote présent
+	// 1. VM verrouillée + pilote présent (VMPath : .vmx OU .vbox —
+	// exiger vmx_path pour une VBox était le bug du palier 1).
 	var hyp vm.Hypervisor
 	locked, hypName, vmx := "", "", ""
-	if c.VMXPath != "" {
-		if st, err := os.Stat(c.VMXPath); err == nil && !st.IsDir() {
-			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMXPath); err == nil {
-				locked, hypName, hyp, vmx = filepath.Base(c.VMXPath), h.Name(), h, c.VMXPath
-			}
-		}
-	}
-	if locked == "" {
+	vpath := c.VMPath()
+	switch {
+	case vpath == "":
 		push(NextStep{ID: "vm", Label: "Verrouiller une VM", State: "ko",
-			Detail: "aucune VM verrouillée (ou pilote absent)",
+			Detail: "aucune VM verrouillée",
 			Remedy: "cgo kit scan"})
-	} else {
+	default:
+		st, err := os.Stat(vpath)
+		if err != nil || st.IsDir() {
+			push(NextStep{ID: "vm", Label: "VM introuvable", State: "ko",
+				Detail: vpath + " n'existe plus",
+				Remedy: "cgo kit scan"})
+			break
+		}
+		h, err := selectDriver(vm.Detect(), c.Hypervisor, vpath)
+		if err != nil {
+			want := vm.HypForPath(vpath)
+			push(NextStep{ID: "vm", Label: "Pilote manquant", State: "ko",
+				Detail: fmt.Sprintf("%s : pilote %s absent — installez %s", filepath.Base(vpath), want,
+					map[string]string{"virtualbox": "VirtualBox", "vmware": "VMware Workstation"}[want]),
+				Remedy: "installez " + map[string]string{"virtualbox": "VirtualBox", "vmware": "VMware Workstation"}[want]})
+			break
+		}
+		locked, hypName, hyp, vmx = filepath.Base(vpath), h.Name(), h, vpath
 		push(NextStep{ID: "vm", Label: "VM verrouillée", State: "ok",
 			Detail: fmt.Sprintf("%s (%s)", locked, hypName)})
 	}
@@ -148,7 +162,7 @@ func GatherNext(c *Config) []NextStep {
 	// 8. dashboard sain
 	if !stepOK(steps, "binaire") {
 		push(NextStep{ID: "svc", Label: "Dashboard", State: "attente", Detail: "binaire d'abord"})
-	} else if ver, ok := dashProbe(dashURLFor(c)); ok {
+	} else if ver, ok := dashProbe(dashProbeURL(c)); ok {
 		push(NextStep{ID: "svc", Label: "Dashboard", State: "ok", Detail: "sain (version " + ver + ")"})
 	} else {
 		push(NextStep{ID: "svc", Label: "Démarrer le dashboard", State: "ko",
@@ -266,6 +280,21 @@ func dashURLFor(c *Config) string {
 		port = "9090"
 	}
 	return "https://" + host + ":" + port
+}
+
+// dashProbeURL — sonde le dashboard sur la CIBLE VIVANTE (IP SSH), pas le
+// nom (qui peut être périmé : DHCP change l'IP, hosts pas à jour —
+// sonder le nom confond « svc éteint » et « dns périmé », deux paliers
+// distincts). Repli nom si pas de cible concrète.
+func dashProbeURL(c *Config) string {
+	if h := strings.TrimSpace(c.SSHHost); h != "" && h != "auto" {
+		port := c.DashPort
+		if port == "" {
+			port = "9090"
+		}
+		return "https://" + h + ":" + port
+	}
+	return dashURLFor(c)
 }
 
 func dashProbe(url string) (string, bool) {

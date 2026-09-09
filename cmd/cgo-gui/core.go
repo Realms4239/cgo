@@ -141,17 +141,34 @@ func shortDiag(out string) string {
 }
 
 func dashHealth(c *kit.Config) (string, bool) {
-	host := c.DashHost
-	if host == "" {
-		host = "meteolink.dev"
-	}
 	port := c.DashPort
 	if port == "" {
 		port = "9090"
 	}
+	// Cible vivante D'ABORD (IP SSH), nom ensuite : un hosts périmé ne
+	// doit pas faire passer un dashboard sain pour éteint (deux paliers
+	// distincts : svc vs dns).
+	urls := []string{}
+	if h := strings.TrimSpace(c.SSHHost); h != "" && h != "auto" {
+		urls = append(urls, "https://"+h+":"+port+"/api/health")
+	}
+	host := c.DashHost
+	if host == "" {
+		host = "meteolink.dev"
+	}
+	urls = append(urls, "https://"+host+":"+port+"/api/health")
 	// Transport strict : racines système, vérification ON (pas de -k déguisé).
 	client := &http.Client{Timeout: 6 * time.Second, Transport: &http.Transport{}}
-	resp, err := client.Get("https://" + host + ":" + port + "/api/health")
+	for _, u := range urls {
+		if ver, ok := dashGet(client, u); ok {
+			return ver, true
+		}
+	}
+	return "", false
+}
+
+func dashGet(client *http.Client, u string) (string, bool) {
+	resp, err := client.Get(u)
 	if err != nil {
 		return "", false
 	}
@@ -270,7 +287,7 @@ func mkKeyGUI(c *kit.Config, r *kit.Runner) int {
 	return 0
 }
 
-func openConsoleGUI(c *kit.Config, r *kit.Runner) int {	if c.VMXPath == "" {
+func openConsoleGUI(c *kit.Config, r *kit.Runner) int {	if c.VMPath() == "" {
 		fmt.Fprintln(r.Stderr, "aucune VM verrouillée")
 		return 3
 	}
@@ -278,7 +295,7 @@ func openConsoleGUI(c *kit.Config, r *kit.Runner) int {	if c.VMXPath == "" {
 		if c.Hypervisor != "" && h.Name() != c.Hypervisor {
 			continue
 		}
-		if err := h.StartGUI(c.VMXPath); err == nil {
+		if err := h.StartGUI(c.VMPath()); err == nil {
 			fmt.Fprintln(r.Stdout, "console ouverte")
 			return 0
 		}
@@ -289,7 +306,7 @@ func openConsoleGUI(c *kit.Config, r *kit.Runner) int {	if c.VMXPath == "" {
 
 func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
 	w := r.Stdout
-	if c.VMXPath == "" {
+	if c.VMPath() == "" {
 		fmt.Fprintln(w, "aucune VM verrouillée — verrouillez-en une dans la liste")
 		return 3
 	}
@@ -310,7 +327,7 @@ func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
 	if vb, ok := hyp.(interface {
 		EnsureRegistered(string) (string, error)
 	}); ok {
-		name, err := vb.EnsureRegistered(c.VMXPath)
+		name, err := vb.EnsureRegistered(c.VMPath())
 		if err != nil {
 			fmt.Fprintln(w, "enregistrement impossible : "+err.Error())
 			return 4
@@ -319,17 +336,17 @@ func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
 	}
 	var err error
 	if start {
-		if vmRunningGUI(hyp, c.VMXPath) {
+		if vmRunningGUI(hyp, c.VMPath()) {
 			fmt.Fprintln(w, "VM déjà allumée — attente de l'IP invitée (max 90 s)…")
 		} else {
-			if err = hyp.Start(c.VMXPath); err != nil { // headless/nogui — le banc n'a pas besoin d'écran
+			if err = hyp.Start(c.VMPath()); err != nil { // headless/nogui — le banc n'a pas besoin d'écran
 				fmt.Fprintln(w, "échec : "+err.Error())
 				return 4
 			}
 			fmt.Fprintln(w, "démarrage headless demandé")
 		}
 	} else {
-		err = hyp.Stop(c.VMXPath)
+		err = hyp.Stop(c.VMPath())
 	}
 	if err != nil {
 		fmt.Fprintln(w, "échec : "+err.Error())
@@ -341,14 +358,14 @@ func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
 		deadline := time.Now().Add(90 * time.Second)
 		for time.Now().Before(deadline) {
 			time.Sleep(5 * time.Second)
-			if ip := hyp.GuestIP(c.VMXPath); ip != "" {
+			if ip := hyp.GuestIP(c.VMPath()); ip != "" {
 				fmt.Fprintln(w, "VM en ligne, IP : "+ip)
 				if host := c.SSHHost; host == "" || host == "auto" || host != ip {
 					fmt.Fprintln(w, "→ si l'IP a changé, « Diagnostiquer » la détectera et mettra la config à jour")
 				}
 				return 0
 			}
-			if !vmRunningGUI(hyp, c.VMXPath) {
+			if !vmRunningGUI(hyp, c.VMPath()) {
 				fmt.Fprintln(w, "VM éteinte à nouveau — vérifiez le disque/BIOS dans la console")
 				return 4
 			}
@@ -376,10 +393,10 @@ func nicToggleGUI(c *kit.Config, r *kit.Runner, cfgPath string) int {
 }
 
 func pickVMGUI(c *kit.Config) (vm.Hypervisor, string, error) {
-	if c.VMXPath != "" {
+	if c.VMPath() != "" {
 		for _, h := range vm.Detect() {
 			if c.Hypervisor == "" || h.Name() == c.Hypervisor {
-				return h, c.VMXPath, nil
+				return h, c.VMPath(), nil
 			}
 		}
 	}
@@ -410,7 +427,7 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 			if c.Hypervisor != "" && h.Name() != c.Hypervisor {
 				continue
 			}
-			if ip := h.GuestIP(c.VMXPath); ip != "" {
+			if ip := h.GuestIP(c.VMPath()); ip != "" {
 				host = ip
 			}
 		}
@@ -544,8 +561,8 @@ func probeStatus(c *kit.Config) (ssh, dash, locked string) {
 	locked = ""
 	if c.VMName != "" {
 		locked = c.VMName
-	} else if c.VMXPath != "" {
-		locked = filepath.Base(c.VMXPath)
+	} else if c.VMPath() != "" {
+		locked = filepath.Base(c.VMPath())
 	}
 	return ssh, dash, locked
 }
@@ -625,7 +642,7 @@ func hostTunCmd(c *kit.Config, exeDir, root string) (string, []string, string) {
 	}
 	name := c.VMName
 	if name == "" {
-		name = c.VMXPath
+		name = c.VMPath()
 	}
 	if name == "" {
 		return "", nil, "aucune VM verrouillée — choisissez d'abord dans la liste"
