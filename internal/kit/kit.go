@@ -681,11 +681,15 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 		r.out("[ensure] VM démarrée (headless) — attente SSH (max 300 s)")
 	}
 	for i := 0; i < 60; i++ {
+		// JAMAIS muet : chaque tentative dit son numéro, sa cible et son
+		// verdict — un silence de 2 min passe pour un freeze (vu en prod).
+		r.out("[ensure] tentative %d/60 (~%ds) : ssh %s:%s…", i+1, i*5, c.SSHHost, c.SSHPort)
 		// 1) la cible actuelle répond ?
 		if c.SSHUp() {
 			r.out("[ensure] SSH actif vers %s:%s après ~%d s", c.SSHHost, c.SSHPort, i*5)
 			return 0
 		}
+		r.out("[ensure] ssh %s:%s sans réponse — autres voies…", c.SSHHost, c.SSHPort)
 		// 2) NAT : essayer le port-forward AVANT toute découverte d'IP.
 		if natHost != "" {
 			saved, savedPort := c.SSHHost, c.SSHPort
@@ -701,10 +705,17 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 		}
 		// 3) IP directe : le bail DHCP a peut-être changé — interroger
 		// l'hyperviseur (getGuestIPAddress / guestproperty) puis le voisinage.
-		if ip := discoverGuestIP(hyp, vmx); ip != "" && ip != c.SSHHost {
+		// Balayage LARGE (ping de tout le /24) seulement si on n'a AUCUNE
+		// cible : avec une cible configurée, vmrun+ARP suffisent (sinon
+		// chaque itération coûte ~2 min de silence).
+		lost := c.SSHHost == "" || c.SSHHost == "auto"
+		if ip := discoverGuestIP(hyp, vmx, lost); ip != "" && ip != c.SSHHost {
 			r.out("[ensure] IP invitée détectée : %s (config avait %s) — mise à jour", ip, c.SSHHost)
 			c.SSHHost = ip
 			_ = setYAMLKey(cfgPath, "host", ip)
+		}
+		if (i+1)%6 == 0 {
+			r.out("[ensure] toujours pas de SSH après ~%ds — sshd ? clé ? `kit vnet` pour le réseau hôte (Ctrl+C pour arrêter)", (i+1)*5)
 		}
 		time.Sleep(5 * time.Second)
 	}
@@ -716,8 +727,11 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 }
 
 // discoverGuestIP — interroge l'hyperviseur puis la table ARP du poste
-// pour trouver l'IP vivante de la VM. Retourne "" si rien de neuf.
-func discoverGuestIP(hyp vm.Hypervisor, vmx string) string {
+// pour trouver l'IP vivante de la VM. deep=false (cible déjà configurée) :
+// vmrun + ARP seuls, JAMAIS le balayage /24 (trop cher par itération).
+// deep=true (cible vide/auto, on est perdu) : balayage complet en dernier
+// recours. Retourne "" si rien de neuf.
+func discoverGuestIP(hyp vm.Hypervisor, vmx string, deep bool) string {
 	if hyp != nil {
 		if ip := hyp.GuestIP(vmx); ip != "" {
 			return ip
@@ -731,10 +745,14 @@ func discoverGuestIP(hyp vm.Hypervisor, vmx string) string {
 			return ip
 		}
 	}
-	// repli 2 : subnets des interfaces du poste (bridgé, NAT custom) — queues
-	// probables 128-150 (baux DHCP VMware/VBox), parcours des IP probables
-	// via ping rapide. AUCUN subnet en dur : ni 192.168.174.x ni autre —
-	// l'ARP (repli 1) et les interfaces locales décident.
+	// repli 2 (perdu seulement) : subnets des interfaces du poste (bridgé,
+	// NAT custom) — queues probables 128-150 (baux DHCP VMware/VBox),
+	// parcours des IP probables via ping rapide. AUCUN subnet en dur :
+	// ni 192.168.174.x ni autre — l'ARP (repli 1) et les interfaces
+	// locales décident.
+	if !deep {
+		return ""
+	}
 	seen := map[string]bool{}
 	tails := []string{"128", "129", "130", "131", "132", "133", "134", "135", "136", "137", "138", "139", "140", "141", "142", "143", "144", "145", "146", "147", "148", "149", "150"}
 	var subs []string
