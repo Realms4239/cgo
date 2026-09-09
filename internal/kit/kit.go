@@ -419,14 +419,13 @@ func (c *Config) SCP(local, remote string) error {
 }
 
 // scpKey — clé résolue (~/ → home réel, SUDO_USER respecté).
-func (c *Config) scpKey() string {
-	key := c.SSHKey
-	if strings.HasPrefix(key, "~/") {
-		if h := userHome(); h != "" {
-			key = filepath.Join(h, key[2:])
-		}
-	}
-	return key
+func (c *Config) scpKey() string { return expandKey(c.SSHKey) }
+
+// shq — quote shell POSIX d'un chemin distant : 'a'b → 'a'\''b'.
+// SANS ça, un espace (ou $ ; ` &) dans ProjectDir (dérivé du nom
+// d'utilisateur !) casse chaque commande ssh/scp distante en silence.
+func shq(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // SCPOut — scp avec sortie capturée (diagnostic) : rend (sortie, clé, err).
@@ -441,7 +440,7 @@ func (c *Config) SCPOut(local, remote string) (string, string, error) {
 	if ctrl != "" {
 		args = append(args, "-o", "ControlMaster=auto", "-o", "ControlPath="+ctrl, "-o", "ControlPersist=30")
 	}
-	args = append(args, local, c.SSHUser+"@"+c.SSHHost+":"+remote)
+	args = append(args, local, c.SSHUser+"@"+c.SSHHost+":"+shq(remote))
 	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
 	return string(out), key, err
 }
@@ -1025,7 +1024,7 @@ func (r *Runner) deployPrebuilt(c *Config, cfgPath string, deep bool) int {
 // deployPush — queue commune : scp binaire + installateur, install, health.
 func (r *Runner) deployPush(c *Config, bin string) int {
 	r.out("[deploy] push binaire + installateur...")
-	mkdirOut, mkdirErr := c.SSH("mkdir -p " + c.ProjectDir + "/kit")
+	mkdirOut, mkdirErr := c.SSH("mkdir -p " + shq(c.ProjectDir+"/kit"))
 	if mkdirErr != nil {
 		r.sshDiag("[deploy]", mkdirOut)
 		return 7
@@ -1041,7 +1040,7 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 		return 7
 	}
 	r.out("[deploy] installation VM...")
-	instOut, instErr := c.SSH("cd " + c.ProjectDir + " && bash kit/vm-install.sh")
+	instOut, instErr := c.SSH("cd " + shq(c.ProjectDir) + " && bash kit/vm-install.sh")
 	if instErr != nil {
 		r.sshDiag("[deploy]", instOut)
 		return 8

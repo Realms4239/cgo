@@ -4,9 +4,10 @@
 .DESCRIPTION Repare le reseau hote VMware (VMnet8 retombe en APIPA 169.254.x : invitée saine mais injoignable). A executer ELEVE : clic-droit -> Executer en tant qu'administrateur. Idempotent.
 #>
 #Requires -RunAsAdministrator
+param([string]$GwIp = "192.168.174.1")  # passerelle du subnet NAT (kit vnet la connaît ; défaut = VMware standard)
 $ErrorActionPreference = 'Stop'
 $Alias = "VMware Network Adapter VMnet8"
-$Gw = "192.168.174.1"
+$Gw = $GwIp
 
 Write-Host ">> vnet hôte : $Alias -> $Gw/24"
 $ad = Get-NetAdapter -Name $Alias -ErrorAction SilentlyContinue

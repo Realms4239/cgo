@@ -55,9 +55,10 @@ WantedBy=timers.target
 func (r *Runner) Schedule(c *Config, at, profiles, qdiscs, ccs, direction string, reps int) int {
 	service, timer := ScheduleUnits(c.ProjectDir, at, profiles, qdiscs, ccs, direction, reps)
 	for name, content := range map[string]string{"meteolink-campaign.service": service, "meteolink-campaign.timer": timer} {
-		cat := exec.Command("ssh", "-o", "ConnectTimeout=6", "-o", "StrictHostKeyChecking=accept-new",
-			"-p", c.SSHPort, "-i", expandKey(c.SSHKey),
-			c.SSHUser+"@"+c.SSHHost, "cat > /tmp/"+name)
+		// via sshCmd (pas de ssh artisanal) : BatchMode + timeouts + mux
+		// unifiés — un ssh nu ici pendait le schedule sans limite.
+		base := c.sshCmd()
+		cat := exec.Command(base[0], append(base[1:], "cat > /tmp/"+name)...)
 		cat.Stdin = strings.NewReader(content)
 		if out, err := cat.CombinedOutput(); err != nil {
 			r.errf("[schedule] écriture %s: %v (%s)", name, err, string(out))
