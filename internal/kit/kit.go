@@ -45,6 +45,17 @@ type Config struct {
 	NatHostPort string
 }
 
+// VMPath — LE chemin de la VM verrouillée, quel que soit l'hyperviseur
+// (.vmx ou .vbox). Tout le code lit ÇA, jamais les champs bruts : lire
+// VMXPath seul rendait les VM VirtualBox invisibles partout (verrou,
+// boot, console, Guest, Next — le rapport terrain l'a prouvé).
+func (c *Config) VMPath() string {
+	if c.VMXPath != "" {
+		return c.VMXPath
+	}
+	return c.VBoxPath
+}
+
 func env(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -166,9 +177,9 @@ func LoadConfig(path string) (*Config, error) {
 	// aveugle : Primary()=vmware sur un .vbox interrogeait vmrun pour rien).
 	if c.SSHHost == "auto" {
 		c.SSHHost = env("CGO_VM_IP", "")
-		if c.VMXPath != "" {
-			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMXPath); err == nil {
-				if ip := h.GuestIP(c.VMXPath); ip != "" {
+		if c.VMPath() != "" {
+			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath()); err == nil {
+				if ip := h.GuestIP(c.VMPath()); ip != "" {
 					c.SSHHost = ip
 				}
 			}
@@ -228,10 +239,12 @@ func SaveVMX(path, vmx, hypervisor string) error {
 			first = err
 		}
 	}
-	if strings.HasSuffix(vmx, ".vbox") {
+	if strings.HasSuffix(strings.ToLower(vmx), ".vbox") {
 		set("vbox_path", vmx)
-	} else {
+		set("vmx_path", "") // purge l'autre : sinon le switch .vmx→.vbox
+	} else { // laisse un vmx_path fantôme prioritaire (VMPath préfère vmx)
 		set("vmx_path", vmx)
+		set("vbox_path", "")
 	}
 	set("vm_name", name)
 	set("hypervisor", hypervisor)
@@ -506,9 +519,9 @@ func (r *Runner) pickVM(c *Config, deep bool) (vm.Hypervisor, string, error) {
 		return nil, "", errors.New("aucun hyperviseur (vmrun/VBoxManage) — démarrez la VM manuellement")
 	}
 	path := ""
-	if c.VMXPath != "" {
-		if _, err := os.Stat(c.VMXPath); err == nil {
-			path = c.VMXPath
+	if c.VMPath() != "" {
+		if _, err := os.Stat(c.VMPath()); err == nil {
+			path = c.VMPath()
 		}
 	}
 	if path == "" {
@@ -602,19 +615,19 @@ func (r *Runner) Doctor(c *Config) int {
 		r.out("  %-10s %s", h.Name(), h.Exe())
 	}
 	// IP : la VM de la config si présente, sans scan disque lourd
-	if c.VMXPath != "" {
+	if c.VMPath() != "" {
 		if p := vm.Primary(); p != nil {
-			if _, err := os.Stat(c.VMXPath); err == nil {
+			if _, err := os.Stat(c.VMPath()); err == nil {
 				live := "éteinte"
 				for _, run := range p.Running() {
-					if strings.EqualFold(filepath.Clean(run), filepath.Clean(c.VMXPath)) {
+					if strings.EqualFold(filepath.Clean(run), filepath.Clean(c.VMPath())) {
 						live = "allumée"
 					}
 				}
-				if ip := p.GuestIP(c.VMXPath); ip != "" {
-					r.out("  vm         %s (%s, IP %s)", c.VMXPath, live, ip)
+				if ip := p.GuestIP(c.VMPath()); ip != "" {
+					r.out("  vm         %s (%s, IP %s)", c.VMPath(), live, ip)
 				} else {
-					r.out("  vm         %s (%s)", c.VMXPath, live)
+					r.out("  vm         %s (%s)", c.VMPath(), live)
 				}
 			}
 		}

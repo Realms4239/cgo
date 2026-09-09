@@ -170,8 +170,8 @@ func (m modelKT) lockedVM() string {
 	if m.cfg.VMName != "" {
 		return m.cfg.VMName
 	}
-	if m.cfg.VMXPath != "" {
-		return filepath.Base(m.cfg.VMXPath)
+	if m.cfg.VMPath() != "" {
+		return filepath.Base(m.cfg.VMPath())
 	}
 	return ""
 }

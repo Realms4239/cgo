@@ -324,7 +324,7 @@ func (a *app) runKind(kind string, args []string) {
 	case kind == "bg:logs":
 		a.runKit("logs", func(r *kit.Runner) int {
 			c := a.loadCfg()
-			if c.VMXPath == "" && c.SSHHost == "" {
+			if c.VMPath() == "" && c.SSHHost == "" {
 				fmt.Println("rien à lire : verrouillez d'abord une VM (liste ci-dessus)")
 				return 3
 			}
