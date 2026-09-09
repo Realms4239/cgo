@@ -193,14 +193,14 @@ func firstLineTUI(s string) string {
 
 // guestIP — IP via l'hyperviseur de la VM verrouillée ("" si inconnue).
 func (m *modelKT) guestIP() string {
-	if m.cfg == nil || m.cfg.VMXPath == "" {
+	if m.cfg == nil || m.cfg.VMPath() == "" {
 		return ""
 	}
 	for _, h := range vm.Detect() {
 		if m.cfg.Hypervisor != "" && h.Name() != m.cfg.Hypervisor {
 			continue
 		}
-		if ip := h.GuestIP(m.cfg.VMXPath); ip != "" {
+		if ip := h.GuestIP(m.cfg.VMPath()); ip != "" {
 			return ip
 		}
 	}
@@ -284,7 +284,7 @@ func (m *modelKT) runSuspend(args ...string) tea.Cmd {
 // vmPower — démarre/arrête la VM verrouillée via son hyperviseur.
 // Sortie parlée dans le journal (l'appelant runBG affiche déjà le code).
 func vmPower(c *kit.Config, start bool) int {
-	if c.VMXPath == "" {
+	if c.VMPath() == "" {
 		fmt.Println("aucune VM verrouillée (étape Machine d'abord)")
 		return 3
 	}
@@ -296,8 +296,8 @@ func vmPower(c *kit.Config, start bool) int {
 	}
 	if hyp == nil {
 		for _, h := range vm.Detect() {
-			if (strings.HasSuffix(strings.ToLower(c.VMXPath), ".vmx") && h.Name() == "vmware") ||
-				(strings.HasSuffix(strings.ToLower(c.VMXPath), ".vbox") && h.Name() == "virtualbox") {
+			if (strings.HasSuffix(strings.ToLower(c.VMPath()), ".vmx") && h.Name() == "vmware") ||
+				(strings.HasSuffix(strings.ToLower(c.VMPath()), ".vbox") && h.Name() == "virtualbox") {
 				hyp = h
 			}
 		}
@@ -309,14 +309,14 @@ func vmPower(c *kit.Config, start bool) int {
 	verb := "arrêt"
 	if start {
 		verb = "démarrage"
-		fmt.Println("démarrage " + c.VMXPath + " (headless)…")
-		if err := hyp.Start(c.VMXPath); err != nil {
+		fmt.Println("démarrage " + c.VMPath() + " (headless)…")
+		if err := hyp.Start(c.VMPath()); err != nil {
 			fmt.Println("échec : " + err.Error())
 			return 4
 		}
 	} else {
-		fmt.Println("arrêt " + c.VMXPath + " (ACPI, puis forcé)…")
-		if err := hyp.Stop(c.VMXPath); err != nil {
+		fmt.Println("arrêt " + c.VMPath() + " (ACPI, puis forcé)…")
+		if err := hyp.Stop(c.VMPath()); err != nil {
 			fmt.Println("échec : " + err.Error())
 			return 4
 		}
@@ -328,7 +328,7 @@ func vmPower(c *kit.Config, start bool) int {
 // openConsole — fenêtre graphique de la VM verrouillée (coller la commande
 // console dedans quand SSH est inaccessible).
 func openConsole(c *kit.Config) int {
-	if c.VMXPath == "" {
+	if c.VMPath() == "" {
 		fmt.Println("aucune VM verrouillée (étape Machine d'abord)")
 		return 3
 	}
@@ -336,7 +336,7 @@ func openConsole(c *kit.Config) int {
 		if c.Hypervisor != "" && h.Name() != c.Hypervisor {
 			continue
 		}
-		if err := h.StartGUI(c.VMXPath); err == nil {
+		if err := h.StartGUI(c.VMPath()); err == nil {
 			fmt.Println("console ouverte — collez-y la commande, puis Réessayer ici")
 			return 0
 		}
@@ -462,11 +462,11 @@ func (m *modelKT) refreshVMs(deep bool) {
 // syncLockedVM — reporte l'état/mode de la VM verrouillée depuis la liste
 // scannée (header global à jour sans hyperviseur à chaque touche).
 func (m *modelKT) syncLockedVM() {
-	if m.cfg == nil || m.cfg.VMXPath == "" {
+	if m.cfg == nil || m.cfg.VMPath() == "" {
 		return
 	}
 	for _, v := range m.vms {
-		if v.path == m.cfg.VMXPath {
+		if v.path == m.cfg.VMPath() {
 			m.vmSeen = true
 			m.vmLive = v.live
 			if v.mode != "" && v.mode != "inconnu" {
@@ -480,14 +480,14 @@ func (m *modelKT) syncLockedVM() {
 // syncVMMode — mode réseau de la VM verrouillée, synchrone et rapide
 // (.vmx lu en fichier ; showvminfo VBox ~200ms, une fois au boot).
 func (m *modelKT) syncVMMode() {
-	if m.cfg == nil || m.cfg.VMXPath == "" {
+	if m.cfg == nil || m.cfg.VMPath() == "" {
 		return
 	}
 	for _, h := range vm.Detect() {
 		if m.cfg.Hypervisor != "" && h.Name() != m.cfg.Hypervisor {
 			continue
 		}
-		if mode := h.NetMode(m.cfg.VMXPath); mode != "" && mode != "inconnu" {
+		if mode := h.NetMode(m.cfg.VMPath()); mode != "" && mode != "inconnu" {
 			m.vmMode = mode
 			return
 		}
@@ -496,10 +496,10 @@ func (m *modelKT) syncVMMode() {
 
 // refreshVMLive — état allumé/éteint de la VM verrouillée (ticker lent).
 func (m *modelKT) refreshVMLive() {
-	if !m.bus.live() || m.cfg == nil || m.cfg.VMXPath == "" {
+	if !m.bus.live() || m.cfg == nil || m.cfg.VMPath() == "" {
 		return
 	}
-	path, hypName := m.cfg.VMXPath, m.cfg.Hypervisor
+	path, hypName := m.cfg.VMPath(), m.cfg.Hypervisor
 	go func() {
 		live := false
 		seen := false

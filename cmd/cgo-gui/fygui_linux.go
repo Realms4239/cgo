@@ -380,7 +380,7 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 	case kind == "bg:logs":
 		f.runBg("logs", func(r *kit.Runner) int {
 			c := f.loadCfg()
-			if c.VMXPath == "" && c.SSHHost == "" {
+			if c.VMPath() == "" && c.SSHHost == "" {
 				fmt.Fprintln(r.Stdout, "rien à lire : verrouillez d'abord une VM (liste ci-dessus)")
 				return 3
 			}

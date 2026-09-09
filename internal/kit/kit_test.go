@@ -143,6 +143,47 @@ func (f *fakeHyp) SetNetMode(vmx, mode string) error { return nil }
 // le pilote virtualbox même si vmware est détecté en premier.
 // FirstOpen — premier palier non-vert : la prochaine étape, jamais un
 // palier déjà vert ni un « en attente » plus loin dans la file.
+// VMPath — un seul accesseur pour les deux champs (le rapport terrain :
+// tout le kit ignorait vbox_path — verrou, boot, Guest, Next).
+func TestVMPath(t *testing.T) {
+	if got := (&Config{VMXPath: "a.vmx"}).VMPath(); got != "a.vmx" {
+		t.Fatalf("vmx seul → %q", got)
+	}
+	if got := (&Config{VBoxPath: "b.vbox"}).VMPath(); got != "b.vbox" {
+		t.Fatalf("vbox seul → %q", got)
+	}
+	if got := (&Config{VMXPath: "a.vmx", VBoxPath: "b.vbox"}).VMPath(); got != "a.vmx" {
+		t.Fatalf("les deux → vmx prioritaire, got %q", got)
+	}
+	if got := (&Config{}).VMPath(); got != "" {
+		t.Fatalf("vide → vide, got %q", got)
+	}
+}
+
+// SaveVMXPurge — basculer .vmx→.vbox ne laisse pas un vmx_path fantôme
+// prioritaire (sinon VMPath ressuscite l'ancienne VM).
+func TestSaveVMXPurge(t *testing.T) {
+	dir := t.TempDir()
+	p := dir + "/cgo-vm.yaml"
+	if err := SaveVMX(p, `D:\ubuntu.vmx`, "vmware"); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveVMX(p, `D:\VMs\Fanasina\Fanasina.vbox`, "virtualbox"); err != nil {
+		t.Fatal(err)
+	}
+	c, _ := LoadConfig(p)
+	if c.VMPath() != `D:\VMs\Fanasina\Fanasina.vbox` {
+		t.Fatalf("VMPath = %q après bascule", c.VMPath())
+	}
+	if err := SaveVMX(p, `D:\ubuntu.vmx`, "vmware"); err != nil {
+		t.Fatal(err)
+	}
+	c, _ = LoadConfig(p)
+	if c.VMPath() != `D:\ubuntu.vmx` || c.VBoxPath != "" {
+		t.Fatalf("retour vmx : path=%q vbox=%q", c.VMPath(), c.VBoxPath)
+	}
+}
+
 func TestFirstOpen(t *testing.T) {
 	allOK := []NextStep{{ID: "vm", State: "ok"}, {ID: "cle", State: "ok"}}
 	if nx := FirstOpen(allOK); nx != nil {
@@ -164,6 +205,29 @@ func TestFirstOpen(t *testing.T) {
 	}
 	if nx := FirstOpen(waitOnly); nx == nil || nx.ID != "cible" {
 		t.Fatalf("attente bloque aussi, got %+v", nx)
+	}
+}
+
+// GatherNextPalier1VBox — le palier 1 VOIT une config VBox (vbox_path
+// seul) : avant, « aucune VM verrouillée » systématique. Le pilote peut
+// manquer ici (pas de VBoxManage) — mais le CHEMIN doit être reconnu
+// (détail = le basename, pas « aucune VM »).
+func TestGatherNextPalier1VBox(t *testing.T) {
+	dir := t.TempDir()
+	vbx := dir + "/Fanasina.vbox"
+	os.WriteFile(vbx, []byte("faux vbox"), 0644)
+	p := dir + "/cgo-vm.yaml"
+	os.WriteFile(p, []byte("ssh:\n  user: fanasina\n  host: auto\nvm_name: \"Fanasina\"\nvbox_path: \""+vbx+"\"\nhypervisor: \"virtualbox\"\n"), 0644)
+	c, _ := LoadConfig(p)
+	if c.VMPath() != vbx {
+		t.Fatalf("VMPath ne voit pas vbox_path : %q", c.VMPath())
+	}
+	steps := GatherNext(c)
+	if len(steps) == 0 || steps[0].ID != "vm" {
+		t.Fatalf("palier 1 absent : %+v", steps)
+	}
+	if !strings.Contains(steps[0].Detail, "Fanasina.vbox") && !strings.Contains(steps[0].Detail, "virtualbox") {
+		t.Fatalf("palier 1 aveugle au .vbox : %+v", steps[0])
 	}
 }
 

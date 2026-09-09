@@ -18,9 +18,9 @@ func (r *Runner) Guest(c *Config, cfgPath string, check bool) int {
 		return 2
 	}
 	if strings.TrimSpace(c.SSHHost) == "" || c.SSHHost == "auto" {
-		if c.VMXPath != "" {
-			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMXPath); err == nil {
-				if ip := h.GuestIP(c.VMXPath); ip != "" {
+		if c.VMPath() != "" {
+			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath()); err == nil {
+				if ip := h.GuestIP(c.VMPath()); ip != "" {
 					c.SSHHost = ip
 					_ = SaveSSHTarget(cfgPath, "", ip, "", "")
 					r.out("[guest] hôte résolu : %s", ip)
