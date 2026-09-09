@@ -154,6 +154,19 @@ func (r *Runner) vnetFixWindows(sub string) int {
 	}
 	script := findKitFile(r, "fix-vnet-admin.ps1")
 	if elevated() {
+		// Le script embarqué EST l'implémentation (pas de doublon inline
+		// qui dériverait) ; repli inline si zip incomplet.
+		if script != "" {
+			r.out("[vnet] élevé : %s -GwIp %s…", script, gw)
+			cmd := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+				"-File", script, "-GwIp", gw)
+			cmd.Stdout, cmd.Stderr = r.Stdout, r.Stderr
+			if err := cmd.Run(); err != nil {
+				r.errf("[vnet] script en échec : %v", err)
+				return 3
+			}
+			return 0
+		}
 		r.out("[vnet] élevé : restauration %s/24 sur « %s »…", gw, alias)
 		ps := fmt.Sprintf("New-NetIPAddress -InterfaceAlias '%s' -IPAddress %s -PrefixLength 24; Restart-Service -Name 'VMware NAT Service' -Force; Restart-Service -Name 'VMware DHCP Service' -Force", alias, gw)
 		if out, err := exec.Command("powershell", "-NoProfile", "-Command", ps).CombinedOutput(); err != nil {

@@ -105,3 +105,20 @@ func TestLoadConfigEnvOverridesYAML(t *testing.T) {
 		t.Errorf("SSHUser = %q, want testuser (du yaml, non surchargé)", c.SSHUser)
 	}
 }
+
+// shq — un chemin distant avec espace, quote, $ ou ; doit survivre au
+// shell distant intact (vérifié en rejouant via sh -c sur le poste).
+func TestShq(t *testing.T) {
+	for in, want := range map[string]string{
+		"/home/u/cgo":        "'/home/u/cgo'",
+		"/home/a b/cgo":      "'/home/a b/cgo'",
+		"/home/o'b/x":        "'/home/o'\\''b/x'",
+		"/home/a$b/c;d`e/x":  "'/home/a$b/c;d`e/x'",
+		"":                   "''",
+		"/tmp/cgo-backup-1.tgz": "'/tmp/cgo-backup-1.tgz'",
+	} {
+		if got := shq(in); got != want {
+			t.Errorf("shq(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

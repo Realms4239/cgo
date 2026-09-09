@@ -99,28 +99,47 @@ add_hosts_entry() {
     return 0
   fi
   if [ -w "$file" ] || [ "$(id -u)" -eq 0 ]; then
-    printf '%s %s\n' "$ip" "$host" | $SUDO tee -a "$file" >/dev/null
-    msg "$host → $ip ajouté à $file"
+    if printf '%s %s\n' "$ip" "$host" | $SUDO tee -a "$file" >/dev/null 2>&1; then
+      msg "$host → $ip ajouté à $file"
+    else
+      warn "écriture $file refusée (Admin requis) — ajoutez à la main : $ip $host"
+    fi
   else
-    warn "ajout $host → $ip dans $file : relancez avec --hosts en root/Admin"
+    warn "ajout $host → $ip dans $file : Admin requis — ajoutez à la main : $ip $host"
   fi
 }
 if [ "${1:-}" = "--hosts" ] || [ "${HOSTS:-0}" = "1" ]; then
+  # portable : chemins relatifs AU SCRIPT (pas au cwd d'appel) + binaire
+  # local d'abord (zip sans PATH) — un cwd quelconque cassait tout avant.
+  HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  CGO_BIN="$HERE/../cgo"
+  [ -x "$CGO_BIN" ] || CGO_BIN="cgo"
   # portable : meteolink.dev → VM si présente, sinon localhost
   _vm_ip=""
-  if [ -f kit/cgo-vm.yaml ] && grep -q "host:" kit/cgo-vm.yaml 2>/dev/null; then
-    _vm_ip="$(grep -E '^[[:space:]]*host:' kit/cgo-vm.yaml | head -1 | sed 's/.*host:[[:space:]]*//' | tr -d '\"' | tr -d ' ')"
+  if [ -f "$HERE/cgo-vm.yaml" ] && grep -q "host:" "$HERE/cgo-vm.yaml" 2>/dev/null; then
+    _vm_ip="$(grep -E '^[[:space:]]*host:' "$HERE/cgo-vm.yaml" | head -1 | sed 's/.*host:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d ' ')"
     [ "$_vm_ip" = "auto" ] && _vm_ip=""
   fi
-  if [ -z "$_vm_ip" ]; then _vm_ip="$(cgo kit status 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)"; fi
-  if [ -z "$_vm_ip" ]; then _vm_ip="VM-IP-auto-découverte"
+  if [ -z "$_vm_ip" ]; then _vm_ip="$("$CGO_BIN" kit status 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || true; fi
+  # garde-fou : jamais d'IP invalide dans hosts (avant : la chaîne
+  # littérale "VM-IP-auto-découverte" y était écrite !).
+  if ! printf '%s' "$_vm_ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+    warn "IP invitée indéterminée — meteolink.vm ignoré (relancez quand la VM répond)"
+    _vm_ip=""
+  fi
   if [ -f /c/Windows/System32/drivers/etc/hosts ]; then
     add_hosts_entry "127.0.0.1" "meteolink.dev" "/c/Windows/System32/drivers/etc/hosts"
-    add_hosts_entry "$_vm_ip" "meteolink.vm" "/c/Windows/System32/drivers/etc/hosts"
-    msg "hosts : https://meteolink.dev:9090 (local, certificat auto-signé) et http://meteolink.vm:9090 (VM $_vm_ip) — éditez en Admin si Permission denied"
+    if [ -n "$_vm_ip" ]; then
+      add_hosts_entry "$_vm_ip" "meteolink.vm" "/c/Windows/System32/drivers/etc/hosts"
+      msg "hosts : https://meteolink.dev:9090 (local, certificat auto-signé) et http://meteolink.vm:9090 (VM $_vm_ip) — éditez en Admin si Permission denied"
+    else
+      msg "hosts : https://meteolink.dev:9090 (local) — meteolink.vm sauté (IP inconnue)"
+    fi
   elif [ -f /etc/hosts ]; then
     add_hosts_entry "127.0.0.1" "meteolink.dev" "/etc/hosts"
-    add_hosts_entry "$_vm_ip" "meteolink.vm" "/etc/hosts"
+    if [ -n "$_vm_ip" ]; then
+      add_hosts_entry "$_vm_ip" "meteolink.vm" "/etc/hosts"
+    fi
   fi
 else
   msg "DNS local : lancez 'bash kit/install.sh --hosts' (Admin) pour ajouter meteolink.dev → 127.0.0.1 et meteolink.vm → VM (portable, idempotent)"

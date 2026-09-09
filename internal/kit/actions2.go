@@ -200,14 +200,14 @@ func (r *Runner) Svc(c *Config, sub string) int {
 		// le lanceur d'un vieux deploy démarre en --tls=false : le soigner
 		// avant de lancer, sinon le health HTTPS échoue sur un dashboard
 		// sain en HTTP brut (faux KO). Idempotent : sans le flag, no-op.
-		if out, _ := c.SSH("cd " + c.ProjectDir + " && grep -q -- '--tls=false' start.sh 2>/dev/null && sed -i 's/--tls=false //' start.sh && echo healed || true"); strings.Contains(out, "healed") {
+		if out, _ := c.SSH("cd " + shq(c.ProjectDir) + " && grep -q -- '--tls=false' start.sh 2>/dev/null && sed -i 's/--tls=false //' start.sh && echo healed || true"); strings.Contains(out, "healed") {
 			r.out("[svc] lanceur guéri (TLS) — redéployez pour la version canonique (kit deploy)")
 		}
-		if _, err := c.SSH("cd " + c.ProjectDir + " && (setsid nohup ./start.sh >/dev/null 2>&1 &)"); err != nil {
+		if _, err := c.SSH("cd " + shq(c.ProjectDir) + " && (setsid nohup ./start.sh >/dev/null 2>&1 &)"); err != nil {
 			// un seul essai manqué ne doit pas laisser le banc sans dashboard
 			// (vu en prod : SSH vide juste après un stop) — on réessaie.
 			time.Sleep(2 * time.Second)
-			if _, err2 := c.SSH("cd " + c.ProjectDir + " && (setsid nohup ./start.sh >/dev/null 2>&1 &)"); err2 != nil {
+			if _, err2 := c.SSH("cd " + shq(c.ProjectDir) + " && (setsid nohup ./start.sh >/dev/null 2>&1 &)"); err2 != nil {
 				r.sshDiag("[svc]", "")
 				return 5
 			}
@@ -255,7 +255,7 @@ func (r *Runner) Backup(c *Config, dest string) int {
 	stamp := time.Now().Format("20060102-150405")
 	remote := "/tmp/cgo-backup-" + stamp + ".tar.gz"
 	r.out("[backup] tar des runs sur la VM…")
-	if _, err := c.SSH("cd " + c.ProjectDir + " && tar czf " + remote + " data/runs"); err != nil {
+	if _, err := c.SSH("cd " + shq(c.ProjectDir) + " && tar czf " + shq(remote) + " data/runs"); err != nil {
 		r.errf("[backup] tar distant échoué")
 		return 7
 	}
@@ -263,7 +263,7 @@ func (r *Runner) Backup(c *Config, dest string) int {
 	// scp : c.SCP pousse local→distant ; ici il faut l'inverse : ssh cat.
 	key := expandKey(c.SSHKey)
 	cat := exec.Command("ssh", "-o", "ConnectTimeout=6", "-p", c.SSHPort, "-i", key,
-		c.SSHUser+"@"+c.SSHHost, "cat "+remote)
+		c.SSHUser+"@"+c.SSHHost, "cat "+shq(remote))
 	f, err := os.Create(local)
 	if err != nil {
 		r.errf("[backup] %v", err)
@@ -284,7 +284,7 @@ func (r *Runner) Backup(c *Config, dest string) int {
 		r.errf("[backup] transfert vide — SSH vers la VM ?")
 		return 7
 	}
-	_, _ = c.SSH("rm -f " + remote)
+	_, _ = c.SSH("rm -f " + shq(remote))
 	// vérification locale : le tar.gz est-il sain ?
 	if err := verifyTarGz(local); err != nil {
 		r.errf("[backup] archive corrompue : %v", err)
@@ -381,7 +381,7 @@ func (r *Runner) Snapshots(c *Config, deep bool) int {
 // Le binaire distant fait le travail ; on ne rapatrie rien.
 func (r *Runner) Verify(c *Config) int {
 	r.out("[verify] empreintes des archives sur %s…", c.SSHHost)
-	out, err := c.SSH("cd " + c.ProjectDir + " && ./cgo-linux verify 2>&1 || cgo verify 2>&1")
+	out, err := c.SSH("cd " + shq(c.ProjectDir) + " && ./cgo-linux verify 2>&1 || cgo verify 2>&1")
 	if err != nil {
 		r.sshDiag("[verify]", out)
 		return 5
