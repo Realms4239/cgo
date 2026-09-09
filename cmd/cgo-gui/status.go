@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/Realms4239/cgo/internal/kit"
+	"github.com/Realms4239/cgo/internal/vm"
 )
 // ---- VM list ----
 
@@ -45,14 +46,11 @@ func (a *app) lockSelected() {
 		return
 	}
 	v := rows[idx]
-	// hyperviseur réel pour SaveVMX (pas le "?" de détection)
-	hyp := v.hyp
-	if hyp == "?" {
-		if strings.HasSuffix(strings.ToLower(v.path), ".vbox") {
-			hyp = "virtualbox"
-		} else {
-			hyp = "vmware"
-		}
+	// Pilote par l'extension (source unique : vm.HypForPath — jamais la
+	// devinette locale qui a déjà envoyé des .vbox chez vmrun).
+	hyp := vm.HypForPath(v.path)
+	if hyp == "" {
+		hyp = v.hyp
 	}
 	if err := kit.SaveVMX(a.cfgPath, v.path, hyp); err != nil {
 		a.appendLog("verrouillage : " + err.Error())

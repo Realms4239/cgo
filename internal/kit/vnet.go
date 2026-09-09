@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/Realms4239/cgo/internal/vm"
 )
 
 // Vnet — médecin du réseau HÔTE vers la VM. Né d'une vraie panne : le
@@ -41,6 +43,14 @@ func (r *Runner) Vnet(c *Config) int {
 		r.out("[vnet] cible %s non-privée — réseau du poste non concerné", host)
 		return 0
 	}
+	// Espace invité du NAT VirtualBox : 10.0.2.0/24 vit DANS le NAT, aucun
+	// adaptateur hôte ne doit jamais le porter (incident : 10.0.2.1/24 écrit
+	// sur VMnet8). Seule voie : le forward 127.0.0.1 — jamais d'écriture ici.
+	if isVBoxGuestSpace(host) {
+		r.errf("[vnet] cible %s = espace invité NAT VirtualBox — injoignable en direct par construction", host)
+		r.errf("[vnet] utilisez le forward local (ssh_host 127.0.0.1 + nat_host_port) — `kit ensure` le repose")
+		return 3
+	}
 	sub := vnetSubnet(host)
 	iface := hostIfaceOn(sub)
 	if iface != "" {
@@ -51,10 +61,94 @@ func (r *Runner) Vnet(c *Config) int {
 	for _, ln := range virtIfaces() {
 		r.out("[vnet]   %s", ln)
 	}
+	hyp := resolveHyp(c)
 	if runtime.GOOS == "windows" {
-		return r.vnetFixWindows(sub)
+		return r.vnetFixWindows(sub, hyp)
 	}
-	return r.vnetFixLinux(sub)
+	return r.vnetFixLinux(sub, hyp)
+}
+
+// resolveHyp — hyperviseur de la VM verrouillée ("vmware"/"virtualbox"),
+// "" si inconnu (pas de VM verrouillée ou pilote absent). En mode inconnu
+// on diagnostique seulement : on n'écrit jamais à l'aveugle.
+func resolveHyp(c *Config) string {
+	if c.VMPath() == "" {
+		return ""
+	}
+	if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath()); err == nil {
+		return h.Name()
+	}
+	return ""
+}
+
+// wantAdapter — l'écriture sur un adaptateur hôte n'est autorisée que si
+// l'adaptateur appartient à la famille de l'hyperviseur verrouillé.
+// Retourne l'alias choisi ou "" (diagnostic seul).
+func wantAdapter(hyp, sub string) string {
+	ifaces, _ := net.Interfaces()
+	best := ""
+	for _, it := range ifaces {
+		nm := strings.ToLower(it.Name)
+		var family bool
+		switch hyp {
+		case "vmware":
+			family = strings.Contains(nm, "vmnet")
+		case "virtualbox":
+			family = strings.Contains(nm, "vbox") || strings.Contains(nm, "virtualbox") || strings.Contains(nm, "host-only")
+		default:
+			continue
+		}
+		if !family {
+			continue
+		}
+		if hyp == "vmware" && strings.Contains(nm, "vmnet8") {
+			return it.Name // NAT VMware : VMnet8 d'abord
+		}
+		if best == "" {
+			best = it.Name
+		}
+	}
+	// VirtualBox hors host-only (ponté/autre) : le LAN décide, l'hôte ne
+	// peut rien réparer en écrivant — diagnostic seul.
+	if hyp == "virtualbox" && sub != "192.168.56." {
+		return ""
+	}
+	return best
+}
+
+// adapterHasOtherSubnet — l'adaptateur porte déjà un /24 privé sain
+// différent de la cible : l'écraser casserait un réseau qui marche.
+func adapterHasOtherSubnet(alias, sub string) bool {
+	ifaces, _ := net.Interfaces()
+	for _, it := range ifaces {
+		if it.Name != alias {
+			continue
+		}
+		addrs, err := it.Addrs()
+		if err != nil {
+			return false
+		}
+		for _, a := range addrs {
+			var ip net.IP
+			switch v := a.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.To4() == nil || !ip.IsPrivate() {
+				continue
+			}
+			s := ip.String()
+			if strings.HasPrefix(s, "169.254.") || strings.HasPrefix(s, "fe80") {
+				continue
+			}
+			if !strings.HasPrefix(s, sub) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func vnetSubnet(host string) string {
@@ -63,6 +157,12 @@ func vnetSubnet(host string) string {
 		return host
 	}
 	return strings.Join(parts[:3], ".") + "."
+}
+
+// isVBoxGuestSpace — 10.0.2.0/24 est l'espace invité interne du NAT
+// VirtualBox : il ne doit apparaître sur AUCUN adaptateur hôte.
+func isVBoxGuestSpace(host string) bool {
+	return strings.HasPrefix(strings.TrimSpace(host), "10.0.2.")
 }
 
 // hostIfaceOn — nom d'une interface UP non-loopback portant une IP du /24.
@@ -135,20 +235,31 @@ func elevated() bool {
 	return os.Geteuid() == 0
 }
 
-// vnetFixWindows — restaure 192.168.174.1/24 sur VMnet8 (la panne vue :
-// APIPA après perte de config statique). Élevé → appliqué + revérifié ;
-// sinon : script admin + one-liner.
-func (r *Runner) vnetFixWindows(sub string) int {
-	alias := ""
-	ifaces, _ := net.Interfaces()
-	for _, it := range ifaces {
-		if strings.Contains(strings.ToLower(it.Name), "vmnet8") {
-			alias = it.Name
-		}
+// vnetFixWindows — restaure sub+1/24 sur l'adaptateur de la famille de
+// l'hyperviseur (la panne vue : APIPA après perte de config statique).
+// Garde-fous (incident 10.0.2.1/24 sur VMnet8) : jamais d'écriture si
+// l'hyperviseur est inconnu, si la cible est l'espace NAT interne VBox,
+// ou si l'adaptateur porte déjà un autre /24 sain. Élevé → appliqué +
+// revérifié ; sinon : script admin + one-liner.
+func (r *Runner) vnetFixWindows(sub, hyp string) int {
+	if isVBoxGuestSpace(sub + "0") {
+		r.errf("[vnet] refusé : 10.0.2.0/24 est interne au NAT VirtualBox — jamais sur un adaptateur hôte")
+		return 3
 	}
+	alias := wantAdapter(hyp, sub)
 	gw := sub + "1"
 	if alias == "" {
-		r.errf("[vnet] pas d'interface VMnet8 — VMware installé ? VirtualBox ? (vboxnet/host-only pour VBox)")
+		if hyp == "" {
+			r.errf("[vnet] hyperviseur inconnu (pas de VM verrouillée ?) — réparation manuelle uniquement")
+		} else if hyp == "virtualbox" {
+			r.errf("[vnet] cible pontée/autre (%s0/24) : côté LAN, l'hôte ne peut rien écrire — vérifiez le réseau", sub)
+		} else {
+			r.errf("[vnet] pas d'interface vmnet* — VMware installé ?")
+		}
+		return 3
+	}
+	if adapterHasOtherSubnet(alias, sub) {
+		r.errf("[vnet] refusé : « %s » porte déjà un autre /24 sain — l'écraser casserait un réseau qui marche", alias)
 		return 3
 	}
 	script := findKitFile(r, "fix-vnet-admin.ps1")
@@ -188,19 +299,28 @@ func (r *Runner) vnetFixWindows(sub string) int {
 	return 3
 }
 
-// vnetFixLinux — même logique côté sudo (vmnet8/vboxnet0 tombés).
-func (r *Runner) vnetFixLinux(sub string) int {
-	dev := ""
-	ifaces, _ := net.Interfaces()
-	for _, it := range ifaces {
-		nm := strings.ToLower(it.Name)
-		if strings.HasPrefix(nm, "vmnet") || strings.HasPrefix(nm, "vboxnet") {
-			dev = it.Name
-		}
+// vnetFixLinux — même logique côté sudo (vmnet8/vboxnet0 tombés),
+// mêmes garde-fous : pas d'écriture sans hyperviseur connu, jamais sur
+// 10.0.2.0/24, jamais par-dessus un autre /24 sain.
+func (r *Runner) vnetFixLinux(sub, hyp string) int {
+	if isVBoxGuestSpace(sub + "0") {
+		r.errf("[vnet] refusé : 10.0.2.0/24 est interne au NAT VirtualBox — jamais sur un adaptateur hôte")
+		return 3
 	}
+	dev := wantAdapter(hyp, sub)
 	gw := sub + "1"
 	if dev == "" {
-		r.errf("[vnet] aucune interface vmnet*/vboxnet* — hyperviseur démarré ? (VM allumée ?)")
+		if hyp == "" {
+			r.errf("[vnet] hyperviseur inconnu (pas de VM verrouillée ?) — réparation manuelle uniquement")
+		} else if hyp == "virtualbox" {
+			r.errf("[vnet] cible pontée/autre (%s0/24) : côté LAN, l'hôte ne peut rien écrire — vérifiez le réseau", sub)
+		} else {
+			r.errf("[vnet] aucune interface vmnet* — hyperviseur démarré ? (VM allumée ?)")
+		}
+		return 3
+	}
+	if adapterHasOtherSubnet(dev, sub) {
+		r.errf("[vnet] refusé : « %s » porte déjà un autre /24 sain — l'écraser casserait un réseau qui marche", dev)
 		return 3
 	}
 	cmd := fmt.Sprintf("sudo ip addr add %s/24 dev %s && sudo ip link set %s up", gw, dev, dev)

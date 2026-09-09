@@ -228,6 +228,18 @@ func (f *fyApp) runTerm(label string, args ...string) {
 	full := append([]string{"kit", "--config", f.cfgPth}, args...)
 	go func() {
 		code := termRun(f.cgoExe, full)
+		// Vérifie, ne crois pas : certains émulateurs (gnome-terminal)
+		// rendent la main dès la délégation — « ✓ terminé » serait un
+		// mensonge si la clé n'est pas posée.
+		if code == 0 && label == "poser-clé" {
+			if out, err := f.loadCfg().SSH("true"); err != nil {
+				f.log("terminal fermé avant la fin ? clé non vérifiée — relancez « Poser la clé »")
+				_ = out
+				code = 9
+			} else {
+				f.log("clé vérifiée : acceptée par l'invité")
+			}
+		}
 		f.mu.Lock()
 		f.busy = ""
 		f.mu.Unlock()
@@ -321,8 +333,12 @@ func (f *fyApp) scan() {
 		rows := scanVMRows()
 		f.mu.Lock()
 		f.rows = rows
+		// Sélection réinitialisée : les lignes ont été remplacées — garder
+		// l'ancien index verrouillerait une AUTRE VM que l'affichée.
+		f.sel = -1
 		f.busy = ""
 		f.mu.Unlock()
+		f.vmList.UnselectAll()
 		f.vmList.Refresh()
 		f.setStatus("Prêt.")
 		f.log(fmt.Sprintf("%d VM(s) — sélectionnez puis Verrouiller", len(rows)))
@@ -356,6 +372,10 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 		f.log("utilisateur SSH : " + u + " — Diagnostiquer pour vérifier")
 		f.refreshStatus()
 	case kind == "direct:open":
+		if _, err := exec.LookPath("xdg-open"); err != nil {
+			f.log("xdg-open absent — ouvrez à la main : " + f.dashURL())
+			return
+		}
 		_ = exec.Command("xdg-open", f.dashURL()).Start()
 		f.log("navigateur → " + f.dashURL())
 	case kind == "bg:scan":
@@ -413,7 +433,11 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 			}
 			if ver, ok := dashHealth(c); ok {
 				fmt.Fprintln(r.Stdout, "dashboard sain (version "+ver+")")
-				_ = exec.Command("xdg-open", f.dashURL()).Start()
+				if _, err := exec.LookPath("xdg-open"); err != nil {
+					fmt.Fprintln(r.Stdout, "xdg-open absent — ouvrez à la main : "+f.dashURL())
+				} else {
+					_ = exec.Command("xdg-open", f.dashURL()).Start()
+				}
 				return 0
 			}
 			fmt.Fprintln(r.Stdout, "dashboard injoignable — `Démarrer / Réessayer` puis relancez")
@@ -553,7 +577,9 @@ func (f *fyApp) buildUI() {
 		f.status,
 		f.nextLbl,
 	)
-	f.win.SetContent(container.NewHSplit(left, right))
+	split := container.NewHSplit(left, right)
+	split.Offset = 0.52
+	f.win.SetContent(split)
 }
 
 func main() {

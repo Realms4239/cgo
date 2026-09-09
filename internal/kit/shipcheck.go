@@ -35,8 +35,9 @@ func (r *Runner) ShipCheck(c *Config) int {
 		}
 	}
 
-	// 1. DNS : le nom stable résout vers la VM
-	addrs, err := net.LookupHost(name)
+	// 1. DNS : le nom stable résout vers la VM (borné : 4 s max, pas de
+	// timeout externe opaque — vu en prod).
+	addrs, err := lookupHostFast(name)
 	dnsOK := err == nil && len(addrs) > 0
 	dnsDetail := strings.Join(addrs, ",")
 	if !dnsOK {
@@ -83,6 +84,9 @@ func (r *Runner) ShipCheck(c *Config) int {
 		"cgo kit svc restart (dashboard non-TLS ? vieux binaire ?)")
 	gate(sanOK, "cert-san", map[bool]string{true: "couvre " + name + " [" + sans + "]", false: "SANs [" + sans + "] ≠ " + name}[sanOK],
 		"certificat régénéré nécessaire (supprimer ~/.config/cgo/cert.pem sur la VM puis kit svc restart)")
+	if dates == "" {
+		dates = "inconnues (aucun certificat présenté)"
+	}
 	gate(dateOK, "cert-dates", map[bool]string{true: dates + " (CN=" + cn + ")", false: "expiré/bientôt : " + dates}[dateOK],
 		"même remède que cert-san")
 

@@ -129,6 +129,8 @@ func itoa(n int) string {
 func shortDiag(out string) string {
 	o := strings.ToLower(out)
 	switch {
+	case strings.Contains(o, "ssh_user vide"):
+		return "utilisateur vide"
 	case strings.Contains(o, "refused"), strings.Contains(o, "closed"):
 		return "port 22 fermé"
 	case strings.Contains(o, "denied"):
@@ -287,21 +289,22 @@ func mkKeyGUI(c *kit.Config, r *kit.Runner) int {
 	return 0
 }
 
-func openConsoleGUI(c *kit.Config, r *kit.Runner) int {	if c.VMPath() == "" {
+func openConsoleGUI(c *kit.Config, r *kit.Runner) int {
+	if c.VMPath() == "" {
 		fmt.Fprintln(r.Stderr, "aucune VM verrouillée")
 		return 3
 	}
-	for _, h := range vm.Detect() {
-		if c.Hypervisor != "" && h.Name() != c.Hypervisor {
-			continue
-		}
-		if err := h.StartGUI(c.VMPath()); err == nil {
-			fmt.Fprintln(r.Stdout, "console ouverte")
-			return 0
-		}
+	hyp := hypFor(c)
+	if hyp == nil {
+		fmt.Fprintln(r.Stderr, "pilote hyperviseur introuvable — installez VMware/VirtualBox à la main")
+		return 4
 	}
-	fmt.Fprintln(r.Stderr, "ouverture impossible — lancez VMware/VirtualBox à la main")
-	return 4
+	if err := hyp.StartGUI(c.VMPath()); err != nil {
+		fmt.Fprintln(r.Stderr, "ouverture impossible — lancez VMware/VirtualBox à la main : "+err.Error())
+		return 4
+	}
+	fmt.Fprintln(r.Stdout, "console ouverte")
+	return 0
 }
 
 func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
@@ -310,13 +313,7 @@ func vmPowerGUI(c *kit.Config, r *kit.Runner, start bool) int {
 		fmt.Fprintln(w, "aucune VM verrouillée — verrouillez-en une dans la liste")
 		return 3
 	}
-	var hyp vm.Hypervisor
-	for _, h := range vm.Detect() {
-		if c.Hypervisor != "" && h.Name() != c.Hypervisor {
-			continue
-		}
-		hyp = h
-	}
+	var hyp = hypFor(c)
 	if hyp == nil {
 		fmt.Fprintln(w, "hyperviseur absent — installez VMware Workstation ou VirtualBox")
 		return 4
@@ -393,14 +390,13 @@ func nicToggleGUI(c *kit.Config, r *kit.Runner, cfgPath string) int {
 }
 
 func pickVMGUI(c *kit.Config) (vm.Hypervisor, string, error) {
-	if c.VMPath() != "" {
-		for _, h := range vm.Detect() {
-			if c.Hypervisor == "" || h.Name() == c.Hypervisor {
-				return h, c.VMPath(), nil
-			}
-		}
+	if c.VMPath() == "" {
+		return nil, "", fmt.Errorf("verrouillez d'abord une VM (liste ci-dessus)")
 	}
-	return nil, "", fmt.Errorf("verrouillez d'abord une VM (liste ci-dessus)")
+	if hyp := hypFor(c); hyp != nil {
+		return hyp, c.VMPath(), nil
+	}
+	return nil, "", fmt.Errorf("pilote hyperviseur introuvable pour %s", c.VMPath())
 }
 
 func diagGUI(c *kit.Config, r *kit.Runner) int {
@@ -423,13 +419,8 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 	host := c.SSHHost
 	if host == "" || host == "auto" {
 		host = ""
-		for _, h := range vm.Detect() {
-			if c.Hypervisor != "" && h.Name() != c.Hypervisor {
-				continue
-			}
-			if ip := h.GuestIP(c.VMPath()); ip != "" {
-				host = ip
-			}
+		if hyp := hypFor(c); hyp != nil {
+			host = hyp.GuestIP(c.VMPath())
 		}
 		if host == "" {
 			fmt.Fprintln(r.Stdout, ko+" IP invitée non résolue — VM éteinte ? « Démarrer / Réessayer »")
@@ -483,11 +474,39 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 
 func vmRunningGUI(hyp vm.Hypervisor, vmx string) bool {
 	for _, r := range hyp.Running() {
-		if strings.EqualFold(filepath.Clean(r), filepath.Clean(vmx)) {
+		if vm.SameVM(r, vmx) {
 			return true
 		}
 	}
 	return false
+}
+
+// hypForDrivers — pilote pour un chemin VM : l'EXTENSION d'abord (.vbox →
+// VirtualBox même si vmrun est détecté en premier — même bug racine que
+// côté kit/selectDriver), puis le nom configuré, puis le premier détecté.
+// Pur en hs (testé avec pilote factice) ; hypFor() ajoute Detect().
+func hypForDrivers(hs []vm.Hypervisor, c *kit.Config) vm.Hypervisor {
+	if w := vm.HypForPath(c.VMPath()); w != "" {
+		for _, h := range hs {
+			if h.Name() == w {
+				return h
+			}
+		}
+		return nil
+	}
+	for _, h := range hs {
+		if c.Hypervisor != "" && h.Name() == c.Hypervisor {
+			return h
+		}
+	}
+	if len(hs) > 0 {
+		return hs[0]
+	}
+	return nil
+}
+
+func hypFor(c *kit.Config) vm.Hypervisor {
+	return hypForDrivers(vm.Detect(), c)
 }
 
 func openBrowser(url string) {
@@ -519,13 +538,14 @@ func scanVMRows() []vmRow {
 		} else if strings.HasSuffix(lower, ".vbox") {
 			hyp = "virtualbox"
 		}
-		live := running[p]
-		if !live {
-			base := strings.ToLower(strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)))
-			for rp := range running {
-				if strings.Contains(strings.ToLower(rp), base) {
-					live = true
-				}
+		live := false
+		for rp := range running {
+			// SameVM normalisé (casse/séparateurs) : l'exact + le
+			// sous-chaîne de basename sur-matchaient (« ubuntu » ≅
+			// « ubuntu-old ») ou rataient selon le format du chemin.
+			if vm.SameVM(rp, p) {
+				live = true
+				break
 			}
 		}
 		mode := "inconnu"
@@ -543,10 +563,10 @@ func scanVMRows() []vmRow {
 func probeStatus(c *kit.Config) (ssh, dash, locked string) {
 	ssh = "—"
 	if c.SSHHost == "" || c.SSHHost == "auto" || portOpenGUI(c.SSHHost, c.SSHPort) {
-		if c.SSHUp() {
+		// UN seul appel (avant : SSHUp PUIS SSH → deux handshakes).
+		if out, err := c.SSH("true"); err == nil {
 			ssh = "actif"
 		} else if c.SSHHost != "" && c.SSHHost != "auto" {
-			out, _ := c.SSH("true")
 			ssh = "coupé (" + shortDiag(out) + ")"
 		}
 	} else {
@@ -592,6 +612,19 @@ func (g *cfgCache) load(path string) *kit.Config {
 		}
 	} else {
 		g.host, g.at = c.SSHHost, time.Now()
+	}
+	return c
+}
+
+// loadFast — parse seul + hôte mémorisé, JAMAIS de GuestIP : seule voie
+// d'accès config depuis le thread UI (dashURL). Le load() complet
+// (résolution réseau, secondes) reste réservé au fond.
+func (g *cfgCache) loadFast(path string) *kit.Config {
+	c, _ := kit.LoadConfigFast(path)
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if (c.SSHHost == "" || c.SSHHost == "auto") && g.host != "" && time.Since(g.at) < 45*time.Second {
+		c.SSHHost = g.host
 	}
 	return c
 }

@@ -317,7 +317,7 @@ func dashProbe(url string) (string, bool) {
 }
 
 func dnsMapsTo(name, ip string) bool {
-	addrs, err := net.LookupHost(name)
+	addrs, err := lookupHostFast(name)
 	if err != nil {
 		return false
 	}

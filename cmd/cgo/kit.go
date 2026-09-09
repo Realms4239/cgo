@@ -65,6 +65,18 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 	// deep par défaut (tout le PC) ; --shallow restreint aux conventions.
 	effDeep := *deep && !*shallow
 
+	explicitCfg := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "config" {
+			explicitCfg = true
+		}
+	})
+	if explicitCfg {
+		if st, err := os.Stat(*cfgPath); err != nil || st.IsDir() {
+			fmt.Fprintf(os.Stderr, "config introuvable : %s (chemin explicite — pas de repli silencieux)\n", *cfgPath)
+			return 2
+		}
+	}
 	c, _ := kit.LoadConfig(*cfgPath)
 	r := kit.NewRunner()
 
