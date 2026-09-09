@@ -183,6 +183,9 @@ func LoadConfig(path string) (*Config, error) {
 // saveConfigValue — écrit clé: "valeur" dans le yaml (ajoute si absent).
 // Factorisé de SaveVMX : keysetup y mémorise ssh_user après une pose réussie.
 func saveConfigValue(path, key, val string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
 	b, _ := os.ReadFile(path)
 	lines := strings.Split(string(b), "\n")
 	found := false
@@ -217,7 +220,12 @@ func SaveSSHTarget(path, user, host, port, key string) error {
 // SaveVMX — persiste vm_name/vmx_path/hypervisor dans le yaml (auto-rempli par scan).
 func SaveVMX(path, vmx, hypervisor string) error {
 	name := strings.TrimSuffix(filepath.Base(vmx), filepath.Ext(vmx))
-	set := func(key, val string) { _ = saveConfigValue(path, key, val) }
+	var first error
+	set := func(key, val string) {
+		if err := saveConfigValue(path, key, val); err != nil && first == nil {
+			first = err
+		}
+	}
 	if strings.HasSuffix(vmx, ".vbox") {
 		set("vbox_path", vmx)
 	} else {
@@ -225,7 +233,7 @@ func SaveVMX(path, vmx, hypervisor string) error {
 	}
 	set("vm_name", name)
 	set("hypervisor", hypervisor)
-	return nil
+	return first
 }
 
 // Runner — dépendances exécutables d'une action kit (mockables en test).
