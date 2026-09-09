@@ -200,7 +200,7 @@ func (a *app) buildControls() {
 		byID[b.id] = b
 	}
 	cy := 36
-	for _, row := range [][]int{{231, 232, 233, 234}, {235, 236, 237, 238}, {239, 240}, {241, 242}, {243, 244}, {245, 246, 247}} {
+	for _, row := range [][]int{{231, 232, 233, 234}, {235, 236, 237, 238}, {239, 240}, {241, 242}, {243, 244}, {245, 246, 247}, {249, 250}} {
 		bx := 612
 		for _, id := range row {
 			b := byID[id]
@@ -210,8 +210,9 @@ func (a *app) buildControls() {
 		cy += 36
 	}
 	y += 96
-	a.mkCtl("BUTTON", "Journal", bsGroupbox, 8, y, 896, 150, 0)
-	a.logEdit = a.mkCtl("EDIT", "", esMultiline|esReadonly|esAutovscroll|wsVscroll|wsBorder|wsTabstop, 16, y+24, 880, 118, idLog)
-	a.status = a.mkCtl("STATIC", "Prêt.", 0, 16, y+148, 880, 18, idStatus)
+	a.mkCtl("BUTTON", "Journal", bsGroupbox, 8, y, 896, 172, 0)
+	a.logEdit = a.mkCtl("EDIT", "", esMultiline|esReadonly|esAutovscroll|wsVscroll|wsBorder|wsTabstop, 16, y+24, 880, 112, idLog)
+	a.status = a.mkCtl("STATIC", "Prêt.", 0, 16, y+142, 880, 18, idStatus)
+	a.nextLbl = a.mkCtl("STATIC", "→ Prochaine : …", 0, 16, y+160, 880, 18, idNext)
 	_ = strings.TrimSpace("")
 }

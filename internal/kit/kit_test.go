@@ -141,6 +141,32 @@ func (f *fakeHyp) SetNetMode(vmx, mode string) error { return nil }
 
 // selectDriver — même bug racine, côté ensure/deploy : le .vbox obtient
 // le pilote virtualbox même si vmware est détecté en premier.
+// FirstOpen — premier palier non-vert : la prochaine étape, jamais un
+// palier déjà vert ni un « en attente » plus loin dans la file.
+func TestFirstOpen(t *testing.T) {
+	allOK := []NextStep{{ID: "vm", State: "ok"}, {ID: "cle", State: "ok"}}
+	if nx := FirstOpen(allOK); nx != nil {
+		t.Fatalf("tout vert → nil, got %q", nx.ID)
+	}
+	mixed := []NextStep{
+		{ID: "vm", State: "ok"},
+		{ID: "cle", State: "ko", Remedy: "cgo kit keysetup", Verb: "console:keysetup"},
+		{ID: "binaire", State: "attente"},
+	}
+	nx := FirstOpen(mixed)
+	if nx == nil || nx.ID != "cle" || nx.Verb != "console:keysetup" {
+		t.Fatalf("got %+v, want l'étape clé", nx)
+	}
+	waitOnly := []NextStep{
+		{ID: "vm", State: "ok"},
+		{ID: "cible", State: "attente", Remedy: "cgo kit ensure"},
+		{ID: "port", State: "attente"},
+	}
+	if nx := FirstOpen(waitOnly); nx == nil || nx.ID != "cible" {
+		t.Fatalf("attente bloque aussi, got %+v", nx)
+	}
+}
+
 func TestSelectDriver(t *testing.T) {
 	vb := &fakeHyp{name: "virtualbox"}
 	vw := &fakeHyp{name: "vmware"}

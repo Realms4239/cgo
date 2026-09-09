@@ -44,9 +44,10 @@ func (r *Runner) ShipCheck(c *Config) int {
 	}
 	gate(dnsOK, "dns", name+" → "+dnsDetail, "cgo kit dns (terminal admin)")
 
-	// 2. TCP : le port répond
+	// 2. TCP : le port répond (forward ou direct — le backend est vérifié
+	// aux portes suivantes, pas ici).
 	tcpOK := portOpen(host, port)
-	gate(tcpOK, "tcp", host+":"+port+(map[bool]string{true: " ouvert", false: " fermé"})[tcpOK],
+	gate(tcpOK, "tcp", host+":"+port+(map[bool]string{true: " ouvert (écoute — backend ci-dessous)", false: " fermé"})[tcpOK],
 		"cgo kit ensure (VM éteinte ?) puis cgo kit svc start")
 
 	// 3-4. TLS + certificat : poignée de main + SAN + validité
@@ -78,7 +79,7 @@ func (r *Runner) ShipCheck(c *Config) int {
 			}
 		}
 	}
-	gate(leafOK, "tls", map[bool]string{true: "poignée de main OK", false: "échec handshake"}[leafOK],
+	gate(leafOK, "tls", map[bool]string{true: "poignée de main OK", false: "échec handshake (forward seul sans backend ? svc éteint ?)"}[leafOK],
 		"cgo kit svc restart (dashboard non-TLS ? vieux binaire ?)")
 	gate(sanOK, "cert-san", map[bool]string{true: "couvre " + name + " [" + sans + "]", false: "SANs [" + sans + "] ≠ " + name}[sanOK],
 		"certificat régénéré nécessaire (supprimer ~/.config/cgo/cert.pem sur la VM puis kit svc restart)")
