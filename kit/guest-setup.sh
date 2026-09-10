@@ -66,17 +66,19 @@ do_check() {
   chk "sshd actif" "systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null"
   chk "port 22 en écoute" "ss -ltn 2>/dev/null | grep -q ':22 '"
   chk "binaire $PROJECT/cgo-linux" '[ -x "$PROJECT/cgo-linux" ]'
+  chk "sudoers cgo-network (tc/ip sans mot de passe)" '! sudo -n ip link show lo 2>&1 | grep -qi password'
+  chk "banc de mesure (small :8081)" 'curl -fsS -m2 http://10.200.0.1:8081/small -o /dev/null 2>/dev/null'
   chk "dashboard :$PORT sain (TLS)" "curl -fsS -m 2 -k \"https://127.0.0.1:$PORT/api/health\" 2>/dev/null | grep -q '\"ok\":true'"
   if [ "$MISS" = "0" ]; then ok "PRÊT — rien à faire"; else warn "$MISS point(s) à corriger — relancez sans --check"; fi
   exit "$MISS"
 }
 [ "$CHECK" = "1" ] && do_check
 
-step "0/5 — réseau et droits"
+step "0/6 — réseau et droits"
 if have_net; then ok "internet joignable"; else warn "HORS-LIGNE : les installations apt seront sautées, le reste continue"; fi
-if [ "$(id -u)" = "0" ]; then SUDO=""; ok "root direct"; elif sudo -n true 2>/dev/null; then SUDO="sudo -n"; ok "sudo sans mot de passe"; else SUDO="sudo"; warn "sudo demandera le mot de passe (normal)"; fi
+if [ "$(id -u)" = "0" ]; then SUDO=""; ok "root direct"; elif sudo -n ip link show lo 2>&1 | grep -qi "password"; then SUDO="sudo"; warn "sudo demandera le mot de passe (normal)"; else SUDO="sudo -n"; ok "sudo sans mot de passe"; fi
 
-step "1/5 — paquets (openssh-server, outils invité)"
+step "1/6 — paquets (openssh-server, outils invité)"
 if have_net && command -v apt-get >/dev/null 2>&1; then
   WANT="openssh-server iproute2 curl"
   if [ -d /sys/bus/pci/drivers/vmw_pvscsi ] 2>/dev/null || systemd-detect-virt 2>/dev/null | grep -qi vmware; then
@@ -106,7 +108,7 @@ else
   warn "sauté (pas d'apt ou pas d'internet) — vérifiez à la main : sshd ? ip ?"
 fi
 
-step "2/5 — serveur SSH"
+step "2/6 — serveur SSH"
 if systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null; then
   ok "sshd actif"
 else
@@ -127,7 +129,7 @@ if command -v ufw >/dev/null 2>&1 && $SUDO ufw status 2>/dev/null | grep -q "Sta
   done
 fi
 
-step "3/5 — binaire"
+step "3/6 — binaire"
 mkdir -p "$PROJECT" || fail "création $PROJECT impossible"
 cd "$PROJECT" || fail "cd $PROJECT impossible"
 if [ -n "$TARBALL" ]; then
@@ -151,7 +153,7 @@ else
 fi
 ./cgo-linux version || warn "le binaire ne démarre pas (libc ? après un --tarball exotique ?)"
 
-step "4/5 — dashboard sécurisé (TLS, port $PORT)"
+step "4/6 — dashboard sécurisé (TLS, port $PORT)"
 cat > start.sh <<LAUNCHER
 #!/bin/bash
 cd "$PROJECT"
@@ -163,7 +165,14 @@ for _ in $(seq 1 10); do pgrep -u "$ME" -f '[c]go-linux --serve' >/dev/null || b
 ( setsid nohup ./start.sh >/dev/null 2>&1 & )
 ok "dashboard (re)lancé"
 
-step "5/5 — santé + récapitulatif"
+step "5/6 — banc de mesure (campagnes)"
+if [ -f "$PROJECT/kit/testbed.sh" ]; then
+  bash "$PROJECT/kit/testbed.sh" up || warn "testbed up a échoué — campagnes impossibles tant que le banc est absent"
+else
+  warn "kit/testbed.sh absent — récupérez-le du zip (dossier kit/) puis : sudo bash kit/testbed.sh up"
+fi
+
+step "6/6 — santé + récapitulatif"
 for i in $(seq 1 15); do
   if curl -fsS -m 2 -k "https://127.0.0.1:$PORT/api/health" 2>/dev/null | grep -q '"ok":true'; then
     ok "sain sur :$PORT (TLS) après ${i}s"

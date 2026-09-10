@@ -15,7 +15,7 @@ fail(){ echo -e "  ${RED}[X]${NC} $1"; exit 1; }
 PROJECT_DIR="${CFG_PROJECT_DIR:-$HOME/cgo}"
 PORT="${CFG_DASHBOARD_PORT:-9090}"
 
-step "1/4 — binary"
+step "1/5 — binary"
 cd "$PROJECT_DIR" || fail "project dir missing: $PROJECT_DIR"
 if [ -f cgo-linux.new ]; then
   MAGIC=$(head -c 4 cgo-linux.new | od -An -tx1 | tr -d ' \n')
@@ -29,7 +29,7 @@ else
   fail "no binary available"
 fi
 
-step "2/4 — launcher"
+step "2/5 — launcher"
 cat > start.sh <<LAUNCHER
 #!/bin/bash
 cd "$PROJECT_DIR"
@@ -41,13 +41,25 @@ LAUNCHER
 chmod +x start.sh
 ok "start.sh written (port $PORT, TLS)"
 
-step "3/4 — restart"
+step "3/5 — restart"
 pkill -u "$USER" -f '[c]go-linux --serve' 2>/dev/null || true
 for _ in $(seq 1 10); do pgrep -u "$USER" -f '[c]go-linux --serve' >/dev/null || break; sleep 1; done
 ( setsid nohup ./start.sh >/dev/null 2>&1 & )
 ok "launcher started"
 
-step "4/4 — health"
+step "4/5 — banc de mesure (sudoers + testbed, best-effort)"
+if [ -f "$PROJECT_DIR/kit/testbed.sh" ]; then
+  if bash "$PROJECT_DIR/kit/testbed.sh" up; then
+    ok "banc de mesure prêt (campagnes possibles)"
+  else
+    echo "  [..] testbed up a échoué — dashboard OK, mais campagnes impossibles tant que le banc est absent"
+    echo "  [..] sur la console VM (une fois) : sudo bash kit/testbed.sh up — ou depuis le poste : cgo kit testbed up"
+  fi
+else
+  echo "  [..] kit/testbed.sh absent — re-poussez (kit deploy) puis : cgo kit testbed up"
+fi
+
+step "5/5 — health"
 for i in $(seq 1 15); do
   curl -fsS -m 2 -k "https://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && { ok "healthy on :$PORT (TLS) after ${i}s"; exit 0; }
   sleep 1

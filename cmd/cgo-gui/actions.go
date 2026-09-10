@@ -334,6 +334,8 @@ func (a *app) runKind(kind string, args []string) {
 			sub = args[0]
 		}
 		a.runKit("svc "+sub, func(r *kit.Runner) int { return r.Svc(a.loadCfg(), sub) })
+	case kind == "bg:testbed":
+		a.runKit("testbed", func(r *kit.Runner) int { return r.Testbed(a.loadCfg(), args) })
 	case kind == "bg:logs":
 		a.runKit("logs", func(r *kit.Runner) int {
 			c := a.loadCfg()
@@ -362,11 +364,13 @@ func (a *app) runKind(kind string, args []string) {
 	case kind == "bg:hosttun":
 		a.runKit("tunnel-hôte", func(r *kit.Runner) int {
 			c := a.loadCfg()
-			_, argv, blocked := hostTunCmd(c, filepath.Dir(a.cgoExe), r.Root)
-			if blocked != "" {
-				fmt.Println(blocked)
-				return 3
-			}
+		_, argv, blocked := hostTunCmd(c, filepath.Dir(a.cgoExe), r.Root)
+		if blocked != "" {
+			// journal, JAMAIS stdout : sous windowsgui, fmt.Println part
+			// dans le vide et le bouton passe pour mort (vu en prod).
+			a.appendLog(blocked)
+			return 3
+		}
 			cmd := kit.BgCmd("powershell", argv...)
 			cmd.Stdout, cmd.Stderr = r.Stdout, r.Stderr
 			if err := cmd.Run(); err != nil {

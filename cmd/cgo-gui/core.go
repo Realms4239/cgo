@@ -93,7 +93,7 @@ var deployActions = []buttonDef{
 var controlActions = []buttonDef{
 	{231, "État", 0, 0, 60}, {232, "Start", 0, 0, 60}, {233, "Stop", 0, 0, 60}, {234, "Restart", 0, 0, 70},
 	{235, "Logs", 0, 0, 60}, {236, "DNS", 0, 0, 55}, {237, "TLS", 0, 0, 55}, {238, "Vérifier", 0, 0, 75},
-	{239, "Backup", 0, 0, 70}, {240, "Snapshot", 0, 0, 85},
+	{239, "Backup", 0, 0, 70}, {240, "Snapshot (arrêt VM)", 0, 0, 145},
 	{241, "Réseau invité", 0, 0, 110}, {242, "Démarrer VM", 0, 0, 105}, {243, "Arrêter VM", 0, 0, 95},
 	{244, "Carte NAT/pont", 0, 0, 115},
 	{245, "Tunnel hôte", 0, 0, 95}, {246, "Invité", 0, 0, 70}, {247, "Réseau hôte", 0, 0, 95},

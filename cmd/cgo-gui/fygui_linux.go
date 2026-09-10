@@ -397,6 +397,8 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 			sub = args[0]
 		}
 		f.runBg("svc "+sub, func(r *kit.Runner) int { return r.Svc(f.loadCfg(), sub) })
+	case kind == "bg:testbed":
+		f.runBg("testbed", func(r *kit.Runner) int { return r.Testbed(f.loadCfg(), args) })
 	case kind == "bg:logs":
 		f.runBg("logs", func(r *kit.Runner) int {
 			c := f.loadCfg()

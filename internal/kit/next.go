@@ -16,11 +16,11 @@ import (
 
 // NextStep — la PROCHAINE action du pipeline, calculée (pas devinée) :
 // scan → vnet → boot → cible → port → clé → binaire → dashboard → dns →
-// confiance. Chaque palier est vérifié vite et en lecture seule ; le
-// premier non-vert donne l'étape (CLI : commande exacte, GUI : verbe
+// confiance → banc de mesure. Chaque palier est vérifié vite et en lecture
+// seule ; le premier non-vert donne l'étape (CLI : commande exacte, GUI :
 // bouton pour « Suite »). Même ordre, mêmes mots que le LISEZ-MOI.
 type NextStep struct {
-	ID     string // vm, vnet, boot, cible, port, cle, binaire, svc, dns, tls
+	ID     string // vm, vnet, boot, cible, port, cle, binaire, svc, dns, tls, banc
 	Label  string // texte banner (« Prochaine : … »)
 	State  string // "ok", "ko", "attente" (amont non vert)
 	Detail string // preuve courte
@@ -164,6 +164,10 @@ func GatherNext(c *Config) []NextStep {
 		push(NextStep{ID: "svc", Label: "Dashboard", State: "attente", Detail: "binaire d'abord"})
 	} else if ver, ok := dashProbe(dashProbeURL(c)); ok {
 		push(NextStep{ID: "svc", Label: "Dashboard", State: "ok", Detail: "sain (version " + ver + ")"})
+	} else if httpOnlyUp(c) {
+		push(NextStep{ID: "svc", Label: "Dashboard pré-TLS", State: "ko",
+			Detail: "HTTP seul (binaire ≤1.2.2) — svc start ne soignera jamais",
+			Remedy: "cgo kit deploy", Verb: "bg:deploy"})
 	} else {
 		push(NextStep{ID: "svc", Label: "Démarrer le dashboard", State: "ko",
 			Detail: "aucune réponse saine",
@@ -196,6 +200,20 @@ func GatherNext(c *Config) []NextStep {
 		push(NextStep{ID: "tls", Label: "Confiance HTTPS (admin)", State: "ko",
 			Detail: "certificat non reconnu par le système",
 			Remedy: "cgo kit tls (terminal admin)", Verb: "console:tls", Args: []string{"tls"}})
+	}
+
+	// 11. banc de mesure (campagnes) — DERNIER : ne bloque rien après lui,
+	// mais « tout est vert » l'exige. Sans lui (VM fraîche), Démarrer gèle
+	// un run à zéro ligne. Sonde guest directe (small + sink + sudo) —
+	// sudo testé sur la SORTIE : sudo 1.9.15p5 sort 0 même en refusant -n.
+	if !stepOK(steps, "cle") {
+		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "attente", Detail: "clé d'abord"})
+	} else if out, err := c.SSH("curl -fsS -m3 http://10.200.0.1:8081/small -o /dev/null && timeout 1 bash -c '</dev/tcp/10.200.0.1/5201' && ! sudo -n ip netns list 2>&1 | grep -qi password && echo PLANE_OK"); err == nil && strings.Contains(out, "PLANE_OK") {
+		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "ok", Detail: "small + bulk + sudo — campagnes possibles"})
+	} else {
+		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "ko",
+			Detail: "absent — Démarrer gèlerait zéro ligne",
+			Remedy: "cgo kit testbed up", Verb: "bg:testbed"})
 	}
 	return steps
 }

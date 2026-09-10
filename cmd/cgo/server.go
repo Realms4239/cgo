@@ -133,6 +133,13 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		} else {
 			deps.DeadlineMs = defaultDeadline()
 		}
+		// porte plan de mesure — sans banc (VM fraîche : pas de veth, pas de
+		// testbedsrv, pas de sudoers), chaque cellule échoue et la matrice
+		// gèle un run à ZÉRO ligne (« Démarrer → idle → rien », vu en prod).
+		// Refus honnête (409) plutôt que run fantôme.
+		if err := campagne.PlaneReady(ctx, deps); err != nil {
+			return err
+		}
 		// axes : vides = matrice pleine ; ciblés = sous-matrice (cellules n=1
 		// rejouables sans 54 min de matrice complète)
 		qdiscs, ccs := o.Qdiscs, o.CCs

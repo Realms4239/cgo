@@ -193,8 +193,13 @@ func (r *Runner) Svc(c *Config, sub string) int {
 	procs = strings.TrimSpace(procs)
 	switch sub {
 	case "", "status":
+		h := c.Health()
 		r.out("[svc] process=%s health=%s (%s@%s)", firstOr(procs, "—"),
-			humanBool(c.Health()), c.SSHUser, c.SSHHost)
+			humanBool(h), c.SSHUser, c.SSHHost)
+		// dashboard éteint = échec (avant : exit 0 qui passait pour vert).
+		if !h {
+			return 5
+		}
 		return 0
 	case "stop":
 		if procs == "" {
@@ -231,15 +236,21 @@ func (r *Runner) Svc(c *Config, sub string) int {
 				return 5
 			}
 		}
-		for i := 0; i < 15; i++ {
-			time.Sleep(time.Second)
-			if c.Health() {
-				r.out("[svc] en ligne → %s", c.dashURL())
-				return 0
-			}
+	for i := 0; i < 15; i++ {
+		time.Sleep(time.Second)
+		if c.Health() {
+			r.out("[svc] en ligne → %s", c.dashURL())
+			return 0
 		}
-		r.errf("[svc] santé KO après 15 s — voir : cgo kit logs")
-		return 8
+	}
+	// HTTP seul mais HTTPS muet = binaire pré-TLS (≤1.2.2) : seul un deploy
+	// soigne — « svc start » en boucle ne servira jamais (vu en prod : 1.1.0
+	// sain en HTTP, health HTTPS KO, opérateur en rond).
+	if httpOnlyUp(c) {
+		r.errf("[svc] dashboard HTTP seul (binaire pré-TLS ?) — remède : cgo kit deploy (pas un restart)")
+	}
+	r.errf("[svc] santé KO après 15 s — voir : cgo kit logs")
+	return 8
 	case "restart":
 		if code := r.Svc(c, "stop"); code != 0 {
 			return code
@@ -256,6 +267,28 @@ func firstOr(s, def string) string {
 		return def
 	}
 	return s
+}
+
+// httpOnlyUp — le dashboard répond en HTTP brut mais pas en HTTPS : binaire
+// pré-TLS. Diagnostic de remède uniquement (jamais une porte de santé —
+/// le HTTP ne prouve rien sur la voie HSTS des navigateurs).
+func httpOnlyUp(c *Config) bool {
+	port := c.DashPort
+	if port == "" {
+		port = "9090"
+	}
+	host := c.SSHHost
+	if host == "" || host == "auto" {
+		return false
+	}
+	cl := &http.Client{Timeout: 3 * time.Second}
+	resp, err := cl.Get("http://" + host + ":" + port + "/api/health")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	return strings.Contains(string(body), `"ok":true`)
 }
 
 func humanBool(b bool) string {
