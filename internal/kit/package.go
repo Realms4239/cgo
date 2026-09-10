@@ -178,6 +178,13 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	if err := add("kit/guest-setup.sh", filepath.Join(r.Root, "kit", "guest-setup.sh")); err != nil {
 		return fail(fmt.Errorf("guest-setup : %w", err))
 	}
+	// testbed.sh : le banc de mesure côté invité (veth + netns + testbedsrv,
+	// sudoers auto-posé) — sans lui les campagnes tournent à vide (zéro
+	// ligne gelée, « Démarrer → idle → rien » sur VM fraîche). Poussé sur
+	// la VM par deploy, exécuté par `kit testbed up` (+x conservé).
+	if err := addExec("kit/testbed.sh", filepath.Join(r.Root, "kit", "testbed.sh")); err != nil {
+		return fail(fmt.Errorf("testbed : %w", err))
+	}
 	// host-tunnel.ps1 à la RACINE du zip (visible immédiatement) : tunnel
 	// Host->VM sans kit — forwards, hosts, clé, confiance, vérification.
 	if err := add("host-tunnel.ps1", filepath.Join(r.Root, "kit", "host-tunnel.ps1")); err != nil {
@@ -241,7 +248,7 @@ Le pilotage suit toujours le même pipeline (mêmes mots que
 
   1. VM verrouillée   2. réseau hôte   3. VM allumée   4. cible SSH
   5. port SSH         6. clé acceptée  7. binaire       8. dashboard
-  9. nom meteolink.dev                    10. confiance HTTPS
+  9. nom meteolink.dev   10. confiance HTTPS   11. banc de mesure
 
 Chaque palier dit QUOI faire ensuite. Ne sautez jamais d'étape :
 un dashboard muet vient toujours d'un palier amont (clé, réseau…).
@@ -255,7 +262,10 @@ Double-cliquez DEMARRER.bat (ou cgo-gui.exe directement).
     diagnostic + clé + deploy avortent — c'est normal, renseignez-le.
   - Bandeau « Prochaine : … » : l'étape calculée en continu.
   - Bouton « Suite » : exécute l'étape du bandeau (forwards, boot,
-    clé, deploy, dashboard, DNS, confiance — chacun son bouton aussi).
+    clé, deploy, dashboard, DNS, confiance, banc de mesure — boutons
+    directs pour l'essentiel, commandes ci-dessous pour le reste).
+  - Bouton « Snapshot (arrêt VM) » : snapshot À FROID — la VM est
+    arrêtée proprement d'abord ; « Suite » ou « Démarrer VM » la rallume.
   - Bouton « Guide » : réaffiche ce texte dans le journal.
   - Journal : chaque action raconte tout ; garde anti-double-clic
     (« patience — … tourne déjà ») + boutons d'action grisés pendant
@@ -287,10 +297,12 @@ COMMANDES (voie manuelle, équivalent exact du guidé)
   cgo.exe kit svc start    (re)lance le dashboard   |  svc stop/restart/status
   cgo.exe kit dns          mappe meteolink.dev — TERMINAL ADMIN
   cgo.exe kit tls          confiance HTTPS — TERMINAL ADMIN
+  cgo.exe kit testbed      pose/audit le BANC de mesure invité (SANS lui,
+                           « Démarrer » gèle zéro ligne) — up|check
   cgo.exe kit guest        prépare l'invité (guest-setup.sh via SSH)
   cgo.exe kit logs         40 dernières lignes du dashboard
   cgo.exe kit backup       archive les runs   |  snapshot/revert : garde-fous VM
-  cgo.exe kit health       santé JSON   |  shipcheck : les 6 portes avant release
+  cgo.exe kit health       santé JSON   |  shipcheck : les 7 portes avant release
 
 SI ÇA COINCE (par symptôme, pas au hasard)
 ------------------------------------------
@@ -311,6 +323,14 @@ SI ÇA COINCE (par symptôme, pas au hasard)
     sudo apt install -y openssh-server && sudo systemctl enable --now ssh
   - Port 2222 occupé : un autre forward/service l'utilise → nat_host_port
     dans kit/cgo-vm.yaml.
+  - « Démarrer » puis idle, ZÉRO ligne gelée : banc de mesure absent
+    (VM fraîche : pas de veth/netns) → kit testbed up — le dashboard
+    refuse désormais Démarrer avec ce remède au lieu d'un run vide.
+  - Dashboard HTTP seul mais santé HTTPS KO (vieux binaire ≤1.2.2) :
+    svc start ne soignera jamais → kit deploy.
+  - VirtualBox NAT : l'IP invitée 10.0.2.x est injoignable depuis le
+    poste PAR CONSTRUCTION — le kit passe par le forward 127.0.0.1:2222
+    (ensure le pose) ; le ponté donne un accès direct (recommandé bench).
 
 RÔLES
 -----
@@ -402,6 +422,10 @@ func (r *Runner) packageLinux() int {
 	if err := add("kit/guest-setup.sh", filepath.Join(r.Root, "kit", "guest-setup.sh"), 0644); err != nil {
 		return fail(fmt.Errorf("guest-setup : %w", err))
 	}
+	// testbed.sh : le banc de mesure (veth + netns + testbedsrv) — voir zip.
+	if err := add("kit/testbed.sh", filepath.Join(r.Root, "kit", "testbed.sh"), 0755); err != nil {
+		return fail(fmt.Errorf("testbed : %w", err))
+	}
 	if err := addStr("LISEZ-MOI.txt", linuxReadme()); err != nil {
 		return fail(err)
 	}
@@ -436,11 +460,11 @@ Même pipeline que partout (mêmes mots que « ./cgo kit next ») :
 
   1. VM verrouillée   2. réseau hôte   3. VM allumée   4. cible SSH
   5. port SSH         6. clé acceptée  7. binaire       8. dashboard
-  9. nom meteolink.dev                    10. confiance HTTPS
+  9. nom meteolink.dev   10. confiance HTTPS   11. banc de mesure
 
 VOIE GUI
 --------
-Double-cliquez cgo-gui (bureau Ubuntu) : mêmes 27 boutons, même journal
+Double-cliquez cgo-gui (bureau Ubuntu) : mêmes boutons, même journal
 et même bandeau « Prochaine » que la version Windows — « Suite » exécute
 l'étape, « Guide » réaffiche ce texte, preuves dans cgo-gui-<date>.log.
 
@@ -464,9 +488,18 @@ COMMANDES (voie manuelle, équivalent exact du guidé)
   ./cgo kit svc start    (re)lance le dashboard  |  stop/restart/status/logs
   sudo ./cgo kit dns     mappe meteolink.dev vers la VM
   sudo ./cgo kit tls     confiance HTTPS (magasin système)
+  ./cgo kit testbed      pose/audit le BANC de mesure invité — up|check
   ./cgo kit guest        prépare l'invité (guest-setup.sh via SSH)
   ./cgo kit backup       archive les runs  |  snapshot/revert : garde-fous VM
-  ./cgo kit health       santé JSON  |  shipcheck : les 6 portes avant release
+  ./cgo kit health       santé JSON  |  shipcheck : les 7 portes avant release
+
+SI ÇA COINCE (par symptôme)
+---------------------------
+  - « Permission denied (publickey) » : clé de CE poste absente de
+    l'invité → kit keysetup, une fois.
+  - « Démarrer » puis idle, ZÉRO ligne gelée : banc absent (VM fraîche)
+    → kit testbed up (console VM une fois : sudo bash kit/testbed.sh up).
+  - Dashboard HTTP seul, santé HTTPS KO (binaire ≤1.2.2) → kit deploy.
 
 SI ÇA COINCE (par symptôme)
 ---------------------------

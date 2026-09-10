@@ -3,6 +3,7 @@ package kit
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -22,5 +23,23 @@ func TestSaveSSHTarget(t *testing.T) {
 	}
 	if c.SSHPort != "22" {
 		t.Fatalf("port perdu : %q", c.SSHPort)
+	}
+}
+
+// TestSaveSSHTargetMissing — « Sauver » avant tout verrou (yaml pas encore
+// né) crée le fichier au lieu de « fichier introuvable » (vu en prod :
+
+// l'ordre naturel taper-user → Sauver échouait).
+func TestSaveSSHTargetMissing(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "sub", "cgo-vm.yaml")
+	if err := SaveSSHTarget(p, "fanasina", "", "", ""); err != nil {
+		t.Fatalf("création : %v", err)
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "user: fanasina") {
+		t.Fatalf("contenu inattendu : %q", b)
 	}
 }

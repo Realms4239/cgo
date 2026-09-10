@@ -529,12 +529,20 @@ func (c *Config) healthURL() string {
 
 // dashURL — l'adresse à donner à l'opérateur : le nom stable d'abord
 // (meteolink.dev via `kit dns`), l'IP en repli si le nom ne résout pas.
+// Même garde anti-vide que healthURL (jamais « https://:9090 »).
 func (c *Config) dashURL() string {
 	host := c.DashHost
 	if host == "" {
 		host = c.SSHHost
 	}
-	return "https://" + host + ":" + c.DashPort
+	if host == "" || host == "auto" {
+		host = "meteolink.dev"
+	}
+	port := c.DashPort
+	if port == "" {
+		port = "9090"
+	}
+	return "https://" + host + ":" + port
 }
 
 // HTTPGetJSON — vérification health du dashboard : HTTPS uniquement.
@@ -800,14 +808,24 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 		if natHost != "" {
 			saved, savedPort := c.SSHHost, c.SSHPort
 			c.SSHHost, c.SSHPort = natHost, natPort
-			if c.SSHUp() {
+			fwdOut, fwdErr := c.SSH("true")
+			c.SSHHost, c.SSHPort = saved, savedPort
+			if fwdErr == nil {
 				r.out("[ensure] SSH actif via NAT %s:%s — config mise à jour", natHost, natPort)
 				_ = setYAMLKey(cfgPath, "host", natHost)
 				_ = setYAMLKey(cfgPath, "port", natPort)
 				return 0
 			}
+			// forward ouvert mais clé refusée : cause = auth, pas la cible —
+			// attendre 300 s l'IP invitée (injoignable en NAT) est aveugle
+			// (vu en prod : forward ouvert, sshd OK, boucle jusqu'au timeout
+			// au lieu de dire « clé »). Diagnostic tôt, sortie propre.
+			if portOpen(natHost, natPort) && classifySSHError(fwdOut) == "auth" {
+				r.sshDiag("[ensure]", fwdOut)
+				r.errf("[ensure] forward NAT ouvert mais clé refusée — reposez la clé (kit keysetup), la cible n'y est pour rien")
+				return 5
+			}
 			r.out("[ensure] forward %s:%s muet — cible directe…", natHost, natPort)
-			c.SSHHost, c.SSHPort = saved, savedPort
 		}
 		// 2) la cible configurée répond ?
 		if c.SSHUp() {
@@ -993,13 +1011,25 @@ func pingOne(ip string) bool {
 // les autres au niveau racine. Réécrit la ligne en place, sinon l'ajoute
 // dans la bonne section.
 func setYAMLKey(path, key, val string) error {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n")
 	sshKeys := map[string]bool{"host": true, "port": true, "user": true, "key": true, "password": true}
 	isSSHKey := sshKeys[key]
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		// créer : « Sauver » avant tout verrou (yaml pas encore né) — sinon
+		// l'ordre naturel « taper user → Sauver » échoue (vu en prod).
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return err
+		}
+		seed := "ssh:\n  " + key + ": " + val + "\n"
+		if !isSSHKey {
+			seed = key + ": " + val + "\n"
+		}
+		return os.WriteFile(path, []byte(seed), 0644)
+	}
+	lines := strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n")
 
 	// passer 1 : remplacer en place
 	for i, ln := range lines {
@@ -1154,6 +1184,16 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 		r.errf("[deploy] scp installateur ÉCHEC : %v — clé=%s port=%s cible=%s@%s", err, key, c.SSHPort, c.SSHUser, c.SSHHost)
 		r.errf("[deploy] sortie scp : %s", strings.TrimSpace(out))
 		return 7
+	}
+	// testbed.sh : le banc de mesure voyage avec le deploy (sinon VM fraîche
+	// = campagnes à vide). Best-effort : un zip partiel ne doit pas bloquer
+	// le dashboard — vm-install et `kit testbed` le signalent.
+	if _, err := os.Stat(filepath.Join(r.Root, "kit", "testbed.sh")); err != nil {
+		r.out("[deploy] kit/testbed.sh absent ici — banc de mesure à pousser à part (kit testbed)")
+	} else if out, _, err := c.SCPOut(filepath.Join(r.Root, "kit", "testbed.sh"), c.ProjectDir+"/kit/testbed.sh"); err != nil {
+		r.out("[deploy] scp testbed.sh : %s — banc à pousser à part (kit testbed)", strings.TrimSpace(out))
+	} else {
+		_, _ = c.SSH("chmod +x " + shq(c.ProjectDir+"/kit/testbed.sh"))
 	}
 	r.out("[deploy] installation VM...")
 	instOut, instErr := c.SSH("cd " + shq(c.ProjectDir) + " && bash kit/vm-install.sh")

@@ -356,11 +356,23 @@ func (v *virtualbox) EnsureRegistered(vbx string) (string, error) {
 	return "", fmt.Errorf("enregistrée mais introuvable : %s", vbx)
 }
 
-// StartGUI — ouvre la fenêtre VirtualBox sur la VM.
+// StartGUI — ouvre la fenêtre VirtualBox sur la VM. Si la VM tourne déjà
+// (session headless du kit), startvm refuse (VBOX_E_INVALID_OBJECT_STATE) —
+// on attache alors une fenêtre séparée (VirtualBoxVM --separate) sur la
+// même VM au lieu d'échouer.
 func (v *virtualbox) StartGUI(vbx string) error {
 	name, err := v.ensureRegistered(vbx)
 	if err != nil {
 		return err
+	}
+	for _, r := range v.Running() {
+		if SameVM(r, vbx) {
+			exe := filepath.Join(filepath.Dir(v.exe), "VirtualBoxVM.exe")
+			if runtime.GOOS != "windows" {
+				exe = filepath.Join(filepath.Dir(v.exe), "VirtualBoxVM")
+			}
+			return bgCmd(exe, "--separate", "--startvm", name).Start()
+		}
 	}
 	_, err = v.run("startvm", name, "--type", "gui")
 	return err

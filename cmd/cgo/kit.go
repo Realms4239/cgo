@@ -154,6 +154,8 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 			}
 		}
 		return r.Guest(c, *cfgPath, check)
+	case "testbed":
+		return r.Testbed(c, rest)
 	case "tui":
 		return runKitTUI(*cfgPath, version)
 	case "snapshots":
