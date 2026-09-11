@@ -15,6 +15,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"github.com/Realms4239/cgo/internal/kit"
 )
 
 const (
@@ -65,12 +66,17 @@ type app struct {
 	stNextArgs []string
 	stNextDone bool
 	lastNext   string // dernier bandeau journalisé (transitions seules)
+	lastSSH    string // dernier état SSH journalisé (transitions seules)
+	lastDash   string // dernier état dashboard journalisé (transitions seules)
 }
 
 var theApp *app
 var wndProcPtr = windows.NewCallback(wndProc)
 
 func main() {
+	if !ensureElevated() {
+		return // l'enfant élevé prend le relais (un seul prompt UAC)
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		fatalBox("introuvable : " + err.Error())
@@ -85,6 +91,12 @@ func main() {
 	theApp = &app{
 		cgoExe:  cgo,
 		cfgPath: filepath.Join(dir, "kit", "cgo-vm.yaml"),
+	}
+	theApp.appendLog("Meteolink Kit " + kit.KitVersion + " — journal de session")
+	if isElevated() {
+		theApp.appendLog("élevé : oui — VBox/VMware, réseau hôte et tunnel sans re-prompt")
+	} else {
+		theApp.appendLog("élevé : non (UAC refusé ou CGO_GUI_NO_ELEVATE) — certaines actions re-demanderont")
 	}
 	if err := theApp.run(); err != nil {
 		fatalBox(err.Error())

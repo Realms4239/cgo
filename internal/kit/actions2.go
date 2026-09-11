@@ -61,6 +61,12 @@ func (r *Runner) Snapshot(c *Config, name string, deep bool) int {
 	vboxName := strings.TrimSuffix(filepath.Base(vmx), ".vbox")
 	out, err := runCmd(hyp.Exe(), "snapshot", vboxName, "take", name)
 	if err != nil {
+		// Arbre zombie VBoxHeadless (incident b9/b14) : le verrou de session
+		// survit à l'arrêt à froid ; ni détection ni auto-kill ici (tuer un
+		// arbre process depuis le kit = risqué sans confirmation) — recette.
+		if strings.Contains(out, "session was closed") || strings.Contains(out, "E_FAIL") || strings.Contains(out, "VBOX_E_INVALID_OBJECT_STATE") {
+			r.errf("[snapshot] VBoxManage : session verrouillée par un arbre zombie — dans un PowerShell ADMIN : Get-Process VBoxHeadless | Stop-Process -Force, puis relancez")
+		}
 		r.errf("[snapshot] VBoxManage échoué : %s", out)
 		return 4
 	}
@@ -94,7 +100,9 @@ func (r *Runner) Revert(c *Config, name string, deep bool) int {
 				if strings.HasPrefix(ln, "SnapshotName") {
 					f := strings.SplitN(ln, "=", 2)
 					if len(f) == 2 {
-						name = strings.Trim(f[1], "\"")
+						// machinereadable cite ("nom") et échappe (\"), CR/LF
+						// possibles : tout nettoyer sinon guillemet fantôme (#28).
+						name = strings.Trim(strings.Trim(strings.TrimSpace(f[1]), "\""), "\\")
 					}
 				}
 			}

@@ -51,8 +51,10 @@ func TestGUIButtonMap(t *testing.T) {
 }
 
 // Actions console (mot de passe / admin) : jamais en fond silencieux.
+// keysetup seul garde sa console (mot de passe TTY) ; dns/tls sont
+// non-interactifs et tournent en fond journalisé depuis l'élévation unique.
 func TestGUIConsoleActions(t *testing.T) {
-	for _, id := range []int{213, 236, 237} {
+	for _, id := range []int{213} {
 		kind, _ := buttonAction(id)
 		if !strings.HasPrefix(kind, "console:") {
 			t.Errorf("bouton %d : %q devrait être console:", id, kind)

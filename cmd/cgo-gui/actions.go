@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -17,6 +18,7 @@ import (
 // ---- journal thread-safe (rendu Win32 ; le miroir fichier vit dans core) ----
 
 func (a *app) appendLog(line string) {
+	line = time.Now().Format("15:04:05") + " " + line
 	a.mu.Lock()
 	a.logText = append(a.logText, strings.ReplaceAll(line, "\x00", ""))
 	if len(a.logText) > 300 {
@@ -315,13 +317,25 @@ func (a *app) runKind(kind string, args []string) {
 		a.setStatus("◌ scan …")
 		go func() {
 			a.refreshVMs()
+			// Verrouillage auto si non ambigu : Suite avance seul depuis
+			// une config vierge (sinon re-scan en boucle sans progresser).
+			if msg, ok := kit.AutoLockSingle(a.loadCfg(), a.cfgPath); ok {
+				a.appendLog(msg)
+			} else if msg != "" {
+				a.appendLog(msg)
+			}
 			a.setBusy("")
+			go a.refreshStatus()
 			// PAS de wmAppDone2 ici : refreshVMs le poste déjà
 			// (wmAppVMs + wmAppDone2) — doublon = « ✓ scan terminé » × 2.
 		}()
 	case kind == "bg:diag":
 		a.appendLog("diagnostic : clé, port, auth, IP — voir journal")
 		a.runKit("diagnostic", func(r *kit.Runner) int { return diagGUI(a.loadCfg(), r) })
+	case kind == "bg:dns":
+		a.runKit("dns", func(r *kit.Runner) int { return r.DNS(a.loadCfg()) })
+	case kind == "bg:tls":
+		a.runKit("tls", func(r *kit.Runner) int { return r.TLS(a.loadCfg()) })
 	case kind == "bg:mkkey":
 		a.runKit("créer-clé", func(r *kit.Runner) int { return mkKeyGUI(a.loadCfg(), r) })
 	case kind == "bg:console":
@@ -403,6 +417,7 @@ func (a *app) runKind(kind string, args []string) {
 	case kind == "direct:suite":
 		a.mu.Lock()
 		done, nk, na := a.stNextDone, a.stNextKind, a.stNextArgs
+		next := a.stNext
 		a.mu.Unlock()
 		if !done {
 			a.appendLog("analyse en cours — patientez 10 s puis Suite")
@@ -410,6 +425,13 @@ func (a *app) runKind(kind string, args []string) {
 		}
 		if nk == "" {
 			a.appendLog("tout est vert — rien à faire (Rescanner pour revérifier)")
+			return
+		}
+		if !isKnownSuiteVerb(nk) {
+			// Palier sans verbe auto (pilote manquant, update locale…) :
+			// JAMAIS muet, JAMAIS « tout est vert » — le remède est dans
+			// le bandeau, on le répète ici.
+			a.appendLog("suite : pas d'action automatique — " + next)
 			return
 		}
 		a.appendLog("▶ suite : " + nk)

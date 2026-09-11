@@ -86,6 +86,8 @@ type ShapeReq struct {
 // RunOpts — ce que l'opérateur décide réellement : profils, axes qdisc/CC
 // (vides = matrice pleine), répétitions, deadline small p95, cible et sens
 // de la charge ("up" défaut, "down" download, "both" RRUL combiné).
+// RunID : reprise d'un run interrompu (PC/VM éteints en pleine matrice) —
+// vide = run frais. La reprise rejoue les cellules manquantes (moteur).
 type RunOpts struct {
 	Profiles   []string `json:"profiles"`
 	Qdiscs     []string `json:"qdiscs"`
@@ -94,6 +96,7 @@ type RunOpts struct {
 	DeadlineMs int      `json:"deadline_ms"`
 	Target     string   `json:"target"`
 	Direction  string   `json:"direction"`
+	RunID      string   `json:"run_id"`
 }
 
 // Deps relie le serveur au noyau campagne.

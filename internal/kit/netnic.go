@@ -32,6 +32,12 @@ func (r *Runner) Nic(c *Config, cfgPath string, rest []string, deep bool) int {
 	if mode == "pont" || mode == "ponte" {
 		mode = "bridged"
 	}
+	// JAMAIS sur VM allumée (bogue 1.2.12 : le flip à chaud a éteint la VM) :
+	// garde partagée CLI + GUI, pas de contournement possible.
+	if vmIsRunning(hyp, vmx) {
+		r.errf("[nic] VM allumée — arrêtez-la d'abord (kit vm-stop), le flip NIC à chaud déstabilise l'invitée")
+		return 3
+	}
 	if err := hyp.SetNetMode(vmx, mode); err != nil {
 		r.errf("[nic] %v", err)
 		return 4
