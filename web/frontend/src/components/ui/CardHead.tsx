@@ -1,5 +1,5 @@
 // CardHead — discipline mono-caps pour chaque tête de section (11 px + 10 px).
-export function CardHead({ label, sub, right }: { label: string; sub?: string; right?: React.ReactNode }) {
+export function CardHead({ label, sub, right }: { label: React.ReactNode; sub?: string; right?: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
       <div style={{ minWidth: 0 }}>

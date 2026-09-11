@@ -16,7 +16,8 @@ export default function FlashBanner() {
   if (!flash) return null
   const bg =
     flash.type === 'success' ? '#1fa348' : flash.type === 'danger' ? '#e22718' : '#5ad3e3'
-  const color = flash.type === 'info' ? '#000' : '#fff'
+  // blanc sur vert #1fa348 = 3.29 (FAIL) → encre sombre 5.83 ; blanc sur rouge 4.63 ok
+  const color = flash.type === 'success' ? '#04120a' : flash.type === 'info' ? '#000' : '#fff'
   return (
     <div
       ref={ref}
@@ -31,8 +32,8 @@ export default function FlashBanner() {
         padding: '8px 16px',
         fontFamily: 'JetBrains Mono',
         fontSize: 11,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
+        letterSpacing: '0.02em',
+        textTransform: 'none',
         zIndex: 600,
         border: '1px solid rgba(0,0,0,0.15)',
         boxShadow: '0 8px 24px rgba(0,0,0,0.35)',

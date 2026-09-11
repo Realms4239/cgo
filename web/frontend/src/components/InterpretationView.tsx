@@ -27,6 +27,12 @@ export default function InterpretationView({ profile, onClose }: { profile: stri
       .then(j => setData(j))
       .catch(() => setData({ available: false, reason: 'injoignable — réessayez' }))
   }, [profile])
+  // Échap referme — comme la modale ⓘ, le duel et le tiroir Réglages
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
   const metric = (label: string, hint: string, v: string, color = '#d6d8dd') => (
     <div style={{ border: '1px solid var(--hairline)', padding: '12px 14px' }}>
       <div style={{ fontSize: 13, color: '#a9aeb6', marginBottom: 6 }}>{label}</div>

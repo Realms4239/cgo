@@ -151,6 +151,12 @@ func dashHealth(c *kit.Config) (string, bool) {
 	// doit pas faire passer un dashboard sain pour éteint (deux paliers
 	// distincts : svc vs dns).
 	urls := []string{}
+	// NAT : l'IP invitée est injoignable en direct — le dashboard répond
+	// sur le forward local (EnsureNatSSH : dashPort → 9090). Sans cette
+	// URL en tête, un dashboard sain passait pour injoignable (faux KO).
+	if natH, _, isNAT := kit.NATForwardTarget(c, c.SSHHost); isNAT {
+		urls = append(urls, "https://"+natH+":"+port+"/api/health")
+	}
 	if h := strings.TrimSpace(c.SSHHost); h != "" && h != "auto" {
 		urls = append(urls, "https://"+h+":"+port+"/api/health")
 	}
@@ -443,8 +449,10 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 	// réseau HÔTE d'abord : si le poste n'est même pas sur le subnet de
 	// la cible, ssh/TCP ne diront qu'« injoignable » — ici la vraie cause
 	// (VMnet tombé, APIPA) avec son remède. Jamais bloquant : un averti.
+	// Espace invité NAT excepté (miroir vnet.go) : 10.0.2.x n'est sur AUCUN
+	// adaptateur hôte par construction — le diagnostic NAT ci-dessous parle.
 	if ip := net.ParseIP(host); ip != nil && ip.To4() != nil && ip.IsPrivate() &&
-		!strings.HasPrefix(host, "127.") && host != "localhost" {
+		!strings.HasPrefix(host, "127.") && host != "localhost" && !isVBoxGuestSpace(host) {
 		parts := strings.Split(host, ".")
 		if len(parts) == 4 {
 			if sub := strings.Join(parts[:3], ".") + "."; hostIfaceOnGUI(sub) == "" {
@@ -454,18 +462,47 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 	}
 	d := net.Dialer{Timeout: 3 * time.Second}
 	cn, err := d.Dial("tcp", net.JoinHostPort(host, port))
+	// sonde d'auth factorisée (directe PUIS forward NAT : même BatchMode,
+	// mêmes timeouts — un seul comportement, deux cibles).
+	authProbe := func(h, p string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+		defer cancel()
+		cmd := kit.BgCmdCtx(ctx, "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4",
+			"-o", "StrictHostKeyChecking=accept-new", "-p", p, "-i", key,
+			c.SSHUser+"@"+h, "true")
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
 	if err != nil {
+		// NAT VirtualBox : 10.0.2.x ne répondra JAMAIS en direct — un
+		// « port fermé » ici accuse la TOPOLOGIE (ou la clé), jamais
+		// sshd. Le conseil « install openssh-server » était le mauvais
+		// remède (rapport novice-GUI) : on le dit.
+		if natH, natP, isNAT := kit.NATForwardTarget(c, host); isNAT {
+			if portOpenGUI(natH, natP) {
+				fmt.Fprintln(r.Stdout, ko+" NAT VirtualBox : "+host+" injoignable en direct (normal) — forward "+natH+":"+natP+" ouvert, test de la clé dessus…")
+				if out, err := authProbe(natH, natP); err == nil {
+					fmt.Fprintln(r.Stdout, ok+" clé acceptée via le forward "+natH+":"+natP+" — prêt à déployer")
+				} else if o := strings.ToLower(out); strings.Contains(o, "permission denied") || strings.Contains(o, "denied") {
+					fmt.Fprintln(r.Stdout, ko+" clé refusée via le forward — « Poser la clé SSH » (mot de passe, une fois)")
+				} else {
+					fmt.Fprintln(r.Stdout, ko+" auth via le forward : "+strings.TrimSpace(out))
+				}
+				return 0
+			}
+			fmt.Fprintln(r.Stdout, ko+" NAT VirtualBox : "+host+" injoignable en direct (normal) et forward "+natH+":"+natP+" fermé — « Démarrer / Réessayer » (pose le forward + boote), surtout pas « install sshd »")
+			return 0
+		}
+		if strings.HasPrefix(host, "127.") || host == "localhost" {
+			fmt.Fprintln(r.Stdout, ko+" forward local "+host+":"+port+" fermé — règle NAT absente ? « Démarrer / Réessayer » la repose")
+			return 0
+		}
 		fmt.Fprintln(r.Stdout, ko+" port "+port+" fermé sur "+host+" — DANS la VM : sudo apt install -y openssh-server && sudo systemctl enable --now ssh")
 		return 0
 	}
 	_ = cn.Close()
 	fmt.Fprintln(r.Stdout, ok+" port "+port+" ouvert sur "+host)
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-	defer cancel()
-	cmd := kit.BgCmdCtx(ctx, "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4",
-		"-o", "StrictHostKeyChecking=accept-new", "-p", port, "-i", key,
-		c.SSHUser+"@"+host, "true")
-	if out, err := cmd.CombinedOutput(); err == nil {
+	if out, err := authProbe(host, port); err == nil {
 		fmt.Fprintln(r.Stdout, ok+" clé acceptée par "+c.SSHUser+"@"+host+" — prêt à déployer")
 	} else {
 		o := strings.ToLower(string(out))
@@ -568,10 +605,24 @@ func scanVMRows() []vmRow {
 // appelant). Coûteux (secondes) : fond uniquement.
 func probeStatus(c *kit.Config) (ssh, dash, locked string) {
 	ssh = "—"
-	if c.SSHHost == "" || c.SSHHost == "auto" || portOpenGUI(c.SSHHost, c.SSHPort) {
+	// NAT VirtualBox : l'IP invitée ne répond jamais en direct — sonder le
+	// forward local (NATForwardTarget), sinon le libellé restait figé sur
+	// « VM éteinte / réseau coupé » alors que tout est vert. Copie sans
+	// mutation (même discipline que kit côté Next).
+	host, port := c.SSHHost, c.SSHPort
+	viaNAT := false
+	if natH, natP, isNAT := kit.NATForwardTarget(c, c.SSHHost); isNAT {
+		host, port, viaNAT = natH, natP, true
+	}
+	if host == "" || host == "auto" || portOpenGUI(host, port) {
 		// UN seul appel (avant : SSHUp PUIS SSH → deux handshakes).
-		if out, err := c.SSH("true"); err == nil {
+		probe := *c
+		probe.SSHHost, probe.SSHPort = host, port
+		if out, err := probe.SSH("true"); err == nil {
 			ssh = "actif"
+			if viaNAT {
+				ssh = "actif (NAT)"
+			}
 		} else if c.SSHHost != "" && c.SSHHost != "auto" {
 			ssh = "coupé (" + shortDiag(out) + ")"
 		}
@@ -701,6 +752,13 @@ func hostTunCmd(c *kit.Config, exeDir, root string) (string, []string, string) {
 	}
 	return ps1, []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1,
 		"-VmName", name, "-User", c.SSHUser}, ""
+}
+
+// isVBoxGuestSpace — miroir kit/vnet.go (non exporté là-bas) : 10.0.2.0/24
+// est l'espace invité interne du NAT VirtualBox — aucun adaptateur hôte ne
+// doit le porter, donc pas d'avertissement « réseau HÔTE » dessus.
+func isVBoxGuestSpace(host string) bool {
+	return strings.HasPrefix(strings.TrimSpace(host), "10.0.2.")
 }
 
 // hostIfaceOnGUI — une interface UP du poste porte-t-elle ce /24 ?

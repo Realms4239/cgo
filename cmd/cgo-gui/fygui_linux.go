@@ -128,7 +128,7 @@ func (f *fyApp) refreshStatus() {
 		if locked != "" {
 			f.lockLbl.SetText("Verrouillée : " + locked)
 		}
-		nx := kit.FirstOpen(kit.GatherNext(c))
+		nx := kit.FirstOpen(kit.GatherNextVer(c, kit.KitVersion))
 		f.mu.Lock()
 		var banner, nk string
 		var na []string

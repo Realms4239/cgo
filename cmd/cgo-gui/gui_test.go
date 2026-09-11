@@ -70,6 +70,17 @@ func TestGUIScriptButtons(t *testing.T) {
 	}
 }
 
+// TestDblClickBypassesButtonMap — #13 : la liste des VM (101, littéral :
+// idVMList est Windows-only, ce test compile aussi sous Linux) n'a PAS de
+// verbe — wndProc envoie son double-clic DIRECT à lockSelected (même
+// handler que le bouton Verrouiller), jamais via onButton (vide = le
+// double-clic passait pour mort).
+func TestDblClickBypassesButtonMap(t *testing.T) {
+	if kind, _ := buttonAction(101); kind != "" {
+		t.Fatalf("liste 101 : %q — le dbl-clic doit rester hors buttonAction (wndProc direct)", kind)
+	}
+}
+
 // cfgSSHUser — lecture pure du yaml, sans hyperviseur ni réseau.
 func TestCfgSSHUser(t *testing.T) {
 	dir := t.TempDir()

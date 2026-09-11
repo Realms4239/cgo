@@ -7,11 +7,11 @@ import { createPortal } from 'react-dom'
 // Concis par construction : une ligne par concept, pas de paragraphes.
 const ROWS: [string, string][] = [
   ['small p95', 'Latence des petits objets (télémétrie, alertes) — LE trafic critique à protéger.'],
-  ['RTT p95', 'Aller-retour ping — la métrique du bufferbloat : elle gonfle quand la file déborde.'],
+  ['RTT p95', 'Aller-retour ping — la métrique du bufferbloat : elle augmente quand la file d\u2019attente déborde.'],
   ['goodput', 'Débit utile mesuré au récepteur pendant la charge.'],
   ['échéance', '% de petits objets sous la deadline — ne se compare qu\u2019à deadline fixée, les runs historiques la mélangent.'],
   ['gaspillé · coût', 'Octets retransmis → Ar/h au palier unique 5556 Ar/Go.'],
-  ['n=', 'Réplications valides (valid-only strict : degraded G2/G6 et quarantaine exclus, jamais moyennés).'],
+  ['n=', 'Réplications valides : seules les mesures valides comptent — les douteuses sont exclues, jamais mélangées.'],
   ['± IC95', 'Intervalle bootstrap : deux barres qui se chevauchent = égalité, pas de hiérarchie.'],
   ['indice LIEN', 'Note /100 qui combine les 5 métriques (TradeSpace) : une seule note par lien.'],
   ['régime perte', 'Sur VSAT (600 ms, 1 % perte), une retransmission coûte un aller simple (+640 ms) : la perte gouverne la sonde, pas la file. Échéance médiane 0 partout = normal, pas un échec.'],

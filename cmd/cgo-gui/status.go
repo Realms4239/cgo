@@ -105,8 +105,11 @@ func (a *app) onScanDone() {
 
 // saveUser — enregistre l'utilisateur Ubuntu tapé (le chaînon manquant :
 // sans ssh_user, diagnostic + invité + deploy avortent avec des messages
-// qui n'expliquent pas où le renseigner — ICI).
+// qui n'expliquent pas où le renseigner — ICI). Commit d'abord : le focus
+// quitte le champ AVANT lecture, sinon le premier clic Sauver lisait un
+// champ pas encore validé et passait pour avalé.
 func (a *app) saveUser() {
+	pSetFocus.Call(uintptr(a.hwnd))
 	u := strings.TrimSpace(getText(a.userEdit))
 	if u == "" {
 		a.appendLog("utilisateur vide — tapez le nom Ubuntu (ex. fanasina) puis Sauver")

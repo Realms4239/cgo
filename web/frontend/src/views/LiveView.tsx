@@ -23,6 +23,7 @@ import { Timeline } from '../components/Timeline'
 import { CardHead } from '../components/ui/CardHead'
 import { Pill } from '../components/ui/Pill'
 import { loadSettings, latencyLevel, dropsLevel, deadlineLevel, goodputLevel, jfiLevel, LEVEL_COLOR, type Settings } from '../lib/settings'
+import { formatBytesFR, formatCostAR, verdictWord, truncateWords } from '../lib/format'
 
 type Craft = 'line' | 'bar' | 'area'
 type Tri = { metric: boolean; chart: Craft; source: 'live' | 'frozen' | 'both' }
@@ -46,7 +47,13 @@ function useChart(_title: string, _unit: string) {
     if (!chart.current || chart.current.getWidth() < 10) return
     const empty = !series.some(s => ((s.data as unknown[]) ?? []).length > 1)
     const base = baseOption(_title, _unit, { idle: empty })
-    const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), ...extra, series } as unknown as EChartsOption
+    // légende basse Grafana — noms des séries sous le graphe, grille remontée
+    const names = series.map(s => (s as { name?: string }).name).filter((n): n is string => !!n)
+    const leg = empty || names.length === 0 ? {} : {
+      legend: { bottom: 0, left: 'center', textStyle: { color: '#8b9099', fontFamily: 'JetBrains Mono', fontSize: 10 }, itemWidth: 14, itemHeight: 2, data: names },
+      grid: { left: 64, right: 32, top: 48, bottom: 58, containLabel: true },
+    }
+    const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), ...leg, ...extra, series } as unknown as EChartsOption
     chart.current.setOption(opt)
   }
   return { onReady, setData, chart }
@@ -118,6 +125,7 @@ export default function LiveView() {
   useEffect(() => { setShapeCap(settings.shapeCap) }, [settings.shapeCap])
   const [shapeMsg, setShapeMsg] = useState('')
   const [journal, setJournal] = useState<{ ts: string; kind: string; msg: string }[]>([])
+  const [journalTotal, setJournalTotal] = useState(0)
   const [linkOpen, setLinkOpen] = useState(false)
   const [watching, setWatching] = useState(false)
   const [burstCc, setBurstCc] = useState('bbr')
@@ -149,7 +157,7 @@ export default function LiveView() {
       if (id) setWallHash(String(id).slice(0, 8))
     }).catch(() => {})
     fetch('/api/shape').then(r => r.json()).then(j => { if (!cancelled) setShape(j) }).catch(() => {})
-    fetch('/api/events').then(r => r.json()).then(j => { if (!cancelled && j?.events) setJournal(j.events.slice(-12).reverse()) }).catch(() => {})
+    fetch('/api/events').then(r => r.json()).then(j => { if (!cancelled && j?.events) { setJournalTotal(j.events.length); setJournal(j.events.slice(-50).reverse()) } }).catch(() => {})
     return () => { cancelled = true }
   }, [liveSnap?.running, replayRunning])
 
@@ -191,13 +199,13 @@ export default function LiveView() {
     goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(live.goodput as any), CRAFT.bbr), markArea: ma } as any])
   }, rafActive)
 
-  const banner = replayRunning ? `REPLAY — ${replayRunId}`
-    : !liveSnap ? 'OFFLINE — en attente du flux'
-    : liveSnap.load_status === 'bulk-on' ? 'CHARGE — bulk actif'
-    : liveSnap.phase === 'surveil' ? 'SURVEILLANCE — sondes légères'
-    : liveSnap.phase === 'baseline' ? 'BASELINE'
-    : liveSnap.phase === 'recup' ? 'RÉCUPÉRATION'
-    : 'IDLE'
+  const banner = replayRunning ? `Replay — ${replayRunId}`
+    : !liveSnap ? 'Hors ligne — en attente du flux'
+    : liveSnap.load_status === 'bulk-on' ? 'Charge — bulk actif'
+    : liveSnap.phase === 'surveil' ? 'Surveillance — sondes légères'
+    : liveSnap.phase === 'baseline' ? 'Baseline'
+    : liveSnap.phase === 'recup' ? 'Récupération'
+    : 'Idle'
 
   // p95 partiel honnête — le nombre est vrai (fenêtre courante), seulement
   // la complétude est indiquée : "en cours 42 s/120 s" si la phase tourne.
@@ -207,12 +215,13 @@ export default function LiveView() {
         {liveSnap.phase} en cours
       </span>
     : null
+  // hors ligne = sourdine (pas de bandeau rouge pleine largeur ; le rouge reste en-tête une fois)
   const bannerColor = replayRunning ? 'var(--t-live)'
-    : !liveSnap ? 'var(--t-danger)'
-    : banner.startsWith('CHARGE') ? 'var(--t-threshold)'
-    : banner.startsWith('SURVEILLANCE') ? 'var(--t-live)'
-    : banner === 'BASELINE' ? 'var(--t-live)'
-    : banner === 'RÉCUPÉRATION' ? 'var(--t-ok)'
+    : !liveSnap ? 'var(--text-muted)'
+    : banner.startsWith('Charge') ? 'var(--t-threshold)'
+    : banner.startsWith('Surveillance') ? 'var(--t-live)'
+    : banner === 'Baseline' ? 'var(--t-live)'
+    : banner === 'Récupération' ? 'var(--t-ok)'
     : 'var(--text-faint)'
 
   const qdiVal = (() => {
@@ -329,7 +338,10 @@ export default function LiveView() {
   // superposition A/B — médianes pfifo vs meilleure CAKE, même échelle, badge d'écart, hash 8
   const baseline = wallGroups?.find(g => g.qdisc === 'pfifo_fast')
   const cakeBest = wallGroups?.find(g => g.qdisc === 'cake' && g.best) ?? wallGroups?.find(g => g.qdisc === 'cake') ?? wallGroups?.find(g => g.best) ?? null
-  const maxAB = Math.max(baseline?.small_p95_median ?? 0, cakeBest?.small_p95_median ?? 0, smallP95, 1)
+  // échelle figée partagée — baseline et CAKE sortent du même gel CSV, le live
+  // n'y figure plus (sa comparaison vit dans avant/maintenant ci-dessus : le
+  // 738 figé n'écrase plus le live en copeau)
+  const maxAB = Math.max(baseline?.small_p95_median ?? 0, cakeBest?.small_p95_median ?? 0, 1)
   const diffAB = baseline && cakeBest && baseline.small_p95_median > 0 ? Math.round(((baseline.small_p95_median - cakeBest.small_p95_median) / baseline.small_p95_median) * 100) : null
   const showLiveSrc = tri.source !== 'frozen'
   const showFrozenSrc = tri.source !== 'live'
@@ -348,6 +360,8 @@ export default function LiveView() {
 
   // couture d'instrumentation: lire options/pixels depuis les sondes
   if (typeof window !== 'undefined') (window as any).__CGO_CHARTS = { rtt: rtt.chart.current, small: small.chart.current, goodput: goodput.chart.current }
+  // une seule voix d'attente partout — le vide ne parle qu'une langue
+  const IDLE_HINT = 'en attente — démarrez une campagne depuis Campagne'
   return (
     <div id="wall" className="panel-stack" style={{ position: 'relative' }}>
       {peek && (
@@ -359,8 +373,8 @@ export default function LiveView() {
           </div>
         </PeekPopover>
       )}
-      <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ whiteSpace: 'nowrap' }}>{banner}</span>
+      <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ overflowWrap: 'anywhere', minWidth: 0 }}>{banner}</span>
         <EventBadge />
         {phaseTotalHint}
       </div>
@@ -373,11 +387,11 @@ export default function LiveView() {
         onMouseLeave={() => { setHovered(false); setPeek(null) }}
       >
         <div style={{ flex: 1, minHeight: 0 }}>
-          <ChartSurface title="Petits objets p95" unit="ms" domId="chart-small" height="100%" empty={heroEmpty} hint="en attente — démarrez une campagne" onReady={small.onReady} />
+          <ChartSurface title="Petits objets p95" unit="ms" domId="chart-small" height="100%" empty={heroEmpty} hint={IDLE_HINT} onReady={small.onReady} />
         </div>
       </Card>
       )}
-      {!liveSnap && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="empty" hint="en attente — Démarrer depuis Campagne pour alimenter le Live" /></div>}
+      {!liveSnap && !showLiveSrc && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="idle" hint={IDLE_HINT} /></div>}
       {/* guide de lecture (U6a) — que disent ces chiffres, repliable, au-dessus du bento */}
       <LiveGuide />
       {/* Q4 metric pill — toggles the metric groups; one 5-col bento, 10 cells, no misaligned rows */}
@@ -386,21 +400,22 @@ export default function LiveView() {
           overrode the breakpoints and cropped every card on mobile */}
       {showLiveSrc && (
       <div data-wall-cards="metric-groups" className={'bento-5 wall-span' + (tri.metric ? '' : ' hidden')}>
-        <MetricCard term="small_p95" label="small_p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(smallP95, settings)]} spark={spark(live.small)} trend={trendOf(spark(live.small))} />
-        <MetricCard term="rtt_p95" label="rtt_p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP95, settings)]} spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} />
-        <MetricCard term="bulk_goodput" label="bulk_goodput" value={goodputVal ? goodputVal.toFixed(1) : '—'} unit="Mbit/s" color={LEVEL_COLOR[goodputLevel(goodputVal, settings.shapeCap)]} spark={spark(live.goodput)} trend={trendOf(spark(live.goodput))} />
-        <MetricCard term="deadline_ok" label="deadline_ok" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? 'var(--text-faint)' : LEVEL_COLOR[deadlineLevel(deadlineOk)]} trend={deadlineOk === null ? 'flat' : deadlineOk >= 95 ? 'down' : 'up'} spark={spark(live.small)} />
-        <MetricCard term="rtt_p50" label="rtt_p50" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP50, settings)]} spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} />
-        <div data-testid="qdi-sparkline"><MetricCard term="QDI" label="QDI" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
-        <Card head="JFI" sub="équité inter-flux (0–1)" testid="qdi-card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <MetricCard term="small_p95" label="Petits objets p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(smallP95, settings)]} spark={spark(live.small)} trend={trendOf(spark(live.small))} verdict={smallP95 ? verdictWord(latencyLevel(smallP95, settings)) : undefined} verdictLevel={smallP95 ? latencyLevel(smallP95, settings) : undefined} />
+        <MetricCard term="rtt_p95" label="RTT p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP95, settings)]} spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} verdict={rttP95 ? verdictWord(latencyLevel(rttP95, settings)) : undefined} verdictLevel={rttP95 ? latencyLevel(rttP95, settings) : undefined} />
+        <MetricCard term="bulk_goodput" label="Débit utile" value={goodputVal ? goodputVal.toFixed(1) : '—'} unit="Mbit/s" color={LEVEL_COLOR[goodputLevel(goodputVal, settings.shapeCap)]} spark={spark(live.goodput)} trend={trendOf(spark(live.goodput))} verdict={goodputVal ? verdictWord(goodputLevel(goodputVal, settings.shapeCap)) : undefined} verdictLevel={goodputVal ? goodputLevel(goodputVal, settings.shapeCap) : undefined} />
+        <MetricCard term="deadline_ok" label="Échéances" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? 'var(--text-faint)' : LEVEL_COLOR[deadlineLevel(deadlineOk)]} trend="flat" spark={spark(live.deadline)} verdict={deadlineOk === null ? undefined : verdictWord(deadlineLevel(deadlineOk))} verdictLevel={deadlineOk === null ? undefined : deadlineLevel(deadlineOk)} threshold={{ marker: 95, max: 100 }} />
+        <MetricCard term="rtt_p50" label="RTT médian" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP50, settings)]} spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} verdict={rttP50 ? verdictWord(latencyLevel(rttP50, settings)) : undefined} verdictLevel={rttP50 ? latencyLevel(rttP50, settings) : undefined} />
+        <div data-testid="qdi-sparkline"><MetricCard term="QDI" label="Dispersion" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
+        <Card head="JFI" sub="équité inter-flux (0–1)" testid="qdi-card" term="JFI">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
             <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: jfiVal === null ? 'var(--text-body)' : LEVEL_COLOR[jfiLevel(jfiVal)], fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{jfiVal === null ? '—' : jfiVal.toFixed(2)}</span>
             <DonutJFI value={jfiVal} />
+            {jfiVal !== null && <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 6px', border: '1px solid #26262a', background: LEVEL_COLOR[jfiLevel(jfiVal)] + '14', color: LEVEL_COLOR[jfiLevel(jfiVal)], lineHeight: 1 }}>{verdictWord(jfiLevel(jfiVal))}</span>}
           </div>
         </Card>
-        <MetricCard term="drops" label="drops" value={String(drops)} unit="" color={LEVEL_COLOR[dropsLevel(drops)]} trend={drops > 0 ? 'up' : 'flat'} />
-        <MetricCard term="wasted" label="wasted" value={wasted == null ? '—' : wasted ? (wasted > 1024 * 1024 ? (wasted / 1024 / 1024).toFixed(1) + ' MiB' : String(wasted)) : '0'} unit="bytes" color={wasted == null ? 'var(--text-faint)' : CRAFT.threshold} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
-        <MetricCard term="cost_ar_per_h" label="cost_ar_per_h" value={costAr == null ? '—' : costAr ? costAr.toFixed(0) : '0'} unit="Ar/h" color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.goodput)} />
+        <MetricCard term="drops" label="Pertes" value={idle ? '—' : String(drops)} unit="" color={LEVEL_COLOR[dropsLevel(drops)]} trend={drops > 0 ? 'up' : 'flat'} spark={spark(live.drops)} verdict={idle ? undefined : verdictWord(dropsLevel(drops))} verdictLevel={idle ? undefined : dropsLevel(drops)} />
+        <MetricCard term="wasted" label="Gaspillé" value={formatBytesFR(wasted).num} unit={formatBytesFR(wasted).unit} color={wasted == null ? 'var(--text-faint)' : CRAFT.threshold} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} spark={spark(live.wasted)} />
+        <MetricCard term="cost_ar_per_h" label="Coût" value={formatCostAR(costAr).num} unit={formatCostAR(costAr).unit} color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.cost)} />
       </div>
       )}
       {showLiveSrc && (
@@ -411,7 +426,7 @@ export default function LiveView() {
           onMouseEnter={e => { setHovered(true); const v = live.rtt95.at(-1)?.[1] ?? rttP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); rtt.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.rtt95.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <ChartSurface title="RTT" unit="ms" domId="chart-rtt" height={180} empty={rttEmpty} hint="rtt — en attente de flux" onReady={rtt.onReady} />
+          <ChartSurface title="RTT" unit="ms" domId="chart-rtt" height={180} empty={rttEmpty} hint={IDLE_HINT} onReady={rtt.onReady} />
         </Card>
         <Card
           head="Bulk goodput"
@@ -419,19 +434,23 @@ export default function LiveView() {
           onMouseEnter={e => { setHovered(true); const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <ChartSurface title="Bulk goodput" unit="Mbit/s" domId="chart-goodput" height={180} empty={goodputEmpty} hint="goodput — en attente de flux" onReady={goodput.onReady} />
+          <ChartSurface title="Bulk goodput" unit="Mbit/s" domId="chart-goodput" height={180} empty={goodputEmpty} hint={IDLE_HINT} onReady={goodput.onReady} />
         </Card>
       </div>
       )}
-      {/* Q2 — runbook pointer: a crit card always says what to do next */}
-      {showLiveSrc && rttP95 != null && rttP95 > settings.critMs && (
+      {/* Q2 — runbook pointer: a crit card always says what to do next.
+          Contrôle de forme — prescrire CAKE alors que CAKE est déjà appliqué
+          au bord contredit l'état propre (preuve shape=cake aux shots). */}
+      {showLiveSrc && rttP95 != null && rttP95 > settings.critMs && !(shape?.applied && shape.qdisc === 'cake') && (
         <div className="mono" data-testid="runbook-pointer" style={{ gridColumn: '1 / -1', fontSize: 10, color: 'var(--t-warn, #f4b400)', border: '1px dashed rgba(244,180,0,0.4)', padding: '6px 10px' }}>
           bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
         </div>
       )}
       {hasData && showLiveSrc && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={tEnd} currentPhase={live.phase || 'idle'} />}
 
-      {/* live-wall-overlay: baseline grey dashed vs CAKE cyan solid same scale; source pill gates live|frozen|both */}
+      {/* live-wall-overlay: baseline gris pointillé vs CAKE violet uni, même
+          échelle figée ; le live n'y figure plus — sa comparaison vit dans
+          avant/maintenant (même fenêtre), le 738 figé ne l'écrase plus */}
       <div className="live-wall-overlay card" data-testid="live-wall-overlay" style={{ gridColumn: '1 / -1', border: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
         <CardHead
           label={`Figée vs appliqué — ${baseline?.qdisc ?? 'pfifo'} → ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
@@ -440,13 +459,23 @@ export default function LiveView() {
             <span className="diff-badge mono" style={{ background: diffAB > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diffAB > 0 ? CRAFT.ok : CRAFT.danger), color: diffAB > 0 ? CRAFT.ok : CRAFT.danger, padding: '4px 10px', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{diffAB > 0 ? `-${diffAB}%` : `${diffAB}%`}</span>
           ) : undefined}
         />
+        {diffAB != null && (
+          <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+            {diffAB > 0
+              ? `cake répond ${diffAB} % plus vite que la file simple — médianes figées, même campagne`
+              : `la file simple répond ${Math.abs(diffAB)} % plus vite — médianes figées, même campagne`}
+          </div>
+        )}
         {/* edge control — verrouiller la baseline, façonner le bord, constat exportable */}
         <div style={{ border: '1px solid var(--hairline)', background: 'rgba(90,211,227,0.03)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <CardHead
-            label={`Contrôle du bord — ${locked ? `figée ${locked.at}` : 'référence'} vs ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
-            sub={shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}
-            right={
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+            <div style={{ minWidth: 0 }}>
+              <span className="mono" style={{ fontFamily: 'var(--font-mono, JetBrains Mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8b9099)' }}>
+                Contrôle du bord — {locked ? `figée ${locked.at}` : 'référence'} vs {shape?.applied ? shape.qdisc : 'sans façonnage'}
+              </span>
+              <div className="mono" style={{ fontSize: 10, color: 'var(--text-faint, #767b84)', marginTop: 2 }}>{shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
                 <Explain term="capacity">
                   <input
@@ -476,8 +505,7 @@ export default function LiveView() {
                   </span>
                 ))}
               </div>
-            }
-          />
+          </div>
           {/* burst test — CUBIC vs BBR à travers le bord façonné, sous surveillance */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}><Explain term="burst">Burst test</Explain></span>
@@ -515,17 +543,6 @@ export default function LiveView() {
             </div>
           )}
         </div>
-        {showLiveSrc && (
-          <div>
-            <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: CRAFT.live, display: 'flex', justifyContent: 'space-between' }}>
-              <span>live — cyan solide</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-body)' }}>{smallP95 ? `${smallP95.toFixed(1)} ms` : '—'}</span>
-            </div>
-            <div style={{ height: 10, background: 'rgba(90,211,227,0.08)', border: '1px solid ' + CRAFT.live, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
-              <div style={{ width: `${Math.min(100, (smallP95 / maxAB) * 100)}%`, height: '100%', background: CRAFT.live, boxShadow: '0 0 6px rgba(90,211,227,0.5)', transition: 'width 0.4s ease' }} />
-            </div>
-          </div>
-        )}
         {showFrozenSrc && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
@@ -538,12 +555,12 @@ export default function LiveView() {
               </div>
             </div>
             <div>
-              <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: CRAFT.live, display: 'flex', justifyContent: 'space-between' }}>
-                <span>{shape?.applied ? shape.qdisc : "cake"} — cyan solide{cakeBest?.best ? ' ★' : ''}</span>
+              <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: CRAFT.bbr, display: 'flex', justifyContent: 'space-between' }}>
+                <span>{shape?.applied ? shape.qdisc : "cake"} — violet uni{cakeBest?.best ? ' ★' : ''}</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-body)' }}>{cakeBest ? `${cakeBest.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
-              <div style={{ height: 10, background: 'rgba(90,211,227,0.08)', border: '1px solid ' + CRAFT.live, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
-                <div style={{ width: `${cakeBest ? (cakeBest.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: CRAFT.live, boxShadow: '0 0 6px rgba(90,211,227,0.5)', transition: 'width 0.4s ease' }} />
+              <div style={{ height: 10, background: 'rgba(180,138,224,0.08)', border: '1px solid ' + CRAFT.bbr, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
+                <div style={{ width: `${cakeBest ? (cakeBest.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: CRAFT.bbr, boxShadow: '0 0 6px rgba(180,138,224,0.5)', transition: 'width 0.4s ease' }} />
               </div>
             </div>
           </div>
@@ -552,12 +569,12 @@ export default function LiveView() {
 
       {journal.length > 0 && (
         <div className="card" data-testid="journal" style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <CardHead label="Journal" sub="actions et événements — 50 derniers" />
-          {journal.slice(0, 6).map((e, i) => (
+          <CardHead label="Journal" sub={`${Math.min(journal.length, 12)} affichés sur ${journalTotal} reçus`} />
+          {journal.slice(0, 12).map((e, i) => (
             <div key={i} className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
               <span style={{ color: 'var(--text-faint)' }}>{e.ts.slice(11, 19)}</span>
               <span style={{ color: 'var(--t-live)', minWidth: 84 }}>{e.kind}</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg.slice(0, 120)}</span>
+              <span className="ev-msg" title={e.msg} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{truncateWords(e.msg, 120)}</span>
             </div>
           ))}
         </div>

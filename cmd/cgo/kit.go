@@ -23,7 +23,7 @@ func runKit(args []string) int {
 		fmt.Fprintln(os.Stderr, `usage: cgo kit <action> [--config FILE] [--shallow] [--yes]
 
 actions :
-  doctor    dépendances locales + config (tout vert avant d'agir)
+   doctor    dépendances locales + config (informatif — les scripts gatent sur next, pas doctor)
   scan      trouve les .vmx/.vbox sur TOUT le PC (défaut), sauvegarde l'unique
   keysetup  pose la clé SSH sur la cible via mot de passe (prompts, zéro GUI)
   ensure    SSH up, sinon boot VM + attente (300 s max) + IP auto-découverte
@@ -31,6 +31,7 @@ actions :
   build     porte stricte : go vet + tsc + vite + bundle <600 KB + vitest
   deploy    build + ensure + cross-compile linux + scp + install + health
   svc       pilote le dashboard distant : start|stop|restart|status
+  testbed   banc de mesure invité : check (défaut, audit) | up (pose) | down (retire)
   dns       mappe meteolink.dev vers la VM (hosts local, lien stable)
   tls       confiance du certificat dashboard (magasin local + vérif HTTPS)
   shipcheck porte d'embarquement release : DNS→TCP→TLS→cert→health→confiance
@@ -44,7 +45,11 @@ actions :
    snapshots liste des instantanés (le nom sert à revert)
    ssh       shell interactif direct dans la VM (Ctrl-D pour sortir)
   netinfo   réseau invité en lecture seule (adresses, route, DNS)
-  nic       mode réseau NIC1 (affiche, ou nat|bridged|hostonly — VM éteinte)
+   nic       mode réseau NIC1 (affiche, ou nat|bridged|hostonly — VM éteinte)
+   vnet      réseau HÔTE vers la VM (diagnostic + réparation, admin une fois)
+   next      prochaine étape calculée (checklist + remède — la porte des scripts)
+   guest     prépare l'invité (sshd, outils, dashboard TLS — --check = audit seul)
+   readme    guide opérateur (même texte que le bouton Guide)
   tui       centre de contrôle interactif (flèches + entrée, sans rien taper)
    ps        processus dashboard en direct (rafraîchi 2 s, q pour sortir)
    backup    rapatrie les runs gelés de la VM vers ./backup (tar.gz horodaté)
@@ -142,7 +147,7 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 	case "vnet":
 		return r.Vnet(c)
 	case "next":
-		return r.Next(c)
+		return r.NextVer(c, version)
 	case "readme":
 		fmt.Println(kit.Readme())
 		return 0

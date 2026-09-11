@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useUIStore, PANELS } from './store/ui'
 import { connectSSE, disconnectSSE } from './lib/sse'
+import { clearLive } from './lib/live'
 import { animateViewEnter } from './lib/anime'
 import CampagneView from './views/CampagneView'
 import LiveView from './views/LiveView'
@@ -49,6 +50,19 @@ export default function App() {
   useEffect(() => {
     const running = !!live?.running
     if (wasRunningRef.current && !running) {
+      // fantôme d'après-arrêt : les anneaux et la présentation retombent —
+      // profil/charge/PASS périmés ne restent pas à côté de `phase idle`
+      clearLive()
+      const last = useUIStore.getState().live
+      if (last) {
+        useUIStore.getState().setLive({
+          ...last, phase: 'idle', running: false, load_status: '',
+          profile: '', qdisc: '', cc: '', repetition: 0,
+          rtt_p50_ms: 0, rtt_p95_ms: 0, small_p95_ms: 0, bulk_goodput_mbps: 0,
+          drops: 0, wasted_bytes: undefined, cost_ar_per_h: undefined,
+          deadline_ok_pct: undefined, gates: Array(8).fill(null),
+        } as typeof last)
+      }
       setPanel('resultats')
       useUIStore.getState().setFlash({ type: 'success', msg: 'Campagne terminée' })
       useUIStore.getState().pushToast('Campagne terminée', 'ok')
@@ -75,9 +89,7 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey)
   }, [setPanel])
 
-  const run8 = live?.event_id != null ? String(live.event_id).padStart(8, '0').slice(-8) : '────────'
-  const hashSrc = `${live?.profile ?? ''}${live?.qdisc ?? ''}${live?.cc ?? ''}`
-  const hash8 = hashSrc ? hashSrc.slice(0, 8).padEnd(8, '·').slice(0, 8) : '────────'
+  // (pied de page : l'event_id s'affiche comme événement, jamais `run`)
 
   return (
     <ErrorBoundary>
@@ -92,7 +104,7 @@ export default function App() {
           <div className="hd-right">
             {mode === 'observe' && <span className="mono" title="Audit et consultation uniquement — campagne et façonnage vivent sur l'hôte Linux (docs/deploy.md)" style={{ color: 'var(--t-warn, #f4b400)', border: '1px solid currentColor', padding: '2px 8px', fontSize: 10, letterSpacing: '0.08em' }}>OBSERVATION</span>}
             <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
-            <span className="mono" style={{ color: connected ? 'var(--t-ok)' : 'var(--t-danger)' }}>{connected ? '● connecté' : '○ déconnecté'}</span>
+            <span className="mono" style={{ color: connected ? 'var(--t-ok)' : 'var(--t-danger-text, #e84a3a)' }}>{connected ? '● connecté' : '○ déconnecté'}</span>
             <span id="hd-state" className="mono">{live?.phase ?? 'idle'}</span>
           </div>
         </header>
@@ -109,10 +121,10 @@ export default function App() {
           <section id="v-integrite" className="view" hidden={panel !== 'integrite'}><IntegriteView /></section>
         </main>
 
-        <footer className="foot-ticker" style={{ height: 28, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderTop: '1px solid var(--hairline)', background: 'var(--surface-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--text-faint)' }}>
+        <footer className="foot-ticker" style={{ minHeight: 28, display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 12, padding: '4px 16px', borderTop: '1px solid var(--hairline)', background: 'var(--surface-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em', textTransform: 'none' as const, color: 'var(--text-faint)' }}>
           <span id="ft-prov">source: {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
           <span aria-hidden="true" style={{ opacity: 0.4 }}>|</span>
-          <span id="ft-run" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>run {run8} · hash {hash8} · {live?.phase ?? 'idle'}</span>
+          <span id="ft-run" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>événement #{live?.event_id ?? '—'} · {live?.phase ?? 'idle'}</span>
           <span className="fill" style={{ marginLeft: 'auto' }} />
           <span id="ft-sse" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>SSE {sseStatus}</span>
         </footer>

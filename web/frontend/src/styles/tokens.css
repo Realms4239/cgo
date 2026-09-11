@@ -19,22 +19,23 @@
   --hairline-strong: #3a3a40;
   --hairline-faint: #141416;
 
-  /* text */
+  /* text — faint bumped #767b84→#7e838c: 4.47/4.25→4.99/4.74 on card/elevated (WCAG 4.5) */
   --text-primary: #f2f2f4;
   --text-body-strong: #d6d8dd;
   --text-body: #a9aeb6;
   --text-muted: #8b9099;
-  --text-faint: #767b84;
+  --text-faint: #7e838c;
 
   /* identité seule — jamais données, jamais boutons */
   --brand-1: #0066b1;
   --brand-2: #1c69d4;
   --brand-3: #e22718;
 
-  /* semantic telemetry */
+  /* semantic telemetry — fills stay; text uses -text variant (danger 4.11/3.90→4.95/4.71) */
   --t-live: #5ad3e3;      /* cyan — primary/live series */
   --t-threshold: #f4b400; /* amber — thresholds/caution */
-  --t-danger: #e22718;    /* red — drops/errors/failed */
+  --t-danger: #e22718;    /* red — drops/errors/failed (fills, dots) */
+  --t-danger-text: #e84a3a; /* red — text-only on card/elevated (4.95/4.71) */
   --t-ok: #1fa348;        /* green — passed/safe */
   --t-bbr: #b48ae0;       /* violet — BBR series */
   --t-neutral: #9aa3ad;   /* steel — neutral series */
@@ -111,6 +112,7 @@ body::before {
   --radius-pip: 50%;
   /* semantic aliases */
   --danger: var(--t-danger);
+  --danger-text: var(--t-danger-text);
   --warning: var(--t-threshold);
   --success: var(--t-ok);
   --series-1: var(--t-live);
@@ -128,7 +130,7 @@ body::before {
   --state-loading-bg: var(--live-dim);
   --state-loading-text: var(--text-muted);
   --state-error-bg: var(--danger-dim);
-  --state-error-text: var(--t-danger);
+  --state-error-text: var(--t-danger-text);
   --state-success-bg: var(--ok-dim);
   --state-empty-text: var(--text-faint);
   --state-disabled-bg: var(--surface-soft);

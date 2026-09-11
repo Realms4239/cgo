@@ -30,6 +30,7 @@ var (
 	pEnableWindow     = user32.NewProc("EnableWindow")
 	pSetTimer         = user32.NewProc("SetTimer")
 	pKillTimer        = user32.NewProc("KillTimer")
+	pSetFocus         = user32.NewProc("SetFocus")
 	pLoadImageW       = user32.NewProc("LoadImageW")
 	pDestroyWindow    = user32.NewProc("DestroyWindow")
 	pPostQuitMessage  = user32.NewProc("PostQuitMessage")

@@ -124,7 +124,15 @@ func wndProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	case wmCommand:
 		id := int(wParam & 0xFFFF)
 		code := int((wParam >> 16) & 0xFFFF)
-		if code == bnClicked || (code == lbnDblclk && id == idVMList) {
+		// Double-clic liste = verrouiller, DIRECTEMENT (même handler que
+		// le bouton Verrouiller) : l'ancien détour par onButton(101)
+		// tombait dans le vide (101 n'a pas de verbe buttonAction) et le
+		// double-clic passait pour mort (#13).
+		if code == lbnDblclk && id == idVMList {
+			a.lockSelected()
+			return 0
+		}
+		if code == bnClicked {
 			a.onButton(id)
 		}
 		return 0

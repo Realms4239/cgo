@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,7 +32,16 @@ type NextStep struct {
 
 // GatherNext — photographie du pipeline. Budgets courts partout (total
 // < 30 s pire cas) : c'est appelé à chaque fin d'action + ticker GUI.
+// Sans version attendue ("" : compat) ; GatherNextVer compare le binaire
+// distant et refuse un dashboard périmé (voir palier svc).
 func GatherNext(c *Config) []NextStep {
+	return GatherNextVer(c, "")
+}
+
+// GatherNextVer — GatherNext + garde anti-dérive : un dashboard sain mais
+// d'une version mineure antérieure ne doit pas passer les paliers neufs
+// en silence (il ignore testbedsrv, PlaneReady…).
+func GatherNextVer(c *Config, wantVer string) []NextStep {
 	steps := []NextStep{}
 	blocked := false // un KO/amont gèle la pertinence de la suite
 	push := func(s NextStep) {
@@ -78,7 +88,12 @@ func GatherNext(c *Config) []NextStep {
 			Detail: fmt.Sprintf("%s (%s)", locked, hypName)})
 	}
 
-	// 2. réseau hôte (cible concrète seulement)
+	// 2. réseau hôte (cible concrète seulement). NAT VirtualBox : l'IP
+	// invitée 10.0.2.x est injoignable en direct PAR CONSTRUCTION — seul
+	// le forward local décide. SANS ça, le bandeau restait bloqué sur
+	// « Réseau hôte tombé — kit vnet » (et Suite bouclait `kit vnet`,
+	// qui ne peut rien pour une clé refusée) alors qu'ensure avait déjà
+	// diagnostiqué « forward ouvert mais clé refusée ».
 	host := strings.TrimSpace(c.SSHHost)
 	sub := ""
 	if parts := strings.Split(host, "."); len(parts) == 4 {
@@ -89,7 +104,14 @@ func GatherNext(c *Config) []NextStep {
 			sub = "local"
 		}
 	}
+	natH, natP, isNAT := NATForwardTarget(c, host)
 	switch {
+	case isNAT && portOpen(natH, natP):
+		push(NextStep{ID: "vnet", Label: "Réseau hôte", State: "ok", Detail: "forward local " + natH + ":" + natP + " en écoute"})
+	case isNAT:
+		push(NextStep{ID: "vnet", Label: "Forward NAT fermé", State: "ko",
+			Detail: natH + ":" + natP + " muet (invitée " + host + " injoignable en direct — normal)",
+			Remedy: "cgo kit ensure", Verb: "bg:ensure"})
 	case host == "" || host == "auto":
 		push(NextStep{ID: "vnet", Label: "Réseau hôte", State: "attente", Detail: "cible auto"})
 	case sub == "local":
@@ -104,6 +126,15 @@ func GatherNext(c *Config) []NextStep {
 			Remedy: "cgo kit vnet", Verb: "bg:vnet"})
 	}
 
+	// Cible effective des sondes : le forward sous NAT (l'IP invitée ne
+	// répondra jamais en direct), la config sinon. Le bandeau avance
+	// ainsi jusqu'au vrai palier fautif (clé, binaire…) au lieu de
+	// re-proposer vnet/ensure en boucle.
+	effHost, effPort := host, sshPort(c)
+	if isNAT {
+		effHost, effPort = natH, natP
+	}
+
 	// 3. boot
 	if hyp == nil {
 		push(NextStep{ID: "boot", Label: "VM allumée", State: "attente", Detail: "pas de VM"})
@@ -114,29 +145,29 @@ func GatherNext(c *Config) []NextStep {
 			Detail: "éteinte", Remedy: "cgo kit ensure", Verb: "bg:vmon"})
 	}
 
-	// 4. cible résolue
+	// 4. cible résolue (effective : le forward sous NAT)
 	if host == "" || host == "auto" {
 		push(NextStep{ID: "cible", Label: "Cible SSH", State: "attente",
 			Detail: "auto — résolue par la prochaine étape", Remedy: "cgo kit ensure", Verb: "bg:ensure"})
 	} else {
-		push(NextStep{ID: "cible", Label: "Cible SSH", State: "ok", Detail: host + ":" + sshPort(c)})
+		push(NextStep{ID: "cible", Label: "Cible SSH", State: "ok", Detail: effHost + ":" + effPort})
 	}
 
 	// 5. port TCP
 	if !stepOK(steps, "cible") {
 		push(NextStep{ID: "port", Label: "Port SSH", State: "attente", Detail: "cible d'abord"})
-	} else if portOpen(host, sshPort(c)) {
-		push(NextStep{ID: "port", Label: "Port SSH", State: "ok", Detail: host + ":" + sshPort(c) + " ouvert"})
+	} else if portOpen(effHost, effPort) {
+		push(NextStep{ID: "port", Label: "Port SSH", State: "ok", Detail: effHost + ":" + effPort + " ouvert"})
 	} else {
 		push(NextStep{ID: "port", Label: "Port SSH fermé", State: "ko",
-			Detail: host + ":" + sshPort(c) + " muet",
+			Detail: effHost + ":" + effPort + " muet",
 			Remedy: "cgo kit ensure", Verb: "bg:ensure"})
 	}
 
-	// 6. clé acceptée (= auth SSH)
+	// 6. clé acceptée (= auth SSH, via le forward sous NAT)
 	if !stepOK(steps, "port") {
 		push(NextStep{ID: "cle", Label: "Clé SSH", State: "attente", Detail: "port d'abord"})
-	} else if _, err := c.SSH("true"); err == nil {
+	} else if _, err := sshProbeAs(c, effHost, effPort); err == nil {
 		push(NextStep{ID: "cle", Label: "Clé SSH", State: "ok", Detail: "acceptée par " + c.SSHUser + "@" + host})
 	} else {
 		push(NextStep{ID: "cle", Label: "Poser la clé SSH", State: "ko",
@@ -151,7 +182,7 @@ func GatherNext(c *Config) []NextStep {
 	}
 	if !stepOK(steps, "cle") {
 		push(NextStep{ID: "binaire", Label: "Binaire déployé", State: "attente", Detail: "clé d'abord"})
-	} else if out, err := c.SSH("test -x " + shq(proj+"/cgo-linux") + " && echo OK"); err == nil && strings.Contains(out, "OK") {
+	} else if out, err := sshExecAs(c, effHost, effPort, "test -x "+shq(proj+"/cgo-linux")+" && echo OK"); err == nil && strings.Contains(out, "OK") {
 		push(NextStep{ID: "binaire", Label: "Binaire déployé", State: "ok", Detail: proj + "/cgo-linux"})
 	} else {
 		push(NextStep{ID: "binaire", Label: "Déployer le binaire", State: "ko",
@@ -163,7 +194,23 @@ func GatherNext(c *Config) []NextStep {
 	if !stepOK(steps, "binaire") {
 		push(NextStep{ID: "svc", Label: "Dashboard", State: "attente", Detail: "binaire d'abord"})
 	} else if ver, ok := dashProbe(dashProbeURL(c)); ok {
-		push(NextStep{ID: "svc", Label: "Dashboard", State: "ok", Detail: "sain (version " + ver + ")"})
+		// Binaire périmé (mineur antérieur : il ignore les paliers neufs —
+		// testbedsrv, PlaneReady…) : sain ne veut pas dire à jour. On
+		// refuse avec le remède, jamais un vert silencieux.
+		if dashStale(ver, wantVer) {
+			push(NextStep{ID: "svc", Label: "Dashboard périmé", State: "ko",
+				Detail: "distant " + ver + ", attendu " + wantVer,
+				Remedy: "cgo kit deploy", Verb: "bg:deploy"})
+		} else if dashAhead(ver, wantVer) {
+			// Distant plus neuf que le kit local : un deploy ÉCRASERAIT le
+			// neuf par l'ancien — guidance seule (Verb ""), jamais deploy.
+			push(NextStep{ID: "svc", Label: "Kit local périmé", State: "ko",
+				Detail: "distant " + ver + " plus neuf qu'attendu " + wantVer + " (ne pas downgrader)",
+				Remedy: "update local : git pull + rebuild (jamais `cgo kit deploy` ici — downgrade)",
+				Verb: ""})
+		} else {
+			push(NextStep{ID: "svc", Label: "Dashboard", State: "ok", Detail: "sain (version " + ver + ")"})
+		}
 	} else if httpOnlyUp(c) {
 		push(NextStep{ID: "svc", Label: "Dashboard pré-TLS", State: "ko",
 			Detail: "HTTP seul (binaire ≤1.2.2) — svc start ne soignera jamais",
@@ -183,6 +230,10 @@ func GatherNext(c *Config) []NextStep {
 		push(NextStep{ID: "dns", Label: "Nom meteolink.dev", State: "attente", Detail: "dashboard d'abord"})
 	} else if host == "" || host == "auto" {
 		push(NextStep{ID: "dns", Label: "Nom meteolink.dev", State: "attente", Detail: "cible d'abord"})
+	} else if isNAT {
+		// NAT : le dashboard passe par le forward local, le nom ne mappe
+		// jamais l'invitée — un KO ici serait un faux KO, pas un dns à fixer.
+		push(NextStep{ID: "dns", Label: "Nom meteolink.dev", State: "attente", Detail: "NAT : dashboard via le forward " + effHost + ":" + effPort + " — le nom ne s'applique pas"})
 	} else if dnsMapsTo(dashName, host) {
 		push(NextStep{ID: "dns", Label: "Nom meteolink.dev", State: "ok", Detail: dashName + " → " + host})
 	} else {
@@ -208,7 +259,7 @@ func GatherNext(c *Config) []NextStep {
 	// sudo testé sur la SORTIE : sudo 1.9.15p5 sort 0 même en refusant -n.
 	if !stepOK(steps, "cle") {
 		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "attente", Detail: "clé d'abord"})
-	} else if out, err := c.SSH("curl -fsS -m3 http://10.200.0.1:8081/small -o /dev/null && timeout 1 bash -c '</dev/tcp/10.200.0.1/5201' && ! sudo -n ip netns list 2>&1 | grep -qi password && echo PLANE_OK"); err == nil && strings.Contains(out, "PLANE_OK") {
+	} else if out, err := sshExecAs(c, effHost, effPort, "curl -fsS -m3 http://10.200.0.1:8081/small -o /dev/null && timeout 1 bash -c '</dev/tcp/10.200.0.1/5201' && ! sudo -n ip netns list 2>&1 | grep -qi password && echo PLANE_OK"); err == nil && strings.Contains(out, "PLANE_OK") {
 		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "ok", Detail: "small + bulk + sudo — campagnes possibles"})
 	} else {
 		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "ko",
@@ -238,10 +289,77 @@ func stepOK(steps []NextStep, id string) bool {
 	return false
 }
 
+// sshExecAs — commande distante sur la cible EFFECTIVE (le forward local
+// sous NAT, la config sinon) : point d'entrée unique des sondes Next (clé,
+// binaire, banc). Copie locale, jamais de mutation de la config partagée
+// (même discipline que la boucle ensure).
+func sshExecAs(c *Config, host, port, cmd string) (string, error) {
+	probe := *c
+	probe.SSHHost, probe.SSHPort = host, port
+	return probe.SSH(cmd)
+}
+
+// sshProbeAs — sonde SSH en surchargeant la cible (NAT : le forward local,
+// pas l'IP invitée injoignable). Délègue à sshExecAs (même copie).
+func sshProbeAs(c *Config, host, port string) (string, error) {
+	return sshExecAs(c, host, port, "true")
+}
+
+// dashStale — le binaire distant est-il d'une version mineure ANTÉRIEURE à
+// l'attendue ? Comparaison ORDONNÉE sur majeur.mineur (le patch ne change
+// pas les paliers) : have < want → périmé (remède : deploy) ; have > want
+// → c'est le kit LOCAL qui est périmé (remède : update local — JAMAIS un
+// deploy, qui downgraderait le dashboard). Want vide (compat) ou versions
+// illisibles → jamais périmé (on ne bloque pas sur un doute).
+func dashStale(have, want string) bool {
+	if want == "" || have == "" {
+		return false
+	}
+	mh, nh := verMajMin(have)
+	mw, nw := verMajMin(want)
+	if mh < 0 || mw < 0 {
+		return false
+	}
+	return mh < mw || (mh == mw && nh < nw)
+}
+
+// dashAhead — miroir de dashStale : le distant est-il PLUS NEUF que
+// l'attendu ? Même fail-open (vide/illisible → faux).
+func dashAhead(have, want string) bool {
+	if want == "" || have == "" {
+		return false
+	}
+	mh, nh := verMajMin(have)
+	mw, nw := verMajMin(want)
+	if mh < 0 || mw < 0 {
+		return false
+	}
+	return mh > mw || (mh == mw && nh > nw)
+}
+
+func verMajMin(v string) (int, int) {
+	v = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(v), "v"))
+	parts := strings.Split(v, ".")
+	if len(parts) < 2 {
+		return -1, -1
+	}
+	a, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+	b, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err1 != nil || err2 != nil {
+		return -1, -1
+	}
+	return a, b
+}
+
 // Next — `kit next` : checklist complète + prochaine étape, lisible en
 // 5 secondes. Code 0 si tout vert, 3 sinon.
 func (r *Runner) Next(c *Config) int {
-	steps := GatherNext(c)
+	return r.NextVer(c, "")
+}
+
+// NextVer — Next + garde anti-dérive (binaire distant périmé refusé).
+func (r *Runner) NextVer(c *Config, wantVer string) int {
+	steps := GatherNextVer(c, wantVer)
 	for _, s := range steps {
 		mark := "[✓]"
 		if s.State == "ko" {
@@ -310,6 +428,12 @@ func dashProbeURL(c *Config) string {
 		if port == "" {
 			port = "9090"
 		}
+		// NAT : l'IP invitée est injoignable en direct — le dashboard est
+		// redirigé vers le forward local (EnsureNatSSH : dashPort → 9090).
+		// Sonder l'invitée concluait « dashboard éteint » à tort (faux KO).
+		if natH, _, isNAT := NATForwardTarget(c, h); isNAT {
+			return "https://" + natH + ":" + port
+		}
 		return "https://" + h + ":" + port
 	}
 	return dashURLFor(c)
@@ -335,6 +459,11 @@ func dashProbe(url string) (string, bool) {
 }
 
 func dnsMapsTo(name, ip string) bool {
+	// Espace invité NAT : jamais mappé utilement (le palier dns rend
+	// « attente » sous NAT avant d'appeler) — on évite la résolution.
+	if isVBoxGuestSpace(strings.TrimSpace(ip)) {
+		return false
+	}
 	addrs, err := lookupHostFast(name)
 	if err != nil {
 		return false

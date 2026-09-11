@@ -9,7 +9,7 @@ export function EventBadge({ compact }: { compact?: boolean }) {
   const total = live.total_events || 0
   const cell = [live.profile, live.qdisc, live.cc].filter(Boolean).join('/')
   const rep = live.repetition ? ` rep ${live.repetition}` : ''
-  const cap = live.profile_capacity_mbps ? ` · ${live.profile_capacity_mbps}Mbit` : ''
+  const cap = live.profile_capacity_mbps ? ` · ${live.profile_capacity_mbps} Mbit/s` : ''
   const delay = live.profile_delay_ms ? `/${live.profile_delay_ms}ms` : ''
   const loss = live.profile_loss_pct ? `/${live.profile_loss_pct}%` : ''
   return (

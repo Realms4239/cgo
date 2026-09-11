@@ -24,6 +24,12 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const [tiers, setTiers] = useState<{ name: string; ar_per_gb: number }[]>([])
   const [tier, setTier] = useState('')
   const setFlash = useUIStore((st: any) => st.setFlash)
+  // Échap referme — comme la modale ⓘ, le duel et l'interprétation
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
   useEffect(() => { loadSchema().then(setSchema).catch(() => {}) }, [])
   useEffect(() => {
     fetch('/api/cost/tiers').then(r => r.json()).then(j => {
