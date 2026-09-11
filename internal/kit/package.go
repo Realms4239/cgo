@@ -260,6 +260,7 @@ ORDRE LINÉAIRE (le chemin que Suite suit — et que tout message cite)
 --------------------------------------------------------------------
   1. Verrouiller : Rescanner (+ auto si une seule VM), double-clic sinon.
   2. Utilisateur Ubuntu + Sauver (ex. fanasina).
+  2b. Créer la clé (UNE fois par poste, si absente — Diagnostiquer le dit).
   3. Poser la clé (mot de passe UNE fois, console noire).
   4. Démarrer / Réessayer : boot + forwards + attente SSH.
   5. Banc de mesure : bouton dédié (vérifie, ne casse rien).

@@ -451,7 +451,12 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 			return r.Logs(c, 40)
 		})
 	case kind == "bg:verify":
-		f.runBg("verify", func(r *kit.Runner) int { return r.Verify(f.loadCfg()) })
+		f.runBg("verify", func(r *kit.Runner) int {
+			if code := r.Verify(f.loadCfg()); code != 0 {
+				return code
+			}
+			return r.ShipCheck(f.loadCfg())
+		})
 	case kind == "bg:backup":
 		f.runBg("backup", func(r *kit.Runner) int { return r.Backup(f.loadCfg(), "backup") })
 	case kind == "bg:snapshot":

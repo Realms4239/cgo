@@ -305,7 +305,7 @@ func mkKeyGUI(c *kit.Config, r *kit.Runner) int {
 		return 2
 	}
 	_ = os.MkdirAll(filepath.Dir(key), 0700)
-	cmd := kit.BgCmd("ssh-keygen", "-t", "ed25519", "-N", "", "-f", key, "-q")
+	cmd := kit.BgCmd("ssh-keygen", "-t", "ed25519", "-N", "", "-C", "cgo-kit", "-f", key, "-q")
 	cmd.Stdout, cmd.Stderr = r.Stdout, r.Stderr
 	if err := cmd.Run(); err != nil {
 		return 2

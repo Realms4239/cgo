@@ -21,6 +21,18 @@ import (
 // confirmation explicite OUI → ssh par mot de passe → vérification par la
 // clé (SSHUp) → ssh_user mémorisé dans le yaml.
 func (r *Runner) KeySetup(c *Config, cfgPath string, rest []string) int {
+	code := r.keySetupRun(c, cfgPath, rest)
+	// Console GUI (CGO_GUI_CONSOLE=1) : la fenêtre se ferme à la sortie du
+	// processus — un ÉCHEC instantané (stdin mort, défaut invalide) serait
+	// illisible (flash rapporté). Pause explicite, succès : fermeture nette.
+	if code != 0 && os.Getenv("CGO_GUI_CONSOLE") == "1" {
+		fmt.Fprintln(r.Stdout, "[keysetup] — Entrée pour fermer —")
+		bufio.NewReader(os.Stdin).ReadString('\n')
+	}
+	return code
+}
+
+func (r *Runner) keySetupRun(c *Config, cfgPath string, rest []string) int {
 	if !r.ensureSSHClient() {
 		return 2
 	}
@@ -175,7 +187,13 @@ func resolvePubkey(key string) (string, error) {
 
 // promptLine — invite terminal avec défaut entre crochets ; Entrée vide =
 // défaut. Pas de secret ici (utilisateur/hôte/port uniquement).
+// CGO_YES=1 (--yes) : prend le défaut SANS lire (non-interactif). OUI +
+// mot de passe ne passent jamais par ici : toujours manuels.
 func promptLine(label, def string) string {
+	if os.Getenv("CGO_YES") == "1" {
+		fmt.Printf("%s [%s] : (auto --yes)\n", label, def)
+		return def
+	}
 	if def != "" {
 		fmt.Printf("%s [%s] : ", label, def)
 	} else {

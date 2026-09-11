@@ -49,7 +49,7 @@ type Config struct {
 // KitVersion — version du kit (SOURCE UNIQUE : cmd/cgo `version` vaut ça
 // par défaut, les vues GUI comparent le dashboard distant à elle pour
 // refuser un binaire périmé). À bumper à chaque release, avec le tag.
-const KitVersion = "1.3.3"
+const KitVersion = "1.3.4"
 
 // VMPath — LE chemin de la VM verrouillée, quel que soit l'hyperviseur
 // (.vmx ou .vbox). Tout le code lit ÇA, jamais les champs bruts : lire
@@ -1421,20 +1421,54 @@ func (r *Runner) deployPrebuilt(c *Config, cfgPath string, deep bool) int {
 	return r.deployPush(c, bin)
 }
 
+// resolveProjectDir — $HOME réel de l'invité, jamais /home/user supposé.
+// Le hardcode poussait les binaires dans un dossier qui n'est pas le
+// checkout du banc (homes non standard, root, renommés) : scp « réussi »
+// vers un dossier inexistant côté usage, install qui tourne sur du vieux.
+// Explicite (yaml/env) gagne toujours ; sinon découverte SSH ; sinon repli.
+func (c *Config) resolveProjectDir() string {
+	if c.ProjectDir != "" {
+		return c.ProjectDir
+	}
+	if out, err := c.SSH("echo $HOME"); err == nil {
+		if h := strings.TrimSpace(out); h != "" && strings.HasPrefix(h, "/") {
+			return h + "/cgo"
+		}
+	}
+	if c.SSHUser != "" {
+		return "/home/" + c.SSHUser + "/cgo" // repli documenté, pas une vérité
+	}
+	return ""
+}
+
 // deployPush — queue commune : scp binaire + installateur, install, health.
 func (r *Runner) deployPush(c *Config, bin string) int {
 	r.out("[deploy] push binaire + installateur...")
-	mkdirOut, mkdirErr := c.SSH("mkdir -p " + shq(c.ProjectDir+"/kit"))
+	pdir := c.resolveProjectDir()
+	if pdir == "" {
+		r.errf("[deploy] dossier distant inconnu (ni yaml, ni $HOME joignable, ni user) — %s", LinearGuide())
+		return 3
+	}
+	if pdir != c.ProjectDir {
+		r.out("[deploy] dossier distant résolu : %s", pdir)
+	}
+	mkdirOut, mkdirErr := c.SSH("mkdir -p " + shq(pdir+"/kit"))
 	if mkdirErr != nil {
 		r.sshDiag("[deploy]", mkdirOut)
 		return 7
 	}
-	if out, key, err := c.SCPOut(bin, c.ProjectDir+"/cgo-linux.new"); err != nil {
-		r.errf("[deploy] scp ÉCHEC : %v — clé=%s port=%s cible=%s@%s src=%s", err, key, c.SSHPort, c.SSHUser, c.SSHHost, bin)
+	// Vérifie, ne crois pas : mkdir -p peut réussir partiellement (quota,
+	// montage read-only) — scp dans le vide ensuite est incompréhensible.
+	if out, err := c.SSH("test -d " + shq(pdir+"/kit") + " && echo DIR_OK"); err != nil || !strings.Contains(out, "DIR_OK") {
+		r.errf("[deploy] %s/kit inutilisable après mkdir (%v) — espace/permissions côté invité ?", pdir, err)
+		return 7
+	}
+	if out, key, err := c.SCPOut(bin, pdir+"/cgo-linux.new"); err != nil {
+		r.errf("[deploy] scp ÉCHEC : %v — clé=%s port=%s cible=%s@%s src=%s dst=%s", err, key, c.SSHPort, c.SSHUser, c.SSHHost, bin, pdir)
 		r.errf("[deploy] sortie scp : %s", strings.TrimSpace(out))
 		return 7
 	}
-	if out, key, err := c.SCPOut(filepath.Join(r.Root, "kit", "vm-install.sh"), c.ProjectDir+"/kit/vm-install.sh"); err != nil {
+	if out, key, err := c.SCPOut(filepath.Join(r.Root, "kit", "vm-install.sh"), pdir+"/kit/vm-install.sh"); err != nil {
 		r.errf("[deploy] scp installateur ÉCHEC : %v — clé=%s port=%s cible=%s@%s", err, key, c.SSHPort, c.SSHUser, c.SSHHost)
 		r.errf("[deploy] sortie scp : %s", strings.TrimSpace(out))
 		return 7
@@ -1444,13 +1478,13 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 	// le dashboard — vm-install et `kit testbed` le signalent.
 	if _, err := os.Stat(filepath.Join(r.Root, "kit", "testbed.sh")); err != nil {
 		r.out("[deploy] kit/testbed.sh absent ici — banc de mesure à pousser à part (kit testbed)")
-	} else if out, _, err := c.SCPOut(filepath.Join(r.Root, "kit", "testbed.sh"), c.ProjectDir+"/kit/testbed.sh"); err != nil {
+	} else if out, _, err := c.SCPOut(filepath.Join(r.Root, "kit", "testbed.sh"), pdir+"/kit/testbed.sh"); err != nil {
 		r.out("[deploy] scp testbed.sh : %s — banc à pousser à part (kit testbed)", strings.TrimSpace(out))
 	} else {
-		_, _ = c.SSH("chmod +x " + shq(c.ProjectDir+"/kit/testbed.sh"))
+		_, _ = c.SSH("chmod +x " + shq(pdir+"/kit/testbed.sh"))
 	}
 	r.out("[deploy] installation VM...")
-	instOut, instErr := c.SSH("cd " + shq(c.ProjectDir) + " && bash kit/vm-install.sh")
+	instOut, instErr := c.SSH("cd " + shq(pdir) + " && bash kit/vm-install.sh")
 	if instErr != nil {
 		r.sshDiag("[deploy]", instOut)
 		return 8
@@ -1460,9 +1494,10 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 		return 0
 	}
 	// le redémarrage du service et la poignée TLS peuvent se chevaucher :
-	// re-tenter ~15 s avant de déclarer KO (même discipline que vm-install).
+	// re-tenter ~30 s avant de déclarer KO (terrain : health parfois à 25 s ;
+	// un KO à 14 s qui était vert à 30 s est le pire mensonge du deploy).
 	r.out("[deploy] health en cours de stabilisation — nouvelle tentative…")
-	for i := 0; i < 14; i++ {
+	for i := 0; i < 29; i++ {
 		time.Sleep(time.Second)
 		if c.Health() {
 			r.out("[deploy] fait → %s (IP directe : https://%s:%s)", c.dashURL(), c.SSHHost, c.DashPort)
