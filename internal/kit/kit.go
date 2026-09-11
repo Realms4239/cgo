@@ -49,7 +49,7 @@ type Config struct {
 // KitVersion — version du kit (SOURCE UNIQUE : cmd/cgo `version` vaut ça
 // par défaut, les vues GUI comparent le dashboard distant à elle pour
 // refuser un binaire périmé). À bumper à chaque release, avec le tag.
-const KitVersion = "1.3.1"
+const KitVersion = "1.3.2"
 
 // VMPath — LE chemin de la VM verrouillée, quel que soit l'hyperviseur
 // (.vmx ou .vbox). Tout le code lit ÇA, jamais les champs bruts : lire

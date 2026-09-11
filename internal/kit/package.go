@@ -243,18 +243,23 @@ PREMIER LANCEMENT : un seul prompt UAC — l'app s'élève et tout hérite
 (plus aucun terminal admin). Clic-droit « Exécuter en tant
 qu'administrateur » n'est plus nécessaire.
 
-MÉTHODE : LE BOUTON « SUITE » SUFFIT
-------------------------------------
-Double-cliquez DEMARRER.bat. Puis, dans l'ordre affiché par le bandeau
-« Prochaine », cliquez « ▶ Suite » : il exécute chaque étape seul
-(scan + verrouillage auto, utilisateur, clé, boot + forwards, deploy,
-dashboard, DNS, confiance HTTPS, banc de mesure). Répétez Suite jusqu'à
-« tout est vert ». Le journal raconte tout, horodaté ; preuves dans
-cgo-gui-<date>.log à côté de l'exe.
+MÉTHODE : UNE PRESSION SUR « SUITE » SUFFIT
+-------------------------------------------
+Double-cliquez DEMARRER.bat. Cliquez « ▶ Suite » UNE fois : la chaîne
+avance SEULE, étape après étape (scan + verrouillage auto, boot +
+forwards, deploy, dashboard, DNS, confiance, banc), jusqu'à
+« tout est vert » ou jusqu'au premier point qui exige une main humaine :
+mot de passe (console noire « Poser la clé »), choix d'une VM (plusieurs
+trouvées → double-clic), ou pilote à installer. Dans ces cas le journal
+dit exactement quoi faire ; corrigez, re-cliquez Suite, ça repart.
+La chaîne ne boucle jamais : échec, répétition ou fin l'arrêtent avec
+un message. Tout autre bouton cliqué à la main interrompt la chaîne
+(vous avez pris la main, c'est normal).
 
 3 CHOSES À SAVOIR
 -----------------
 - « Utilisateur Ubuntu » + Sauver (ex. fanasina) : SANS lui, tout avorte.
+  (Suite s'arrête au palier clé et le dit ; renseignez-le, re-Suite.)
 - « Poser la clé » : mot de passe tapé UNE fois dans la console noire,
   jamais stocké. Si la clé passe déjà, ça ne fait rien.
 - « Snapshot (arrêt VM) » : snapshot À FROID (arrêt propre d'abord).
@@ -393,11 +398,12 @@ Prérequis : openssh-client, hyperviseur + VM du banc. Rien d'autre
 (pas de Go/node ; GUI = X11/Wayland déjà présents). Sans écran :
 ./cgo kit tui — même pilotage, en texte.
 
-MÉTHODE : LE BOUTON « SUITE » SUFFIT
-------------------------------------
-Lancez cgo-gui (ou ./cgo kit next en terminal). Le bandeau « Prochaine »
-dit l'étape, « ▶ Suite » l'exécute seul — répétez jusqu'à « tout est vert ».
-Journal horodaté ; preuves dans cgo-gui-<date>.log.
+MÉTHODE : UNE PRESSION SUR « SUITE » SUFFIT
+-------------------------------------------
+Lancez cgo-gui (ou ./cgo kit next en terminal). Cliquez « ▶ Suite » UNE
+fois : la chaîne avance SEULE jusqu'à « tout est vert » ou jusqu'au
+premier point manuel (mot de passe, choix VM, pilote). Le journal
+horodaté dit tout ; preuves dans cgo-gui-<date>.log.
 
 3 CHOSES À SAVOIR
 -----------------

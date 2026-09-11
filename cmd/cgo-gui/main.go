@@ -68,6 +68,10 @@ type app struct {
 	lastNext   string // dernier bandeau journalisé (transitions seules)
 	lastSSH    string // dernier état SSH journalisé (transitions seules)
 	lastDash   string // dernier état dashboard journalisé (transitions seules)
+	chain      bool   // chaîne Suite en cours (avance seule jusqu'au blocage)
+	chainVerb  string // dernier verbe rejoué par la chaîne
+	chainRepeat int   // répétitions du même verbe (garde anti-boucle)
+	chainCode  *int   // code de l'étape terminée, consommé par la re-analyse
 }
 
 var theApp *app

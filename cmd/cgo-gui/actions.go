@@ -127,6 +127,13 @@ func (a *app) onDone() {
 	} else {
 		a.appendLog("✗ " + d.label + " → code " + itoa(d.code) + " (voir ci-dessus)")
 	}
+	// La chaîne Suite consomme ce code dès la re-analyse terminée.
+	a.mu.Lock()
+	if a.chain {
+		c := d.code
+		a.chainCode = &c
+	}
+	a.mu.Unlock()
 	a.setStatus("Prêt.")
 	go a.refreshStatus()
 	if d.label == "deploy" && d.code == 0 {
@@ -280,8 +287,16 @@ func (a *app) refreshStatus() {
 			a.stNext, a.stNextKind, a.stNextArgs = nx.Label+" ("+nx.Detail+")", nx.Verb, nx.Args
 		}
 		a.stNextDone = true
+		var cc *int
+		if a.chain && a.chainCode != nil {
+			cc = a.chainCode
+			a.chainCode = nil
+		}
 		a.mu.Unlock()
 		postMsg(a.hwnd, wmAppStatus)
+		if cc != nil {
+			a.suiteContinue(*cc)
+		}
 	}()
 }
 
@@ -295,6 +310,13 @@ func (a *app) onButton(id int) {
 	kind, args := buttonAction(id)
 	if kind == "" {
 		return
+	}
+	// Main humaine directe (pas Suite) : la chaîne s'efface, pas de reprise
+	// surprise après l'action manuelle.
+	if kind != "direct:suite" {
+		a.mu.Lock()
+		a.chain = false
+		a.mu.Unlock()
 	}
 	a.runKind(kind, args)
 }
@@ -423,20 +445,86 @@ func (a *app) runKind(kind string, args []string) {
 			a.appendLog("analyse en cours — patientez 10 s puis Suite")
 			return
 		}
-		if nk == "" {
-			a.appendLog("tout est vert — rien à faire (Rescanner pour revérifier)")
-			return
-		}
-		if !isKnownSuiteVerb(nk) {
-			// Palier sans verbe auto (pilote manquant, update locale…) :
-			// JAMAIS muet, JAMAIS « tout est vert » — le remède est dans
-			// le bandeau, on le répète ici.
-			a.appendLog("suite : pas d'action automatique — " + next)
-			return
-		}
-		a.appendLog("▶ suite : " + nk)
-		a.runKind(nk, na)
+		// Chaîne linéaire : UNE pression avance seule jusqu'au premier point
+		// qui exige une main humaine (console, choix, install) ou échoue.
+		a.mu.Lock()
+		a.chain = true
+		a.chainVerb = ""
+		a.chainRepeat = 0
+		a.mu.Unlock()
+		a.suiteStep(nk, na, next)
 	}
+}
+
+// suiteStep — UN maillon de la chaîne (Suite initial ou continuation auto
+// après chaque étape réussie). Ne boucle jamais : arrêt sur console (main
+// humaine requise), verbe inconnu, échec, vert, ou même verbe 2× de suite.
+func (a *app) suiteStep(nk string, na []string, next string) {
+	if nk == "" {
+		a.mu.Lock()
+		a.chain = false
+		a.mu.Unlock()
+		a.appendLog("tout est vert — rien à faire (Rescanner pour revérifier)")
+		return
+	}
+	if !isKnownSuiteVerb(nk) {
+		a.mu.Lock()
+		a.chain = false
+		a.mu.Unlock()
+		// Palier sans verbe auto (pilote manquant, update locale…) :
+		// JAMAIS muet, JAMAIS « tout est vert » — le remède est dans
+		// le bandeau, on le répète ici.
+		a.appendLog("suite : pas d'action automatique — " + next)
+		return
+	}
+	if strings.HasPrefix(nk, "console:") {
+		a.mu.Lock()
+		a.chain = false
+		a.mu.Unlock()
+		a.appendLog("suite : à vous — tapez dans la console noire, fermez-la, puis Suite pour continuer")
+		a.runKind(nk, na)
+		return
+	}
+	a.mu.Lock()
+	if nk == a.chainVerb {
+		a.chainRepeat++
+	} else {
+		a.chainVerb = nk
+		a.chainRepeat = 0
+	}
+	repeat := a.chainRepeat
+	a.mu.Unlock()
+	if repeat >= 1 {
+		a.mu.Lock()
+		a.chain = false
+		a.mu.Unlock()
+		a.appendLog("suite : « " + nk + " » n'a pas fait avancer le bandeau — j'arrête là, lisez le journal ci-dessus")
+		return
+	}
+	a.appendLog("▶ suite : " + nk)
+	a.runKind(nk, na)
+}
+
+// suiteContinue — appelée en fin de re-analyse (refreshStatus) quand une
+// chaîne est en cours : l'étape vient de se terminer (code en journal via
+// onDone), on avance au maillon suivant si elle a réussi.
+func (a *app) suiteContinue(code int) {
+	a.mu.Lock()
+	chain := a.chain
+	done, nk, na := a.stNextDone, a.stNextKind, a.stNextArgs
+	next := a.stNext
+	a.mu.Unlock()
+	if !chain || !done {
+		return
+	}
+	if code != 0 {
+		a.mu.Lock()
+		a.chain = false
+		a.mu.Unlock()
+		a.appendLog("suite : pause — l'étape a échoué (remède dans le journal ci-dessus), corrigez puis Suite")
+		return
+	}
+	a.suiteStep(nk, na, next)
 }
 
 func (a *app) dashURL() string {

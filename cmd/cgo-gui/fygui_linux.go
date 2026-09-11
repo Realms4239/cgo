@@ -46,6 +46,10 @@ type fyApp struct {
 	nextArgs []string
 	nextDone bool
 	lastNext string
+	chain      bool
+	chainVerb  string
+	chainRepeat int
+	chainCode  *int
 	sshLbl  *widget.Label
 	userEdit *widget.Entry
 	dashLbl *widget.Label
@@ -147,10 +151,18 @@ func (f *fyApp) refreshStatus() {
 		}
 		f.nextKind, f.nextArgs = nk, na
 		f.nextDone = true
+		var cc *int
+		if f.chain && f.chainCode != nil {
+			cc = f.chainCode
+			f.chainCode = nil
+		}
 		f.mu.Unlock()
 		f.nextLbl.SetText("→ Prochaine : " + banner)
 		if changed {
 			f.log("→ Prochaine : " + banner)
+		}
+		if cc != nil {
+			f.suiteContinue(*cc)
 		}
 	}()
 }
@@ -207,6 +219,12 @@ func (f *fyApp) runBg(label string, fn func(r *kit.Runner) int) {
 		if label == "deploy" && code == 0 {
 			f.log("dashboard : https://meteolink.dev:9090")
 		}
+		f.mu.Lock()
+		if f.chain {
+			c := code
+			f.chainCode = &c
+		}
+		f.mu.Unlock()
 		f.refreshStatus()
 	}()
 }
@@ -359,6 +377,12 @@ func (f *fyApp) dispatch(id int) {
 	if kind == "" {
 		return
 	}
+	// Main humaine directe (pas Suite) : la chaîne s'efface.
+	if kind != "direct:suite" {
+		f.mu.Lock()
+		f.chain = false
+		f.mu.Unlock()
+	}
 	f.dispatchKind(kind, args)
 }
 
@@ -494,9 +518,75 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 			f.log("suite : pas d'action automatique — " + next)
 			return
 		}
-		f.log("▶ suite : " + nk)
-		f.dispatchKind(nk, na)
+		f.mu.Lock()
+		f.chain = true
+		f.chainVerb = ""
+		f.chainRepeat = 0
+		f.mu.Unlock()
+		f.suiteStep(nk, na, next)
 	}
+}
+
+func (f *fyApp) suiteStep(nk string, na []string, next string) {
+	if nk == "" {
+		f.mu.Lock()
+		f.chain = false
+		f.mu.Unlock()
+		f.log("tout est vert — rien à faire (Rescanner pour revérifier)")
+		return
+	}
+	if !isKnownSuiteVerb(nk) {
+		f.mu.Lock()
+		f.chain = false
+		f.mu.Unlock()
+		f.log("suite : pas d'action automatique — " + next)
+		return
+	}
+	if len(nk) >= 8 && nk[:8] == "console:" {
+		f.mu.Lock()
+		f.chain = false
+		f.mu.Unlock()
+		f.log("suite : à vous — tapez dans le terminal, puis Suite pour continuer")
+		f.dispatchKind(nk, na)
+		return
+	}
+	f.mu.Lock()
+	if nk == f.chainVerb {
+		f.chainRepeat++
+	} else {
+		f.chainVerb = nk
+		f.chainRepeat = 0
+	}
+	repeat := f.chainRepeat
+	f.mu.Unlock()
+	if repeat >= 1 {
+		f.mu.Lock()
+		f.chain = false
+		f.mu.Unlock()
+		f.log("suite : « " + nk + " » n'a pas fait avancer le bandeau — j'arrête là, lisez le journal ci-dessus")
+		return
+	}
+	f.log("▶ suite : " + nk)
+	f.dispatchKind(nk, na)
+}
+
+func (f *fyApp) suiteContinue(code int) {
+	f.mu.Lock()
+	chain := f.chain
+	done, nk, na := f.nextDone, f.nextKind, f.nextArgs
+	next := f.lastNext
+	f.mu.Unlock()
+	if !chain || !done {
+		return
+	}
+	if code != 0 {
+		f.mu.Lock()
+		f.chain = false
+		f.mu.Unlock()
+		f.log("suite : pause — l'étape a échoué (remède dans le journal ci-dessus), corrigez puis Suite")
+		return
+	}
+	f.suiteStep(nk, na, next)
 }
 
 func vmLabel(r vmRow) string {
