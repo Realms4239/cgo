@@ -65,13 +65,15 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 	case vpath == "":
 		push(NextStep{ID: "vm", Label: "Verrouiller une VM", State: "ko",
 			Detail: "aucune VM verrouillée",
-			Remedy: "cgo kit scan"})
+			Remedy: "Suite : scan + verrouillage auto (1 seule) — cgo kit scan",
+			Verb: "bg:scan"})
 	default:
 		st, err := os.Stat(vpath)
 		if err != nil || st.IsDir() {
 			push(NextStep{ID: "vm", Label: "VM introuvable", State: "ko",
 				Detail: vpath + " n'existe plus",
-				Remedy: "cgo kit scan"})
+				Remedy: "Suite : re-scan + verrouillage auto — cgo kit scan",
+				Verb: "bg:scan"})
 			break
 		}
 		h, err := selectDriver(vm.Detect(), c.Hypervisor, vpath)
@@ -239,7 +241,7 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 	} else {
 		push(NextStep{ID: "dns", Label: "Mapper meteolink.dev (admin)", State: "ko",
 			Detail: dashName + " ne pointe pas vers " + host,
-			Remedy: "cgo kit dns (terminal admin)", Verb: "console:dns", Args: []string{"dns"}})
+			Remedy: "Suite : mappe le nom (app déjà élevée) — cgo kit dns", Verb: "bg:dns"})
 	}
 
 	// 10. confiance OS (HTTPS système, pas -k)
@@ -250,7 +252,7 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 	} else {
 		push(NextStep{ID: "tls", Label: "Confiance HTTPS (admin)", State: "ko",
 			Detail: "certificat non reconnu par le système",
-			Remedy: "cgo kit tls (terminal admin)", Verb: "console:tls", Args: []string{"tls"}})
+			Remedy: "Suite : installe la confiance (app déjà élevée) — cgo kit tls", Verb: "bg:tls"})
 	}
 
 	// 11. banc de mesure (campagnes) — DERNIER : ne bloque rien après lui,
@@ -264,7 +266,7 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 	} else {
 		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "ko",
 			Detail: "absent — Démarrer gèlerait zéro ligne",
-			Remedy: "cgo kit testbed up", Verb: "bg:testbed"})
+			Remedy: "cgo kit testbed up", Verb: "bg:testbed", Args: []string{"up"}})
 	}
 	return steps
 }

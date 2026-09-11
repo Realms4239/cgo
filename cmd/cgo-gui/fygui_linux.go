@@ -342,6 +342,15 @@ func (f *fyApp) scan() {
 		f.vmList.Refresh()
 		f.setStatus("Prêt.")
 		f.log(fmt.Sprintf("%d VM(s) — sélectionnez puis Verrouiller", len(rows)))
+		// Verrouillage auto si non ambigu (miroir Win32) + re-analyse pour
+		// que Suite avance seul depuis une config vierge (le refreshStatus
+		// ci-dessous remet à jour le bandeau de verrouillage).
+		if msg, ok := kit.AutoLockSingle(f.loadCfg(), f.cfgPth); ok {
+			f.log(msg)
+		} else if msg != "" {
+			f.log(msg)
+		}
+		go f.refreshStatus()
 	}()
 }
 
@@ -383,6 +392,10 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 	case kind == "bg:diag":
 		f.log("diagnostic : clé, port, auth, IP — voir journal")
 		f.runBg("diagnostic", func(r *kit.Runner) int { return diagGUI(f.loadCfg(), r) })
+	case kind == "bg:dns":
+		f.runBg("dns", func(r *kit.Runner) int { return r.DNS(f.loadCfg()) })
+	case kind == "bg:tls":
+		f.runBg("tls", func(r *kit.Runner) int { return r.TLS(f.loadCfg()) })
 	case kind == "bg:mkkey":
 		f.runBg("créer-clé", func(r *kit.Runner) int { return mkKeyGUI(f.loadCfg(), r) })
 	case kind == "bg:console":
@@ -467,6 +480,7 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 	case kind == "direct:suite":
 		f.mu.Lock()
 		done, nk, na := f.nextDone, f.nextKind, f.nextArgs
+		next := f.lastNext
 		f.mu.Unlock()
 		if !done {
 			f.log("analyse en cours — patientez 10 s puis Suite")
@@ -474,6 +488,10 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 		}
 		if nk == "" {
 			f.log("tout est vert — rien à faire (Rescanner pour revérifier)")
+			return
+		}
+		if !isKnownSuiteVerb(nk) {
+			f.log("suite : pas d'action automatique — " + next)
 			return
 		}
 		f.log("▶ suite : " + nk)

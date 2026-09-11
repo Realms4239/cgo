@@ -98,11 +98,28 @@ var controlActions = []buttonDef{
 	{244, "Carte NAT/pont", 0, 0, 115},
 	{245, "Tunnel hôte", 0, 0, 95}, {246, "Invité", 0, 0, 70}, {247, "Réseau hôte", 0, 0, 95},
 	{249, "Guide", 0, 0, 70}, {250, "▶ Suite", 0, 0, 85},
+	{251, "Banc de mesure", 0, 0, 124},
 }
 
 // note : le bouton Sauver (248, « direct:saveuser ») n'est dans AUCUN
 // groupe : placé à côté du champ utilisateur (Win32 + Fyne), pas dans
 // la colonne Contrôle.
+
+// isKnownSuiteVerb — verbes que runKind/dispatchKind savent exécuter (partagé
+// Win32 + Fyne) ; le reste passe par le cas Suite honnête au lieu de tomber
+// dans le vide du switch.
+func isKnownSuiteVerb(nk string) bool {
+	switch nk {
+	case "direct:lock", "direct:saveuser", "direct:open", "direct:suite",
+		"bg:scan", "bg:diag", "bg:dns", "bg:tls", "bg:mkkey", "bg:console",
+		"bg:ensure", "bg:deploy", "bg:svc", "bg:testbed", "bg:logs",
+		"bg:verify", "bg:backup", "bg:snapshot", "bg:netinfo", "bg:vmon",
+		"bg:vmoff", "bg:nic-toggle", "bg:nic", "bg:hosttun", "bg:guest",
+		"bg:vnet", "bg:guide", "console:keysetup":
+		return true
+	}
+	return false
+}
 
 func itoa(n int) string {
 	if n == 0 {
@@ -237,9 +254,9 @@ func buttonAction(id int) (string, []string) {
 	case 235:
 		return "bg:logs", nil
 	case 236:
-		return "console:dns", []string{"dns"}
+		return "bg:dns", nil
 	case 237:
-		return "console:tls", []string{"tls"}
+		return "bg:tls", nil
 	case 238:
 		return "bg:verify", nil
 	case 239:
@@ -266,6 +283,8 @@ func buttonAction(id int) (string, []string) {
 		return "bg:guide", nil
 	case 250:
 		return "direct:suite", nil
+	case 251:
+		return "bg:testbed", []string{"check"}
 	}
 	return "", nil
 }
@@ -412,6 +431,13 @@ func pickVMGUI(c *kit.Config) (vm.Hypervisor, string, error) {
 }
 
 func diagGUI(c *kit.Config, r *kit.Runner) int {
+	// diagRet — un KO actionnable sort 3 (journal ✗ + Suite avance), sinon 0.
+	diagRet := func(bad bool) int {
+		if bad {
+			return 3
+		}
+		return 0
+	}
 	if c.SSHUser == "" {
 		fmt.Fprintln(r.Stdout, "[ok] (sauté : utilisateur vide — renseignez-le d'abord)")
 		return 2
@@ -423,10 +449,15 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 		}
 	}
 	ok, ko := "[ok]", "[KO]"
+	bad := false // un KO actionnable → sortie 3 (journal ✗), sinon 0
+	koAct := func(msg string) {
+		bad = true
+		fmt.Fprintln(r.Stdout, ko+msg)
+	}
 	if st, err := os.Stat(key); err == nil && !st.IsDir() {
 		fmt.Fprintln(r.Stdout, ok+" clé locale : "+key)
 	} else {
-		fmt.Fprintln(r.Stdout, ko+" clé locale absente — « Créer la clé » puis « Poser la clé »")
+		koAct(" clé locale absente — « Créer la clé » puis « Poser la clé »")
 	}
 	host := c.SSHHost
 	if host == "" || host == "auto" {
@@ -435,8 +466,8 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 			host = hyp.GuestIP(c.VMPath())
 		}
 		if host == "" {
-			fmt.Fprintln(r.Stdout, ko+" IP invitée non résolue — VM éteinte ? « Démarrer / Réessayer »")
-			return 0
+			koAct(" IP invitée non résolue — VM éteinte ? « Démarrer / Réessayer »")
+			return diagRet(bad)
 		}
 		fmt.Fprintln(r.Stdout, ok+" IP invitée : "+host+" (hyperviseur)")
 	} else {
@@ -456,7 +487,7 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 		parts := strings.Split(host, ".")
 		if len(parts) == 4 {
 			if sub := strings.Join(parts[:3], ".") + "."; hostIfaceOnGUI(sub) == "" {
-				fmt.Fprintln(r.Stdout, ko+" réseau HÔTE : aucune interface sur "+sub+"0/24 — `kit vnet` (VMnet tombé ?)")
+				koAct(" réseau HÔTE : aucune interface sur " + sub + "0/24 — `kit vnet` (VMnet tombé ?)")
 			}
 		}
 	}
@@ -484,21 +515,21 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 				if out, err := authProbe(natH, natP); err == nil {
 					fmt.Fprintln(r.Stdout, ok+" clé acceptée via le forward "+natH+":"+natP+" — prêt à déployer")
 				} else if o := strings.ToLower(out); strings.Contains(o, "permission denied") || strings.Contains(o, "denied") {
-					fmt.Fprintln(r.Stdout, ko+" clé refusée via le forward — « Poser la clé SSH » (mot de passe, une fois)")
+					koAct(" clé refusée via le forward — « Poser la clé SSH » (mot de passe, une fois)")
 				} else {
-					fmt.Fprintln(r.Stdout, ko+" auth via le forward : "+strings.TrimSpace(out))
+					koAct(" auth via le forward : "+strings.TrimSpace(out))
 				}
-				return 0
+				return diagRet(bad)
 			}
-			fmt.Fprintln(r.Stdout, ko+" NAT VirtualBox : "+host+" injoignable en direct (normal) et forward "+natH+":"+natP+" fermé — « Démarrer / Réessayer » (pose le forward + boote), surtout pas « install sshd »")
-			return 0
+			koAct(" NAT VirtualBox : "+host+" injoignable en direct (normal) et forward "+natH+":"+natP+" fermé — « Démarrer / Réessayer » (pose le forward + boote), surtout pas « install sshd »")
+			return diagRet(bad)
 		}
 		if strings.HasPrefix(host, "127.") || host == "localhost" {
-			fmt.Fprintln(r.Stdout, ko+" forward local "+host+":"+port+" fermé — règle NAT absente ? « Démarrer / Réessayer » la repose")
-			return 0
+			koAct(" forward local "+host+":"+port+" fermé — règle NAT absente ? « Démarrer / Réessayer » la repose")
+			return diagRet(bad)
 		}
-		fmt.Fprintln(r.Stdout, ko+" port "+port+" fermé sur "+host+" — DANS la VM : sudo apt install -y openssh-server && sudo systemctl enable --now ssh")
-		return 0
+		koAct(" port "+port+" fermé sur "+host+" — DANS la VM : sudo apt install -y openssh-server && sudo systemctl enable --now ssh")
+		return diagRet(bad)
 	}
 	_ = cn.Close()
 	fmt.Fprintln(r.Stdout, ok+" port "+port+" ouvert sur "+host)
@@ -507,12 +538,12 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 	} else {
 		o := strings.ToLower(string(out))
 		if strings.Contains(o, "permission denied") || strings.Contains(o, "denied") {
-			fmt.Fprintln(r.Stdout, ko+" clé refusée — « Poser la clé SSH » (mot de passe, une fois)")
+			koAct(" clé refusée — « Poser la clé SSH » (mot de passe, une fois)")
 		} else {
-			fmt.Fprintln(r.Stdout, ko+" auth : "+strings.TrimSpace(string(out)))
+			koAct(" auth : "+strings.TrimSpace(string(out)))
 		}
 	}
-	return 0
+	return diagRet(bad)
 }
 
 func vmRunningGUI(hyp vm.Hypervisor, vmx string) bool {

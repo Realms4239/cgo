@@ -68,9 +68,24 @@ func (a *app) onStatus() {
 	ssh, dash, locked := a.stSSH, a.stDash, a.stLocked
 	next := a.stNext
 	done := a.stNextDone
+	prevSSH, prevDash := a.lastSSH, a.lastDash
+	if ssh != prevSSH {
+		a.lastSSH = ssh
+	}
+	if dash != prevDash {
+		a.lastDash = dash
+	}
 	a.mu.Unlock()
 	setText(a.sshLbl, "SSH : "+orDash(ssh))
 	setText(a.dashLbl, "Dashboard : "+orDash(dash))
+	// État journalisé sur TRANSITIONS seules (le ticker 30 s ne spamme pas) :
+	// un bouton « mort » vs « pas encore applicable » se lit dans le journal.
+	if ssh != prevSSH && ssh != "" {
+		a.appendLog("état SSH : " + ssh)
+	}
+	if dash != prevDash && dash != "" {
+		a.appendLog("état dashboard : " + dash)
+	}
 	if locked != "" {
 		setText(a.locked, "Verrouillée : "+locked)
 	}

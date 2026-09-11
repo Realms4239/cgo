@@ -236,115 +236,56 @@ func selfVersion() string {
 func pcReadme() string {
 	return `METEOLINK — centre de contrôle (poste Windows)
 ===============================================
-Contenu du zip : cgo.exe, cgo-gui.exe (+ manifeste, logo),
-cgo-linux (compagnon à pousser vers la VM), host-tunnel.ps1,
-fix-vnet-admin.ps1, kit/cgo-vm.yaml.example, kit/vm-install.sh,
-kit/guest-setup.sh, ce LISEZ-MOI.
+Zip : cgo.exe, cgo-gui.exe (logo + version intégrés), cgo-linux
+(compagnon VM), kit/*.sh + exemple yaml, DEMARRER.bat, ce LISEZ-MOI.
 
-PRINCIPE
---------
-Le pilotage suit toujours le même pipeline (mêmes mots que
-« cgo kit next » et que le bandeau « Prochaine » de la GUI) :
+PREMIER LANCEMENT : un seul prompt UAC — l'app s'élève et tout hérite
+(plus aucun terminal admin). Clic-droit « Exécuter en tant
+qu'administrateur » n'est plus nécessaire.
 
-  1. VM verrouillée   2. réseau hôte   3. VM allumée   4. cible SSH
-  5. port SSH         6. clé acceptée  7. binaire       8. dashboard
-  9. nom meteolink.dev   10. confiance HTTPS   11. banc de mesure
+MÉTHODE : LE BOUTON « SUITE » SUFFIT
+------------------------------------
+Double-cliquez DEMARRER.bat. Puis, dans l'ordre affiché par le bandeau
+« Prochaine », cliquez « ▶ Suite » : il exécute chaque étape seul
+(scan + verrouillage auto, utilisateur, clé, boot + forwards, deploy,
+dashboard, DNS, confiance HTTPS, banc de mesure). Répétez Suite jusqu'à
+« tout est vert ». Le journal raconte tout, horodaté ; preuves dans
+cgo-gui-<date>.log à côté de l'exe.
 
-Chaque palier dit QUOI faire ensuite. Ne sautez jamais d'étape :
-un dashboard muet vient toujours d'un palier amont (clé, réseau…).
+3 CHOSES À SAVOIR
+-----------------
+- « Utilisateur Ubuntu » + Sauver (ex. fanasina) : SANS lui, tout avorte.
+- « Poser la clé » : mot de passe tapé UNE fois dans la console noire,
+  jamais stocké. Si la clé passe déjà, ça ne fait rien.
+- « Snapshot (arrêt VM) » : snapshot À FROID (arrêt propre d'abord).
+- « Banc de mesure » : vérifie le banc invité (campagnes impossibles
+  sans lui — « Démarrer » gèlerait zéro ligne).
+- Tout survit aux redémarrages : config (écriture insécable), journal
+  quotidien, runs gelés côté VM, reprise de campagne par run-id.
 
-VOIE GUI (recommandée, zéro commande)
--------------------------------------
-Double-cliquez DEMARRER.bat (ou cgo-gui.exe directement).
+COMMANDES (équivalent manuel exact)
+-----------------------------------
+  cgo.exe kit scan|vnet|ensure|keysetup|deploy|svc|dns|tls
+  cgo.exe kit testbed up|check|down   banc de mesure invité
+  cgo.exe kit guest|logs|backup|snapshot|revert|health|shipcheck|tui|next
 
-  - Liste des VM (VirtualBox/VMware) : Rescanner, double-clic = verrouiller.
-  - Champ « Utilisateur Ubuntu » + Sauver (ex. fanasina) : SANS lui,
-    diagnostic + clé + deploy avortent — c'est normal, renseignez-le.
-  - Bandeau « Prochaine : … » : l'étape calculée en continu.
-  - Bouton « Suite » : exécute l'étape du bandeau (forwards, boot,
-    clé, deploy, dashboard, DNS, confiance, banc de mesure — boutons
-    directs pour l'essentiel, commandes ci-dessous pour le reste).
-  - Bouton « Snapshot (arrêt VM) » : snapshot À FROID — la VM est
-    arrêtée proprement d'abord ; « Suite » ou « Démarrer VM » la rallume.
-  - Bouton « Guide » : réaffiche ce texte dans le journal.
-  - Journal : chaque action raconte tout ; garde anti-double-clic
-    (« patience — … tourne déjà ») + boutons d'action grisés pendant
-    qu'une action tourne (la liste des VM reste sélectionnable).
-  - Démarrages longs (boot, deploy) : progression journalisée en continu.
-  - Preuves : cgo-gui-<date>.log à côté de l'exe (envoyable au support).
+SI ÇA COINCE (par symptôme)
+---------------------------
+- « Permission denied (publickey) » → kit keysetup, une fois.
+- Forward ouvert mais vide → kit deploy PUIS svc start.
+- « aucune interface 192.168.x.0/24 » → fix-vnet-admin.ps1 en admin.
+- IP changée (DHCP) → kit ensure redécouvre seul.
+- Port 2222 occupé → nat_host_port dans kit/cgo-vm.yaml.
+- Port 22 fermé → DANS la VM : sudo apt install -y openssh-server.
+- ZÉRO ligne gelée → kit testbed up (banc absent).
+- 10.0.2.x injoignable : NORMAL sous NAT — le kit passe par 127.0.0.1:2222.
+- SmartScreen → « Informations complémentaires » → Exécuter quand même.
+- Session VBox verrouillée (E_FAIL) → PowerShell ADMIN :
+  Get-Process VBoxHeadless | Stop-Process -Force, puis relancez.
 
-VOIE TERMINAL
--------------
-  cgo.exe kit tui      centre de contrôle interactif (flèches + entrée)
-  cgo.exe kit next     la checklist + la prochaine étape, en 10 secondes
-  cgo.exe kit readme   réaffiche ce texte
-  cgo.exe kit doctor   dépendances locales + config
-
-VOIE ZÉRO-KIT (sans cgo.exe)
-----------------------------
-  host-tunnel.ps1  tunnel complet en 7 étapes (forwards, hosts, clé,
-                   confiance, vérification). -WhatIf pour répéter sans
-                   rien toucher. PowerShell 5.1+ : le fichier DOIT garder
-                   son BOM UTF-8 (sinon erreur d'accolade au parsing).
-
-COMMANDES (voie manuelle, équivalent exact du guidé)
-----------------------------------------------------
-  cgo.exe kit scan         trouve les .vmx/.vbox (hyperviseur par extension)
-  cgo.exe kit vnet         médecin du réseau HÔTE (VMnet tombé ? APIPA ?)
-  cgo.exe kit ensure       boot headless + forwards NAT + attente SSH (bavard)
-  cgo.exe kit keysetup     pose LA CLÉ (mot de passe tapé UNE fois, jamais stocké)
-  cgo.exe kit deploy       pousse cgo-linux (précompilé, sans toolchain)
-  cgo.exe kit svc start    (re)lance le dashboard   |  svc stop/restart/status
-  cgo.exe kit dns          mappe meteolink.dev — TERMINAL ADMIN
-  cgo.exe kit tls          confiance HTTPS — TERMINAL ADMIN
-  cgo.exe kit testbed      pose/audit le BANC de mesure invité (SANS lui,
-                           « Démarrer » gèle zéro ligne) — up|check
-  cgo.exe kit guest        prépare l'invité (guest-setup.sh via SSH)
-  cgo.exe kit logs         40 dernières lignes du dashboard
-  cgo.exe kit backup       archive les runs   |  snapshot/revert : garde-fous VM
-  cgo.exe kit health       santé JSON   |  shipcheck : les 7 portes avant release
-
-SI ÇA COINCE (par symptôme, pas au hasard)
-------------------------------------------
-  - « Permission denied (publickey) » : la clé de CE poste n'est pas
-    dans l'invité (clé régénérée ? autre PC ?) → kit keysetup, une fois.
-  - Forward « ouvert » mais handshake vide : le backend est muet
-    (svc éteint, binaire jamais déployé) → kit deploy PUIS svc start.
-  - « aucune interface sur 192.168.x.0/24 » : VMnet tombé (APIPA).
-    Clic-droit fix-vnet-admin.ps1 → Exécuter en tant qu'administrateur ;
-    100 % PowerShell : voir « kit vnet ». Sans clic-droit admin : impossible
-    (frontière Windows, pas un bug).
-  - .ps1 « accolade manquante » : BOM UTF-8 perdu (ré-extrayez le zip).
-  - SmartScreen au lancement : binaire non signé → « Informations
-    complémentaires » → Exécuter quand même.
-  - IP changée après reboot (DHCP) : kit ensure la redécouvre et met la
-    config à jour tout seul.
-  - Port 22 fermé : DANS la console Ubuntu :
-    sudo apt install -y openssh-server && sudo systemctl enable --now ssh
-  - Port 2222 occupé : un autre forward/service l'utilise → nat_host_port
-    dans kit/cgo-vm.yaml.
-  - « Démarrer » puis idle, ZÉRO ligne gelée : banc de mesure absent
-    (VM fraîche : pas de veth/netns) → kit testbed up — le dashboard
-    refuse désormais Démarrer avec ce remède au lieu d'un run vide.
-  - Dashboard HTTP seul mais santé HTTPS KO (vieux binaire ≤1.2.2) :
-    svc start ne soignera jamais → kit deploy.
-  - VirtualBox NAT : l'IP invitée 10.0.2.x est injoignable depuis le
-    poste PAR CONSTRUCTION — le kit passe par le forward 127.0.0.1:2222
-    (ensure le pose) ; le ponté donne un accès direct (recommandé bench).
-
-RÔLES
------
-  - Ce poste Windows = PILOTAGE (kit, audits terrain cgo audit, TUI, exports).
-    Pas de façonnage tc : les campagnes shaping tournent sur la VM Ubuntu.
-  - La VM Ubuntu = MESURE (banc netem + dashboard). Le binaire linux déployé
-    (GOOS=linux amd64, statique, testé Ubuntu 24.04, noyau 6.8 — tout Ubuntu
-    20.04+ convient : netem/cake/netns requis) survit aux deploys : les runs
-    gelés restent dans ~/cgo/data/runs.
-
-RECOMPILER DEPUIS CE POSTE exige en plus : Go 1.25+, bun, node et le dépôt
-source. Mais cgo.exe kit deploy pousse le compagnon cgo-linux (dans ce zip)
-vers la VM SANS toolchain — le plein pilotage (scan, clé, boot, deploy,
-dashboard) ne demande que ce zip + le mot de passe de la VM.
+RÔLES : ce poste = PILOTAGE (pas de tc ici). La VM Ubuntu = MESURE
+(banc netem + dashboard, runs dans ~/cgo/data/runs, survivent aux deploys).
+Recompiler exige Go 1.25+ ; l'exploitation n'a besoin que de ce zip.
 `
 }
 
@@ -446,80 +387,46 @@ func (r *Runner) packageLinux() int {
 func linuxReadme() string {
 	return `METEOLINK — centre de contrôle (poste Ubuntu)
 =============================================
-Contenu : cgo + cgo-gui (binaires linux/amd64), exemple de config.
+Tar : cgo + cgo-gui (linux/amd64), exemple de config, ce LISEZ-MOI.
 
-Prérequis : openssh-client (sudo apt install -y openssh-client),
-hyperviseur + VM Ubuntu du banc, python3 (sondes locales, souvent présent).
-AUCUN autre paquet : ni Go, ni node, ni webkit — la GUI Fyne ne demande
-que les libs déjà présentes sur tout bureau Ubuntu (libgl1, X11/Wayland).
-Sans écran (serveur, SSH) : ./cgo kit tui — même pilotage, en texte.
+Prérequis : openssh-client, hyperviseur + VM du banc. Rien d'autre
+(pas de Go/node ; GUI = X11/Wayland déjà présents). Sans écran :
+./cgo kit tui — même pilotage, en texte.
 
-PRINCIPE
---------
-Même pipeline que partout (mêmes mots que « ./cgo kit next ») :
+MÉTHODE : LE BOUTON « SUITE » SUFFIT
+------------------------------------
+Lancez cgo-gui (ou ./cgo kit next en terminal). Le bandeau « Prochaine »
+dit l'étape, « ▶ Suite » l'exécute seul — répétez jusqu'à « tout est vert ».
+Journal horodaté ; preuves dans cgo-gui-<date>.log.
 
-  1. VM verrouillée   2. réseau hôte   3. VM allumée   4. cible SSH
-  5. port SSH         6. clé acceptée  7. binaire       8. dashboard
-  9. nom meteolink.dev   10. confiance HTTPS   11. banc de mesure
+3 CHOSES À SAVOIR
+-----------------
+- Utilisateur Ubuntu + Sauver : SANS lui, tout avorte.
+- « Poser la clé » : mot de passe UNE fois, jamais stocké.
+- « Banc de mesure » : sans lui, les campagnes gèlent zéro ligne.
+- Tout survit aux redémarrages : config insécable, runs dans
+  ~/cgo/data/runs, reprise de campagne par run-id.
 
-VOIE GUI
---------
-Double-cliquez cgo-gui (bureau Ubuntu) : mêmes boutons, même journal
-et même bandeau « Prochaine » que la version Windows — « Suite » exécute
-l'étape, « Guide » réaffiche ce texte, preuves dans cgo-gui-<date>.log.
-
-VOIE TERMINAL
--------------
-  ./cgo kit tui      interactif (flèches + entrée, rien à taper)
-  ./cgo kit next     la checklist + la prochaine étape, en 10 secondes
-  ./cgo kit readme   réaffiche ce texte
-  ./cgo kit doctor   dépendances locales + config
-  Pas de Go/bun/node ? Normal : l'exploitation n'en a pas besoin.
-
-COMMANDES (voie manuelle, équivalent exact du guidé)
-----------------------------------------------------
-  ./cgo kit scan         trouve les .vmx/.vbox (hyperviseur par extension)
-  ./cgo kit vnet         médecin du réseau HÔTE (vmnet/vboxnet tombé ?)
-  ./cgo kit ensure       boot headless + forwards NAT + attente SSH (bavard)
-  ./cgo kit keysetup     pose LA CLÉ (mot de passe tapé UNE fois, jamais stocké).
-    Si SSH refuse tout (port 22 fermé) : DANS la console Ubuntu de la VM :
-    sudo apt install -y openssh-server && sudo systemctl enable --now ssh
-  ./cgo kit deploy       pousse CE binaire testé (précompilé, sans toolchain)
-  ./cgo kit svc start    (re)lance le dashboard  |  stop/restart/status/logs
-  sudo ./cgo kit dns     mappe meteolink.dev vers la VM
-  sudo ./cgo kit tls     confiance HTTPS (magasin système)
-  ./cgo kit testbed      pose/audit le BANC de mesure invité — up|check
-  ./cgo kit guest        prépare l'invité (guest-setup.sh via SSH)
-  ./cgo kit backup       archive les runs  |  snapshot/revert : garde-fous VM
-  ./cgo kit health       santé JSON  |  shipcheck : les 7 portes avant release
+COMMANDES (équivalent manuel exact)
+-----------------------------------
+  ./cgo kit scan|vnet|ensure|keysetup|deploy|svc|testbed up|check|down
+  ./cgo kit guest|logs|backup|snapshot|revert|health|shipcheck|tui|next
+  sudo ./cgo kit dns|tls   (hosts + magasin système)
+  Port 22 fermé côté VM : sudo apt install -y openssh-server.
 
 SI ÇA COINCE (par symptôme)
 ---------------------------
-  - « Permission denied (publickey) » : clé de CE poste absente de
-    l'invité → kit keysetup, une fois.
-  - « Démarrer » puis idle, ZÉRO ligne gelée : banc absent (VM fraîche)
-    → kit testbed up (console VM une fois : sudo bash kit/testbed.sh up).
-  - Dashboard HTTP seul, santé HTTPS KO (binaire ≤1.2.2) → kit deploy.
+- « Permission denied (publickey) » → kit keysetup, une fois.
+- ZÉRO ligne gelée → kit testbed up (banc absent).
+- Forward ouvert mais vide → kit deploy PUIS svc start.
+- « aucune interface 192.168.x.0/24 » → vmnet tombé : voir « kit vnet ».
+- IP changée (DHCP) → kit ensure redécouvre seul.
+- Port 2222 occupé → nat_host_port dans kit/cgo-vm.yaml.
+- Binaire ≤1.2.2 + santé HTTPS KO → kit deploy.
 
-SI ÇA COINCE (par symptôme)
----------------------------
-  - « Permission denied (publickey) » : clé de CE poste absente de
-    l'invité → kit keysetup, une fois.
-  - Forward « ouvert » mais handshake vide : backend muet (svc éteint,
-    binaire jamais déployé) → kit deploy PUIS svc start.
-  - « aucune interface sur 192.168.x.0/24 » : vmnet/vboxnet tombé →
-    sudo ip addr add 192.168.x.1/24 dev <iface> (voir « kit vnet »).
-  - IP changée après reboot (DHCP) : kit ensure la redécouvre seul.
-  - Port 2222 occupé : nat_host_port dans kit/cgo-vm.yaml.
-
-RÔLES
------
-  - Ce poste Ubuntu = PILOTAGE (kit, audits terrain ./cgo audit, TUI, exports).
-  - La VM du banc = MESURE (banc netem + dashboard). Les runs gelés survivent
-    aux deploys dans ~/cgo/data/runs.
-
-AVEC le dépôt source + Go 1.25+, bun, node : le deploy recompile depuis
-les sources ; la GUI Linux se rebuilt par : go build -o dist/cgo-gui-linux
-./cmd/cgo-gui (gcc + libgl1-mesa-dev + xorg-dev + libwayland-dev requis).
+RÔLES : ce poste = PILOTAGE. La VM du banc = MESURE (netem + dashboard).
+Rebuild (optionnel) : Go 1.25+ ; GUI Linux : gcc + libgl1-mesa-dev +
+xorg-dev + libwayland-dev, puis go build -o dist/cgo-gui-linux ./cmd/cgo-gui.
+AVEC sources, le deploy recompile ; SANS, il pousse le binaire testé.
 `
 }

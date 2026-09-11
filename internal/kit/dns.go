@@ -66,7 +66,9 @@ func (r *Runner) DNS(c *Config) int {
 		kept = append(kept, ln)
 	}
 	kept = append(kept, fmt.Sprintf("%s %s  # cgo — tableau de bord (kit dns)", ip, name))
-	if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")), 0644); err != nil {
+	// insécable aussi (même helper que le yaml) : un hosts tronqué casse
+	// tout le poste, pas juste le kit.
+	if err := writeFileAtomic(path, []byte(strings.Join(kept, "\n")), 0644); err != nil {
 		r.errf("[dns] écriture %s refusée : %v", path, err)
 		if runtime.GOOS == "windows" {
 			r.errf("[dns] relancez dans un terminal ADMINISTRATEUR, ou ajoutez à la main :")

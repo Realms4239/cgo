@@ -165,7 +165,15 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 			}
 			ccs = cs
 		}
-		m, err := campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, deps, "data/runs")
+		// Reprise : un run_id existant rejoue les cellules manquantes au lieu
+		// de geler un doublon (PC/VM éteints en pleine matrice). Vide = frais.
+		var m *campagne.Matrix
+		var err error
+		if o.RunID != "" {
+			m, err = campagne.StartMatrixFilteredWithID(ctx, o.RunID, o.Profiles, qdiscs, ccs, o.Reps, deps, "data/runs")
+		} else {
+			m, err = campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, deps, "data/runs")
+		}
 		if err != nil {
 			return err
 		}

@@ -73,6 +73,16 @@ func (a *app) run() error {
 }
 
 func (a *app) setIcon() {
+	// D'abord l'icône COMPILÉE dans l'exe (ressource "APP" du .syso) :
+	// le logo voyage avec le binaire, plus de dépendance au logo.ico posé.
+	if hMod, _, _ := pGetModuleHandle.Call(0, 0, 0); hMod != 0 {
+		if h, _, _ := pLoadImageW.Call(hMod, uintptr(unsafe.Pointer(utf16("APP"))), imageIcon, 48, 48, 0); h != 0 {
+			sendMsg(a.hwnd, wmSeticon, 0, h)
+			sendMsg(a.hwnd, wmSeticon, 1, h)
+			return
+		}
+	}
+	// Repli : logo.ico posé à côté (zips historiques).
 	exe, err := os.Executable()
 	if err != nil {
 		return
@@ -210,7 +220,7 @@ func (a *app) buildControls() {
 		byID[b.id] = b
 	}
 	cy := 36
-	for _, row := range [][]int{{231, 232, 233, 234}, {235, 236, 237, 238}, {239, 240}, {241, 242}, {243, 244}, {245, 246, 247}, {249, 250}} {
+	for _, row := range [][]int{{231, 232, 233, 234}, {235, 236, 237, 238}, {239, 240}, {241, 242}, {243, 244}, {245, 246, 247}, {249, 250, 251}} {
 		bx := 612
 		for _, id := range row {
 			b := byID[id]

@@ -49,7 +49,7 @@ type Config struct {
 // KitVersion — version du kit (SOURCE UNIQUE : cmd/cgo `version` vaut ça
 // par défaut, les vues GUI comparent le dashboard distant à elle pour
 // refuser un binaire périmé). À bumper à chaque release, avec le tag.
-const KitVersion = "1.3.0"
+const KitVersion = "1.3.1"
 
 // VMPath — LE chemin de la VM verrouillée, quel que soit l'hyperviseur
 // (.vmx ou .vbox). Tout le code lit ÇA, jamais les champs bruts : lire
@@ -211,6 +211,74 @@ func loadConfig(path string, resolve bool) (*Config, error) {
 	return c, nil
 }
 
+// writeFileAtomic — écriture insécable (tmp + rename même FS) : un arrêt
+// PC/VM en pleine sauvegarde yaml/hosts ne laisse jamais un fichier tronqué
+// (config illisible = kit totalement bloqué au relancement). Tous les
+// écrivains de config passent par ici, jamais os.WriteFile direct.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".cgo-tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	return nil
+}
+
+// AutoLockSingle — verrouille la VM quand le choix est non ambigu, pour que
+// « Suite » avance seul depuis une config vierge (sans ça, le palier vm sans
+// verbe faisait dire à Suite « tout est vert » sur un poste jamais configuré).
+// Retourne (message journalisable, verrouillée?). Partagé Win32/Fyne.
+func AutoLockSingle(c *Config, cfgPath string) (string, bool) {
+	if p := c.VMPath(); p != "" {
+		if _, err := os.Stat(p); err == nil {
+			return "VM déjà verrouillée", true
+		}
+	}
+	vms := vm.ScanVMs(false)
+	switch len(vms) {
+	case 0:
+		return "aucune VM trouvée — créez/importez-en une, puis Rescanner", false
+	case 1:
+		// 1 seule : pas d'ambiguïté, verrouillage direct.
+	default:
+		if p := vm.Pick(vms, c.VMName); p != "" {
+			vms = []string{p}
+		} else {
+			return fmt.Sprintf("%d VMs — double-cliquez celle à verrouiller dans la liste, puis Suite", len(vms)), false
+		}
+	}
+	path := vms[0]
+	hyp := vm.HypForPath(path)
+	if hyp == "" {
+		hyp = c.Hypervisor
+	}
+	if err := SaveVMX(cfgPath, path, hyp); err != nil {
+		return "verrouillage : " + err.Error(), false
+	}
+	return "verrouillée : " + filepath.Base(path) + " — Suite pour continuer", true
+}
+
 // saveConfigValue — écrit clé: "valeur" dans le yaml (ajoute si absent).
 // Factorisé de SaveVMX : keysetup y mémorise ssh_user après une pose réussie.
 func saveConfigValue(path, key, val string) error {
@@ -230,7 +298,7 @@ func saveConfigValue(path, key, val string) error {
 	if !found {
 		lines = append(lines, key+": \""+val+"\"")
 	}
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+	return writeFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
 // SaveSSHTarget — mémorise user/host/port/key dans la section ssh: du yaml
@@ -914,6 +982,11 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 	} else {
 		r.out("[ensure] VM démarrée (headless) — attente SSH (max 300 s)")
 	}
+	// Sortie rapide auth (miroir du cas forward) : port ouvert mais login
+	// refusé 3 fois de suite = la clé, pas la cible — attendre 300 s une IP
+	// qui répond déjà est aveugle. Compteur hors NAT (le cas forward a déjà
+	// sa sortie propre ci-dessus).
+	authFails := 0
 	for i := 0; i < 60; i++ {
 		// JAMAIS muet : chaque tentative dit son numéro, sa cible et son
 		// verdict — un silence de 2 min passe pour un freeze (vu en prod).
@@ -947,6 +1020,17 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 		if c.SSHUp() {
 			r.out("[ensure] SSH actif vers %s:%s après ~%d s", c.SSHHost, c.SSHPort, i*5)
 			return 0
+		}
+		if portOpen(c.SSHHost, c.SSHPort) {
+			authFails++
+		} else {
+			authFails = 0
+		}
+		if authFails >= 3 {
+			lastOut, _ := c.SSH("true")
+			r.sshDiag("[ensure]", lastOut)
+			r.errf("[ensure] %s:%s ouvert mais login refusé %d fois — reposez la clé (kit keysetup), la cible n'y est pour rien", c.SSHHost, c.SSHPort, authFails)
+			return 5
 		}
 		r.out("[ensure] ssh %s:%s sans réponse — autres voies…", c.SSHHost, c.SSHPort)
 		// 3) IP directe : le bail DHCP a peut-être changé — interroger
@@ -1143,7 +1227,7 @@ func setYAMLKey(path, key, val string) error {
 		if !isSSHKey {
 			seed = key + ": " + val + "\n"
 		}
-		return os.WriteFile(path, []byte(seed), 0644)
+		return writeFileAtomic(path, []byte(seed), 0644)
 	}
 	lines := strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n")
 
@@ -1154,7 +1238,7 @@ func setYAMLKey(path, key, val string) error {
 			indented := len(ln) > 0 && (ln[0] == ' ' || ln[0] == '\t')
 			if (isSSHKey && indented) || (!isSSHKey && !indented) {
 				lines[i] = strings.Repeat(" ", 2) + key + ": " + val
-				return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+				return writeFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
 			}
 		}
 	}
@@ -1169,14 +1253,14 @@ func setYAMLKey(path, key, val string) error {
 				}
 				rest := append([]string{"  " + key + ": " + val}, lines[j:]...)
 				lines = append(lines[:j], rest...)
-				return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+				return writeFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
 			}
 		}
 		lines = append(lines, "ssh:", "  "+key+": "+val)
 	} else {
 		lines = append(lines, key+": "+val)
 	}
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+	return writeFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
 // Build — porte stricte : go vet + tsc + vite + bundle + vitest.
