@@ -266,7 +266,9 @@ func (a *app) refreshStatus() {
 		postMsg(a.hwnd, wmAppStatus)
 		// Prochaine étape : coûteux (~10-25 s), calculé APRÈS l'affichage
 		// du statut pour ne pas le retarder, même single-flight.
-		nx := kit.FirstOpen(kit.GatherNext(c))
+		// kit.KitVersion : un dashboard sain mais périmé ne passe pas les
+		// paliers neufs en silence (remède : deploy).
+		nx := kit.FirstOpen(kit.GatherNextVer(c, kit.KitVersion))
 		a.mu.Lock()
 		if nx == nil {
 			a.stNext, a.stNextKind, a.stNextArgs = "tout est vert — dashboard prêt", "", nil

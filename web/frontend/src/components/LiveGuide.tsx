@@ -2,53 +2,82 @@
 // chiffre dit ce qu'un HAUT/MOYEN/BAS signifie pour le trafic, seuils
 // branchés sur les Réglages réels. Matériel à lire, pas de la déco.
 import { useEffect, useState } from 'react'
+import Explain from './Explain'
 import { loadSettings, type Settings } from '../lib/settings'
 
-type Entry = { name: string; haut: string; moyen: string; bas: string; impact: string }
+type Entry = { term: string; label: string; haut: string; moyen: string; bas: string; impact: string }
 
 function entries(s: Settings): Entry[] {
   return [
     {
-      name: 'small_p95',
+      term: 'small_p95', label: 'Petits objets p95',
       haut: `les pages et sondes traînent pendant les transferts — critique au-delà de ${s.critMs} ms, le lien est inutilisable en charge`,
       moyen: `réactivité dégradée sous charge — dégradé au-delà de ${s.warnMs} ms, CAKE/fq_codel s'imposent`,
       bas: `le petit trafic passe immédiatement, même pendant un gros transfert`,
-      impact: 'impact trafic : DNS, voix et télémétrie stallent quand ça monte',
+      impact: 'impact trafic : DNS, voix et télémétrie patientent quand ça monte',
     },
     {
-      name: 'rtt_p95',
+      term: 'rtt_p95', label: 'RTT p95',
       haut: `l'aller-retour gonfle (bufferbloat) — critique au-delà de ${s.critMs} ms, chaque clic attend la file`,
       moyen: `latence sensible sous charge — dégradé au-delà de ${s.warnMs} ms`,
       bas: 'le lien répond à plat, le buffer ne retient personne',
-      impact: 'impact trafic : jeux et voix bégayent, les sessions TCP multiplient les retransmissions',
+      impact: 'impact trafic : jeux et voix saccadent, les sessions TCP multiplient les retransmissions',
     },
     {
-      name: 'bulk_goodput',
+      term: 'rtt_p50', label: 'RTT médian',
+      haut: `la latence typique elle-même est haute — critique au-delà de ${s.critMs} ms, pas seulement les extrêmes`,
+      moyen: `latence typique en hausse — à surveiller au-delà de ${s.warnMs} ms`,
+      bas: 'la moitié des allers-retours passe sous ce temps — ressenti courant sain',
+      impact: 'impact trafic : ce que ressentent la plupart des clics, pas les cas extrêmes',
+    },
+    {
+      term: 'bulk_goodput', label: 'Débit utile',
       haut: `le transfert lourd sature le bord (≥ 50 % de la capacité ${s.shapeCap} Mbit/s = sain)`,
       moyen: `débit correct mais pas au rendez-vous (20–50 % de ${s.shapeCap} Mbit/s)`,
-      bas: `sous 20 % de ${s.shapeCap} Mbit/s — la capacité promised n'est pas livrée`,
+      bas: `sous 20 % de ${s.shapeCap} Mbit/s — la capacité promise n'est pas livrée`,
       impact: `impact trafic : les gros téléchargements s'éternisent, la fenêtre TCP plafonne`,
     },
     {
-      name: 'deadline_ok',
+      term: 'deadline_ok', label: 'Échéances',
       haut: '≥ 95 % des paquets sondes arrivent à l\'échéance — le trafic temps réel tient',
       moyen: '80–95 % — quelques paquets ratent, la voix grésille par à-coups',
       bas: '< 80 % — les paquets arrivent trop tard, retransmissions et voix hachée',
       impact: 'impact trafic : ce qui rate l\'échéance est retransmis — doublon de trafic et gaspillage',
     },
     {
-      name: 'QDI',
-      haut: 'le spread p95−p50 est grand — le file piétine certains paquets pendant que d\'autres passent',
+      term: 'QDI', label: 'Dispersion (QDI)',
+      haut: 'le spread p95−p50 est grand — la file piétine certains paquets pendant que d\'autres passent',
       moyen: 'dispersion modérée — expérience incohérente selon l\'instant',
-      bas: 'p95 proche de p50 — uniforme, chaque paquet subit la même file',
+      bas: 'p95 proche de la médiane — uniforme, chaque paquet subit la même file',
       impact: 'impact trafic : un QDI qui monte signale des micro-bursts de latence — télémétrie et ACK arrivent par vagues',
     },
     {
-      name: 'drops',
-      haut: `> 100 paquets perdus — retransmissions en cascade, goodput s'effondre`,
+      term: 'JFI', label: 'Équité (JFI)',
+      haut: 'proche de 1 — les flux se partagent le lien équitablement',
+      moyen: '0,8–0,95 — un flux prend un peu plus que sa part',
+      bas: 'sous 0,8 — un flux affame les autres, le façonnage par flux (CAKE) s\'impose',
+      impact: 'impact trafic : un JFI bas = un gros transfert écrase la voix et la télémétrie',
+    },
+    {
+      term: 'drops', label: 'Pertes',
+      haut: `> 100 paquets perdus — retransmissions en cascade, le débit utile s'effondre`,
       moyen: '1–100 pertes — TCP ralentit (congestion), flux sensibles dégradés',
       bas: `zéro perte — rien à renvoyer`,
-      impact: 'impact trafic : chaque drop force une retransmission — trafic doublé et délai doublé pour ces octets',
+      impact: 'impact trafic : chaque perte force une retransmission — trafic doublé et délai doublé pour ces octets',
+    },
+    {
+      term: 'wasted', label: 'Gaspillé',
+      haut: 'des mégaoctets retransmis à chaque heure — la capacité payée part en doublons',
+      moyen: 'quelques centaines de kilooctets — retransmissions occasionnelles',
+      bas: `proche de zéro — presque aucun octet renvoyé`,
+      impact: 'impact trafic : ces octets traversent le lien deux fois — ils coûtent et ralentissent',
+    },
+    {
+      term: 'cost_ar_per_h', label: 'Coût',
+      haut: 'le gaspillage horaire chiffre en Ariary — renégocier le façonnage coûte moins cher',
+      moyen: 'quelques Ariary par heure — le prix des pertes courantes',
+      bas: `proche de zéro — les pertes ne coûtent presque rien`,
+      impact: 'impact trafic : tarif unique 5556 Ar/Go — les forfaits changent tout, voir GET /api/cost/tiers',
     },
   ]
 }
@@ -88,8 +117,8 @@ export function LiveGuide() {
       {open && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px 18px', marginTop: 10 }}>
           {entries(settings).map(e => (
-            <div key={e.name} style={{ minWidth: 0 }}>
-              <div className="mono" style={{ fontSize: 13, color: '#d6d8dd', marginBottom: 2 }}>{e.name}</div>
+            <div key={e.term} style={{ minWidth: 0 }}>
+              <div className="mono" style={{ fontSize: 13, color: '#d6d8dd', marginBottom: 2 }}><Explain term={e.term}>{e.label}</Explain></div>
               <div className="mono" style={{ fontSize: 12, lineHeight: 1.6, color: '#a9aeb6' }}>
                 {L(`HAUT : ${e.haut}`, '#f4b400')}
                 {L(`MOYEN : ${e.moyen}`, '#a9aeb6')}
@@ -98,6 +127,13 @@ export function LiveGuide() {
               </div>
             </div>
           ))}
+          <div style={{ minWidth: 0 }}>
+            <div className="mono" style={{ fontSize: 13, color: '#d6d8dd', marginBottom: 2 }}>Portes G0–G7 et quarantaine</div>
+            <div className="mono" style={{ fontSize: 12, lineHeight: 1.6, color: '#a9aeb6' }}>
+              {L('G0 cible joignable · G1 bulk démarré · G2 sondes actives · G3 latence plausible · G4 débit cohérent · G5 pas de doublon · G6 baseline stable · G7 CPU ok — détail au survol dans Campagne.', '#a9aeb6')}
+              {L('Quarantaine : les runs douteux (G3/G4) sont exclus des médianes, pas moyennés — voir Archives.', '#f4b400')}
+            </div>
+          </div>
         </div>
       )}
     </div>

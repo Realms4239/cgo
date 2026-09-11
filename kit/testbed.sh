@@ -50,11 +50,20 @@ up() {
     sudo ip link set $SRV down 2>/dev/null || true
     sudo ip link set $SRV netns $NS
   fi
-  # offloads veth OFF : netem voit des super-frames 64 Ko (TSO/GSO) et
-  # étrangle le flux (~1 Mb/s, débit ÷ 10 prouvé 2026-09-10 camp220b) ;
-  # réglage volatil (perdu au reboot/revert) → réappliqué à chaque up.
-  sudo -n ethtool -K $CLI tso off gso off gro off 2>/dev/null || true
-  sudo -n ip netns exec $NS ethtool -K $SRV tso off gso off gro off 2>/dev/null || true
+  # RECETTE DES RUNS PARFAITS (prouvée camp-fin3 2026-09-11, 9/9 BBR valid) :
+  # 1. qdiscs NETTOYÉS — un netem en couches/corrompu (refcnt 129, laissé par
+  #    un run tué ou un double-lancement) étrangle le flux à ~1-3 Mb/s ;
+  #    détruire AVANT toute campagne rend le banc à neuf.
+  sudo -n tc qdisc del dev $CLI root 2>/dev/null || true
+  # 2. initcwnd 50 DES DEUX CÔTÉS — l'objet 16 KiB = 12 paquets > initcwnd 10
+  #    par défaut : la réponse part en 2 vols → sonde small = 3×RTT (~315 ms
+  #    au lieu de ~210). Volatile (perdu au reboot) → réappliqué à chaque up.
+  sudo -n ip route change 10.200.0.0/24 dev $CLI initcwnd 50 2>/dev/null || sudo -n ip route add 10.200.0.0/24 dev $CLI initcwnd 50 2>/dev/null || true
+  sudo -n ip netns exec $NS ip route change 10.200.0.0/24 dev $SRV initcwnd 50 2>/dev/null || sudo -n ip netns exec $NS ip route add 10.200.0.0/24 dev $SRV initcwnd 50 2>/dev/null || true
+  # 3. offloads veth ON des deux côtés — état de la bonne ère (final220,
+  #    BBR 18-19 Mb/s) ; réglage volatil → réappliqué à chaque up.
+  sudo -n ethtool -K $CLI tso on gso on gro on 2>/dev/null || true
+  sudo -n ip netns exec $NS ethtool -K $SRV tso on gso on gro on 2>/dev/null || true
   sudo ip addr show dev $CLI | grep -q "${CIP%/*}" || sudo ip addr add $CIP dev $CLI
   sudo ip link set $CLI up
   sudo ip netns exec $NS ip addr show dev $SRV | grep -q "${CIDR%/*}" || sudo ip netns exec $NS ip addr add $CIDR dev $SRV
@@ -83,12 +92,16 @@ check() {
   local ok=1
   sudo ip netns list | grep -q "^$NS" || { echo "[!] netns $NS missing"; ok=0; }
   sudo ip link show $CLI &>/dev/null || { echo "[!] $CLI missing"; ok=0; }
-  # banc sain = offloads fermés sur les deux veth (sinon netem étrangle)
+  # banc sain = état de la recette : TSO ON (état de la bonne ère) + route
+  # initcwnd 50 présente des deux côtés + aucun qdisc résiduel sur veth-c.
   for itf in "$CLI:root" "$SRV:$NS"; do
     it="${itf%%:*}"; ns="${itf##*:}"
     if [ "$ns" = root ]; then o=$(ethtool -k $CLI 2>/dev/null | grep -m1 '^tcp-segmentation-offload'); else o=$(sudo ip netns exec $NS ethtool -k $SRV 2>/dev/null | grep -m1 '^tcp-segmentation-offload'); fi
-    [ "$o" = "tcp-segmentation-offload: off" ] || { echo "[!] TSO still on on $it ($o)"; ok=0; }
+    [ "$o" = "tcp-segmentation-offload: on" ] || { echo "[!] TSO off on $it ($o)"; ok=0; }
   done
+  ip route show | grep -q "10.200.0.0/24 dev $CLI scope link initcwnd 50" || { echo "[!] initcwnd 50 route missing (client)"; ok=0; }
+  sudo ip netns exec $NS ip route show | grep -q "10.200.0.0/24 dev $SRV scope link initcwnd 50" || { echo "[!] initcwnd 50 route missing (server)"; ok=0; }
+  tc qdisc show dev $CLI | grep -q noqueue || { echo "[!] stale qdisc on $CLI — run: testbed.sh up"; ok=0; }
   ping -c1 -W1 10.200.0.1 >/dev/null 2>&1 || { echo "[!] ping 10.200.0.1 fails"; ok=0; }
   curl -fsS -m2 http://10.200.0.1:8081/small -o /dev/null || { echo "[!] small object fails"; ok=0; }
   timeout 1 bash -c '</dev/tcp/10.200.0.1/5201' 2>/dev/null || { echo "[!] bulk sink closed"; ok=0; }

@@ -6,6 +6,10 @@ export interface LiveFrame {
   cc: string
   repetition: number
   event_id: number
+  total_events?: number
+  done_events?: number
+  phase_total_s?: number
+  phaseSince?: Record<string, number>
   load_status: string
   rtt_p50_ms: number
   rtt_p95_ms: number

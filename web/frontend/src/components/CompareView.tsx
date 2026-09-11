@@ -3,7 +3,7 @@ import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries, CRAFT } from '../lib/chartGrammar'
 import { CardHead } from './ui/CardHead'
 import { EmptyState } from './ui/EmptyState'
-import { asArray } from '../lib/format'
+import { asArray, improve, fmtCount, verdictHeadline } from '../lib/format'
 
 // Métriques du live — Comparaison BBR×AQM « pin A/B » : deux cellules gelées, traces
 // alignées par événement, table d'écart (médianes, p95, pertes, coût Ariary),
@@ -15,7 +15,7 @@ const METRICS = [
   { key: 'small_p95_ms', label: 'small p95 (ms)', dir: 'down' as const },
   { key: 'rtt_p95_ms', label: 'RTT p95 (ms)', dir: 'down' as const },
   { key: 'bulk_goodput_mbps', label: 'goodput (Mbit/s)', dir: 'up' as const },
-  { key: 'drops', label: 'pertes', dir: 'down' as const },
+  { key: 'drops', label: 'pertes', dir: 'down' as const, int: true },
   { key: 'cost_ar_per_h', label: 'coût (Ar/h)', dir: 'down' as const },
 ]
 
@@ -31,6 +31,12 @@ function cellMedian(rows: Row[], p: Pinned, k: string): { med: number; n: number
 
 export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; onClose: () => void }) {
   const chartRef = useRef<HTMLDivElement>(null)
+  // Échap referme — comme la modale ⓘ et le tiroir Réglages
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
   const [err, setErr] = useState<string | null>(null)
   const [runs, setRuns] = useState<string[]>([])
   const [runA, setRunA] = useState<string | null>(null)
@@ -117,7 +123,13 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
     const base = baseOption('small p95 — événements alignés', 'ms')
     c.setOption({
       ...base,
-      xAxis: { ...base.xAxis, type: 'value' as const, name: 'événement' },
+      xAxis: {
+        ...base.xAxis, type: 'value' as const,
+        name: 'mesure (ordre dans le run)', nameLocation: 'middle' as const, nameGap: 30,
+        nameTextStyle: { color: '#7e838c', fontSize: 10, fontFamily: 'JetBrains Mono' },
+        axisLabel: { color: '#8b9099', fontSize: 10, fontFamily: 'JetBrains Mono' },
+        minInterval: 1,
+      },
       legend: { textStyle: { color: '#8b9099', fontSize: 10, fontFamily: 'JetBrains Mono' }, top: 4 },
       series: [
         { ...lineSeries(`A — ${cellName(a)}`, mk(rows.a.filter(r => matches(r, a))), CRAFT.live), name: `A — ${cellName(a)}` },
@@ -129,19 +141,22 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
 
   if (err) return <div className="card"><EmptyState kind="error" hint={err} /></div>
 
-  const fmt = (v: number) => v.toFixed(1)
+  const fmt = (m: { int?: boolean }, v: number) => (m.int ? fmtCount(v) : v.toFixed(1))
+  // verdict — le % montré = amélioration (convention Phase C : >0 = mieux,
+  // vert + mots). Le titre nomme le GAGNANT, jamais le perdant seul.
   const verdict = (() => {
     if (!stats) return null
-    const gains = METRICS.map(m => ({ m, better: m.dir === 'down' ? stats.b[m.key].med < stats.a[m.key].med : stats.b[m.key].med > stats.a[m.key].med }))
-    const wins = gains.filter(g => g.better).length
-    const p95a = stats.a.small_p95_ms.med, p95b = stats.b.small_p95_ms.med
-    const pct = p95a > 0 ? Math.round(((p95a - p95b) / p95a) * 100) : 0
-    return `${wins}/${METRICS.length} métriques en faveur de B — small p95 ${pct >= 0 ? `-${pct}` : `+${Math.abs(pct)}`} %`
+    const winsA = METRICS.filter(m => m.dir === 'down' ? stats.a[m.key].med < stats.b[m.key].med : stats.a[m.key].med > stats.b[m.key].med).length
+    const winsB = METRICS.filter(m => m.dir === 'down' ? stats.b[m.key].med < stats.a[m.key].med : stats.b[m.key].med > stats.a[m.key].med).length
+    const head = verdictHeadline(winsA, winsB, METRICS.length, 'A', 'B')
+    const imp = improve(stats.a.small_p95_ms.med, stats.b.small_p95_ms.med, 'down')
+    const tail = imp == null ? '' : imp === 0 ? ' — small p95 pareil des deux côtés' : ` — small p95 ${imp > 0 ? `+${imp} % mieux` : `${imp} % moins bon`} côté B`
+    return `${head}${tail}`
   })()
 
   const exportCSV = () => {
     if (!stats) return
-    const lines = ['metric,A,B,unite', ...METRICS.map(m => `${m.key},${fmt(stats.a[m.key].med)},${fmt(stats.b[m.key].med)},${m.label}`)].join('\n')
+    const lines = ['metric,A,B,unite', ...METRICS.map(m => `${m.key},${fmt(m, stats.a[m.key].med)},${fmt(m, stats.b[m.key].med)},${m.label}`)].join('\n')
     const url = URL.createObjectURL(new Blob([lines], { type: 'text/csv' }))
     const el = document.createElement('a'); el.href = url; el.download = `comparaison-${cellName(a).replace(/\//g, '-')}-vs-${cellName(b).replace(/\//g, '-')}.csv`; el.click()
     URL.revokeObjectURL(url)
@@ -206,7 +221,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
           Verdict — {verdict}
           {infer && infer.mw_p_two_sided != null && (
             <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
-              Agrégat valid-only tous runs — Mann-Whitney p={Number(infer.mw_p_two_sided).toExponential(1)}, Cliff {Number(infer.cliff_delta).toFixed(2)} ({infer.cliff_interp}), n={infer.n_a}/{infer.n_b}
+              Tous runs, mesures valides : {Number(infer.mw_p_two_sided) < 0.05 ? 'écart net' : 'écart pas net'} (p={Number(infer.mw_p_two_sided).toExponential(1)}) ; ampleur {infer.cliff_interp ?? '—'} ; n={infer.n_a}/{infer.n_b} mesures
             </span>
           )}
         </div>
@@ -221,13 +236,16 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
             if (!stats) return null
             const va = stats.a[m.key].med, vb = stats.b[m.key].med
             const better = m.dir === 'down' ? vb < va : vb > va
-            const pct = va > 0 ? Math.round(((va - vb) / va) * 100) : 0
+            // chiffre = amélioration B vs A (>0 = mieux, convention Phase C) ;
+            // couleur = bonté DANS LE SENS de la métrique (un goodput qui
+            // baisse n'est jamais vert) + mots dans le titre.
+            const imp = improve(va, vb, m.dir)
             return (
               <tr key={m.key} style={{ borderBottom: '1px solid var(--hairline-faint)' }}>
                 <td style={{ padding: '6px 8px', textAlign: 'left' }}>{m.label}</td>
-                <td style={{ padding: '6px 8px' }}>{fmt(va)}</td>
-                <td style={{ padding: '6px 8px', color: better ? CRAFT.ok : 'var(--text-body)' }}>{fmt(vb)}</td>
-                <td style={{ padding: '6px 8px', color: pct > 0 ? CRAFT.ok : CRAFT.danger }}>{pct > 0 ? `-${pct} %` : `+${Math.abs(pct)} %`}</td>
+                <td style={{ padding: '6px 8px' }}>{fmt(m, va)}</td>
+                <td style={{ padding: '6px 8px', color: better ? CRAFT.ok : 'var(--text-body)' }}>{fmt(m, vb)}</td>
+                <td title={imp == null ? 'pas de base de comparaison' : imp === 0 ? 'pareil des deux côtés' : imp > 0 ? 'mieux côté B, dans le sens de la métrique' : 'moins bon côté B, dans le sens de la métrique'} style={{ padding: '6px 8px', color: imp == null ? 'var(--text-body)' : imp > 0 ? CRAFT.ok : imp < 0 ? CRAFT.danger : 'var(--text-body)' }}>{imp == null ? '—' : imp > 0 ? `+${imp} %` : imp < 0 ? `${imp} %` : '0 %'}</td>
               </tr>
             )
           })}

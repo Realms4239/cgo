@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Realms4239/cgo/internal/kit"
 	"github.com/Realms4239/cgo/pkg/audit"
 	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/pkg/doctor"
@@ -31,7 +32,11 @@ import (
 )
 
 // version — overridden at release time: -X main.version={{.Version}}.
-var version = "1.2.13"
+// RÈGLE VERSION (source unique) : kit.KitVersion est canonique — `version`
+// vaut KitVersion par défaut et les GUI comparent le dashboard distant à
+// kit.KitVersion directement ; une release -X doit donc reprendre exactement
+// le tag (= KitVersion), sinon CLI (`kit next`) et GUI divergent.
+var version = kit.KitVersion
 
 func main() {
 	if len(os.Args) < 2 {

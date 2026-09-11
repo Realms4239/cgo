@@ -28,13 +28,14 @@ export function baseOption(title: string, unit: string, opts?: { idle?: boolean 
       axisTick: { show: true, length: 4, lineStyle: { color: '#3a3a40' } },
       minorTick: { show: true, splitNumber: 4 },
       splitLine: { lineStyle: { type: [4, 4] as unknown as string, color: '#1a1a1e', cap: 'round' as const } },
-      axisLabel: { color: '#8b9099', fontSize: 10, fontFamily: 'JetBrains Mono', margin: 12 },
+      // x-labels tiennent à 390 : recouvrement masqué, 9 px, heures courtes
+      axisLabel: { color: '#8b9099', fontSize: 9, fontFamily: 'JetBrains Mono', margin: 12, hideOverlap: true, formatter: (v: number) => { const d = new Date(v); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}` } },
       axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(90,211,227,0.04)', shadowBlur: 12 } },
     } as unknown as EChartsOption['xAxis'],
     yAxis: {
       type: 'value',
       name: unit,
-      nameTextStyle: { color: '#767b84', fontSize: 10, fontFamily: 'JetBrains Mono' },
+      nameTextStyle: { color: '#7e838c', fontSize: 10, fontFamily: 'JetBrains Mono' },
       axisLine: { lineStyle: { width: 1.5, cap: 'round' as const, color: '#2a2a30' } },
       axisLabel: { color: '#8b9099', fontSize: 10, fontFamily: 'JetBrains Mono' },
       splitLine: { lineStyle: { type: [4, 4] as unknown as string, color: '#1a1a1e', cap: 'round' as const } },
@@ -108,6 +109,35 @@ export function scatterSeries(name: string, data: [number, number][], color: str
     blur: { itemStyle: { opacity: 0.2 } },
     data,
   }
+}
+
+// paretoFrontier — enveloppe réelle : indices des points non dominés
+// (aucun autre point meilleur-ou-égal sur X ET Y avec un strict).
+// dir 'down' = plus petit = mieux (latences, coût), 'up' = plus grand =
+// mieux (goodput, échéances, indice). Fonction pure testée — le tracé
+// TradeSpace n'affiche que ce qu'elle rend, jamais de ligne décorative.
+export function paretoFrontier(
+  pts: { x: number; y: number }[],
+  dirX: 'down' | 'up',
+  dirY: 'down' | 'up',
+): number[] {
+  const betterX = (a: number, b: number) => (dirX === 'down' ? a < b : a > b)
+  const betterY = (a: number, b: number) => (dirY === 'down' ? a < b : a > b)
+  const out: number[] = []
+  for (let i = 0; i < pts.length; i++) {
+    let dominated = false
+    for (let j = 0; j < pts.length; j++) {
+      if (i === j) continue
+      const xOk = pts[j].x === pts[i].x || betterX(pts[j].x, pts[i].x)
+      const yOk = pts[j].y === pts[i].y || betterY(pts[j].y, pts[i].y)
+      if (xOk && yOk && (betterX(pts[j].x, pts[i].x) || betterY(pts[j].y, pts[i].y))) {
+        dominated = true
+        break
+      }
+    }
+    if (!dominated) out.push(i)
+  }
+  return out
 }
 
 // markArea CHARGE — une seule par graphique, pilotée par la phase. Fenêtres

@@ -46,6 +46,11 @@ type Config struct {
 	NatHostPort string
 }
 
+// KitVersion — version du kit (SOURCE UNIQUE : cmd/cgo `version` vaut ça
+// par défaut, les vues GUI comparent le dashboard distant à elle pour
+// refuser un binaire périmé). À bumper à chaque release, avec le tag.
+const KitVersion = "1.3.0"
+
 // VMPath — LE chemin de la VM verrouillée, quel que soit l'hyperviseur
 // (.vmx ou .vbox). Tout le code lit ÇA, jamais les champs bruts : lire
 // VMXPath seul rendait les VM VirtualBox invisibles partout (verrou,
@@ -408,6 +413,72 @@ func keepExplicitTarget(host string) bool {
 		strings.HasPrefix(h, "[::1]")
 }
 
+// natHostPort — port hôte du forward NAT (config ou 2222, même défaut que
+// la règle VBoxManage cgo-ssh). Factorisé : ensure/keysetup/Next partagent
+// le même défaut, pas trois littéraux qui dérivent.
+func natHostPort(c *Config) string {
+	if strings.TrimSpace(c.NatHostPort) != "" {
+		return strings.TrimSpace(c.NatHostPort)
+	}
+	return "2222"
+}
+
+// NATForwardTarget — cible SSH effective sous NAT VirtualBox : l'IP invitée
+// 10.0.2.x est injoignable depuis l'hôte PAR CONSTRUCTION, seul le forward
+// local 127.0.0.1:natPort y mène. Rend (host, port, true) quand le cas NAT
+// s'applique, ("", "", false) sinon (bridgé/hôte-only/direct : la config
+// reste la cible). RACINE COMMUNE de keysetup (deadlock 10.0.2.15:22),
+// Next (bandeau/boucle vnet) et Diagnostiquer (mauvais conseil sshd) : un
+// seul endroit à corriger, jamais un garde par appelant.
+//   - host explicite loopback/auto/vide : pas un cas NAT (déjà sur le
+//     forward, ou rien à en dire) ;
+//   - espace invité 10.0.2.x : fait topologique, sans pilote (rapide) ;
+//   - sinon : NIC lue via le pilote du chemin, forward seulement si le
+//     pilote sait forwarder (VirtualBox) ET que la NIC est en nat
+//     (le NAT VMware garde une IP joignable via vmnet8 : pas de forward).
+//
+// Jamais de mutation, jamais d'écriture — la pose de règle vit dans
+// ensureNATForward / ensure.
+func NATForwardTarget(c *Config, host string) (string, string, bool) {
+	h := strings.TrimSpace(host)
+	if h == "" || h == "auto" || keepExplicitTarget(h) {
+		return "", "", false
+	}
+	if isVBoxGuestSpace(h) {
+		return "127.0.0.1", natHostPort(c), true
+	}
+	if c.VMPath() == "" {
+		return "", "", false
+	}
+	hyp, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath())
+	if err != nil {
+		return "", "", false
+	}
+	nf, ok := hyp.(vm.NatForwarder)
+	if !ok || hyp.NetMode(c.VMPath()) != "nat" {
+		return "", "", false
+	}
+	return nf.NatHostAddr(), natHostPort(c), true
+}
+
+// ensureNATForward — pose (idempotent, VM éteinte comme allumée) le forward
+// 127.0.0.1:natPort → 22 invité. Best-effort : rend l'erreur, l'appelant
+// (keysetup) dégrade vers la cible configurée en l'expliquant.
+func ensureNATForward(c *Config) error {
+	if c.VMPath() == "" {
+		return fmt.Errorf("aucune VM verrouillée")
+	}
+	hyp, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath())
+	if err != nil {
+		return err
+	}
+	nf, ok := hyp.(vm.NatForwarder)
+	if !ok {
+		return fmt.Errorf("hyperviseur %s sans forward NAT", hyp.Name())
+	}
+	return nf.EnsureNatSSH(c.VMPath(), natHostPort(c), c.DashPort)
+}
+
 // lookupHostFast — résolution bornée (4 s) : net.LookupHost nu peut
 // pendre des dizaines de secondes (DNS externes injoignables, domaines
 // search) — perçu comme un freeze (vu en prod sur `kit dns`).
@@ -643,11 +714,21 @@ func (r *Runner) Doctor(c *Config) int {
 	} else {
 		r.out("  clé SSH    %s — INTROUVABLE (ssh-keygen -t ed25519, puis ssh-copy-id vers la VM)", key)
 	}
-	// VM propre : port 22 + auth testés séparément, cause affichée au lieu d'un timeout opaque
+	// VM propre : port 22 + auth testés séparément, cause affichée au lieu d'un timeout opaque.
+	// NAT VirtualBox : l'IP invitée est injoignable en direct PAR CONSTRUCTION — sonder le
+	// direct concluait « FERMÉ + installez openssh-server » à tort ; seul le forward décide
+	// (même garde NATForwardTarget que Next/Diagnostiquer ; copie sans mutation).
 	if c.SSHHost != "" {
-		if portOpen(c.SSHHost, c.SSHPort) {
-			r.out("  port 22    %s:%s OUVERT", c.SSHHost, c.SSHPort)
-			if out, err := c.SSH("true"); err != nil {
+		probeHost, probePort := c.SSHHost, c.SSHPort
+		if natH, natP, isNAT := NATForwardTarget(c, c.SSHHost); isNAT {
+			r.out("  nat        %s injoignable en direct (normal) — sondes via le forward %s:%s", c.SSHHost, natH, natP)
+			probeHost, probePort = natH, natP
+		}
+		probe := *c
+		probe.SSHHost, probe.SSHPort = probeHost, probePort
+		if portOpen(probeHost, probePort) {
+			r.out("  port 22    %s:%s OUVERT", probeHost, probePort)
+			if out, err := probe.SSH("true"); err != nil {
 				cls := classifySSHError(out)
 				if cls == "auth" {
 					r.out("  auth       REFUSÉE — la clé de l'hôte n'est pas dans authorized_keys")
@@ -658,6 +739,9 @@ func (r *Runner) Doctor(c *Config) int {
 			} else {
 				r.out("  auth       OK (SSHUp)")
 			}
+		} else if probeHost != c.SSHHost {
+			r.out("  port 22    forward %s:%s FERMÉ — règle NAT absente ou VM éteinte (jamais sshd : l'invitée est injoignable en direct)", probeHost, probePort)
+			r.out("             → cgo kit ensure (repose le forward + boote)")
 		} else {
 			r.out("  port 22    %s:%s FERMÉ — sshd absent/éteint dans la VM ou VM éteinte", c.SSHHost, c.SSHPort)
 			r.out("             → %s", sshAdvice("refused"))
@@ -666,9 +750,11 @@ func (r *Runner) Doctor(c *Config) int {
 	for _, h := range vm.Detect() {
 		r.out("  %-10s %s", h.Name(), h.Exe())
 	}
-	// IP : la VM de la config si présente, sans scan disque lourd
+	// IP : la VM de la config si présente, sans scan disque lourd — via
+	// selectDriver (le CHEMIN décide : vm.Primary() aveugle envoyait un
+	// .vbox chez vmrun et mentait sur l'état et l'IP).
 	if c.VMPath() != "" {
-		if p := vm.Primary(); p != nil {
+		if p, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath()); err == nil {
 			if _, err := os.Stat(c.VMPath()); err == nil {
 				live := "éteinte"
 				for _, run := range p.Running() {
@@ -714,7 +800,40 @@ func (r *Runner) Scan(c *Config, cfgPath string, deep bool) int {
 	hypName := hypNameForScan(p, vm.Primary())
 	_ = SaveVMX(cfgPath, p, hypName)
 	r.out("[scan] sélectionnée : %s (hyperviseur %s)", p, hypName)
+	// Cible périmée (bail DHCP changé depuis le dernier verrou) : on la
+	// rafraîchit vers l'IP invitée vivante — jamais un forward explicite
+	// écrasé, jamais d'espace NAT écrit (le forward appartient à ensure).
+	// Best-effort : le scan reste vert même si l'IP est illisible — un
+	// échec de persistance ne doit jamais faire échouer la commande
+	// (keysetup et la GUI vérifient cette erreur, eux, et l'affichent).
+	if h, err := selectDriver(vm.Detect(), c.Hypervisor, p); err == nil {
+		if ip := h.GuestIP(p); ip != "" && staleSSHHost(c.SSHHost, ip) &&
+			(c.SSHHost == "" || c.SSHHost == "auto" || !portOpen(c.SSHHost, c.SSHPort)) {
+			old := c.SSHHost
+			_ = SaveSSHTarget(cfgPath, "", ip, "", "")
+			c.SSHHost = ip
+			r.out("[scan] hôte SSH actualisé : %s (était %s)", ip, old)
+		}
+	}
 	return 0
+}
+
+// staleSSHHost — la cible configurée est-elle périmée face à l'IP invitée
+// que rapporte l'hyperviseur ? Pur et testé ; la barrière de vivacité
+// (portOpen) reste chez l'appelant (Scan) :
+//   - découvert vide, identique, ou cible = forward explicite → non ;
+//   - découvert = espace invité NAT 10.0.2.x → non (ensure possède le
+//     forward ; écrire 10.0.2.15 dans le yaml casserait le direct sans
+//     poser la règle) ;
+//   - sinon (auto/vide/ancienne IP) → oui.
+func staleSSHHost(current, discovered string) bool {
+	if discovered == "" || current == discovered || keepExplicitTarget(current) {
+		return false
+	}
+	if isVBoxGuestSpace(discovered) {
+		return false
+	}
+	return true
 }
 
 // hypNameForScan — l'extension décide, le primaire ne départage que les
@@ -762,10 +881,7 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 		case "hôte-only":
 			r.out("[ensure] NIC en hôte-only : pas de port-forward (IP 192.168.56.x directe)")
 		default:
-			natPort = c.NatHostPort
-			if natPort == "" {
-				natPort = "2222"
-			}
+			natPort = natHostPort(c)
 			if err := nf.EnsureNatSSH(vmx, natPort, c.DashPort); err != nil {
 				r.errf("[ensure] port-forward NAT ÉCHEC : %v", err)
 				r.errf("[ensure] pistes : VM verrouillée ? autre VM sur le port ? NIC en pont ? (voir mode ci-dessus)")

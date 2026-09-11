@@ -3,6 +3,7 @@ import { startReplay, stopReplay } from '../lib/replay'
 import { useUIStore } from '../store/ui'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Provenance } from '../components/ui/Provenance'
+import Explain from '../components/Explain'
 import { PeekPopover } from '../components/PeekPopover'
 import { hardwareRecommendation } from '../lib/hardware'
 import { asArray } from '../lib/format'
@@ -72,14 +73,15 @@ export default function IntegriteView() {
   if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary" style={{marginTop:12}} onClick={load}>Réessayer</button></div>
 
   // Quarantaine synthétique retirée — gate_status réel depuis Scan.
+  // single scroll: main défile déjà (double-scroll supprimé).
   return (
-    <div className="panel-stack" style={{position:'relative', maxHeight:'calc(100vh - 48px - 28px)', overflowY:'auto'}}>
+    <div className="panel-stack" style={{position:'relative'}}>
       {peek && (
         <PeekPopover rect={peek.rect}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>run — {peek.run}</div>
           {(() => {
             const src = asArray<any>(peekGroups).length ? peekGroups as any[] : asArray<any>(groups)
-            if (src.length===0) return <div className="mono" style={{fontSize:10, color:'#767b84'}}>aucun groupe — gel d'abord</div>
+            if (src.length===0) return <div className="mono" style={{fontSize:10, color:'var(--text-faint, #7e838c)'}}>aucun groupe — gel d'abord</div>
             // Meilleur par profil pour ce run, repli sur les 4 premiers.
             const bests = src.filter((g:any)=>g.best)
             const show = bests.length ? bests.slice(0,4) : src.slice(0,4)
@@ -93,13 +95,23 @@ export default function IntegriteView() {
         </PeekPopover>
       )}
       <h1 className="view-title">Intégrité — archives gelées</h1>
-      {/* bandeau preuve resserré — une ligne mono, pas des cartes */}
+      {/* bandeau preuve — 4 faits Grafana, mots pleins, jamais de soupe */}
       <div className="card" data-testid="proof-banner" style={{ display:'flex', gap:16, alignItems:'baseline', flexWrap:'wrap', padding:'10px 14px' }}>
         <span className="mono" style={{ fontSize:12, fontWeight:600 }}>Preuve gelée</span>
-        <span className="mono" data-testid="proof-runs" style={{ fontSize:11 }}>{data.runs} runs · {data.manifests} manifests</span>
-        <span className="mono" style={{ fontSize:11, color:'var(--t-ok)' }}>{data.valid} valides</span>
-        <span className="mono" style={{ fontSize:11, color:(data.quarantined||0)>0?'var(--t-danger)':'var(--text-muted)' }}>{data.quarantined} quarantaine</span>
-        <span className="mono muted" style={{ fontSize:11, marginLeft:'auto' }}>maj {data.updated || '—'}</span>
+        <span className="mono" data-testid="proof-runs" style={{ fontSize:11 }}>{data.runs} runs archivés · {data.manifests} manifestes signés</span>
+        <span className="mono" style={{ fontSize:11, color:'var(--t-ok)' }}><Explain term="valid_only">{data.valid} mesures valides</Explain></span>
+        <span className="mono" style={{ fontSize:11, color:(data.quarantined||0)>0?'var(--t-danger-text, #e84a3a)':'var(--text-muted)' }}>{data.quarantined} mesures écartées</span>
+        <span className="mono muted" style={{ fontSize:11, marginLeft:'auto' }}>mis à jour {data.updated || '—'}</span>
+      </div>
+      {/* d'où viennent ces chiffres — quoi/où/quand par source, en clair */}
+      <div className="card" data-testid="sources-card">
+        <div className="card-head">D'où viennent ces chiffres</div>
+        <div style={{ display:'grid', gap:8 }}>
+          <div className="mono" style={{ fontSize:11, lineHeight:1.6, color:'#c3c9d1' }}><b style={{ color:'#f2f2f4' }}>Manifestes signés</b> — la liste scellée de chaque run archivé (fichiers + empreinte) · dans le dossier de chaque run · mis à jour {data.updated || '—'}</div>
+          <div className="mono" style={{ fontSize:11, lineHeight:1.6, color:'#c3c9d1' }}><b style={{ color:'#f2f2f4' }}>Quarantaine</b> — les mesures écartées par les <Explain term="G3">portes de validation</Explain> · dans le registre de quarantaine du serveur · à chaque gel de campagne</div>
+          <div className="mono" style={{ fontSize:11, lineHeight:1.6, color:'#c3c9d1' }}><b style={{ color:'#f2f2f4' }}>Mesures</b> — le tableur des mesures gelées, une ligne par sondage · dans le fichier de mesures de chaque run · mis à jour {data.updated || '—'}</div>
+          <div className="mono" style={{ fontSize:11, lineHeight:1.6, color:'#c3c9d1' }}><b style={{ color:'#f2f2f4' }}>Journal</b> — les opérations (campagnes, audits) racontées au fil de l'eau · dans le journal opérateur ci-dessous · en continu</div>
+        </div>
       </div>
       <div className="card">
         <div className="form-row" style={{gap:8, marginTop:12}}>
@@ -112,7 +124,7 @@ export default function IntegriteView() {
       <div className="card" style={{ border:'1px solid #26262a', background:'var(--surface-card)' }}>
         <div className="card-head" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
           <span>RDF — provenance gelée</span>
-          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', letterSpacing:'0.08em', textTransform:'uppercase'}}>frozen-wave</span>
+          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text-faint, #7e838c)', letterSpacing:'0.08em', textTransform:'uppercase'}}>frozen-wave</span>
         </div>
         <div style={{display:'flex', flexDirection:'column', gap:6}}>
           <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>sha256 manifest</div>
@@ -126,27 +138,29 @@ export default function IntegriteView() {
               <EmptyState kind="empty" hint="empreinte SHA non exposée par /api/integrity — afficher le manifest gelé" />
             </div>
           )}
-          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84'}}>source: data/runs/*/manifest.json · quarantine.json · aqm_eval.csv</div>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text-faint, #7e838c)', overflowWrap: 'anywhere'}}>manifestes signés · registre de quarantaine · tableur des mesures — les trois couvrent les mêmes runs gelés, l'empreinte ci-dessus les scelle</div>
           <div style={{display:'flex', gap:8, marginTop:4}}>
-            <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'2px 6px', border:'1px solid #26262a', color:'#5ad3e3'}}>RDF • LIEN Tableau 7</span>
+            <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'2px 6px', border:'1px solid #26262a', color:'#5ad3e3'}}>Mémoire, tableau 7</span>
             <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'2px 6px', border:'1px solid #26262a', color:'#1fa348'}}>gelé • vérifiable</span>
           </div>
         </div>
       </div>
       <div className="card" data-testid="runs-table">
         <div className="card-head">Runs archivés</div>
+        <div className="tbl-scroll" data-testid="runs-scroll" style={{ overflowX: 'auto', minWidth: 0 }}>
         <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:12 }}>
           <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
-            <th style={{ padding:'6px 8px' }}>run</th><th>lignes</th><th>valides</th><th>quar.</th><th></th><th></th>
+            <th style={{ padding:'6px 8px' }}>run</th><th>lignes</th><th>valides</th><th>quar.</th><th>résultats</th><th>rejouer</th>
           </tr></thead><tbody>
           {paginate(Array.isArray(data.breakdown) ? data.breakdown : (asArray<string>(data.run_ids).map(id=>({run:id,rows:0,valid:0,quarantined:0}))), runsPage, RUNS_PAGE_SIZE).map(b=>(
             <tr key={b.run} style={{ borderBottom:'1px solid var(--hairline-faint)' }} onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
-              <td style={{ padding:'6px 8px' }}>{b.run}</td><td>{b.rows}</td><td>{b.valid}</td><td>{b.quarantined}</td>
+              <td style={{ padding:'6px 8px', maxWidth:240 }}><span title={b.run} style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'38vw' }}>{b.run}</span></td><td>{b.rows}</td><td>{b.valid}</td><td>{b.quarantined}</td>
               <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" style={{ color:'var(--t-live)' }}>résultats</a></td>
-              <td><button className="btn btn-primary" onClick={()=>{ startReplay(b.run); setPanel('live') }} style={{ padding:'4px 10px', fontSize:11 }}>Rejouer</button></td>
+              <td><button className="btn btn-primary" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setPanel('live') }} style={{ padding:'4px 10px', fontSize:11 }}>Rejouer</button></td>
             </tr>
           ))}
           </tbody></table>
+        </div>
           <Paginate
             total={(Array.isArray(data.breakdown) ? data.breakdown : asArray<string>(data.run_ids)).length}
             page={runsPage} pageSize={RUNS_PAGE_SIZE} onPage={setRunsPage}
@@ -154,25 +168,28 @@ export default function IntegriteView() {
       </div>
       <div className="card" data-testid="quarantine-table">
         <div className="card-head">Quarantaine — lignes invalidées par les portes</div>
-        {quar.length===0 ? <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="aucune mise en quarantaine (gate_status=valid)" /></div> :
+        {quar.length===0 ? <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="Aucune mise en quarantaine" /></div> :
+        <div className="tbl-scroll" data-testid="quarantine-scroll" style={{ overflowX: 'auto', minWidth: 0 }}>
         <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:12 }}>
           <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
             <th style={{ padding:'6px 8px' }}>run</th><th>événement</th><th>cellule</th><th>statut</th><th>portes</th>
           </tr></thead><tbody>
           {paginate(quar, quarPage, QUAR_PAGE_SIZE).map((q,i)=><tr key={i} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
-            <td style={{ padding:'6px 8px' }}>{q.run}</td><td>#{q.event_id}</td><td>{q.profile}·{q.qdisc}·{q.cc}</td><td style={{ color:'#f4b400' }}>{q.gate_status}</td><td style={{ color:'#8b9099' }}>{(q.failed_gates ?? []).join(' ') || '—'}</td>
+            <td style={{ padding:'6px 8px', maxWidth:240 }}><span title={q.run} style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'38vw' }}>{q.run}</span></td><td>#{q.event_id}</td><td style={{ overflowWrap: 'anywhere' }}>{q.profile}·{q.qdisc}·{q.cc}</td><td style={{ color:'#f4b400' }}>{q.gate_status}</td><td style={{ color:'#8b9099' }}>{(q.failed_gates ?? []).join(' ') || '—'}</td>
           </tr>)}
-          </tbody></table>}
+          </tbody></table>
+        </div>}
         <Paginate
           total={quar.length}
           page={quarPage} pageSize={QUAR_PAGE_SIZE} onPage={setQuarPage}
         />
-        <div className="mono" style={{ fontSize:10, color:'#767b84', marginTop:8 }}>source: quarantine.json · gate_status != valid{quarSum && quarSum.total_invalid != null ? ` · synthèse live : ${quarSum.total_invalid} invalid — G4 bas ${quarSum.g4_low}, G4 haut ${quarSum.g4_high}, sondes vides ${quarSum.empty_probes}, G3 ${quarSum.g3_implausible} (non-exclusif, G4 = régime)` : ''}</div>
+        <div className="mono" style={{ fontSize:11, color:'#c3c9d1', marginTop:8, lineHeight:1.6 }}>{quarSum && quarSum.total_invalid != null ? (<>{quarSum.total_invalid} mesures écartées au total — débit trop bas (<Explain term="G4">porte G4</Explain>) {quarSum.g4_low} · débit trop haut (<Explain term="G4">porte G4</Explain>) {quarSum.g4_high} · sondes vides {quarSum.empty_probes} · latence incohérente (<Explain term="G3">porte G3</Explain>) {quarSum.g3_implausible} <span style={{ color:'#8b9099' }}>(un compteur peut cumuler)</span></>) : 'mesures écartées par les portes de validation — détail par ligne ci-dessus'}</div>
+        <div className="mono" style={{ fontSize:10, color:'var(--text-faint, #7e838c)', marginTop:4 }}>registre de quarantaine du serveur — une ligne par mesure écartée, avec sa cellule et ses portes</div>
       </div>
       <div className="card" style={{ border:'1px solid #26262a' }}>
         <div className="card-head">Recommandations — Traduction Matérielle</div>
-        <p className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, lineHeight:'1.6', color:'#9aa3ad', marginBottom:12}}>
-          Transposition du principe Linux prouvé en lab vers matériel DSI — sans réécrire l'infra. <span style={{color:'#5ad3e3'}}>Client-side observé, pas contrôleur réseau</span>.
+        <p className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, lineHeight:'1.6', color:'#9aa3ad', marginBottom:12, overflowWrap: 'anywhere'}}>
+          Linux prouvé en lab → matériel DSI, sans réécrire l'infra. <span style={{color:'#5ad3e3'}}>Observé côté client</span>.
         </p>
         <div style={{overflowX:'auto', marginBottom:12}}>
           <table style={{width:'100%', borderCollapse:'collapse', fontFamily:'JetBrains Mono', fontSize:11}}>
@@ -250,7 +267,7 @@ export default function IntegriteView() {
           </div>
         )}
       </div>
-      <Provenance source="data/runs/*/manifest.json" state="live" />
+      <Provenance source="manifestes signés des runs archivés" refresh="au gel" state="live" />
       {events.length > 0 && (
         <div className="card" data-testid="changelog">
           <div className="card-head">Changelog — journal opérateur</div>
@@ -262,7 +279,7 @@ export default function IntegriteView() {
                 <li key={i} className="mono" style={{ fontSize: 12, padding: '5px 0', borderBottom: '1px solid var(--hairline-faint)', display: 'flex', gap: 8, alignItems: 'baseline' }}>
                   <span style={{ color: '#a9aeb6', fontVariantNumeric: 'tabular-nums' }}>{e.ts}</span>
                   <span title={e.kind} style={{ color: kc }}>●</span>
-                  <span style={{ flex: 1, color: '#d6d8dd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg.slice(0, 120)}</span>
+                  <span className="ev-msg" style={{ flex: 1, color: '#d6d8dd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg.slice(0, 120)}</span>
                   <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: kc }}>{e.kind}</span>
                 </li>
               )
@@ -282,13 +299,18 @@ export default function IntegriteView() {
         ) : replayRuns.length===0 ? <p className="mono muted">aucun run à rejouer</p> :
           <ul style={{listStyle:'none', padding:0, margin:0}}>
             {replayRuns.map(id=>(
-              <li key={id} style={{display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}}>
-                <span>{id}</span>
-                <button className="btn btn-primary" onClick={()=>{ startReplay(id); setPanel('live')}} style={{padding:'4px 10px', fontSize:11}}>Rejouer</button>
+              <li key={id} style={{display:'flex', justifyContent:'space-between', gap:12, padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}}>
+                <span title={id} style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{id}</span>
+                <button className="btn btn-primary" onClick={()=>{ startReplay(id); setPanel('live')}} style={{padding:'4px 10px', fontSize:11, flex:'none'}}>Rejouer</button>
               </li>
             ))}
           </ul>
         }
+        {/* pas de portée à choisir : le replay rejoue tout le run — l'API
+            n'expose aucun filtre par cellule ou métrique (run seul). */}
+        {!replayRunning && replayRuns.length>0 && (
+          <p className="mono" style={{ fontSize:10, color:'var(--text-faint, #7e838c)', marginTop:8 }}>le replay rejoue tout le run — aucun filtre par cellule ou métrique côté serveur, il n'y a pas de portée à choisir</p>
+        )}
       </div>
     </div>
   )

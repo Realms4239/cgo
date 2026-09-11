@@ -4,6 +4,8 @@ import { ArmButton } from '../components/ArmButton'
 import { Timeline } from '../components/Timeline'
 import { loadSettings } from '../lib/settings'
 import Explain from '../components/Explain'
+import { EmptyState } from '../components/ui/EmptyState'
+import { formatBytesFR, groupDigits } from '../lib/format'
 import { useUIStore } from '../store/ui'
 import { InlineField } from '../components/InlineField'
 import { validate } from '../lib/validation'
@@ -187,6 +189,10 @@ export default function CampagneView() {
     pushToast('Arrêt demandé', 'blue')
   }
 
+  // charge en mots courants — le statut brut `bulk-on` ne sort jamais tel quel
+  const loadPlain = live?.load_status === 'bulk-on' ? 'transferts en cours'
+    : live?.load_status === 'bulk-off' ? 'sans transfert'
+    : live?.load_status ?? '—'
   const gates = live?.gates ?? Array(8).fill(null)
   const phase = live?.phase || 'idle'
   // Phase idle = '' côté serveur — tester sur les données reçues.
@@ -208,40 +214,41 @@ export default function CampagneView() {
     <div style={{ display: 'flex', height: '100%', minHeight: 0, minWidth: 0, paddingRight: 400, boxSizing: 'border-box' }}>
       {/* main workspace — the 75% dead zone becomes the phase stepper + live state */}
       <div className="panel-stack" style={{ flex: 1, minWidth: 0 }}>
-        <h1 className="view-title">Campagne — pilotez la mesure</h1>
+        <h1 className="view-title" style={{ margin: '16px auto' }}>Campagne — pilotez la mesure</h1>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
           {[
             { n: '①', t: 'Auditer', d: "30 s sur le lien réel, sans droits admin" },
             { n: '②', t: 'Comparer', d: 'pfifo vs CAKE en direct, même échelle' },
-            { n: '③', t: 'Exporter', d: 'constat MD/CSV signé' },
+            { n: '③', t: 'Exporter', d: 'récit + chiffres vérifiables' },
           ].map(x => (
             <div key={x.n} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 16 }}>
               <span className="mono" style={{ fontSize: 18, color: 'var(--t-live, #5ad3e3)' }}>{x.n}</span>
               <span className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-body, #f2f2f4)' }}>{x.t}</span>
-              <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted, #8b9099)', lineHeight: 1.6 }}>{x.d}</span>
+              <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted, #8b9099)', lineHeight: 1.6, overflowWrap: 'break-word' }}>{x.d}</span>
             </div>
           ))}
         </div>
         {hasData && hasTimeline && <Timeline baselineStart={timeline.baselineStart} chargeStart={timeline.chargeStart} chargeEnd={timeline.chargeEnd} recupEnd={timeline.recupEnd} currentPhase={phase} />}
+        {!hasData && <EmptyState kind="idle" hint="en attente — démarrez une campagne depuis le kit cockpit" />}
         <div className="card">
           <div className="card-head">État — flux SSE</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-            <div className="kv"><span>phase</span><b className="mono">{phase}</b></div>
-            <div className="kv"><span>profil</span><b className="mono">{live?.profile ?? '—'}</b></div>
-            <div className="kv"><span>qdisc</span><b className="mono">{live?.qdisc ?? '—'}</b></div>
-            <div className="kv"><span>cc</span><b className="mono">{live?.cc ?? '—'}</b></div>
-            <div className="kv"><span>événement</span><b className="mono">{live?.event_id != null ? `#${live.event_id} · rép ${live.repetition ?? 0}` : '—'}</b></div>
-            <div className="kv"><span>charge</span><b className="mono">{live?.load_status ?? '—'}</b></div>
+          <div className="kv-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, minWidth: 0 }}>
+            <div className="kv"><span>phase</span><b className="mono" style={{ whiteSpace: 'nowrap' }}>{phase}</b></div>
+            <div className="kv"><span>profil</span><b className="mono" style={{ whiteSpace: 'nowrap' }}>{live?.profile ?? '—'}</b></div>
+            <div className="kv"><span>qdisc</span><b className="mono" style={{ whiteSpace: 'nowrap' }}>{live?.qdisc ?? '—'}</b></div>
+            <div className="kv"><span>cc</span><b className="mono" style={{ whiteSpace: 'nowrap' }}>{live?.cc ?? '—'}</b></div>
+            <div className="kv"><span>événement</span><b className="mono" style={{ whiteSpace: 'nowrap' }}>{live?.event_id != null ? `#${live.event_id} · rép ${live.repetition ?? 0}` : '—'}</b></div>
+            <div className="kv"><span>charge</span><b className="mono" style={{ whiteSpace: 'nowrap' }}>{loadPlain}</b></div>
           </div>
         </div>
         <div className="card">
           <div className="card-head">Portes G0–G7</div>
           <div className="gates-detail" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '2px 16px' }}>
             {gates.map((g: boolean|null, i:number) => (
-              <div key={i} className={'gate-row ' + (g===null?'na':g?'ok':'fail')}>
+              <div key={i} className={'gate-row ' + (g===null?'na':g?'ok':'fail')} style={{ alignItems: 'baseline' }}>
                 <span className="gate mono">G{i}</span>
-                <span className="gate-lbl">{GATE_LABELS[i]}</span>
-                <span className="gate-state mono">{g===null?'—':g?'PASS':'FAIL'}</span>
+                <span className="gate-lbl" style={{ flex: 1 }}><Explain term={`G${i}`}>{GATE_LABELS[i]}</Explain></span>
+                <span className="gate-state mono" style={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{g===null?'—':g?'PASS':'FAIL'}</span>
               </div>
             ))}
           </div>
@@ -249,7 +256,8 @@ export default function CampagneView() {
         {profiles.length > 0 && (
         <div className="card" data-testid="matrix-table">
           <div className="card-head">Matrice — état par cellule</div>
-          <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:11 }}>
+          <div style={{ overflowX: 'auto', minWidth: 0 }}>
+          <table className="data-table" style={{ width:'100%', minWidth: 340, borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:11 }}>
             <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
               <th style={{ padding:'6px 8px' }}>profil</th><th>file × CC</th><th>répétitions</th><th>état</th>
             </tr></thead><tbody>
@@ -261,14 +269,15 @@ export default function CampagneView() {
               const cur = live?.running ? live?.event_id ?? 0 : 0
               const st = cur === 0 ? 'attente' : (cellStart + reps - 1 < cur ? 'terminée' : (cellStart <= cur ? 'en cours' : 'attente'))
               const n = Math.max(0, Math.min(reps, cur - cellStart + (st === 'en cours' ? 1 : 0)))
-              const color = st === 'terminée' ? '#1fa348' : st === 'en cours' ? '#5ad3e3' : '#767b84'
+              const color = st === 'terminée' ? '#1fa348' : st === 'en cours' ? '#5ad3e3' : 'var(--text-faint, #7e838c)'
               return (<tr key={`${p}/${q}/${c}`} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
                 <td style={{ padding:'6px 8px' }}>{p}</td><td>{q} × {c}</td>
-                <td style={{ fontVariantNumeric:'tabular-nums' }}>{n}/{reps}</td>
-                <td style={{ color }}>{st}</td></tr>)
+                <td style={{ fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap' }}>{n}/{reps}</td>
+                <td style={{ color, whiteSpace:'nowrap' }}>{st}</td></tr>)
             })))}
             </tbody></table>
-          <div className="mono muted" style={{ fontSize:10, marginTop:6 }}>ordre serveur : profils × files × CC × répétitions · événement #{live?.event_id ?? '—'}/{live?.total_events ?? '—'}</div>
+          </div>
+          <div className="mono muted" style={{ fontSize:10, marginTop:6, overflowWrap: 'anywhere' }}>La campagne teste chaque combinaison dans cet ordre : profils, puis files, puis contrôles de congestion, puis répétitions{live?.running && live?.event_id != null ? ` · événement #${live.event_id}/${live?.total_events ?? '—'}` : ''}</div>
         </div>
         )}
       </div>
@@ -310,13 +319,14 @@ export default function CampagneView() {
         </div>
         <div className="form-row" style={{gap:8, border:'1px solid #26262a', background:'rgba(244,180,0,0.06)', padding:'6px 8px', marginTop:6}} onMouseEnter={e=>setPeek({rect:e.currentTarget.getBoundingClientRect(), data: liveRing.small.slice(-20).map(([,v]:[number,number])=>v)})} onMouseLeave={()=>setPeek(null)}>
           <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>cost preview</span>
-          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color: live?.wasted_bytes != null ? '#f4b400' : '#767b84', fontVariantNumeric:'tabular-nums'}}>
+          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color: live?.wasted_bytes != null ? '#f4b400' : 'var(--text-faint, #7e838c)', fontVariantNumeric:'tabular-nums'}}>
             {(() => {
               if (!live || live.wasted_bytes == null || live.cost_ar_per_h == null) return '—'
-              return `${live.wasted_bytes} o gâchés · ${live.cost_ar_per_h.toFixed(2)} Ar/h`
+              const w = formatBytesFR(live.wasted_bytes)
+              return `${w.num} ${w.unit} gâchés · ${groupDigits(live.cost_ar_per_h, 2)} Ar/h`
             })()}
           </span>
-          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10, marginLeft:'auto'}}>wasted × cost_per_h</span>
+          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10, marginLeft:'auto'}}>octets gâchés × tarif unique</span>
         </div>
         <div className="form-row" style={{gap:8}}>
           <span title={live?.running ? 'campagne en cours — arrêter d\'abord' : undefined}><ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running} /></span>
@@ -326,9 +336,9 @@ export default function CampagneView() {
       </div>
 
       <div className="card">
-        <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span><Explain term="audit">Audit du lien</Explain></span>
-          <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 10 }}>protocole RQ1 · non intrusif</span>
+        <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}><Explain term="audit">Audit du lien</Explain></span>
+          <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 10, minWidth: 0, overflowWrap: 'anywhere' }}>audit standard · non intrusif</span>
           <button className="btn" onClick={() => setHistoryOpen(true)} style={{ padding: '2px 10px' }} title="audits gelés : rapprochement au référentiel, import par ligne">HISTORIQUE{historyN !== null ? ` (${historyN})` : ''}</button>
           <button className="btn" onClick={toggleAudit} style={{ padding: '2px 10px' }}>{auditOpen ? 'FERMER' : 'LANCER'}</button>
         </div>
@@ -380,8 +390,8 @@ export default function CampagneView() {
             <div className="mono" style={{ fontSize:16, color:'#5ad3e3', fontVariantNumeric:'tabular-nums' }}>{Number(auditLast.rtt_loaded_p50_ms ?? 0).toFixed(1)} ms</div>
           </div>
           <div style={{ padding:'6px 8px', border:'1px dashed var(--hairline)' }} title="mesurable après la campagne download (bulk inversé)">
-            <div className="mono" style={{ fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'#767b84' }}>descente chargée</div>
-            <div className="mono" style={{ fontSize:16, color:'#767b84' }}>— après campagne download</div>
+            <div className="mono" style={{ fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--text-faint, #7e838c)' }}>descente chargée</div>
+            <div className="mono" style={{ fontSize:16, color:'var(--text-faint, #7e838c)' }}>— après campagne download</div>
           </div>
         </div>
         )}
@@ -389,15 +399,15 @@ export default function CampagneView() {
         <div className="mono" style={{ fontSize:11, marginTop:8, padding:'6px 8px', border:'1px solid #26262a', background:'rgba(244,180,0,0.06)' }} data-testid="bloat-grade">
           note bufferbloat : <b style={{ color: auditLast.bloat_grade.startsWith('A') ? '#1fa348' : auditLast.bloat_grade === 'B' ? '#5ad3e3' : '#f4b400' }}>{auditLast.bloat_grade}</b>
           {' '}({Number(auditLast.bloat_delta_ms ?? 0).toFixed(1)} ms sous charge) — {auditLast.bloat_verdict}
-          <span style={{ color:'#767b84' }}> · bandes Waveform</span>
+          <span style={{ color:'var(--text-faint, #7e838c)' }}> · bandes Waveform</span>
           {auditLast.profile_match && <span title={auditLast.match_delta}> · ressemble à <b>{auditLast.profile_match}</b></span>}
         </div>
         )}
       </div>
 
       <div className="card">
-        <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>Profil personnalisé</span>
+        <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>Profil personnalisé</span>
           {!importForm && <>
             <button className="btn" onClick={async () => {
               try {

@@ -7,6 +7,11 @@ export const live = {
   rtt95: [] as Ring,
   small: [] as Ring,
   goodput: [] as Ring,
+  // sparse SSE series — own buffer per metric (stat sparklines never borrow)
+  deadline: [] as Ring,
+  wasted: [] as Ring,
+  cost: [] as Ring,
+  drops: [] as Ring,
   max: 1800, // 180 s, un événement à 10 Hz
   ts: 0,
   phase: '', // baseline|charge|recup — from SSE delta, drives CHARGE markArea (not estimated)
@@ -20,7 +25,13 @@ function push(r: Ring, ts: number, v: number | null) {
   if (r.length > live.max) r.shift()
 }
 
-export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: number; small_p95_ms?: number; bulk_goodput_mbps?: number; phase?: string }) {
+function pushSparse(r: Ring, ts: number, v: number | null | undefined) {
+  if (v == null || !Number.isFinite(v)) return
+  r.push([ts, v])
+  if (r.length > live.max) r.shift()
+}
+
+export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: number; small_p95_ms?: number; bulk_goodput_mbps?: number; phase?: string; deadline_ok_pct?: number; wasted_bytes?: number; cost_ar_per_h?: number; drops?: number }) {
   live.ts = ts
   live.seq++
   if (f.phase && f.phase !== live.phase) {
@@ -33,6 +44,11 @@ export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: num
   // les artefacts de compteur (reset de qdisc) n'entrent jamais dans l'anneau goodput
   const g = f.bulk_goodput_mbps
   push(live.goodput, ts, g != null && g >= 0 && g <= 2500 ? g : null)
+  // séries propres par métrique — les sparklines du bandeau ne partagent jamais
+  pushSparse(live.deadline, ts, f.deadline_ok_pct)
+  pushSparse(live.wasted, ts, f.wasted_bytes)
+  pushSparse(live.cost, ts, f.cost_ar_per_h)
+  if (f.drops != null && Number.isFinite(f.drops)) pushSparse(live.drops, ts, f.drops)
 }
 
 export function clearLive() {
@@ -40,6 +56,11 @@ export function clearLive() {
   live.rtt95.length = 0
   live.small.length = 0
   live.goodput.length = 0
+  live.deadline.length = 0
+  live.wasted.length = 0
+  live.cost.length = 0
+  live.drops.length = 0
+  live.phase = ''
   live.phaseSince = {}
 }
 

@@ -281,6 +281,11 @@ func httpOnlyUp(c *Config) bool {
 	if host == "" || host == "auto" {
 		return false
 	}
+	// NAT : même forward que la sonde HTTPS (sinon un pré-TLS concluait
+	// « démarrez le dashboard » au lieu de « deploy »).
+	if natH, _, isNAT := NATForwardTarget(c, host); isNAT {
+		host = natH
+	}
 	cl := &http.Client{Timeout: 3 * time.Second}
 	resp, err := cl.Get("http://" + host + ":" + port + "/api/health")
 	if err != nil {

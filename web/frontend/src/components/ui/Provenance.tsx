@@ -7,12 +7,13 @@ export interface ProvInfo {
   state?: ProvState;
   extra?: string;
 }
-function formatProvenance(p: ProvInfo): string {
+export function formatProvenance(p: ProvInfo): string {
   const parts = [`source : ${p.source}`];
   const raw = p.refresh ?? p.refreshSec;
   if (raw !== undefined) {
     const r = typeof raw === 'number' ? `${raw} s` : String(raw).trim();
-    const rNorm = r.endsWith('s') ? r : `${r} s`;
+    // mot gelé verbatim (`au gel`) — le ` s` ne se colle qu'aux nombres
+    const rNorm = /\d/.test(r) ? (r.endsWith('s') ? r : `${r} s`) : r;
     parts.push(`rafraîchi ${rNorm}`);
   } else {
     parts.push(`rafraîchi 10 s`);

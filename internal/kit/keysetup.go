@@ -25,14 +25,17 @@ func (r *Runner) KeySetup(c *Config, cfgPath string, rest []string) int {
 		return 2
 	}
 	host, user, port := c.SSHHost, c.SSHUser, c.SSHPort
+	hostFlag, portFlag := false, false
 	for i := 0; i+1 < len(rest); i += 2 {
 		switch rest[i] {
 		case "--host":
 			host = rest[i+1]
+			hostFlag = true
 		case "--user":
 			user = rest[i+1]
 		case "--port":
 			port = rest[i+1]
+			portFlag = true
 		}
 	}
 	if !isTerminal() {
@@ -43,6 +46,26 @@ func (r *Runner) KeySetup(c *Config, cfgPath string, rest []string) int {
 	if err != nil {
 		r.errf("[keysetup] %v", err)
 		return 2
+	}
+	// NAT VirtualBox : l'IP invitée 10.0.2.x est injoignable depuis l'hôte
+	// PAR CONSTRUCTION — sonder 10.0.2.15:22 concluait « fermé » alors que
+	// le forward local attendait la clé (deadlock : la clé ne se pose que
+	// via le forward, le forward ne servait qu'après la clé). Même
+	// fast-path que ensure : la cible par défaut devient le forward, posé
+	// ici s'il n'écoute pas encore. Flags --host/--port explicites
+	// respectés (l'opérateur sait), prompts modifiables ensuite.
+	if !hostFlag && !portFlag {
+		if natH, natP, ok := NATForwardTarget(c, c.SSHHost); ok {
+			if !portOpen(natH, natP) {
+				if err := ensureNATForward(c); err != nil {
+					r.out("[keysetup] forward NAT : %v — on tente la cible configurée", err)
+				} else {
+					r.out("[keysetup] NAT : %s:%s → 22 invité (port-forward posé)", natH, natP)
+				}
+			}
+			r.out("[keysetup] NAT VirtualBox : cible = forward %s:%s (invitée %s injoignable en direct)", natH, natP, c.SSHHost)
+			host, port = natH, natP
+		}
 	}
 	user = promptLine("utilisateur distant", user)
 	host = promptLine("hôte distant", host)
@@ -90,10 +113,15 @@ func (r *Runner) KeySetup(c *Config, cfgPath string, rest []string) int {
 		r.errf("[keysetup] la clé ne passe toujours pas après la pose — authorized_keys à vérifier côté cible")
 		return 5
 	}
-	if user != c.SSHUser {
-		_ = saveConfigValue(cfgPath, "ssh_user", user)
+	// Cible qui marche mémorisée (user + host + port) : sous NAT c'est le
+	// forward 127.0.0.1:2222, et l'auto-découverte ne doit plus jamais le
+	// perdre (garde loopback côté ensure). Sans ça, le prochain ensure
+	// re-sondait l'IP invitée brute et le deadlock revenait.
+	if err := SaveSSHTarget(cfgPath, user, host, port, ""); err != nil {
+		r.errf("[keysetup] clé OK mais persistance yaml ÉCHEC : %v — repointez à la main (host %s, port %s)", err, host, port)
+		return 3
 	}
-	r.out("[keysetup] ok — %s@%s accepte la clé", user, host)
+	r.out("[keysetup] ok — %s@%s:%s accepte la clé", user, host, port)
 	return 0
 }
 

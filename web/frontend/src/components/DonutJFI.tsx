@@ -1,12 +1,10 @@
-// Arc 0–360 (56×56, épaisseur 8) pour JFI 0–1.
+// Arc 0–360 (56×56, épaisseur 8) pour JFI 0–1. Pas de chiffre au centre :
+// la valeur vit déjà à côté (carte JFI) — l'anneau seul, jamais en double.
 export function DonutJFI({ value }: { value: number | null }) {
   if (value == null || !Number.isFinite(value)) {
     return (
       <svg width={56} height={56} viewBox="0 0 56 56" aria-label="JFI —">
         <circle cx={28} cy={28} r={22} fill="none" stroke="rgba(154,163,173,0.12)" strokeWidth={8} />
-        <text x={28} y={32} textAnchor="middle" fontFamily="JetBrains Mono" fontSize={10} fill="#767b84">
-          —
-        </text>
       </svg>
     )
   }
@@ -29,9 +27,6 @@ export function DonutJFI({ value }: { value: number | null }) {
         transform="rotate(-90 28 28)"
         style={{ transition: 'stroke-dasharray 0.4s ease' }}
       />
-      <text x={28} y={32} textAnchor="middle" fontFamily="JetBrains Mono" fontSize={10} fill="#f2f2f4">
-        {v.toFixed(2)}
-      </text>
     </svg>
   )
 }

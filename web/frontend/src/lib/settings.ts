@@ -70,5 +70,5 @@ export function dropsLevel(drops: number): Level {
 }
 
 export const LEVEL_COLOR: Record<Level, string> = {
-  ok: '#1fa348', warn: '#f4b400', crit: '#e22718',
+  ok: '#1fa348', warn: '#f4b400', crit: '#e84a3a',
 }

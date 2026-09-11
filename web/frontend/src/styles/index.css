@@ -78,19 +78,19 @@ main { grid-area: main; overflow-y: auto; position: relative; }
 .card { border: 1px solid var(--hairline); background: var(--surface-card); padding: var(--sp-4); container-type: inline-size; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
 .card:hover { border-color: var(--hairline-strong); box-shadow: 0 0 0 1px var(--live-dim), 0 4px 20px rgba(0,0,0,0.35); }
 @container (min-width: 600px) { .card { padding: 24px; } }
-.card-head { font: 700 11px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-3); }
+.card-head { font: 700 11px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-3); overflow-wrap: anywhere; line-height: 1.4; min-width: 0; }
 .form-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding: 6px 0; border-bottom: 1px solid var(--hairline-faint); }
 .form-row label { width: 110px; font: 500 12px var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); flex: 0 0 auto; }
 .check-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); min-width: 0; flex: 1; }
 .mono { font-family: var(--font-mono); font-size: 12px; }
 .muted { color: var(--text-muted); }
-.kv { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--hairline-faint); font: 400 12px var(--font-mono); color: var(--text-muted); }
-.kv b { color: var(--text-primary); }
+.kv { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--hairline-faint); font: 400 12px var(--font-mono); color: var(--text-muted); min-width: 0; }
+.kv b { color: var(--text-primary); min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .gates-detail { display: flex; flex-direction: column; gap: 2px; }
 .gate-row { display: flex; gap: var(--sp-3); padding: 3px 0; border-bottom: 1px solid var(--hairline-faint); font: 400 11px var(--font-mono); }
 .gate-row.ok .gate-state { color: var(--t-ok); }
-.gate-row.fail .gate-state { color: var(--t-danger); }
-.banner { padding: 6px 10px; border: 1px solid var(--hairline); background: var(--surface-elevated); font: 700 11px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.gate-row.fail .gate-state { color: var(--t-danger-text, #e84a3a); }
+.banner { padding: 6px 10px; border: 1px solid var(--hairline); background: var(--surface-elevated); font: 400 12px var(--font-mono); letter-spacing: 0.02em; text-transform: none; color: var(--text-muted); overflow-wrap: anywhere; min-width: 0; }
 .btn { padding: 7px 16px; border: 1px solid var(--hairline); font: 700 11px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-body); text-decoration: none; display: inline-block; }
 .btn:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
 .btn-primary { background: var(--text-primary); color: #000; border-color: var(--text-primary); }
@@ -116,10 +116,11 @@ main { grid-area: main; overflow-y: auto; position: relative; }
   .card { padding: 12px; }
 }
 
-/* footer 28 ticker */
-footer { grid-area: ft; display: flex; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-4); border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 var(--fs-micro) var(--font-mono); color: var(--text-faint); }
+/* footer ticker — wrap, min-height 28 (was fixed 28 clipped) */
+footer { grid-area: ft; display: flex; align-items: center; flex-wrap: wrap; gap: 8px var(--sp-4); padding: 4px var(--sp-4); border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 var(--fs-micro) var(--font-mono); color: var(--text-faint); min-height: 28px; }
 footer .fill { margin-left: auto; }
-.foot-ticker { height: 28px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 10px var(--font-mono); color: var(--text-faint); letter-spacing: 0.06em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.foot-ticker { min-height: 28px; height: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 4px 16px; border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 10px var(--font-mono); color: var(--text-faint); letter-spacing: 0.02em; text-transform: none; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.foot-ticker > span { min-width: 0; overflow-wrap: anywhere; }
 .foot-ticker .mono { font-variant-numeric: tabular-nums; }
 .rail-foot { margin-top: auto; padding: 8px 14px; border-top: 1px solid var(--hairline); font: 700 10px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
 .live-peek { display: flex; align-items: end; gap: 1px; height: 12px; margin: 4px 14px; opacity: 0.7; }
@@ -156,16 +157,24 @@ footer .fill { margin-left: auto; }
   .hd-sub { display: none; }
   /* mobile : le rail horizontal 48px EST la navigation — le chooser du header
      wrappait sur ~200px, débordait sa rangée 48px et recouvrait la nav (z-index 10).
-     La nav .rail prend le relais, redondance supprimée. */
-  .panel-chooser { display: none; }
+     La nav .rail prend le relais, redondance supprimée.
+     !important bat le display:flex inline de PanelChooser.tsx:64 (spécificité). */
+  .panel-chooser { display: none !important; }
   .hd-right { flex-wrap: wrap; gap: 6px; font-size: 9px; }
   main { overflow-x: hidden; padding-bottom: 64px; }
   .panel-stack { gap: 16px; }
   .view { padding: 12px; }
-  /* hero live mobile : garde 300px mais pleine largeur */
-  .view .card[style*="300px"] { height: 220px !important; }
-  /* metric grid mobile: 2 cols */
-  .panel-stack > div[style*="gridTemplateColumns"] { grid-template-columns: repeat(2, 1fr) !important; }
+  /* hero live mobile : garde 300px mais pleine largeur (viewport only, xAxis config = chartGrammar.ts:25-33) */
+  .view .card[style*="300px"] { height: 220px !important; min-width: 0; overflow: hidden; }
+  #wall .wall-span { min-width: 0; }
+  #chart-small { min-width: 0; }
+  /* metric grid mobile: 2 cols — DOM kebab grid-template-columns (React inline camelCase rend kebab) */
+  .panel-stack > div[style*="grid-template-columns"] { grid-template-columns: repeat(2, 1fr) !important; }
+  /* État kv 3-col → 1-col sur 390 (no desktop rework) */
+  #v-campagne .kv-grid-3 { grid-template-columns: 1fr !important; }
+  /* lb-row wrap 390 — le flex inline ne wrappait pas, minWidths débordaient */
+  .lb-row > div:first-child { flex-wrap: wrap !important; row-gap: 8px; }
+  .lb-row { overflow-wrap: anywhere; min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -185,14 +194,18 @@ footer .fill { margin-left: auto; }
 .data-table th { padding: 6px 8px; }
 .data-table td { padding: 6px 8px; text-align: right; font-variant-numeric: tabular-nums; }
 .data-table td:nth-child(-n + 3) { text-align: left; }
-/* survol NOC — liseré latéral + fond subtil, pas de box-shadow animé */
-.data-table tbody tr { position: relative; cursor: default; }
-.data-table tbody tr::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: transparent; transition: background 0.15s ease; }
-.data-table tbody tr:hover::before { background: var(--t-live); }
+/* survol NOC — liseré latéral + fond subtil, pas de box-shadow animé.
+   Le liseré vit sur td:first-child : un ::before porté par le tr (position
+   relative) créait une boîte fantôme dans la grille et désalignait
+   thead/tbody d'une colonne sous Chromium (matrice Campagne). */
+.data-table tbody tr { cursor: default; }
+.data-table tbody td:first-child { position: relative; }
+.data-table tbody td:first-child::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: transparent; transition: background 0.15s ease; }
+.data-table tbody tr:hover td:first-child::before { background: var(--t-live); }
 .data-table tbody tr:hover { background: rgba(90,211,227,0.04); }
 /* flash directionnel de valeur — vert si améliore, rouge si dégrade */
 @keyframes valUp { 0% { color: var(--t-ok); } 100% { color: inherit; } }
-@keyframes valDown { 0% { color: var(--t-danger); } 100% { color: inherit; } }
+@keyframes valDown { 0% { color: var(--t-danger-text, #e84a3a); } 100% { color: inherit; } }
 .val-flash-up { animation: valUp 0.4s ease-out; }
 .val-flash-down { animation: valDown 0.4s ease-out; }
 @media (prefers-reduced-motion: reduce) { .val-flash-up, .val-flash-down { animation: none; } }
@@ -203,3 +216,67 @@ footer .fill { margin-left: auto; }
 
 /* rangée leaderboard — #1 ne se distingue que par la longueur de barre */
 .lb-row:hover { background: rgba(255,255,255,0.02); }
+.lb-row { min-width: 0; overflow-wrap: anywhere; }
+
+/* cockpit collapse ≤900px — desktop 380+400 préservé, stack statique sur étroit */
+@media (max-width: 900px) {
+  #v-campagne > div { padding-right: 0 !important; flex-direction: column !important; height: auto !important; }
+  #v-campagne .cockpit { position: static !important; width: 100% !important; top: auto !important; bottom: auto !important; right: auto !important; border-left: none !important; border-top: 1px solid var(--hairline); overflow: visible !important; z-index: auto !important; }
+  #v-campagne .panel-stack { max-width: none; }
+}
+
+/* QuickActions — ne jamais occlure sur petit viewport (wrap + max-w) */
+div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wrap: wrap !important; }
+/* pastille 390 : tient dans les 64 px de garde du bas de main (34 + ~30) */
+@media (max-width: 700px) {
+  div[role="status"][aria-label^="Event"] { bottom: 34px !important; }
+}
+@media (max-height: 768px) {
+  div[role="status"][aria-label^="Event"] { bottom: 36px !important; font-size: 10px; }
+}
+
+/* Phase B — classement grammaire arène */
+.lb-scroll { overflow: visible; min-width: 0; }
+.lb-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.lb-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surface-soft, #0b0b0c);
+  border-bottom: 1px solid var(--hairline);
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #a8aeb7; text-align: right; padding: 8px 10px; white-space: nowrap;
+}
+.lb-table thead th.lb-rank, .lb-table td.lb-rank { text-align: right; width: 34px; color: #a8aeb7; }
+.lb-table thead th.lb-id, .lb-table td.lb-id { text-align: left; }
+.lb-table td.lb-id { min-width: 170px; }
+.lb-table td { padding: 10px; border-bottom: 1px solid var(--hairline-faint); vertical-align: top; min-width: 0; }
+.lb-table tr.lb-detail td { border-bottom: 1px solid var(--hairline); background: rgba(255,255,255,0.012); }
+.lb-sort {
+  background: transparent; border: none; padding: 0; cursor: pointer;
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+  white-space: nowrap;
+}
+.lb-sort:hover { color: #f2f2f4; }
+.lb-info { color: #5ad3e3; font-size: 10px; }
+/* rangées de chips — scroll horizontal, jamais 3 lignes empilées */
+.chip-row { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: thin; padding-bottom: 8px; }
+.chip-row > * { flex: 0 0 auto; }
+/* tableaux à ids longs — scroll horizontal + liseré de bord droit (affordance :
+   il reste du contenu, dont REJOUER, vers la droite sur 390px) */
+.tbl-scroll { scrollbar-width: thin; box-shadow: inset -12px 0 12px -12px rgba(90,211,227,0.22); }
+/* TradeSpace — graphe + rail enveloppe côte à côte, empilés à l'étroit */
+.ts-wrap { display: flex; gap: 16px; align-items: stretch; }
+.ts-rail { flex: 0 0 230px; width: 230px; min-width: 0; border-left: 1px solid var(--hairline-faint); padding-left: 14px; }
+@media (max-width: 720px) {
+  .ts-wrap { flex-direction: column; }
+  .ts-rail { flex: none; width: 100%; border-left: none; border-top: 1px solid var(--hairline-faint); padding-left: 0; padding-top: 10px; }
+}
+@media (max-width: 640px) {
+  /* classement : rang + identité + primaire survivent, secondaires en détail */
+  .lb-table .lb-sec { display: none; }
+  .lb-table td.lb-id { min-width: 0; }
+  .lb-scroll { overflow-x: auto; }
+  /* bandeau benchmark : le select prend sa rangée */
+  .bench-bar > select { flex: 1 1 100%; margin-left: 0 !important; }
+  /* journal : les longs messages passent à la ligne au lieu d'être coupés */
+  .ev-msg { white-space: normal !important; overflow: visible !important; }
+}

@@ -1,5 +1,5 @@
 import type { LiveFrame } from './types'
-import { pushFrame } from './live'
+import { pushFrame, live as liveRing } from './live'
 import { useUIStore } from '../store/ui'
 
 let es: EventSource | null = null
@@ -43,13 +43,15 @@ export function connectSSE() {
       // Les frames surveillance (surveil) et burst sont des mesures avec
       // running=false — elles doivent atteindre les anneaux, sinon le mur meurt.
       const has = (v: unknown) => v !== undefined && v !== null
-      const measured = has(data.rtt_p50_ms) || has(data.rtt_p95_ms) || has(data.small_p95_ms) || has(data.bulk_goodput_mbps) || has(data.drops)
+      const measured = has(data.rtt_p50_ms) || has(data.rtt_p95_ms) || has(data.small_p95_ms) || has(data.bulk_goodput_mbps) || has(data.drops) || has(data.deadline_ok_pct) || has(data.wasted_bytes) || has(data.cost_ar_per_h)
       if (data.ts && (data.running || data.phase === 'surveil' || data.phase === 'burst') && measured) pushFrame(data.ts, data as any)
       frameCount++
       __CGO_SSE.frameCount = frameCount
       if (typeof window !== 'undefined') (window as any).__CGO_SSE = __CGO_SSE
       if (structural || frameCount % 5 === 0) {
-        store.getState().setLive(data as LiveFrame)
+        // pont phaseSince — l'anneau porte les bornes de phase (lib/live.ts:13),
+        // le store ne les voyait jamais : le compte à rebours restait à 0/120 s
+        store.getState().setLive({ ...(data as LiveFrame), phaseSince: { ...liveRing.phaseSince } })
       }
       store.getState().setConnected(true)
       store.getState().setSseStatus('connecté')

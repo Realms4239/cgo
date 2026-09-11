@@ -16,6 +16,7 @@ import (
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/probe"
 	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/pkg/results"
 )
 
 // runServer démarre le tableau de bord + l'API avec le cœur de campagne.
@@ -23,6 +24,13 @@ import (
 // tlsOn: HTTPS avec le certificat local meteolink.dev (défaut) ; false =
 // HTTP brut (VM, systemd). httpAddr: redirection HTTP→HTTPS ("" = off).
 func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr string) error {
+	// runs gelés embarqués : premier lancement sans preuves → restauration
+	// best-effort (jamais fatale : un seed illisible n'empêche pas de servir).
+	if seeded, n, err := results.SeedRuns("."); err != nil {
+		log.Printf("runs gelés : seed impossible (%v) — démarrage sans restauration", err)
+	} else if seeded {
+		log.Printf("runs gelés intégrés : %d fichiers", n)
+	}
 	live := campagne.NewLive()
 
 	// deadline par défaut — même registre que GET /api/schema
