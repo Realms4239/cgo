@@ -18,7 +18,7 @@ func runKit(args []string) int {
 	deep := fs.Bool("deep", true, "scan complet des disques (défaut : tout le PC)")
 	shallow := fs.Bool("shallow", false, "scan restreint aux conventions (D:/VMs, C:/VMs, racines)")
 	public := fs.Bool("public", false, "tunnel cloudflared après deploy")
-	yes := fs.Bool("yes", false, "non-interactif (défauts acceptés)")
+	yes := fs.Bool("yes", false, "non-interactif (défauts acceptés ; OUI + mot de passe restent manuels)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: cgo kit <action> [--config FILE] [--shallow] [--yes]
 
@@ -67,6 +67,12 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 	action := fs.Arg(0)
 	rest := fs.Args()[1:]
 	_ = yes
+	// --yes : non-interactif (défauts acceptés). Propagé par env (pas de
+	// refonte des 30 signatures) : promptLine prend le défaut sans lire ;
+	// OUI + mot de passe RESTENT manuels (frontière sécurité, jamais auto).
+	if *yes {
+		os.Setenv("CGO_YES", "1")
+	}
 	// deep par défaut (tout le PC) ; --shallow restreint aux conventions.
 	effDeep := *deep && !*shallow
 

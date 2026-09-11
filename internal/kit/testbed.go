@@ -29,7 +29,12 @@ func (r *Runner) Testbed(c *Config, rest []string) int {
 		r.errf("[testbed] testbed.sh introuvable ici — ré-extrayez l'archive complète (dossier kit/)")
 		return 6
 	}
-	remote := c.ProjectDir + "/kit/testbed.sh"
+	pdir := c.resolveProjectDir()
+	if pdir == "" {
+		r.errf("[testbed] dossier distant inconnu — %s", LinearGuide())
+		return 3
+	}
+	remote := pdir + "/kit/testbed.sh"
 	if out, _, err := c.SCPOut(local, remote); err != nil {
 		r.errf("[testbed] scp ÉCHEC : %v — %s", err, strings.TrimSpace(out))
 		return 7

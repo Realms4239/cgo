@@ -33,6 +33,24 @@ func TestWriteFileAtomicRoundtrip(t *testing.T) {
 	}
 }
 
+func TestResolveProjectDirExplicit(t *testing.T) {
+	c := &Config{ProjectDir: "/srv/cgo", SSHUser: "u"}
+	if got := c.resolveProjectDir(); got != "/srv/cgo" {
+		t.Fatalf("explicite = %q", got)
+	}
+}
+
+func TestResolveProjectDirFallback(t *testing.T) {
+	// hôte injoignable (port fermé local) : pas de $HOME → repli documenté,
+	// jamais "" (qui ferait scp vers nulle part).
+	c := &Config{SSHUser: "u", SSHHost: "127.0.0.1", SSHPort: "9"}
+	if got := c.resolveProjectDir(); got != "/home/u/cgo" {
+		t.Fatalf("repli = %q", got)
+	}
+	if got := (&Config{}).resolveProjectDir(); got != "" {
+		t.Fatalf("vide = %q, want \"\"", got)
+	}
+}
 func TestSetYAMLKeyAtomic(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "cgo-vm.yaml")

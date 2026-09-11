@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"time"
 	"unsafe"
 
-	"golang.org/x/sys/windows"
 	"github.com/Realms4239/cgo/internal/kit"
 )
 
@@ -207,8 +207,13 @@ func (a *app) runKit(label string, fn func(r *kit.Runner) int) {
 	}()
 }
 
-// runKitConsole — action INTERACTIVE (mot de passe, admin) : nouvelle
-// console visible où l'utilisateur tape, le GUI attend la fermeture.
+// runKitConsole — action INTERACTIVE (mot de passe) : vraie console avec
+// CLAVIER, pas un flash. Un exe windowsgui n'a pas de console : spawné en
+// CREATE_NEW_CONSOLE direct, l'enfant hérite un stdin invalide/NUL —
+// isTerminal() échoue (ou EOF immédiat) et le processus meurt en <1 s sans
+// interaction (flash rapporté). `cmd /c start "titre" /wait` donne à
+// l'enfant une vraie console conhost (CONIN$ clavier) ; /wait bloque
+// jusqu'à fermeture et propage le code de sortie.
 func (a *app) runKitConsole(label string, args ...string) {
 	a.mu.Lock()
 	if a.busy != "" {
@@ -222,10 +227,10 @@ func (a *app) runKitConsole(label string, args ...string) {
 	a.setStatus("◌ " + label + " (console) …")
 	a.appendLog("▸ " + label + " — tapez dans la console noire, fermez-la au retour …")
 	go func() {
-		full := append([]string{"kit", "--config", a.cfgPath}, args...)
-		cmd := exec.Command(a.cgoExe, full...)
+		full := append([]string{"/c", "start", "Meteolink Kit — " + label, "/wait", a.cgoExe, "kit", "--config", a.cfgPath}, args...)
+		cmd := exec.Command("cmd.exe", full...)
 		cmd.Dir = filepath.Dir(a.cgoExe)
-		cmd.SysProcAttr = &windows.SysProcAttr{CreationFlags: windows.CREATE_NEW_CONSOLE}
+		cmd.Env = append(os.Environ(), "CGO_GUI_CONSOLE=1")
 		err := cmd.Run()
 		code := 0
 		if err != nil {
@@ -233,6 +238,16 @@ func (a *app) runKitConsole(label string, args ...string) {
 				code = ee.ExitCode()
 			} else {
 				code = 1
+			}
+		}
+		// Vérifie, ne crois pas (miroir Fyne) : si la console est morte
+		// avant la fin, « ✓ terminé » serait un mensonge.
+		if code == 0 && label == "poser-clé" {
+			if _, err := a.loadCfg().SSH("true"); err != nil {
+				a.appendLog("console fermée avant la fin ? clé non vérifiée — relancez « Poser la clé »")
+				code = 9
+			} else {
+				a.appendLog("clé vérifiée : acceptée par l'invité")
 			}
 		}
 		doneMu.Lock()
@@ -411,7 +426,14 @@ func (a *app) runKind(kind string, args []string) {
 			return r.Logs(c, 40)
 		})
 	case kind == "bg:verify":
-		a.runKit("verify", func(r *kit.Runner) int { return r.Verify(a.loadCfg()) })
+		a.runKit("vérifier", func(r *kit.Runner) int {
+			if code := r.Verify(a.loadCfg()); code != 0 {
+				return code
+			}
+			// Porte d'embarquement dans la foulée (DNS→TLS→health) : le
+			// manuel l'exige après chaque deploy, un seul bouton suffit.
+			return r.ShipCheck(a.loadCfg())
+		})
 	case kind == "bg:backup":
 		a.runKit("backup", func(r *kit.Runner) int { return r.Backup(a.loadCfg(), "backup") })
 	case kind == "bg:snapshot":
