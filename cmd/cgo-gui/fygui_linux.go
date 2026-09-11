@@ -145,6 +145,11 @@ func (f *fyApp) refreshStatus() {
 			banner = nx.Label + " (" + nx.Detail + ")"
 			nk, na = nx.Verb, nx.Args
 		}
+		// nk=="" réservé au vrai tout-vert (miroir Win32) : les paliers
+		// sans verbe auto deviennent "none" → message honnête, jamais vert.
+		if nx != nil && nk == "" {
+			nk = "none"
+		}
 		changed := f.lastNext != banner
 		if changed {
 			f.lastNext = banner

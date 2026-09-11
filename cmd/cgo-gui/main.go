@@ -112,3 +112,16 @@ func fatalBox(msg string) {
 	c, _ := windows.UTF16PtrFromString("Meteolink Kit")
 	pMsgBox.Call(uintptr(0), uintptr(unsafe.Pointer(t)), uintptr(unsafe.Pointer(c)), uintptr(0x10))
 }
+
+// askYes — confirmation Oui/Non, pressions manuelles seules (jamais dans la
+// chaîne Suite : un modal sans opérateur devant = deadlock). True = Oui.
+func askYes(title, msg string) bool {
+	t, _ := windows.UTF16PtrFromString(msg)
+	c, _ := windows.UTF16PtrFromString(title)
+	var owner uintptr
+	if theApp != nil {
+		owner = uintptr(theApp.hwnd)
+	}
+	ret, _, _ := pMsgBox.Call(owner, uintptr(unsafe.Pointer(t)), uintptr(unsafe.Pointer(c)), uintptr(0x04|0x20))
+	return int(ret) == 6 // IDYES
+}

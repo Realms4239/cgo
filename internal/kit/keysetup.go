@@ -42,6 +42,11 @@ func (r *Runner) KeySetup(c *Config, cfgPath string, rest []string) int {
 		r.errf("[keysetup] entrée non interactive — relancer dans un terminal")
 		return 2
 	}
+	// Config vierge : on continue (les invites portent le flux), mais on
+	// montre le chemin pour ne pas poser une clé vers nulle part.
+	if strings.TrimSpace(c.VMPath()) == "" {
+		r.out("[keysetup] config vierge — " + LinearGuide())
+	}
 	pub, err := resolvePubkey(c.SSHKey)
 	if err != nil {
 		r.errf("[keysetup] %v", err)

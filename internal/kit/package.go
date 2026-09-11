@@ -256,6 +256,18 @@ La chaîne ne boucle jamais : échec, répétition ou fin l'arrêtent avec
 un message. Tout autre bouton cliqué à la main interrompt la chaîne
 (vous avez pris la main, c'est normal).
 
+ORDRE LINÉAIRE (le chemin que Suite suit — et que tout message cite)
+--------------------------------------------------------------------
+  1. Verrouiller : Rescanner (+ auto si une seule VM), double-clic sinon.
+  2. Utilisateur Ubuntu + Sauver (ex. fanasina).
+  3. Poser la clé (mot de passe UNE fois, console noire).
+  4. Démarrer / Réessayer : boot + forwards + attente SSH.
+  5. Banc de mesure : bouton dédié (vérifie, ne casse rien).
+  6. DÉPLOYER (pousse le binaire vers la VM).
+  7. Ouvrir le dashboard (DNS + confiance HTTPS sur le passage).
+Cliquer « DÉPLOYER » (ou autre) trop tôt n'explose rien : l'action
+répond par ce chemin numéroté et s'arrête (aucun effet de bord).
+
 3 CHOSES À SAVOIR
 -----------------
 - « Utilisateur Ubuntu » + Sauver (ex. fanasina) : SANS lui, tout avorte.
@@ -273,6 +285,19 @@ COMMANDES (équivalent manuel exact)
   cgo.exe kit scan|vnet|ensure|keysetup|deploy|svc|dns|tls
   cgo.exe kit testbed up|check|down   banc de mesure invité
   cgo.exe kit guest|logs|backup|snapshot|revert|health|shipcheck|tui|next
+
+VOIE TERMINAL LINÉAIRE (sans la GUI, même ordre)
+------------------------------------------------
+  cgo.exe kit scan          # 1. trouve les VM ; une seule = verrou auto
+  # 2. utilisateur : ajoutez ssh_user: "fanasina" dans kit/cgo-vm.yaml
+  cgo.exe kit keysetup      # 3. mot de passe UNE fois (forward NAT auto)
+  cgo.exe kit ensure        # 4. boot + forwards + attente SSH (bavard)
+  cgo.exe kit testbed up    # 5. pose/vérifie le banc (refus net sinon)
+  cgo.exe kit deploy        # 6. pousse le binaire
+  cgo.exe kit svc start     # 7. lance le dashboard
+  cgo.exe kit next          # à tout moment : la checklist + la prochaine étape
+  Chaque commande refusée imprime l'étape manquante (exit 2) au lieu
+  de boucler : suivez l'ordre, ça passe du premier coup.
 
 SI ÇA COINCE (par symptôme)
 ---------------------------
@@ -405,6 +430,11 @@ fois : la chaîne avance SEULE jusqu'à « tout est vert » ou jusqu'au
 premier point manuel (mot de passe, choix VM, pilote). Le journal
 horodaté dit tout ; preuves dans cgo-gui-<date>.log.
 
+ORDRE LINÉAIRE : 1 verrouiller (scan, auto si unique) → 2 utilisateur →
+3 poser la clé → 4 Démarrer (ensure) → 5 banc de mesure → 6 DÉPLOYER →
+7 dashboard (DNS + TLS sur le passage). Toute action trop précoce
+répond par ce chemin et s'arrête sans rien toucher.
+
 3 CHOSES À SAVOIR
 -----------------
 - Utilisateur Ubuntu + Sauver : SANS lui, tout avorte.
@@ -419,6 +449,19 @@ COMMANDES (équivalent manuel exact)
   ./cgo kit guest|logs|backup|snapshot|revert|health|shipcheck|tui|next
   sudo ./cgo kit dns|tls   (hosts + magasin système)
   Port 22 fermé côté VM : sudo apt install -y openssh-server.
+
+VOIE TERMINAL LINÉAIRE (sans la GUI, même ordre)
+------------------------------------------------
+  ./cgo kit scan            # 1. trouve les VM ; une seule = verrou auto
+  # 2. utilisateur : ajoutez ssh_user: "fanasina" dans kit/cgo-vm.yaml
+  ./cgo kit keysetup        # 3. mot de passe UNE fois (forward NAT auto)
+  ./cgo kit ensure          # 4. boot + forwards + attente SSH (bavard)
+  ./cgo kit testbed up      # 5. pose/vérifie le banc (refus net sinon)
+  ./cgo kit deploy          # 6. pousse le binaire
+  ./cgo kit svc start       # 7. lance le dashboard
+  ./cgo kit next            # à tout moment : checklist + prochaine étape
+  Chaque commande refusée imprime l'étape manquante (exit 2) au lieu
+  de boucler : suivez l'ordre, ça passe du premier coup.
 
 SI ÇA COINCE (par symptôme)
 ---------------------------

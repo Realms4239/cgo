@@ -115,7 +115,8 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 			Detail: natH + ":" + natP + " muet (invitée " + host + " injoignable en direct — normal)",
 			Remedy: "cgo kit ensure", Verb: "bg:ensure"})
 	case host == "" || host == "auto":
-		push(NextStep{ID: "vnet", Label: "Réseau hôte", State: "attente", Detail: "cible auto"})
+		push(NextStep{ID: "vnet", Label: "Réseau hôte", State: "attente", Detail: "cible auto",
+			Remedy: "cgo kit ensure (découvre la cible)", Verb: "bg:ensure"})
 	case sub == "local":
 		push(NextStep{ID: "vnet", Label: "Réseau hôte", State: "ok", Detail: "forward local"})
 	case sub == "":

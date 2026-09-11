@@ -19,6 +19,11 @@ func (r *Runner) Testbed(c *Config, rest []string) int {
 		r.errf("[testbed] sous-commande inconnue : %s (up|check|down)", rest[0])
 		return 2
 	}
+	// Le banc vit dans l'invitée : sans verrou ni utilisateur, scp/ssh
+	// échoueraient en jargon — le chemin d'abord.
+	if !r.requireLockUser("[testbed]", c) {
+		return 2
+	}
 	local := findKitFile(r, "testbed.sh")
 	if local == "" {
 		r.errf("[testbed] testbed.sh introuvable ici — ré-extrayez l'archive complète (dossier kit/)")
