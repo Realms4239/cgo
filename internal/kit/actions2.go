@@ -190,6 +190,10 @@ func (r *Runner) Ps(c *Config) int {
 // Svc — start : lance (idempotent) + attend la santé 15 s ; stop : coupe et
 // vérifie ; restart : stop + start ; status (défaut) : processus + santé.
 func (r *Runner) Svc(c *Config, sub string) int {
+	// Sans cible, la sonde SSH part dans le vide : le chemin d'abord.
+	if !r.requireLockUser("[svc]", c) {
+		return 2
+	}
 	// Sonde d'abord : sans elle, le texte d'erreur SSH passait pour des
 	// pids (« arrêt incomplet » sur VM injoignable — vu en prod).
 	probe, probeErr := c.SSH("true")

@@ -282,9 +282,19 @@ func (a *app) refreshStatus() {
 		if nx == nil {
 			a.stNext, a.stNextKind, a.stNextArgs = "tout est vert — dashboard prêt", "", nil
 		} else if nx.Remedy != "" {
-			a.stNext, a.stNextKind, a.stNextArgs = nx.Label+" — "+nx.Remedy, nx.Verb, nx.Args
+			// Verbe vide (pilote manquant, update locale…) = "none" :
+			// nk=="" reste RÉSERVÉ au vrai tout-vert, sinon Suite ment.
+			verb := nx.Verb
+			if verb == "" {
+				verb = "none"
+			}
+			a.stNext, a.stNextKind, a.stNextArgs = nx.Label+" — "+nx.Remedy, verb, nx.Args
 		} else {
-			a.stNext, a.stNextKind, a.stNextArgs = nx.Label+" ("+nx.Detail+")", nx.Verb, nx.Args
+			verb := nx.Verb
+			if verb == "" {
+				verb = "none"
+			}
+			a.stNext, a.stNextKind, a.stNextArgs = nx.Label+" ("+nx.Detail+")", verb, nx.Args
 		}
 		a.stNextDone = true
 		var cc *int
@@ -309,6 +319,9 @@ func (a *app) refreshStatus() {
 func (a *app) onButton(id int) {
 	kind, args := buttonAction(id)
 	if kind == "" {
+		// JAMAIS muet : un id sans verbe (désync layout/map, clic fantôme)
+		// ressemblait à un bouton mort sans aucune trace (rapport 1.3.1).
+		a.appendLog("clic sans action (bouton " + itoa(id) + ") — signalez-le avec ce journal")
 		return
 	}
 	// Main humaine directe (pas Suite) : la chaîne s'efface, pas de reprise
@@ -317,6 +330,20 @@ func (a *app) onButton(id int) {
 		a.mu.Lock()
 		a.chain = false
 		a.mu.Unlock()
+		// Destructrices : confirmation MAIN HUMAINE (jamais dans la chaîne —
+		// un modal sans opérateur devant = deadlock).
+		switch kind {
+		case "bg:nic-toggle":
+			if !askYes("Carte réseau", "Basculer NAT ↔ pont sur une VM allumée peut l'éteindre. Continuer ?") {
+				a.appendLog("carte réseau : annulé — rien touché")
+				return
+			}
+		case "bg:vmoff":
+			if !askYes("Arrêter la VM", "Arrêter la VM ? (campagnes et dashboard en cours seront coupés)") {
+				a.appendLog("arrêt VM : annulé — rien touché")
+				return
+			}
+		}
 	}
 	a.runKind(kind, args)
 }

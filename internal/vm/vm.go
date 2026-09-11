@@ -293,12 +293,37 @@ func (v *virtualbox) resolveName(vbx string) string {
 		return name
 	}
 	out, _ := v.run("list", "vms")
-	for _, ln := range strings.Split(out, "\n") {
-		nm := quotedName(ln)
-		if nm == "" || nm == name {
+	return resolveFromList(want, name, out, v.cfgFile)
+}
+
+// resolveFromList — pur, testé : balaye `list vms` à la recherche du .vbox.
+// 1) entrée RENOMMÉE (nom != fichier) dont le CfgFile matche le yaml ;
+// 2) repli NOM : l'entrée porte exactement le nom du fichier mais son
+//    CfgFile a dérivé (dossier déplacé, casse, espace — VBox réécrit les
+//    chemins au déménagement). Sans ce repli, on tentait `registervm` sur
+//    une VM déjà enregistrée → exit 1 « enregistrement impossible » alors
+//    que list/showvminfo/startvm marchaient (rapport 1.3.1 : TOUTE la
+//    chaîne NAT tombait pour une VM allumée). Le nom suffit à controlvm,
+//    modifyvm, startvm et snapshot : travailler avec, pas contre.
+// NOTE : si le yaml dérive vraiment (fichier déplacé), les opérations
+// FICHIER directes (.vbox.bak) suivent le yaml — Rescanner ré-aligne.
+func resolveFromList(want, name, listOut string, cfgOf func(string) string) string {
+	var names []string
+	for _, ln := range strings.Split(listOut, "\n") {
+		if nm := quotedName(ln); nm != "" {
+			names = append(names, nm)
+		}
+	}
+	for _, nm := range names {
+		if nm == name {
 			continue
 		}
-		if v.cfgFile(nm) == want {
+		if cfgOf(nm) == want {
+			return nm
+		}
+	}
+	for _, nm := range names {
+		if nm == name {
 			return nm
 		}
 	}
@@ -348,6 +373,12 @@ func (v *virtualbox) EnsureRegistered(vbx string) (string, error) {
 		return n, nil
 	}
 	if _, err := v.run("registervm", vbx); err != nil {
+		// registervm échoue aussi quand la VM est DÉJÀ là (course, entrée
+		// fantôme) : revérifier avant d'accuser, sinon le remède
+		// « Machine > Ajouter » est doublement faux (rapport 1.3.1).
+		if n := v.resolveName(vbx); n != "" {
+			return n, nil
+		}
 		return "", fmt.Errorf("enregistrement impossible (%s) : %v — ajoutez-la dans VirtualBox (Machine > Ajouter)", vbx, err)
 	}
 	if n := v.resolveName(vbx); n != "" {

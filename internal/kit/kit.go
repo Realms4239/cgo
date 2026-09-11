@@ -49,7 +49,7 @@ type Config struct {
 // KitVersion — version du kit (SOURCE UNIQUE : cmd/cgo `version` vaut ça
 // par défaut, les vues GUI comparent le dashboard distant à elle pour
 // refuser un binaire périmé). À bumper à chaque release, avec le tag.
-const KitVersion = "1.3.2"
+const KitVersion = "1.3.3"
 
 // VMPath — LE chemin de la VM verrouillée, quel que soit l'hyperviseur
 // (.vmx ou .vbox). Tout le code lit ÇA, jamais les champs bruts : lire
@@ -279,7 +279,30 @@ func AutoLockSingle(c *Config, cfgPath string) (string, bool) {
 	return "verrouillée : " + filepath.Base(path) + " — Suite pour continuer", true
 }
 
-// saveConfigValue — écrit clé: "valeur" dans le yaml (ajoute si absent).
+// LinearGuide — le chemin numéroté, imprimé devant tout refus de
+// prérequis : sur config vierge, chaque action tardive (deploy, svc…)
+// pointe ici au lieu d'échouer dans son jargon. Même texte que le LISEZ-MOI.
+func LinearGuide() string {
+	return "chemin linéaire : 1 verrouiller (scan) → 2 utilisateur (Sauver) → " +
+		"3 poser la clé → 4 Démarrer/Réessayer (ensure) → 5 banc de mesure → " +
+		"6 DÉPLOYER → 7 dashboard. « Suite » avance seul ; ce message dit l'étape manquante."
+}
+
+// requireLockUser — garde partagée des actions tardives : sans VM verrouillée
+// ni utilisateur, elles partiraient en boucles/timeouts incompréhensibles
+// (deploy compilait PUIS bouclait 300 s sur config vierge). Retourne false
+// + message si le chemin linéaire doit d'abord avancer.
+func (r *Runner) requireLockUser(tag string, c *Config) bool {
+	if strings.TrimSpace(c.VMPath()) == "" {
+		r.errf("%s : aucune VM verrouillée — %s", tag, LinearGuide())
+		return false
+	}
+	if strings.TrimSpace(c.SSHUser) == "" {
+		r.errf("%s : utilisateur vide — %s", tag, LinearGuide())
+		return false
+	}
+	return true
+}
 // Factorisé de SaveVMX : keysetup y mémorise ssh_user après une pose réussie.
 func saveConfigValue(path, key, val string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -376,6 +399,21 @@ func userHome() string {
 }
 
 // runSilent exécute et rend CombinedOutput.
+// lastLines — les n dernières lignes non vides (queues d'erreur lisibles).
+func lastLines(s string, n int) []string {
+	lines := strings.Split(strings.ReplaceAll(strings.TrimSpace(s), "\r\n", "\n"), "\n")
+	var out []string
+	for _, ln := range lines {
+		if strings.TrimSpace(ln) != "" {
+			out = append(out, ln)
+		}
+	}
+	if len(out) > n {
+		out = out[len(out)-n:]
+	}
+	return out
+}
+
 func runSilent(dir string, env []string, name string, args ...string) (string, error) {
 	cmd := bgCmd(name, args...)
 	cmd.Dir = dir
@@ -925,6 +963,12 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 	if !r.ensureSSHClient() {
 		return 2
 	}
+	// Valider AVANT tout effet de bord : pickVM+SaveVMX ci-dessous ÉCRIVENT
+	// dans le yaml — un refus ne doit jamais laisser un verrou à moitié posé
+	// (config vierge mutée par une action refusée, vu en preuve).
+	if !r.requireLockUser("[ensure]", c) {
+		return 2
+	}
 	if c.SSHUp() {
 		r.out("[ensure] SSH déjà actif vers %s", c.SSHHost)
 		return 0
@@ -1281,8 +1325,13 @@ func (r *Runner) Build() int {
 	}
 	for _, s := range steps {
 		r.out("[build] %s...", s.name)
-		if _, err := runSilent(s.dir, s.env, s.cmd, s.args...); err != nil {
-			r.errf("[build] %s ÉCHEC", s.name)
+		if out, err := runSilent(s.dir, s.env, s.cmd, s.args...); err != nil {
+			// L'échec seul (« vite build ÉCHEC ») est indébuggable : la queue
+			// de sortie dit tout (erreur tsc, OOM, lock). Jamais muette.
+			r.errf("[build] %s ÉCHEC : %v", s.name, err)
+			for _, ln := range lastLines(out, 15) {
+				r.errf("[build] │ %s", ln)
+			}
 			return 2
 		}
 	}
@@ -1306,6 +1355,11 @@ func (r *Runner) crossCompile() (string, error) {
 // sur la VM Ubuntu = brique silencieuse).
 func (r *Runner) Deploy(c *Config, cfgPath string, deep bool) int {
 	if !r.ensureSSHClient() {
+		return 2
+	}
+	// Avant de compiler (minutes) : sur config vierge, Build+Ensure
+	// boucleraient dans le vide — le chemin d'abord.
+	if !r.requireLockUser("[deploy]", c) {
 		return 2
 	}
 	if _, err := os.Stat(filepath.Join(r.Root, "cmd", "cgo")); err != nil {

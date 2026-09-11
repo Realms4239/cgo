@@ -17,6 +17,9 @@ func (r *Runner) Guest(c *Config, cfgPath string, check bool) int {
 	if !r.ensureSSHClient() {
 		return 2
 	}
+	if !r.requireLockUser("[guest]", c) {
+		return 2
+	}
 	if strings.TrimSpace(c.SSHHost) == "" || c.SSHHost == "auto" {
 		if c.VMPath() != "" {
 			if h, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath()); err == nil {
