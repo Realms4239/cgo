@@ -72,17 +72,7 @@ func (r *Runner) keySetupRun(c *Config, cfgPath string, rest []string) int {
 	// ici s'il n'écoute pas encore. Flags --host/--port explicites
 	// respectés (l'opérateur sait), prompts modifiables ensuite.
 	if !hostFlag && !portFlag {
-		if natH, natP, ok := NATForwardTarget(c, c.SSHHost); ok {
-			if !portOpen(natH, natP) {
-				if err := ensureNATForward(c); err != nil {
-					r.out("[keysetup] forward NAT : %v — on tente la cible configurée", err)
-				} else {
-					r.out("[keysetup] NAT : %s:%s → 22 invité (port-forward posé)", natH, natP)
-				}
-			}
-			r.out("[keysetup] NAT VirtualBox : cible = forward %s:%s (invitée %s injoignable en direct)", natH, natP, c.SSHHost)
-			host, port = natH, natP
-		}
+		host, port = r.keysetupNAT(c, c.SSHHost, c.SSHPort)
 	}
 	user = promptLine("utilisateur distant", user)
 	host = promptLine("hôte distant", host)
@@ -90,6 +80,13 @@ func (r *Runner) keySetupRun(c *Config, cfgPath string, rest []string) int {
 	if err := validateKeySetupTarget(user, host, port); err != nil {
 		r.errf("[keysetup] invalide : %v", err)
 		return 2
+	}
+	// Config vierge : le bloc pré-prompts n'avait aucune cible à forwarder,
+	// et l'opérateur a pu taper l'IP invitée 10.0.2.x — même fast-path sur
+	// la cible TAPÉE, sinon le deadlock revient par la porte des invites
+	// (rapport 1.3.4 : ssh.user tapé avant tout forward).
+	if !hostFlag && !portFlag {
+		host, port = r.keysetupNAT(c, host, port)
 	}
 	// idempotent : la clé passe déjà, rien à poser.
 	probe := *c
@@ -140,6 +137,27 @@ func (r *Runner) keySetupRun(c *Config, cfgPath string, rest []string) int {
 	}
 	r.out("[keysetup] ok — %s@%s:%s accepte la clé", user, host, port)
 	return 0
+}
+
+// keysetupNAT — fast-path NAT partagé pré/post-prompts : si host relève du
+// cas NAT (espace invité 10.0.2.x, ou NIC nat lue via le pilote), pose le
+// forward 127.0.0.1:natPort → 22 s'il n'écoute pas et bascule dessus.
+// Déjà le forward : inchangé. Pose impossible : on garde la cible tapée en
+// l'expliquant (pointer un forward mort serait pire).
+func (r *Runner) keysetupNAT(c *Config, host, port string) (string, string) {
+	natH, natP, ok := NATForwardTarget(c, host)
+	if !ok || (host == natH && port == natP) {
+		return host, port
+	}
+	if !portOpen(natH, natP) {
+		if err := ensureNATForward(c); err != nil {
+			r.out("[keysetup] forward NAT : %v — on tente la cible %s:%s", err, host, port)
+			return host, port
+		}
+		r.out("[keysetup] NAT : %s:%s → 22 invité (port-forward posé)", natH, natP)
+	}
+	r.out("[keysetup] NAT VirtualBox : cible = forward %s:%s (invitée %s injoignable en direct)", natH, natP, host)
+	return natH, natP
 }
 
 // validateKeySetupTarget — garde-fous purs (testés) : pas de cible vide,

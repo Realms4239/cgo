@@ -198,6 +198,13 @@ func (a *app) runKit(label string, fn func(r *kit.Runner) int) {
 	a.setBusy(label)
 	a.setStatus("◌ " + label + " …")
 	a.appendLog("▸ " + label + " …")
+	// Bandeau marqué PÉRIMÉ dès le départ : l'action mute le monde (forward
+	// posé, VM bootée) et la « prochaine étape » affichée date d'avant
+	// (rapport 1.3.4 : bandeau rassis après ensure). Recalculé à la fin.
+	a.mu.Lock()
+	a.stNext, a.stNextDone = "recalcul après « "+label+" » …", false
+	a.mu.Unlock()
+	postMsg(a.hwnd, wmAppStatus)
 	go func() {
 		code := fn(a.kitRunner())
 		doneMu.Lock()
@@ -226,6 +233,11 @@ func (a *app) runKitConsole(label string, args ...string) {
 	a.setBusy(label)
 	a.setStatus("◌ " + label + " (console) …")
 	a.appendLog("▸ " + label + " — tapez dans la console noire, fermez-la au retour …")
+	// Même marquage périmé que runKit (bandeau d'avant-console rassis).
+	a.mu.Lock()
+	a.stNext, a.stNextDone = "recalcul après « "+label+" » …", false
+	a.mu.Unlock()
+	postMsg(a.hwnd, wmAppStatus)
 	go func() {
 		full := append([]string{"/c", "start", "Meteolink Kit — " + label, "/wait", a.cgoExe, "kit", "--config", a.cfgPath}, args...)
 		cmd := exec.Command("cmd.exe", full...)

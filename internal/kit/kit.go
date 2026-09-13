@@ -49,7 +49,7 @@ type Config struct {
 // KitVersion — version du kit (SOURCE UNIQUE : cmd/cgo `version` vaut ça
 // par défaut, les vues GUI comparent le dashboard distant à elle pour
 // refuser un binaire périmé). À bumper à chaque release, avec le tag.
-const KitVersion = "1.3.4"
+const KitVersion = "1.3.5"
 
 // VMPath — LE chemin de la VM verrouillée, quel que soit l'hyperviseur
 // (.vmx ou .vbox). Tout le code lit ÇA, jamais les champs bruts : lire
@@ -340,7 +340,11 @@ func SaveSSHTarget(path, user, host, port, key string) error {
 }
 
 // SaveVMX — persiste vm_name/vmx_path/hypervisor dans le yaml (auto-rempli par scan).
+// Normalise le chemin (Clean) AVANT d'écrire : un scan qui ré-échappe les
+// backslashes réécrirait vbox_path à chaque passage, et le yaml dérivé
+// aveuglait ensuite les lectures d'état par chemin (rapport 1.3.4).
 func SaveVMX(path, vmx, hypervisor string) error {
+	vmx = filepath.Clean(vmx)
 	name := strings.TrimSuffix(filepath.Base(vmx), filepath.Ext(vmx))
 	var first error
 	set := func(key, val string) {
@@ -442,6 +446,7 @@ func (c *Config) sshCmd() []string {
 	}
 	return append([]string{"ssh",
 		"-o", "ConnectTimeout=4", "-o", "BatchMode=yes",
+		"-o", "ServerAliveInterval=10", "-o", "ServerAliveCountMax=6",
 		"-o", "StrictHostKeyChecking=accept-new",
 		"-p", c.SSHPort, "-i", key},
 		append(mux, c.SSHUser+"@"+c.SSHHost)...)
@@ -469,7 +474,16 @@ func (c *Config) SSH(cmdLine string) (string, error) {
 		return "ssh_user vide", errNoSSHUser
 	}
 	args := append(c.sshCmd(), cmdLine)
-	out, err := bgCmd(args[0], args[1:]...).CombinedOutput()
+	// stdin NUL + borne 10 min : un distant bloqué sur l'entrée, ou un
+	// relais réseau qui fige la session, ne doit ni pendre ni laisser
+	// d'orphelin muet (rapport 1.3.4 B2 : ssh/scp figés ≥4,5 min en session
+	// SSH non-interactive attachée). Le keepalive (sshCmd) détecte la
+	// coupure ; le ctx garantit le retour.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	cmd := bgCmdCtx(ctx, args[0], args[1:]...)
+	cmd.Stdin = strings.NewReader("")
+	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
 
@@ -672,12 +686,20 @@ func (c *Config) SCPOut(local, remote string) (string, string, error) {
 		ctrl = muxSocket(c.SSHHost, c.SSHPort)
 	}
 	args := []string{"scp", "-o", "ConnectTimeout=4", "-o", "BatchMode=yes",
+		"-o", "ServerAliveInterval=10", "-o", "ServerAliveCountMax=6",
 		"-P", c.SSHPort, "-i", key}
 	if ctrl != "" {
 		args = append(args, "-o", "ControlMaster=auto", "-o", "ControlPath="+ctrl, "-o", "ControlPersist=30")
 	}
 	args = append(args, local, c.SSHUser+"@"+c.SSHHost+":"+shq(remote))
-	out, err := bgCmd(args[0], args[1:]...).CombinedOutput()
+	// Même garde que SSH : stdin NUL + borne 10 min (15 Mo poussés sur un
+	// relais lent sans un octet de log = le « stall » du rapport 1.3.4 B2).
+	// Le progrès reste aux appelants (un r.out avant chaque gros transfert).
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	cmd := bgCmdCtx(ctx, args[0], args[1:]...)
+	cmd.Stdin = strings.NewReader("")
+	out, err := cmd.CombinedOutput()
 	return string(out), key, err
 }
 
@@ -863,10 +885,8 @@ func (r *Runner) Doctor(c *Config) int {
 		if p, err := selectDriver(vm.Detect(), c.Hypervisor, c.VMPath()); err == nil {
 			if _, err := os.Stat(c.VMPath()); err == nil {
 				live := "éteinte"
-				for _, run := range p.Running() {
-					if strings.EqualFold(filepath.Clean(run), filepath.Clean(c.VMPath())) {
-						live = "allumée"
-					}
+				if vm.IsRunning(p, c.VMPath()) {
+					live = "allumée"
 				}
 				if ip := p.GuestIP(c.VMPath()); ip != "" {
 					r.out("  vm         %s (%s, IP %s)", c.VMPath(), live, ip)
@@ -1012,13 +1032,9 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 
 	// VM déjà allumée (démarrée à la main) : ne pas la redémarrer — startvm
 	// échoue sur session verrouillée et vmrun grogne sur VM active.
-	alreadyUp := false
-	for _, r := range hyp.Running() {
-		if vm.SameVM(r, vmx) {
-			alreadyUp = true
-		}
-	}
-	if alreadyUp {
+	// Lecture via la racine commune (chemin OU nom enregistré : un yaml
+	// dérivé ne doit plus lire « éteinte » une VM allumée — rapport 1.3.4 B1).
+	if vm.IsRunning(hyp, vmx) {
 		r.out("[ensure] VM déjà allumée — pas de (re)démarrage, vérification SSH directe")
 	} else if err := hyp.Start(vmx); err != nil {
 		r.errf("[ensure] démarrage VM échoué : %v", err)
@@ -1468,6 +1484,7 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 		r.errf("[deploy] sortie scp : %s", strings.TrimSpace(out))
 		return 7
 	}
+	r.out("[deploy] binaire poussé — installateur…")
 	if out, key, err := c.SCPOut(filepath.Join(r.Root, "kit", "vm-install.sh"), pdir+"/kit/vm-install.sh"); err != nil {
 		r.errf("[deploy] scp installateur ÉCHEC : %v — clé=%s port=%s cible=%s@%s", err, key, c.SSHPort, c.SSHUser, c.SSHHost)
 		r.errf("[deploy] sortie scp : %s", strings.TrimSpace(out))
@@ -1593,15 +1610,13 @@ func (r *Runner) Align(c *Config, deep bool) int {
 		return 4
 	}
 	// arrêt si en cours — la modif .vmx se fait à froid
-	for _, v := range hyp.Running() {
-		if strings.EqualFold(filepath.Clean(v), filepath.Clean(vmx)) {
-			r.out("[align] arrêt soft de la VM...")
-			if out, err := runSilent(".", nil, hyp.Exe(), "stop", vmx, "soft"); err != nil {
-				r.errf("[align] arrêt refusé : %s", strings.TrimSpace(out))
-				return 4
-			}
-			time.Sleep(3 * time.Second)
+	if vm.IsRunning(hyp, vmx) {
+		r.out("[align] arrêt soft de la VM...")
+		if out, err := runSilent(".", nil, hyp.Exe(), "stop", vmx, "soft"); err != nil {
+			r.errf("[align] arrêt refusé : %s", strings.TrimSpace(out))
+			return 4
 		}
+		time.Sleep(3 * time.Second)
 	}
 	if err := os.Rename(vmx, vmx+".bak"); err != nil {
 		r.errf("[align] rename %s : %v (VM verrouillée ?)", vmx, err)

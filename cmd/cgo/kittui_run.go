@@ -421,12 +421,6 @@ func (m *modelKT) refreshVMs(deep bool) {
 	go func() {
 		paths := vm.ScanVMs(deep)
 		hyps := vm.Detect()
-		running := map[string]bool{}
-		for _, h := range hyps {
-			for _, r := range h.Running() {
-				running[r] = true
-			}
-		}
 		byName := map[string]vm.Hypervisor{}
 		for _, h := range hyps {
 			byName[h.Name()] = h
@@ -440,11 +434,23 @@ func (m *modelKT) refreshVMs(deep bool) {
 			} else if strings.HasSuffix(lower, ".vbox") {
 				hyp = "virtualbox"
 			}
-			live := running[p]
+			// État vivant via la racine commune (nom enregistré inclus,
+			// jamais de sous-chaîne : « ubuntu » ≅ « ubuntu-old »
+			// sur-matchait — rapport 1.3.4 B1).
+			live := false
+			if h, ok := byName[hyp]; ok {
+				live = vm.IsRunning(h, p)
+			}
 			if !live {
-				for rp := range running {
-					if strings.Contains(strings.ToLower(rp), strings.ToLower(strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)))) {
-						live = true
+				for _, h := range hyps {
+					for _, rp := range h.Running() {
+						if vm.SameVM(rp, p) {
+							live = true
+							break
+						}
+					}
+					if live {
+						break
 					}
 				}
 			}
@@ -508,10 +514,11 @@ func (m *modelKT) refreshVMLive() {
 				continue
 			}
 			seen = true
-			for _, r := range h.Running() {
-				if r == path || strings.Contains(strings.ToLower(r), strings.ToLower(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)))) {
-					live = true
-				}
+			// Racine commune (nom enregistré inclus) : la comparaison
+			// exacte ratait les yaml dérivés, la sous-chaîne
+			// sur-matchait — les deux mentaient (rapport 1.3.4 B1).
+			if vm.IsRunning(h, path) {
+				live = true
 			}
 		}
 		if seen {

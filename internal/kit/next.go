@@ -393,13 +393,11 @@ func (r *Runner) NextVer(c *Config, wantVer string) int {
 
 // --- sondes pures-Go (mêmes budgets que partout : courts) ---
 
+// vmIsRunning — racine commune (chemin OU nom enregistré) : un yaml dérivé
+// ne lit plus « éteinte » une VM allumée (rapport 1.3.4 B1 : nic/next/ensure
+// aveuglés par la seule comparaison de chemins).
 func vmIsRunning(hyp vm.Hypervisor, vmx string) bool {
-	for _, r := range hyp.Running() {
-		if vm.SameVM(r, vmx) {
-			return true
-		}
-	}
-	return false
+	return vm.IsRunning(hyp, vmx)
 }
 
 func sshPort(c *Config) string {

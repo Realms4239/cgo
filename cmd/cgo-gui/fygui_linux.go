@@ -210,6 +210,12 @@ func (f *fyApp) runBg(label string, fn func(r *kit.Runner) int) {
 	f.mu.Unlock()
 	f.setStatus("◌ " + label + " …")
 	f.log("▸ " + label + " …")
+	// Bandeau périmé dès le départ (miroir Win32) : recalculé à la fin.
+	f.mu.Lock()
+	f.lastNext = "recalcul après « " + label + " » …"
+	f.nextDone = false
+	f.mu.Unlock()
+	f.nextLbl.SetText("→ Prochaine : recalcul après « " + label + " » …")
 	go func() {
 		code := fn(f.kitRunner())
 		f.mu.Lock()
@@ -248,6 +254,12 @@ func (f *fyApp) runTerm(label string, args ...string) {
 	f.mu.Unlock()
 	f.setStatus("◌ " + label + " (terminal) …")
 	f.log("▸ " + label + " — tapez dans le terminal, fermez-le au retour …")
+	// Même marquage périmé que runBg.
+	f.mu.Lock()
+	f.lastNext = "recalcul après « " + label + " » …"
+	f.nextDone = false
+	f.mu.Unlock()
+	f.nextLbl.SetText("→ Prochaine : recalcul après « " + label + " » …")
 	full := append([]string{"kit", "--config", f.cfgPth}, args...)
 	go func() {
 		code := termRun(f.cgoExe, full)
@@ -318,9 +330,18 @@ func (f *fyApp) lockSelected() {
 	f.mu.Lock()
 	idx, rows := f.sel, f.rows
 	f.mu.Unlock()
-	if idx < 0 || idx >= len(rows) {
-		f.log("sélectionnez d'abord une VM dans la liste")
+	if len(rows) == 0 {
+		f.log("liste vide — Rescanner d'abord, puis sélectionnez la VM")
 		return
+	}
+	if idx < 0 || idx >= len(rows) {
+		// Miroir Win32 : à VM unique, pas d'ambiguïté — la prendre.
+		if len(rows) == 1 {
+			idx = 0
+		} else {
+			f.log("sélectionnez d'abord une VM dans la liste")
+			return
+		}
 	}
 	v := rows[idx]
 	hyp := v.hyp
