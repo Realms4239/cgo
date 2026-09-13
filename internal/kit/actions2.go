@@ -30,13 +30,8 @@ func (r *Runner) Snapshot(c *Config, name string, deep bool) int {
 		return 3
 	}
 	// une VM allumée doit être arrêtée proprement pour un snapshot stable
-	live := false
-	for _, run := range hyp.Running() {
-		if samePath(run, vmx) {
-			live = true
-		}
-	}
-	if live {
+	// (racine commune : nom enregistré inclus — rapport 1.3.4 B1).
+	if live := vm.IsRunning(hyp, vmx); live {
 		r.out("[snapshot] arrêt propre de la VM (le snapshot se prend à froid)…")
 		if err := hyp.Stop(vmx); err != nil {
 			r.errf("[snapshot] arrêt échoué : %v", err)
@@ -512,10 +507,6 @@ func expandKey(k string) string {
 func runCmd(exe string, args ...string) (string, error) {
 	out, err := bgCmd(exe, args...).CombinedOutput()
 	return string(out), err
-}
-
-func samePath(a, b string) bool {
-	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 }
 
 // unused guard — vm importé pour NatForwarder dans Ensure.

@@ -35,11 +35,13 @@ func (r *Runner) Testbed(c *Config, rest []string) int {
 		return 3
 	}
 	remote := pdir + "/kit/testbed.sh"
+	r.out("[testbed] envoi testbed.sh…")
 	if out, _, err := c.SCPOut(local, remote); err != nil {
 		r.errf("[testbed] scp ÉCHEC : %v — %s", err, strings.TrimSpace(out))
 		return 7
 	}
 	_, _ = c.SSH("chmod +x " + shq(remote))
+	r.out("[testbed] exécution %s sur l'invitée…", sub)
 	out, err := c.SSH("bash " + shq(remote) + " " + sub)
 	if err != nil {
 		r.errf("[testbed] %s ÉCHEC sur l'invité", sub)

@@ -194,10 +194,8 @@ func applyVmxNetMode(content, mode string) string {
 // SetNetMode — nat|bridged|hostonly dans le .vmx (VM éteinte exigée :
 // VMware ignore/réécrit la config d'une VM allumée).
 func (v *vmware) SetNetMode(vmx, mode string) error {
-	for _, r := range v.Running() {
-		if SameVM(r, vmx) {
-			return fmt.Errorf("VM allumée — éteignez-la d'abord (la config live serait écrasée)")
-		}
+	if IsRunning(v, vmx) {
+		return fmt.Errorf("VM allumée — éteignez-la d'abord (la config live serait écrasée)")
 	}
 	data, err := os.ReadFile(vmx)
 	if err != nil {
@@ -274,13 +272,75 @@ func (v *virtualbox) Running() []string {
 	return v.runningPaths()
 }
 
+// runningNames — noms enregistrés des VMs allumées (`list runningvms` rend
+// `"Nom" {uuid}`) : ne dépend d'AUCUN .vbox — quand le yaml a dérivé ou que
+// showvminfo est muet, c'est la seule lecture d'état qui reste vraie.
+func (v *virtualbox) runningNames() []string {
+	out, err := v.run("list", "runningvms")
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, ln := range strings.Split(out, "\n") {
+		if nm := quotedName(ln); nm != "" {
+			names = append(names, nm)
+		}
+	}
+	return names
+}
+
+// isRunning — la VM tourne-t-elle ? Double lecture : chemin résolu (cas
+// normal) OU nom enregistré (yaml dérivé, VM renommée, showvminfo muet —
+// le cas qui faisait lire « éteinte » une VM allumée puis échouer
+// modifyvm à froid sur session verrouillée, rapport 1.3.4 B1).
+func (v *virtualbox) isRunning(vbx string) bool {
+	for _, r := range v.runningPaths() {
+		if SameVM(r, vbx) {
+			return true
+		}
+	}
+	name := v.resolveName(vbx)
+	if name == "" {
+		name = strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	}
+	for _, n := range v.runningNames() {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}
+
+// IsRunning — la VM tourne-t-elle, quel que soit le pilote ? Racine commune
+// des lectures d'état (ensure, next, nic, snapshot, doctor, GUI) : un seul
+// endroit à corriger, jamais un garde par appelant.
+func IsRunning(h Hypervisor, vbx string) bool {
+	if h == nil || vbx == "" {
+		return false
+	}
+	if vb, ok := h.(*virtualbox); ok {
+		return vb.isRunning(vbx)
+	}
+	for _, r := range h.Running() {
+		if SameVM(r, vbx) {
+			return true
+		}
+	}
+	return false
+}
+
 func (v *virtualbox) Start(vbx string) error {
 	name, err := v.ensureRegistered(vbx)
 	if err != nil {
 		return err
 	}
-	_, err = v.run("startvm", name, "--type", "headless")
-	return err
+	if out, err := v.run("startvm", name, "--type", "headless"); err != nil {
+		if mentionsLocked(out) {
+			return fmt.Errorf("startvm : %s (%v) — arbre zombie VBoxHeadless ? PowerShell ADMIN : Get-Process VBoxHeadless | Stop-Process -Force, puis relancez", strings.TrimSpace(out), err)
+		}
+		return fmt.Errorf("startvm : %s (%v)", strings.TrimSpace(out), err)
+	}
+	return nil
 }
 
 // resolveName — nom enregistré correspondant au .vbox, SANS effet de bord :
@@ -396,14 +456,12 @@ func (v *virtualbox) StartGUI(vbx string) error {
 	if err != nil {
 		return err
 	}
-	for _, r := range v.Running() {
-		if SameVM(r, vbx) {
-			exe := filepath.Join(filepath.Dir(v.exe), "VirtualBoxVM.exe")
-			if runtime.GOOS != "windows" {
-				exe = filepath.Join(filepath.Dir(v.exe), "VirtualBoxVM")
-			}
-			return bgCmd(exe, "--separate", "--startvm", name).Start()
+	if v.isRunning(vbx) {
+		exe := filepath.Join(filepath.Dir(v.exe), "VirtualBoxVM.exe")
+		if runtime.GOOS != "windows" {
+			exe = filepath.Join(filepath.Dir(v.exe), "VirtualBoxVM")
 		}
+		return bgCmd(exe, "--separate", "--startvm", name).Start()
 	}
 	_, err = v.run("startvm", name, "--type", "gui")
 	return err
@@ -432,14 +490,8 @@ func (v *virtualbox) vmID(name string) string {
 	return ""
 }
 
-// GuestIP — deux voies complémentaires :
-//  1. guestproperty /VirtualBox/GuestInfo/Net/0/V4/IP (si additions invité installées) ;
-//  2. port-forwarding NAT : ssh de l'hôte vers 127.0.0.1:2222.
-func (v *virtualbox) GuestIP(vbx string) string {
-	name := v.resolveName(vbx)
-	if name == "" {
-		return ""
-	}
+// guestIPByName — voies guestproperty pour un nom enregistré.
+func (v *virtualbox) guestIPByName(name string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// voie 1 : guestproperty directe
@@ -460,6 +512,31 @@ func (v *virtualbox) GuestIP(vbx string) string {
 			}
 		}
 	}
+	return ""
+}
+
+// GuestIP — deux voies complémentaires :
+//  1. guestproperty /VirtualBox/GuestInfo/Net/0/V4/IP (si additions invité installées) ;
+//  2. port-forwarding NAT : ssh de l'hôte vers 127.0.0.1:2222.
+// Repli sans resolveName : même balayage que NetMode (yaml dérivé).
+func (v *virtualbox) GuestIP(vbx string) string {
+	if name := v.resolveName(vbx); name != "" {
+		return v.guestIPByName(name)
+	}
+	base := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	want := normPath(vbx)
+	out, _ := v.run("list", "vms")
+	for _, ln := range strings.Split(out, "\n") {
+		nm := quotedName(ln)
+		if nm == "" {
+			continue
+		}
+		if v.cfgFile(nm) == want || nm == base {
+			if ip := v.guestIPByName(nm); ip != "" {
+				return ip
+			}
+		}
+	}
 	return "" // pas d'additions : l'appelant passe par le port-forward NAT
 }
 
@@ -467,9 +544,18 @@ func (v *virtualbox) GuestIP(vbx string) string {
 // pas joignable depuis l'hôte. La voie canonique : rediriger le port hôte
 // (2222 par défaut) vers le 22 invité, et le port dashboard vers le 9090
 // invité, puis la config SSH pointe 127.0.0.1. Idempotent : retire les
-// règles existantes avant. modifyvm exige la VM ÉTEINTE — si elle tourne
-// déjà, controlvm applique les mêmes règles À CHAUD (syntaxe nue `natpf1`,
-// SANS `--` : le flag long est rejeté à chaud).
+// règles existantes avant (un re-ajout tolère « already exists »).
+// Le verbe dépend de l'état RÉEL (IsRunning, double lecture chemin+nom) :
+// controlvm à chaud (syntaxe nue `natpf1`, SANS `--`), modifyvm à froid.
+// Si la méthode choisie échoue avec le symptôme de l'autre état (session
+// verrouillée à froid, « not running » à chaud), on bascule une fois —
+// la détection ne décide plus seule du succès (rapport 1.3.4 B1 : une VM
+// allumée lue « éteinte » partait en modifyvm → exit 1).
+// Le port hôte occupé n'est un refus qu'à FROID (un occupant = 2e VM ou
+// service) : à chaud, c'est VirtualBox lui-même qui écoute quand la règle
+// est déjà posée — refuser là-dessus interdisait toute repose (B1 run A).
+// Toute erreur embarque la sortie VBoxManage + la cause probable, jamais
+// un « exit status 1 » nu.
 func (v *virtualbox) EnsureNatSSH(vbx, hostPort, dashPort string) error {
 	name, err := v.ensureRegistered(vbx)
 	if err != nil {
@@ -481,53 +567,125 @@ func (v *virtualbox) EnsureNatSSH(vbx, hostPort, dashPort string) error {
 	if dashPort == "" {
 		dashPort = "9090"
 	}
-	// ports libres AVANT de toucher la VM : un occupant existant (2e VM,
-	// service) rendrait l'échec opaque.
-	if busyPort(hostPort) {
-		return fmt.Errorf("port hôte %s déjà occupé — libérez-le ou configurez nat_host_port", hostPort)
-	}
-	if busyPort(dashPort) {
-		return fmt.Errorf("port hôte %s déjà occupé (dashboard) — libérez-le", dashPort)
-	}
-	running := false
-	for _, r := range v.Running() {
-		if SameVM(r, vbx) {
-			running = true
-		}
-	}
-	// verbe nu à chaud (controlvm), verbe --modifyvm à froid
-	apply := func(hot bool, args ...string) error {
-		if hot {
-			full := append([]string{"controlvm", name}, args...)
-			_, err := v.run(full...)
-			return err
-		}
-		full := append([]string{"modifyvm", name}, args...)
-		_, err := v.run(full...)
-		return err
-	}
+	running := v.isRunning(vbx)
 	if !running {
-		_ = apply(false, "--natpf1", "delete", "cgo-ssh")
-		_ = apply(false, "--natpf1", "delete", "cgo-dashboard")
-		if err := apply(false, "--natpf1", "cgo-ssh,tcp,,"+hostPort+",,22"); err != nil {
-			return fmt.Errorf("règle SSH : %v", err)
+		// ports libres AVANT de toucher la VM à froid : un occupant existant
+		// (2e VM, service) rendrait l'échec opaque au boot.
+		if busyPort(hostPort) {
+			return fmt.Errorf("port hôte %s déjà occupé — libérez-le ou configurez nat_host_port", hostPort)
 		}
-		if err := apply(false, "--natpf1", "cgo-dashboard,tcp,,"+dashPort+",,9090"); err != nil {
-			return fmt.Errorf("règle dashboard : %v", err)
+		if busyPort(dashPort) {
+			return fmt.Errorf("port hôte %s déjà occupé (dashboard) — libérez-le", dashPort)
+		}
+	}
+	// verbe nu à chaud (controlvm), verbe --natpf1 à froid ; la sortie est
+	// capturée pour nommer la cause réelle.
+	applyHot := func(args ...string) (string, error) {
+		full := append([]string{"controlvm", name}, args...)
+		return v.run(full...)
+	}
+	applyCold := func(args ...string) (string, error) {
+		full := append([]string{"modifyvm", name}, args...)
+		return v.run(full...)
+	}
+	// addRule — delete (toléré : absent) puis add (« already exists »
+	// toléré : course). Rend la sortie d'échec éventuelle.
+	addRule := func(hot bool, rule string) (string, error) {
+		short := strings.SplitN(rule, ",", 2)[0]
+		if hot {
+			_, _ = applyHot("natpf1", "delete", short)
+			out, err := applyHot("natpf1", rule)
+			if err != nil && mentionsExists(out) {
+				return "", nil
+			}
+			return out, err
+		}
+		_, _ = applyCold("--natpf1", "delete", short)
+		out, err := applyCold("--natpf1", rule)
+		if err != nil && mentionsExists(out) {
+			return "", nil
+		}
+		return out, err
+	}
+	pose := func(hot bool) error {
+		if out, err := addRule(hot, "cgo-ssh,tcp,,"+hostPort+",,22"); err != nil {
+			return fmt.Errorf("règle SSH %s : %s (%v) — %s", hotCold(hot), strings.TrimSpace(out), err, hotHint(hot))
+		}
+		if out, err := addRule(hot, "cgo-dashboard,tcp,,"+dashPort+",,9090"); err != nil {
+			return fmt.Errorf("règle dashboard %s : %s (%v) — %s", hotCold(hot), strings.TrimSpace(out), err, hotHint(hot))
 		}
 		return nil
 	}
-	// VM allumée : modifyvm est rejeté (session verrouillée) → controlvm à
-	// chaud, syntaxe NUE `natpf1` (le flag --natpf1 y est invalide).
-	_ = apply(true, "natpf1", "delete", "cgo-ssh")
-	if err := apply(true, "natpf1", "cgo-ssh,tcp,,"+hostPort+",,22"); err != nil {
-		return fmt.Errorf("règle SSH à chaud : %v (VM verrouillée ?)", err)
+	if err := pose(running); err != nil {
+		// bascule unique vers l'autre méthode sur symptôme d'état inverse :
+		// la détection a pu se tromper, la pose ne doit pas.
+		if running && mentionsNotRunning(err.Error()) {
+			if ferr := pose(false); ferr != nil {
+				return ferr
+			}
+		} else if !running && mentionsLocked(err.Error()) {
+			if ferr := pose(true); ferr != nil {
+				return ferr
+			}
+		} else {
+			return err
+		}
 	}
-	_ = apply(true, "natpf1", "delete", "cgo-dashboard")
-	if err := apply(true, "natpf1", "cgo-dashboard,tcp,,"+dashPort+",,9090"); err != nil {
-		return fmt.Errorf("règle dashboard à chaud : %v", err)
+	// Vérifie, ne crois pas : la règle doit être relisible après la pose.
+	if !v.natRulePresent(name, "cgo-ssh") {
+		return fmt.Errorf("règle cgo-ssh posée mais non relisible (showvminfo) — redémarrez la VM (règle à froid prise au boot)")
 	}
 	return nil
+}
+
+// hotCold/hotHint — libellé d'état + remède dans les erreurs de pose.
+func hotCold(hot bool) string {
+	if hot {
+		return "à chaud (VM allumée, controlvm)"
+	}
+	return "à froid (VM éteinte, modifyvm)"
+}
+
+func hotHint(hot bool) string {
+	if hot {
+		return "VM verrouillée par un zombie VBoxHeadless ? PowerShell ADMIN : Get-Process VBoxHeadless | Stop-Process -Force, puis relancez"
+	}
+	return "VM démarrée entre-temps ? relancez (bascule à chaud auto) ; verrou de session ? voir zombie VBoxHeadless ci-dessus"
+}
+
+// mentionsExists — l'ajout a refusé car la règle est déjà là : bénin.
+func mentionsExists(out string) bool {
+	o := strings.ToLower(out)
+	return strings.Contains(o, "already exists") || strings.Contains(o, "already in use")
+}
+
+// mentionsLocked — symptôme d'une VM en réalité allumée (session verrou).
+func mentionsLocked(out string) bool {
+	o := strings.ToLower(out)
+	return strings.Contains(o, "locked") || strings.Contains(o, "session") ||
+		strings.Contains(o, "vbox_e_invalid_object_state") || strings.Contains(o, "e_fail")
+}
+
+// mentionsNotRunning — symptôme d'une VM en réalité éteinte.
+func mentionsNotRunning(out string) bool {
+	o := strings.ToLower(out)
+	return strings.Contains(o, "not currently running") || strings.Contains(o, "is not running") ||
+		strings.Contains(o, "could not find a running")
+}
+
+// natRulePresent — la règle est-elle relisible dans showvminfo ?
+// (Forwarding(0)="cgo-ssh,tcp,,2222,,22").
+func (v *virtualbox) natRulePresent(name, rule string) bool {
+	out, err := v.run("showvminfo", name, "--machinereadable")
+	if err != nil {
+		return false
+	}
+	for _, ln := range strings.Split(out, "\n") {
+		if strings.HasPrefix(ln, "Forwarding(") && strings.Contains(ln, "\""+rule+",") {
+			return true
+		}
+	}
+	return false
 }
 
 // SameVM — même machine malgré les variantes de casse/séparateurs
@@ -552,14 +710,8 @@ func busyPort(port string) bool {
 // NatHostAddr — l'adresse d'accès SSH quand la VM est en NAT.
 func (v *virtualbox) NatHostAddr() string { return "127.0.0.1" }
 
-// NetMode — attachement de la première NIC (showvminfo --machinereadable :
-// nic1="nat"|"bridged"|"hostonly"|...) : nat → "nat", bridged → "ponté".
-// VM inconnue de VirtualBox = "inconnu" (jamais d'erreur : affichage).
-func (v *virtualbox) NetMode(vbx string) string {
-	name := v.resolveName(vbx)
-	if name == "" {
-		return "inconnu"
-	}
+// nicOf — attachement NIC1 lu par nom enregistré ("nic1=\"nat\""…).
+func (v *virtualbox) nicOf(name string) string {
 	out, err := v.run("showvminfo", name, "--machinereadable")
 	if err != nil {
 		return "inconnu"
@@ -586,6 +738,31 @@ func (v *virtualbox) NetMode(vbx string) string {
 	return "inconnu"
 }
 
+// NetMode — attachement de la première NIC (showvminfo --machinereadable :
+// nic1="nat"|"bridged"|"hostonly"|...) : nat → "nat", bridged → "ponté".
+// VM inconnue de VirtualBox = "inconnu" (jamais d'erreur : affichage).
+// Repli sans resolveName (yaml dérivé, VM renommée) : balayage des
+// enregistrées par CfgFile puis par nom de fichier — un « inconnu » sur
+// une VM NAT allumée aveuglait nic/next/ensure (rapport 1.3.4).
+func (v *virtualbox) NetMode(vbx string) string {
+	if name := v.resolveName(vbx); name != "" {
+		return v.nicOf(name)
+	}
+	base := strings.TrimSuffix(filepath.Base(vbx), ".vbox")
+	want := normPath(vbx)
+	out, _ := v.run("list", "vms")
+	for _, ln := range strings.Split(out, "\n") {
+		nm := quotedName(ln)
+		if nm == "" {
+			continue
+		}
+		if v.cfgFile(nm) == want || nm == base {
+			return v.nicOf(nm)
+		}
+	}
+	return "inconnu"
+}
+
 // SetNetMode — nat|bridged|hostonly sur NIC1 (modifyvm exige la VM ÉTEINTE).
 // oser demander à chaud serait mentir : VirtualBox rejette, on refuse avant.
 func (v *virtualbox) SetNetMode(vbx, mode string) error {
@@ -593,10 +770,8 @@ func (v *virtualbox) SetNetMode(vbx, mode string) error {
 	if err != nil {
 		return err
 	}
-	for _, r := range v.Running() {
-		if SameVM(r, vbx) {
-			return fmt.Errorf("VM allumée — éteignez-la d'abord (modifyvm refuse à chaud)")
-		}
+	if v.isRunning(vbx) {
+		return fmt.Errorf("VM allumée — éteignez-la d'abord (modifyvm refuse à chaud)")
 	}
 	if _, err := v.run("modifyvm", name, "--nic1", mode); err != nil {
 		return fmt.Errorf("modifyvm --nic1 %s : %v", mode, err)

@@ -546,13 +546,10 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 	return diagRet(bad)
 }
 
+// vmRunningGUI — racine commune (chemin OU nom enregistré) : un yaml dérivé
+// ne lit plus « éteinte » une VM allumée (rapport 1.3.4 B1).
 func vmRunningGUI(hyp vm.Hypervisor, vmx string) bool {
-	for _, r := range hyp.Running() {
-		if vm.SameVM(r, vmx) {
-			return true
-		}
-	}
-	return false
+	return vm.IsRunning(hyp, vmx)
 }
 
 // hypForDrivers — pilote pour un chemin VM : l'EXTENSION d'abord (.vbox →
@@ -596,12 +593,8 @@ func scanVMRows() []vmRow {
 	paths := vm.ScanVMs(false)
 	hyps := vm.Detect()
 	byName := map[string]vm.Hypervisor{}
-	running := map[string]bool{}
 	for _, h := range hyps {
 		byName[h.Name()] = h
-		for _, r := range h.Running() {
-			running[r] = true
-		}
 	}
 	var rows []vmRow
 	for _, p := range paths {
@@ -612,14 +605,25 @@ func scanVMRows() []vmRow {
 		} else if strings.HasSuffix(lower, ".vbox") {
 			hyp = "virtualbox"
 		}
+		// État VIVANT via la racine commune (nom enregistré inclus) : la
+		// comparaison de chemins seule ratait les yaml dérivés et
+		// affichait « éteinte » une VM allumée (rapport 1.3.4 B1).
 		live := false
-		for rp := range running {
-			// SameVM normalisé (casse/séparateurs) : l'exact + le
-			// sous-chaîne de basename sur-matchaient (« ubuntu » ≅
-			// « ubuntu-old ») ou rataient selon le format du chemin.
-			if vm.SameVM(rp, p) {
-				live = true
-				break
+		if h, ok := byName[hyp]; ok {
+			live = vm.IsRunning(h, p)
+		}
+		if !live {
+			// Repli pilote-agnostique : un chemin normalisé identique suffit.
+			for _, h := range hyps {
+				for _, rp := range h.Running() {
+					if vm.SameVM(rp, p) {
+						live = true
+						break
+					}
+				}
+				if live {
+					break
+				}
 			}
 		}
 		mode := "inconnu"

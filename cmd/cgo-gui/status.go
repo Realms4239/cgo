@@ -41,9 +41,20 @@ func (a *app) lockSelected() {
 	a.mu.Lock()
 	rows := a.vmRows
 	a.mu.Unlock()
-	if idx < 0 || idx >= len(rows) {
-		a.appendLog("sélectionnez d'abord une VM dans la liste")
+	if len(rows) == 0 {
+		a.appendLog("liste vide — « Lister » d'abord, puis double-clic sur la VM")
 		return
+	}
+	if idx < 0 || idx >= len(rows) {
+		// LB_ERR (aucun curseur, ex. double-clic rapide) : à VM unique,
+		// pas d'ambiguïté — la prendre plutôt que passer pour morte
+		// (rapport 1.3.4 : double-clic-pour-verrouiller peu fiable).
+		if len(rows) == 1 {
+			idx = 0
+		} else {
+			a.appendLog("cliquez d'abord une VM dans la liste, puis Verrouiller")
+			return
+		}
 	}
 	v := rows[idx]
 	// Pilote par l'extension (source unique : vm.HypForPath — jamais la
