@@ -4,7 +4,21 @@
 
 Meteolink est un banc d'essai réseau open source, temps réel et visualiseur interactif qui s'exécute dans un terminal sur les systèmes *nix ou directement dans votre navigateur. Conçu pour les liens d'accès contraints (4G/5G, fibre, VSAT), il fournit à la volée des preuves AQM/BBR rapides et vérifiables. Meteolink audite votre lien côté client, le rejoue sur un banc Linux reproductible et présente les données directement dans le terminal ou via un tableau de bord HTML live — aucune promesse fournisseur, seulement des CSV gelés avec SHA-256.
 
-Plus d'infos sur : [https://github.com/Realms4239/cgo](https://github.com/Realms4239/cgo).
+Plus d'informations sur : [https://github.com/Realms4239/cgo](https://github.com/Realms4239/cgo).
+
+## Captures d'écran
+
+**Pilotage — le cockpit de campagne** : profils, files (AQM), CC, répétitions et deadline à droite, état du flux `SSE`, les 8 portes `G0`→`G7` et la matrice `état par cellule`. Aucune campagne lancée : l'état est *idle*, jamais un vert fabriqué.
+
+![Cockpit de campagne — état idle, portes G0-G7, matrice par cellule](docs/img/campagne-idle-1920.png)
+
+**Tableau live — lien au repos (baseline `P2`/`cake`/`bbr`)** : `small p95 38,2 ms`, RTT p95 `44,6 ms`, débit utile `17,8 Mbit/s`, pertes `0`, JFI `1,00`, coût `0,42 Ar/h`. Le verdict s'affiche par carte (`bon`, `fragile`, `mauvais`) — la règle est chaleur + signe, aucun seuil inventé.
+
+![Tableau live baseline — small p95 38,2 ms, pertes 0, JFI 1,00](docs/img/live-running-1920.png)
+
+**Tableau live — charge active sur le même bord** : le `bulk` fait monter `small p95` à `241,6 ms` (×6) et les pertes à `9`, le débit utile tient (`19,2 Mbit/s`), le coût passe à `76,80 Ar/h`. C'est le bufferbloat rendu lisible, cellule par cellule.
+
+![Tableau live charge — small p95 241,6 ms, pertes 9, coût 76,80 Ar/h](docs/img/live-charge-1920.png)
 
 ## Fonctionnalités
 
