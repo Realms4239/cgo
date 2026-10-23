@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/pkg/doctor"
 	"github.com/Realms4239/cgo/pkg/figures"
+	"github.com/Realms4239/cgo/pkg/remediate"
 )
 
 // version — overridden at release time: -X main.version={{.Version}}.
@@ -150,14 +152,25 @@ WantedBy=multi-user.target
 		provider := fs.String("provider", "", "provider")
 		duration := fs.Int("duration", 60, "duration seconds")
 		target := fs.String("target", "8.8.8.8", "ping target")
+		small := fs.String("small", envDefault("CGO_SMALL_URL", "http://10.200.0.1:8081/small"), "small-object URL through the measured path")
+		bulk := fs.String("bulk", envDefault("CGO_BULK_ADDR", "10.200.0.1:5201"), "bulk sink host:port — empty disables load (no bufferbloat grade)")
+		// Remediation needs to know which device to configure. These are
+		// deliberately explicit: the tool will not guess an interface name and
+		// emit a tc command against the wrong device.
+		iface := fs.String("iface", "", "Linux egress device to shape in the remediation (e.g. eth0)")
+		rosIface := fs.String("routeros-iface", "", "RouterOS interface for the remediation script (e.g. ether1-wan)")
+		reportPath := fs.String("report", "", "write the audit report here (.md or .json); empty = no report file")
+		qdisc := fs.String("qdisc", "", "qdisc for the remediation: cake, fq_codel, pfifo_fast (empty = recommended)")
+		asymmetric := fs.Bool("asymmetric", true, "link is asymmetric (uplink << downlink); drives the qdisc recommendation")
+		cpuBound := fs.Bool("cpu-constrained", false, "gateway is CPU-constrained; drives the qdisc recommendation")
 		_ = fs.Parse(os.Args[2:])
 		p := audit.Params{
 			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
 			Site:    *site, LinkType: *linkType, Provider: *provider,
 			Duration: *duration, Target: *target,
-			SmallURL: os.Getenv("CGO_SMALL_URL"),
+			SmallURL: *small, BulkAddr: *bulk,
 		}
-		fmt.Printf("audit %s — %s %s %ds → %s\n", p.AuditID, p.LinkType, p.Site, p.Duration, p.Target)
+		fmt.Printf("audit %s — %s %s %ds → %s (bulk %s)\n", p.AuditID, p.LinkType, p.Site, p.Duration, p.Target, p.BulkAddr)
 		res, err := audit.Run(context.Background(), p, audit.Deps{})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit:", err)
@@ -167,7 +180,44 @@ WantedBy=multi-user.target
 			fmt.Fprintln(os.Stderr, "audit write:", err)
 			os.Exit(1)
 		}
-		fmt.Printf("audit ok — p50 %.1f p95 %.1f small %.1f → data/link_audit.csv\n", res.RTTIdleP50, res.RTTIdleP95, res.HTTPSmallP95)
+		fmt.Printf("audit ok — p50 %.1f p95 %.1f small %.1f débit %.1f Mbit/s note %q → data/link_audit.csv\n",
+			res.RTTIdleP50, res.RTTIdleP95, res.HTTPSmallP95, res.ThroughputMbps, res.BloatGrade)
+		if res.BloatGrade == "" {
+			fmt.Fprintln(os.Stderr, "attention: bufferbloat NON MESURÉ (charge bulk absente/échouée) — ne pas citer cette ligne comme audit terrain")
+		}
+		// The report is opt-in: it is a deliverable, not a side effect of
+		// running a probe.
+		if *reportPath != "" {
+			link := remediate.Link{Interface: *iface, RouterOSInterface: *rosIface}
+			rep, err := audit.BuildReport(res, link, *qdisc, *asymmetric, *cpuBound)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "audit report:", err)
+				os.Exit(1)
+			}
+			// Seal the CSV the audit just appended to, so the report and its
+			// evidence can be checked against each other later.
+			if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
+				fmt.Fprintln(os.Stderr, "audit report seal:", err)
+			}
+			var out []byte
+			if strings.HasSuffix(*reportPath, ".json") {
+				out, err = rep.RenderJSON()
+			} else {
+				out = []byte(rep.RenderMarkdown())
+			}
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "audit report render:", err)
+				os.Exit(1)
+			}
+			if err := os.WriteFile(*reportPath, out, 0644); err != nil {
+				fmt.Fprintln(os.Stderr, "audit report write:", err)
+				os.Exit(1)
+			}
+			fmt.Printf("rapport → %s\n", *reportPath)
+			if rep.Remediation == nil {
+				fmt.Fprintln(os.Stderr, "attention: aucune remédiation émise — capacité ou RTT non mesurés")
+			}
+		}
 	case "run":
 		fs := flag.NewFlagSet("run", flag.ExitOnError)
 		profiles := fs.String("profiles", "P2", "profils à tester (P1,P2,P3-importé)")
@@ -189,6 +239,13 @@ WantedBy=multi-user.target
 	}
 }
 
+func envDefault(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
 func usage() {
 	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--tls=false] [--http-addr 127.0.0.1:9080] [--mode observe|full|auto]
        cgo audit --link-type 5g --site "Dept X" --duration 300
@@ -204,30 +261,57 @@ func usage() {
 }
 
 func verifyManifests(dataDir string) (bool, error) {
-	runs, _ := filepath.Glob(filepath.Join(dataDir, "*", "manifest.json"))
+	// Un manifeste par run mesuré : l'ancien glob sur les manifestes laissait
+	// passer les runs sans manifeste (25/160 dans le corpus gelé).
+	runs, _ := filepath.Glob(filepath.Join(dataDir, "*", "aqm_eval.csv"))
 	if len(runs) == 0 {
 		return true, nil // no runs yet -> ok
 	}
-	for _, mf := range runs {
-		raw, err := os.ReadFile(mf)
+	for _, csvPath := range runs {
+		dir := filepath.Dir(csvPath)
+		name := filepath.Base(dir)
+		raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("%s: manifeste manquant: %w", name, err)
 		}
 		var doc struct {
-			Files []struct{ File, Sha256 string } `json:"files"`
+			ConfigSHA256 string                          `json:"config_sha256"`
+			Config       string                          `json:"config"`
+			Files        []struct{ File, Sha256 string } `json:"files"`
 		}
 		if err := json.Unmarshal(raw, &doc); err != nil {
-			return false, err
+			return false, fmt.Errorf("%s: manifeste illisible: %w", name, err)
 		}
-		dir := filepath.Dir(mf)
+		if doc.Config == "" || !json.Valid([]byte(doc.Config)) {
+			return false, fmt.Errorf("%s: configuration absente ou invalide", name)
+		}
+		sum := sha256.Sum256([]byte(doc.Config))
+		if hex.EncodeToString(sum[:]) != doc.ConfigSHA256 {
+			return false, fmt.Errorf("%s: config_sha256 ne correspond pas à la configuration", name)
+		}
+		listed := map[string]bool{}
 		for _, f := range doc.Files {
 			b, err := os.ReadFile(filepath.Join(dir, f.File))
 			if err != nil {
-				return false, err
+				return false, fmt.Errorf("%s: %w", name, err)
 			}
-			sum := sha256.Sum256(b)
-			if hex.EncodeToString(sum[:]) != f.Sha256 {
-				return false, fmt.Errorf("sha mismatch %s", f.File)
+			s := sha256.Sum256(b)
+			if hex.EncodeToString(s[:]) != f.Sha256 {
+				return false, fmt.Errorf("%s: sha mismatch %s", name, f.File)
+			}
+			listed[f.File] = true
+		}
+		// Aucun fichier du run ne doit échapper au manifeste.
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return false, fmt.Errorf("%s: %w", name, err)
+		}
+		for _, e := range entries {
+			if e.IsDir() || e.Name() == "manifest.json" {
+				continue
+			}
+			if !listed[e.Name()] {
+				return false, fmt.Errorf("%s: fichier non couvert par le manifeste: %s", name, e.Name())
 			}
 		}
 	}
