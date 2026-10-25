@@ -66,3 +66,35 @@ func MeteredWasteARPerHour(wastedBytes, tariffARPerGB, windowSeconds float64) fl
 	gb := wastedBytes / (1024 * 1024 * 1024)
 	return gb * tariffARPerGB * (3600 / windowSeconds)
 }
+
+// Objectif opérationnel DGM pour une transaction CAP (sonde 16 KiB). Ce n'est
+// PAS un seuil imposé par l'OMM : le Guide WIS 2.0 (WMO-No 1061) définit le
+// « temps réel » comme « de quelques secondes à quelques minutes », sans
+// seuil numérique par bulletin — le mémoire cite ce cadre comme contexte,
+// jamais comme source du 220 ms.
+const (
+	CAPDeadlineMs         = 220
+	CAPBreachThresholdPct = 95.0
+)
+
+// CAPSLA — conformité des transactions CAP sous charge (modèle C).
+type CAPSLA struct {
+	Measured bool    `json:"measured"`
+	OKPct    float64 `json:"ok_pct"`
+	Breach   bool    `json:"breach"`
+	Label    string  `json:"label,omitempty"`
+}
+
+// AssessCAPSLA évalue les complétions 16 KiB CHARGÉES contre l'objectif DGM.
+// Sans échantillon : non mesuré (Measured=false), jamais un passage par défaut.
+func AssessCAPSLA(loadedSmallCompletionsMs []float64) CAPSLA {
+	if len(loadedSmallCompletionsMs) == 0 {
+		return CAPSLA{}
+	}
+	pct := DeadlineOKPct(loadedSmallCompletionsMs, CAPDeadlineMs)
+	s := CAPSLA{Measured: true, OKPct: pct, Breach: pct < CAPBreachThresholdPct}
+	if s.Breach {
+		s.Label = "ALERTE OPÉRATIONNELLE — MANQUEMENT SLA (objectif DGM 220 ms, cadre WIS 2.0)"
+	}
+	return s
+}
