@@ -48,7 +48,7 @@ func TestSinksEnvOrBulkOverride(t *testing.T) {
 	// (liaison de terrain explicite), même en mode external.
 	t.Setenv("CGO_BULK_ADDR", "192.0.2.10:5201")
 	s := Sinks{Mode: "external", Target: "8.8.8.8"}
-	if got := s.envOrBulk(); got != "192.0.2.10:5201" {
+	if got := envOrBulk(s); got != "192.0.2.10:5201" {
 		t.Fatalf("override env ignoré : %q", got)
 	}
 }
@@ -56,7 +56,7 @@ func TestSinksEnvOrBulkOverride(t *testing.T) {
 func TestSinksEnvOrBulkDetected(t *testing.T) {
 	// Sans variable d'environnement, le puits DÉTECTÉ passe (banc vivant).
 	s2 := Sinks{Mode: "dualns", Target: "10.30.0.1", SmallURL: "http://10.30.0.1:8081/small", BulkAddr: "10.30.0.1:5201"}
-	if got := s2.envOrBulk(); got != "10.30.0.1:5201" {
+	if got := envOrBulk(s2); got != "10.30.0.1:5201" {
 		t.Fatalf("sans env, le puits détecté doit passer : %q", got)
 	}
 }

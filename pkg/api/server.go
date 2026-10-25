@@ -173,6 +173,11 @@ type Deps struct {
 	// BurstFn — une sonde bulk avec la CC choisie à travers le bord façonné :
 	// façonnage seul, sans campagne. Bloquant (2–10 s).
 	BurstFn func(cc string, seconds int) error
+	// SinksFn — puits d'audit détectés (dualns → legacy → external) ;
+	// nil ⇒ détection réelle. Les tests injectent un stub pour rester hors
+	// réseau : les défauts d'audit/start suivent le banc, pas un 10.200.0.1
+	// en dur (M4).
+	SinksFn func() audit.Sinks
 }
 
 // observeBlocked — les hôtes Windows observent : l'audit fonctionne, les
@@ -1107,8 +1112,19 @@ func New(d Deps) Handler {
 			writeErr(w, r, "cible trop longue", http.StatusBadRequest)
 			return
 		}
+		// puits décidés par le banc détecté (M4) — cible, petit objet et
+		// charge par défaut viennent du banc vivant, pas d'un 10.200.0.1
+		// en dur. En external, le petit objet reste VIDE : jamais de charge
+		// implicite (un A+ sans charge est un mensonge). L'opérateur garde
+		// la main : champs explicites > env (CGO_SMALL_URL/CGO_BULK_ADDR) > banc.
+		sinks := audit.Sinks{Mode: "external", Target: "8.8.8.8"}
+		if d.SinksFn != nil {
+			sinks = d.SinksFn()
+		} else {
+			sinks = audit.ResolveSinks()
+		}
 		if body.Target == "" {
-			body.Target = "8.8.8.8"
+			body.Target = sinks.Target
 		}
 		// Sens et flux : défauts up/4, bornes imposées — un « both » débridé
 		// double la charge, un « flows » hors 1–8 sort du régime documenté.
@@ -1123,18 +1139,17 @@ func New(d Deps) Handler {
 		if body.Flows <= 0 {
 			body.Flows = 4
 		}
-		if body.Flows < 1 || body.Flows > 8 {
+		if body.Flows > 8 {
 			writeErr(w, r, "flows hors bornes (1–8)", http.StatusBadRequest)
 			return
 		}
-		// La charge et le petit objet viennent du banc par défaut ; vides
-		// seulement si l'opérateur les désactive explicitement (la note
-		// bufferbloat restera vide, jamais A+ par absence de charge).
 		if body.SmallURL == "" {
-			body.SmallURL = envDefault("CGO_SMALL_URL", "http://10.200.0.1:8081/small")
+			// external laisse le petit objet vide (pas de charge implicite) ;
+			// l'env garde la main sur les liaisons de terrain.
+			body.SmallURL = envDefault("CGO_SMALL_URL", sinks.SmallURL)
 		}
 		if body.BulkAddr == "" {
-			body.BulkAddr = envDefault("CGO_BULK_ADDR", "10.200.0.1:5201")
+			body.BulkAddr = audit.EnvOrBulk(sinks)
 		}
 		if body.Iface == "" {
 			body.Iface = os.Getenv("CGO_AUDIT_IFACE")
@@ -1195,6 +1210,17 @@ func New(d Deps) Handler {
 			}
 			recordEvent("audit", fmt.Sprintf("terminé — %s (%s), p95 %g ms, bufferbloat %s", p.Site, p.LinkType, res.RTTIdleP95, grade))
 		}()
+		// la ligne d'ouverture nomme le banc détecté (M4) : l'opérateur voit
+		// le chemin qui va mesurer AVANT de lire un verdict.
+		smallNote, bulkNote := body.SmallURL, body.BulkAddr
+		if smallNote == "" {
+			smallNote = "—"
+		}
+		if bulkNote == "" {
+			bulkNote = "—"
+		}
+		recordEvent("audit", fmt.Sprintf("démarré — %s (%s) %ds, banc %s, cible %s, charge %s, small %s",
+			body.Site, body.LinkType, body.Duration, sinks.Mode, body.Target, bulkNote, smallNote))
 		writeJSON(w, map[string]any{"started": true})
 	})
 	mux.HandleFunc("GET /api/audit/status", func(w http.ResponseWriter, _ *http.Request) {

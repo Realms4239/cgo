@@ -179,7 +179,7 @@ WantedBy=multi-user.target
 			*small = sinks.SmallURL
 		}
 		if *bulk == "" {
-			*bulk = sinks.envOrBulk()
+			*bulk = envOrBulk(sinks)
 		}
 		p := audit.Params{
 			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
