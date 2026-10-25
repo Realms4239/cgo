@@ -119,3 +119,23 @@ func TestBuildEconomicsNoRatio(t *testing.T) {
 		t.Fatalf("sans ratio : zéro scénario, pas des zéros : %+v", e.Scenarios)
 	}
 }
+
+func TestBuildEconomicsNoRatioNoPrimary(t *testing.T) {
+	// Sans ratio : AUCUN scénario ET aucun primaire — les deux moitiés de
+	// l'absence, pas seulement la première.
+	e := BuildEconomics("fiber", RetransRatio{}, 1e9, 0, 40)
+	if len(e.Scenarios) != 0 || e.Primary != nil {
+		t.Fatalf("sans ratio : ni scénarios ni primaire : %+v %+v", e.Scenarios, e.Primary)
+	}
+}
+
+func TestHumanMGA(t *testing.T) {
+	cases := map[float64]string{
+		1000000: "1 000 000", 2500000: "2 500 000", 150: "150", 999: "999",
+	}
+	for v, want := range cases {
+		if got := humanMGA(v); got != want {
+			t.Fatalf("humanMGA(%v) = %q, want %q", v, got, want)
+		}
+	}
+}

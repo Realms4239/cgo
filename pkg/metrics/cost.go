@@ -99,7 +99,7 @@ func AssessCAPSLA(loadedSmallCompletionsMs []float64) CAPSLA {
 	pct := DeadlineOKPct(loadedSmallCompletionsMs, CAPDeadlineMs)
 	s := CAPSLA{Measured: true, OKPct: pct, Breach: pct < CAPBreachThresholdPct}
 	if s.Breach {
-		s.Label = "ALERTE OPÉRATIONNELLE — MANQUEMENT SLA (objectif DGM 220 ms, cadre WIS 2.0)"
+		s.Label = fmt.Sprintf("ALERTE OPÉRATIONNELLE — MANQUEMENT SLA (objectif DGM %d ms, cadre WIS 2.0)", CAPDeadlineMs)
 	}
 	return s
 }
@@ -165,7 +165,7 @@ func BuildEconomics(linkType string, ratio RetransRatio, transportedBytes, waste
 		e.Scenarios = append(e.Scenarios, EconomicsScenario{
 			Model: "A", Name: p.Name,
 			ARPerHour: CapacityWasteARPerHour(p.MonthlyOpExMGA, wastedBytes, transportedBytes),
-			Basis:     fmt.Sprintf("(%.4f réémis / %.4f transportés) × %s Ar/720 h", ratio.Ratio, ratio.Ratio, humanMGA(p.MonthlyOpExMGA)),
+			Basis:     fmt.Sprintf("(part réémise %.4f) × %s Ar/720 h", ratio.Ratio, humanMGA(p.MonthlyOpExMGA)),
 		})
 	}
 	// Modèle B : gaspillage facturé au volume, deux tarifs B2B.
