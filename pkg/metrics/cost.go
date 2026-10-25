@@ -34,3 +34,35 @@ func CapacityWasteARPerHour(monthlyOpEx, wastedBytes, transportedBytes float64) 
 	}
 	return (wastedBytes / transportedBytes) * (monthlyOpEx / 720)
 }
+
+// B2BTariff — tarif grossiste/apn facturé au gigaoctet (modèle B).
+type B2BTariff struct {
+	Name    string  `json:"name"`
+	ARPerGB float64 `json:"ar_per_gb"`
+	// Quoted marque les tarifs relevés sur devis opérateur (pas de grille
+	// publique) : le rapport doit le dire, c'est un scénario contractuel.
+	Quoted bool `json:"quoted,omitempty"`
+}
+
+var (
+	// Dérivé de PLATINE 1 : 2 500 000 Ar / 30 720 GiB.
+	TariffWholesale = B2BTariff{Name: "b2b-platine-bulk", ARPerGB: 81.38}
+	// APN corporate M2M/IoT — devis opérateur (oct. 2026), pas une grille publique.
+	TariffCorporateAPN = B2BTariff{Name: "b2b-m2m-apn", ARPerGB: 150, Quoted: true}
+)
+
+// RetailEmergencyARPerGB — le prépayé grand public (Yas Net Month 4,5 Go)
+// ne survit que comme pénalité de hors-forfait d'urgence, jamais comme
+// modèle par défaut d'une infrastructure opérationnelle.
+const RetailEmergencyARPerGB = 5556
+
+// MeteredWasteARPerHour — coût horaire du gaspillage sur un lien facturé au
+// volume : le ×20 de la directive est le cas particulier fenêtre = 180 s ;
+// l'audit passe sa fenêtre de charge MESURÉE, la campagne son 180 s historique.
+func MeteredWasteARPerHour(wastedBytes, tariffARPerGB, windowSeconds float64) float64 {
+	if windowSeconds <= 0 {
+		return 0
+	}
+	gb := wastedBytes / (1024 * 1024 * 1024)
+	return gb * tariffARPerGB * (3600 / windowSeconds)
+}
