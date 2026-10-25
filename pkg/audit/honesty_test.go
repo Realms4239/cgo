@@ -46,10 +46,11 @@ func TestAuditMeasuresLoadAndGrades(t *testing.T) {
 			return []float64{20, 21, 22, 23, 24}
 		},
 		Small: func(context.Context) (float64, error) { return 25, nil },
-		Bulk: func(ctx context.Context, _ string) (uint64, error) {
+		BulkLoad: func(ctx context.Context, _ string, _ string, _ int) LoadOutcome {
+			t0 := time.Now()
 			atomic.StoreInt32(&loading, 1)
 			<-ctx.Done()
-			return 1_000_000, nil
+			return LoadOutcome{Bytes: 1_000_000, Elapsed: time.Since(t0)}
 		},
 	}
 	res, err := Run(ctx, Params{Duration: 2, Target: "t", BulkAddr: "fake:1"}, d)

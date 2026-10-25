@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestAuditRefusesEmptyProbes — garde anti-ligne-fantôme : cible injoignable
@@ -29,9 +30,10 @@ func TestAuditMatchProfile(t *testing.T) {
 	deps := Deps{
 		Ping:  func(context.Context, string, int) []float64 { return []float64{620, 628, 635} },
 		Small: func(context.Context) (float64, error) { return 25, nil },
-		Bulk: func(ctx context.Context, _ string) (uint64, error) {
+		BulkLoad: func(ctx context.Context, _ string, _ string, _ int) LoadOutcome {
+			t0 := time.Now()
 			<-ctx.Done()
-			return 625_000, nil // ≈ 5 Mbit/s sur ~1 s
+			return LoadOutcome{Bytes: 625_000, Elapsed: time.Since(t0)} // ≈ 5 Mbit/s sur ~1 s
 		},
 	}
 	res, err := Run(context.Background(), Params{AuditID: "a-vsat", Site: "s", Duration: 2, Target: "t", BulkAddr: "fake:1"}, deps)
@@ -54,9 +56,10 @@ func TestAuditMatchFrozen(t *testing.T) {
 	deps := Deps{
 		Ping:  func(context.Context, string, int) []float64 { return []float64{20, 21, 22} },
 		Small: func(context.Context) (float64, error) { return 25, nil },
-		Bulk: func(ctx context.Context, _ string) (uint64, error) {
+		BulkLoad: func(ctx context.Context, _ string, _ string, _ int) LoadOutcome {
+			t0 := time.Now()
 			<-ctx.Done()
-			return 10_000_000, nil // ≈ 80 Mbit/s sur ~1 s
+			return LoadOutcome{Bytes: 10_000_000, Elapsed: time.Since(t0)} // ≈ 80 Mbit/s sur ~1 s
 		},
 	}
 	res, err := Run(context.Background(), Params{AuditID: "a-p1", Site: "s", Duration: 2, Target: "t", BulkAddr: "fake:1"}, deps)
