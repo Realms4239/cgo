@@ -15,9 +15,12 @@ type Profile struct {
 	DelayMs        float64 `json:"delay_ms"`
 	JitterMs       float64 `json:"jitter_ms"`
 	LossPct        float64 `json:"loss_pct"`
-	// Perte en rafales (Gilbert-Elliott, netem gemodel — kernel banc 6.8) :
-	// la vraie vie mobile/satellite où la perte arrive en salves. Champs
-	// optionnels : 0/absents = perte uniforme (comportement historique).
+	// DÉPRÉCIÉ — perte en rafales par profil (Gilbert-Elliott). Le runtime ne
+	// lit plus ces champs : le canal (clean|bursty) se déclare par campagne
+	// (Deps.ChannelModel, GE dérivé du profil — spec décision 7). Ils restent
+	// dans la struct pour le format d'import CSV externe documenté
+	// (pkg/api/server.go « id,capacity,delay,jitter,loss[,cap_up,loss_burst_p,
+	// r,h,k] ») et la réponse de l'API profils : les archives se relisent.
 	LossBurstP float64 `json:"loss_burst_p,omitempty"` // p : proba de perte en salve
 	LossBurstR float64 `json:"loss_burst_r,omitempty"` // r : bon → mauvais
 	LossBurstH float64 `json:"loss_burst_h,omitempty"` // h : persistance mauvais
@@ -146,6 +149,11 @@ type Event struct {
 	CostARPerH      float64 `csv:"cost_ar_per_h"     json:"cost_ar_per_h"`
 	CPUPct          float64 `csv:"cpu_pct"           json:"cpu_pct"`
 	GateStatus      string  `csv:"gate_status"       json:"gate_status"`
+	// Bytes — octets transportés de la cellule (delta tc côté récepteur si
+	// instrumenté, sinon total émetteur) : base du ratio estimé du sidecar
+	// valuation.json. JSON seul, jamais CSV — le schéma aqm_eval.csv 23 col
+	// est gelé pour les lecteurs historiques.
+	Bytes uint64 `json:"bytes"`
 	// FailedGates — portes en échec (JSON/quarantaine seuls, jamais CSV :
 	// le schéma aqm_eval.csv 23 col est gelé pour les lecteurs historiques).
 	FailedGates []string `json:"failed_gates,omitempty"`

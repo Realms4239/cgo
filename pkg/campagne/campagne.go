@@ -108,6 +108,18 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 		ProfileJitterMs: prof.JitterMs, ProfileLossPct: prof.LossPct,
 		Gates: gates, Running: true,
 	}
+	// Coût entreprise live : GOLD (modèle A, nécessite des octets transportés —
+	// zéro honnête avant la charge) et APN 150 Ar/Go (modèle B, fenêtre de
+	// charge). JFI à côté : l'équité inter-flux est un livrable du banc durci.
+	charge := d.ChargeSec
+	if charge == 0 {
+		charge = model.ChargeSec
+	}
+	s.JFIPct = ev.JFI
+	s.CostPrimaryARPerH = round1(metrics.CapacityWasteARPerHour(
+		metrics.PlanGOLD.MonthlyOpExMGA, float64(ev.WastedBytes), float64(ev.Bytes)))
+	s.CostB2BARPerH = round1(metrics.MeteredWasteARPerHour(
+		float64(ev.WastedBytes), metrics.TariffCorporateAPN.ARPerGB, float64(charge)))
 	return s
 }
 
@@ -137,31 +149,36 @@ type Live struct {
 }
 
 type Snapshot struct {
-	Phase           string  `json:"phase"`
-	Profile         string  `json:"profile"`
-	Qdisc           string  `json:"qdisc"`
-	CC              string  `json:"cc"`
-	Repetition      int     `json:"repetition"`
-	EventID         int     `json:"event_id"`
-	TotalEvents     int     `json:"total_events"`
-	DoneEvents      int     `json:"done_events"`
-	PhaseTotalS     int     `json:"phase_total_s"`
-	LoadStatus      string  `json:"load_status"`
-	RTTp50Ms        float64 `json:"rtt_p50_ms"`
-	RTTp95Ms        float64 `json:"rtt_p95_ms"`
-	Smallp95Ms      float64 `json:"small_p95_ms"`
-	GoodputMbps     float64 `json:"bulk_goodput_mbps"`
-	Drops           uint64  `json:"drops"`
-	WastedBytes     uint64  `json:"wasted_bytes"`
-	CostARPerH      float64 `json:"cost_ar_per_h"`
-	DeadlineOKPct   float64 `json:"deadline_ok_pct"`
-	ProfileCapMbps  float64 `json:"profile_capacity_mbps"`
-	ProfileDelayMs  float64 `json:"profile_delay_ms"`
-	ProfileJitterMs float64 `json:"profile_jitter_ms"`
-	ProfileLossPct  float64 `json:"profile_loss_pct"`
-	Gates           []*bool `json:"gates"` // nil = not assessed
-	Running         bool    `json:"running"`
-	LastTS          int64   `json:"ts"`
+	// Coût entreprise (live) : le scénario GOLD et le B2B 150 Ar/Go à côté
+	// du cost_ar_per_h historique (qui garde sa signification détail gelée).
+	CostPrimaryARPerH float64 `json:"cost_primary_ar_per_h"`
+	CostB2BARPerH     float64 `json:"cost_b2b_ar_per_h"`
+	JFIPct            float64 `json:"jfi_pct"`
+	Phase             string  `json:"phase"`
+	Profile           string  `json:"profile"`
+	Qdisc             string  `json:"qdisc"`
+	CC                string  `json:"cc"`
+	Repetition        int     `json:"repetition"`
+	EventID           int     `json:"event_id"`
+	TotalEvents       int     `json:"total_events"`
+	DoneEvents        int     `json:"done_events"`
+	PhaseTotalS       int     `json:"phase_total_s"`
+	LoadStatus        string  `json:"load_status"`
+	RTTp50Ms          float64 `json:"rtt_p50_ms"`
+	RTTp95Ms          float64 `json:"rtt_p95_ms"`
+	Smallp95Ms        float64 `json:"small_p95_ms"`
+	GoodputMbps       float64 `json:"bulk_goodput_mbps"`
+	Drops             uint64  `json:"drops"`
+	WastedBytes       uint64  `json:"wasted_bytes"`
+	CostARPerH        float64 `json:"cost_ar_per_h"`
+	DeadlineOKPct     float64 `json:"deadline_ok_pct"`
+	ProfileCapMbps    float64 `json:"profile_capacity_mbps"`
+	ProfileDelayMs    float64 `json:"profile_delay_ms"`
+	ProfileJitterMs   float64 `json:"profile_jitter_ms"`
+	ProfileLossPct    float64 `json:"profile_loss_pct"`
+	Gates             []*bool `json:"gates"` // nil = not assessed
+	Running           bool    `json:"running"`
+	LastTS            int64   `json:"ts"`
 }
 
 func NewLive() *Live { return &Live{} }
@@ -310,6 +327,10 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		startDrops, startBytes = qdisc.SumDrops(sts), qdisc.SumBytes(sts)
 	}
 	liveLastBytes, liveLastT := startBytes, d.Now()
+	// octets transportés cumulés (live) : la somme des deltas SURVIT à un
+	// remplacement de qdisc (compteurs tc remis à zéro) — base honnête du
+	// coût entreprise publié en cours de charge, avant le gel final.
+	liveTransported := uint64(0)
 	publishLive := func(phase string, rtt, small []float64) {
 		if d.OnSnap == nil {
 			return
@@ -331,6 +352,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			if nowB < liveLastBytes {
 				liveLastBytes = nowB // qdisc remplacé (levier de façonnage) — compteurs remis à zéro
 			}
+			if db := int64(nowB) - int64(liveLastBytes); db > 0 {
+				liveTransported += uint64(db)
+			}
 			if dt := nowT.Sub(liveLastT).Seconds(); dt > 0.2 {
 				g := float64(nowB-liveLastBytes) * 8 / 1e6 / dt
 				if g >= 0 && g <= 2500 { // écarter les artefacts de compteur, garder l'axe lisible
@@ -343,6 +367,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			}
 			liveLastBytes, liveLastT = nowB, nowT
 		}
+		live.Bytes = liveTransported
 		live.WastedBytes = live.Drops * 1448
 		live.CostARPerH = round1(metrics.CostARPerH(live.WastedBytes))
 		d.OnSnap(d.Snapshot(phase, loadFor(phase), live, nil, nil, 0, prof, gates))
@@ -501,6 +526,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 
 	// goodput : préférer le delta côté récepteur de tc -s aux octets côté émetteur
 	goodput := float64(bulkBytes) * 8 / 1e6 / chargeDur
+	rxBytes := uint64(0)
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
 		endDrops := qdisc.SumDrops(sts)
@@ -511,13 +537,18 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		if dd := int64(endDrops) - int64(startDrops); dd > 0 {
 			ev.Drops = uint64(dd)
 		}
-		rxBytes := uint64(0)
 		if db := int64(endBytes) - int64(startBytes); db > 0 {
 			rxBytes = uint64(db)
 		}
 		if rxBytes > 0 {
 			goodput = float64(rxBytes) * 8 / 1e6 / chargeDur
 		}
+	}
+	// octets transportés de la cellule (JSON seul) : récepteur si instrumenté,
+	// sinon émetteur — base du ratio estimé drops×1448/octets du sidecar.
+	ev.Bytes = bulkBytes
+	if rxBytes > 0 {
+		ev.Bytes = rxBytes
 	}
 
 	sumC := metrics.Summarize(chgRTT)

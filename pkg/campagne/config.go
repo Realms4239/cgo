@@ -22,6 +22,10 @@ type matrixConfig struct {
 	BaselineSec int             `json:"baseline_sec"`
 	ChargeSec   int             `json:"charge_sec"`
 	DeadlineMs  float64         `json:"deadline_ms,omitempty"`
+	// Provenance du run : le canal (clean|bursty) et le banc (legacy|dualns)
+	// se lisent dans le gel — deux régimes ne se mélangent jamais en secret.
+	ChannelModel string `json:"channel_model"`
+	Bench        string `json:"bench"`
 }
 
 func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]byte, error) {
@@ -45,7 +49,15 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 	}
 	flows := deps.Flows
 	if flows <= 0 {
-		flows = 1
+		flows = 4 // régime du banc durci ; --flows 1 reproduit le gel historique
+	}
+	cm := deps.ChannelModel
+	if cm == "" {
+		cm = "clean"
+	}
+	bench := deps.Bench
+	if bench == "" {
+		bench = "legacy"
 	}
 	baseline := deps.BaselineSec
 	if baseline == 0 {
@@ -60,5 +72,6 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 		Direction: dir, Target: deps.Target, BulkAddr: deps.BulkAddr,
 		SmallURL: deps.SmallURL, Flows: flows, BaselineSec: baseline,
 		ChargeSec: charge, DeadlineMs: deps.DeadlineMs,
+		ChannelModel: cm, Bench: bench,
 	})
 }

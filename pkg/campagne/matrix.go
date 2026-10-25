@@ -222,6 +222,12 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 						evCancel()
 						if err == nil {
 							_ = w.Append(done)
+							// sidecar valuation.json : l'économie entreprise de
+							// la cellule voyage à côté du CSV gelé (schéma 23 col
+							// intact) ; échec non fatal — le gel reste la vérité.
+							if err := writeValuationEntry(w.Dir, done, labelsFromDeps(deps)); err != nil {
+								log.Printf("[campagne] sidecar valuation %s: %v", key, err)
+							}
 							m.Done = id
 							// les cellules quarantaine arrivent dans le journal opérateur (Q13)
 							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {
