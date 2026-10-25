@@ -45,26 +45,15 @@ type Report struct {
 	// Remediation is present only when capacity and RTT were both measured.
 	Remediation *Remediation `json:"remediation,omitempty"`
 
-	// Waste is the financial projection, present only when a load was measured.
-	Waste *Waste `json:"waste,omitempty"`
-}
+	// Economics is the enterprise valuation, present only when a load was
+	// measured AND a retransmission ratio exists (measured or estimated).
+	// All contractual scenarios are shown with the primary marked by link
+	// type — a scenario match, never a claim about the site's real contract.
+	Economics *metrics.Economics `json:"economics,omitempty"`
 
-// Waste is the retransmission cost projection in Malagasy Ariary.
-//
-// It is derived from the measured loss and throughput, not from a guess: the
-// audit knows how many bytes it moved and what fraction was lost, so the wasted
-// volume is measured. The tariff is the operator's declared tier.
-type Waste struct {
-	// Tier is the prepaid tariff the projection uses.
-	Tier string `json:"tier"`
-	// ARPerGB is that tariff's rate.
-	ARPerGB float64 `json:"ar_per_gb"`
-	// WastedMB is the measured volume lost to retransmission.
-	WastedMB float64 `json:"wasted_mb"`
-	// ARPerHour is the projected cost of that waste per hour of the same load.
-	ARPerHour float64 `json:"ar_per_hour"`
-	// Basis states how the hourly figure was extrapolated, so it is auditable.
-	Basis string `json:"basis"`
+	// CAPSLA is the 220 ms operator-objective assessment of the loaded 16 KB
+	// completions (Model C). Measured=false means unavailable, never a pass.
+	CAPSLA metrics.CAPSLA `json:"cap_sla"`
 }
 
 // Phases records the audit schedule actually executed. A 60 s audit is
@@ -106,6 +95,17 @@ type Measured struct {
 	VoIPR float64 `json:"voip_r"`
 	// DataUsedMB is the volume the audit itself consumed.
 	DataUsedMB float64 `json:"data_used_mb"`
+	// Direction — sens de la fenêtre headline ("up", "down", "both") et
+	// flux de charge exercés ; les miroirs ci-dessous portent la fenêtre
+	// descendante quand elle a tourné.
+	Direction string  `json:"direction"`
+	FlowCount int     `json:"flow_count"`
+	JFIPct    float64 `json:"jfi_pct"`
+	// Miroirs descendants — zéro tant que la fenêtre down n'a pas tourné.
+	RTTLoadedDownP95Ms float64 `json:"rtt_loaded_down_p95_ms"`
+	ThroughputDownMbps float64 `json:"throughput_down_mbps"`
+	BloatDeltaDownMs   float64 `json:"bloat_delta_down_ms"`
+	JFIDownPct         float64 `json:"jfi_down_pct"`
 }
 
 // Unavailable records a metric the audit could not produce, and why.
@@ -169,20 +169,27 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 
 	loadMeasured := res.ThroughputMbps > 0 && res.BloatGrade != ""
 	rep.Measured = Measured{
-		RTTIdleP50Ms:   res.RTTIdleP50,
-		RTTIdleP95Ms:   res.RTTIdleP95,
-		RTTLoadedP50Ms: res.RTTLoadedP50,
-		RTTLoadedP95Ms: res.RTTLoadedP95,
-		QDIMs:          res.RTTLoadedP95 - res.RTTLoadedP50,
-		BloatDeltaMs:   res.BloatDeltaMs,
-		DrainMs:        res.DrainMs,
-		DrainMeasured:  res.DrainMeasured,
-		LoadMeasured:   loadMeasured,
-		ThroughputMbps: res.ThroughputMbps,
-		LossPct:        res.LossPct,
-		HTTPSmallP95Ms: res.HTTPSmallP95,
-		SmallMeasured:  res.HTTPSmallP95 > 0,
-		DataUsedMB:     res.DataUsedMB,
+		RTTIdleP50Ms:       res.RTTIdleP50,
+		RTTIdleP95Ms:       res.RTTIdleP95,
+		RTTLoadedP50Ms:     res.RTTLoadedP50,
+		RTTLoadedP95Ms:     res.RTTLoadedP95,
+		QDIMs:              res.RTTLoadedP95 - res.RTTLoadedP50,
+		BloatDeltaMs:       res.BloatDeltaMs,
+		DrainMs:            res.DrainMs,
+		DrainMeasured:      res.DrainMeasured,
+		LoadMeasured:       loadMeasured,
+		ThroughputMbps:     res.ThroughputMbps,
+		LossPct:            res.LossPct,
+		HTTPSmallP95Ms:     res.HTTPSmallP95,
+		SmallMeasured:      res.HTTPSmallP95 > 0,
+		DataUsedMB:         res.DataUsedMB,
+		Direction:          res.Direction,
+		FlowCount:          res.FlowCount,
+		JFIPct:             res.JFIPct,
+		RTTLoadedDownP95Ms: res.RTTLoadedDownP95,
+		ThroughputDownMbps: res.ThroughputDownMbps,
+		BloatDeltaDownMs:   res.BloatDeltaDownMs,
+		JFIDownPct:         res.JFIDownPct,
 	}
 
 	// VoIP R from the loaded conditions: one-way delay is half the RTT, jitter
@@ -191,31 +198,28 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		rep.Measured.VoIPR = metrics.VoIPR(res.RTTLoadedP50/2, res.RTTLoadedP95-res.RTTLoadedP50, res.LossPct)
 	}
 
-	// Financial projection. The audit measured how much data it moved and what
-	// fraction was lost, so the wasted volume is a measurement, not an estimate.
-	// The hourly figure extrapolates that waste rate to one hour of the same
-	// load, which is the number an operator can act on.
-	if loadMeasured && res.DataUsedMB > 0 && res.LossPct > 0 && res.LoadSeconds > 0 {
-		tier := metrics.ActiveTier()
-		wastedMB := res.DataUsedMB * res.LossPct / 100
-		// Extrapolate the measured waste rate over the measured load window to
-		// one hour. Both inputs are measurements, so the hourly figure is
-		// traceable rather than assumed.
-		perHour := wastedMB / res.LoadSeconds * 3600
-		rep.Waste = &Waste{
-			Tier:      tier.Name,
-			ARPerGB:   tier.ARGB,
-			WastedMB:  wastedMB,
-			ARPerHour: perHour / 1024 * tier.ARGB,
-			Basis: fmt.Sprintf("%.2f MB lost over a measured %.1f s load, extrapolated to one hour at %s (%.0f Ar/GB)",
-				wastedMB, res.LoadSeconds, tier.Name, tier.ARGB),
+	// Valorisation entreprise : TOUS les scénarios, primaire MARQUÉ pour le
+	// type de lien déclaré. Le gaspillage vient de la mesure : octets
+	// réémis (TCP_INFO, base "measured") ou part de perte sonde appliquée
+	// au volume transporté (base "estimated", proxy documenté). Sans ratio,
+	// aucune valorisation chiffrée — jamais un zéro qui se lirait « aucun
+	// gaspillage ».
+	if loadMeasured && res.RetransRatio.Basis != "" && res.DataUsedMB > 0 && res.LoadSeconds > 0 {
+		transported := res.DataUsedMB * 1e6
+		wasted := res.DataUsedMB * res.LossPct / 100 * 1e6
+		if res.RetransRatio.Basis == "measured" {
+			wasted = res.RetransRatio.Ratio * transported
 		}
+		rep.Economics = metrics.BuildEconomics(res.LinkType, res.RetransRatio, transported, wasted, res.LoadSeconds)
 	} else if loadMeasured {
 		rep.Unavailable = append(rep.Unavailable, Unavailable{
-			Metric: "waste_ar_per_h",
-			Reason: "no measured loss or no measured volume; a zero here would mean 'no waste', which is a different claim from 'not measured'",
+			Metric: "economics",
+			Reason: "ratio de réémission non mesuré (TCP_INFO indisponible et perte sonde nulle) ; aucun scénario n'est chiffré plutôt qu'un zéro fabriqué",
 		})
 	}
+	// SLA CAP (modèle C) : l'objectif opérateur DGM 220 ms, cadre WIS 2.0 —
+	// jamais présenté comme un seuil imposé par l'OMM.
+	rep.CAPSLA = metrics.CAPSLA{Measured: res.CAPSLAMeasured, OKPct: res.CAPDeadlineOKPct, Breach: res.CAPSLABreach, Label: res.CAPSLALabel}
 
 	// Say plainly what is missing. These are the metrics a jury or an operator
 	// will ask for, so each absence is named rather than silently zeroed.
@@ -245,11 +249,12 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 			Reason: "audit shorter than 20 s, so no recovery window was collected; drain is not the same as zero",
 		})
 	}
-	// Deadline compliance needs per-probe completion samples, which a link
-	// audit does not retain. The campaign does; this report does not pretend to.
+	// Deadline compliance of the CAMPAIGN's operator-defined objective is a
+	// separate metric this link audit cannot compute; the audit's own CAP
+	// assessment at the fixed 220 ms operator objective is cap_sla above.
 	rep.Unavailable = append(rep.Unavailable, Unavailable{
 		Metric: "deadline_ok_pct",
-		Reason: "link audit retains percentiles only; per-probe completions are recorded by the campaign, not the audit",
+		Reason: "cap_deadline_ok_pct covers the fixed 220 ms operator objective; the campaign's operator-defined deadline_ok_pct stays a separate, campaign-only metric",
 	})
 
 	// Remediation only from a real measurement. This is the guard that keeps a
@@ -336,6 +341,7 @@ func (r *Report) RenderMarkdown() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Link audit — %s\n\n", r.AuditID)
 	fmt.Fprintf(&b, "- Site: %s\n- Link: %s (%s)\n- Measured: %s\n", r.Site, r.LinkType, r.Provider, r.Timestamp)
+	fmt.Fprintf(&b, "- Sens: %s (charge: %d flux)\n", sensLabel(r.Measured.Direction), r.Measured.FlowCount)
 	fmt.Fprintf(&b, "- Phases: %.0f s baseline / %.0f s load / %.0f s drain\n\n",
 		r.Phases.BaselineSeconds, r.Phases.LoadSeconds, r.Phases.RecoverySeconds)
 
@@ -353,6 +359,17 @@ func (r *Report) RenderMarkdown() string {
 		}
 		fmt.Fprintf(&b, "| Throughput | %.2f Mbit/s |\n", r.Measured.ThroughputMbps)
 		fmt.Fprintf(&b, "| VoIP R-score | %.1f |\n", r.Measured.VoIPR)
+		if r.Measured.FlowCount > 1 {
+			fmt.Fprintf(&b, "| Équité inter-flux (JFI) | %.1f %% |\n", r.Measured.JFIPct)
+		}
+		if r.Measured.Direction == "down" || r.Measured.Direction == "both" {
+			fmt.Fprintf(&b, "| Chargé p95 (descendant) | %.1f ms |\n", r.Measured.RTTLoadedDownP95Ms)
+			fmt.Fprintf(&b, "| Écart bufferbloat (descendant) | %.1f ms |\n", r.Measured.BloatDeltaDownMs)
+			fmt.Fprintf(&b, "| Throughput (descendant) | %.2f Mbit/s |\n", r.Measured.ThroughputDownMbps)
+			if r.Measured.FlowCount > 1 {
+				fmt.Fprintf(&b, "| JFI (descendant) | %.1f %% |\n", r.Measured.JFIDownPct)
+			}
+		}
 	}
 	fmt.Fprintf(&b, "| Loss | %.2f %% |\n", r.Measured.LossPct)
 	if r.Measured.SmallMeasured {
@@ -364,6 +381,18 @@ func (r *Report) RenderMarkdown() string {
 		fmt.Fprintf(&b, "**Bufferbloat grade: %s** — %s\n\n", r.Grade, r.Verdict)
 	} else {
 		fmt.Fprintf(&b, "**Bufferbloat grade: not measured.** %s\n\n", r.Verdict)
+	}
+
+	// SLA CAP — l'objectif opérateur DGM 220 ms dans le cadre WIS 2.0 :
+	// jamais un succès par défaut, jamais présenté comme un seuil OMM.
+	if r.CAPSLA.Measured {
+		state := "CONFORME"
+		if r.CAPSLA.Breach {
+			state = r.CAPSLA.Label
+		}
+		fmt.Fprintf(&b, "**SLA CAP (objectif DGM 220 ms, cadre WIS 2.0) : %.1f %% sous échéance — %s**\n\n", r.CAPSLA.OKPct, state)
+	} else {
+		fmt.Fprintf(&b, "**SLA CAP : non mesuré** — aucune complétion 16 KiB chargée ; jamais un succès par défaut.\n\n")
 	}
 
 	if len(r.Unavailable) > 0 {
@@ -386,12 +415,20 @@ func (r *Report) RenderMarkdown() string {
 		fmt.Fprintf(&b, "- SHA-256: `%s`\n\n", r.Provenance.SourceSHA256)
 	}
 
-	if r.Waste != nil {
-		b.WriteString("## Financial waste\n\n")
-		fmt.Fprintf(&b, "- Tariff: %s (%.0f Ar/GB)\n", r.Waste.Tier, r.Waste.ARPerGB)
-		fmt.Fprintf(&b, "- Volume lost to retransmission: %.2f MB\n", r.Waste.WastedMB)
-		fmt.Fprintf(&b, "- Projected cost: **%.0f Ar/hour**\n\n", r.Waste.ARPerHour)
-		fmt.Fprintf(&b, "Basis: %s\n\n", r.Waste.Basis)
+	if r.Economics != nil {
+		b.WriteString("## Impact économique (scénarios contractuels)\n\n")
+		fmt.Fprintf(&b, "Ratio de réémission : %.4f (base %s) · %.2f Mo gaspillés sur %.2f Mo transportés en %.0f s de charge.\n\n",
+			r.Economics.RetransRatio.Ratio, r.Economics.RetransRatio.Basis,
+			r.Economics.WastedBytes/1e6, r.Economics.TransportedBytes/1e6, r.Economics.LoadSeconds)
+		b.WriteString("| Scénario | Ar/h | Base |\n|---|---|---|\n")
+		for _, s := range r.Economics.Scenarios {
+			mark := ""
+			if r.Economics.Primary != nil && s.Name == r.Economics.Primary.Name {
+				mark = " ← PRIMAIRE (" + r.Economics.PrimaryLinkType + ")"
+			}
+			fmt.Fprintf(&b, "| %s (%s)%s | %.0f | %s |\n", s.Name, s.Model, mark, s.ARPerHour, s.Basis)
+		}
+		fmt.Fprintf(&b, "\n%s\n\n", r.Economics.Disclaimer)
 	}
 
 	if r.Remediation != nil {
@@ -461,4 +498,17 @@ func WriteArtifacts(rep *Report, baseDir string) (jsonPath, mdPath string, err e
 		return "", "", err
 	}
 	return jsonPath, mdPath, nil
+}
+
+// sensLabel — libellé français du sens pour le rendu opérateur.
+func sensLabel(dir string) string {
+	switch dir {
+	case "down":
+		return "descendant (down)"
+	case "both":
+		return "les deux sens (both)"
+	case "up":
+		return "montant (up)"
+	}
+	return dir
 }

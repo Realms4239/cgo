@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/remediate"
 )
 
@@ -272,5 +273,67 @@ func TestCallerCannotDeclareCapacity(t *testing.T) {
 	joined := strings.Join(rep.Remediation.LinuxTC, "\n")
 	if strings.Contains(joined, "1000mbit") {
 		t.Fatalf("caller-declared capacity reached the config:\n%s", joined)
+	}
+}
+
+func TestBuildReportEconomicsAllScenarios(t *testing.T) {
+	res := &Result{
+		AuditID: "a", Timestamp: "t", LinkType: "4g",
+		ThroughputMbps: 10, BloatGrade: "A", LoadSeconds: 40,
+		DataUsedMB: 50, LossPct: 4,
+		RTTIdleP50: 20, RTTIdleP95: 25, RTTLoadedP50: 25, RTTLoadedP95: 30,
+		RetransRatio: metrics.RetransRatio{Ratio: 0.04, Basis: "measured"},
+		Direction:    "up", FlowCount: 4, JFIPct: 97.5,
+		CAPSLAMeasured: true, CAPDeadlineOKPct: 97, CAPSLABreach: false,
+	}
+	rep, err := BuildReport(res, remediate.Link{}, "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Economics == nil || len(rep.Economics.Scenarios) != 5 {
+		t.Fatalf("Economics : %+v", rep.Economics)
+	}
+	if rep.Economics.Primary == nil || rep.Economics.Primary.Name != metrics.TariffCorporateAPN.Name {
+		t.Fatalf("primaire 4g : %+v", rep.Economics.Primary)
+	}
+	if !rep.CAPSLA.Measured || rep.CAPSLA.Breach {
+		t.Fatalf("CAP : %+v", rep.CAPSLA)
+	}
+	md := rep.RenderMarkdown()
+	if !strings.Contains(md, "97.5") {
+		t.Fatal("JFI absent du rendu")
+	}
+	if !strings.Contains(md, metrics.TariffWholesale.Name) || !strings.Contains(md, "retail-outofbundle") {
+		t.Fatal("tous les scénarios doivent être visibles, y compris secours")
+	}
+	if !strings.Contains(md, "objectif DGM 220 ms") && rep.CAPSLA.Measured {
+		t.Fatal("le cadre du 220 ms doit être dit (objectif opérateur, pas un seuil OMM)")
+	}
+	if !strings.Contains(md, "scénarios contractuels") {
+		t.Fatal("la section économique doit se dire contractuelle, pas mesurée")
+	}
+}
+
+func TestBuildReportNoRatioNoEconomics(t *testing.T) {
+	res := &Result{
+		AuditID: "a", Timestamp: "t", LinkType: "fiber",
+		ThroughputMbps: 10, BloatGrade: "A", LoadSeconds: 40, DataUsedMB: 50, LossPct: 0,
+		RTTIdleP50: 20, RTTIdleP95: 25, RTTLoadedP50: 25, RTTLoadedP95: 30,
+	}
+	rep, err := BuildReport(res, remediate.Link{}, "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Economics != nil {
+		t.Fatal("sans ratio : pas de valorisation chiffrée (jamais de zéro fabriqué)")
+	}
+	found := false
+	for _, u := range rep.Unavailable {
+		if u.Metric == "economics" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("l'absence de valorisation doit être déclarée indisponible")
 	}
 }

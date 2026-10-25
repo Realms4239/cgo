@@ -265,10 +265,17 @@ func printAuditSummary(rep *audit.Report) {
 	fmt.Printf("%-26s %.1f ms\n", "QDI", rep.Measured.QDIMs)
 	fmt.Printf("%-26s %.1f\n", "VoIP R (G.107)", rep.Measured.VoIPR)
 	fmt.Printf("%-26s %.1f Mbit/s\n", "Throughput", rep.Measured.ThroughputMbps)
-	if rep.Waste != nil {
-		fmt.Printf("%-26s %.0f Ar/h (%s)\n", "Prepaid waste", rep.Waste.ARPerHour, rep.Waste.Tier)
+	if rep.Economics != nil && rep.Economics.Primary != nil {
+		fmt.Printf("%-26s %.0f Ar/h (%s)\n", "Coût primaire", rep.Economics.Primary.ARPerHour, rep.Economics.Primary.Name)
 	} else {
-		fmt.Printf("%-26s non mesuré\n", "Prepaid waste")
+		fmt.Printf("%-26s non chiffré (ratio de réémission absent)\n", "Coût primaire")
+	}
+	if rep.CAPSLA.Measured {
+		etat := "conforme"
+		if rep.CAPSLA.Breach {
+			etat = "MANQUEMENT SLA"
+		}
+		fmt.Printf("%-26s %.1f %% sous 220 ms — %s\n", "SLA CAP", rep.CAPSLA.OKPct, etat)
 	}
 	if rep.Provenance.SourceSHA256 != "" {
 		fmt.Printf("%-26s %s\n", "SHA-256 seal", rep.Provenance.SourceSHA256)
