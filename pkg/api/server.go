@@ -355,6 +355,39 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/cost/tiers", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"tiers": metrics.Tiers, "default": metrics.ActiveTierName()})
 	})
+	// catalogue entreprise — plans, tarifs B2B, pénalité de secours et
+	// mapping primaire : TOUT vient des vars de pkg/metrics (source unique,
+	// un tarif changé au paquet se retrouve ici) ; aucun nombre recopié.
+	mux.HandleFunc("GET /api/cost/enterprise", func(w http.ResponseWriter, _ *http.Request) {
+		plans := make([]map[string]any, 0, 2)
+		for _, p := range []metrics.EnterprisePlan{metrics.PlanGOLD, metrics.PlanPLATINE} {
+			m := map[string]any{"name": p.Name, "monthly_opex_mga": p.MonthlyOpExMGA}
+			// capacité ou FUP — jamais les deux zéros : un plan CIR n'a pas
+			// de FUP, un plan FUP n'a pas de CIR (pas de zéro qui lit « mesuré »)
+			if p.CIRMbps > 0 {
+				m["cir_mbps"] = p.CIRMbps
+			}
+			if p.FUPBytes > 0 {
+				m["fup_bytes"] = p.FUPBytes
+			}
+			plans = append(plans, m)
+		}
+		tariffs := make([]map[string]any, 0, 2)
+		for _, tr := range []metrics.B2BTariff{metrics.TariffWholesale, metrics.TariffCorporateAPN} {
+			t := map[string]any{"name": tr.Name, "ar_per_gb": tr.ARPerGB}
+			if tr.Quoted {
+				t["quoted"] = true // devis opérateur — le rapport doit le dire (invariant 4)
+			}
+			tariffs = append(tariffs, t)
+		}
+		writeJSON(w, map[string]any{
+			"plans":               plans,
+			"tariffs":             tariffs,
+			"emergency_ar_per_gb": metrics.RetailEmergencyARPerGB,
+			"primary_mapping":     map[string]string{"fiber": metrics.PrimaryName("fiber"), "other": metrics.PrimaryName("other"), "4g": metrics.PrimaryName("4g"), "5g": metrics.PrimaryName("5g"), "vsat": metrics.PrimaryName("vsat")},
+			"disclaimer":          metrics.EconomicsDisclaimer,
+		})
+	})
 	// palier actif — le forfait où vit l'institution (les coûts affichés
 	// suivent ; inconnu = 400, pas de défaut silencieux)
 	mux.HandleFunc("POST /api/cost/tier", func(w http.ResponseWriter, r *http.Request) {

@@ -145,6 +145,14 @@ func primaryName(linkType string) string {
 	}
 }
 
+// PrimaryName expose la correspondance type de lien → scénario primaire :
+// le catalogue API et le rapport d'audit lisent la même source.
+func PrimaryName(linkType string) string { return primaryName(linkType) }
+
+// EconomicsDisclaimer — le mot des scénarios contractuels, identique sur
+// le rapport d'audit et le catalogue API (source unique).
+const EconomicsDisclaimer = "Scénarios contractuels (yas.mg 31/08/2026 ; APN 150 Ar/Go sur devis), pas des mesures : le chiffre retenu dépend du contrat du site, pas de la physique du lien."
+
 // BuildEconomics assemble tous les scénarios à partir du gaspillage mesuré.
 // transportedBytes/wastedBytes en octets ; loadSeconds = fenêtre de charge
 // mesurée (généralisation du ×20 de la directive).
@@ -155,7 +163,7 @@ func BuildEconomics(linkType string, ratio RetransRatio, transportedBytes, waste
 		WastedBytes:      wastedBytes,
 		TransportedBytes: transportedBytes,
 		LoadSeconds:      loadSeconds,
-		Disclaimer:       "Scénarios contractuels (yas.mg 31/08/2026 ; APN 150 Ar/Go sur devis), pas des mesures : le chiffre retenu dépend du contrat du site, pas de la physique du lien.",
+		Disclaimer:       EconomicsDisclaimer,
 	}
 	if ratio.Basis == "" || transportedBytes <= 0 {
 		return e // non mesuré : aucun zéro fabriqué
