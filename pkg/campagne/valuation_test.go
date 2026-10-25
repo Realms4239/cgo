@@ -70,6 +70,42 @@ func TestWriteValuationNoBytesNoScenarios(t *testing.T) {
 	}
 }
 
+func TestValuationIdempotentByCell(t *testing.T) {
+	// La propriété de reprise : une cellule rejouée REMPLACE son entrée,
+	// elle ne la duplique pas — le sidecar reste lisible après un crash.
+	dir := t.TempDir()
+	labels := ValuationLabels{ChargeSec: 120, Flows: 4, ChannelModel: "clean", Bench: "dualns"}
+	ev := model.Event{Profile: "P2", Qdisc: "cake", CC: "bbr", Bytes: 80_000_000, Drops: 300}
+	if err := WriteValuation(dir, ev, labels); err != nil {
+		t.Fatal(err)
+	}
+	rejoue := ev
+	rejoue.Drops = 900 // mêmes profile/qdisc/cc : remplacement, pas doublon
+	if err := WriteValuation(dir, rejoue, labels); err != nil {
+		t.Fatal(err)
+	}
+	autre := model.Event{Profile: "P3", Qdisc: "cake", CC: "bbr", Bytes: 80_000_000, Drops: 10}
+	if err := WriteValuation(dir, autre, labels); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "valuation.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v ValuationSidecar
+	if err := json.Unmarshal(raw, &v); err != nil {
+		t.Fatal(err)
+	}
+	if len(v.Entries) != 2 {
+		t.Fatalf("reprise sans doublon : 2 entrées attendues, %+v", v.Entries)
+	}
+	for _, e := range v.Entries {
+		if e.Cell == "P2/cake/bbr" && e.Drops != 900 {
+			t.Fatalf("l'entrée rejouée doit être remplacée : %+v", e)
+		}
+	}
+}
+
 func TestBuildMatrixConfigRecordsLabels(t *testing.T) {
 	// Le manifeste doit porter flows (défaut 4), channel_model et bench :
 	// la provenance d'un run se lit dans son gel, pas dans la mémoire.

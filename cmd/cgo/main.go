@@ -275,7 +275,7 @@ WantedBy=multi-user.target
 		ccs := fs.String("cc", "", "contrôles de congestion (cubic,bbr) — vide = tous")
 		direction := fs.String("direction", "up", "sens de charge : up | down | both (RRUL séquentiel)")
 		reps := fs.Int("reps", 3, "répétitions par cellule (1–5)")
-			flows := fs.Int("flows", 4, "flux de charge concurrents (1–8 ; 1 = régime historique gelé)")
+		flows := fs.Int("flows", 4, "flux de charge concurrents (1–8 ; 1 = régime historique gelé)")
 		deadline := fs.Int("deadline", 1000, "objectif small p95 en ms (200–5000)")
 		target := fs.String("target", "1.1.1.1", "cible de mesure")
 		dataDir := fs.String("data", "data/runs", "répertoire des runs gelés")

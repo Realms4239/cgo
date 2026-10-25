@@ -56,7 +56,10 @@ func writeValuationEntry(dir string, ev model.Event, labels ValuationLabels) err
 		raw, err := os.ReadFile(path)
 		return err == nil && json.Unmarshal(raw, &v) == nil
 	}() {
-		// fichier existant relu : on remplace l'entrée de cette cellule
+		// fichier existant relu : l'entrée de cette cellule sera remplacée ;
+		// les étiquettes reçoivent la provenance COURANTE (celle du manifeste
+		// de la reprise) — une reprise divergente ne doit pas figer un mensonge.
+		v.Labels = labels
 	} else {
 		v.Disclaimer = metrics.BuildEconomics("", metrics.RetransRatio{}, 0, 0, 0).Disclaimer
 	}
