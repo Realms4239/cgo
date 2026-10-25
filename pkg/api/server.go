@@ -1008,6 +1008,8 @@ func New(d Deps) Handler {
 			Provider       string `json:"provider"`
 			Duration       int    `json:"duration"`
 			Target         string `json:"target"`
+			Direction      string `json:"direction"`
+			Flows          int    `json:"flows"`
 			SmallURL       string `json:"small_url"`
 			BulkAddr       string `json:"bulk_addr"`
 			Iface          string `json:"iface"`
@@ -1040,6 +1042,23 @@ func New(d Deps) Handler {
 		if body.Target == "" {
 			body.Target = "8.8.8.8"
 		}
+		// Sens et flux : défauts up/4, bornes imposées — un « both » débridé
+		// double la charge, un « flows » hors 1–8 sort du régime documenté.
+		switch body.Direction {
+		case "", "up":
+			body.Direction = "up"
+		case "down", "both":
+		default:
+			writeErr(w, r, "direction invalide (up|down|both)", http.StatusBadRequest)
+			return
+		}
+		if body.Flows <= 0 {
+			body.Flows = 4
+		}
+		if body.Flows < 1 || body.Flows > 8 {
+			writeErr(w, r, "flows hors bornes (1–8)", http.StatusBadRequest)
+			return
+		}
 		// La charge et le petit objet viennent du banc par défaut ; vides
 		// seulement si l'opérateur les désactive explicitement (la note
 		// bufferbloat restera vide, jamais A+ par absence de charge).
@@ -1069,7 +1088,12 @@ func New(d Deps) Handler {
 		}
 		go func() {
 			defer func() { auditMu.Lock(); auditRunning = false; auditMu.Unlock() }()
-			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target, SmallURL: body.SmallURL, BulkAddr: body.BulkAddr}
+			p := auditParamsFromRequest(map[string]any{
+				"site": body.Site, "link_type": body.LinkType, "provider": body.Provider,
+				"duration": float64(body.Duration), "target": body.Target,
+				"direction": body.Direction, "flows": float64(body.Flows),
+				"small_url": body.SmallURL, "bulk_addr": body.BulkAddr,
+			})
 			// contexte détaché: l'audit survit à cette requête HTTP
 			res, err := audit.Run(context.Background(), p, audit.Deps{})
 			if err != nil {
@@ -1567,4 +1591,42 @@ func writeErr(w http.ResponseWriter, r *http.Request, msg string, code int) {
 		return
 	}
 	http.Error(w, msg, code)
+}
+
+// auditParamsFromRequest — le mapping requête → audit.Params, défauts
+// up/4 (le régime du banc durci). Les champs de terrain fournis passent
+// tels quels : cette fonction mappe, le handler valide et borne.
+func auditParamsFromRequest(body map[string]any) audit.Params {
+	get := func(k string) string {
+		if v, ok := body[k].(string); ok {
+			return v
+		}
+		return ""
+	}
+	num := func(k string, def int) int {
+		// JSON décode en float64 ; un appel Go direct fournit souvent un
+		// int — les deux sont acceptés, jamais réécrits en silence.
+		switch v := body[k].(type) {
+		case float64:
+			if v > 0 {
+				return int(v)
+			}
+		case int:
+			if v > 0 {
+				return v
+			}
+		}
+		return def
+	}
+	dir := get("direction")
+	if dir == "" {
+		dir = "up"
+	}
+	return audit.Params{
+		AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
+		Site:    get("site"), LinkType: get("link_type"), Provider: get("provider"),
+		Duration: num("duration", 60), Target: get("target"),
+		Direction: dir, Flows: num("flows", 4),
+		SmallURL: get("small_url"), BulkAddr: get("bulk_addr"),
+	}
 }
