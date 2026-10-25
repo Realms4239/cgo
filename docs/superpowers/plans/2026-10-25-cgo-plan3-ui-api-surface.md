@@ -1,21 +1,22 @@
-# CGO Enterprise Rebuild — Plan 3: UI / API Surface Implementation Plan
+# CGO Enterprise Rebuild — Plan 3: UI / API Surface Implementation Plan (révisé après brainstorm design)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver spec §8's API + UI slice: run provenance (`bench`, `channel_model`) through `/api/run/start` with fail-fast validation and the decision-6 `flows=4` default; `GET /api/cost/enterprise` catalog; bench-aware audit sink detection shared CLI/API (closes re-review M4/M5); the `both`-mute report completeness fix (M6); and the dashboard surfaces — live enterprise cost/JFI, campaign channel-model cockpit, simplified audit card, enterprise result card.
+**Goal:** Spec §8's API slice PLUS the design overhaul decided in the 2026-10-26 brainstorm (critique 23/40, snapshot `web/frontend/.impeccable/critique/`): run provenance through `/api/run/start`; `GET /api/cost/enterprise`; bench-aware audit sinks (M4/M5); the `both`-mute report fix (M6); **the audit becomes observable** (`/api/audit/live` + stop); the audit card is rebuilt as a staged experience (Déclarer → Observer → Lire) that renders the full report; the results section is depouillée; and a system-wide extract pass enforces the existing token system (« modeste, spacieux, élégant », Inter conservé).
 
-**Architecture:** Go API first (`pkg/api`, `pkg/audit`, `cmd/cgo` wiring), then the React frontend consumes it (`web/frontend/src`). Sink detection moves from `cmd/cgo` (package main) to `pkg/audit` so CLI and API share one ladder; the API server gains a `SinksFn` seam (nil ⇒ real detection) so handler tests stay offline. Frontend touches `types.ts` (LiveFrame mirror), `LiveView`, `CampagneView` (cockpit + audit card + result card), one new lib module for the P2/P3 canal gate. Existing design tokens/layout only (`--surface-soft`, `--hairline`, `.btn`, `.card-head`, portal modal, LiveGuide collapse pattern, LiveView cubic/bbr button-group) — the impeccable skill governs the final UI quality pass.
+**Architecture:** Go API first (T1–T5), frontend in priority order (audit card → cockpit/live features → results → system pass). The audit engine gains an `OnProgress` seam (phase + live samples) mirroring the campaign wall's `publishLive` pattern; sink detection moves to `pkg/audit`. Frontend: primitives (`Card`, `Stat`, `Badge`, `.c-input`) are adopted in T6 FIRST and the extract pass (T9) generalizes them — no view is rebuilt on inline styles then migrated twice.
 
-**Tech Stack:** Go 1.25 stdlib only; React 19 + zustand + vitest (jsdom) existing setup; `npm run typecheck` + `npm run test` + `npm run build` from `web/frontend`.
+**Tech Stack:** Go 1.25 stdlib only; React 19 + zustand + vitest (jsdom); `npm run typecheck` / `test` / `build` from `web/frontend`.
 
 ## Global Constraints
 
-- Spec: `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md` (§2 honesty invariants, §8 UI/API slice, decisions 6–8).
-- Go 1.25 stdlib only, **no new dependencies** (frontend deps frozen too); comments French, identifiers English.
-- From repo root `C:\cgo`: `go build ./...`, `go vet ./...`, `go test ./pkg/api/... ./pkg/audit/... ./cmd/cgo/... -count=1` green on Windows; from `web/frontend`: `npm run typecheck`, `npm run test`, `npm run build` green.
-- Frozen-data guard: `book/data/runs`, `pkg/results/runs-frozen.tar.gz` untouched; frozen CSV schemas immutable; `book/tools/audit-archive.py` output byte-identical after every task.
-- Never fabricate: unmeasured ⇒ stated (badge « non mesuré », `Unavailable`, empty), never a zero that reads as measured; scenario ≠ claim (labels carry « scénario contractuel »).
-- Bursty is P2/P3-only (decision 7): enforced twice — API 400 before any mutation, campaign validation as last word.
+- Spec: `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md` (§2 honesty invariants, §8, decisions 6–8) + brainstorm decisions (2026-10-26): full staged audit, extract pass toutes vues, Inter conservé.
+- Go 1.25 stdlib only, no new dependencies (frontend deps frozen); comments French, identifiers English.
+- Windows-green: `go build ./...`, `go vet ./...`, `go test ./pkg/api/... ./pkg/audit/... ./cmd/cgo/... -count=1`; frontend `npm run typecheck && npm run test && npm run build`.
+- Frozen-data guard: `book/data/runs`, `pkg/results/runs-frozen.tar.gz` untouched; CSV schemas immutable; `book/tools/audit-archive.py` byte-identical after every task.
+- Never fabricate: unmeasured ⇒ stated (badge « non mesuré », `Unavailable`, dashed tiles), never a zero that reads as measured; scenario ≠ claim (labels carry « scénario contractuel »).
+- **Design floor (brainstorm)**: no new hardcoded hex in `.tsx` (tokens/`var()` or the palette module only); no font size outside the 5 tokens (`--fs-micro..--fs-head`; nothing below 10px); spacing from `--sp-1..5`; primitives before raw divs; `aria-pressed` on every toggle, `aria-sort` on sortable tables; `prefers-reduced-motion` respected (existing anime.js gating). The impeccable skill's craft-floor reference governs every UI task.
+- Bursty is P2/P3-only (decision 7): enforced at the API (400 before mutation) and in campagne (last word).
 - Commit after every task with the given message.
 
 ---
@@ -28,11 +29,11 @@
 
 **Interfaces:**
 - `RunOpts` gains `Bench string \`json:"bench"\`` and `ChannelModel string \`json:"channel_model"\``.
-- Validation (before the engine-wired check, so it holds on observe-only hosts): `bench` ∈ {"", "legacy", "dualns"} else 400 `bench must be legacy|dualns`; `channel_model` ∈ {"", "clean", "bursty"} else 400 naming the rule `clean|bursty`; `channel_model=="bursty"` ⇒ every entry of `opts.Profiles` ∈ {P2, P3} else 400 naming the offending profile(s) + the P2/P3 rule (mirrors campagne's `RunEvent` message).
-- `startFn` (cmd/cgo/server.go): `o.Flows == 0 ⇒ 4` (decision 6 — today's `if <1 {=1}` lands on 1); bench resolution mirrors `runCLI`: `o.Bench` → else `CGO_BENCH` env → else `"legacy"`; `"dualns"` + direction ⇒ `ProdDepsDualNS(o.Direction)` (up/down aware — it already takes direction) instead of `ProdDeps()/ProdDepsDown()`; `deps.ChannelModel = o.ChannelModel` ("" stays "" — campagne defaults to clean).
-- `runcli.go`: `--channel-model` flag default becomes `envDefault("CGO_CHANNEL_MODEL", "clean")` so the env isn't dead (re-review P2 minor); same precedence audit as `--bench` (flag explicit value must still win over env — flag parsing gives that only if the default absorbs the env, exactly the `--bench` pattern; verify `runCLI`'s bench handling and copy it).
+- Validation (before the engine-wired check): `bench` ∈ {"", "legacy", "dualns"} else 400; `channel_model` ∈ {"", "clean", "bursty"} else 400 naming the rule; `channel_model=="bursty"` ⇒ every profile ∈ {P2, P3} else 400 naming the offender(s) + the rule.
+- `startFn`: `o.Flows == 0 ⇒ 4` (decision 6 — today's code lands on 1); bench resolution mirrors `runCLI` (`o.Bench` → `CGO_BENCH` → `"legacy"`); `"dualns"` ⇒ `ProdDepsDualNS(o.Direction)` (direction-aware) replaces `ProdDeps()/ProdDepsDown()`; `deps.ChannelModel = o.ChannelModel`.
+- `runcli.go`: `--channel-model` default becomes `envDefault("CGO_CHANNEL_MODEL", "clean")` (env no longer dead; explicit flag still wins — same pattern as `--bench`).
 
-- [ ] **Step 1: Failing tests** (run_start_filters_test.go): `channel_model=bursty` + profiles [P1] ⇒ 400, body names `P1`; `channel_model=tlmn` ⇒ 400; `bench=xyz` ⇒ 400; `channel_model=bursty` + [P2] passes validation ⇒ 503 `run engine not wired` (proves the gate order); `flows` absent (0) no longer 400.
+- [ ] **Step 1: Failing tests** — bursty+P1 ⇒ 400 naming `P1`; canal inconnu ⇒ 400; banc inconnu ⇒ 400; bursty+P2 sans moteur ⇒ 503 (gate order); provenance reaches `StartFn` intact (`got.ChannelModel/Bench/Flows`).
 - [ ] **Step 2: red → Step 3: implement → Step 4: green** — `go test ./pkg/api/ ./cmd/cgo/ -count=1`; audit-archive byte-identical.
 - [ ] **Step 5: Commit** — `api: run/start accepte bench + channel_model (bursty gate P2/P3), flows=4 par défaut`
 
@@ -44,39 +45,29 @@
 - Modify: `pkg/api/server.go` (endpoint)
 - Create: `pkg/api/enterprise_cost_test.go`
 
-**Interfaces:** `GET /api/cost/enterprise` → 200 JSON:
-```json
-{ "plans": [ {"name":"enterprise-gold-cir","monthly_opex_mga":1000000,"cir_mbps":200},
-             {"name":"enterprise-platine1","monthly_opex_mga":2500000,"fup_bytes":32985348833280} ],
-  "tariffs": [ {"name":"b2b-platine-bulk","ar_per_gb":81.38,"quoted":false},
-               {"name":"b2b-m2m-apn","ar_per_gb":150,"quoted":true} ],
-  "emergency_ar_per_gb": 5556,
-  "primary_mapping": {"fiber":"enterprise-gold-cir","other":"enterprise-gold-cir","4g":"b2b-m2m-apn","5g":"b2b-m2m-apn","vsat":"b2b-platine-bulk"},
-  "disclaimer": "<verbatim metrics.BuildEconomics disclaimer>" }
-```
-Values serialize FROM the `pkg/metrics` vars (PlanGOLD/PlanPLATINE/TariffWholesale/TariffCorporateAPN/RetailEmergencyARPerGB) and `primaryName` mapping — the endpoint never hardcodes a number the package owns (single source; a tariff change updates both surfaces). The `quoted` flag on APN keeps the « devis opérateur » honesty (invariant 4).
+**Interfaces:** `GET /api/cost/enterprise` → 200 JSON: `{plans:[{name,monthly_opex_mga,cir_mbps|fup_bytes}], tariffs:[{name,ar_per_gb,quoted}], emergency_ar_per_gb, primary_mapping{fiber,other,4g,5g,vsat}, disclaimer}` — every value serialized FROM the `pkg/metrics` vars and `primaryName` mapping (single source; a tariff change updates both surfaces). `quoted:true` on the APN (devis opérateur, invariant 4).
 
-- [ ] **Step 1: Failing test** — GET parses; both plan names present; APN entry `quoted:true`, wholesale `quoted:false`; emergency 5556; disclaimer verbatim from `metrics.BuildEconomics(...).Disclaimer`; primary_mapping has all five keys.
-- [ ] **Step 2: red → Step 3: implement → Step 4: green** — `go test ./pkg/api/ -count=1`.
-- [ ] **Step 5: Commit** — `api: GET /api/cost/enterprise — plans, tarifs, provenance, mapping primaire`
+- [ ] **Step 1: Failing test** — names present; APN `quoted:true`, wholesale `false`; emergency 5556; disclaimer verbatim; five mapping keys.
+- [ ] **Step 2: red → implement → green** — `go test ./pkg/api/ -count=1`.
+- [ ] **Step 3: Commit** — `api: GET /api/cost/enterprise — plans, tarifs, provenance, mapping primaire`
 
 ---
 
 ### Task 3: audit/start — puits décidés par le banc (ResolveSinks partagé) + branches 400 testées
 
 **Files:**
-- Create: `pkg/audit/sinks.go` (moved from `cmd/cgo/auditsinks.go`), `pkg/audit/sinks_test.go`
-- Modify: `cmd/cgo/auditsinks.go` (thin alias, CLI unchanged), `pkg/api/server.go` (`Deps.SinksFn`, audit/start defaults, dead-branch removal), `pkg/api/audit_start_sinks_test.go` (create)
+- Create: `pkg/audit/sinks.go`, `pkg/audit/sinks_test.go`
+- Modify: `cmd/cgo/auditsinks.go` (thin alias), `pkg/api/server.go` (`Deps.SinksFn`, defaults, dead-branch removal)
+- Create: `pkg/api/audit_start_sinks_test.go`
 
 **Interfaces:**
-- `pkg/audit` exports `Sinks{Mode, Target, SmallURL, BulkAddr string}`, `ResolveSinks() Sinks` (same ladder: dualns 10.30.0.2 trio → legacy 10.200.0.1 trio → external), `EnvOrBulk(s Sinks) string` (CGO_BULK_ADDR override). `cmd/cgo` keeps `ResolveSinks()`/`Sinks` wrappers delegating to the package — CLI call sites untouched.
-- `api.Deps` gains `SinksFn func() audit.Sinks` — nil ⇒ `audit.ResolveSinks()`; handler tests inject a stub (offline, deterministic).
-- audit/start replaces the hardcoded `10.200.0.1` defaults: `target` empty ⇒ `sinks.Target` (external keeps 8.8.8.8); `small_url` empty ⇒ `sinks.SmallURL` (**empty stays empty in external — jamais de charge implicite**); `bulk_addr` empty ⇒ `EnvOrBulk(sinks)`; env overrides keep today's precedence (`CGO_SMALL_URL`/`CGO_BULK_ADDR`). The `recordEvent("audit", "démarré…")` line names the detected bench mode so the operator sees which path runs.
-- M5 cleanups: remove the dead `body.Flows < 1` arm (unreachable after `<=0 ⇒ 4`; keep `> 8`), and pin the 400 branches with tests: direction invalide, flows 9, cible > 64 caractères.
+- `pkg/audit` exports `Sinks{Mode,Target,SmallURL,BulkAddr}`, `ResolveSinks()` (dualns 10.30.0.2 → legacy 10.200.0.1 → external), `EnvOrBulk(s)`. `cmd/cgo` keeps delegating wrappers.
+- `api.Deps` gains `SinksFn func() audit.Sinks` (nil ⇒ real). audit/start: empty `target` ⇒ `sinks.Target` (external keeps 8.8.8.8); empty `small_url` ⇒ `sinks.SmallURL` (**empty stays empty in external — jamais de charge implicite**); empty `bulk_addr` ⇒ `EnvOrBulk`; env precedence unchanged. The `recordEvent` start line names the detected bench.
+- M5: remove the dead `Flows < 1` arm; pin 400 branches (direction invalide, flows 9, cible > 64).
 
-- [ ] **Step 1: Failing tests** — stub SinksFn returning the dualns trio: POST audit/start with empty target/small/bulk ⇒ the started audit params carry 10.30.0.2/8081/5201 (assert via a Params-recording seam or the audit/status payload — whichever the existing tests use); external stub ⇒ small_url stays "" and bulk only via env; 400 branches listed above.
-- [ ] **Step 2: red → Step 3: implement → Step 4: green** — `go test ./pkg/audit/ ./pkg/api/ ./cmd/cgo/ -count=1`; audit-archive byte-identical.
-- [ ] **Step 5: Commit** — `api/audit: puits détectés par le banc (ResolveSinks partagé), branches 400 testées`
+- [ ] **Step 1: Failing tests** — dualns stub ⇒ params carry the 10.30.0.2 trio; external stub ⇒ small stays "" + bulk via env only; the 400 branches.
+- [ ] **Step 2: red → implement → green** — `go test ./pkg/audit/ ./pkg/api/ ./cmd/cgo/ -count=1`; audit-archive byte-identical.
+- [ ] **Step 3: Commit** — `api/audit: puits détectés par le banc (ResolveSinks partagé), branches 400 testées`
 
 ---
 
@@ -85,81 +76,124 @@ Values serialize FROM the `pkg/metrics` vars (PlanGOLD/PlanPLATINE/TariffWholesa
 **Files:**
 - Modify: `pkg/audit/report.go`, `pkg/audit/report_test.go`
 
-**Context:** re-review M6 (`.superpowers/sdd/2026-10-25-cgo-plan1-economics-audit/re-review-t6-t11.md`) — with `direction=both` and a mute up window (no loaded samples up), the Markdown report drops the measured down-mirrors, `Economics` can be absent without an `Unavailable` entry saying why, and the note « voir grade_down » points at a field the report never exposes. Under-reporting measured evidence + silent absence — both honesty-adjacent. Read the re-review entry first; it carries file:line specifics.
+**Context:** re-review M6 (`.superpowers/sdd/2026-10-25-cgo-plan1-economics-audit/re-review-t6-t11.md`) — read it first; it carries file:line specifics.
+
+**Interfaces:** mute direction ⇒ the OTHER direction's measured mirrors still render (labelled); `Economics == nil` ⇒ explicit `Unavailable` entry (« économie entreprise — fenêtre de charge vide »); the « voir grade_down » note references what the report actually carries.
+
+- [ ] **Step 1: Failing test** — both fixture, mute up + measured down: down mirrors in Markdown; Unavailable names economics; no dangling reference.
+- [ ] **Step 2: red → implement → green** — `go test ./pkg/audit/ -count=1`; audit-archive byte-identical.
+- [ ] **Step 3: Commit** — `audit: rapport both — miroirs down rendus, économie absente dite Unavailable`
+
+---
+
+### Task 5: audit observable — `OnProgress`, `GET /api/audit/live`, `POST /api/audit/stop`
+
+**Files:**
+- Modify: `pkg/audit/audit.go` (`Deps.OnProgress`, calls in `collectWindow` + phase boundaries), `pkg/audit/audit_test.go`
+- Modify: `pkg/api/server.go` (endpoints, atomic state, cancel wiring), `pkg/api/audit_live_test.go` (create)
 
 **Interfaces:**
-- Markdown rendering: when a direction window is mute, the OTHER direction's measured mirrors (Δp95, drain, VoIP R as available) still render, labelled `down`/`up`.
-- `Economics == nil` (load window empty) ⇒ an explicit `Unavailable` entry (« économie entreprise — fenêtre de charge vide ») instead of an absent section.
-- The « voir grade_down » note: reword to reference what the report actually carries (the per-direction section), or expose the field — whichever is smaller; the note must not promise an absent field.
+- `audit.Progress{Phase string, ElapsedSec, PhaseRemainSec int, LastRTTms, LastSmallMs float64, SamplesRTT, SamplesSmall []float64}` — `Phase` ∈ {`repos`,`charge`,`charge-down`,`drain`} (+ `both` up/down windows distinguishable); `Deps.OnProgress func(Progress)` (nil ⇒ no-op) called each collect round (~1 Hz) and at each phase start. Sample slices carry the current window's last ≤32 values (live p50/p95 computable client-side exactly like the campaign wall).
+- Server: the audit goroutine stores the latest Progress in an `atomic.Value` + start time; `GET /api/audit/live` → `{running, phase, elapsed_sec, total_sec, phase_remain_sec, last_rtt_ms, last_small_ms, samples:{rtt_ms:[],small_ms:[]}}`; not running ⇒ `{running:false}` (honest, no zeros-as-measured). `POST /api/audit/stop` cancels the run context (stored cancel func; `auditMu`-guarded) — the goroutine's error path records « annulé par l'opérateur » in `recordEvent` (distinguish cancellation from failure), no partial CSV row is appended.
+- `both`: the live phase names the active window (`charge` then `charge-down`).
 
-- [ ] **Step 1: Failing test** — a `both` fixture with mute up + measured down: Markdown contains the down Δp95/drain lines; `Unavailable` names the economics absence; no dangling « voir grade_down » reference.
-- [ ] **Step 2: red → Step 3: implement → Step 4: green** — `go test ./pkg/audit/ -count=1`; audit-archive byte-identical (frozen reports untouched — rendering change applies to fresh reports only).
-- [ ] **Step 5: Commit** — `audit: rapport both — miroirs down rendus, économie absente dite Unavailable`
-
----
-
-### Task 5: frontend — LiveFrame porte le coût entreprise, le B2B et le JFI gelé
-
-**Files:**
-- Modify: `web/frontend/src/lib/types.ts` (`LiveFrame`), `web/frontend/src/views/LiveView.tsx` (bento strip), tests colocated (`src/lib/`/`src/views/` per existing pattern)
-
-**Interfaces:** `LiveFrame` gains `cost_primary_ar_per_h: number`, `cost_b2b_ar_per_h: number`, `jfi_pct: number` (mirror of Go tags — campagne.go Snapshot). Bento strip (LiveView:402-419) gains « Coût entreprise » (GOLD, `cost_primary_ar_per_h`) and « Coût B2B » (APN 150, `cost_b2b_ar_per_h`) cards via `formatCostAR`; the existing « Coût » card keeps its frozen retail meaning (label it « Coût (détail, gelé) » to prevent misreading — the two regimes side by side was the spec's point). `jfi_pct` shows when > 0 (final cell value; the live client-side JFI from rings stays as-is — different semantics, both honest).
-
-- [ ] **Step 1: Failing tests** — type mirror test (LiveFrame keys vs Go json tags — extend the existing schema/type test if one exists, else a minimal keys test); bento strip renders the two new cards given a frame fixture (component-level if a precedent exists, else extract the strip's term list into a tested lib array).
-- [ ] **Step 2: red → Step 3: implement → Step 4: green** — `npm run typecheck && npm run test` from `web/frontend`.
-- [ ] **Step 5: Commit** — `ui: snapshot live porte coût entreprise + B2B + JFI gelé`
+- [ ] **Step 1: Failing tests** — audit test with a scripted Deps (instant fakes, Duration minimal): OnProgress fires with `repos` then `charge` phases, monotone ElapsedSec, LastRTT equals the fake's value; API test: stub Deps running ⇒ live returns phase/elapsed; stop ⇒ subsequent live `running:false` and the goroutine's event says annulé (assert via injected RecordEvent seam if one exists, else via status polling).
+- [ ] **Step 2: red → implement → green** — `go test ./pkg/audit/ ./pkg/api/ -count=1`.
+- [ ] **Step 3: Commit** — `audit: observable — OnProgress, /api/audit/live (phase + échantillons), /api/audit/stop`
 
 ---
 
-### Task 6: frontend — cockpit campagne : canal clean|bursty (P2/P3), flux 4 par défaut
+### Task 6: CampagneView — la carte audit en trois temps (Déclarer → Observer → Lire)
 
 **Files:**
-- Create: `web/frontend/src/lib/canal.ts` (+ `canal.test.ts`)
-- Modify: `web/frontend/src/views/CampagneView.tsx` (cockpit 310-354)
-
-**Interfaces:** `canal.ts` exports `canalGate(profiles: string[]): { allowed: boolean, reason: string }` — bursty legal iff `profiles ∩ {P2, P3} ≠ ∅`; reason names the rule (« bursty : P2/P3 seulement — le GE y est calibré »). Cockpit: `flows` state default 1 → **4** (input keeps 1–8); a clean/bursty two-option button group (the LiveView:512-519 cubic/bbr pattern) between the flux row and the deadline row; bursty disabled + reason shown when the gate blocks (selection snaps back to clean); POST `/api/run/start` body gains `channel_model`. `bench` stays env-driven (out of the UI — spec asks only canal + flux; the API accepts it for outillage).
-
-- [ ] **Step 1: Failing test** — `canal.test.ts`: gate on [P2], [P2,P3], [P1,P4] (allowed/allowed/blocked+reason).
-- [ ] **Step 2: red → Step 3: implement → Step 4: green** — `npm run typecheck && npm run test`; manual smoke of the POST payload via the existing fetch seam if testable.
-- [ ] **Step 5: Commit** — `ui: cockpit campagne — sélecteur canal clean|bursty (P2/P3), flux 4 par défaut`
-
----
-
-### Task 7: frontend — carte audit simplifiée + carte résultat entreprise
-
-**Files:**
-- Modify: `web/frontend/src/views/CampagneView.tsx` (audit card 297-498), tests per pattern
+- Modify: `web/frontend/src/views/CampagneView.tsx` (audit card 297–498 rebuilt)
+- Create: `web/frontend/src/lib/auditFlow.ts` (+ test) — stage machine + validation/normalisation
+- Create: `web/frontend/src/components/AuditLive.tsx` (Observer) + `AuditReportCard.tsx` (Lire)
+- Modify: `web/frontend/src/lib/types.ts` (AuditLive, report mirror types), tests colocated
 
 **Interfaces:**
-- **Form:** visible surface = Site, Type de lien (select), Durée segmentée (20/60 — two `.btn` buttons, cubic/bbr pattern; advanced free-text duration moves into the collapsed block), Sens (up/down/both three-option group — POST gains `direction`), AUDITER. Advanced (LiveGuide collapse pattern: `useState` + `localStorage('audit-advanced-open')`, replié par défaut): Fournisseur, Cible ping, Interface Linux, Interface RouterOS, durée libre. `validate()` extended: direction required-with-default (up), duration still 10–600 after free-text override.
-- **Result card:** JFI (from report `jfi_pct`), CAP SLA badge — `Badge` tones: breach ⇒ danger + label SLA, pass ⇒ success, `cap_sla.measured=false` ⇒ steel « non mesuré » (NEVER green — invariant 2); primary + B2B Ar/h lines from `economics` (« scénario contractuel » suffix); seal truncated 12 chars, click-to-copy via `copyText`; grade colors migrate from inline hex to `LEVEL_COLOR` (quality alignment, no visual change).
+- **Déclarer** — four decisions visible: Site, Type de lien (select), Durée (segmented 20/60), Sens (up/down/both, three-option group — POST gains `direction`). Presets stay as chips. Everything else (Fournisseur, Cible ping, ifaces, durée libre) collapses behind « avancé » (LiveGuide pattern: `useState` + `localStorage('audit-advanced-open')`, replié par défaut). Validation lives in `auditFlow.ts` (pure, tested).
+- **Observer** — replaces the blind « audit en cours… »: polls `/api/audit/live` (2 s), renders the phase timeline Repos → Charge → Drain (with `charge-down` named for `both`), a remaining-time counter, live RTT/small readouts (p50/p95 over the window, same math as the wall), and **ANNULER** (`POST /api/audit/stop`, confirm-once via ArmButton). Reduced to a quiet state when `/api/audit/live` says not running and status flips.
+- **Lire** — `AuditReportCard` consumes the FULL report: **Constat** (grade badge via `LEVEL_COLOR`, Δp95, drain, sens), **Charge** (débit atteint, perte, flux, JFI), **SLA CAP** (badge: breach⇒danger, pass⇒success, `measured:false`⇒steel « non mesuré » — NEVER green), **Économie** (primaire + B2B Ar/h prominent via `formatCostAR`, five scenarios behind a details toggle, disclaimer verbatim, « scénario contractuel » label — **fixes the P0: no more `waste.*` read, economics from `economics.*`**), **Preuves** (seals truncated 12, click-to-copy via `copyText`, telemetry + markdown report link), **Remédiation** (existing copy buttons). Every `unavailable[]` entry rendered as a visible muted line.
+- Primitives adopted HERE first: `Card`/`CardHead` for the card shells, `Badge` for verdicts, `.c-input` for all fields (kills the copy-pasted `'6px 8px'` idiom in this view), `Stat` for the hero numbers. No new hex; tokens only.
 
-- [ ] **Step 1: Failing tests** — extract the audit-form validation/normalization (duration segmented↔free-text, direction default) into a tested lib module if no component-test precedent exists; CAP SLA badge tone mapping as a pure function test (breach/pass/unmeasured → danger/success/steel).
-- [ ] **Step 2: red → Step 3: implement → Step 4: green** — `npm run typecheck && npm run test`.
-- [ ] **Step 5: Commit** — `ui: carte audit simplifiée (sens, durée segmentée, avancé replié), résultat entreprise`
+- [ ] **Step 1: Failing tests** — `auditFlow.test.ts`: stage machine (idle→declared→observing→done + cancel path), duration segmented↔free-text normalization (20/60/other within 10–600), direction default `up`; `AuditReportCard` tone mapping (breach/pass/unmeasured; economics binding reads `economics.primary.ar_per_hour`); live math (p50/p95 from samples).
+- [ ] **Step 2: red → implement → green** — `npm run typecheck && npm run test`; manual capture pass (`node capture-fresh.mjs`) — the three stages screenshotted and eyeballed.
+- [ ] **Step 3: Commit** — `ui: audit en trois temps — déclarer 4 décisions, observer (live+annuler), lire le rapport complet`
 
 ---
 
-### Task 8: docs — surface API, ligne de sécurité, matrice Windows + passe qualité
+### Task 7: cockpit campagne + mur live — canal, flux 4, coûts entreprise
 
 **Files:**
-- Modify: `docs/api.md` (endpoints + defaults), `docs/deploy.md` (sécurité), `docs/usage.fr.md` (matrice Windows si c'est son domicile — sinon deploy.md)
-- Quality pass over Tasks 5–7 UI (impeccable skill): tokens only (no new hex — `LEVEL_COLOR`/Badge tones), labels français cohérents, aria-pressed/expanded states, focus visible, empty-states honest (« non mesuré »).
+- Create: `web/frontend/src/lib/canal.ts` (+ test)
+- Modify: `web/frontend/src/views/CampagneView.tsx` (cockpit 310–354), `web/frontend/src/lib/types.ts` (`LiveFrame`), `web/frontend/src/views/LiveView.tsx` (bento)
 
-**Content:** `/api/cost/enterprise` + run/start `bench`/`channel_model` + audit/start banc-aware defaults documented; security line: dashboard inside ns_client binds `10.99.0.2` (via `run-dualns.sh` / `CGO_DASHBOARD__ADDR`) — documented that anyone on the host can trigger shaping (lab/DSI context, spec §8); Windows capability matrix: audit works (ping+HTTP+bulk optionnel), TCP_INFO/netns/doctor-offload = Linux-only, étiquetés `unavailable`/`n/a`.
+**Interfaces:** `canalGate(profiles)` — bursty legal iff ∩{P2,P3} ≠ ∅, reason names the rule. Cockpit: `flows` default **4**; clean/bursty two-option group (LiveView cubic/bbr pattern) gated by `canalGate` (blocked ⇒ disabled + reason, snaps to clean); POST body gains `channel_model`. `LiveFrame` += `cost_primary_ar_per_h`, `cost_b2b_ar_per_h`, `jfi_pct` (mirror of Go tags, keys test); bento gains « Coût entreprise » + « Coût B2B » cards, existing « Coût » relabelled « Coût détail (gelé) »; `jfi_pct` shown when > 0.
 
-- [ ] **Step 1: Write docs. Step 2: Quality pass** — re-read Tasks 5–7 diffs against the checklist; fix in place.
-- [ ] **Step 3: Full gates** — `go test ./... -count=1`; `npm run typecheck && npm run test && npm run build`; `python book/tools/audit-archive.py`; `git status` review (no data/dist junk).
-- [ ] **Step 4: Commit** — `docs: surface API plan 3, ligne de sécurité dashboard, matrice de capacités Windows`
+- [ ] **Step 1: Failing tests** — canal gate ([P2]✓, [P1,P4]✗+reason); LiveFrame keys mirror; bento terms list contains the new cards.
+- [ ] **Step 2: red → implement → green** — `npm run typecheck && npm run test`.
+- [ ] **Step 3: Commit** — `ui: cockpit — canal clean|bursty (P2/P3), flux 4; mur — coûts entreprise + B2B + JFI`
+
+---
+
+### Task 8: Résultats dépouillés — identité, puces, un encodage
+
+**Files:**
+- Modify: `web/frontend/src/views/ResultatsView.tsx`, `web/frontend/src/views/CompareView.tsx`, `web/frontend/src/styles/index.css` (chip-row layout)
+- Tests colocated / extracted pure helpers
+
+**Interfaces:**
+- Identity cell: 4 stacked lines + two always-visible A/B buttons ⇒ 2 lines (cellule + sous-libellé) + ONE compare toggle revealed on hover/focus (`aria-pressed`, keyboard reachable — A/B becomes a two-state of that single control).
+- Chip row: one `nowrap` scroll of ~20 ⇒ three labeled groups (PROFIL / FILE / CC) that WRAP, legend into a « légende » popover; rank chips keep their place.
+- Metric cells: keep bar+whisker, DROP the alpha-heat background; ±half·n and secondary stats move into the expanded detail row; numbers `font-variant-numeric: tabular-nums`, one size, units in `--text-faint`.
+- Expanded detail: 5-col re-grid → definition-list rhythm; LIEN decomposition unchanged in content.
+- CompareView: visual only (tokens), behavior frozen.
+
+- [ ] **Step 1: Failing tests** — pure helpers extracted where they exist (chip grouping, encoding choice); snapshot-ish term assertions per existing test style.
+- [ ] **Step 2: red → implement → green** — `npm run typecheck && npm run test`; capture pass (1920 + 1366) eyeballed.
+- [ ] **Step 3: Commit** — `ui: résultats dépouillés — identité deux lignes, puces groupées, un seul encodage par cellule`
+
+---
+
+### Task 9: passe système — tokens partout, primitives adoptées, dettes effacées
+
+**Files:**
+- Modify: `web/frontend/src/styles/tokens.css` (chart palette vars; alias generation DELETED), `index.css`, `components.css` (dead classes removed), all views/components (`LiveView` control box, `IntegriteView`, `Rail`, `App`, modals, `InterpretationView`, `MetricCard`, `LiveGuide`)
+- Create: `web/frontend/src/lib/palette.ts` (+ test) — the only place color constants live, fed from CSS vars
+
+**Interfaces & gates (measurable):**
+- Hardcoded hex in `.tsx`: **0** (grep gate: `grep -rEn '#[0-9a-fA-F]{6}' src --include='*.tsx'` empty; chart configs take colors from `palette.ts` reading CSS vars). The 9 off-token grays (`#767b84`, `#c3c9d1`, `#a8aeb7`, …) map to the 5-step text ramp — a mapping table in `palette.ts`, asserted by test.
+- Inline styles: dynamic values only (widths/transforms/positions computed at runtime); everything static becomes classes. `'6px 8px'` input idiom gone (`.c-input`).
+- Type scale: 12 inline sizes ⇒ the 5 tokens; `fontSize:9` gone; hero numbers via `Stat`; `letterSpacing`/weights from tokens.
+- Alias token generation (tokens.css 91–139) deleted after zero consumers (grep gate); dead CSS (`c-lamp`, `c-kpi`, `c-arm`, `c-phase`, `c-errp`, `camp-chip`, `conduite-*`) deleted; `Skeleton`/`DataTable` either adopted (loading states, `aria-sort`) or deleted — no dead exports remain.
+- LiveView control box: ~12 controls ⇒ three quiet sections (Surveillance / Façonnage / Essai), every toggle `aria-pressed`; journal collapsible.
+- Detector findings: 7 `width` transitions ⇒ transform/opacity (or `grid-template-rows`); Rail fake sparkline (hardcoded points) removed or fed real last-N (honesty).
+- Motion/labels: `prefers-reduced-motion` paths intact; focus-visible everywhere; top-nav/rail active-state disconnect (vision finding) fixed in `App.tsx`.
+
+- [ ] **Step 1: Gates first** — write the grep-gate script (hex=0 in tsx, alias consumers=0, `'6px 8px'`=0, `fontSize:9`=0) as a vitest test reading sources (precedent: `Rail.test.ts` asserts CSS by reading files); it fails.
+- [ ] **Step 2: implement → Step 3: green** — `npm run typecheck && npm run test && npm run build` (bundle check); `node capture-fresh.mjs` all views eyeballed; impeccable detector re-run — layout-transition findings 0.
+- [ ] **Step 4: Commit** — `ui: passe système — palette depuis les tokens, primitives adoptées, alias et CSS morts effacés`
+
+---
+
+### Task 10: docs + passe qualité impeccable
+
+**Files:**
+- Modify: `docs/api.md` (new endpoints + defaults), `docs/deploy.md` (security line, Windows matrix)
+- Quality pass (impeccable `polish` reference): re-read T6–T9 diffs against the craft floor; fix in place.
+
+**Content:** `/api/cost/enterprise`, `/api/audit/live`, `/api/audit/stop`, run/start `bench`/`channel_model`, audit/start banc-aware defaults; security line (dashboard binds 10.99.0.2 via `run-dualns.sh`; anyone on the host can trigger shaping — lab/DSI context); Windows capability matrix (audit works; TCP_INFO/netns/doctor-offload Linux-only, labelled).
+
+- [ ] **Step 1: docs. Step 2: polish pass. Step 3: Full gates** — `go test ./... -count=1`; `npm run typecheck && npm run test && npm run build`; `python book/tools/audit-archive.py`; `git status` clean of junk.
+- [ ] **Step 4: Commit** — `docs: surface API plan 3, sécurité dashboard, matrice Windows + passe qualité`
 
 ---
 
 ## Self-review (author's, kept in-document)
 
-**Spec coverage (§8):** audit card simplification (T7), result card JFI/CAP-SLA/Ar-h/seal (T7), campaign cockpit canal + flux 4 (T6), API run provenance (T1), `/api/cost/enterprise` (T2), live snapshot enterprise cost (T5 — Snapshot fields landed in Plan 2 T7), doctor (done Plan 2 T5), security line + Windows matrix (T8). Deferred minors landed: P2 API-half-of-T6 + CGO_CHANNEL_MODEL (T1), P2 non-atomic sidecar write stays parked, P1 M4/M5 (T3), P1 M6 (T4). Plan 3 does NOT touch: `/api/cost/tier` POST (legacy surface, untouched), e2e Playwright suite (runs in Plan 5 VM batch).
+**Spec coverage (§8 + brainstorm):** provenance API (T1), cost catalog (T2), sinks partagés M4/M5 (T3), M6 (T4), audit observable (T5), audit card staged + P0 fix + full report (T6), cockpit canal/flux + live enterprise costs (T7), results dépouillés (T8), system extract pass (T9), docs+security+matrix (T10). Brainstorm decisions honored: full staged audit ✓, all-views extract ✓, Inter kept ✓. Deferred-minor routing: P2 API-half + CGO_CHANNEL_MODEL → T1; P1 M4/M5 → T3; M6 → T4.
 
-**Type consistency:** RunOpts ↔ startFn ↔ campagne.Deps (bench/channel_model/flows names match manifest keys); Sinks move is mechanical (same fields, new package); LiveFrame ↔ Snapshot json tags mirrored by test; economics card reads `audit.Report.Economics` (already exposed by Plan 1).
+**Risk:** T5 touches `audit.Run`'s collect loop — keep OnProgress calls allocation-light (reuse the window slice; ≤32 cap) and nil-guarded so CLI behavior is unchanged. T9 is the largest diff — gates are grep-based so partial completion is visible, not vibes; charts keep their colors (moved to palette.ts, same values). Frozen views: CompareView behavior, frozen tables' content, the honesty doctrine — inviolable.
 
-**Risk:** startFn bench selection changes the API default only when `CGO_BENCH=dualns` is set or `bench:"dualns"` posted — legacy hosts byte-identical behavior. Audit/start sink defaults change ONLY when a bench is actually up (probe succeeds) — on a Windows dev host the ladder still lands external/8.8.8.8, same as the CLI today.
-
-**Executor notes:** T1 first (frontend T6 posts fields it defines); T3's audit/status assertion seam — check how existing audit tests observe started params before writing the failing test; T4 — read the M6 re-review entry, it has exact line numbers; T7's collapse must persist via localStorage like LiveGuide (memory across views is the point).
+**Executor notes:** T6 needs T5's endpoints (order fixed); capture-fresh.mjs exists (`node capture-fresh.mjs http://127.0.0.1:9091 shots-fresh` — server: `go build -o $TEMP/cgo-serve.exe ./cmd/cgo && $TEMP/cgo-serve.exe --serve --addr 127.0.0.1:9091 --tls=false --http-addr= --mode full`, stop after captures). The critique snapshot (`.impeccable/critique/2026-10-25*`) and the code-scan findings are the design contract — re-read before T6/T8/T9. Design floor violations are re-review blockers, not style nits.
