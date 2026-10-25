@@ -70,7 +70,9 @@ set_offloads() {
     on|off) ;;
     *) die "offloads must be on|off";;
   esac
-  $SUDO ip netns exec "$ns" ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS" 2>/dev/null || true
+  # Fail-closed : un ethtool muet laisserait des super-paquets GSO fausser
+  # drops×1448 et le déficit round-robin — le banc refuse, il ne prévient pas.
+  $SUDO ip netns exec "$ns" ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS"     || die "ethtool -K $OFFLOADS failed on $ns/$iface (nom de feature absent ou noyau exotique)"
 }
 
 check_offloads() {
@@ -94,6 +96,7 @@ need_modules() {
 }
 
 down() {
+  $SUDO ip link del m-host 2>/dev/null || true
   for ns in "$NS_CLIENT" "$NS_WAN" "$NS_EDGE" "$NS_SRV"; do
     $SUDO ip netns del "$ns" 2>/dev/null || true
   done
@@ -138,6 +141,17 @@ up() {
   $SUDO ip netns exec "$NS_EDGE"   ip link set e-wan up
   $SUDO ip netns exec "$NS_EDGE"   ip link set e-srv up
   $SUDO ip netns exec "$NS_SRV"    ip link set s-edge up
+
+  # --- veth de gestion : le tableau de bord sert DEPUIS ns_client --------
+  # Le navigateur hôte joint 10.99.0.2:9090 ; le trafic MESURÉ ne passe
+  # jamais par ici (c-cli reste la seule route par défaut de ns_client).
+  $SUDO ip link add m-host type veth peer name m-client netns "$NS_CLIENT"     || die "cannot create mgmt veth"
+  $SUDO ip addr add 10.99.0.1/30 dev m-host
+  $SUDO ip link set m-host up
+  $SUDO ip netns exec "$NS_CLIENT" ip addr add 10.99.0.2/30 dev m-client
+  $SUDO ip netns exec "$NS_CLIENT" ip link set m-client up
+  # m-client porte zéro trafic mesuré : best-effort toléré, le portail
+  # fermé-échec ne couvre que les six interfaces de transit.
 
   # Offload recipe is applied after the links exist (ethtool cannot tune a
   # down/missing device). Both directions are covered: c-cli/c-wan, w-edge,
@@ -191,6 +205,15 @@ up() {
     bandwidth "${RATE_MBIT}mbit" rtt "${RTT_MS}ms" \
     ack-filter nat diffserv4 triple-isolate
 
+  # Fail-closed : la lecture-retour des six interfaces de transit. Un
+  # offload resté ON fausse la comptabilisation des pertes — démarrage
+  # refusé, pas un avertissement.
+  local pair
+  for pair in "$NS_CLIENT c-cli" "$NS_WAN c-wan" "$NS_WAN w-edge" "$NS_EDGE e-wan" "$NS_EDGE e-srv" "$NS_SRV s-edge"; do
+    set -- $pair
+    check_offloads "$1" "$2" || die "offload non vérifié sur $1/$2 — démarrage refusé"
+  done
+
   log "up — netem ${DELAY_MS}ms/${LOSS_PCT}% on w-edge ($NS_WAN); cake ${RATE_MBIT}mbit on e-srv+e-wan ($NS_EDGE)"
   check
 }
@@ -230,6 +253,18 @@ check() {
     || { echo "[!] client route leak (not via c-cli/10.10.0.2)"; ok=0; }
   $SUDO ip netns exec "$NS_SRV" ip route get 10.10.0.1 2>/dev/null | grep -q "via 10.30.0.1 dev s-edge" \
     || { echo "[!] server route leak (not via s-edge/10.30.0.1)"; ok=0; }
+
+  # Preuve data-plane : 5 pings vers le puits doivent INCRÉMENTER les TX de
+  # c-cli — un raccourci loopback ne toucherait pas ce compteur.
+  local tx0 tx1
+  tx0=$($SUDO ip netns exec "$NS_CLIENT" cat /sys/class/net/c-cli/statistics/tx_packets 2>/dev/null || echo 0)
+  $SUDO ip netns exec "$NS_CLIENT" ping -c5 -W2 10.30.0.2 >/dev/null 2>&1
+  tx1=$($SUDO ip netns exec "$NS_CLIENT" cat /sys/class/net/c-cli/statistics/tx_packets 2>/dev/null || echo 0)
+  if [ $((tx1 - tx0)) -lt 5 ]; then
+    echo "[!] leak: pings vers le puits sans traverser c-cli (tx $tx0→$tx1)"; ok=0
+  fi
+  # La veth de gestion existe et porte son adresse.
+  $SUDO ip netns exec "$NS_CLIENT" ip addr show m-client 2>/dev/null | grep -q "10.99.0.2/30"     || { echo "[!] veth de gestion absente (m-client/10.99.0.2)"; ok=0; }
 
   check_offloads "$NS_CLIENT" c-cli || ok=0
   check_offloads "$NS_WAN" c-wan || ok=0
