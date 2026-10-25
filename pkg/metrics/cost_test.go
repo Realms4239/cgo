@@ -3,7 +3,7 @@ package metrics
 import "testing"
 
 func TestAmortizedARPerSecond(t *testing.T) {
-	// 1 000 000 Ar / (720 h × 3600 s) = 0.3858 Ar/s (3 déciales utiles)
+	// 1 000 000 Ar / (720 h × 3600 s) = 0.3858 Ar/s (3 décimales utiles)
 	got := AmortizedARPerSecond(1_000_000)
 	want := 1_000_000.0 / (720 * 3600)
 	if diff := got - want; diff > 1e-12 || diff < -1e-12 {
