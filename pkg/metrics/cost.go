@@ -1,5 +1,10 @@
 package metrics
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // Modèle économique entreprise — spéc. 2026-10-25 §4. Les tarifs sont des
 // scénarios contractuels sourcés (docs/data-prices.md), pas des mesures.
 
@@ -97,4 +102,106 @@ func AssessCAPSLA(loadedSmallCompletionsMs []float64) CAPSLA {
 		s.Label = "ALERTE OPÉRATIONNELLE — MANQUEMENT SLA (objectif DGM 220 ms, cadre WIS 2.0)"
 	}
 	return s
+}
+
+// RetransRatio — part des octets réémis. Basis dit d'où elle vient :
+// "measured" (TCP_INFO sur nos sockets), "estimated" (proxy perte sonde ×
+// volume), "" (non mesuré — alors aucun scénario n'est chiffré).
+type RetransRatio struct {
+	Ratio float64 `json:"ratio"`
+	Basis string  `json:"basis"`
+}
+
+// EconomicsScenario — une valorisation horaire du gaspillage mesuré.
+type EconomicsScenario struct {
+	Model     string  `json:"model"` // "A" (CIR) | "B" (au volume) | "emergency"
+	Name      string  `json:"name"`
+	ARPerHour float64 `json:"ar_per_hour"`
+	Basis     string  `json:"basis"`
+}
+
+// Economics — valorisation complète d'un audit : tous les scénarios, le
+// primaire MARQUÉ selon le type de lien déclaré (une correspondance de
+// scénario, pas une affirmation sur le contrat réel du site).
+type Economics struct {
+	PrimaryLinkType  string              `json:"primary_link_type"`
+	Primary          *EconomicsScenario  `json:"primary,omitempty"`
+	Scenarios        []EconomicsScenario `json:"scenarios"`
+	RetransRatio     RetransRatio        `json:"retrans_ratio"`
+	WastedBytes      float64             `json:"wasted_bytes"`
+	TransportedBytes float64             `json:"transported_bytes"`
+	LoadSeconds      float64             `json:"load_seconds"`
+	Disclaimer       string              `json:"disclaimer"`
+}
+
+func primaryName(linkType string) string {
+	switch linkType {
+	case "4g", "5g":
+		return TariffCorporateAPN.Name
+	case "vsat":
+		return TariffWholesale.Name
+	default: // fiber, other, vide
+		return PlanGOLD.Name
+	}
+}
+
+// BuildEconomics assemble tous les scénarios à partir du gaspillage mesuré.
+// transportedBytes/wastedBytes en octets ; loadSeconds = fenêtre de charge
+// mesurée (généralisation du ×20 de la directive).
+func BuildEconomics(linkType string, ratio RetransRatio, transportedBytes, wastedBytes, loadSeconds float64) *Economics {
+	e := &Economics{
+		PrimaryLinkType:  linkType,
+		RetransRatio:     ratio,
+		WastedBytes:      wastedBytes,
+		TransportedBytes: transportedBytes,
+		LoadSeconds:      loadSeconds,
+		Disclaimer:       "Scénarios contractuels (yas.mg 31/08/2026 ; APN 150 Ar/Go sur devis), pas des mesures : le chiffre retenu dépend du contrat du site, pas de la physique du lien.",
+	}
+	if ratio.Basis == "" || transportedBytes <= 0 {
+		return e // non mesuré : aucun zéro fabriqué
+	}
+	// Modèle A : même ratio, deux plans dédiés.
+	for _, p := range []EnterprisePlan{PlanGOLD, PlanPLATINE} {
+		e.Scenarios = append(e.Scenarios, EconomicsScenario{
+			Model: "A", Name: p.Name,
+			ARPerHour: CapacityWasteARPerHour(p.MonthlyOpExMGA, wastedBytes, transportedBytes),
+			Basis:     fmt.Sprintf("(%.4f réémis / %.4f transportés) × %s Ar/720 h", ratio.Ratio, ratio.Ratio, humanMGA(p.MonthlyOpExMGA)),
+		})
+	}
+	// Modèle B : gaspillage facturé au volume, deux tarifs B2B.
+	for _, tr := range []B2BTariff{TariffWholesale, TariffCorporateAPN} {
+		e.Scenarios = append(e.Scenarios, EconomicsScenario{
+			Model: "B", Name: tr.Name,
+			ARPerHour: MeteredWasteARPerHour(wastedBytes, tr.ARPerGB, loadSeconds),
+			Basis:     fmt.Sprintf("%.2f Mo gaspillés / fenêtre %.0f s × %.2f Ar/Go", wastedBytes/1e6, loadSeconds, tr.ARPerGB),
+		})
+	}
+	// Pénalité de secours détail — visible, jamais primaire.
+	e.Scenarios = append(e.Scenarios, EconomicsScenario{
+		Model: "emergency", Name: "retail-outofbundle",
+		ARPerHour: MeteredWasteARPerHour(wastedBytes, RetailEmergencyARPerGB, loadSeconds),
+		Basis:     "hors-forfait d'urgence (Net Month 4,5 Go) — pénalité, pas un modèle d'infrastructure",
+	})
+	want := primaryName(linkType)
+	for i := range e.Scenarios {
+		if e.Scenarios[i].Name == want {
+			prim := e.Scenarios[i]
+			e.Primary = &prim
+			break
+		}
+	}
+	return e
+}
+
+// humanMGA — 1 000 000 → "1 000 000" (lisibilité des basis strings).
+func humanMGA(v float64) string {
+	s := strconv.FormatFloat(v, 'f', 0, 64)
+	var out []byte
+	for i, c := range []byte(s) {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			out = append(out, ' ')
+		}
+		out = append(out, c)
+	}
+	return string(out)
 }

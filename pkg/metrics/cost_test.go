@@ -78,3 +78,44 @@ func TestAssessCAPSLA(t *testing.T) {
 		t.Fatalf("conforme : %+v", ok)
 	}
 }
+
+func TestBuildEconomicsScenarios(t *testing.T) {
+	e := BuildEconomics("4g", RetransRatio{Ratio: 0.05, Basis: "measured"}, 100_000_000, 5_000_000, 40)
+	if len(e.Scenarios) != 5 {
+		t.Fatalf("5 scénarios (GOLD, PLATINE, 81,38, APN 150, détail) : %d", len(e.Scenarios))
+	}
+	if e.Primary == nil || e.Primary.Model != "B" || e.Primary.Name != TariffCorporateAPN.Name {
+		t.Fatalf("primaire 4g = APN corporate : %+v", e.Primary)
+	}
+	for _, s := range e.Scenarios {
+		if s.ARPerHour <= 0 || s.Basis == "" {
+			t.Fatalf("scénario incohérent : %+v", s)
+		}
+	}
+	if e.Disclaimer == "" {
+		t.Fatal("le rapport doit dire que ce sont des scénarios contractuels, pas des mesures")
+	}
+}
+
+func TestPrimaryScenarioMapping(t *testing.T) {
+	cases := map[string]string{
+		"fiber": PlanGOLD.Name, "other": PlanGOLD.Name,
+		"4g": TariffCorporateAPN.Name, "5g": TariffCorporateAPN.Name,
+		"vsat": TariffWholesale.Name,
+	}
+	for lt, want := range cases {
+		e := BuildEconomics(lt, RetransRatio{Ratio: 0.01, Basis: "estimated"}, 1e9, 1e7, 40)
+		if e.Primary == nil || e.Primary.Name != want {
+			t.Fatalf("link %q : primaire %+v, want %s", lt, e.Primary, want)
+		}
+	}
+}
+
+func TestBuildEconomicsNoRatio(t *testing.T) {
+	// Sans ratio mesuré ni estimé : aucun scénario chiffré — jamais un zéro
+	// qui se lirait « aucun gaspillage ».
+	e := BuildEconomics("fiber", RetransRatio{}, 1e9, 0, 40)
+	if len(e.Scenarios) != 0 {
+		t.Fatalf("sans ratio : zéro scénario, pas des zéros : %+v", e.Scenarios)
+	}
+}
