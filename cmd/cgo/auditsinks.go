@@ -29,8 +29,11 @@ func probeTCP(addr string) bool {
 // (reproduction du corpus gelé), external sinon (audit honnête sans charge
 // implicite ; l'opérateur fournit -bulk/CGO_BULK_ADDR pour un puits terrain).
 func ResolveSinks() Sinks {
-	if probeTCP("10.30.0.1:5201") {
-		return Sinks{Mode: "dualns", Target: "10.30.0.1", SmallURL: "http://10.30.0.1:8081/small", BulkAddr: "10.30.0.1:5201"}
+	// Le puits vit dans ns_server (s-edge 10.30.0.2) : les QUATRE sauts
+	// sont sur le chemin mesuré. 10.30.0.1 est e-srv (côté edge) — y
+	// terminerait la mesure un saut trop tôt (correction plan 1).
+	if probeTCP("10.30.0.2:5201") {
+		return Sinks{Mode: "dualns", Target: "10.30.0.2", SmallURL: "http://10.30.0.2:8081/small", BulkAddr: "10.30.0.2:5201"}
 	}
 	if probeTCP("10.200.0.1:5201") {
 		return Sinks{Mode: "legacy", Target: "10.200.0.1", SmallURL: "http://10.200.0.1:8081/small", BulkAddr: "10.200.0.1:5201"}

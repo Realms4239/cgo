@@ -21,7 +21,10 @@ func TestResolveSinksPrefersLiveListener(t *testing.T) {
 	}
 	switch s.Mode {
 	case "dualns":
-		if s.BulkAddr != "10.30.0.1:5201" || s.Target != "10.30.0.1" {
+		// Le puits vit DANS ns_server (s-edge 10.30.0.2) : cible, petit
+		// objet et charge traversent les QUATRE sauts. 10.30.0.1 est e-srv
+		// (côté edge) — y terminer mesurerait trois sauts, pas quatre.
+		if s.BulkAddr != "10.30.0.2:5201" || s.Target != "10.30.0.2" || s.SmallURL != "http://10.30.0.2:8081/small" {
 			t.Fatalf("dualns : %+v", s)
 		}
 	case "legacy":
