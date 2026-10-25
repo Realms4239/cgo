@@ -222,8 +222,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// configurer les deux sauts — reset d'abord : le levier de façonnage (ou une
 	// cellule périmée) peut laisser un qdisc étranger à la racine, ce qui ferait échouer chaque apply
 	_, _ = d.TC.Run("qdisc", "del", "dev", d.CliIf, "root")
-	if err := qdisc.ApplyNetemBurst(d.TC, d.CliIf, prof.DelayMs, prof.JitterMs, prof.LossPct,
-		prof.LossBurstP, prof.LossBurstR, prof.LossBurstH, prof.LossBurstK); err != nil {
+	// ge nil : la campagne historique est UNIFORME — la perte en salves est
+	// un choix par campagne (channel_model, tâche 6), jamais un champ profil.
+	if err := qdisc.ApplyNetemPhysics(d.TC, d.CliIf, prof.DelayMs, prof.JitterMs, prof.LossPct, nil); err != nil {
 		return ev, fmt.Errorf("netem: %w", err)
 	}
 	shaper := qdiscRunner(d.TC)
