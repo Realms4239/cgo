@@ -144,6 +144,41 @@ func TestVoIPRComputedOnlyWithLoad(t *testing.T) {
 	}
 }
 
+func TestWriteArtifactsCreatesBothFormats(t *testing.T) {
+	dir := t.TempDir()
+	csvPath := filepath.Join(dir, "link_audit.csv")
+	if err := os.WriteFile(csvPath, []byte("audit_id\nx\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	rep, err := BuildReport(loadedResult(), testLink(), "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rep.SealSource(csvPath); err != nil {
+		t.Fatal(err)
+	}
+	jp, mp, err := WriteArtifacts(rep, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{jp, mp, filepath.Join(dir, "audit_report.json"), filepath.Join(dir, "audit_report.md")} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("missing artifact %s: %v", p, err)
+		}
+	}
+	var got Report
+	b, _ := os.ReadFile(jp)
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Provenance.SourceSHA256 == "" {
+		t.Fatal("artifact lost the source seal")
+	}
+	if got.Phases.LoadSeconds != 0 && got.Phases.LoadSeconds != rep.Phases.LoadSeconds {
+		t.Fatalf("phase metadata drifted: %+v", got.Phases)
+	}
+}
+
 func TestSealSourceHashesFile(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "link_audit.csv")

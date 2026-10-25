@@ -152,11 +152,19 @@ func (w *Writer) Append(ev model.Event) error {
 }
 
 // Freeze ferme le CSV et écrit manifest.json avec le SHA-256 de chaque
-// fichier, plus quarantine.json pour les événements degraded/invalid.
-func (w *Writer) Freeze(cfgHash string) error {
+// fichier, le SHA-256 de la configuration effective et cette configuration
+// elle-même (vérifiable hors ligne). Plus quarantine.json pour les événements
+// degraded/invalid. Une configuration absente ou non-JSON est refusée : le
+// manifeste ne doit jamais porter un hash factice.
+func (w *Writer) Freeze(configJSON []byte) error {
 	if err := w.fh.Close(); err != nil {
 		return err
 	}
+	if len(configJSON) == 0 || !json.Valid(configJSON) {
+		return fmt.Errorf("freeze: configuration absente ou JSON invalide")
+	}
+	cfgSum := sha256.Sum256(configJSON)
+	cfgHash := hex.EncodeToString(cfgSum[:])
 	// quarantaine
 	if len(w.quarantine) > 0 {
 		qb, _ := json.MarshalIndent(w.quarantine, "", "  ")
@@ -183,6 +191,10 @@ func (w *Writer) Freeze(cfgHash string) error {
 	if err != nil {
 		return err
 	}
-	doc, _ := json.MarshalIndent(map[string]any{"config_sha256": cfgHash, "files": files}, "", " ")
+	doc, _ := json.MarshalIndent(map[string]any{
+		"config_sha256": cfgHash,
+		"config":        string(configJSON),
+		"files":         files,
+	}, "", " ")
 	return os.WriteFile(filepath.Join(w.Dir, "manifest.json"), doc, 0o644)
 }

@@ -21,20 +21,25 @@ func TestAuditRefusesEmptyProbes(t *testing.T) {
 	}
 }
 
-// TestAuditMatchProfile — rapprochement au référentiel : 22 ms idle → P1,
-// 628 ms → P3, avec delta lisible. Sans débit : rapprochement au délai seul,
-// dit explicitement.
+// TestAuditMatchProfile — rapprochement au référentiel sur les DEUX axes :
+// 628 ms + 5 Mbit/s → P3 (VSAT). Sans débit mesuré, aucun profil n'est
+// revendiqué (voir TestMatchProfileRequiresThroughput) : le délai seul
+// confondait 4G et Starlink.
 func TestAuditMatchProfile(t *testing.T) {
 	deps := Deps{
 		Ping:  func(context.Context, string, int) []float64 { return []float64{620, 628, 635} },
 		Small: func(context.Context) (float64, error) { return 25, nil },
+		Bulk: func(ctx context.Context, _ string) (uint64, error) {
+			<-ctx.Done()
+			return 625_000, nil // ≈ 5 Mbit/s sur ~1 s
+		},
 	}
-	res, err := Run(context.Background(), Params{AuditID: "a-vsat", Site: "s", Duration: 2, Target: "t"}, deps)
+	res, err := Run(context.Background(), Params{AuditID: "a-vsat", Site: "s", Duration: 2, Target: "t", BulkAddr: "fake:1"}, deps)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.ProfileMatch != "P3" {
-		t.Fatalf("match=%q want P3 (628 ms idle)", res.ProfileMatch)
+		t.Fatalf("match=%q want P3 (628 ms + 5 Mbit/s)", res.ProfileMatch)
 	}
 	if res.MatchDelta == "" {
 		t.Fatal("delta vide")
@@ -42,14 +47,19 @@ func TestAuditMatchProfile(t *testing.T) {
 }
 
 // TestAuditMatchFrozen — le rapprochement voyage dans le CSV (même API que
-// la liste : extract-stats et la vue Audits lisent par nom).
+// la liste : extract-stats et la vue Audits lisent par nom). Débit mesuré
+// (bulk) : le match n'est plus un délai seul.
 func TestAuditMatchFrozen(t *testing.T) {
 	dir := t.TempDir()
 	deps := Deps{
 		Ping:  func(context.Context, string, int) []float64 { return []float64{20, 21, 22} },
 		Small: func(context.Context) (float64, error) { return 25, nil },
+		Bulk: func(ctx context.Context, _ string) (uint64, error) {
+			<-ctx.Done()
+			return 10_000_000, nil // ≈ 80 Mbit/s sur ~1 s
+		},
 	}
-	res, err := Run(context.Background(), Params{AuditID: "a-p1", Site: "s", Duration: 2, Target: "t"}, deps)
+	res, err := Run(context.Background(), Params{AuditID: "a-p1", Site: "s", Duration: 2, Target: "t", BulkAddr: "fake:1"}, deps)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -357,14 +358,15 @@ func (v *virtualbox) resolveName(vbx string) string {
 }
 
 // resolveFromList — pur, testé : balaye `list vms` à la recherche du .vbox.
-// 1) entrée RENOMMÉE (nom != fichier) dont le CfgFile matche le yaml ;
-// 2) repli NOM : l'entrée porte exactement le nom du fichier mais son
-//    CfgFile a dérivé (dossier déplacé, casse, espace — VBox réécrit les
-//    chemins au déménagement). Sans ce repli, on tentait `registervm` sur
-//    une VM déjà enregistrée → exit 1 « enregistrement impossible » alors
-//    que list/showvminfo/startvm marchaient (rapport 1.3.1 : TOUTE la
-//    chaîne NAT tombait pour une VM allumée). Le nom suffit à controlvm,
-//    modifyvm, startvm et snapshot : travailler avec, pas contre.
+//  1. entrée RENOMMÉE (nom != fichier) dont le CfgFile matche le yaml ;
+//  2. repli NOM : l'entrée porte exactement le nom du fichier mais son
+//     CfgFile a dérivé (dossier déplacé, casse, espace — VBox réécrit les
+//     chemins au déménagement). Sans ce repli, on tentait `registervm` sur
+//     une VM déjà enregistrée → exit 1 « enregistrement impossible » alors
+//     que list/showvminfo/startvm marchaient (rapport 1.3.1 : TOUTE la
+//     chaîne NAT tombait pour une VM allumée). Le nom suffit à controlvm,
+//     modifyvm, startvm et snapshot : travailler avec, pas contre.
+//
 // NOTE : si le yaml dérive vraiment (fichier déplacé), les opérations
 // FICHIER directes (.vbox.bak) suivent le yaml — Rescanner ré-aligne.
 func resolveFromList(want, name, listOut string, cfgOf func(string) string) string {
@@ -518,6 +520,7 @@ func (v *virtualbox) guestIPByName(name string) string {
 // GuestIP — deux voies complémentaires :
 //  1. guestproperty /VirtualBox/GuestInfo/Net/0/V4/IP (si additions invité installées) ;
 //  2. port-forwarding NAT : ssh de l'hôte vers 127.0.0.1:2222.
+//
 // Repli sans resolveName : même balayage que NetMode (yaml dérivé).
 func (v *virtualbox) GuestIP(vbx string) string {
 	if name := v.resolveName(vbx); name != "" {
@@ -691,20 +694,24 @@ func (v *virtualbox) natRulePresent(name, rule string) bool {
 // SameVM — même machine malgré les variantes de casse/séparateurs
 // (chemin .vbox vs nom enregistré, slashes Windows/Unix).
 func SameVM(a, b string) bool {
-	norm := func(s string) string {
-		return strings.ToLower(filepath.ToSlash(s))
-	}
-	return norm(a) == norm(b)
+	return normKey(a) == normKey(b)
 }
 
 // busyPort — quelque chose écoute déjà ce port TCP local ?
+// Un échec de bind n'est pas une preuve d'occupation : sous Linux, le port 1
+// renvoie EACCES sans root. On confirme par une connexion.
 func busyPort(port string) bool {
 	ln, err := net.Listen("tcp", "127.0.0.1:"+port)
-	if err != nil {
-		return true
+	if err == nil {
+		_ = ln.Close()
+		return false
 	}
-	_ = ln.Close()
-	return false
+	cn, derr := net.DialTimeout("tcp", "127.0.0.1:"+port, 300*time.Millisecond)
+	if derr != nil {
+		return false
+	}
+	_ = cn.Close()
+	return true
 }
 
 // NatHostAddr — l'adresse d'accès SSH quand la VM est en NAT.
@@ -1020,8 +1027,11 @@ func HypForPath(p string) string {
 // (inventaire hyperviseur en C:\… vs scan disque en c:\…) apparaissait
 // deux fois (« 2 VM(s) » pour 1 VM).
 func normKey(p string) string {
-	s := filepath.ToSlash(filepath.Clean(p))
-	if runtime.GOOS == "windows" {
+	win := strings.HasPrefix(p, `\\`) || strings.HasPrefix(p, "//") ||
+		(len(p) >= 2 && p[1] == ':')
+	s := strings.ReplaceAll(p, `\`, "/")
+	s = path.Clean(s)
+	if win {
 		s = strings.ToLower(s)
 	}
 	return s

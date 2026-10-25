@@ -145,6 +145,10 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 		}
 	}
 
+	cfgJSON, err := buildMatrixConfig(profiles, qdiscs, ccs, reps, deps)
+	if err != nil {
+		return nil, fmt.Errorf("config: %w", err)
+	}
 	m := &Matrix{RunID: runID}
 	total := 0
 	for range profiles {
@@ -167,7 +171,7 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 	m.Running = true
 
 	go func() {
-		defer func() { w.Freeze("config"); m.mu.Lock(); m.Running = false; m.mu.Unlock() }()
+		defer func() { _ = w.Freeze(cfgJSON); m.mu.Lock(); m.Running = false; m.mu.Unlock() }()
 		id := 1
 		for _, pid := range profiles {
 			model.ProfilesMu.RLock()

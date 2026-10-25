@@ -22,9 +22,40 @@ import (
 	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/profile"
+	"github.com/Realms4239/cgo/pkg/remediate"
 	"github.com/Realms4239/cgo/pkg/results"
 	frontend "github.com/Realms4239/cgo/web/frontend"
 )
+
+// envDefault — petit utilitaire de configuration par environnement ;
+// les défauts du banc restent surchargeables sans toucher au code.
+func envDefault(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+// readAuditReport loads the archived JSON artifact. The id is reduced to its
+// base name so a query string cannot walk out of data/audits.
+func readAuditReport(id string) (*audit.Report, error) {
+	path := filepath.Join("data", "audit_report.json")
+	if id != "" {
+		path = filepath.Join("data", "audits", filepath.Base(id), "audit_report.json")
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var rep audit.Report
+	if err := json.Unmarshal(b, &rep); err != nil {
+		return nil, err
+	}
+	if rep.AuditID == "" {
+		return nil, fmt.Errorf("%s: audit_id absent", path)
+	}
+	return &rep, nil
+}
 
 // Schema — source unique de vérité pour chaque contrôle paramétré :
 // le serveur valide depuis ce registre, GET /api/schema le sert, le client
@@ -97,6 +128,10 @@ type RunOpts struct {
 	Target     string   `json:"target"`
 	Direction  string   `json:"direction"`
 	RunID      string   `json:"run_id"`
+	// Flows — charge multi-flux. 0/1 = one stream (historical cells);
+	// 2–8 saturates a lossy path where a single CUBIC collapses below the
+	// link rate. The value travels into the manifest config.
+	Flows int `json:"flows"`
 }
 
 // Deps relie le serveur au noyau campagne.
@@ -166,6 +201,7 @@ func (h Handler) CloseHub() {
 
 var auditMu sync.Mutex
 var lastAudit *audit.Result
+var lastAuditReport *audit.Report
 var auditRunning bool
 
 // Journal — mémoire opérateur: anneau des 50 derniers événements.
@@ -481,6 +517,10 @@ func New(d Deps) Handler {
 		// même registre que sert GET /api/schema
 		if mn, mx, ok := paramBounds("reps"); ok && (opts.Reps < int(mn) || opts.Reps > int(mx)) {
 			writeErr(w, r, "reps must be 1–5", http.StatusBadRequest)
+			return
+		}
+		if opts.Flows != 0 && (opts.Flows < 1 || opts.Flows > 8) {
+			writeErr(w, r, "flows must be 1–8", http.StatusBadRequest)
 			return
 		}
 		// bornes — la deadline voyage avec le run, dans la même fenêtre
@@ -963,12 +1003,18 @@ func New(d Deps) Handler {
 
 	mux.HandleFunc("POST /api/audit/start", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Site     string `json:"site"`
-			LinkType string `json:"link_type"`
-			Provider string `json:"provider"`
-			Duration int    `json:"duration"`
-			Target   string `json:"target"`
-			SmallURL string `json:"small_url"`
+			Site           string `json:"site"`
+			LinkType       string `json:"link_type"`
+			Provider       string `json:"provider"`
+			Duration       int    `json:"duration"`
+			Target         string `json:"target"`
+			SmallURL       string `json:"small_url"`
+			BulkAddr       string `json:"bulk_addr"`
+			Iface          string `json:"iface"`
+			RouterOSIface  string `json:"routeros_iface"`
+			Qdisc          string `json:"qdisc"`
+			Asymmetric     *bool  `json:"asymmetric"`
+			CPUConstrained bool   `json:"cpu_constrained"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
@@ -994,6 +1040,21 @@ func New(d Deps) Handler {
 		if body.Target == "" {
 			body.Target = "8.8.8.8"
 		}
+		// La charge et le petit objet viennent du banc par défaut ; vides
+		// seulement si l'opérateur les désactive explicitement (la note
+		// bufferbloat restera vide, jamais A+ par absence de charge).
+		if body.SmallURL == "" {
+			body.SmallURL = envDefault("CGO_SMALL_URL", "http://10.200.0.1:8081/small")
+		}
+		if body.BulkAddr == "" {
+			body.BulkAddr = envDefault("CGO_BULK_ADDR", "10.200.0.1:5201")
+		}
+		if body.Iface == "" {
+			body.Iface = os.Getenv("CGO_AUDIT_IFACE")
+		}
+		if body.RouterOSIface == "" {
+			body.RouterOSIface = os.Getenv("CGO_AUDIT_ROUTEROS_IFACE")
+		}
 		auditMu.Lock()
 		if auditRunning {
 			auditMu.Unlock()
@@ -1002,27 +1063,116 @@ func New(d Deps) Handler {
 		}
 		auditRunning = true
 		auditMu.Unlock()
+		asymmetric := true
+		if body.Asymmetric != nil {
+			asymmetric = *body.Asymmetric
+		}
 		go func() {
 			defer func() { auditMu.Lock(); auditRunning = false; auditMu.Unlock() }()
-			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target, SmallURL: body.SmallURL}
+			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target, SmallURL: body.SmallURL, BulkAddr: body.BulkAddr}
 			// contexte détaché: l'audit survit à cette requête HTTP
 			res, err := audit.Run(context.Background(), p, audit.Deps{})
 			if err != nil {
 				recordEvent("audit", fmt.Sprintf("échec — %s (%s) : %s", p.Site, p.LinkType, err))
 				return
 			}
+			// Evidence first: the report is sealed from the row this audit
+			// appended, so the artifact and the CSV cannot drift apart.
+			if err := audit.AppendLinkAudit("data", res); err != nil {
+				recordEvent("audit", fmt.Sprintf("échec écriture CSV — %s : %s", p.Site, err))
+			}
+			link := remediate.Link{Interface: body.Iface, RouterOSInterface: body.RouterOSIface}
+			rep, rerr := audit.BuildReport(res, link, body.Qdisc, asymmetric, body.CPUConstrained)
+			if rerr != nil {
+				recordEvent("audit", fmt.Sprintf("rapport impossible — %s : %s", p.Site, rerr))
+			} else {
+				if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
+					recordEvent("audit", fmt.Sprintf("scellement impossible — %s : %s", p.Site, err))
+				}
+				if _, _, err := audit.WriteArtifacts(rep, "data"); err != nil {
+					recordEvent("audit", fmt.Sprintf("artefacts non écrits — %s : %s", p.Site, err))
+				}
+			}
 			auditMu.Lock()
 			lastAudit = res
+			lastAuditReport = rep
 			auditMu.Unlock()
-			recordEvent("audit", fmt.Sprintf("terminé — %s (%s), p95 %g ms", p.Site, p.LinkType, res.RTTIdleP95))
-			_ = audit.AppendLinkAudit("data", res)
+			grade := res.BloatGrade
+			if grade == "" {
+				grade = "non mesuré"
+			}
+			recordEvent("audit", fmt.Sprintf("terminé — %s (%s), p95 %g ms, bufferbloat %s", p.Site, p.LinkType, res.RTTIdleP95, grade))
 		}()
 		writeJSON(w, map[string]any{"started": true})
 	})
 	mux.HandleFunc("GET /api/audit/status", func(w http.ResponseWriter, _ *http.Request) {
 		auditMu.Lock()
 		defer auditMu.Unlock()
-		writeJSON(w, map[string]any{"running": auditRunning, "last": lastAudit})
+		writeJSON(w, map[string]any{"running": auditRunning, "last": lastAudit, "report": lastAuditReport})
+	})
+	// Rapport d'audit — artefact persistant, pas seulement l'état en mémoire.
+	// Sans audit_id, le dernier rapport ; avec, la copie archivée.
+	mux.HandleFunc("GET /api/audit/report", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimSpace(r.URL.Query().Get("audit_id"))
+		var rep *audit.Report
+		auditMu.Lock()
+		if id == "" || (lastAuditReport != nil && lastAuditReport.AuditID == id) {
+			rep = lastAuditReport
+		}
+		auditMu.Unlock()
+		if rep == nil {
+			var err error
+			rep, err = readAuditReport(id)
+			if err != nil {
+				writeErr(w, r, "rapport introuvable : "+id, http.StatusNotFound)
+				return
+			}
+		}
+		if r.URL.Query().Get("format") == "md" || r.URL.Query().Get("format") == "markdown" {
+			w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+			_, _ = io.WriteString(w, rep.RenderMarkdown())
+			return
+		}
+		writeJSON(w, rep)
+	})
+	// Remédiation — le script est déjà dans le rapport scellé ; l'endpoint
+	// existe pour que le dashboard copie sans parser le Markdown. Un iface
+	// fourni ici ne réécrit pas les mesures : BuildReport repart du Result
+	// mesuré et ne fait que nommer l'équipement.
+	mux.HandleFunc("GET /api/remediate", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		id := strings.TrimSpace(q.Get("audit_id"))
+		var rep *audit.Report
+		auditMu.Lock()
+		if id == "" || (lastAuditReport != nil && lastAuditReport.AuditID == id) {
+			rep = lastAuditReport
+		}
+		auditMu.Unlock()
+		if rep == nil {
+			var err error
+			rep, err = readAuditReport(id)
+			if err != nil {
+				writeErr(w, r, "aucun rapport d'audit — lancez cgo audit", http.StatusNotFound)
+				return
+			}
+		}
+		// Rebuild only when the operator names an interface and the measured
+		// result is still in memory; otherwise return the archived report's
+		// remediation verbatim.
+		if iface := strings.TrimSpace(q.Get("iface")); iface != "" {
+			auditMu.Lock()
+			res := lastAudit
+			auditMu.Unlock()
+			if res != nil && res.AuditID == rep.AuditID {
+				link := remediate.Link{Interface: iface, RouterOSInterface: strings.TrimSpace(q.Get("routeros_iface"))}
+				asym := q.Get("asymmetric") != "false"
+				rebuilt, err := audit.BuildReport(res, link, q.Get("qdisc"), asym, q.Get("cpu_constrained") == "true")
+				if err == nil {
+					rep = rebuilt
+				}
+			}
+		}
+		writeJSON(w, map[string]any{"audit_id": rep.AuditID, "remediation": rep.Remediation, "unavailable": rep.Unavailable})
 	})
 	// protocole RQ1 matérialisé : l'opérateur choisit au lieu de recopier.
 	mux.HandleFunc("GET /api/audit/presets", func(w http.ResponseWriter, _ *http.Request) {
@@ -1108,17 +1258,12 @@ func New(d Deps) Handler {
 			id = "P-" + v
 		}
 		p := model.Profile{ID: id, CapacityMbps: cap, DelayMs: delay, LossPct: loss}
-		if p.CapacityMbps <= 0 {
-			p.CapacityMbps = 20 // repli documenté — banc par défaut si débit non mesuré
-		}
-		if p.DelayMs <= 0 {
-			p.DelayMs = 100
-		}
-		if p.CapacityMbps <= 0 {
-			p.CapacityMbps = 20 // repli documenté — banc par défaut si débit non mesuré
-		}
-		if p.DelayMs <= 0 {
-			p.DelayMs = 100
+		// Un profil importé est rejoué comme un lien réel : une capacité ou un
+		// délai non mesuré ne peut pas devenir 20 Mbit/s / 100 ms. L'ancien
+		// repli fabriquait un lien de laboratoire et l'appelait « audit ».
+		if p.CapacityMbps <= 0 || p.DelayMs <= 0 {
+			writeErr(w, r, "audit sans capacité ou RTT idle mesurés — profil non importable (relancez l'audit avec charge bulk et cible joignable)", http.StatusUnprocessableEntity)
+			return
 		}
 		if err := profile.Import(p); err != nil {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)

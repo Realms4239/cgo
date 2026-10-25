@@ -36,15 +36,20 @@ func BulkSendNFlows(ctx context.Context, conns []net.Conn, _ int) ([]FlowResult,
 }
 
 // BulkSendNTo — N dials indépendants vers addr (même CC), inondation
-// parallèle, per-flow rendu. Utilisé par la campagne multi-flux.
-func BulkSendNTo(ctx context.Context, addr string, _ string, n int) ([]uint64, error) {
+// parallèle, per-flow rendu. Utilisé par la campagne multi-flux. `cc` est le
+// contrôle de congestion de la cellule, pas un défaut d'hôte : un multi-flux
+// BBR doit utiliser BBR, sinon la comparaison AQM/CC est faussée.
+func BulkSendNTo(ctx context.Context, addr, cc string, n int) ([]uint64, error) {
+	if cc == "" {
+		cc = string(model.Cubic)
+	}
 	if n <= 1 {
-		b, err := BulkSendTo(ctx, addr, string(model.Cubic))
+		b, err := BulkSendTo(ctx, addr, cc)
 		return []uint64{b}, err
 	}
 	conns := make([]net.Conn, 0, n)
 	for i := 0; i < n; i++ {
-		c, err := DialWithCC(ctx, addr, string(model.Cubic))
+		c, err := DialWithCC(ctx, addr, cc)
 		if err != nil {
 			continue // lien en défaut : les flux vivants comptent, pas l'échec total
 		}

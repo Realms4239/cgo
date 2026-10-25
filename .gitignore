@@ -64,4 +64,5 @@ scripts/seekai-*.js
 # dépôt séparé) — le dépôt GitHub ne contient que l'instrument
 *.docx
 *.pptx
+*.pdf
 /book/

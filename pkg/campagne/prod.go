@@ -3,8 +3,8 @@ package campagne
 import (
 	"context"
 	"os"
+	"strconv"
 
-	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/probe"
 	"github.com/Realms4239/cgo/pkg/qdisc"
 )
@@ -60,9 +60,14 @@ func prodDeps(direction string) Deps {
 		SmallURL:  small,
 		BulkAddr:  bulk,
 		Direction: direction,
+		// Optional shortened windows for stress runs; zero keeps the thesis
+		// defaults (30/120/30). Never set in the frozen campaign environment.
+		BaselineSec: envInt("CGO_BASELINE_SEC", 0),
+		ChargeSec:   envInt("CGO_CHARGE_SEC", 0),
+		RecupSec:    envInt("CGO_RECUP_SEC", 0),
 		// fenêtre multi-flux : N connexions vers le sink, per-flow (JFI)
-		BulkN: func(ctx context.Context, addr string, n int) ([]uint64, error) {
-			return probe.BulkSendNTo(ctx, addr, string(model.Cubic), n)
+		BulkN: func(ctx context.Context, addr, cc string, n int) ([]uint64, error) {
+			return probe.BulkSendNTo(ctx, addr, cc, n)
 		},
 		StatsFn: func() []qdisc.Stats {
 			// UN SEUL saut, celui du sens mesuré : sommer les deux sauts
@@ -81,6 +86,15 @@ func prodDeps(direction string) Deps {
 func env(k, def string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
+	}
+	return def
+}
+
+func envInt(k string, def int) int {
+	if v := os.Getenv(k); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
 	}
 	return def
 }

@@ -20,7 +20,7 @@ import (
 // imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
 // (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
 // peut campagner par SSH.
-func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, target, direction, dataDir, runID string) int {
+func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flows int, target, direction, dataDir, runID string) int {
 	profiles := strings.Split(profilesStr, ",")
 	for i := range profiles {
 		profiles[i] = strings.TrimSpace(profiles[i])
@@ -80,6 +80,11 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, 
 	deps.Direction = direction
 	deps.Target = target
 	deps.DeadlineMs = float64(deadlineMs)
+	if flows < 1 || flows > 8 {
+		fmt.Fprintln(os.Stderr, "run: --flows doit être 1–8")
+		return 2
+	}
+	deps.Flows = flows
 
 	// Preflight banc (camp220 : matrice lancée sur banc mort = campagne à
 	// zéros). Réutilise le script durci : check → up si besoin → re-check ;

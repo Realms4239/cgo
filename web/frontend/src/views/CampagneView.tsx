@@ -32,6 +32,7 @@ export default function CampagneView() {
     <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))} /> <Explain term={p.id}>{p.id}</Explain></label>
   )
   const [reps, setReps] = useState(3)
+  const [flows, setFlows] = useState(1)
   // La deadline voyage avec la campagne: le champ montre la valeur
   // réelle de l'opérateur et suit les Réglages (événement meteolink-settings).
   const [deadlineMs, setDeadlineMs] = useState(loadSettings().deadlineMs)
@@ -55,6 +56,9 @@ export default function CampagneView() {
   const [importForm, setImportForm] = useState(false)
   const [auditOpen, setAuditOpen] = useState(false)
   const [auditLast, setAuditLast] = useState<any>(null)
+  const [auditReport, setAuditReport] = useState<any>(null)
+  const [auditIface, setAuditIface] = useState('')
+  const [auditRosIface, setAuditRosIface] = useState('')
   const [impId, setImpId] = useState('')
   const [impCap, setImpCap] = useState(20)
   const [impCapUp, setImpCapUp] = useState(0)
@@ -83,6 +87,13 @@ export default function CampagneView() {
     { site: { required: true }, link_type: { required: true }, duration: { min: 10, max: 600 } }
   )
 
+  const copyText = (text: string, label: string) => {
+    navigator.clipboard?.writeText(text).then(
+      () => useUIStore.getState().pushToast(`${label} copié`, 'ok'),
+      () => useUIStore.getState().pushToast('Copie impossible — sélectionnez le texte', 'err'),
+    )
+  }
+
   const startAudit = async () => {
     if (!auditValidation.valid) {
       if (auditFormRef.current) animateShake(auditFormRef.current)
@@ -93,11 +104,12 @@ export default function CampagneView() {
     store.pushToast(`Audit lancé — ${auditSite}`, 'ok')
     store.setFlash({ type: 'success', msg: `Audit lancé — ${auditSite}` })
     setAuditMsg('audit en cours…')
+    setAuditReport(null)
     try {
       const r = await fetch('/api/audit/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site: auditSite, link_type: auditLink, provider: auditProvider, duration: auditDuration, target: auditTarget || '8.8.8.8' }),
+        body: JSON.stringify({ site: auditSite, link_type: auditLink, provider: auditProvider, duration: auditDuration, target: auditTarget || '8.8.8.8', iface: auditIface || undefined, routeros_iface: auditRosIface || undefined }),
       })
       if (r.status === 409) throw new Error('un audit tourne déjà')
       if (!r.ok) throw new Error(String(r.status))
@@ -107,6 +119,7 @@ export default function CampagneView() {
           .then((res) => res.json())
           .then((j) => {
             setAuditLast(j.last ?? null)
+            if (j.report) setAuditReport(j.report)
             if (!j.running) {
               clearInterval(poll)
               auditPollRef.current = null
@@ -168,7 +181,7 @@ export default function CampagneView() {
   const start = async () => {
     setMsg('démarrage…')
     try {
-      const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, deadline_ms: deadlineMs, target: loadSettings().target }) })
+      const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, flows, deadline_ms: deadlineMs, target: loadSettings().target }) })
       if (!r.ok) {
         const txt = await r.text().catch(() => String(r.status))
         setMsg('échec: ' + txt.slice(0,120))
@@ -313,6 +326,11 @@ export default function CampagneView() {
           <input type="number" min={1} max={5} placeholder="3" value={reps} onChange={e=>setReps(parseInt(e.target.value)||1)} style={{width:64}} />
         </div>
         <div className="form-row">
+          <label title=">1 sature un lien avec perte où un CUBIC mono-flux s'effondre">Flux de charge</label>
+          <input type="number" min={1} max={8} value={flows} onChange={e=>setFlows(parseInt(e.target.value)||1)} style={{width:64}} />
+          <span className="mono muted" style={{fontSize:10}}>1–8</span>
+        </div>
+        <div className="form-row">
           <label><Explain term="deadline">Deadline</Explain></label>
           <input title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" type="number" min={200} max={5000} step={100} placeholder="1000" value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11}} />
           <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms</span>
@@ -369,6 +387,12 @@ export default function CampagneView() {
           <InlineField label="Cible ping" helper="défaut 8.8.8.8">
             <input name="audit-target" value={auditTarget} onChange={e=>setAuditTarget(e.target.value)} style={{ width:130, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
           </InlineField>
+          <InlineField label="Interface Linux" helper="optionnel — ex. eth0, pour le script tc">
+            <input name="audit-iface" value={auditIface} onChange={e=>setAuditIface(e.target.value)} placeholder="eth0" style={{ width:130, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+          </InlineField>
+          <InlineField label="Interface RouterOS" helper="optionnel — ex. ether1-wan">
+            <input name="audit-ros-iface" value={auditRosIface} onChange={e=>setAuditRosIface(e.target.value)} placeholder="ether1-wan" style={{ width:130, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+          </InlineField>
         </div>
         <div className="form-row" style={{ gap:8, marginTop:8 }}>
           <ArmButton label="LANCER AUDIT" confirmLabel="CONFIRMER AUDIT" onConfirm={startAudit} disabled={!auditValidation.valid} />
@@ -401,6 +425,29 @@ export default function CampagneView() {
           {' '}({Number(auditLast.bloat_delta_ms ?? 0).toFixed(1)} ms sous charge) — {auditLast.bloat_verdict}
           <span style={{ color:'var(--text-faint, #7e838c)' }}> · bandes Waveform</span>
           {auditLast.profile_match && <span title={auditLast.match_delta}> · ressemble à <b>{auditLast.profile_match}</b></span>}
+        </div>
+        )}
+        {auditReport && (
+        <div style={{ marginTop:8, padding:'8px', border:'1px solid var(--hairline)', background:'rgba(90,211,227,0.03)' }} data-testid="audit-report">
+          <div className="mono" style={{ display:'flex', flexWrap:'wrap', gap:14, fontSize:11 }}>
+            <span>VoIP R <b>{Number(auditReport.measured?.voip_r ?? 0).toFixed(1)}</b></span>
+            <span>gaspillage <b>{auditReport.waste ? `${groupDigits(auditReport.waste.ar_per_hour, 0)} Ar/h` : 'non mesuré'}</b></span>
+            <span>phases {Number(auditReport.phases?.baseline_seconds ?? 0)}/{Number(auditReport.phases?.load_seconds ?? 0)}/{Number(auditReport.phases?.recovery_seconds ?? 0)} s</span>
+            {auditReport.provenance?.source_sha256 && (
+              <span title={auditReport.provenance.source_sha256}>sceau <code>{String(auditReport.provenance.source_sha256).slice(0, 12)}…</code></span>
+            )}
+          </div>
+          {auditReport.remediation ? (
+            <div className="form-row" style={{ gap:8, marginTop:8, flexWrap:'wrap' }}>
+              <span className="mono muted" style={{ fontSize:10 }}>remédiation {auditReport.remediation.qdisc}</span>
+              <button className="btn" style={{ padding:'3px 8px' }} onClick={()=>copyText((auditReport.remediation.linux_tc || []).join('\n'), 'Script tc')}>COPIER LINUX TC</button>
+              {auditReport.remediation.routeros && (
+                <button className="btn" style={{ padding:'3px 8px' }} onClick={()=>copyText(auditReport.remediation.routeros, 'Script RouterOS')}>COPIER ROUTEROS</button>
+              )}
+            </div>
+          ) : (
+            <div className="mono muted" style={{ fontSize:10, marginTop:6 }}>remédiation non émise — renseignez l’interface et relancez l’audit</div>
+          )}
         </div>
         )}
       </div>

@@ -23,7 +23,7 @@ func TestWriterGelsBaselineRTT(t *testing.T) {
 	if err := w.Append(ev); err != nil {
 		t.Fatal(err)
 	}
-	if err := w.Freeze("cfg"); err != nil {
+	if err := w.Freeze([]byte(`{"test":true}`)); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "aqm_eval.csv"))

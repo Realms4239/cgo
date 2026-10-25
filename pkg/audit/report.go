@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -28,6 +29,8 @@ type Report struct {
 
 	// Measured holds the values this audit actually observed.
 	Measured Measured `json:"measured"`
+	// Phases records the executed windows: baseline, load, drain.
+	Phases Phases `json:"phases"`
 	// Unavailable names what could not be measured, with the reason. This is
 	// the honest half of the report and is never empty in practice.
 	Unavailable []Unavailable `json:"unavailable"`
@@ -41,6 +44,36 @@ type Report struct {
 
 	// Remediation is present only when capacity and RTT were both measured.
 	Remediation *Remediation `json:"remediation,omitempty"`
+
+	// Waste is the financial projection, present only when a load was measured.
+	Waste *Waste `json:"waste,omitempty"`
+}
+
+// Waste is the retransmission cost projection in Malagasy Ariary.
+//
+// It is derived from the measured loss and throughput, not from a guess: the
+// audit knows how many bytes it moved and what fraction was lost, so the wasted
+// volume is measured. The tariff is the operator's declared tier.
+type Waste struct {
+	// Tier is the prepaid tariff the projection uses.
+	Tier string `json:"tier"`
+	// ARPerGB is that tariff's rate.
+	ARPerGB float64 `json:"ar_per_gb"`
+	// WastedMB is the measured volume lost to retransmission.
+	WastedMB float64 `json:"wasted_mb"`
+	// ARPerHour is the projected cost of that waste per hour of the same load.
+	ARPerHour float64 `json:"ar_per_hour"`
+	// Basis states how the hourly figure was extrapolated, so it is auditable.
+	Basis string `json:"basis"`
+}
+
+// Phases records the audit schedule actually executed. A 60 s audit is
+// 10 s baseline, 40 s load and 10 s drain; the numbers prove the loaded
+// window was long enough to fill a queue rather than a token 8 s burst.
+type Phases struct {
+	BaselineSeconds float64 `json:"baseline_seconds"`
+	LoadSeconds     float64 `json:"load_seconds"`
+	RecoverySeconds float64 `json:"recovery_seconds"`
 }
 
 // Measured is the set of numbers the audit actually produced.
@@ -55,6 +88,10 @@ type Measured struct {
 	// BloatDeltaMs is loaded p95 minus idle p95, the Waveform-style measure.
 	// Only meaningful when LoadMeasured is true.
 	BloatDeltaMs float64 `json:"bloat_delta_ms"`
+	// DrainMs is how far above the rest threshold the p95 still sat after the
+	// load stopped. 0 with DrainMeasured=false means "not measured".
+	DrainMs       float64 `json:"drain_ms"`
+	DrainMeasured bool    `json:"drain_measured"`
 	// LoadMeasured is false when no bulk transfer ran, in which case
 	// BloatDeltaMs and Grade carry no meaning.
 	LoadMeasured bool `json:"load_measured"`
@@ -115,6 +152,11 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		Provider:  res.Provider,
 		Grade:     res.BloatGrade,
 		Verdict:   res.BloatVerdict,
+		Phases: Phases{
+			BaselineSeconds: res.BaselineSeconds,
+			LoadSeconds:     res.LoadSeconds,
+			RecoverySeconds: res.RecoverySeconds,
+		},
 	}
 
 	loadMeasured := res.ThroughputMbps > 0 && res.BloatGrade != ""
@@ -125,6 +167,8 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		RTTLoadedP95Ms: res.RTTLoadedP95,
 		QDIMs:          res.RTTLoadedP95 - res.RTTLoadedP50,
 		BloatDeltaMs:   res.BloatDeltaMs,
+		DrainMs:        res.DrainMs,
+		DrainMeasured:  res.DrainMeasured,
 		LoadMeasured:   loadMeasured,
 		ThroughputMbps: res.ThroughputMbps,
 		LossPct:        res.LossPct,
@@ -137,6 +181,32 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 	// is the p95-p50 spread the jitter buffer has to absorb.
 	if loadMeasured {
 		rep.Measured.VoIPR = metrics.VoIPR(res.RTTLoadedP50/2, res.RTTLoadedP95-res.RTTLoadedP50, res.LossPct)
+	}
+
+	// Financial projection. The audit measured how much data it moved and what
+	// fraction was lost, so the wasted volume is a measurement, not an estimate.
+	// The hourly figure extrapolates that waste rate to one hour of the same
+	// load, which is the number an operator can act on.
+	if loadMeasured && res.DataUsedMB > 0 && res.LossPct > 0 && res.LoadSeconds > 0 {
+		tier := metrics.ActiveTier()
+		wastedMB := res.DataUsedMB * res.LossPct / 100
+		// Extrapolate the measured waste rate over the measured load window to
+		// one hour. Both inputs are measurements, so the hourly figure is
+		// traceable rather than assumed.
+		perHour := wastedMB / res.LoadSeconds * 3600
+		rep.Waste = &Waste{
+			Tier:      tier.Name,
+			ARPerGB:   tier.ARGB,
+			WastedMB:  wastedMB,
+			ARPerHour: perHour / 1024 * tier.ARGB,
+			Basis: fmt.Sprintf("%.2f MB lost over a measured %.1f s load, extrapolated to one hour at %s (%.0f Ar/GB)",
+				wastedMB, res.LoadSeconds, tier.Name, tier.ARGB),
+		}
+	} else if loadMeasured {
+		rep.Unavailable = append(rep.Unavailable, Unavailable{
+			Metric: "waste_ar_per_h",
+			Reason: "no measured loss or no measured volume; a zero here would mean 'no waste', which is a different claim from 'not measured'",
+		})
 	}
 
 	// Say plainly what is missing. These are the metrics a jury or an operator
@@ -159,6 +229,12 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		rep.Unavailable = append(rep.Unavailable, Unavailable{
 			Metric: "http_small_p95",
 			Reason: "no small-object URL supplied; ping RTT is not a substitute for object completion time",
+		})
+	}
+	if !rep.Measured.DrainMeasured {
+		rep.Unavailable = append(rep.Unavailable, Unavailable{
+			Metric: "drain_ms",
+			Reason: "audit shorter than 20 s, so no recovery window was collected; drain is not the same as zero",
 		})
 	}
 	// Deadline compliance needs per-probe completion samples, which a link
@@ -239,8 +315,9 @@ func (r *Report) RenderJSON() ([]byte, error) {
 func (r *Report) RenderMarkdown() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Link audit — %s\n\n", r.AuditID)
-	fmt.Fprintf(&b, "- Site: %s\n- Link: %s (%s)\n- Measured: %s\n\n",
-		r.Site, r.LinkType, r.Provider, r.Timestamp)
+	fmt.Fprintf(&b, "- Site: %s\n- Link: %s (%s)\n- Measured: %s\n", r.Site, r.LinkType, r.Provider, r.Timestamp)
+	fmt.Fprintf(&b, "- Phases: %.0f s baseline / %.0f s load / %.0f s drain\n\n",
+		r.Phases.BaselineSeconds, r.Phases.LoadSeconds, r.Phases.RecoverySeconds)
 
 	b.WriteString("## Measured\n\n")
 	b.WriteString("| Metric | Value |\n|---|---|\n")
@@ -251,6 +328,9 @@ func (r *Report) RenderMarkdown() string {
 		fmt.Fprintf(&b, "| Loaded RTT p95 | %.1f ms |\n", r.Measured.RTTLoadedP95Ms)
 		fmt.Fprintf(&b, "| Queue delay impairment (QDI) | %.1f ms |\n", r.Measured.QDIMs)
 		fmt.Fprintf(&b, "| Bufferbloat delta (p95) | %.1f ms |\n", r.Measured.BloatDeltaMs)
+		if r.Measured.DrainMeasured {
+			fmt.Fprintf(&b, "| Queue drain after load | %.1f ms above rest |\n", r.Measured.DrainMs)
+		}
 		fmt.Fprintf(&b, "| Throughput | %.2f Mbit/s |\n", r.Measured.ThroughputMbps)
 		fmt.Fprintf(&b, "| VoIP R-score | %.1f |\n", r.Measured.VoIPR)
 	}
@@ -282,6 +362,14 @@ func (r *Report) RenderMarkdown() string {
 		fmt.Fprintf(&b, "- SHA-256: `%s`\n\n", r.Provenance.SourceSHA256)
 	}
 
+	if r.Waste != nil {
+		b.WriteString("## Financial waste\n\n")
+		fmt.Fprintf(&b, "- Tariff: %s (%.0f Ar/GB)\n", r.Waste.Tier, r.Waste.ARPerGB)
+		fmt.Fprintf(&b, "- Volume lost to retransmission: %.2f MB\n", r.Waste.WastedMB)
+		fmt.Fprintf(&b, "- Projected cost: **%.0f Ar/hour**\n\n", r.Waste.ARPerHour)
+		fmt.Fprintf(&b, "Basis: %s\n\n", r.Waste.Basis)
+	}
+
 	if r.Remediation != nil {
 		b.WriteString("## Remediation\n\n")
 		fmt.Fprintf(&b, "Recommended qdisc: **%s** — %s\n\n", r.Remediation.Qdisc, r.Remediation.Reason)
@@ -305,4 +393,48 @@ func (r *Report) SortUnavailable() {
 	sort.Slice(r.Unavailable, func(i, j int) bool {
 		return r.Unavailable[i].Metric < r.Unavailable[j].Metric
 	})
+}
+
+// WriteArtifacts writes the JSON and Markdown reports. Each audit gets its own
+// directory (data/audits/<id>/audit_report.*) and the latest copy is mirrored
+// at data/audit_report.* for operators and the dashboard, which do not need to
+// know the audit id ahead of time.
+func WriteArtifacts(rep *Report, baseDir string) (jsonPath, mdPath string, err error) {
+	if rep == nil {
+		return "", "", fmt.Errorf("audit: nil report")
+	}
+	if baseDir == "" {
+		baseDir = "data"
+	}
+	id := filepath.Base(strings.TrimSpace(rep.AuditID))
+	if id == "" || id == "." || id == string(filepath.Separator) {
+		return "", "", fmt.Errorf("audit: invalid audit id %q", rep.AuditID)
+	}
+	dir := filepath.Join(baseDir, "audits", id)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", "", err
+	}
+	js, err := rep.RenderJSON()
+	if err != nil {
+		return "", "", err
+	}
+	md := []byte(rep.RenderMarkdown())
+	jsonPath = filepath.Join(dir, "audit_report.json")
+	mdPath = filepath.Join(dir, "audit_report.md")
+	if err := os.WriteFile(jsonPath, js, 0644); err != nil {
+		return "", "", err
+	}
+	if err := os.WriteFile(mdPath, md, 0644); err != nil {
+		return "", "", err
+	}
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		return "", "", err
+	}
+	if err := os.WriteFile(filepath.Join(baseDir, "audit_report.json"), js, 0644); err != nil {
+		return "", "", err
+	}
+	if err := os.WriteFile(filepath.Join(baseDir, "audit_report.md"), md, 0644); err != nil {
+		return "", "", err
+	}
+	return jsonPath, mdPath, nil
 }

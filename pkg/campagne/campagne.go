@@ -30,9 +30,11 @@ type Deps struct {
 	Small func(ctx context.Context) (float64, error)
 	Bulk  func(ctx context.Context, addr string) (uint64, error) // one charge-window flood
 	// BulkN — fenêtre de charge multi-flux : N connexions concurrentes vers
-	// addr, per-flow. Nil ⇒ un seul flux (comportement historique). L'équité
-	// inter-flux (JFI) ne se mesure que per-flow.
-	BulkN func(ctx context.Context, addr string, n int) ([]uint64, error)
+	// addr, avec le contrôle de congestion de la cellule. Nil ⇒ un seul flux.
+	// Le CC est explicite : un multi-flux CUBIC ne remplace pas un BBR ;
+	// l'ignorer rendrait les cellules BBR indiscernables. L'équité inter-flux
+	// (JFI) ne se mesure que per-flow.
+	BulkN func(ctx context.Context, addr, cc string, n int) ([]uint64, error)
 	CPU   func() float64
 	Now   func() time.Time
 	// StatsFn rend les compteurs par qdisc pour les deltas pertes/octets.
@@ -102,9 +104,16 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 // le petit objet y est best-effort, documenté docs/api.md)
 func httpDefault() *http.Client { return &http.Client{Timeout: 2 * time.Second} }
 
-// readCPUIdleGuess — plafond documenté : l'échantillonnage /proc/stat arrive avec
-// le bootstrap VM (M1.6) ; jusque-là le CPU est rapporté 0 et G7 reste non évalué.
-func readCPUIdleGuess() float64 { return 0 }
+// cpuGate — nil = CPU non mesuré : G7 reste non évaluée et ne peut pas passer.
+// Une valeur nulle est le sentinelle historique "non instrumenté" ; 0 % réel
+// n'est pas distinguable et ne doit jamais devenir un feu vert.
+func cpuGate(cpu float64) *bool {
+	if math.IsNaN(cpu) || cpu <= 0 {
+		return nil
+	}
+	ok := cpu < 90
+	return &ok
+}
 
 type qdiscRunner interface {
 	Run(args ...string) ([]byte, error)
@@ -188,7 +197,7 @@ func defaults(d *Deps) {
 		}
 	}
 	if d.CPU == nil {
-		d.CPU = func() float64 { return readCPUIdleGuess() }
+		d.CPU = func() float64 { return readCPUUsage() }
 	}
 	if d.Now == nil {
 		d.Now = time.Now
@@ -343,7 +352,14 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	_ = baseSmall
 	set(model.G0TargetReachable, len(baseRTT) > 0)
 	sumB := metrics.Summarize(baseRTT)
-	set(model.G6BaselineStable, len(baseRTT) > 4 && sumB.P95-sumB.Median < max(5, .2*sumB.Median))
+	// G6 : le repos est-il assez calme pour que la charge qui suit soit
+	// interprétable ? Le seuil tient compte du jitter DÉCLARÉ du profil : sur
+	// un lien LEO, l'étalement du repos est la physique du lien, pas une
+	// instabilité de l'hôte. Voir baseline.go — sur le corpus gelé, les 42
+	// lignes P4 échouaient toutes G6 avec l'ancien seuil statique.
+	g6ok, g6thr := BaselineStable(baseRTT, prof)
+	set(model.G6BaselineStable, g6ok)
+	_ = g6thr
 	// latence au repos gélée avec la ligne : la note bufferbloat Waveform
 	// (écart chargé − repos) exige la référence, pas seulement la charge
 	ev.RTTBaseP50Ms = round1(sumB.Median)
@@ -394,7 +410,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			if d.Direction == "down" {
 				per, err = probe.BulkDownloadNTo(chgCtx, d.BulkAddr, string(ev.CC), flows)
 			} else {
-				per, err = d.BulkN(chgCtx, d.BulkAddr, flows)
+				per, err = d.BulkN(chgCtx, d.BulkAddr, string(ev.CC), flows)
 			}
 			_ = err
 			var total uint64
@@ -410,8 +426,41 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	if d.ChargeSec > 0 {
 		time.Sleep(300 * time.Millisecond) // laisser le flood se connecter
 	}
+	// Échantillonnage CPU PENDANT la charge (G7) : une mesure après coup
+	// verrait le calme revenu. Chaque échantillon /proc/stat couvre 200 ms.
+	cpuSamples := make([]float64, 0, 64)
+	cpuDone := make(chan struct{})
+	go func() {
+		defer close(cpuDone)
+		for {
+			select {
+			case <-chgCtx.Done():
+				return
+			default:
+			}
+			v := d.CPU()
+			if math.IsNaN(v) || v <= 0 {
+				return
+			}
+			cpuSamples = append(cpuSamples, v)
+			select {
+			case <-chgCtx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}()
 	chgRTT, chgSmall = collect(d.ChargeSec, model.PhaseCharge)
 	cancel()
+	<-cpuDone
+	cpuAvg := math.NaN()
+	if len(cpuSamples) > 0 {
+		sum := 0.0
+		for _, v := range cpuSamples {
+			sum += v
+		}
+		cpuAvg = sum / float64(len(cpuSamples))
+	}
 	out := <-done
 	bulkBytes = out.total
 	ev.JFI = round1(out.jfi * 100) // 0..100 gelé avec la ligne ; 0 = mono-flux/n.a.
@@ -454,8 +503,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.Smallp95Ms = round1(sm.P95)
 	ev.DeadlineOKPct = round1(metrics.DeadlineOKPct(chgSmall, d.DeadlineMs))
 	ev.BulkGoodputMbps = round1(goodput)
-	cpuAvg := d.CPU()
-	ev.CPUPct = round1(cpuAvg)
+	if math.IsNaN(cpuAvg) || cpuAvg <= 0 {
+		ev.CPUPct = 0 // non mesuré : la colonne reste 0, G7 est nil
+	} else {
+		ev.CPUPct = round1(cpuAvg)
+	}
 	// octets gaspillés : segments retransmis × MSS (environ 1448 pour veth MTU 1500)
 	ev.WastedBytes = ev.Drops * 1448
 	ev.CostARPerH = round1(metrics.CostARPerH(ev.WastedBytes))
@@ -476,7 +528,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		g4Floor = g4Cap * 0.01
 	}
 	set(model.G4ThroughputCoherent, goodput >= g4Floor && goodput <= g4Cap*1.1+.5)
-	set(model.G7CPUNotSaturated, cpuAvg < 90)
+	gates[model.G7CPUNotSaturated] = cpuGate(cpuAvg)
 	set(model.G5NoDuplicateRows, true) // appliqué par l'écrivain au gel
 	// publier les métriques mises à jour pour que SSE porte la vérité (wasted/cost/deadline) sans dérivation
 	if d.OnSnap != nil {

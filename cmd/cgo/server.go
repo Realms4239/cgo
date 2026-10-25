@@ -133,6 +133,10 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		if o.Direction == "down" {
 			deps = campagne.ProdDepsDown()
 		}
+		deps.Flows = o.Flows
+		if deps.Flows < 1 {
+			deps.Flows = 1
+		}
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
 		// la deadline choisie par l'opérateur voyage avec la campagne —
 		// reprise du défaut registre si non fournie (0 interdit : 0% partout)
@@ -190,6 +194,7 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 					return
 				}
 				depsDown := campagne.ProdDepsDown()
+				depsDown.Flows = deps.Flows
 				depsDown.DeadlineMs = deps.DeadlineMs
 				depsDown.OnSnap = deps.OnSnap
 				if m2, err := campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, depsDown, "data/runs"); err == nil {

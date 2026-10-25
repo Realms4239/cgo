@@ -49,6 +49,10 @@ DELAY_MS=100
 LOSS_PCT=0
 RATE_MBIT=20
 RTT_MS=100
+# Hardening default: veth offloads off so GSO super-packets cannot hide drops
+# from CAKE. The legacy frozen campaign (kit/testbed.sh) keeps its own ON
+# recipe; this bench is the explicit offload-clean comparison.
+OFFLOADS=off
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -59,6 +63,26 @@ fi
 
 log() { echo "[dualns] $*"; }
 die() { echo "[!] $*" >&2; exit 1; }
+
+set_offloads() {
+  local ns="$1" iface="$2"
+  case "$OFFLOADS" in
+    on|off) ;;
+    *) die "offloads must be on|off";;
+  esac
+  $SUDO ip netns exec "$ns" ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS" 2>/dev/null || true
+}
+
+check_offloads() {
+  local ns="$1" iface="$2" feat line
+  for feat in tcp-segmentation-offload generic-segmentation-offload generic-receive-offload; do
+    line=$($SUDO ip netns exec "$ns" ethtool -k "$iface" 2>/dev/null | grep -m1 "^${feat}:")
+    case "$line" in
+      *": $OFFLOADS"*) ;;
+      *) echo "[!] $feat not $OFFLOADS on $ns/$iface ($line)"; return 1;;
+    esac
+  done
+}
 
 need_modules() {
   $SUDO modprobe sch_netem sch_cake sch_fq_codel tcp_bbr 2>/dev/null || true
@@ -115,6 +139,16 @@ up() {
   $SUDO ip netns exec "$NS_EDGE"   ip link set e-srv up
   $SUDO ip netns exec "$NS_SRV"    ip link set s-edge up
 
+  # Offload recipe is applied after the links exist (ethtool cannot tune a
+  # down/missing device). Both directions are covered: c-cli/c-wan, w-edge,
+  # e-wan/e-srv, s-edge.
+  set_offloads "$NS_CLIENT" c-cli
+  set_offloads "$NS_WAN" c-wan
+  set_offloads "$NS_WAN" w-edge
+  set_offloads "$NS_EDGE" e-wan
+  set_offloads "$NS_EDGE" e-srv
+  set_offloads "$NS_SRV" s-edge
+
   # --- routing ------------------------------------------------------------
   # Forwarding is what puts each hop's qdisc on the actual path.
   for ns in "$NS_WAN" "$NS_EDGE"; do
@@ -139,6 +173,11 @@ up() {
   # whole point of the split would be lost.
   $SUDO ip netns exec "$NS_WAN" tc qdisc replace dev w-edge root netem \
     delay "${DELAY_MS}ms" loss "${LOSS_PCT}%"
+  # Download propagation: server -> edge -> wan -> client egresses c-wan.
+  # Without this second netem, only upload sees delay/loss and a "symmetric"
+  # dual-ns run would silently measure an asymmetric link.
+  $SUDO ip netns exec "$NS_WAN" tc qdisc replace dev c-wan root netem \
+    delay "${DELAY_MS}ms" loss "${LOSS_PCT}%"
 
   # --- queue policy: CAKE ONLY, on the edge router ------------------------
   # e-srv shapes the upload direction (client -> server): this is the egress
@@ -162,19 +201,19 @@ check() {
     $SUDO ip netns list | grep -qw "$ns" || { echo "[!] namespace $ns missing"; ok=0; }
   done
 
-  local wan_q up_q down_q
+  local wan_q up_q down_q dl_q
   wan_q=$($SUDO ip netns exec "$NS_WAN" tc qdisc show dev w-edge 2>/dev/null)
+  dl_q=$($SUDO ip netns exec "$NS_WAN" tc qdisc show dev c-wan 2>/dev/null)
   up_q=$($SUDO ip netns exec "$NS_EDGE" tc qdisc show dev e-srv 2>/dev/null)
   down_q=$($SUDO ip netns exec "$NS_EDGE" tc qdisc show dev e-wan 2>/dev/null)
 
-  echo "$wan_q" | grep -q netem || { echo "[!] no netem on w-edge: $wan_q"; ok=0; }
+  echo "$wan_q" | grep -q netem || { echo "[!] no netem on w-edge (upload physics): $wan_q"; ok=0; }
+  echo "$dl_q" | grep -q netem || { echo "[!] no netem on c-wan (download physics): $dl_q"; ok=0; }
   echo "$up_q" | grep -q cake || { echo "[!] no cake on e-srv (upload path unshaped): $up_q"; ok=0; }
   echo "$down_q" | grep -q cake || { echo "[!] no cake on e-wan (download path unshaped): $down_q"; ok=0; }
 
-  # Neither may contain the other: that is the stacking bug this script exists
-  # to prevent.
-  if echo "$wan_q" | grep -q cake; then
-    echo "[!] cake found on the netem interface — stacking bug: $wan_q"; ok=0
+  if echo "$wan_q" | grep -q cake || echo "$dl_q" | grep -q cake; then
+    echo "[!] cake found on a netem interface — stacking bug"; ok=0
   fi
   for q in "$up_q" "$down_q"; do
     if echo "$q" | grep -q netem; then
@@ -186,6 +225,19 @@ check() {
   $SUDO ip netns exec "$NS_CLIENT" ping -c1 -W2 10.30.0.2 >/dev/null 2>&1 \
     || { echo "[!] client cannot reach server"; ok=0; }
 
+  # Routing must traverse the emulated hops, not a local/loopback shortcut.
+  $SUDO ip netns exec "$NS_CLIENT" ip route get 10.30.0.2 2>/dev/null | grep -q "via 10.10.0.2 dev c-cli" \
+    || { echo "[!] client route leak (not via c-cli/10.10.0.2)"; ok=0; }
+  $SUDO ip netns exec "$NS_SRV" ip route get 10.10.0.1 2>/dev/null | grep -q "via 10.30.0.1 dev s-edge" \
+    || { echo "[!] server route leak (not via s-edge/10.30.0.1)"; ok=0; }
+
+  check_offloads "$NS_CLIENT" c-cli || ok=0
+  check_offloads "$NS_WAN" c-wan || ok=0
+  check_offloads "$NS_WAN" w-edge || ok=0
+  check_offloads "$NS_EDGE" e-wan || ok=0
+  check_offloads "$NS_EDGE" e-srv || ok=0
+  check_offloads "$NS_SRV" s-edge || ok=0
+
   if [ "$ok" = 1 ]; then
     echo "[dualns] ok — link physics and queue policy are isolated"
   fi
@@ -193,8 +245,11 @@ check() {
 }
 
 show() {
-  echo "=== $NS_WAN (w-edge) — link physics ==="
+  echo "=== $NS_WAN (w-edge) — upload link physics ==="
   $SUDO ip netns exec "$NS_WAN" tc qdisc show dev w-edge 2>/dev/null
+  echo
+  echo "=== $NS_WAN (c-wan) — download link physics ==="
+  $SUDO ip netns exec "$NS_WAN" tc qdisc show dev c-wan 2>/dev/null
   echo
   echo "=== $NS_EDGE (e-srv) — upload queue policy ==="
   $SUDO ip netns exec "$NS_EDGE" tc qdisc show dev e-srv 2>/dev/null
@@ -216,6 +271,7 @@ while [ $# -gt 0 ]; do
     --loss)  LOSS_PCT="$2"; shift 2;;
     --rate)  RATE_MBIT="$2"; shift 2;;
     --rtt)   RTT_MS="$2"; shift 2;;
+    --offloads) OFFLOADS="$2"; shift 2;;
     *) echo "unknown option: $1" >&2; exit 2;;
   esac
 done
@@ -225,5 +281,5 @@ case "$CMD" in
   down) down;;
   check) check;;
   show) show;;
-  *) echo "usage: $0 up|down|check|show [--delay MS] [--loss PCT] [--rate MBIT] [--rtt MS]"; exit 2;;
+  *) echo "usage: $0 up|down|check|show [--delay MS] [--loss PCT] [--rate MBIT] [--rtt MS] [--offloads on|off]"; exit 2;;
 esac

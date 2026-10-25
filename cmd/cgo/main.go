@@ -159,7 +159,7 @@ WantedBy=multi-user.target
 		// emit a tc command against the wrong device.
 		iface := fs.String("iface", "", "Linux egress device to shape in the remediation (e.g. eth0)")
 		rosIface := fs.String("routeros-iface", "", "RouterOS interface for the remediation script (e.g. ether1-wan)")
-		reportPath := fs.String("report", "", "write the audit report here (.md or .json); empty = no report file")
+		reportPath := fs.String("report", "", "additional report path (.md or .json); the standard data/audits/<id>/ artifacts are always written")
 		qdisc := fs.String("qdisc", "", "qdisc for the remediation: cake, fq_codel, pfifo_fast (empty = recommended)")
 		asymmetric := fs.Bool("asymmetric", true, "link is asymmetric (uplink << downlink); drives the qdisc recommendation")
 		cpuBound := fs.Bool("cpu-constrained", false, "gateway is CPU-constrained; drives the qdisc recommendation")
@@ -185,20 +185,29 @@ WantedBy=multi-user.target
 		if res.BloatGrade == "" {
 			fmt.Fprintln(os.Stderr, "attention: bufferbloat NON MESURÉ (charge bulk absente/échouée) — ne pas citer cette ligne comme audit terrain")
 		}
-		// The report is opt-in: it is a deliverable, not a side effect of
-		// running a probe.
+		// The report is part of the audit, not an opt-in extra: it is the
+		// artifact an operator pastes into a ticket and the evidence whose CSV
+		// hash a reviewer can re-check. It is written even when no remediation
+		// can be emitted; the "not measured" section then says why.
+		link := remediate.Link{Interface: *iface, RouterOSInterface: *rosIface}
+		rep, err := audit.BuildReport(res, link, *qdisc, *asymmetric, *cpuBound)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "audit report:", err)
+			os.Exit(1)
+		}
+		// Seal the CSV the audit just appended to, so the report and its
+		// evidence can be checked against each other later.
+		if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
+			fmt.Fprintln(os.Stderr, "audit report seal:", err)
+			os.Exit(1)
+		}
+		jsonPath, mdPath, err := audit.WriteArtifacts(rep, "data")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "audit artifacts:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("rapport → %s · %s\n", jsonPath, mdPath)
 		if *reportPath != "" {
-			link := remediate.Link{Interface: *iface, RouterOSInterface: *rosIface}
-			rep, err := audit.BuildReport(res, link, *qdisc, *asymmetric, *cpuBound)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "audit report:", err)
-				os.Exit(1)
-			}
-			// Seal the CSV the audit just appended to, so the report and its
-			// evidence can be checked against each other later.
-			if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
-				fmt.Fprintln(os.Stderr, "audit report seal:", err)
-			}
 			var out []byte
 			if strings.HasSuffix(*reportPath, ".json") {
 				out, err = rep.RenderJSON()
@@ -213,11 +222,9 @@ WantedBy=multi-user.target
 				fmt.Fprintln(os.Stderr, "audit report write:", err)
 				os.Exit(1)
 			}
-			fmt.Printf("rapport → %s\n", *reportPath)
-			if rep.Remediation == nil {
-				fmt.Fprintln(os.Stderr, "attention: aucune remédiation émise — capacité ou RTT non mesurés")
-			}
+			fmt.Printf("rapport additionnel → %s\n", *reportPath)
 		}
+		printAuditSummary(rep)
 	case "run":
 		fs := flag.NewFlagSet("run", flag.ExitOnError)
 		profiles := fs.String("profiles", "P2", "profils à tester (P1,P2,P3-importé)")
@@ -225,12 +232,13 @@ WantedBy=multi-user.target
 		ccs := fs.String("cc", "", "contrôles de congestion (cubic,bbr) — vide = tous")
 		direction := fs.String("direction", "up", "sens de charge : up | down | both (RRUL séquentiel)")
 		reps := fs.Int("reps", 3, "répétitions par cellule (1–5)")
+		flows := fs.Int("flows", 1, "flux de charge concurrents (1–8 ; >1 sature un lien avec perte)")
 		deadline := fs.Int("deadline", 1000, "objectif small p95 en ms (200–5000)")
 		target := fs.String("target", "1.1.1.1", "cible de mesure")
 		dataDir := fs.String("data", "data/runs", "répertoire des runs gelés")
 		runID := fs.String("run-id", "", "reprendre ce run (cellules déjà gelées sautées)")
 		_ = fs.Parse(os.Args[2:])
-		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *target, *direction, *dataDir, *runID); code != 0 {
+		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *flows, *target, *direction, *dataDir, *runID); code != 0 {
 			os.Exit(code)
 		}
 	default:
@@ -244,6 +252,46 @@ func envDefault(k, def string) string {
 		return v
 	}
 	return def
+}
+
+// printAuditSummary — the 80x24-safe terminal deliverable: measured values,
+// grade, VoIP R, waste, seal, then the copy-pasteable remediation. It never
+// prints a plausible default for a missing metric.
+func printAuditSummary(rep *audit.Report) {
+	fmt.Printf("\nAudit %s — %s (%s)\n", rep.AuditID, rep.Site, rep.LinkType)
+	fmt.Printf("%-26s %s\n", "Bufferbloat grade", emptyDash(rep.Grade))
+	fmt.Printf("%-26s %.1f → %.1f ms (Δ %.1f)\n", "Idle p50 → loaded p95",
+		rep.Measured.RTTIdleP50Ms, rep.Measured.RTTLoadedP95Ms, rep.Measured.BloatDeltaMs)
+	fmt.Printf("%-26s %.1f ms\n", "QDI", rep.Measured.QDIMs)
+	fmt.Printf("%-26s %.1f\n", "VoIP R (G.107)", rep.Measured.VoIPR)
+	fmt.Printf("%-26s %.1f Mbit/s\n", "Throughput", rep.Measured.ThroughputMbps)
+	if rep.Waste != nil {
+		fmt.Printf("%-26s %.0f Ar/h (%s)\n", "Prepaid waste", rep.Waste.ARPerHour, rep.Waste.Tier)
+	} else {
+		fmt.Printf("%-26s non mesuré\n", "Prepaid waste")
+	}
+	if rep.Provenance.SourceSHA256 != "" {
+		fmt.Printf("%-26s %s\n", "SHA-256 seal", rep.Provenance.SourceSHA256)
+	}
+	if rep.Remediation != nil {
+		fmt.Printf("\nRemédiation — %s\n", rep.Remediation.Qdisc)
+		for _, c := range rep.Remediation.LinuxTC {
+			fmt.Println(c)
+		}
+		if rep.Remediation.RouterOS != "" {
+			fmt.Println("\nMikroTik RouterOS v7+ :")
+			fmt.Println(rep.Remediation.RouterOS)
+		}
+	} else {
+		fmt.Println("\nRemédiation : non émise — capacité, RTT ou interface non mesurés.")
+	}
+}
+
+func emptyDash(s string) string {
+	if s == "" {
+		return "non mesuré"
+	}
+	return s
 }
 
 func usage() {
