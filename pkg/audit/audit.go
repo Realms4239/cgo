@@ -112,11 +112,16 @@ type Result struct {
 	// hardcoded window, so the hourly figure is traceable to a real interval.
 	// For Direction "both" it is the sum of both load windows.
 	LoadSeconds float64 `json:"load_seconds"`
-	// Phase windows actually executed. 60 s = 10 s baseline, 40 s load,
-	// 10 s drain; short audits scale down. Stored so the report can prove
-	// the grade came from a loaded window, not from an idle sample.
+	// Phases réellement exécutées. 60 s = 10 s baseline, 40 s charge,
+	// 10 s drain; les audits courts dimensionnent. Stocké pour que le
+	// rapport prouve que la note vient d'une fenêtre chargée.
 	BaselineSeconds float64 `json:"baseline_seconds"`
 	RecoverySeconds float64 `json:"recovery_seconds"`
+
+	// Telemetry — la série brute par sonde (phase, offset, RTT, complétion
+	// 16 KiB). C'est la matière première que le double sceau SHA-256 scelle :
+	// l'absence de sonde y est une absence de ligne, jamais un 0 ms.
+	Telemetry []TelemetryRow `json:"telemetry,omitempty"`
 }
 
 type Deps struct {
@@ -243,8 +248,10 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	// fenêtre) mais ne nourrissent pas le p95 — sémantique inchangée depuis
 	// la découpe en phases.
 	var discardSmalls []float64
+	// telemetry — la série brute (une ligne par sonde réellement reçue).
+	var telemetry []TelemetryRow
 
-	collectWindow := func(secs int, dstRTT, dstSmall *[]float64) {
+	collectWindow := func(phase string, secs int, dstRTT, dstSmall *[]float64) {
 		deadline := time.Now().Add(time.Duration(secs) * time.Second)
 		for time.Now().Before(deadline) {
 			select {
@@ -253,9 +260,18 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 			default:
 			}
 			pingCalls++
-			*dstRTT = append(*dstRTT, d.Ping(ctx, p.Target, pingPerCall)...)
+			offset := time.Since(start).Milliseconds()
+			for _, s := range d.Ping(ctx, p.Target, pingPerCall) {
+				*dstRTT = append(*dstRTT, s)
+				if s != 0 {
+					telemetry = append(telemetry, TelemetryRow{Phase: phase, OffsetMs: offset, RTTms: s})
+				}
+			}
 			if v, err := d.Small(ctx); err == nil {
 				*dstSmall = append(*dstSmall, v)
+				if v != 0 {
+					telemetry = append(telemetry, TelemetryRow{Phase: phase, OffsetMs: offset, SmallMs: v})
+				}
 			}
 			time.Sleep(400 * time.Millisecond)
 		}
@@ -282,7 +298,11 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		}()
 		// laisser le dial/flood démarrer avant de compter les pings chargés
 		time.Sleep(300 * time.Millisecond)
-		collectWindow(secs, &rtt, &small)
+		phase := "load"
+		if dir == "down" {
+			phase = "load-down"
+		}
+		collectWindow(phase, secs, &rtt, &small)
 		wcancel()
 		select {
 		case oc := <-done:
@@ -311,20 +331,20 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	if withLoad {
 		// UNE baseline partagée : idle vs chargé se compare toujours au
 		// même repos, quel que soit le nombre de fenêtres de charge.
-		collectWindow(idleSecs, &idleRTTs, &idleSmalls)
+		collectWindow("baseline", idleSecs, &idleRTTs, &idleSmalls)
 		switch p.Direction {
 		case "both":
 			upRTTs, upSmalls, upOc = runLoadWindow("up", loadedUpSecs)
 			// Phase 3 (up) — mini-drain : le temps de retour au repos après
 			// la fenêtre montante nourrit DrainMs avant d'enchaîner.
-			collectWindow(bothMiniDrainSecs, &recRTTs, &discardSmalls)
+			collectWindow("drain", bothMiniDrainSecs, &recRTTs, &discardSmalls)
 			// répit : laisser la file vider avant de mesurer le sens
 			// descendant, sinon la fenêtre down démarre sur un héritage up.
 			time.Sleep(bothSettleSecs * time.Second)
 			downRTTs, downSmalls, downOc = runLoadWindow("down", loadedDownSecs)
 			// Phase 3 (down) — drain final après la fenêtre descendante.
 			if recSecs > 0 {
-				collectWindow(recSecs, &recDownRTTs, &discardSmalls)
+				collectWindow("drain-down", recSecs, &recDownRTTs, &discardSmalls)
 			}
 		case "down":
 			downRTTs, downSmalls, downOc = runLoadWindow("down", loadedSecs)
@@ -334,17 +354,17 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 			// distingue un AQM qui tient la file d'un AQM qui l'a seulement
 			// vidée à temps.
 			if recSecs > 0 {
-				collectWindow(recSecs, &recDownRTTs, &discardSmalls)
+				collectWindow("drain-down", recSecs, &recDownRTTs, &discardSmalls)
 			}
 		default: // up
 			upRTTs, upSmalls, upOc = runLoadWindow("up", loadedSecs)
 			if recSecs > 0 {
-				collectWindow(recSecs, &recRTTs, &discardSmalls)
+				collectWindow("drain", recSecs, &recRTTs, &discardSmalls)
 			}
 		}
 	} else {
 		// audit court / sans bulk : fenêtre unique, idle==loaded honnête
-		collectWindow(p.Duration, &idleRTTs, &idleSmalls)
+		collectWindow("baseline", p.Duration, &idleRTTs, &idleSmalls)
 		upRTTs = append([]float64(nil), idleRTTs...)
 		upSmalls = append([]float64(nil), idleSmalls...)
 	}
@@ -577,6 +597,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		LoadSeconds:        loadSeconds,
 		BaselineSeconds:    float64(idleSecs),
 		RecoverySeconds:    float64(recSecs),
+		Telemetry:          telemetry,
 	}
 	res.ProfileMatch, res.MatchDelta = MatchProfile(res)
 	return res, nil

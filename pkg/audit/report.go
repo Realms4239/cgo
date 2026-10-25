@@ -114,7 +114,9 @@ type Unavailable struct {
 	Reason string `json:"reason"`
 }
 
-// Provenance seals the evidence chain.
+// Provenance seals the evidence chain — TWO seals: the raw telemetry
+// timeseries this report's percentiles were computed from, and the appended
+// link_audit.csv row file. One artifact, two independently checkable links.
 type Provenance struct {
 	// SourceFile is the CSV the report was rendered from.
 	SourceFile string `json:"source_file"`
@@ -122,6 +124,12 @@ type Provenance struct {
 	SourceSHA256 string `json:"source_sha256"`
 	// RowCount is the number of data rows in the source file.
 	RowCount int `json:"row_count"`
+	// TelemetryFile / TelemetrySHA256 seal the raw per-probe timeseries.
+	TelemetryFile   string `json:"telemetry_file,omitempty"`
+	TelemetrySHA256 string `json:"telemetry_sha256,omitempty"`
+	// RowFileSHA256 is the row-file seal under its explicit name (same bytes
+	// as SourceSHA256; kept so both links are named, not implied).
+	RowFileSHA256 string `json:"row_file_sha256,omitempty"`
 }
 
 // Remediation is the production configuration derived from the measurement.
@@ -282,11 +290,23 @@ func (r *Report) SealSource(path string) error {
 		return fmt.Errorf("audit: seal source %s: %w", path, err)
 	}
 	sum := sha256.Sum256(data)
-	r.Provenance = Provenance{
-		SourceFile:   path,
-		SourceSHA256: hex.EncodeToString(sum[:]),
-		RowCount:     countCSVRows(data),
+	r.Provenance.SourceFile = path
+	r.Provenance.SourceSHA256 = hex.EncodeToString(sum[:])
+	r.Provenance.RowFileSHA256 = r.Provenance.SourceSHA256
+	r.Provenance.RowCount = countCSVRows(data)
+	return nil
+}
+
+// SealTelemetry scelle la série brute (telemetry.csv) : c'est la preuve
+// première, avant toute agrégation en percentiles.
+func (r *Report) SealTelemetry(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("audit: seal telemetry %s: %w", path, err)
 	}
+	sum := sha256.Sum256(data)
+	r.Provenance.TelemetryFile = path
+	r.Provenance.TelemetrySHA256 = hex.EncodeToString(sum[:])
 	return nil
 }
 
@@ -357,6 +377,10 @@ func (r *Report) RenderMarkdown() string {
 
 	if r.Provenance.SourceSHA256 != "" {
 		b.WriteString("## Provenance\n\n")
+		if r.Provenance.TelemetrySHA256 != "" {
+			fmt.Fprintf(&b, "- Série brute (sonde par sonde): `%s`\n", r.Provenance.TelemetryFile)
+			fmt.Fprintf(&b, "- SHA-256 télémétrie: `%s`\n", r.Provenance.TelemetrySHA256)
+		}
 		fmt.Fprintf(&b, "- Source: `%s`\n", r.Provenance.SourceFile)
 		fmt.Fprintf(&b, "- Rows: %d\n", r.Provenance.RowCount)
 		fmt.Fprintf(&b, "- SHA-256: `%s`\n\n", r.Provenance.SourceSHA256)
