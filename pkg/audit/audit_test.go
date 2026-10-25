@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -210,5 +211,51 @@ func TestAuditNoSmallURLHonest(t *testing.T) {
 	}
 	if !strings.Contains(res.Notes, "petit objet non mesuré") {
 		t.Fatalf("notes must flag unmeasured small object: %q", res.Notes)
+	}
+}
+
+// TestRunCAPSLAWiring — la SLA CAP se nourrit des complétions 16 KiB SOUS
+// charge (fenêtre chargée, pas la baseline) : mesurée quand la fenêtre a
+// produit des échantillons, avec le verdict à l'objectif 220 ms.
+func TestRunCAPSLAWiring(t *testing.T) {
+	mu := sync.Mutex{}
+	inLoad := false
+	d := Deps{
+		Ping: func(_ context.Context, _ string, _ int) []float64 { return []float64{20, 21, 22} },
+		Small: func(context.Context) (float64, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if inLoad {
+				return 300, nil // 300 ms chargé : échoue l'objectif 220 ms
+			}
+			return 50, nil
+		},
+		BulkLoad: func(_ context.Context, _ string, _ string, _ int) LoadOutcome {
+			return LoadOutcome{Bytes: 5e6, PerFlow: []uint64{5e6}, Elapsed: 2 * time.Second}
+		},
+	}
+	// charger «sous charge» pendant la fenêtre chargée : le chargeur est
+	// lancé avant la collecte de cette fenêtre — on pilote via Ping, appelé
+	// dans chaque fenêtre ; plus simple : Small lit l'état qu'on bascule
+	// depuis Ping quand la fenêtre chargée commence (2e appel de fenêtre).
+	calls := 0
+	d.Ping = func(ctx context.Context, target string, n int) []float64 {
+		calls++
+		if calls > 1 { // fenêtre chargée atteinte
+			mu.Lock()
+			inLoad = true
+			mu.Unlock()
+		}
+		return []float64{20, 21, 22}
+	}
+	res, err := Run(context.Background(), Params{Duration: 4, Direction: "up", Target: "x"}, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.CAPSLAMeasured {
+		t.Fatal("CAP doit être mesurée quand la fenêtre chargée a des complétions")
+	}
+	if res.CAPDeadlineOKPct != 0 || !res.CAPSLABreach || res.CAPSLALabel == "" {
+		t.Fatalf("300 ms chargé = 0 %% sous 220 ms, manquement : %+v", res.CAPSLAMeasured)
 	}
 }

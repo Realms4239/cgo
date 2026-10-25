@@ -15,7 +15,7 @@ func AppendLinkAudit(dataDir string, r *Result) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-	newCols := []string{"bloat_delta_ms", "bloat_grade", "bloat_verdict", "profile_match", "match_delta"}
+	newCols := []string{"bloat_delta_ms", "bloat_grade", "bloat_verdict", "profile_match", "match_delta", "cap_deadline_ok_pct", "cap_sla_breach"}
 	fullHdr := append(append([]string{}, model.LinkAuditHeader...), newCols...)
 	// migration de schéma : un historique aux colonnes courtes (14, puis 17)
 	// reçoit les colonnes manquantes rembourrées — pas de CSV bancal, les
@@ -59,6 +59,13 @@ func AppendLinkAudit(dataDir string, r *Result) error {
 			return err
 		}
 	}
+	// CAP non mesurée : colonnes vides — une absence, pas un zéro qui se
+	// lirait « 0 % sous échéance, conforme ».
+	capPct, capBreach := "", ""
+	if r.CAPSLAMeasured {
+		capPct = fmt.Sprintf("%.1f", r.CAPDeadlineOKPct)
+		capBreach = fmt.Sprintf("%t", r.CAPSLABreach)
+	}
 	row := []string{
 		r.AuditID, r.Timestamp, r.Site, r.LinkType, r.Provider,
 		fmt.Sprintf("%.1f", r.RTTIdleP50), fmt.Sprintf("%.1f", r.RTTIdleP95),
@@ -67,6 +74,7 @@ func AppendLinkAudit(dataDir string, r *Result) error {
 		fmt.Sprintf("%.1f", r.HTTPSmallP95), fmt.Sprintf("%.1f", r.DataUsedMB), r.Notes,
 		fmt.Sprintf("%.1f", r.BloatDeltaMs), r.BloatGrade, r.BloatVerdict,
 		r.ProfileMatch, r.MatchDelta,
+		capPct, capBreach,
 	}
 	if err := w.Write(row); err != nil {
 		return err

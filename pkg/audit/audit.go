@@ -97,6 +97,16 @@ type Result struct {
 	DrainMs       float64 `json:"drain_ms"`
 	DrainMeasured bool    `json:"drain_measured"`
 
+	// SLA CAP (modèle C) : complétions 16 KiB CHARGÉES contre l'objectif
+	// DGM 220 ms. CAPSLAMeasured=false ⇒ colonnes vides dans le CSV, jamais
+	// un « 0 % » qui se lirait comme un manquement mesuré — une absence,
+	// pas un zéro. Le deadline_ok_pct de la campagne opérateur reste une
+	// métrique séparée, indisponible dans un audit de lien.
+	CAPSLAMeasured   bool    `json:"cap_sla_measured"`
+	CAPDeadlineOKPct float64 `json:"cap_deadline_ok_pct"`
+	CAPSLABreach     bool    `json:"cap_sla_breach"`
+	CAPSLALabel      string  `json:"cap_sla_label,omitempty"`
+
 	// LoadSeconds is the measured duration of the bulk transfer, in seconds.
 	// The financial projection extrapolates from this rather than from a
 	// hardcoded window, so the hourly figure is traceable to a real interval.
@@ -504,6 +514,19 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		jfiPct = jfiDownPct
 	}
 
+	// SLA CAP — les complétions 16 KiB SOUS CHARGE : la fenêtre up pour un
+	// audit up, la fenêtre down pour un audit down, les deux fenêtres
+	// poolées pour « both » (chaque complétion chargée compte, quel que soit
+	// le sens qui la provoquait). Sans échantillon chargé : non mesuré.
+	capSamples := upSmalls
+	switch p.Direction {
+	case "down":
+		capSamples = downSmalls
+	case "both":
+		capSamples = append(append([]float64(nil), upSmalls...), downSmalls...)
+	}
+	sla := metrics.AssessCAPSLA(capSamples)
+
 	loadSeconds := upOc.Elapsed.Seconds()
 	switch p.Direction {
 	case "down":
@@ -545,6 +568,10 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		DrainDownMeasured:  drainDownMeasured,
 		JFIPct:             jfiPct,
 		RetransRatio:       ratio,
+		CAPSLAMeasured:     sla.Measured,
+		CAPDeadlineOKPct:   sla.OKPct,
+		CAPSLABreach:       sla.Breach,
+		CAPSLALabel:        sla.Label,
 		DrainMs:            drainMs,
 		DrainMeasured:      drainMeasured,
 		LoadSeconds:        loadSeconds,
