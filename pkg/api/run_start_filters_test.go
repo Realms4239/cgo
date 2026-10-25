@@ -69,3 +69,93 @@ func TestRunOptsReachStartFn(t *testing.T) {
 	}
 	_ = model.AllQdiscs // garde l'import si le test évolue
 }
+
+// TestRunStartProvenanceValidation — bench et channel_model validés à
+// l'entrée (prévention §6 : le client est une indication, jamais le
+// contrat), bursty refusé hors P2/P3 AVANT la porte moteur.
+func TestRunStartProvenanceValidation(t *testing.T) {
+	h := New(Deps{StartFn: func(o RunOpts) error { return nil }})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	post := func(body string) (int, string) {
+		resp, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return resp.StatusCode, string(b)
+	}
+
+	// bursty + P1 ⇒ 400 qui nomme le profil fautif et la règle P2/P3
+	code, body := post(`{"profiles":["P1"],"channel_model":"bursty","reps":1}`)
+	if code != http.StatusBadRequest {
+		t.Fatalf("bursty+P1: %d, want 400", code)
+	}
+	if !strings.Contains(body, "P1") || !strings.Contains(body, "P2/P3") {
+		t.Fatalf("bursty+P1: le refus doit nommer P1 et la règle, got %s", body)
+	}
+	// canal inconnu ⇒ 400 nommant la règle
+	if code, _ = post(`{"profiles":["P2"],"channel_model":"tlmn","reps":1}`); code != http.StatusBadRequest {
+		t.Fatalf("canal inconnu: %d, want 400", code)
+	}
+	// banc inconnu ⇒ 400
+	if code, _ = post(`{"profiles":["P2"],"bench":"xyz","reps":1}`); code != http.StatusBadRequest {
+		t.Fatalf("banc inconnu: %d, want 400", code)
+	}
+	// bursty + P2 sans moteur câblé ⇒ 503 (la validation provenance passe,
+	// la porte moteur arrive après — l'ordre des portes est le contrat)
+	noEngine := New(Deps{})
+	srv2 := httptest.NewServer(noEngine)
+	defer srv2.Close()
+	resp, err := http.Post(srv2.URL+"/api/run/start", "application/json",
+		bytes.NewBufferString(`{"profiles":["P2"],"channel_model":"bursty","reps":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("bursty+P2 sans moteur: %d, want 503 (gate order)", resp.StatusCode)
+	}
+}
+
+// TestRunStartProvenanceReachesStartFn — la provenance déclarée (banc,
+// canal, flux) arrive intacte au moteur ; flows absent passe tel quel (0),
+// le câblage cmd/cgo appliquant le défaut 4 (décision 6).
+func TestRunStartProvenanceReachesStartFn(t *testing.T) {
+	var got RunOpts
+	h := New(Deps{StartFn: func(o RunOpts) error { got = o; return nil }})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/api/run/start", "application/json",
+		strings.NewReader(`{"profiles":["P2"],"channel_model":"bursty","bench":"dualns","flows":3,"reps":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	if got.ChannelModel != "bursty" || got.Bench != "dualns" || got.Flows != 3 {
+		t.Fatalf("provenance altérée: %+v", got)
+	}
+
+	var gotNoFlows RunOpts
+	h2 := New(Deps{StartFn: func(o RunOpts) error { gotNoFlows = o; return nil }})
+	srv2 := httptest.NewServer(h2)
+	defer srv2.Close()
+	resp2, err := http.Post(srv2.URL+"/api/run/start", "application/json",
+		strings.NewReader(`{"profiles":["P2"],"reps":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, resp2.Body)
+	resp2.Body.Close()
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("flows absent: %d, want 200", resp2.StatusCode)
+	}
+	if gotNoFlows.Flows != 0 {
+		t.Fatalf("flows absent doit atteindre le moteur tel quel (0), got %d", gotNoFlows.Flows)
+	}
+}

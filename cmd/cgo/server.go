@@ -7,6 +7,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -129,14 +130,29 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 				time.Sleep(100 * time.Millisecond)
 			}
 		}
+		// provenance — même échelle que runCLI : choix API → CGO_BENCH →
+		// legacy. dualns est direction-aware (le shaper change de sens).
+		bench := o.Bench
+		if bench == "" {
+			bench = os.Getenv("CGO_BENCH")
+		}
+		if bench == "" {
+			bench = "legacy"
+		}
 		deps := campagne.ProdDeps()
-		if o.Direction == "down" {
+		if bench == "dualns" {
+			deps = campagne.ProdDepsDualNS(o.Direction)
+		} else if o.Direction == "down" {
 			deps = campagne.ProdDepsDown()
 		}
-		deps.Flows = o.Flows
-		if deps.Flows < 1 {
-			deps.Flows = 1
+		deps.Bench = bench
+		deps.ChannelModel = o.ChannelModel
+		// décision 6 — le défaut est le régime campagne (4 flux), pas le
+		// régime historique gelé (1 flux) ; l'API laisse passer 0 = défaut.
+		if o.Flows == 0 {
+			o.Flows = 4
 		}
+		deps.Flows = o.Flows
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
 		// la deadline choisie par l'opérateur voyage avec la campagne —
 		// reprise du défaut registre si non fournie (0 interdit : 0% partout)
@@ -194,9 +210,14 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 					return
 				}
 				depsDown := campagne.ProdDepsDown()
+				if bench == "dualns" {
+					depsDown = campagne.ProdDepsDualNS("down")
+				}
 				depsDown.Flows = deps.Flows
 				depsDown.DeadlineMs = deps.DeadlineMs
 				depsDown.OnSnap = deps.OnSnap
+				depsDown.Bench = deps.Bench
+				depsDown.ChannelModel = deps.ChannelModel
 				if m2, err := campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, depsDown, "data/runs"); err == nil {
 					setMtx(m2)
 				}

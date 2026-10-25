@@ -281,7 +281,7 @@ WantedBy=multi-user.target
 		dataDir := fs.String("data", "data/runs", "répertoire des runs gelés")
 		runID := fs.String("run-id", "", "reprendre ce run (cellules déjà gelées sautées)")
 		bench := fs.String("bench", "", "banc : legacy (reproduction corpus) | dualns (production, défaut CGO_BENCH)")
-		channelModel := fs.String("channel-model", "clean", "canal : clean | bursty (P2/P3 seulement — refus sinon)")
+		channelModel := fs.String("channel-model", envDefault("CGO_CHANNEL_MODEL", "clean"), "canal : clean | bursty (P2/P3 seulement — refus sinon ; défaut CGO_CHANNEL_MODEL)")
 		_ = fs.Parse(os.Args[2:])
 		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *flows, *target, *direction, *dataDir, *runID, *bench, *channelModel); code != 0 {
 			os.Exit(code)

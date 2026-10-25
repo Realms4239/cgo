@@ -128,10 +128,17 @@ type RunOpts struct {
 	Target     string   `json:"target"`
 	Direction  string   `json:"direction"`
 	RunID      string   `json:"run_id"`
-	// Flows — charge multi-flux. 0/1 = one stream (historical cells);
-	// 2–8 saturates a lossy path where a single CUBIC collapses below the
-	// link rate. The value travels into the manifest config.
+	// Flows — charge multi-flux. 0 = défaut du banc (4, décision 6 — le
+	// câblage cmd/cgo applique le défaut) ; 1 = one stream (historical
+	// cells); 2–8 saturates a lossy path where a single CUBIC collapses
+	// below the link rate. The value travels into the manifest config.
 	Flows int `json:"flows"`
+	// Bench — étiquette de provenance : "" (défaut CGO_BENCH → legacy),
+	// "legacy" (reproduction corpus) ou "dualns" (banc durci production).
+	Bench string `json:"bench"`
+	// ChannelModel — canal : "" (clean côté campagne), "clean" ou "bursty"
+	// (rafales Gilbert-Elliott, P2/P3 uniquement — 400 sinon).
+	ChannelModel string `json:"channel_model"`
 }
 
 // Deps relie le serveur au noyau campagne.
@@ -550,6 +557,34 @@ func New(d Deps) Handler {
 		if len(unknown) > 0 {
 			writeErr(w, r, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
 			return
+		}
+		// provenance déclarée — validée ici même sans moteur câblé (le refus
+		// doit tenir sur les hôtes en observation) ; bursty est une physique
+		// de canal radio : P2/P3 uniquement (décision 7), refusé avant toute
+		// mutation. La campagne reste le dernier mot (même règle, même message).
+		switch opts.Bench {
+		case "", "legacy", "dualns":
+		default:
+			writeErr(w, r, "bench must be legacy | dualns", http.StatusBadRequest)
+			return
+		}
+		switch opts.ChannelModel {
+		case "", "clean", "bursty":
+		default:
+			writeErr(w, r, "channel_model must be clean | bursty", http.StatusBadRequest)
+			return
+		}
+		if opts.ChannelModel == "bursty" {
+			var hors []string
+			for _, id := range opts.Profiles {
+				if id != "P2" && id != "P3" {
+					hors = append(hors, id)
+				}
+			}
+			if len(hors) > 0 {
+				writeErr(w, r, "channel_model bursty invalide pour "+strings.Join(hors, ", ")+" — rafales sur P2/P3 uniquement (choisir clean)", http.StatusBadRequest)
+				return
+			}
 		}
 		// axes qdisc/CC : validés ici même sans moteur câblé (prévention §6) ;
 		// vides = matrice pleine (comportement historique)
