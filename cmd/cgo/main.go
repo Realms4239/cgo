@@ -280,8 +280,10 @@ WantedBy=multi-user.target
 		target := fs.String("target", "1.1.1.1", "cible de mesure")
 		dataDir := fs.String("data", "data/runs", "répertoire des runs gelés")
 		runID := fs.String("run-id", "", "reprendre ce run (cellules déjà gelées sautées)")
+		bench := fs.String("bench", "", "banc : legacy (reproduction corpus) | dualns (production, défaut CGO_BENCH)")
+		channelModel := fs.String("channel-model", "clean", "canal : clean | bursty (P2/P3 seulement — refus sinon)")
 		_ = fs.Parse(os.Args[2:])
-		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *flows, *target, *direction, *dataDir, *runID); code != 0 {
+		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *flows, *target, *direction, *dataDir, *runID, *bench, *channelModel); code != 0 {
 			os.Exit(code)
 		}
 	default:

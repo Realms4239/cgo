@@ -52,6 +52,17 @@ type Deps struct {
 	// fq_codel/cake promettent et qu'un flux unique ne montre jamais.
 	Flows int
 
+	// PhysicsIfaces — ifaces de physique SUPPLÉMENTAIRES (banc durci :
+	// c-wan en plus de w-edge) : le netem du profil s'y pose à l'identique,
+	// sinon un run « symétrique » mesurerait un lien asymétrique en secret.
+	PhysicsIfaces []string
+	// ChannelModel — clean (défaut, perte uniforme historique) | bursty
+	// (Gilbert-Elliott, P2/P3 seulement — validé avant toute mutation).
+	ChannelModel string
+	// Bench — étiquette de provenance : "legacy" (testbed.sh, reproduction
+	// du corpus gelé) | "dualns" (banc durci, chemin de production).
+	Bench string
+
 	// Direction — sens de la charge : "" ou "up" = upload (client → sink,
 	// shaper sur l'émission cliente, comportement historique) ; "down" =
 	// download (source → client, shaper sur l'émission SERVEUR : le
@@ -211,6 +222,12 @@ func defaults(d *Deps) {
 	if d.RecupSec == 0 {
 		d.RecupSec = model.RecupSec
 	}
+	if d.ChannelModel == "" {
+		d.ChannelModel = "clean"
+	}
+	if d.Bench == "" {
+		d.Bench = "legacy"
+	}
 }
 
 // RunEvent exécute une cellule de bout en bout et rend la ligne gelée.
@@ -219,12 +236,24 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	defaults(&d)
 	ensureQdiscModules()
 
-	// configurer les deux sauts — reset d'abord : le levier de façonnage (ou une
-	// cellule périmée) peut laisser un qdisc étranger à la racine, ce qui ferait échouer chaque apply
-	_, _ = d.TC.Run("qdisc", "del", "dev", d.CliIf, "root")
-	// ge nil : la campagne historique est UNIFORME — la perte en salves est
-	// un choix par campagne (channel_model, tâche 6), jamais un champ profil.
-	if err := qdisc.ApplyNetemPhysics(d.TC, d.CliIf, prof.DelayMs, prof.JitterMs, prof.LossPct, nil); err != nil {
+	// Canal en salves : P2/P3 seulement, et l'erreur part AVANT toute
+	// mutation qdisc — un repli silencieux en uniforme changerait l'identité
+	// de la cellule mesurée (bursty annoncé, uniforme exécuté).
+	switch d.ChannelModel {
+	case "clean", "":
+		d.ChannelModel = "clean"
+	case "bursty":
+		if _, ok := BurstGE(prof.ID); !ok {
+			return ev, fmt.Errorf("channel_model bursty invalide pour %s — rafales sur P2/P3 uniquement (choisir clean)", prof.ID)
+		}
+	default:
+		return ev, fmt.Errorf("channel_model %q invalide (clean|bursty)", d.ChannelModel)
+	}
+	ge := burstGEOrNull(prof.ID, d.ChannelModel)
+
+	// Physique : le saut de latence ET chaque iface supplémentaire (banc
+	// durci : w-edge + c-wan, les deux sens voient délai et perte).
+	if err := applyPhysics(&d, prof, ge); err != nil {
 		return ev, fmt.Errorf("netem: %w", err)
 	}
 	shaper := qdiscRunner(d.TC)
