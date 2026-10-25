@@ -147,13 +147,20 @@ WantedBy=multi-user.target
 		}
 	case "audit":
 		fs := flag.NewFlagSet("audit", flag.ExitOnError)
+		// Surface opérateur : quatre réglages suffisent à un audit terrain.
 		linkType := fs.String("link-type", "5g", "link_type: fiber, 5g, 4g, vsat, other")
 		site := fs.String("site", "Site X", "site / département")
+		duration := fs.Int("duration", 60, "duration seconds (60 = 10/40/10)")
+		direction := fs.String("direction", "up", "sens de charge : up | down | both")
 		provider := fs.String("provider", "", "provider")
-		duration := fs.Int("duration", 60, "duration seconds")
-		target := fs.String("target", "8.8.8.8", "ping target")
-		small := fs.String("small", envDefault("CGO_SMALL_URL", "http://10.200.0.1:8081/small"), "small-object URL through the measured path")
-		bulk := fs.String("bulk", envDefault("CGO_BULK_ADDR", "10.200.0.1:5201"), "bulk sink host:port — empty disables load (no bufferbloat grade)")
+		flows := fs.Int("flows", 4, "flux de charge concurrents (1–8 ; 1 = régime historique)")
+		// Avancé : overrides explicites de terrain. Par défaut, la détection
+		// du banc (dualns → legacy → external) choisit cible et puits ; en
+		// external il n'y a PAS de charge implicite — jamais de note sans
+		// charge réelle.
+		target := fs.String("target", "", "cible ping (défaut : détection banc)")
+		small := fs.String("small", "", "URL petit objet (défaut : détection banc)")
+		bulk := fs.String("bulk", "", "puits bulk host:port (défaut : détection banc ; vide en externe = pas de charge)")
 		// Remediation needs to know which device to configure. These are
 		// deliberately explicit: the tool will not guess an interface name and
 		// emit a tc command against the wrong device.
@@ -164,16 +171,35 @@ WantedBy=multi-user.target
 		asymmetric := fs.Bool("asymmetric", true, "link is asymmetric (uplink << downlink); drives the qdisc recommendation")
 		cpuBound := fs.Bool("cpu-constrained", false, "gateway is CPU-constrained; drives the qdisc recommendation")
 		_ = fs.Parse(os.Args[2:])
+		sinks := ResolveSinks()
+		if *target == "" {
+			*target = sinks.Target
+		}
+		if *small == "" {
+			*small = sinks.SmallURL
+		}
+		if *bulk == "" {
+			*bulk = sinks.envOrBulk()
+		}
 		p := audit.Params{
 			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
 			Site:    *site, LinkType: *linkType, Provider: *provider,
-			Duration: *duration, Target: *target,
+			Duration: *duration, Target: *target, Direction: *direction, Flows: *flows,
 			SmallURL: *small, BulkAddr: *bulk,
 		}
-		fmt.Printf("audit %s — %s %s %ds → %s (bulk %s)\n", p.AuditID, p.LinkType, p.Site, p.Duration, p.Target, p.BulkAddr)
+		fmt.Printf("audit %s — %s %s %ds sens %s flux %d (banc %s) → %s (bulk %s)\n",
+			p.AuditID, p.LinkType, p.Site, p.Duration, p.Direction, p.Flows, sinks.Mode, p.Target, p.BulkAddr)
 		res, err := audit.Run(context.Background(), p, audit.Deps{})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit:", err)
+			os.Exit(1)
+		}
+		// Ordre des preuves : la série brute d'abord (telemetry.csv), puis
+		// la ligne gelée (link_audit.csv), puis le rapport qui scelle les
+		// deux — chaque maillon existe avant d'être scellé.
+		telPath, err := audit.WriteTelemetry("data", res)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "audit telemetry:", err)
 			os.Exit(1)
 		}
 		if err := audit.AppendLinkAudit("data", res); err != nil {
@@ -186,17 +212,21 @@ WantedBy=multi-user.target
 			fmt.Fprintln(os.Stderr, "attention: bufferbloat NON MESURÉ (charge bulk absente/échouée) — ne pas citer cette ligne comme audit terrain")
 		}
 		// The report is part of the audit, not an opt-in extra: it is the
-		// artifact an operator pastes into a ticket and the evidence whose CSV
-		// hash a reviewer can re-check. It is written even when no remediation
-		// can be emitted; the "not measured" section then says why.
+		// artifact an operator pastes into a ticket and the evidence whose
+		// hashes a reviewer can re-check. It is written even when no
+		// remediation can be emitted; the "not measured" section says why.
 		link := remediate.Link{Interface: *iface, RouterOSInterface: *rosIface}
 		rep, err := audit.BuildReport(res, link, *qdisc, *asymmetric, *cpuBound)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit report:", err)
 			os.Exit(1)
 		}
-		// Seal the CSV the audit just appended to, so the report and its
-		// evidence can be checked against each other later.
+		// Double sceau : la série brute, puis la ligne CSV que l'audit vient
+		// d'ajouter — le rapport prouve les deux maillons.
+		if err := rep.SealTelemetry(telPath); err != nil {
+			fmt.Fprintln(os.Stderr, "audit telemetry seal:", err)
+			os.Exit(1)
+		}
 		if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
 			fmt.Fprintln(os.Stderr, "audit report seal:", err)
 			os.Exit(1)
@@ -225,6 +255,19 @@ WantedBy=multi-user.target
 			fmt.Printf("rapport additionnel → %s\n", *reportPath)
 		}
 		printAuditSummary(rep)
+		// Code de sortie 2 : audit PARTIEL — le rapport existe et cite ses
+		// manques ; l'appelant (script, CI, soutenance) sait ne pas citer
+		// les absences comme des mesures.
+		partial := false
+		for _, u := range rep.Unavailable {
+			switch u.Metric {
+			case "bufferbloat grade", "economics", "throughput":
+				partial = true
+			}
+		}
+		if partial {
+			os.Exit(2)
+		}
 	case "run":
 		fs := flag.NewFlagSet("run", flag.ExitOnError)
 		profiles := fs.String("profiles", "P2", "profils à tester (P1,P2,P3-importé)")
@@ -254,51 +297,51 @@ func envDefault(k, def string) string {
 	return def
 }
 
-// printAuditSummary — the 80x24-safe terminal deliverable: measured values,
-// grade, VoIP R, waste, seal, then the copy-pasteable remediation. It never
-// prints a plausible default for a missing metric.
+// printAuditSummary — table 80 colonnes, lisible en 24 lignes : note, Δp95,
+// QDI, drain, VoIP R, JFI, SLA CAP, sens, Ar/h primaire + B2B, sceau,
+// scripts. Aucune valeur fabriquée : chaque absence est dite.
 func printAuditSummary(rep *audit.Report) {
-	fmt.Printf("\nAudit %s — %s (%s)\n", rep.AuditID, rep.Site, rep.LinkType)
-	fmt.Printf("%-26s %s\n", "Bufferbloat grade", emptyDash(rep.Grade))
-	fmt.Printf("%-26s %.1f → %.1f ms (Δ %.1f)\n", "Idle p50 → loaded p95",
-		rep.Measured.RTTIdleP50Ms, rep.Measured.RTTLoadedP95Ms, rep.Measured.BloatDeltaMs)
-	fmt.Printf("%-26s %.1f ms\n", "QDI", rep.Measured.QDIMs)
-	fmt.Printf("%-26s %.1f\n", "VoIP R (G.107)", rep.Measured.VoIPR)
-	fmt.Printf("%-26s %.1f Mbit/s\n", "Throughput", rep.Measured.ThroughputMbps)
-	if rep.Economics != nil && rep.Economics.Primary != nil {
-		fmt.Printf("%-26s %.0f Ar/h (%s)\n", "Coût primaire", rep.Economics.Primary.ARPerHour, rep.Economics.Primary.Name)
-	} else {
-		fmt.Printf("%-26s non chiffré (ratio de réémission absent)\n", "Coût primaire")
+	line := strings.Repeat("─", 78)
+	fmt.Println(line)
+	grade := rep.Grade
+	if grade == "" {
+		grade = "—"
 	}
+	fmt.Printf(" AUDIT %-28s %-8s flux:%d sens:%s\n", rep.AuditID, grade, rep.Measured.FlowCount, rep.Measured.Direction)
+	fmt.Println(line)
+	fmt.Printf(" Δp95 %6.1f ms   QDI %6.1f ms   drain %6.1f ms\n", rep.Measured.BloatDeltaMs, rep.Measured.QDIMs, rep.Measured.DrainMs)
+	fmt.Printf(" VoIP R %4.1f        JFI %5.1f %%      débit %6.2f Mbit/s\n", rep.Measured.VoIPR, rep.Measured.JFIPct, rep.Measured.ThroughputMbps)
 	if rep.CAPSLA.Measured {
 		etat := "conforme"
 		if rep.CAPSLA.Breach {
 			etat = "MANQUEMENT SLA"
 		}
-		fmt.Printf("%-26s %.1f %% sous 220 ms — %s\n", "SLA CAP", rep.CAPSLA.OKPct, etat)
+		fmt.Printf(" SLA CAP (220 ms) %5.1f %%  %s\n", rep.CAPSLA.OKPct, etat)
+	} else {
+		fmt.Printf(" SLA CAP (220 ms) non mesuré\n")
 	}
-	if rep.Provenance.SourceSHA256 != "" {
-		fmt.Printf("%-26s %s\n", "SHA-256 seal", rep.Provenance.SourceSHA256)
-	}
-	if rep.Remediation != nil {
-		fmt.Printf("\nRemédiation — %s\n", rep.Remediation.Qdisc)
-		for _, c := range rep.Remediation.LinuxTC {
-			fmt.Println(c)
-		}
-		if rep.Remediation.RouterOS != "" {
-			fmt.Println("\nMikroTik RouterOS v7+ :")
-			fmt.Println(rep.Remediation.RouterOS)
+	if rep.Economics != nil && rep.Economics.Primary != nil {
+		fmt.Printf(" Coût primaire (%s) %10.0f Ar/h\n", rep.Economics.Primary.Name, rep.Economics.Primary.ARPerHour)
+		for _, s := range rep.Economics.Scenarios {
+			if s.Model == "B" {
+				fmt.Printf("   B2B %-22s %10.0f Ar/h\n", s.Name, s.ARPerHour)
+			}
 		}
 	} else {
-		fmt.Println("\nRemédiation : non émise — capacité, RTT ou interface non mesurés.")
+		fmt.Printf(" Coût primaire non chiffré (ratio de réémission absent)\n")
 	}
-}
-
-func emptyDash(s string) string {
-	if s == "" {
-		return "non mesuré"
+	if rep.Provenance.TelemetrySHA256 != "" {
+		fmt.Printf(" sceau télémétrie %s…\n", rep.Provenance.TelemetrySHA256[:16])
 	}
-	return s
+	if rep.Provenance.SourceSHA256 != "" {
+		fmt.Printf(" sceau lignes    %s…\n", rep.Provenance.SourceSHA256[:16])
+	}
+	if rep.Remediation != nil {
+		fmt.Printf(" scripts : tc + RouterOS v7+ → %s\n", rep.Provenance.SourceFile)
+	} else {
+		fmt.Println(" remédiation : non émise — capacité, RTT ou interface non mesurés")
+	}
+	fmt.Println(line)
 }
 
 func usage() {
