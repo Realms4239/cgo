@@ -37,8 +37,8 @@
 .c-pip.on .c-pip-dot { background: var(--series-1); box-shadow: 0 0 24px -6px rgba(90,211,227,.35); }
 .c-pip.idle .c-pip-dot { background: var(--text-faint); }
 .c-pip-lbl { font: var(--tw-700) var(--fs-micro) var(--font-mono); letter-spacing: var(--tt-08); text-transform: var(--tx-upper); color: var(--text-muted); }
-.c-badge { display: inline-flex; align-items: center; padding: 2px 8px; background: var(--accent); color: var(--canvas); font: var(--tw-700) var(--fs-micro) var(--font-mono); letter-spacing: var(--tt-08); text-transform: var(--tx-upper); border-radius: var(--radius-0); border: 1px solid var(--hairline); }
-.c-badge--steel { background: var(--accent); color: var(--canvas); }
+.c-badge { display: inline-flex; align-items: center; padding: 2px 8px; background: var(--accent); color: var(--surface-soft); font: var(--tw-700) var(--fs-micro) var(--font-mono); letter-spacing: var(--tt-08); text-transform: var(--tx-upper); border-radius: var(--radius-0); border: 1px solid var(--hairline); }
+.c-badge--steel { background: var(--accent); color: var(--surface-soft); }
 .c-badge--success { background: var(--success); color: #04120a; }
 .c-badge--warning { background: var(--warning); color: #000; }
 .c-badge--danger { background: var(--danger); color: #fff; }

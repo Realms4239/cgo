@@ -5,6 +5,20 @@ import { Timeline } from '../components/Timeline'
 import { loadSettings } from '../lib/settings'
 import Explain from '../components/Explain'
 import { EmptyState } from '../components/ui/EmptyState'
+import { Card } from '../components/ui/Card'
+import { AuditLive } from '../components/AuditLive'
+import { AuditReportCard } from '../components/AuditReportCard'
+import {
+  AUDIT_DURATIONS,
+  DEFAULT_AUDIT_DIRECTION,
+  auditStep,
+  directionLabel,
+  durationChoice,
+  nextAuditStage,
+  validateAuditDeclaration,
+  type AuditStage,
+} from '../lib/auditFlow'
+import type { AuditDirection, AuditLive as AuditLiveState, AuditReport } from '../lib/types'
 import { formatBytesFR, groupDigits } from '../lib/format'
 import { useUIStore } from '../store/ui'
 import { InlineField } from '../components/InlineField'
@@ -46,7 +60,8 @@ export default function CampagneView() {
   const [auditSite, setAuditSite] = useState('Département X')
   const [auditLink, setAuditLink] = useState('5g')
   const [auditProvider, setAuditProvider] = useState('')
-  const [auditDuration, setAuditDuration] = useState(30)
+  const [auditDuration, setAuditDuration] = useState(20)
+  const [auditDirection, setAuditDirection] = useState<AuditDirection>(DEFAULT_AUDIT_DIRECTION)
   const [auditTarget, setAuditTarget] = useState('8.8.8.8')
   const [presets, setPresets] = useState<{id:string;label:string;site:string;link_type:string;provider:string;duration:number;target:string;notes:string}[]>([])
   const [presetNote, setPresetNote] = useState('')
@@ -54,9 +69,12 @@ export default function CampagneView() {
   const [historyN, setHistoryN] = useState<number|null>(null)
   const [importMsg, setImportMsg] = useState('')
   const [importForm, setImportForm] = useState(false)
-  const [auditOpen, setAuditOpen] = useState(false)
-  const [auditLast, setAuditLast] = useState<any>(null)
-  const [auditReport, setAuditReport] = useState<any>(null)
+  const [auditAdvanced, setAuditAdvanced] = useState(() => {
+    try { return localStorage.getItem('audit-advanced-open') === '1' } catch { return false }
+  })
+  const [auditStage, setAuditStage] = useState<AuditStage>('idle')
+  const [auditLiveState, setAuditLiveState] = useState<AuditLiveState | null>(null)
+  const [auditReport, setAuditReport] = useState<AuditReport | null>(null)
   const [auditIface, setAuditIface] = useState('')
   const [auditRosIface, setAuditRosIface] = useState('')
   const [impId, setImpId] = useState('')
@@ -68,6 +86,7 @@ export default function CampagneView() {
   const [peek, setPeek] = useState<{ rect: DOMRect; data: number[] } | null>(null)
 
   const auditPollRef = useRef<number | null>(null)
+  const auditStoppedRef = useRef(false)
   const auditFormRef = useRef<HTMLDivElement>(null)
   useEffect(() => () => { if (auditPollRef.current) clearInterval(auditPollRef.current) }, [])
 
@@ -82,10 +101,13 @@ export default function CampagneView() {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  const auditValidation = validate(
-    { site: auditSite, link_type: auditLink, duration: auditDuration },
-    { site: { required: true }, link_type: { required: true }, duration: { min: 10, max: 600 } }
-  )
+  const auditValidation = validateAuditDeclaration({
+    site: auditSite,
+    link_type: auditLink,
+    duration: auditDuration,
+    direction: auditDirection,
+  })
+  const auditCustomDuration = durationChoice(auditDuration) === 'custom'
 
   const copyText = (text: string, label: string) => {
     navigator.clipboard?.writeText(text).then(
@@ -94,47 +116,89 @@ export default function CampagneView() {
     )
   }
 
+  // presets RQ1 + compteur d'historique : chargés à l'ouverture de la carte
+  const refreshHistoryN = () => {
+    fetch('/api/audit/list').then(r => r.json()).then(j => setHistoryN((j.audits || []).length)).catch(() => {})
+  }
+
+  const stopAuditPoll = () => {
+    if (auditPollRef.current) {
+      clearInterval(auditPollRef.current)
+      auditPollRef.current = null
+    }
+  }
+
+  // Observer : /api/audit/live pour l'état vivant, /api/audit/status pour la
+  // fin (rapport présent ou annulation). 2 s, comme la carte le promet.
+  const pollAudit = () => {
+    stopAuditPoll()
+    const tick = () => {
+      Promise.all([
+        fetch('/api/audit/live').then(res => res.ok ? res.json() : Promise.reject(new Error(String(res.status)))),
+        fetch('/api/audit/status').then(res => res.ok ? res.json() : Promise.reject(new Error(String(res.status)))),
+      ]).then(([lv, st]) => {
+        const liveFrame = lv as AuditLiveState
+        setAuditLiveState(liveFrame?.running ? liveFrame : null)
+        const report = (st?.report ?? null) as AuditReport | null
+        if (report) setAuditReport(report)
+        if (st?.running) return
+        stopAuditPoll()
+        if (report) {
+          setAuditStage(s => nextAuditStage(s, 'finish'))
+          const p95 = report.measured?.rtt_idle_p95_ms ?? 0
+          setAuditMsg(p95 > 0 ? `audit terminé — p95 repos ${p95.toFixed(1)} ms` : 'audit terminé')
+        } else {
+          setAuditStage(s => nextAuditStage(s, 'cancel'))
+          setAuditMsg(auditStoppedRef.current ? 'audit annulé — aucun rapport écrit' : 'audit interrompu — aucun rapport écrit')
+          auditStoppedRef.current = false
+        }
+        refreshHistoryN()
+      }).catch(() => {
+        stopAuditPoll()
+        setAuditLiveState(null)
+        setAuditStage(s => s === 'observing' ? 'declared' : s)
+        setAuditMsg('suivi interrompu — vérifiez /api/audit/status')
+      })
+    }
+    void tick()
+    auditPollRef.current = window.setInterval(tick, 2000)
+  }
+
   const startAudit = async () => {
-    if (!auditValidation.valid) {
+    const declaration = auditValidation.value
+    if (!auditValidation.valid || !declaration) {
       if (auditFormRef.current) animateShake(auditFormRef.current)
       return
     }
     const store = useUIStore.getState()
-    // All+optimistic: optimistic Toast+Flash success
-    store.pushToast(`Audit lancé — ${auditSite}`, 'ok')
-    store.setFlash({ type: 'success', msg: `Audit lancé — ${auditSite}` })
-    setAuditMsg('audit en cours…')
+    setAuditMsg('démarrage…')
     setAuditReport(null)
+    setAuditLiveState(null)
+    auditStoppedRef.current = false
     try {
       const r = await fetch('/api/audit/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site: auditSite, link_type: auditLink, provider: auditProvider, duration: auditDuration, target: auditTarget || '8.8.8.8', iface: auditIface || undefined, routeros_iface: auditRosIface || undefined }),
+        body: JSON.stringify({
+          site: declaration.site,
+          link_type: declaration.link_type,
+          provider: auditProvider,
+          duration: declaration.duration,
+          direction: declaration.direction,
+          target: auditTarget || '8.8.8.8',
+          iface: auditIface || undefined,
+          routeros_iface: auditRosIface || undefined,
+        }),
       })
       if (r.status === 409) throw new Error('un audit tourne déjà')
       if (!r.ok) throw new Error(String(r.status))
       await r.json().catch(() => ({}))
-      const poll = window.setInterval(() => {
-        fetch('/api/audit/status')
-          .then((res) => res.json())
-          .then((j) => {
-            setAuditLast(j.last ?? null)
-            if (j.report) setAuditReport(j.report)
-            if (!j.running) {
-              clearInterval(poll)
-              auditPollRef.current = null
-              setAuditMsg(j.last ? `audit terminé — p95 ${Number(j.last.rtt_idle_p95_ms).toFixed(1)} ms, profil ${j.last.profile_match || '—'}` : 'audit terminé')
-              refreshHistoryN()
-            }
-          })
-          .catch(() => {
-            clearInterval(poll)
-            auditPollRef.current = null
-          })
-      }, 2000)
-      auditPollRef.current = poll
+      store.pushToast(`Audit lancé — ${declaration.site}`, 'ok')
+      store.setFlash({ type: 'success', msg: `Audit lancé — ${declaration.site}` })
+      setAuditMsg('audit en cours…')
+      setAuditStage(s => nextAuditStage(s, 'start'))
+      pollAudit()
     } catch (e: any) {
-      // rollback: err toast + danger flash + shake
       store.pushToast('Échec audit: ' + e.message, 'err')
       store.setFlash({ type: 'danger', msg: 'Échec audit' })
       if (auditFormRef.current) animateShake(auditFormRef.current)
@@ -142,19 +206,63 @@ export default function CampagneView() {
     }
   }
 
-  // presets RQ1 + compteur d'historique : chargés à l'ouverture de la carte
-  const refreshHistoryN = () => {
-    fetch('/api/audit/list').then(r => r.json()).then(j => setHistoryN((j.audits || []).length)).catch(() => {})
+  const stopAudit = async () => {
+    auditStoppedRef.current = true
+    setAuditMsg('annulation demandée…')
+    try {
+      const r = await fetch('/api/audit/stop', { method: 'POST' })
+      if (!r.ok) throw new Error(String(r.status))
+      useUIStore.getState().pushToast('Annulation demandée', 'blue')
+    } catch (e: any) {
+      auditStoppedRef.current = false
+      setAuditMsg('échec annulation: ' + e.message)
+      useUIStore.getState().pushToast('Échec annulation: ' + e.message, 'err')
+    }
   }
-  const toggleAudit = () => {
-    setAuditOpen(o => {
-      if (!o) {
-        fetch('/api/audit/presets').then(r => r.json()).then(j => setPresets(j.presets || [])).catch(() => {})
-        refreshHistoryN()
+
+  // À l'ouverture, la carte rejoint l'audit déjà en cours ou le dernier rapport.
+  const syncAuditStatus = () => {
+    fetch('/api/audit/status').then(r => r.json()).then(j => {
+      if (j.running) {
+        setAuditStage(s => (s === 'idle' || s === 'declared') ? 'observing' : s)
+        setAuditMsg('audit en cours…')
+        pollAudit()
+      } else if (j.report) {
+        setAuditReport(j.report as AuditReport)
+        setAuditStage(s => (s === 'idle' || s === 'declared') ? 'done' : s)
       }
+    }).catch(() => {})
+  }
+
+  const toggleAudit = () => {
+    if (auditStage === 'observing') return
+    if (auditStage !== 'idle') {
+      stopAuditPoll()
+      setAuditLiveState(null)
+      setAuditStage(s => nextAuditStage(s, 'close'))
+      return
+    }
+    setAuditStage(s => nextAuditStage(s, 'open'))
+    fetch('/api/audit/presets').then(r => r.json()).then(j => setPresets(j.presets || [])).catch(() => {})
+    refreshHistoryN()
+    syncAuditStatus()
+  }
+
+  const toggleAuditAdvanced = () => {
+    setAuditAdvanced(o => {
+      try { localStorage.setItem('audit-advanced-open', o ? '0' : '1') } catch { }
       return !o
     })
   }
+
+  const restartAudit = () => {
+    setAuditStage(s => nextAuditStage(s, 'again'))
+    setAuditReport(null)
+    setAuditLiveState(null)
+    setAuditMsg('')
+    auditStoppedRef.current = false
+  }
+
   const applyPreset = (p: { site: string; link_type: string; provider: string; duration: number; target: string; notes: string; label: string }) => {
     setAuditSite(p.site); setAuditLink(p.link_type); setAuditProvider(p.provider)
     setAuditDuration(p.duration); setAuditTarget(p.target); setPresetNote(p.notes)
@@ -353,104 +461,133 @@ export default function CampagneView() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}><Explain term="audit">Audit du lien</Explain></span>
-          <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 10, minWidth: 0, overflowWrap: 'anywhere' }}>audit standard · non intrusif</span>
-          <button className="btn" onClick={() => setHistoryOpen(true)} style={{ padding: '2px 10px' }} title="audits gelés : rapprochement au référentiel, import par ligne">HISTORIQUE{historyN !== null ? ` (${historyN})` : ''}</button>
-          <button className="btn" onClick={toggleAudit} style={{ padding: '2px 10px' }}>{auditOpen ? 'FERMER' : 'LANCER'}</button>
-        </div>
-        {auditOpen && <>
-        {presets.length > 0 && (
-        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
-          {presets.map(p=>(
-            <button key={p.id} className="btn" style={{ padding:'4px 10px', fontSize:10 }} title={`${p.site} · ${p.link_type} · ${p.duration}s → ${p.target} — ${p.notes}`} onClick={()=>applyPreset(p)}>⚑ {p.label}</button>
-          ))}
-        </div>
-        )}
-        {presetNote && <div className="mono muted" style={{ fontSize:10, marginBottom:8 }}>ⓘ {presetNote}</div>}
-        <div ref={auditFormRef} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <InlineField label="Site" error={auditValidation.errors.site} helper={!auditSite ? 'requis' : undefined}>
-            <input name="site" value={auditSite} onChange={e=>setAuditSite(e.target.value)} style={{ flex:1, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
-          </InlineField>
-          <InlineField label="Type de lien" error={auditValidation.errors.link_type}>
-            <select value={auditLink} onChange={e=>setAuditLink(e.target.value)} style={{ width:'100%', background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }}>
-              {['fiber','5g','4g','vsat','other'].map(t=><option key={t} value={t}>{t}</option>)}
-            </select>
-          </InlineField>
-          <InlineField label="Durée (s)" error={auditValidation.errors.duration} helper="10–600 s">
-            <input type="number" min={10} max={600} value={auditDuration} onChange={e=>setAuditDuration(parseInt(e.target.value)||0)} style={{ width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
-          </InlineField>
-          <InlineField label="Fournisseur" helper="ex. yas — gelé avec la ligne">
-            <input name="audit-provider" value={auditProvider} onChange={e=>setAuditProvider(e.target.value)} placeholder="yas" style={{ width:120, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
-          </InlineField>
-          <InlineField label="Cible ping" helper="défaut 8.8.8.8">
-            <input name="audit-target" value={auditTarget} onChange={e=>setAuditTarget(e.target.value)} style={{ width:130, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
-          </InlineField>
-          <InlineField label="Interface Linux" helper="optionnel — ex. eth0, pour le script tc">
-            <input name="audit-iface" value={auditIface} onChange={e=>setAuditIface(e.target.value)} placeholder="eth0" style={{ width:130, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
-          </InlineField>
-          <InlineField label="Interface RouterOS" helper="optionnel — ex. ether1-wan">
-            <input name="audit-ros-iface" value={auditRosIface} onChange={e=>setAuditRosIface(e.target.value)} placeholder="ether1-wan" style={{ width:130, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
-          </InlineField>
-        </div>
-        <div className="form-row" style={{ gap:8, marginTop:8 }}>
-          <ArmButton label="LANCER AUDIT" confirmLabel="CONFIRMER AUDIT" onConfirm={startAudit} disabled={!auditValidation.valid} />
-          <span className="mono muted">{auditMsg}</span>
-        </div>
-        </>}
-        {historyOpen && <AuditHistoryModal onClose={()=>{ setHistoryOpen(false); refreshHistoryN() }} onImported={m=>setAuditMsg(m)} />}
-        {/* latence de travail — 3 cases, vides honnêtes : idle et montée
-            chargée mesurées par l'audit ; la descente chargée attend la
-            campagne download (le manque s'affiche, il ne se cache pas) */}
-        {auditLast && (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:8, marginTop:10 }} data-testid="work-latency">
-          <div style={{ padding:'6px 8px', border:'1px solid var(--hairline)', background:'rgba(90,211,227,0.04)' }}>
-            <div className="mono" style={{ fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099' }}>idle</div>
-            <div className="mono" style={{ fontSize:16, color:'#f2f2f4', fontVariantNumeric:'tabular-nums' }}>{Number(auditLast.rtt_idle_p50_ms ?? 0).toFixed(1)} ms</div>
+      <Card
+        head="Audit du lien"
+        term="audit"
+        sub="audit standard · non intrusif"
+        testid="audit-card"
+        right={(
+          <div style={{ display: 'flex', gap: 'var(--sp-1)', flexWrap: 'wrap' }}>
+            <button className="btn" onClick={() => setHistoryOpen(true)} style={{ padding: 'var(--sp-1) var(--sp-2)' }} title="audits gelés : rapprochement au référentiel, import par ligne">HISTORIQUE{historyN !== null ? ` (${historyN})` : ''}</button>
+            <button className="btn" onClick={toggleAudit} disabled={auditStage === 'observing'} style={{ padding: 'var(--sp-1) var(--sp-2)' }} title={auditStage === 'observing' ? 'audit en cours — annuler d’abord' : undefined}>{auditStage === 'idle' ? 'OUVRIR' : 'FERMER'}</button>
           </div>
-          <div style={{ padding:'6px 8px', border:'1px solid var(--hairline)', background:'rgba(90,211,227,0.04)' }}>
-            <div className="mono" style={{ fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099' }}>montée chargée</div>
-            <div className="mono" style={{ fontSize:16, color:'#5ad3e3', fontVariantNumeric:'tabular-nums' }}>{Number(auditLast.rtt_loaded_p50_ms ?? 0).toFixed(1)} ms</div>
-          </div>
-          <div style={{ padding:'6px 8px', border:'1px dashed var(--hairline)' }} title="mesurable après la campagne download (bulk inversé)">
-            <div className="mono" style={{ fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--text-faint, #7e838c)' }}>descente chargée</div>
-            <div className="mono" style={{ fontSize:16, color:'var(--text-faint, #7e838c)' }}>— après campagne download</div>
-          </div>
-        </div>
         )}
-        {auditLast?.bloat_grade && (
-        <div className="mono" style={{ fontSize:11, marginTop:8, padding:'6px 8px', border:'1px solid #26262a', background:'rgba(244,180,0,0.06)' }} data-testid="bloat-grade">
-          note bufferbloat : <b style={{ color: auditLast.bloat_grade.startsWith('A') ? '#1fa348' : auditLast.bloat_grade === 'B' ? '#5ad3e3' : '#f4b400' }}>{auditLast.bloat_grade}</b>
-          {' '}({Number(auditLast.bloat_delta_ms ?? 0).toFixed(1)} ms sous charge) — {auditLast.bloat_verdict}
-          <span style={{ color:'var(--text-faint, #7e838c)' }}> · bandes Waveform</span>
-          {auditLast.profile_match && <span title={auditLast.match_delta}> · ressemble à <b>{auditLast.profile_match}</b></span>}
-        </div>
+      >
+        {auditStage !== 'idle' && (
+          <div aria-label="étapes de l'audit" role="list" className="mono" style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', fontSize: 'var(--fs-micro)' }}>
+            {['Déclarer', 'Observer', 'Lire'].map((label, i) => {
+              const active = auditStep(auditStage) === i + 1
+              return (
+                <span key={label} role="listitem" aria-current={active ? 'step' : undefined} style={{ color: active ? 'var(--t-live)' : 'var(--text-faint)' }}>
+                  {i + 1}. {label}
+                </span>
+              )
+            })}
+          </div>
         )}
-        {auditReport && (
-        <div style={{ marginTop:8, padding:'8px', border:'1px solid var(--hairline)', background:'rgba(90,211,227,0.03)' }} data-testid="audit-report">
-          <div className="mono" style={{ display:'flex', flexWrap:'wrap', gap:14, fontSize:11 }}>
-            <span>VoIP R <b>{Number(auditReport.measured?.voip_r ?? 0).toFixed(1)}</b></span>
-            <span>gaspillage <b>{auditReport.waste ? `${groupDigits(auditReport.waste.ar_per_hour, 0)} Ar/h` : 'non mesuré'}</b></span>
-            <span>phases {Number(auditReport.phases?.baseline_seconds ?? 0)}/{Number(auditReport.phases?.load_seconds ?? 0)}/{Number(auditReport.phases?.recovery_seconds ?? 0)} s</span>
-            {auditReport.provenance?.source_sha256 && (
-              <span title={auditReport.provenance.source_sha256}>sceau <code>{String(auditReport.provenance.source_sha256).slice(0, 12)}…</code></span>
+
+        {auditStage === 'declared' && <>
+          {presets.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)' }}>
+              {presets.map(p => (
+                <button key={p.id} className="c-chip" style={{ cursor: 'pointer' }} title={`${p.site} · ${p.link_type} · ${p.duration}s → ${p.target} — ${p.notes}`} onClick={() => applyPreset(p)}>⚑ {p.label}</button>
+              ))}
+            </div>
+          )}
+          {presetNote && <div className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>ⓘ {presetNote}</div>}
+          <div ref={auditFormRef} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+            <InlineField label="Site" error={auditValidation.errors.site} helper={!auditSite ? 'requis' : undefined}>
+              <input className="c-input" name="site" value={auditSite} onChange={e => setAuditSite(e.target.value)} />
+            </InlineField>
+            <InlineField label="Type de lien" error={auditValidation.errors.link_type}>
+              <select className="c-input" value={auditLink} onChange={e => setAuditLink(e.target.value)}>
+                {['fiber', '5g', '4g', 'vsat', 'other'].map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </InlineField>
+            <InlineField label="Durée" error={auditValidation.errors.duration} helper={auditCustomDuration ? `durée libre : ${auditDuration} s` : '20 ou 60 s — durée libre dans avancé'}>
+              <div role="group" aria-label="Durée de l'audit" style={{ display: 'flex', gap: 'var(--sp-1)', flexWrap: 'wrap' }}>
+                {AUDIT_DURATIONS.map(d => (
+                  <button
+                    key={d} type="button" className="btn" aria-pressed={auditDuration === d}
+                    onClick={() => setAuditDuration(d)}
+                    style={{
+                      padding: 'var(--sp-1) var(--sp-2)',
+                      borderColor: auditDuration === d ? 'var(--t-live)' : 'var(--hairline)',
+                      color: auditDuration === d ? 'var(--t-live)' : 'var(--text-muted)',
+                      background: auditDuration === d ? 'var(--live-dim)' : 'transparent',
+                    }}
+                  >{d} s</button>
+                ))}
+              </div>
+            </InlineField>
+            <InlineField label="Sens" helper="fenêtre de charge exercée">
+              <div role="group" aria-label="Sens de l'audit" style={{ display: 'flex', gap: 'var(--sp-1)', flexWrap: 'wrap' }}>
+                {(['up', 'down', 'both'] as const).map(d => (
+                  <button
+                    key={d} type="button" className="btn" aria-pressed={auditDirection === d}
+                    onClick={() => setAuditDirection(d)}
+                    style={{
+                      padding: 'var(--sp-1) var(--sp-2)',
+                      borderColor: auditDirection === d ? 'var(--t-live)' : 'var(--hairline)',
+                      color: auditDirection === d ? 'var(--t-live)' : 'var(--text-muted)',
+                      background: auditDirection === d ? 'var(--live-dim)' : 'transparent',
+                    }}
+                  >{directionLabel(d)}</button>
+                ))}
+              </div>
+            </InlineField>
+
+            <button className="btn" aria-expanded={auditAdvanced} onClick={toggleAuditAdvanced} style={{ alignSelf: 'flex-start', padding: 'var(--sp-1) var(--sp-2)' }}>
+              {auditAdvanced ? 'MASQUER LES CHAMPS AVANCÉS' : 'CHAMPS AVANCÉS'}
+            </button>
+            {auditAdvanced && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+                <InlineField label="Fournisseur" helper="ex. yas — gelé avec la ligne">
+                  <input className="c-input" name="audit-provider" value={auditProvider} onChange={e => setAuditProvider(e.target.value)} placeholder="yas" />
+                </InlineField>
+                <InlineField label="Cible ping" helper="défaut 8.8.8.8">
+                  <input className="c-input" name="audit-target" value={auditTarget} onChange={e => setAuditTarget(e.target.value)} />
+                </InlineField>
+                <InlineField label="Interface Linux" helper="optionnel — ex. eth0, pour le script tc">
+                  <input className="c-input" name="audit-iface" value={auditIface} onChange={e => setAuditIface(e.target.value)} placeholder="eth0" />
+                </InlineField>
+                <InlineField label="Interface RouterOS" helper="optionnel — ex. ether1-wan">
+                  <input className="c-input" name="audit-ros-iface" value={auditRosIface} onChange={e => setAuditRosIface(e.target.value)} placeholder="ether1-wan" />
+                </InlineField>
+                <InlineField label="Durée libre (s)" helper="10–600 s">
+                  <input className="c-input" type="number" min={10} max={600} value={auditDuration} onChange={e => setAuditDuration(parseInt(e.target.value) || 0)} />
+                </InlineField>
+              </div>
             )}
           </div>
-          {auditReport.remediation ? (
-            <div className="form-row" style={{ gap:8, marginTop:8, flexWrap:'wrap' }}>
-              <span className="mono muted" style={{ fontSize:10 }}>remédiation {auditReport.remediation.qdisc}</span>
-              <button className="btn" style={{ padding:'3px 8px' }} onClick={()=>copyText((auditReport.remediation.linux_tc || []).join('\n'), 'Script tc')}>COPIER LINUX TC</button>
-              {auditReport.remediation.routeros && (
-                <button className="btn" style={{ padding:'3px 8px' }} onClick={()=>copyText(auditReport.remediation.routeros, 'Script RouterOS')}>COPIER ROUTEROS</button>
-              )}
-            </div>
-          ) : (
-            <div className="mono muted" style={{ fontSize:10, marginTop:6 }}>remédiation non émise — renseignez l’interface et relancez l’audit</div>
-          )}
-        </div>
+          <div className="form-row" style={{ gap: 'var(--sp-2)', marginTop: 'var(--sp-2)' }}>
+            <ArmButton label="LANCER AUDIT" confirmLabel="CONFIRMER AUDIT" onConfirm={startAudit} disabled={!auditValidation.valid} />
+            <span className="mono muted">{auditMsg}</span>
+          </div>
+        </>}
+
+        {auditStage === 'observing' && (
+          <>
+            <AuditLive live={auditLiveState} direction={auditDirection} onStop={stopAudit} />
+            {auditMsg && <span className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>{auditMsg}</span>}
+          </>
         )}
-      </div>
+
+        {auditStage === 'done' && auditReport && (
+          <>
+            <AuditReportCard report={auditReport} onCopy={copyText} />
+            <div className="form-row" style={{ gap: 'var(--sp-2)', marginTop: 'var(--sp-2)' }}>
+              <button className="btn" onClick={restartAudit}>NOUVEL AUDIT</button>
+              <span className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>{auditMsg}</span>
+            </div>
+          </>
+        )}
+        {auditStage === 'done' && !auditReport && (
+          <div className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>rapport absent — relancez un audit.</div>
+        )}
+
+        {historyOpen && <AuditHistoryModal onClose={() => { setHistoryOpen(false); refreshHistoryN() }} onImported={m => setAuditMsg(m)} />}
+      </Card>
 
       <div className="card">
         <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>

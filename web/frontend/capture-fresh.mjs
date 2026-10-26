@@ -22,7 +22,7 @@ for (const width of [1920, 1366]) {
     await page.click(`button[data-panel="${panel}"]`, { timeout: 10000 });
     await page.waitForTimeout(1200);
     if (openAudit) {
-      await page.click('button.btn:has-text("LANCER")', { timeout: 5000 }).catch(() => {});
+      await page.click('button.btn:has-text("OUVRIR")', { timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(800);
     }
     await page.screenshot({ path: `${out}/${name}-${width}.png` });
