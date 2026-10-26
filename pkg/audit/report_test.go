@@ -103,6 +103,7 @@ func TestReportWithoutLoadIsHonest(t *testing.T) {
 		"voip_r":            false,
 		"remediation":       false,
 		"http_small_p95":    false,
+		"economics":         false,
 	}
 	for _, u := range rep.Unavailable {
 		if _, ok := want[u.Metric]; ok {
@@ -115,6 +116,11 @@ func TestReportWithoutLoadIsHonest(t *testing.T) {
 	for k, seen := range want {
 		if !seen {
 			t.Fatalf("%q missing from unavailable list: %+v", k, rep.Unavailable)
+		}
+	}
+	for _, u := range rep.Unavailable {
+		if u.Metric == "economics" && !strings.Contains(u.Reason, "fenêtre de charge vide") {
+			t.Fatalf("économie absente sans dire la fenêtre vide : %q", u.Reason)
 		}
 	}
 }
@@ -335,5 +341,98 @@ func TestBuildReportNoRatioNoEconomics(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("l'absence de valorisation doit être déclarée indisponible")
+	}
+}
+
+// M6 — « both » avec fenêtre up muette : la fenêtre down mesurée doit rester
+// rendue (miroirs descendants), l'absence de valorisation doit être dite, et
+// le rapport doit porter le grade_down auquel la note renvoie.
+func TestReportBothMutedUpKeepsDownMirrors(t *testing.T) {
+	res := loadedResult()
+	res.Direction = "both"
+	res.ThroughputMbps = 0
+	res.BloatGrade = ""
+	res.BloatVerdict = "Bufferbloat non mesuré — fenêtre up muette"
+	res.BloatDeltaMs = 0
+	res.RTTLoadedP50 = 0
+	res.RTTLoadedP95 = 0
+	res.FlowCount = 4
+	res.RTTLoadedDownP95 = 318.4
+	res.ThroughputDownMbps = 12.5
+	res.BloatDeltaDownMs = 269.2
+	res.GradeDown = "D"
+	res.JFIDownPct = 91.2
+	res.LoadSeconds = 40
+	res.DataUsedMB = 25
+
+	rep, err := BuildReport(res, testLink(), "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Measured.LoadMeasured {
+		t.Fatal("la fenêtre headline up est muette : LoadMeasured doit rester faux")
+	}
+	if !rep.Measured.LoadMeasuredDown {
+		t.Fatal("la fenêtre down a mesuré un débit : LoadMeasuredDown doit être vrai")
+	}
+	if rep.Measured.GradeDown != "D" {
+		t.Fatalf("grade_down perdu dans le rapport : %q", rep.Measured.GradeDown)
+	}
+
+	econUnavailable := false
+	for _, u := range rep.Unavailable {
+		if u.Metric == "economics" {
+			econUnavailable = true
+			if !strings.Contains(u.Reason, "fenêtre") {
+				t.Fatalf("raison economics sans état de fenêtre : %q", u.Reason)
+			}
+		}
+	}
+	if !econUnavailable {
+		t.Fatalf("economics absent sans entrée Unavailable : %+v", rep.Unavailable)
+	}
+
+	md := rep.RenderMarkdown()
+	for _, want := range []string{
+		"Chargé p95 (descendant) | 318.4 ms",
+		"Écart bufferbloat (descendant) | 269.2 ms",
+		"Throughput (descendant) | 12.50 Mbit/s",
+		"JFI (descendant) | 91.2 %",
+		"Bufferbloat grade (descendant, grade_down) | D",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("miroir down absent du Markdown (%q) :\n%s", want, md)
+		}
+	}
+}
+
+// Symétrique : « both » avec fenêtre down muette ne doit pas rendre des
+// zéros déguisés en mesures sous le libellé descendant.
+func TestReportBothMutedDownOmitsZeroMirrors(t *testing.T) {
+	res := loadedResult()
+	res.Direction = "both"
+	res.FlowCount = 4
+	res.RTTLoadedDownP95 = 0
+	res.ThroughputDownMbps = 0
+	res.BloatDeltaDownMs = 0
+	res.GradeDown = ""
+	res.JFIDownPct = 0
+
+	rep, err := BuildReport(res, testLink(), "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Measured.LoadMeasuredDown {
+		t.Fatal("la fenêtre down n'a pas tourné : LoadMeasuredDown doit être faux")
+	}
+	md := rep.RenderMarkdown()
+	for _, banned := range []string{
+		"Chargé p95 (descendant)",
+		"Throughput (descendant)",
+		"grade_down",
+	} {
+		if strings.Contains(md, banned) {
+			t.Fatalf("miroir down non mesuré rendu (%q) :\n%s", banned, md)
+		}
 	}
 }

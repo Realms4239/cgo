@@ -106,6 +106,12 @@ type Measured struct {
 	ThroughputDownMbps float64 `json:"throughput_down_mbps"`
 	BloatDeltaDownMs   float64 `json:"bloat_delta_down_ms"`
 	JFIDownPct         float64 `json:"jfi_down_pct"`
+	// LoadMeasuredDown — la fenêtre descendante a mesuré une charge, même
+	// quand la fenêtre headline (up) est muette ; ses miroirs restent rendus.
+	LoadMeasuredDown bool `json:"load_measured_down"`
+	// GradeDown — note bufferbloat de la fenêtre descendante, vide tant
+	// qu'elle n'a pas tourné.
+	GradeDown string `json:"grade_down"`
 }
 
 // Unavailable records a metric the audit could not produce, and why.
@@ -168,6 +174,7 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 	}
 
 	loadMeasured := res.ThroughputMbps > 0 && res.BloatGrade != ""
+	loadMeasuredDown := res.ThroughputDownMbps > 0
 	rep.Measured = Measured{
 		RTTIdleP50Ms:       res.RTTIdleP50,
 		RTTIdleP95Ms:       res.RTTIdleP95,
@@ -190,6 +197,8 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		ThroughputDownMbps: res.ThroughputDownMbps,
 		BloatDeltaDownMs:   res.BloatDeltaDownMs,
 		JFIDownPct:         res.JFIDownPct,
+		LoadMeasuredDown:   loadMeasuredDown,
+		GradeDown:          res.GradeDown,
 	}
 
 	// VoIP R from the loaded conditions: one-way delay is half the RTT, jitter
@@ -211,11 +220,21 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 			wasted = res.RetransRatio.Ratio * transported
 		}
 		rep.Economics = metrics.BuildEconomics(res.LinkType, res.RetransRatio, transported, wasted, res.LoadSeconds)
-	} else if loadMeasured {
-		rep.Unavailable = append(rep.Unavailable, Unavailable{
-			Metric: "economics",
-			Reason: "ratio de réémission non mesuré (TCP_INFO indisponible et perte sonde nulle) ; aucun scénario n'est chiffré plutôt qu'un zéro fabriqué",
-		})
+	}
+	// Une valorisation absente doit être dite, jamais silencieuse : sans
+	// entrée Unavailable, le lecteur ne distingue pas un oubli d'une mesure
+	// impossible. La fenêtre headline reste la base du calcul (durée et
+	// volume chargés) ; un « both » avec up muet garde ses miroirs down mais
+	// n'extrapole pas une durée à moitié chargée.
+	if rep.Economics == nil {
+		reason := "économie entreprise — fenêtre de charge vide ; aucun scénario n'est chiffré plutôt qu'un zéro fabriqué"
+		switch {
+		case loadMeasured:
+			reason = "ratio de réémission non mesuré ou volume de charge vide ; aucun scénario n'est chiffré plutôt qu'un zéro fabriqué"
+		case loadMeasuredDown:
+			reason = "économie entreprise — fenêtre headline (up) muette ; les miroirs descendants restent mesurés mais la valorisation n'extrapole pas une durée à moitié chargée"
+		}
+		rep.Unavailable = append(rep.Unavailable, Unavailable{Metric: "economics", Reason: reason})
 	}
 	// SLA CAP (modèle C) : l'objectif opérateur DGM 220 ms, cadre WIS 2.0 —
 	// jamais présenté comme un seuil imposé par l'OMM.
@@ -224,17 +243,23 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 	// Say plainly what is missing. These are the metrics a jury or an operator
 	// will ask for, so each absence is named rather than silently zeroed.
 	if !loadMeasured {
+		gradeReason := "no bulk load ran, so the loaded window was never under load; a grade here would be fabricated"
+		throughputReason := "no bulk sink reachable; supply -bulk host:port or install iperf3"
+		if loadMeasuredDown {
+			gradeReason = "the headline (up) window was not measured; the down window's grade is reported as grade_down, never promoted to the headline grade"
+			throughputReason = "the headline (up) window was not measured; the down window's throughput is reported under its own label"
+		}
 		rep.Unavailable = append(rep.Unavailable, Unavailable{
 			Metric: "bufferbloat grade",
-			Reason: "no bulk load ran, so the loaded window was never under load; a grade here would be fabricated",
+			Reason: gradeReason,
 		})
 		rep.Unavailable = append(rep.Unavailable, Unavailable{
 			Metric: "throughput",
-			Reason: "no bulk sink reachable; supply -bulk host:port or install iperf3",
+			Reason: throughputReason,
 		})
 		rep.Unavailable = append(rep.Unavailable, Unavailable{
 			Metric: "voip_r",
-			Reason: "requires loaded conditions; not computed without a measured load",
+			Reason: "requires a measured headline load window; not computed from an empty headline window",
 		})
 	}
 	if !rep.Measured.SmallMeasured {
@@ -362,13 +387,22 @@ func (r *Report) RenderMarkdown() string {
 		if r.Measured.FlowCount > 1 {
 			fmt.Fprintf(&b, "| Équité inter-flux (JFI) | %.1f %% |\n", r.Measured.JFIPct)
 		}
-		if r.Measured.Direction == "down" || r.Measured.Direction == "both" {
+	}
+	// Miroirs descendants — sous leur propre condition : un « both » avec
+	// fenêtre up muette rend quand même la fenêtre down mesurée. Sous
+	// LoadMeasured, un down muet afficherait des zéros déguisés en mesure.
+	// Pour un audit « down », le headline porte déjà ces valeurs.
+	if r.Measured.LoadMeasuredDown && r.Measured.Direction != "down" {
+		if r.Measured.RTTLoadedDownP95Ms > 0 {
 			fmt.Fprintf(&b, "| Chargé p95 (descendant) | %.1f ms |\n", r.Measured.RTTLoadedDownP95Ms)
 			fmt.Fprintf(&b, "| Écart bufferbloat (descendant) | %.1f ms |\n", r.Measured.BloatDeltaDownMs)
-			fmt.Fprintf(&b, "| Throughput (descendant) | %.2f Mbit/s |\n", r.Measured.ThroughputDownMbps)
-			if r.Measured.FlowCount > 1 {
-				fmt.Fprintf(&b, "| JFI (descendant) | %.1f %% |\n", r.Measured.JFIDownPct)
-			}
+		}
+		fmt.Fprintf(&b, "| Throughput (descendant) | %.2f Mbit/s |\n", r.Measured.ThroughputDownMbps)
+		if r.Measured.FlowCount > 1 {
+			fmt.Fprintf(&b, "| JFI (descendant) | %.1f %% |\n", r.Measured.JFIDownPct)
+		}
+		if r.Measured.GradeDown != "" {
+			fmt.Fprintf(&b, "| Bufferbloat grade (descendant, grade_down) | %s |\n", r.Measured.GradeDown)
 		}
 	}
 	fmt.Fprintf(&b, "| Loss | %.2f %% |\n", r.Measured.LossPct)

@@ -459,9 +459,9 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 			gradeDown = metrics.BufferbloatGrade(bloatDeltaDown)
 		}
 		// both, fenêtre up muette : la note headline suit le sens up —
-		// dire pourquoi elle manque alors que grade_down existe.
+		// dire pourquoi elle manque alors que la fenêtre down est rendue.
 		if p.Direction == "both" && !loadMeasuredUp && loadMeasuredDown {
-			notes = append(notes, "charge up non mesurée — la note headline suit la fenêtre up ; voir grade_down")
+			notes = append(notes, "charge up non mesurée — la note headline suit la fenêtre up ; les miroirs down (chargé p95, écart bufferbloat, débit) sont rendus dans le rapport")
 		}
 	}
 	if !loadMeasured {
