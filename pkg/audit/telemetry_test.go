@@ -42,6 +42,11 @@ func TestWriteTelemetryRejectsEmptyID(t *testing.T) {
 	if _, err := WriteTelemetry(t.TempDir(), &Result{AuditID: "../escape"}); err == nil {
 		t.Fatal("id traversant : erreur attendue")
 	}
+	// « .. » seul : Base("..") vaut "..", il écrirait audits/../telemetry.csv
+	// (hors de la zone d'audit) — refus au même titre qu'un séparateur.
+	if _, err := WriteTelemetry(t.TempDir(), &Result{AuditID: ".."}); err == nil {
+		t.Fatal("id .. : erreur attendue")
+	}
 }
 
 func TestSealTelemetryAndDualSeals(t *testing.T) {

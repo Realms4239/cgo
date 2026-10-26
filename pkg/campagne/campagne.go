@@ -447,11 +447,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			}
 		}
 	}
-	// charge — N flux concurrents si BulkN câblé (défaut 1 flux : les
-	// médianes historiques restent comparables), per-flow pour le JFI
+	// charge — N flux concurrents si BulkN câblé (défaut 4, régime du banc
+	// durci ; --flows 1 reproduit le gel historique), per-flow pour le JFI
 	flows := d.Flows
 	if flows <= 0 {
-		flows = 1
+		flows = 4
 	}
 	type chargeOut struct {
 		total uint64

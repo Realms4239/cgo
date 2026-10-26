@@ -28,7 +28,7 @@ var telemetryHeader = []string{"phase", "offset_ms", "rtt_ms", "small_ms", "bulk
 // traversant est refusé : jamais d'écriture hors de la zone d'audits.
 func WriteTelemetry(baseDir string, res *Result) (string, error) {
 	id := filepath.Base(strings.TrimSpace(res.AuditID))
-	if id == "" || id == "." || id == string(filepath.Separator) || id != strings.TrimSpace(res.AuditID) || strings.ContainsAny(res.AuditID, `/\`) {
+	if id == "" || id == "." || id == ".." || id == string(filepath.Separator) || id != strings.TrimSpace(res.AuditID) || strings.ContainsAny(res.AuditID, `/\`) {
 		return "", fmt.Errorf("audit: identifiant de télémétrie invalide %q", res.AuditID)
 	}
 	dir := filepath.Join(baseDir, "audits", id)
