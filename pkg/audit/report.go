@@ -501,9 +501,9 @@ func WriteArtifacts(rep *Report, baseDir string) (jsonPath, mdPath string, err e
 	if baseDir == "" {
 		baseDir = "data"
 	}
-	id := filepath.Base(strings.TrimSpace(rep.AuditID))
-	if id == "" || id == "." || id == string(filepath.Separator) {
-		return "", "", fmt.Errorf("audit: invalid audit id %q", rep.AuditID)
+	id, err := auditID(rep.AuditID)
+	if err != nil {
+		return "", "", err
 	}
 	dir := filepath.Join(baseDir, "audits", id)
 	if err := os.MkdirAll(dir, 0755); err != nil {

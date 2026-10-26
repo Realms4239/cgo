@@ -23,13 +23,25 @@ type TelemetryRow struct {
 
 var telemetryHeader = []string{"phase", "offset_ms", "rtt_ms", "small_ms", "bulk_bytes"}
 
+// auditID — identifiant d'artefact sûr : nom simple, jamais . ou .., sans
+// séparateur ni espace de bord. Le CLI et l'API génèrent les ids, mais un
+// rapport importé ou un appel direct traverse la même porte.
+func auditID(id string) (string, error) {
+	trimmed := strings.TrimSpace(id)
+	base := filepath.Base(trimmed)
+	if base == "" || base == "." || base == ".." || base == string(filepath.Separator) || base != trimmed || strings.ContainsAny(trimmed, `/\`) {
+		return "", fmt.Errorf("audit: identifiant invalide %q", id)
+	}
+	return base, nil
+}
+
 // WriteTelemetry — data/audits/<id>/telemetry.csv. Retourne le chemin pour
 // que l'appelant puisse sceller ce qu'il vient d'écrire. Un id vide ou
 // traversant est refusé : jamais d'écriture hors de la zone d'audits.
 func WriteTelemetry(baseDir string, res *Result) (string, error) {
-	id := filepath.Base(strings.TrimSpace(res.AuditID))
-	if id == "" || id == "." || id == ".." || id == string(filepath.Separator) || id != strings.TrimSpace(res.AuditID) || strings.ContainsAny(res.AuditID, `/\`) {
-		return "", fmt.Errorf("audit: identifiant de télémétrie invalide %q", res.AuditID)
+	id, err := auditID(res.AuditID)
+	if err != nil {
+		return "", err
 	}
 	dir := filepath.Join(baseDir, "audits", id)
 	if err := os.MkdirAll(dir, 0755); err != nil {

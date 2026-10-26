@@ -1,46 +1,46 @@
 package audit
 
-import (
-	"net"
-	"testing"
-)
+import "testing"
 
-// TestResolveSinksPrefersLiveListener — un puits qui ÉCOUTE est le banc : le
-// mode doit le refléter, pas se fier à une adresse en dur. Sur un hôte de
-// dev sans banc, la détection retombe proprement sur external SANS charge
-// implicite — jamais de note sans charge. L'échelle est partagée CLI/API :
-// les deux surfaces tranchent pareil sur le même hôte.
-func TestResolveSinksPrefersLiveListener(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Skip("loopback indisponible")
+// TestResolveSinksPrecedence — la sonde est simulée : dualns gagne quand son
+// puits écoute, legacy prend le relais sinon, external en dernier SANS charge
+// implicite (jamais de note sans charge). L'échelle est partagée CLI/API.
+func TestResolveSinksPrecedence(t *testing.T) {
+	cases := []struct {
+		name string
+		up   map[string]bool
+		want Sinks
+	}{
+		{
+			name: "dualns prioritaire",
+			up:   map[string]bool{"10.30.0.2:5201": true, "10.200.0.1:5201": true},
+			want: Sinks{Mode: "dualns", Target: "10.30.0.2", SmallURL: "http://10.30.0.2:8081/small", BulkAddr: "10.30.0.2:5201"},
+		},
+		{
+			name: "legacy si dualns muet",
+			up:   map[string]bool{"10.200.0.1:5201": true},
+			want: Sinks{Mode: "legacy", Target: "10.200.0.1", SmallURL: "http://10.200.0.1:8081/small", BulkAddr: "10.200.0.1:5201"},
+		},
+		{
+			name: "external sans puits",
+			up:   map[string]bool{},
+			want: Sinks{Mode: "external", Target: "8.8.8.8"},
+		},
 	}
-	defer ln.Close()
-	s := ResolveSinks()
-	if s.Mode == "" {
-		t.Fatal("mode vide — la détection doit toujours trancher (au pire external)")
-	}
-	switch s.Mode {
-	case "dualns":
-		// Le puits vit DANS ns_server (10.30.0.2) : cible, petit objet et
-		// charge traversent les QUATRE sauts. 10.30.0.1 est e-srv (côté
-		// edge) — y terminer mesurerait trois sauts, pas quatre.
-		if s.BulkAddr != "10.30.0.2:5201" || s.Target != "10.30.0.2" || s.SmallURL != "http://10.30.0.2:8081/small" {
-			t.Fatalf("dualns : %+v", s)
-		}
-	case "legacy":
-		if s.BulkAddr != "10.200.0.1:5201" || s.Target != "10.200.0.1" {
-			t.Fatalf("legacy : %+v", s)
-		}
-	case "external":
-		if s.BulkAddr != "" {
-			t.Fatalf("mode externe : pas de charge implicite (jamais de A+ sans charge) : %+v", s)
-		}
-		if s.Target == "" {
-			t.Fatal("mode externe : cible ping par défaut attendue")
-		}
-	default:
-		t.Fatalf("mode inconnu : %q", s.Mode)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var probed []string
+			got := resolveSinks(func(addr string) bool {
+				probed = append(probed, addr)
+				return tc.up[addr]
+			})
+			if got != tc.want {
+				t.Fatalf("sinks = %+v, want %+v", got, tc.want)
+			}
+			if len(probed) == 0 || probed[0] != "10.30.0.2:5201" {
+				t.Fatalf("ordre de sonde : %v — dualns doit être testé d'abord", probed)
+			}
+		})
 	}
 }
 

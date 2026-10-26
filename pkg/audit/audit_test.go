@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -110,6 +111,29 @@ func TestLivePhaseNameBoth(t *testing.T) {
 		if got := livePhaseName(in); got != want {
 			t.Fatalf("livePhaseName(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestRunCanceledReturnsNoPartialResult — l'opérateur annule en pleine
+// fenêtre : Run rend context.Canceled et AUCUN résultat partiel, pour que
+// l'appelant ne puisse pas écrire une ligne CSV amputée (ni appeler un
+// résultat vide un succès).
+func TestRunCanceledReturnsNoPartialResult(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	d := Deps{
+		Ping: func(context.Context, string, int) []float64 {
+			cancel()
+			return []float64{20}
+		},
+		Small: func(context.Context) (float64, error) { return 15, nil },
+	}
+	res, err := Run(ctx, Params{AuditID: "a-cancel", Site: "X", LinkType: "5g", Duration: 2, Direction: "up", Target: "x"}, d)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("annulation : err = %v, want context.Canceled", err)
+	}
+	if res != nil {
+		t.Fatalf("annulation : résultat partiel rendu (%+v)", res)
 	}
 }
 

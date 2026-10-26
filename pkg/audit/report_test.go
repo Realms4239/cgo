@@ -151,6 +151,19 @@ func TestVoIPRComputedOnlyWithLoad(t *testing.T) {
 	}
 }
 
+func TestWriteArtifactsRejectsTraversalID(t *testing.T) {
+	// Un rapport peut venir d'un fichier importé : « .. » écrirait
+	// audits/../audit_report.json, le rapport global hors zone d'audit.
+	dir := t.TempDir()
+	rep := &Report{AuditID: "..", Site: "X"}
+	if _, _, err := WriteArtifacts(rep, dir); err == nil {
+		t.Fatal("id .. : erreur attendue")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "audit_report.json")); !os.IsNotExist(err) {
+		t.Fatal("un id traversant a écrit le rapport global")
+	}
+}
+
 func TestWriteArtifactsCreatesBothFormats(t *testing.T) {
 	dir := t.TempDir()
 	csvPath := filepath.Join(dir, "link_audit.csv")

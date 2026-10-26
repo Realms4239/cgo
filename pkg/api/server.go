@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -1179,6 +1180,10 @@ func New(d Deps) Handler {
 		auditStartedAt = time.Now()
 		auditTotalSec = body.Duration
 		auditProgress.Store(audit.Progress{Phase: "repos"})
+		// Le rapport en mémoire appartient à l'audit PRÉCÉDENT : le garder
+		// pendant ce run ferait lire un ancien rapport comme le résultat de
+		// celui-ci si le nouveau échoue. L'archive disque reste disponible.
+		lastAuditReport = nil
 		auditMu.Unlock()
 		asymmetric := true
 		if body.Asymmetric != nil {
@@ -1204,9 +1209,11 @@ func New(d Deps) Handler {
 			}
 			deps.OnProgress = func(pr audit.Progress) { auditProgress.Store(pr) }
 			res, err := audit.Run(runCtx, p, deps)
-			// Annulation opérateur : ni ligne CSV partielle ni artefact, et
-			// un événement distinct de l'échec (arrêt volontaire ≠ panne).
-			if runCtx.Err() != nil {
+			// Annulation opérateur : Run rend context.Canceled sans résultat
+			// partiel. Le rapport précédent a été effacé au démarrage : un
+			// arrêt ne peut donc pas être maquillé en audit terminé. Un audit
+			// achevé juste avant l'annulation garde son résultat (err == nil).
+			if errors.Is(err, context.Canceled) {
 				recordEvent("audit", fmt.Sprintf("annulé par l'opérateur — %s (%s)", p.Site, p.LinkType))
 				return
 			}

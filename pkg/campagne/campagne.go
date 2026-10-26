@@ -47,7 +47,7 @@ type Deps struct {
 	// calibrer le timeout de la sonde small (VSAT 600 ms ⇒ 2,4 s, pas 2 s).
 	ProfileDelayMs float64
 
-	// Flows — nombre de flux de charge concurrents (défaut 1). >1 exige
+	// Flows — nombre de flux de charge concurrents (défaut 4). >1 exige
 	// BulkN câblé par l'hôte ; mesure l'isolation inter-flux (JFI) que
 	// fq_codel/cake promettent et qu'un flux unique ne montre jamais.
 	Flows int

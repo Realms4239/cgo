@@ -161,3 +161,85 @@ func TestAuditLiveAndStop(t *testing.T) {
 		t.Fatalf("l'annulation a écrit une ligne CSV partielle : %d → %d", csvBefore, got)
 	}
 }
+
+// TestAuditStartClearsStaleReport — le rapport en mémoire appartient à l'audit
+// précédent : /start l'efface avant de lancer le nouveau, sinon un run annulé
+// ou en échec afficherait l'ancien rapport comme son résultat.
+func TestAuditStartClearsStaleReport(t *testing.T) {
+	site := "stale-report-" + time.Now().Format("150405.000000")
+	h := New(Deps{
+		SinksFn: func() audit.Sinks {
+			return audit.Sinks{Mode: "external", Target: "127.0.0.1"}
+		},
+		AuditDepsFn: func() audit.Deps {
+			return audit.Deps{
+				Ping:  func(_ context.Context, _ string, _ int) []float64 { return []float64{42, 43, 44} },
+				Small: func(context.Context) (float64, error) { return 12.5, nil },
+				// Bloque jusqu'à l'annulation : le run reste vivant le temps
+				// de lire le statut, sans course avec la fin de l'audit.
+				BulkLoad: func(ctx context.Context, _, _ string, _ int) audit.LoadOutcome {
+					<-ctx.Done()
+					return audit.LoadOutcome{}
+				},
+			}
+		},
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	waitAuditIdle(t, srv)
+
+	lastAuditReport = &audit.Report{AuditID: "stale-report-" + site}
+	t.Cleanup(func() { lastAuditReport = nil })
+
+	body, _ := json.Marshal(map[string]any{
+		"site": site, "link_type": "fiber", "duration": 10, "direction": "up", "flows": 4,
+	})
+	resp, err := http.Post(srv.URL+"/api/audit/start", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("start : %d", resp.StatusCode)
+	}
+	t.Cleanup(func() { _, _ = http.Post(srv.URL+"/api/audit/stop", "application/json", nil) })
+
+	var st struct {
+		Running bool          `json:"running"`
+		Report  *audit.Report `json:"report"`
+	}
+	deadline := time.Now().Add(8 * time.Second)
+	for time.Now().Before(deadline) {
+		st.Report = nil
+		getJSON(t, srv.URL+"/api/audit/status", &st)
+		if st.Running {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !st.Running {
+		t.Fatal("l'audit ne démarre pas")
+	}
+	if st.Report != nil {
+		t.Fatalf("l'ancien rapport survit au démarrage : %+v", st.Report)
+	}
+
+	if _, err := http.Post(srv.URL+"/api/audit/stop", "application/json", nil); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		st.Report = nil
+		getJSON(t, srv.URL+"/api/audit/status", &st)
+		if !st.Running {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if st.Running {
+		t.Fatal("l'audit tourne encore après stop")
+	}
+	if st.Report != nil {
+		t.Fatalf("un run annulé rend un rapport : %+v", st.Report)
+	}
+}

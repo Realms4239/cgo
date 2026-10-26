@@ -595,6 +595,14 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		loadSeconds = upOc.Elapsed.Seconds() + downOc.Elapsed.Seconds()
 	}
 
+	// Annulation (opérateur ou deadline) : pas de Result partiel. Sans ce
+	// contrôle, Run rendait un résultat amputé avec err == nil et l'appelant
+	// devait deviner l'annulation par le contexte — une course près de la fin
+	// pouvait jeter un audit complet ou maquiller une annulation en succès.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	res := &Result{
 		AuditID:        p.AuditID,
 		Timestamp:      start.Format(time.RFC3339),
