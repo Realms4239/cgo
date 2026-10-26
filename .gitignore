@@ -66,3 +66,11 @@ scripts/seekai-*.js
 *.pptx
 *.pdf
 /book/
+
+# capture evidence (see handoff §6.2)
+web/frontend/shots-fresh/
+
+# machine junk
+nul
+cgo-*.exe
+pkg/api/data/

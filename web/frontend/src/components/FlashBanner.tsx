@@ -15,9 +15,9 @@ export default function FlashBanner() {
   }, [flash])
   if (!flash) return null
   const bg =
-    flash.type === 'success' ? '#1fa348' : flash.type === 'danger' ? '#e22718' : '#5ad3e3'
-  // blanc sur vert #1fa348 = 3.29 (FAIL) → encre sombre 5.83 ; blanc sur rouge 4.63 ok
-  const color = flash.type === 'success' ? '#04120a' : flash.type === 'info' ? '#000' : '#fff'
+    flash.type === 'success' ? 'var(--t-ok)' : flash.type === 'danger' ? 'var(--t-danger)' : 'var(--t-live)'
+  // blanc sur vert var(--t-ok) = 3.29 (FAIL) → encre sombre 5.83 ; blanc sur rouge 4.63 ok
+  const color = flash.type === 'success' ? 'var(--chart-on-ok)' : flash.type === 'info' ? 'var(--canvas-solid)' : 'var(--text-primary)'
   return (
     <div
       ref={ref}
@@ -30,9 +30,9 @@ export default function FlashBanner() {
         background: bg,
         color,
         padding: '8px 16px',
-        fontFamily: 'JetBrains Mono',
-        fontSize: 11,
-        letterSpacing: '0.02em',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--fs-tag)',
+        letterSpacing: 'var(--tracking-caps)',
         textTransform: 'none',
         zIndex: 600,
         border: '1px solid rgba(0,0,0,0.15)',

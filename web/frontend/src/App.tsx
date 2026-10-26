@@ -96,15 +96,15 @@ export default function App() {
       <WebGLMesh />
       <div id="shell" className={railPinned ? '' : 'rail-min'}>
         <a className="skip-link" href="#main">Aller au contenu</a>
-        <header style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '0 16px', borderBottom: '1px solid var(--hairline, #26262a)', background: 'var(--surface-soft, #0b0b0c)', minWidth: 0 }}>
+        <header className="app-header">
           <MeteolinkWordmark />
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
+          <div className="app-header-center">
             <PanelChooser />
           </div>
           <div className="hd-right">
-            {mode === 'observe' && <span className="mono" title="Audit et consultation uniquement — campagne et façonnage vivent sur l'hôte Linux (docs/deploy.md)" style={{ color: 'var(--t-warn, #f4b400)', border: '1px solid currentColor', padding: '2px 8px', fontSize: 10, letterSpacing: '0.08em' }}>OBSERVATION</span>}
+            {mode === 'observe' && <span className="mono obs-badge" title="Audit et consultation uniquement — campagne et façonnage vivent sur l'hôte Linux (docs/deploy.md)">OBSERVATION</span>}
             <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
-            <span className="mono" style={{ color: connected ? 'var(--t-ok)' : 'var(--t-danger-text, #e84a3a)' }}>{connected ? '● connecté' : '○ déconnecté'}</span>
+            <span className="mono" style={{ color: connected ? 'var(--t-ok)' : 'var(--t-danger-text)' }}>{connected ? '● connecté' : '○ déconnecté'}</span>
             <span id="hd-state" className="mono">{live?.phase ?? 'idle'}</span>
           </div>
         </header>
@@ -121,12 +121,12 @@ export default function App() {
           <section id="v-integrite" className="view" hidden={panel !== 'integrite'}><IntegriteView /></section>
         </main>
 
-        <footer className="foot-ticker" style={{ minHeight: 28, display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 12, padding: '4px 16px', borderTop: '1px solid var(--hairline)', background: 'var(--surface-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em', textTransform: 'none' as const, color: 'var(--text-faint)' }}>
+        <footer className="foot-ticker">
           <span id="ft-prov">source: {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
-          <span aria-hidden="true" style={{ opacity: 0.4 }}>|</span>
-          <span id="ft-run" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>événement #{live?.event_id ?? '—'} · {live?.phase ?? 'idle'}</span>
-          <span className="fill" style={{ marginLeft: 'auto' }} />
-          <span id="ft-sse" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>SSE {sseStatus}</span>
+          <span aria-hidden="true" className="foot-sep">|</span>
+          <span id="ft-run" className="mono">événement #{live?.event_id ?? '—'} · {live?.phase ?? 'idle'}</span>
+          <span className="fill" />
+          <span id="ft-sse" className="mono">SSE {sseStatus}</span>
         </footer>
         {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} />}
         <FlashBanner />

@@ -19,13 +19,13 @@ export function Beam({ hovered = false }: { hovered?: boolean }) {
         pointerEvents: 'none',
         zIndex: 5,
         opacity: hovered ? 1 : 0.55,
-        transition: 'opacity 0.3s ease',
+        transition: 'opacity var(--dur-slow) var(--ease)',
       }}
     >
       <defs>
         <linearGradient id="beam-grad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#5ad3e3" />
-          <stop offset="100%" stopColor="#1fa348" />
+          <stop offset="0%" stopColor="var(--t-live)" />
+          <stop offset="100%" stopColor="var(--t-ok)" />
         </linearGradient>
       </defs>
       <line

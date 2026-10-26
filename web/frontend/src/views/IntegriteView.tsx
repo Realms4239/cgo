@@ -70,25 +70,25 @@ export default function IntegriteView() {
 
   if (err) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="error" hint={err} /></div>
   if (!data) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="loading" hint="vérification des archives" /></div>
-  if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary" style={{marginTop:12}} onClick={load}>Réessayer</button></div>
+  if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary int-retry" onClick={load}>Réessayer</button></div>
 
   // Quarantaine synthétique retirée — gate_status réel depuis Scan.
   // single scroll: main défile déjà (double-scroll supprimé).
   return (
-    <div className="panel-stack" style={{position:'relative'}}>
+    <div className="panel-stack int-stack">
       {peek && (
         <PeekPopover rect={peek.rect}>
-          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>run — {peek.run}</div>
+          <div className="mono int-peek-run">run — {peek.run}</div>
           {(() => {
             const src = asArray<any>(peekGroups).length ? peekGroups as any[] : asArray<any>(groups)
-            if (src.length===0) return <div className="mono" style={{fontSize:10, color:'var(--text-faint, #7e838c)'}}>aucun groupe — gel d'abord</div>
+            if (src.length===0) return <div className="mono int-peek-empty">aucun groupe — gel d'abord</div>
             // Meilleur par profil pour ce run, repli sur les 4 premiers.
             const bests = src.filter((g:any)=>g.best)
             const show = bests.length ? bests.slice(0,4) : src.slice(0,4)
             return show.map((g: any, i: number) => (
-              <div key={i} style={{display:'flex', justifyContent:'space-between', gap:12, fontFamily:'JetBrains Mono', fontSize:10}}>
-                <span style={{color:'#9aa3ad'}}>{g.profile}·{g.qdisc}·{g.cc}</span>
-                <span style={{color: g.best ? '#1fa348' : '#f2f2f4', fontVariantNumeric:'tabular-nums'}}>{g.best ? '★ ' : ''}{Number(g.small_p95_median ?? 0).toFixed(1)} ms</span>
+              <div key={i} className="int-peek-row">
+                <span className="int-peek-id">{g.profile}·{g.qdisc}·{g.cc}</span>
+                <span className="int-peek-val" data-best={g.best ? '1' : undefined}>{g.best ? '★ ' : ''}{Number(g.small_p95_median ?? 0).toFixed(1)} ms</span>
               </div>
             ))
           })()}
@@ -96,41 +96,41 @@ export default function IntegriteView() {
       )}
       <h1 className="view-title">Intégrité — archives gelées</h1>
       {/* bandeau preuve — 4 faits Grafana, mots pleins, jamais de soupe */}
-      <div className="card" data-testid="proof-banner" style={{ display:'flex', gap:16, alignItems:'baseline', flexWrap:'wrap', padding:'10px 14px' }}>
-        <span className="mono" style={{ fontSize:12, fontWeight:600 }}>Preuve gelée</span>
-        <span className="mono" data-testid="proof-runs" style={{ fontSize:11 }}>{data.runs} runs archivés · {data.manifests} manifestes signés</span>
-        <span className="mono" style={{ fontSize:11, color:'var(--t-ok)' }}><Explain term="valid_only">{data.valid} mesures valides</Explain></span>
-        <span className="mono" style={{ fontSize:11, color:(data.quarantined||0)>0?'var(--t-danger-text, #e84a3a)':'var(--text-muted)' }}>{data.quarantined} mesures écartées</span>
-        <span className="mono muted" style={{ fontSize:11, marginLeft:'auto' }}>mis à jour {data.updated || '—'}</span>
+      <div className="card int-proof" data-testid="proof-banner">
+        <span className="mono int-proof-title">Preuve gelée</span>
+        <span className="mono int-proof-fact" data-testid="proof-runs">{data.runs} runs archivés · {data.manifests} manifestes signés</span>
+        <span className="mono int-proof-fact int-proof-ok"><Explain term="valid_only">{data.valid} mesures valides</Explain></span>
+        <span className="mono int-proof-fact" style={{ color:(data.quarantined||0)>0?'var(--t-danger-text)':'var(--text-muted)' }}>{data.quarantined} mesures écartées</span>
+        <span className="mono int-proof-fact int-proof-updated">mis à jour {data.updated || '—'}</span>
       </div>
       {/* d'où viennent ces chiffres — quoi/où/quand par source, en clair */}
       <div className="card" data-testid="sources-card">
         <div className="card-head">D'où viennent ces chiffres</div>
-        <div style={{ display:'grid', gap:8 }}>
-          <div className="mono" style={{ fontSize:11, lineHeight:1.6, color:'#c3c9d1' }}><b style={{ color:'#f2f2f4' }}>Manifestes signés</b> — la liste scellée de chaque run archivé (fichiers + empreinte) · dans le dossier de chaque run · mis à jour {data.updated || '—'}</div>
-          <div className="mono" style={{ fontSize:11, lineHeight:1.6, color:'#c3c9d1' }}><b style={{ color:'#f2f2f4' }}>Quarantaine</b> — les mesures écartées par les <Explain term="G3">portes de validation</Explain> · dans le registre de quarantaine du serveur · à chaque gel de campagne</div>
-          <div className="mono" style={{ fontSize:11, lineHeight:1.6, color:'#c3c9d1' }}><b style={{ color:'#f2f2f4' }}>Mesures</b> — le tableur des mesures gelées, une ligne par sondage · dans le fichier de mesures de chaque run · mis à jour {data.updated || '—'}</div>
-          <div className="mono" style={{ fontSize:11, lineHeight:1.6, color:'#c3c9d1' }}><b style={{ color:'#f2f2f4' }}>Journal</b> — les opérations (campagnes, audits) racontées au fil de l'eau · dans le journal opérateur ci-dessous · en continu</div>
+        <div className="int-sources">
+          <div className="mono int-source-line"><b>Manifestes signés</b> — la liste scellée de chaque run archivé (fichiers + empreinte) · dans le dossier de chaque run · mis à jour {data.updated || '—'}</div>
+          <div className="mono int-source-line"><b>Quarantaine</b> — les mesures écartées par les <Explain term="G3">portes de validation</Explain> · dans le registre de quarantaine du serveur · à chaque gel de campagne</div>
+          <div className="mono int-source-line"><b>Mesures</b> — le tableur des mesures gelées, une ligne par sondage · dans le fichier de mesures de chaque run · mis à jour {data.updated || '—'}</div>
+          <div className="mono int-source-line"><b>Journal</b> — les opérations (campagnes, audits) racontées au fil de l'eau · dans le journal opérateur ci-dessous · en continu</div>
         </div>
       </div>
       <div className="card">
-        <div className="form-row" style={{gap:8, marginTop:12}}>
+        <div className="form-row int-actions">
           <button className="btn btn-primary" onClick={verify}>Vérifier manifestes</button>
-          <a className="btn" href="/api/report/export?format=md" download style={{border:'1px solid var(--hairline)', padding:'7px 16px'}}>Rapport MD</a>
+          <a className="btn int-export" href="/api/report/export?format=md" download>Rapport MD</a>
           <span className="mono muted">{msg}</span>
         </div>
       </div>
       {/* RDF provenance — important look, not debug dump */}
-      <div className="card" style={{ border:'1px solid #26262a', background:'var(--surface-card)' }}>
-        <div className="card-head" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+      <div className="card int-rdf">
+        <div className="card-head int-rdf-head">
           <span>RDF — provenance gelée</span>
-          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text-faint, #7e838c)', letterSpacing:'0.08em', textTransform:'uppercase'}}>frozen-wave</span>
+          <span className="mono int-rdf-tag">frozen-wave</span>
         </div>
-        <div style={{display:'flex', flexDirection:'column', gap:6}}>
-          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>sha256 manifest</div>
+        <div className="int-rdf-body">
+          <div className="mono int-rdf-cap">sha256 manifest</div>
           {/* SHA réel exposé par /api/integrity */}
           {(data as any).sha256 ? (
-            <div data-testid="provenance-hash" className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f2f2f4', background:'#070707', border:'1px solid #26262a', padding:'8px 10px', fontVariantNumeric:'tabular-nums', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+            <div data-testid="provenance-hash" className="mono int-hash">
               sha256:{(data as any).sha256}
             </div>
           ) : (
@@ -138,25 +138,25 @@ export default function IntegriteView() {
               <EmptyState kind="empty" hint="empreinte SHA non exposée par /api/integrity — afficher le manifest gelé" />
             </div>
           )}
-          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text-faint, #7e838c)', overflowWrap: 'anywhere'}}>manifestes signés · registre de quarantaine · tableur des mesures — les trois couvrent les mêmes runs gelés, l'empreinte ci-dessus les scelle</div>
-          <div style={{display:'flex', gap:8, marginTop:4}}>
-            <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'2px 6px', border:'1px solid #26262a', color:'#5ad3e3'}}>Mémoire, tableau 7</span>
-            <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, padding:'2px 6px', border:'1px solid #26262a', color:'#1fa348'}}>gelé • vérifiable</span>
+          <div className="mono int-rdf-note">manifestes signés · registre de quarantaine · tableur des mesures — les trois couvrent les mêmes runs gelés, l'empreinte ci-dessus les scelle</div>
+          <div className="int-badges">
+            <span className="mono int-badge int-badge-live">Mémoire, tableau 7</span>
+            <span className="mono int-badge int-badge-ok">gelé • vérifiable</span>
           </div>
         </div>
       </div>
       <div className="card" data-testid="runs-table">
         <div className="card-head">Runs archivés</div>
-        <div className="tbl-scroll" data-testid="runs-scroll" style={{ overflowX: 'auto', minWidth: 0 }}>
-        <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:12 }}>
-          <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
-            <th style={{ padding:'6px 8px' }}>run</th><th>lignes</th><th>valides</th><th>quar.</th><th>résultats</th><th>rejouer</th>
+        <div className="tbl-scroll int-scroll" data-testid="runs-scroll">
+        <table className="data-table int-table">
+          <thead><tr className="int-thead-row">
+            <th>run</th><th>lignes</th><th>valides</th><th>quar.</th><th>résultats</th><th>rejouer</th>
           </tr></thead><tbody>
           {paginate(Array.isArray(data.breakdown) ? data.breakdown : (asArray<string>(data.run_ids).map(id=>({run:id,rows:0,valid:0,quarantined:0}))), runsPage, RUNS_PAGE_SIZE).map(b=>(
-            <tr key={b.run} style={{ borderBottom:'1px solid var(--hairline-faint)' }} onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
-              <td style={{ padding:'6px 8px', maxWidth:240 }}><span title={b.run} style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'38vw' }}>{b.run}</span></td><td>{b.rows}</td><td>{b.valid}</td><td>{b.quarantined}</td>
-              <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" style={{ color:'var(--t-live)' }}>résultats</a></td>
-              <td><button className="btn btn-primary" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setPanel('live') }} style={{ padding:'4px 10px', fontSize:11 }}>Rejouer</button></td>
+            <tr key={b.run} className="int-row" onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
+              <td className="int-td-run"><span title={b.run} className="int-run-id">{b.run}</span></td><td>{b.rows}</td><td>{b.valid}</td><td>{b.quarantined}</td>
+              <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" className="int-link">résultats</a></td>
+              <td><button className="btn btn-primary int-replay" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setPanel('live') }}>Rejouer</button></td>
             </tr>
           ))}
           </tbody></table>
@@ -168,14 +168,14 @@ export default function IntegriteView() {
       </div>
       <div className="card" data-testid="quarantine-table">
         <div className="card-head">Quarantaine — lignes invalidées par les portes</div>
-        {quar.length===0 ? <div style={{padding:'8px 0'}}><EmptyState kind="empty" hint="Aucune mise en quarantaine" /></div> :
-        <div className="tbl-scroll" data-testid="quarantine-scroll" style={{ overflowX: 'auto', minWidth: 0 }}>
-        <table className="data-table" style={{ width:'100%', borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:12 }}>
-          <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
-            <th style={{ padding:'6px 8px' }}>run</th><th>événement</th><th>cellule</th><th>statut</th><th>portes</th>
+        {quar.length===0 ? <div className="int-empty-row"><EmptyState kind="empty" hint="Aucune mise en quarantaine" /></div> :
+        <div className="tbl-scroll int-scroll" data-testid="quarantine-scroll">
+        <table className="data-table int-table">
+          <thead><tr className="int-thead-row">
+            <th>run</th><th>événement</th><th>cellule</th><th>statut</th><th>portes</th>
           </tr></thead><tbody>
-          {paginate(quar, quarPage, QUAR_PAGE_SIZE).map((q,i)=><tr key={i} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
-            <td style={{ padding:'6px 8px', maxWidth:240 }}><span title={q.run} style={{ display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'38vw' }}>{q.run}</span></td><td>#{q.event_id}</td><td style={{ overflowWrap: 'anywhere' }}>{q.profile}·{q.qdisc}·{q.cc}</td><td style={{ color:'#f4b400' }}>{q.gate_status}</td><td style={{ color:'#8b9099' }}>{(q.failed_gates ?? []).join(' ') || '—'}</td>
+          {paginate(quar, quarPage, QUAR_PAGE_SIZE).map((q,i)=><tr key={i} className="int-row">
+            <td className="int-td-run"><span title={q.run} className="int-run-id">{q.run}</span></td><td>#{q.event_id}</td><td className="int-quar-cell">{q.profile}·{q.qdisc}·{q.cc}</td><td className="int-quar-status">{q.gate_status}</td><td className="int-quar-gates">{(q.failed_gates ?? []).join(' ') || '—'}</td>
           </tr>)}
           </tbody></table>
         </div>}
@@ -183,86 +183,86 @@ export default function IntegriteView() {
           total={quar.length}
           page={quarPage} pageSize={QUAR_PAGE_SIZE} onPage={setQuarPage}
         />
-        <div className="mono" style={{ fontSize:11, color:'#c3c9d1', marginTop:8, lineHeight:1.6 }}>{quarSum && quarSum.total_invalid != null ? (<>{quarSum.total_invalid} mesures écartées au total — débit trop bas (<Explain term="G4">porte G4</Explain>) {quarSum.g4_low} · débit trop haut (<Explain term="G4">porte G4</Explain>) {quarSum.g4_high} · sondes vides {quarSum.empty_probes} · latence incohérente (<Explain term="G3">porte G3</Explain>) {quarSum.g3_implausible} <span style={{ color:'#8b9099' }}>(un compteur peut cumuler)</span></>) : 'mesures écartées par les portes de validation — détail par ligne ci-dessus'}</div>
-        <div className="mono" style={{ fontSize:10, color:'var(--text-faint, #7e838c)', marginTop:4 }}>registre de quarantaine du serveur — une ligne par mesure écartée, avec sa cellule et ses portes</div>
+        <div className="mono int-note">{quarSum && quarSum.total_invalid != null ? (<>{quarSum.total_invalid} mesures écartées au total — débit trop bas (<Explain term="G4">porte G4</Explain>) {quarSum.g4_low} · débit trop haut (<Explain term="G4">porte G4</Explain>) {quarSum.g4_high} · sondes vides {quarSum.empty_probes} · latence incohérente (<Explain term="G3">porte G3</Explain>) {quarSum.g3_implausible} <span className="int-note-muted">(un compteur peut cumuler)</span></>) : 'mesures écartées par les portes de validation — détail par ligne ci-dessus'}</div>
+        <div className="mono int-note-fine">registre de quarantaine du serveur — une ligne par mesure écartée, avec sa cellule et ses portes</div>
       </div>
-      <div className="card" style={{ border:'1px solid #26262a' }}>
+      <div className="card int-reco-card">
         <div className="card-head">Recommandations — Traduction Matérielle</div>
-        <p className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, lineHeight:'1.6', color:'#9aa3ad', marginBottom:12, overflowWrap: 'anywhere'}}>
-          Linux prouvé en lab → matériel DSI, sans réécrire l'infra. <span style={{color:'#5ad3e3'}}>Observé côté client</span>.
+        <p className="mono int-reco-lede">
+          Linux prouvé en lab → matériel DSI, sans réécrire l'infra. <span className="int-reco-lede-live">Observé côté client</span>.
         </p>
-        <div style={{overflowX:'auto', marginBottom:12}}>
-          <table style={{width:'100%', borderCollapse:'collapse', fontFamily:'JetBrains Mono', fontSize:11}}>
+        <div className="int-reco-scroll">
+          <table className="int-hw-table">
             <thead>
-              <tr style={{textAlign:'left', color:'#8b9099', borderBottom:'1px solid #26262a'}}>
-                <th style={{padding:'6px 8px', fontWeight:600}}>Principe Linux</th>
-                <th style={{padding:'6px 8px', fontWeight:600}}>MikroTik</th>
-                <th style={{padding:'6px 8px', fontWeight:600}}>ISP / mini-PC gateway</th>
+              <tr className="int-hw-thead">
+                <th className="int-hw-th">Principe Linux</th>
+                <th className="int-hw-th">MikroTik</th>
+                <th className="int-hw-th">ISP / mini-PC gateway</th>
               </tr>
             </thead>
-            <tbody style={{color:'#f2f2f4'}}>
-              <tr style={{borderBottom:'1px solid #1a1a1e'}}>
-                <td style={{padding:'6px 8px'}}>pfifo_fast <span style={{color:'#767b84'}}>baseline FIFO</span></td>
-                <td style={{padding:'6px 8px'}}>— ne pas reproduire</td>
-                <td style={{padding:'6px 8px'}}>— ne pas reproduire</td>
+            <tbody>
+              <tr className="int-row">
+                <td className="int-hw-td">pfifo_fast <span className="int-hw-faint">baseline FIFO</span></td>
+                <td className="int-hw-td">— ne pas reproduire</td>
+                <td className="int-hw-td">— ne pas reproduire</td>
               </tr>
-              <tr style={{borderBottom:'1px solid #1a1a1e'}}>
-                <td style={{padding:'6px 8px'}}>fq_codel <span style={{color:'#1fa348'}}>prouvé lab</span></td>
-                <td style={{padding:'6px 8px'}}>Queue Tree PCQ / CAKE RouterOS v7+</td>
-                <td style={{padding:'6px 8px'}}>mini-PC transparent bridge CAKE en amont CPE</td>
+              <tr className="int-row">
+                <td className="int-hw-td">fq_codel <span className="int-hw-ok">prouvé lab</span></td>
+                <td className="int-hw-td">Queue Tree PCQ / CAKE RouterOS v7+</td>
+                <td className="int-hw-td">mini-PC transparent bridge CAKE en amont CPE</td>
               </tr>
               <tr>
-                <td style={{padding:'6px 8px'}}>cake <span style={{color:'#1fa348'}}>prouvé lab</span></td>
-                <td style={{padding:'6px 8px'}}>CAKE RouterOS v7+ Queue Tree</td>
-                <td style={{padding:'6px 8px'}}>mini-PC gateway CAKE transparent</td>
+                <td className="int-hw-td">cake <span className="int-hw-ok">prouvé lab</span></td>
+                <td className="int-hw-td">CAKE RouterOS v7+ Queue Tree</td>
+                <td className="int-hw-td">mini-PC gateway CAKE transparent</td>
               </tr>
             </tbody>
           </table>
         </div>
         {asArray<any>(groups).filter((g:any)=>g.best).length>0 && (
-          <div style={{marginBottom:12, display:'flex', flexDirection:'column', gap:6}}>
-            <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.06em', textTransform:'uppercase', color:'#8b9099'}}>Traduction matérielle par profil (depuis Scan ★ best)</div>
+          <div className="int-hw-byprofile">
+            <div className="mono int-hw-cap">Traduction matérielle par profil (depuis Scan ★ best)</div>
             {asArray<any>(groups).filter((g:any)=>g.best).slice(0,4).map((g:any)=>(
-              <div key={`${g.profile}-${g.qdisc}`} className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, padding:'6px 8px', background:'#070707', border:'1px solid #26262a', color:'#f2f2f4'}}>
-                <span style={{color:'#5ad3e3'}}>{g.profile}</span> · {g.qdisc} → {g.hardware_recommendation || hardwareRecommendation(g.qdisc, g.profile)}
+              <div key={`${g.profile}-${g.qdisc}`} className="mono int-hw-row">
+                <span className="int-hw-profile">{g.profile}</span> · {g.qdisc} → {g.hardware_recommendation || hardwareRecommendation(g.qdisc, g.profile)}
               </div>
             ))}
           </div>
         )}
-        <div style={{display:'grid', gap:10, fontSize:12, lineHeight:'1.6'}}>
-          <div style={{padding:'8px 10px', background:'rgba(90,211,227,0.06)', border:'1px solid #26262a'}}>
-            <b style={{color:'#f2f2f4'}}>Kit de Diagnostic Portable DSI</b> <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#5ad3e3', border:'1px solid #26262a', padding:'1px 4px', marginLeft:6}}>5-min branch</span>
-            <div style={{color:'#9aa3ad', marginTop:4}}>Branchement sans <code style={{color:'#f2f2f4'}}>tc</code> : laptop → Yas/Telma 4G → <code style={{color:'#f2f2f4'}}>1.1.1.1</code> ping 5 Hz + Small 4–32 K + bulk GRIB. Zéro install, client-side observé depuis les locaux — pas contrôleur réseau.</div>
+        <div className="int-hw-kits">
+          <div className="int-kit int-kit-live">
+            <b>Kit de Diagnostic Portable DSI</b> <span className="mono int-chip int-chip-live">5-min branch</span>
+            <div className="int-kit-body">Branchement sans <code className="int-code-primary">tc</code> : laptop → Yas/Telma 4G → <code className="int-code-primary">1.1.1.1</code> ping 5 Hz + Small 4–32 K + bulk GRIB. Zéro install, client-side observé depuis les locaux — pas contrôleur réseau.</div>
           </div>
-          <div style={{padding:'8px 10px', background:'rgba(244,180,0,0.06)', border:'1px solid #26262a'}}>
-            <b style={{color:'#f2f2f4'}}>Pilote isolé</b> <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#f4b400', border:'1px solid #26262a', padding:'1px 4px', marginLeft:6}}>1 site → 1 département 4G</span>
-            <div style={{color:'#9aa3ad', marginTop:4}}>Un seul site 4G à la fois, mesure avant/après. Si CAKE prouvé en lab réduit <code style={{color:'#1fa348'}}>small_p95 738 → 20 ms</code>, alors seulement généraliser. Pas de déploiement global sans pilote.</div>
+          <div className="int-kit int-kit-warn">
+            <b>Pilote isolé</b> <span className="mono int-chip int-chip-warn">1 site → 1 département 4G</span>
+            <div className="int-kit-body">Un seul site 4G à la fois, mesure avant/après. Si CAKE prouvé en lab réduit <code className="int-code-ok">small_p95 738 → 20 ms</code>, alors seulement généraliser. Pas de déploiement global sans pilote.</div>
           </div>
-          <div style={{padding:'8px 10px', background:'#070707', border:'1px solid #26262a'}}>
-            <b style={{color:'#f2f2f4'}}>Why Go: zero-dependency vs Flent</b>
-            <div style={{color:'#9aa3ad', marginTop:4}}>Un seul binaire <code style={{color:'#f2f2f4'}}>cgo</code> posable sur laptop DSI — pas de Python, pas de netperf, pas de dépendance. Flent exige stack complète et lab ; <code style={{color:'#5ad3e3'}}>Go 1.25</code> embarque <code style={{color:'#f2f2f4'}}>embed dist</code> + csv/metrics/probe campagne en un fichier. Reproductible offline, <code style={{color:'#767b84'}}>manifest.json sha256 + quarantine.json</code> vérifiable.</div>
+          <div className="int-kit int-kit-plain">
+            <b>Why Go: zero-dependency vs Flent</b>
+            <div className="int-kit-body">Un seul binaire <code className="int-code-primary">cgo</code> posable sur laptop DSI — pas de Python, pas de netperf, pas de dépendance. Flent exige stack complète et lab ; <code className="int-code-live">Go 1.25</code> embarque <code className="int-code-primary">embed dist</code> + csv/metrics/probe campagne en un fichier. Reproductible offline, <code className="int-code-faint">manifest.json sha256 + quarantine.json</code> vérifiable.</div>
           </div>
         </div>
-        <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#767b84', marginTop:8}}>
-          Traduction matérielle : <b className="mono" style={{color:'#f2f2f4'}}>{(() => { try { const g = (window as any).__CGO_GROUPS ?? null; return g?.best?.profile ?? 'P2' } catch { return 'P2' } })()}</b> — routeur Linux/pfSense : tc direct · MikroTik : Queue Tree PCQ/CAKE (RouterOS v7+) · accès ISP : passerelle dédiée en amont
+        <div className="mono int-foot">
+          Traduction matérielle : <b className="mono">{(() => { try { const g = (window as any).__CGO_GROUPS ?? null; return g?.best?.profile ?? 'P2' } catch { return 'P2' } })()}</b> — routeur Linux/pfSense : tc direct · MikroTik : Queue Tree PCQ/CAKE (RouterOS v7+) · accès ISP : passerelle dédiée en amont
         </div>
       </div>
       <div className="card">
         <div className="card-head">Figures</div>
-        <p className="mono muted" style={{fontSize:12, lineHeight:'1.6'}}>Générées par <span className="mono" style={{color:'var(--text-primary)'}}>make figures</span> depuis les CSV gelés.</p>
-        <div style={{display:'flex', gap:8, marginTop:8}}>
+        <p className="mono muted int-fig-note">Générées par <span className="mono int-fig-code">make figures</span> depuis les CSV gelés.</p>
+        <div className="int-fig-actions">
           <button className="btn btn-primary" onClick={regen}>Régénérer</button>
           <span className="mono muted">{regenOk ? '✓ disponible' : ''}</span>
         </div>
         {regenOk && (
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
+          <div className="int-figures">
             <div>
-              <img src="/api/figures/small_p95.svg" alt="small p95" style={{width:'100%', border:'1px solid var(--hairline)'}} />
-              <div className="mono muted" style={{fontSize:10, marginTop:4}}>small p95 par configuration · hash {(data as any).hash8 ?? '—'}</div>
+              <img src="/api/figures/small_p95.svg" alt="small p95" className="int-figure" />
+              <div className="mono muted int-figure-cap">small p95 par configuration · hash {(data as any).hash8 ?? '—'}</div>
             </div>
             <div>
-              <img src="/api/figures/scatter.svg" alt="scatter" style={{width:'100%', border:'1px solid var(--hairline)'}} />
-              <div className="mono muted" style={{fontSize:10, marginTop:4}}>compromis latence / débit · hash {(data as any).hash8 ?? '—'}</div>
+              <img src="/api/figures/scatter.svg" alt="scatter" className="int-figure" />
+              <div className="mono muted int-figure-cap">compromis latence / débit · hash {(data as any).hash8 ?? '—'}</div>
             </div>
           </div>
         )}
@@ -271,16 +271,16 @@ export default function IntegriteView() {
       {events.length > 0 && (
         <div className="card" data-testid="changelog">
           <div className="card-head">Changelog — journal opérateur</div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <ul className="int-changelog">
             {paginate(events, evPage, EV_PAGE_SIZE).map((e, i) => {
               // pastille de nature — campagne cyan, profil violet, audit ambre, reste acier
-              const kc = /campagne/i.test(e.kind) ? '#5ad3e3' : /profil/i.test(e.kind) ? '#b48ae0' : /audit/i.test(e.kind) ? '#f4b400' : '#9aa3ad'
+              const kc = /campagne/i.test(e.kind) ? 'var(--t-live)' : /profil/i.test(e.kind) ? 'var(--t-bbr)' : /audit/i.test(e.kind) ? 'var(--t-threshold)' : 'var(--t-neutral)'
               return (
-                <li key={i} className="mono" style={{ fontSize: 12, padding: '5px 0', borderBottom: '1px solid var(--hairline-faint)', display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                  <span style={{ color: '#a9aeb6', fontVariantNumeric: 'tabular-nums' }}>{e.ts}</span>
-                  <span title={e.kind} style={{ color: kc }}>●</span>
-                  <span className="ev-msg" style={{ flex: 1, color: '#d6d8dd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.msg.slice(0, 120)}</span>
-                  <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: kc }}>{e.kind}</span>
+                <li key={i} className="mono int-event">
+                  <span className="int-event-ts">{e.ts}</span>
+                  <span title={e.kind} className="int-event-dot" style={{ color: kc }}>●</span>
+                  <span className="ev-msg int-event-msg">{e.msg.slice(0, 120)}</span>
+                  <span className="int-event-kind" style={{ color: kc }}>{e.kind}</span>
                 </li>
               )
             })}
@@ -289,19 +289,19 @@ export default function IntegriteView() {
         </div>
       )}
       <div className="card">
-        <div className="card-head">Replay {replayRunning && <span className="mono" style={{color:'var(--t-live)', marginLeft:8}}>● en cours</span>}</div>
+        <div className="card-head">Replay {replayRunning && <span className="mono int-replay-live">● en cours</span>}</div>
         {replayRunning ? (
-          <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <div className="int-replay-row">
             <span className="mono muted">replay actif — voir le Tableau live</span>
-            <button className="btn" onClick={()=>stopReplay()} style={{marginLeft:'auto'}}>Arrêter</button>
+            <button className="btn int-replay-stop" onClick={()=>stopReplay()}>Arrêter</button>
             <button className="btn btn-primary" onClick={()=>setPanel('live')}>Voir le Tableau live</button>
           </div>
         ) : replayRuns.length===0 ? <p className="mono muted">aucun run à rejouer</p> :
-          <ul style={{listStyle:'none', padding:0, margin:0}}>
+          <ul className="int-replay-list">
             {replayRuns.map(id=>(
-              <li key={id} style={{display:'flex', justifyContent:'space-between', gap:12, padding:'6px 0', borderBottom:'1px solid var(--hairline-faint)', fontFamily:'var(--font-mono)', fontSize:12}}>
-                <span title={id} style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{id}</span>
-                <button className="btn btn-primary" onClick={()=>{ startReplay(id); setPanel('live')}} style={{padding:'4px 10px', fontSize:11, flex:'none'}}>Rejouer</button>
+              <li key={id} className="int-replay-item">
+                <span title={id} className="int-replay-id">{id}</span>
+                <button className="btn btn-primary int-replay" onClick={()=>{ startReplay(id); setPanel('live')}}>Rejouer</button>
               </li>
             ))}
           </ul>
@@ -309,7 +309,7 @@ export default function IntegriteView() {
         {/* pas de portée à choisir : le replay rejoue tout le run — l'API
             n'expose aucun filtre par cellule ou métrique (run seul). */}
         {!replayRunning && replayRuns.length>0 && (
-          <p className="mono" style={{ fontSize:10, color:'var(--text-faint, #7e838c)', marginTop:8 }}>le replay rejoue tout le run — aucun filtre par cellule ou métrique côté serveur, il n'y a pas de portée à choisir</p>
+          <p className="mono int-replay-note">le replay rejoue tout le run — aucun filtre par cellule ou métrique côté serveur, il n'y a pas de portée à choisir</p>
         )}
       </div>
     </div>

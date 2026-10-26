@@ -36,7 +36,7 @@ export function MetricCard({
   const verdictSym = showVerdict ? verdict as string : trendSymOf(trend)
   // sévérité réelle seulement : la valeur prend la couleur du verdict, jamais
   // celle du flash (le flash transitoire reste un flash, pas une sévérité)
-  const baseColor = showVerdict ? LEVEL_COLOR[verdictLevel as Level] : '#f2f2f4'
+  const baseColor = showVerdict ? LEVEL_COLOR[verdictLevel as Level] : 'var(--text-primary)'
   const clipId = useId().replace(/:/g, '-')
   // flash directionnel — la carte s'allume quand SA valeur change (montée = rouge,
   // descente = vert pour une métrique où bas = mieux; le parent décide via good/badIsUp)
@@ -67,48 +67,48 @@ export function MetricCard({
     return data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / rng) * h}`).join(' ')
   }, [spark])
   return (
-    <div data-metric={term ?? label} data-testid={`metric-${term ?? label}`} className="card" style={{ padding: 12, border: '1px solid #26262a', background: 'var(--surface-card)', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
+    <div data-metric={term ?? label} data-testid={`metric-${term ?? label}`} className="card mc-card">
+      <div className="mc-head">
+        <span className="mono mc-label">
           {term ? <Explain term={term}>{label}</Explain> : label}
         </span>
-        <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, padding: '2px 6px', border: '1px solid #26262a', background: verdictColor + '14', color: verdictColor, lineHeight: 1 }}>{verdictSym}</span>
+        <span className="mono mc-verdict" style={{ background: `color-mix(in srgb, ${verdictColor} 8%, transparent)`, color: verdictColor }}>{verdictSym}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span className={'mono' + (flash ? (flash === 'up' ? ' val-flash-up' : ' val-flash-down') : '')} style={{ fontFamily: 'JetBrains Mono', fontSize: 20, fontWeight: 700, color: flash === 'up' ? 'var(--t-ok)' : flash === 'down' ? 'var(--t-danger-text, #e84a3a)' : baseColor, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{value}</span>
-        {unit ? <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: 'var(--text-faint, #7e838c)' }}>{unit}</span> : null}
+      <div className="mc-value-row">
+        <span className={'mono mc-value' + (flash ? (flash === 'up' ? ' val-flash-up' : ' val-flash-down') : '')} style={{ color: flash === 'up' ? 'var(--t-ok)' : flash === 'down' ? 'var(--t-danger-text)' : baseColor }}>{value}</span>
+        {unit ? <span className="mono mc-unit">{unit}</span> : null}
       </div>
       {threshold && value !== '—' ? (
-        <div role="img" aria-label={`seuil ${threshold.marker} %`} style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, position: 'relative', marginTop: 2 }}>
-          <div style={{ width: `${Math.max(0, Math.min(100, (parseFloat(value) / threshold.max) * 100))}%`, height: '100%', background: baseColor, borderRadius: 2, transition: 'width 0.4s ease' }} />
-          <div style={{ position: 'absolute', left: `${(threshold.marker / threshold.max) * 100}%`, top: -2, bottom: -2, width: 1, background: 'var(--text-faint, #7e838c)' }} />
+        <div role="img" aria-label={`seuil ${threshold.marker} %`} className="mc-track">
+          <div className="mc-fill" style={{ background: baseColor, transform: `scaleX(${Math.max(0, Math.min(1, parseFloat(value) / threshold.max))})` }} />
+          <div className="mc-marker" style={{ left: `${(threshold.marker / threshold.max) * 100}%` }} />
         </div>
       ) : null}
       {path ? (
-        <svg width={60} height={12} style={{ display: 'block', marginTop: 2 }} aria-hidden>
+        <svg width={60} height={12} className="mc-spark" aria-hidden>
           <defs><clipPath id={clipId}><rect width={60} height={12} rx={4} /></clipPath></defs>
-          <g clipPath={`url(#${clipId})`}><polyline fill="none" stroke={color} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" points={path} style={{ filter: `drop-shadow(0 0 4px ${color}66)` }} /></g>
+          <g clipPath={`url(#${clipId})`}><polyline fill="none" stroke={color} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" points={path} style={{ filter: `drop-shadow(0 0 4px color-mix(in srgb, ${color} 40%, transparent))` }} /></g>
         </svg>
       ) : (
-        <div style={{ height: 12, borderTop: '1px solid #1a1a1e', marginTop: 2, opacity: 0.4 }} />
+        <div className="mc-empty" />
       )}
     </div>
   )
 }
 
 function trendColorOf(trend: Trend): string {
-  return trend === 'up' ? 'var(--t-danger-text, #e84a3a)' : trend === 'down' ? '#1fa348' : 'var(--text-faint, #7e838c)'
+  return trend === 'up' ? 'var(--t-danger-text)' : trend === 'down' ? 'var(--t-ok)' : 'var(--text-faint)'
 }
 function trendSymOf(trend: Trend): string {
   return trend === 'up' ? '↗' : trend === 'down' ? '↘' : '—'
 }
 
 // Variante compacte: mêmes coquilles, pas d'abstraction en plus.
-export function SmallMetric({ label, value, color = '#9aa3ad' }: { label: string; value: string; color?: string }) {
+export function SmallMetric({ label, value, color = 'var(--t-neutral)' }: { label: string; value: string; color?: string }) {
   return (
-    <div style={{ height: 40, border: '1px solid #26262a', background: 'rgba(154,163,173,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px' }}>
-      <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.08em', color, textTransform: 'uppercase' }}>{label}</span>
-      <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f2f2f4', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+    <div className="sm-card">
+      <span className="mono sm-label" style={{ color }}>{label}</span>
+      <span className="mono sm-value">{value}</span>
     </div>
   )
 }

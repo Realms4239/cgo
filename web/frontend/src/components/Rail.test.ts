@@ -30,7 +30,9 @@ describe('Rail — largeur de la barre latérale', () => {
     expect(r).toContain('--rail-w')
     expect(r).not.toContain("style={{width: pinned?")
     const css = readAny(['web/frontend/src/styles/index.css','src/styles/index.css'])
-    expect(css).toContain('.rail { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; width: var(--rail-w, 56px); transition: width 400ms var(--ease); }')
+    expect(css).toContain('.rail { grid-area: side; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); background: var(--surface-soft); overflow: hidden; width: var(--rail-w, 56px); }')
+    // HM-6 : la largeur ne s'anime plus (layout thrash) — pas de transition width
+    expect(css).not.toMatch(/\.rail[^}]*transition:\s*[^;}]*\bwidth\b/)
     expect(css).not.toMatch(/\.rail\.pinned\s*{\s*width:/)
     expect(css).not.toMatch(/\.rail:not\(\.pinned\)\s*{\s*width:/)
   })

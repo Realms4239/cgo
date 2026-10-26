@@ -51,7 +51,7 @@ function useChart(_title: string, _unit: string) {
     // légende basse Grafana — noms des séries sous le graphe, grille remontée
     const names = series.map(s => (s as { name?: string }).name).filter((n): n is string => !!n)
     const leg = empty || names.length === 0 ? {} : {
-      legend: { bottom: 0, left: 'center', textStyle: { color: paletteOnce().textMuted, fontFamily: 'JetBrains Mono', fontSize: 'var(--fs-micro)' }, itemWidth: 14, itemHeight: 2, data: names },
+      legend: { bottom: 0, left: 'center', textStyle: { color: paletteOnce().textMuted, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)' }, itemWidth: 14, itemHeight: 2, data: names },
       grid: { left: 64, right: 32, top: 48, bottom: 58, containLabel: true },
     }
     const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), ...leg, ...extra, series } as unknown as EChartsOption
@@ -85,8 +85,8 @@ const ChartSurface = memo(function ChartSurface({ title, unit, domId, height, em
     return () => { ro.disconnect(); try { c.dispose() } catch { }; onReady(null) }
   }, [])
   return (
-    <div style={{ position: 'relative', height }}>
-      <div ref={boxRef} id={domId} style={{ width: '100%', height: '100%' }} />
+    <div className="chart-surface" style={{ height }}>
+      <div ref={boxRef} id={domId} className="chart-box" />
       {empty && <EmptyChart hint={hint} />}
     </div>
   )
@@ -127,6 +127,9 @@ export default function LiveView() {
   const [shapeMsg, setShapeMsg] = useState('')
   const [journal, setJournal] = useState<{ ts: string; kind: string; msg: string }[]>([])
   const [journalTotal, setJournalTotal] = useState(0)
+  const [journalOpen, setJournalOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem('live-journal-open') === '1' } catch { return false }
+  })
   const [linkOpen, setLinkOpen] = useState(false)
   const [watching, setWatching] = useState(false)
   const [burstCc, setBurstCc] = useState('bbr')
@@ -211,7 +214,7 @@ export default function LiveView() {
   // p95 partiel honnête — le nombre est vrai (fenêtre courante), seulement
   // la complétude est indiquée : "en cours 42 s/120 s" si la phase tourne.
   const phaseTotalHint = liveSnap?.running && liveSnap.phase && liveSnap.phase_total_s
-    ? <span className="mono" style={{ marginLeft: 'auto', fontSize: 'var(--fs-micro)', color: 'var(--text-faint)' }}>
+    ? <span className="mono live-phase-hint">
         {liveSnap.small_p95_ms > 0 ? `p95 partiel ${liveSnap.small_p95_ms.toFixed(1)} ms — ` : ''}
         {liveSnap.phase} en cours
       </span>
@@ -322,6 +325,10 @@ export default function LiveView() {
       useUIStore.getState().pushToast?.(j.watch ? 'surveillance active — le mur est vivant' : 'surveillance arrêtée', 'ok')
     } catch (e) { useUIStore.getState().pushToast?.(String(e), 'err') }
   }
+  const toggleJournal = () => setJournalOpen(o => {
+    try { localStorage.setItem('live-journal-open', o ? '0' : '1') } catch { }
+    return !o
+  })
   const exportConstat = () => {
     if (locked == null || liveSmallMedian == null) return
     const diff = Math.round(((locked.ms - liveSmallMedian) / locked.ms) * 100)
@@ -372,18 +379,18 @@ export default function LiveView() {
   // une seule voix d'attente partout — le vide ne parle qu'une langue
   const IDLE_HINT = 'en attente — démarrez une campagne depuis Campagne'
   return (
-    <div id="wall" className="panel-stack" style={{ position: 'relative' }}>
+    <div id="wall" className="panel-stack live-stage">
       {peek && (
         <PeekPopover rect={peek.rect}>
-          <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>live p95 — point</div>
-          <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-body)', color: 'var(--t-live)' }}>{peek.value.toFixed(1)} ms</div>
-          <div style={{ display: 'flex', alignItems: 'end', gap: 1, height: 20, marginTop: 4 }}>
+          <div className="mono live-peek-label">live p95 — point</div>
+          <div className="mono live-peek-value">{peek.value.toFixed(1)} ms</div>
+          <div className="live-peek-spark">
             {live.rtt95.slice(-20).map(([, v]: [number, number], i: number) => <i key={i} style={{ flex: 1, height: `${Math.max(2, Math.min(20, (v / 300) * 20))}px`, background: CRAFT.live, borderRadius: 1, opacity: 0.6 + i * 0.02 }} />)}
           </div>
         </PeekPopover>
       )}
       <div ref={bannerRef} className="banner mono" style={{ color: bannerColor, borderColor: bannerColor + '55', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ overflowWrap: 'anywhere', minWidth: 0 }}>{banner}</span>
+        <span className="live-banner-msg">{banner}</span>
         <EventBadge />
         {phaseTotalHint}
       </div>
@@ -391,16 +398,16 @@ export default function LiveView() {
       <Card
         head="Petits objets p95"
         sub="p95 · fenêtre 180 s"
-        style={{ height: 300, gridColumn: '1 / -1' }}
+        className="live-hero-card"
         onMouseEnter={e => { setHovered(true); const v = live.small.at(-1)?.[1] ?? smallP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); small.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.small.length - 1) }) }}
         onMouseLeave={() => { setHovered(false); setPeek(null) }}
       >
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div className="chart-flex">
           <ChartSurface title="Petits objets p95" unit="ms" domId="chart-small" height="100%" empty={heroEmpty} hint={IDLE_HINT} onReady={small.onReady} />
         </div>
       </Card>
       )}
-      {!liveSnap && !showLiveSrc && <div className="card" style={{ border: '1px dashed var(--hairline)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}><EmptyState kind="idle" hint={IDLE_HINT} /></div>}
+      {!liveSnap && !showLiveSrc && <div className="card live-empty"><EmptyState kind="idle" hint={IDLE_HINT} /></div>}
       {/* guide de lecture (U6a) — que disent ces chiffres, repliable, au-dessus du bento */}
       <LiveGuide />
       {/* Q4 metric pill — toggles the metric groups; one 5-col bento, 10 cells, no misaligned rows */}
@@ -416,10 +423,10 @@ export default function LiveView() {
         <MetricCard term="rtt_p50" label="RTT médian" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP50, settings)]} spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} verdict={rttP50 ? verdictWord(latencyLevel(rttP50, settings)) : undefined} verdictLevel={rttP50 ? latencyLevel(rttP50, settings) : undefined} />
         <div data-testid="qdi-sparkline"><MetricCard term="QDI" label="Dispersion" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
         <Card head="JFI" sub={jfiServerPct > 0 ? 'équité inter-flux mesurée' : 'équité inter-flux (rings, 0–1)'} testid="qdi-card" term="JFI">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
-            <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-head)', fontWeight: 700, color: jfiVal === null ? 'var(--text-body)' : LEVEL_COLOR[jfiLevel(jfiVal)], fontVariantNumeric: 'tabular-nums', letterSpacing: 'var(--tt-neg-02)' }}>{jfiVal === null ? '—' : jfiServerPct > 0 ? `${jfiServerPct.toFixed(1)} %` : jfiVal.toFixed(2)}</span>
+          <div className="jfi-row">
+            <span className="mono jfi-value" style={{ color: jfiVal === null ? 'var(--text-body)' : LEVEL_COLOR[jfiLevel(jfiVal)] }}>{jfiVal === null ? '—' : jfiServerPct > 0 ? `${jfiServerPct.toFixed(1)} %` : jfiVal.toFixed(2)}</span>
             <DonutJFI value={jfiVal} />
-            {jfiVal !== null && <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', padding: '2px 6px', border: '1px solid var(--hairline)', background: LEVEL_COLOR[jfiLevel(jfiVal)] + '14', color: LEVEL_COLOR[jfiLevel(jfiVal)], lineHeight: 1 }}>{verdictWord(jfiLevel(jfiVal))}</span>}
+            {jfiVal !== null && <span className="mono jfi-badge" style={{ background: `color-mix(in srgb, ${LEVEL_COLOR[jfiLevel(jfiVal)]} 8%, transparent)`, color: LEVEL_COLOR[jfiLevel(jfiVal)] }}>{verdictWord(jfiLevel(jfiVal))}</span>}
           </div>
         </Card>
         <MetricCard term="drops" label="Pertes" value={idle ? '—' : String(drops)} unit="" color={LEVEL_COLOR[dropsLevel(drops)]} trend={drops > 0 ? 'up' : 'flat'} spark={spark(live.drops)} verdict={idle ? undefined : verdictWord(dropsLevel(drops))} verdictLevel={idle ? undefined : dropsLevel(drops)} />
@@ -430,7 +437,7 @@ export default function LiveView() {
       </div>
       )}
       {showLiveSrc && (
-      <div className="wall-span duo" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap, 24px)' }}>
+      <div className="wall-span duo wall-duo">
         <Card
           head="RTT"
           sub="p50 · p95"
@@ -453,7 +460,7 @@ export default function LiveView() {
           Contrôle de forme — prescrire CAKE alors que CAKE est déjà appliqué
           au bord contredit l'état propre (preuve shape=cake aux shots). */}
       {showLiveSrc && rttP95 != null && rttP95 > settings.critMs && !(shape?.applied && shape.qdisc === 'cake') && (
-        <div className="mono" data-testid="runbook-pointer" style={{ gridColumn: '1 / -1', fontSize: 'var(--fs-micro)', color: 'var(--t-warn)', border: '1px dashed rgba(244,180,0,0.4)', padding: '6px 10px' }}>
+        <div className="mono live-runbook" data-testid="runbook-pointer">
           bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
         </div>
       )}
@@ -462,7 +469,7 @@ export default function LiveView() {
       {/* live-wall-overlay: baseline gris pointillé vs CAKE violet uni, même
           échelle figée ; le live n'y figure plus — sa comparaison vit dans
           avant/maintenant (même fenêtre), le 738 figé ne l'écrase plus */}
-      <div className="live-wall-overlay card" data-testid="live-wall-overlay" style={{ gridColumn: '1 / -1', border: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+      <div className="live-wall-overlay card live-overlay" data-testid="live-wall-overlay">
         <CardHead
           label={`Figée vs appliqué — ${baseline?.qdisc ?? 'pfifo'} → ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
           sub={`source ${tri.source} · hash ${hash8} · ${wallGroups ? `${wallGroups.length} groupes gelés` : 'en attente'}`}
@@ -471,107 +478,102 @@ export default function LiveView() {
           ) : undefined}
         />
         {diffAB != null && (
-          <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>
+          <div className="mono live-overlay-note">
             {diffAB > 0
               ? `cake répond ${diffAB} % plus vite que la file simple — médianes figées, même campagne`
               : `la file simple répond ${Math.abs(diffAB)} % plus vite — médianes figées, même campagne`}
           </div>
         )}
-        {/* edge control — verrouiller la baseline, façonner le bord, constat exportable */}
-        <div style={{ border: '1px solid var(--hairline)', background: 'rgba(90,211,227,0.03)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-            <div style={{ minWidth: 0 }}>
-              <span className="mono" style={{ fontFamily: 'var(--font-mono, JetBrains Mono)', fontSize: 'var(--fs-tag)', letterSpacing: 'var(--tt-08)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                Contrôle du bord — {locked ? `figée ${locked.at}` : 'référence'} vs {shape?.applied ? shape.qdisc : 'sans façonnage'}
-              </span>
-              <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-faint)', marginTop: 2 }}>{shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}</div>
+        {/* edge control — trois sections calmes : Surveillance / Façonnage / Essai */}
+        <div className="edge-control" data-idle={idle ? '1' : '0'} data-testid="edge-control">
+          <section className="edge-section">
+            <CardHead label="Surveillance" sub={watching ? 'sondes légères en continu' : 'sondes arrêtées'} />
+            <div className="edge-row">
+              <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
+              <Pill label="conditions" value={linkOpen ? 'masquer' : `${settings.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
+              <button className="btn edge-btn" onClick={lockBaseline} disabled={liveSmallMedian == null}>FIGER L'AVANT{liveSmallMedian != null ? ` — ${liveSmallMedian.toFixed(1)} ms` : ''}</button>
+              {locked && <Pill label="avant" value={`${locked.ms} ms @ ${locked.at}`} on title="avant figé — cliquer pour libérer" onClick={() => { setLocked(null); try { localStorage.removeItem('wall-baseline') } catch { } }} />}
+              <button className="btn btn-primary edge-btn edge-btn-end" onClick={exportConstat} disabled={locked == null || liveSmallMedian == null}>TÉLÉCHARGER LE CONSTAT</button>
             </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
-                <Explain term="capacity">
-                  <input
-                    type="number" min={1} max={1000} placeholder="20" value={shapeCap}
-                    onChange={e => setShapeCap(parseInt(e.target.value) || 20)}
-                    aria-label="capacité du bord (Mbit/s)"
-                    style={{ width: 74, background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '5px 6px', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)' }}
+            {shapeMsg && <div className="mono edge-msg" style={{ color: shapeMsg.includes('erreur') || shapeMsg.includes('échec') ? 'var(--t-danger-text)' : 'var(--t-ok)' }}>{shapeMsg}</div>}
+            {locked && showLiveSrc && liveSmallMedian != null && (
+              <div className="edge-ab">
+                <div className="mono edge-ab-head">
+                  <span>avant → maintenant, même fenêtre</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', color: liveDiff != null && liveDiff > 0 ? 'var(--t-ok)' : 'var(--t-danger-text)' }}>{liveDiff != null ? `${liveDiff > 0 ? '-' : '+'}${Math.abs(liveDiff)} %` : '—'}</span>
+                </div>
+                <div className="edge-bar edge-bar-before">
+                  <div className="edge-fill edge-fill-before" style={{ transform: `scaleX(${Math.min(1, locked.ms / Math.max(locked.ms, liveSmallMedian))})` }} />
+                </div>
+                <div className="edge-bar edge-bar-after">
+                  <div className="edge-fill edge-fill-after" style={{ transform: `scaleX(${Math.min(1, liveSmallMedian / Math.max(locked.ms, liveSmallMedian))})` }} />
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="edge-section">
+            <CardHead label="Façonnage" sub={shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'} />
+            <div className="edge-row">
+              <Explain term="capacity">
+                <input
+                  type="number" min={1} max={1000} placeholder="20" value={shapeCap}
+                  onChange={e => setShapeCap(parseInt(e.target.value) || 20)}
+                  aria-label="capacité du bord (Mbit/s)"
+                  className="c-input edge-cap"
+                />
+              </Explain>
+              <span className="mono edge-note">Mbit/s</span>
+              {/* une campagne active possède le shaper — le levier répond 409 :
+                  on grise au lieu de laisser l'opérateur lever une erreur */}
+              {['none', 'fq_codel', 'cake'].map(q => (
+                <span
+                  key={q}
+                  title={liveSnap?.running ? "campagne active — le façonnage redevient disponible à l'arrêt" : `appliquer ${q} au bord`}
+                  style={{ opacity: liveSnap?.running ? 'var(--disabled-opacity)' : 1, cursor: liveSnap?.running ? 'not-allowed' : 'pointer' }}
+                >
+                  <Pill
+                    label={q === 'none' ? 'sans' : q}
+                    on={shape?.applied && shape.qdisc === q}
+                    onClick={liveSnap?.running ? undefined : () => applyShape(q)}
+                    title={liveSnap?.running ? 'campagne active — arrêtez la mesure pour façonner' : `appliquer ${q} au bord`}
                   />
-                </Explain>
-                <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-body)' }}>Mbit/s</span>
-                <Pill label="conditions" value={linkOpen ? 'masquer' : `${settings.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
-                {/* une campagne active possède le shaper — le levier répond 409 :
-                    on grise au lieu de laisser l'opérateur lever une erreur */}
-                {['none', 'fq_codel', 'cake'].map(q => (
-                  <span
-                    key={q}
-                    title={liveSnap?.running ? 'campagne active — le façonnage redevient disponible à l\'arrêt' : `appliquer ${q} au bord`}
-                    style={{ opacity: liveSnap?.running ? 0.45 : 1, cursor: liveSnap?.running ? 'not-allowed' : 'pointer' }}
-                  >
-                    <Pill
-                      key={q}
-                      label={q === 'none' ? 'sans' : q}
-                      on={shape?.applied && shape.qdisc === q}
-                      onClick={liveSnap?.running ? undefined : () => applyShape(q)}
-                      title={liveSnap?.running ? 'campagne active — arrêtez la mesure pour façonner' : `appliquer ${q} au bord`}
-                    />
-                  </span>
-                ))}
-              </div>
-          </div>
-          {/* burst test — CUBIC vs BBR à travers le bord façonné, sous surveillance */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="mono" style={{ fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tt-08)', textTransform: 'uppercase', color: 'var(--text-body)' }}><Explain term="burst">Burst test</Explain></span>
-            {['cubic', 'bbr'].map(c => (
-              <button key={c} className="btn" onClick={() => setBurstCc(c)} style={{
-                padding: '3px 10px', fontSize: 'var(--fs-micro)', fontFamily: 'var(--font-mono)',
-                border: '1px solid ' + (burstCc === c ? 'var(--hairline-strong)' : 'var(--hairline)'),
-                background: burstCc === c ? 'rgba(90,211,227,0.12)' : 'transparent',
-                color: burstCc === c ? 'var(--t-live)' : 'var(--text-body)',
-              }}>{c}</button>
-            ))}
-            <button className="btn" onClick={runBurst} disabled={bursting || !!liveSnap?.running} style={{ padding: '4px 12px', fontSize: 'var(--fs-micro)' }}>
-              {bursting ? `burst ${burstCc}…` : `TESTER ${burstCc.toUpperCase()}`}
-            </button>
-            <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-body)' }}>{liveSnap?.running ? 'indisponible pendant la campagne' : 'traverse le bord façonné — regardez goodput et RTT'}</span>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn" onClick={lockBaseline} disabled={liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 'var(--fs-micro)' }}>FIGER L'AVANT{liveSmallMedian != null ? ` — ${liveSmallMedian.toFixed(1)} ms` : ''}</button>
-            {locked && <Pill label="avant" value={`${locked.ms} ms @ ${locked.at}`} on title="avant figé — cliquer pour libérer" onClick={() => { setLocked(null); try { localStorage.removeItem('wall-baseline') } catch { } }} />}
-            <button className="btn btn-primary" onClick={exportConstat} disabled={locked == null || liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 'var(--fs-micro)', marginLeft: 'auto' }}>TÉLÉCHARGER LE CONSTAT</button>
-          </div>
-          {shapeMsg && <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: shapeMsg.includes('erreur') || shapeMsg.includes('échec') ? CRAFT.danger : CRAFT.ok }}>{shapeMsg}</div>}
-          {locked && showLiveSrc && liveSmallMedian != null && (
-            <div>
-              <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                <span>avant → maintenant, même fenêtre</span>
-                <span style={{ fontVariantNumeric: 'tabular-nums', color: liveDiff != null && liveDiff > 0 ? CRAFT.ok : CRAFT.danger }}>{liveDiff != null ? `${liveDiff > 0 ? '-' : '+'}${Math.abs(liveDiff)} %` : '—'}</span>
-              </div>
-              <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed var(--text-faint)', borderRadius: 2, overflow: 'hidden', marginTop: 4, position: 'relative' }}>
-                <div style={{ width: `${Math.min(100, (locked.ms / Math.max(locked.ms, liveSmallMedian)) * 100)}%`, height: '100%', background: 'var(--text-faint)', opacity: 0.9, transition: 'width 0.4s ease' }} />
-              </div>
-              <div style={{ height: 10, background: 'rgba(90,211,227,0.08)', border: '1px solid ' + CRAFT.live, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
-                <div style={{ width: `${Math.min(100, (liveSmallMedian / Math.max(locked.ms, liveSmallMedian)) * 100)}%`, height: '100%', background: CRAFT.live, boxShadow: '0 0 6px rgba(90,211,227,0.5)', transition: 'width 0.4s ease' }} />
-              </div>
+                </span>
+              ))}
             </div>
-          )}
+          </section>
+
+          <section className="edge-section">
+            <CardHead label="Essai" sub={liveSnap?.running ? 'indisponible pendant la campagne' : 'traverse le bord façonné — regardez goodput et RTT'} />
+            <div className="edge-row">
+              <span className="mono edge-note"><Explain term="burst">Burst test</Explain></span>
+              {['cubic', 'bbr'].map(c => (
+                <button key={c} className="btn edge-btn" aria-pressed={burstCc === c} onClick={() => setBurstCc(c)}>{c}</button>
+              ))}
+              <button className="btn btn-primary edge-btn" onClick={runBurst} disabled={bursting || !!liveSnap?.running}>
+                {bursting ? `burst ${burstCc}…` : `TESTER ${burstCc.toUpperCase()}`}
+              </button>
+            </div>
+          </section>
         </div>
         {showFrozenSrc && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="edge-frozen">
             <div>
-              <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', color: 'var(--text-faint)', display: 'flex', justifyContent: 'space-between' }}>
+              <div className="mono edge-ab-head">
                 <span>baseline figée — gris pointillé</span>
-                <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-body)' }}>{baseline ? `${baseline.small_p95_median.toFixed(1)} ms` : '—'}</span>
+                <span className="edge-ab-num">{baseline ? `${baseline.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
-              <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed var(--text-faint)', borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
-                <div style={{ width: `${baseline ? (baseline.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: 'var(--text-faint)', opacity: 0.9, transition: 'width 0.4s ease' }} />
+              <div className="edge-bar edge-bar-before">
+                <div className="edge-fill edge-fill-before" style={{ transform: `scaleX(${Math.min(1, baseline ? baseline.small_p95_median / maxAB : 0)})` }} />
               </div>
             </div>
             <div>
-              <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', color: CRAFT.bbr, display: 'flex', justifyContent: 'space-between' }}>
+              <div className="mono edge-ab-head edge-ab-head-cake">
                 <span>{shape?.applied ? shape.qdisc : "cake"} — violet uni{cakeBest?.best ? ' ★' : ''}</span>
-                <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-body)' }}>{cakeBest ? `${cakeBest.small_p95_median.toFixed(1)} ms` : '—'}</span>
+                <span className="edge-ab-num">{cakeBest ? `${cakeBest.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
-              <div style={{ height: 10, background: 'rgba(180,138,224,0.08)', border: '1px solid ' + CRAFT.bbr, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
-                <div style={{ width: `${cakeBest ? (cakeBest.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: CRAFT.bbr, boxShadow: '0 0 6px rgba(180,138,224,0.5)', transition: 'width 0.4s ease' }} />
+              <div className="edge-bar edge-bar-cake">
+                <div className="edge-fill edge-fill-cake" style={{ transform: `scaleX(${Math.min(1, cakeBest ? cakeBest.small_p95_median / maxAB : 0)})` }} />
               </div>
             </div>
           </div>
@@ -579,15 +581,24 @@ export default function LiveView() {
       </div>
 
       {journal.length > 0 && (
-        <div className="card" data-testid="journal" style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <CardHead label="Journal" sub={`${Math.min(journal.length, 12)} affichés sur ${journalTotal} reçus`} />
-          {journal.slice(0, 12).map((e, i) => (
-            <div key={i} className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
-              <span style={{ color: 'var(--text-faint)' }}>{e.ts.slice(11, 19)}</span>
-              <span style={{ color: 'var(--t-live)', minWidth: 84 }}>{e.kind}</span>
-              <span className="ev-msg" title={e.msg} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{truncateWords(e.msg, 120)}</span>
+        <div className="card live-journal" data-testid="journal">
+          <div className="live-journal-head">
+            <CardHead label="Journal" sub={`${Math.min(journal.length, 12)} affichés sur ${journalTotal} reçus`} />
+            <button className="btn live-journal-toggle" onClick={toggleJournal} aria-expanded={journalOpen} aria-controls="live-journal-body">
+              {journalOpen ? 'masquer' : 'afficher'}
+            </button>
+          </div>
+          {journalOpen && (
+            <div id="live-journal-body" className="live-journal-body">
+              {journal.slice(0, 12).map((e, i) => (
+                <div key={i} className="mono live-journal-row">
+                  <span className="live-journal-ts">{e.ts.slice(11, 19)}</span>
+                  <span className="live-journal-kind">{e.kind}</span>
+                  <span className="ev-msg live-journal-msg" title={e.msg}>{truncateWords(e.msg, 120)}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
       {liveSnap?.running && <Beam hovered={hovered} />}

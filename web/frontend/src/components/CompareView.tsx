@@ -4,6 +4,7 @@ import { baseOption, lineSeries, CRAFT } from '../lib/chartGrammar'
 import { CardHead } from './ui/CardHead'
 import { EmptyState } from './ui/EmptyState'
 import { asArray, improve, fmtCount, verdictHeadline } from '../lib/format'
+import { paletteOnce } from '../lib/palette'
 
 // Métriques du live — Comparaison BBR×AQM « pin A/B » : deux cellules gelées, traces
 // alignées par événement, table d'écart (médianes, p95, pertes, coût Ariary),
@@ -126,11 +127,11 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
       xAxis: {
         ...base.xAxis, type: 'value' as const,
         name: 'mesure (ordre dans le run)', nameLocation: 'middle' as const, nameGap: 30,
-        nameTextStyle: { color: '#7e838c', fontSize: 10, fontFamily: 'JetBrains Mono' },
-        axisLabel: { color: '#8b9099', fontSize: 10, fontFamily: 'JetBrains Mono' },
+        nameTextStyle: { color: paletteOnce().textFaint, fontSize: 'var(--fs-micro)', fontFamily: 'var(--font-mono)' },
+        axisLabel: { color: paletteOnce().textMuted, fontSize: 'var(--fs-micro)', fontFamily: 'var(--font-mono)' },
         minInterval: 1,
       },
-      legend: { textStyle: { color: '#8b9099', fontSize: 10, fontFamily: 'JetBrains Mono' }, top: 4 },
+      legend: { textStyle: { color: paletteOnce().textMuted, fontSize: 'var(--fs-micro)', fontFamily: 'var(--font-mono)' }, top: 4 },
       series: [
         { ...lineSeries(`A — ${cellName(a)}`, mk(rows.a.filter(r => matches(r, a))), CRAFT.live), name: `A — ${cellName(a)}` },
         { ...lineSeries(`B — ${cellName(b)}`, mk(rows.b.filter(r => matches(r, b))), CRAFT.ok), name: `B — ${cellName(b)}` },
@@ -200,7 +201,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
   }
 
   const runSelect = (value: string | null, set: (v: string) => void, side: string) => (
-    <select value={value ?? ''} onChange={e => set(e.target.value)} aria-label={`run ${side}`} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '4px 6px', fontFamily: 'var(--font-mono)', fontSize: 10, maxWidth: 200 }}>
+    <select value={value ?? ''} onChange={e => set(e.target.value)} aria-label={`run ${side}`} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '4px 6px', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', maxWidth: 200 }}>
       {runs.map(r => <option key={r} value={r}>{r}</option>)}
     </select>
   )
@@ -210,26 +211,26 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
       <CardHead
         label={`Comparaison — ${cellName(a)} vs ${cellName(b)}`}
         sub="cellules figées, même échelle — choisissez le run de chaque côté si la cellule est absente"
-        right={<button className="btn" onClick={onClose} style={{ padding: '4px 10px', fontSize: 10 }}>FERMER</button>}
+        right={<button className="btn" onClick={onClose} style={{ padding: '4px 10px', fontSize: 'var(--fs-micro)' }}>FERMER</button>}
       />
-      <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <span>A : {runA ?? '—'} {stats && stats.a.small_p95_ms.n === 0 ? <b style={{ color: CRAFT.threshold }}>(cellule absente de ce run — médiane sur tout le run)</b> : null}</span>
         <span>B : {runB ?? '—'} {stats && stats.b.small_p95_ms.n === 0 ? <b style={{ color: CRAFT.threshold }}>(cellule absente de ce run)</b> : null}</span>
       </div>
       {verdict && (
-        <div className="mono" style={{ fontSize: 12, color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '8px 12px', background: 'rgba(90,211,227,0.05)' }}>
+        <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '8px 12px', background: 'rgba(90,211,227,0.05)' }}>
           Verdict — {verdict}
           {infer && infer.mw_p_two_sided != null && (
-            <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
+            <span style={{ display: 'block', marginTop: 4, fontSize: 'var(--fs-tag)', color: 'var(--text-muted)' }}>
               Tous runs, mesures valides : {Number(infer.mw_p_two_sided) < 0.05 ? 'écart net' : 'écart pas net'} (p={Number(infer.mw_p_two_sided).toExponential(1)}) ; ampleur {infer.cliff_interp ?? '—'} ; n={infer.n_a}/{infer.n_b} mesures
             </span>
           )}
         </div>
       )}
       <div ref={chartRef} style={{ height: 240 }} />
-      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+      <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-cap)' }}>
         <thead><tr style={{ color: 'var(--text-muted)', textAlign: 'left', borderBottom: '1px solid var(--hairline)' }}>
-          <th style={{ padding: '6px 8px' }}>métrique</th><th style={{ padding: '6px 8px' }}>A</th><th style={{ padding: '6px 8px' }}>B</th><th style={{ padding: '6px 8px' }}>écart</th>
+          <th style={{ padding: 'var(--sp-1) var(--sp-2)' }}>métrique</th><th style={{ padding: 'var(--sp-1) var(--sp-2)' }}>A</th><th style={{ padding: 'var(--sp-1) var(--sp-2)' }}>B</th><th style={{ padding: 'var(--sp-1) var(--sp-2)' }}>écart</th>
         </tr></thead>
         <tbody>
           {METRICS.map(m => {
@@ -242,22 +243,22 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
             const imp = improve(va, vb, m.dir)
             return (
               <tr key={m.key} style={{ borderBottom: '1px solid var(--hairline-faint)' }}>
-                <td style={{ padding: '6px 8px', textAlign: 'left' }}>{m.label}</td>
-                <td style={{ padding: '6px 8px' }}>{fmt(m, va)}</td>
-                <td style={{ padding: '6px 8px', color: better ? CRAFT.ok : 'var(--text-body)' }}>{fmt(m, vb)}</td>
-                <td title={imp == null ? 'pas de base de comparaison' : imp === 0 ? 'pareil des deux côtés' : imp > 0 ? 'mieux côté B, dans le sens de la métrique' : 'moins bon côté B, dans le sens de la métrique'} style={{ padding: '6px 8px', color: imp == null ? 'var(--text-body)' : imp > 0 ? CRAFT.ok : imp < 0 ? CRAFT.danger : 'var(--text-body)' }}>{imp == null ? '—' : imp > 0 ? `+${imp} %` : imp < 0 ? `${imp} %` : '0 %'}</td>
+                <td style={{ padding: 'var(--sp-1) var(--sp-2)', textAlign: 'left' }}>{m.label}</td>
+                <td style={{ padding: 'var(--sp-1) var(--sp-2)' }}>{fmt(m, va)}</td>
+                <td style={{ padding: 'var(--sp-1) var(--sp-2)', color: better ? CRAFT.ok : 'var(--text-body)' }}>{fmt(m, vb)}</td>
+                <td title={imp == null ? 'pas de base de comparaison' : imp === 0 ? 'pareil des deux côtés' : imp > 0 ? 'mieux côté B, dans le sens de la métrique' : 'moins bon côté B, dans le sens de la métrique'} style={{ padding: 'var(--sp-1) var(--sp-2)', color: imp == null ? 'var(--text-body)' : imp > 0 ? CRAFT.ok : imp < 0 ? CRAFT.danger : 'var(--text-body)' }}>{imp == null ? '—' : imp > 0 ? `+${imp} %` : imp < 0 ? `${imp} %` : '0 %'}</td>
               </tr>
             )
           })}
         </tbody>
       </table>
       <div className="form-row" style={{ gap: 8, alignItems: 'center' }}>
-        <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>run A :</span>
+        <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>run A :</span>
         {runSelect(runA, setRunA, 'A')}
-        <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 12 }}>run B :</span>
+        <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', marginLeft: 12 }}>run B :</span>
         {runSelect(runB, setRunB, 'B')}
-        <button className="btn" onClick={exportCSV} style={{ padding: '4px 10px', fontSize: 10, marginLeft: 'auto' }}>CSV</button>
-        <button className="btn" onClick={exportJSON} style={{ padding: '4px 10px', fontSize: 10 }}>JSON</button>
+        <button className="btn" onClick={exportCSV} style={{ padding: '4px 10px', fontSize: 'var(--fs-micro)', marginLeft: 'auto' }}>CSV</button>
+        <button className="btn" onClick={exportJSON} style={{ padding: '4px 10px', fontSize: 'var(--fs-micro)' }}>JSON</button>
       </div>
     </div>
   )

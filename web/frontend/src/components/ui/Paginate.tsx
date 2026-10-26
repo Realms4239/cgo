@@ -41,10 +41,10 @@ export function Paginate({ total, page: propsPage, pageSize, onPage }: {
       key={label} className="btn mono" onClick={() => p != null && onPage(p)}
       disabled={disabled}
       style={{
-        padding: '3px 10px', fontSize: 11, fontFamily: 'var(--font-mono)',
-        border: '1px solid ' + (active ? '#3a3a40' : 'var(--hairline)'),
+        padding: '3px 10px', fontSize: 'var(--fs-tag)', fontFamily: 'var(--font-mono)',
+        border: '1px solid ' + (active ? 'var(--hairline-strong)' : 'var(--hairline)'),
         background: active ? 'rgba(90,211,227,0.12)' : 'transparent',
-        color: active ? '#7fd6e8' : disabled ? 'var(--text-faint)' : '#a9aeb6',
+        color: active ? 'var(--t-live)' : disabled ? 'var(--text-faint)' : 'var(--text-body)',
         cursor: disabled ? 'default' : 'pointer',
       }}
     >{label}</button>
@@ -54,10 +54,10 @@ export function Paginate({ total, page: propsPage, pageSize, onPage }: {
       {btn('← précédent', page - 1, false, page <= 1)}
       {pageList(page, totalPages).map((p, i) =>
         p === '…'
-          ? <span key={`e${i}`} className="mono" style={{ fontSize: 11, color: 'var(--text-faint)', padding: '0 2px' }}>…</span>
+          ? <span key={`e${i}`} className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-faint)', padding: '0 2px' }}>…</span>
           : btn(String(p), p, p === page, false))}
       {btn('suivant →', page + 1, false, page >= totalPages)}
-      <span className="mono" style={{ fontSize: 10, color: 'var(--text-faint)', marginLeft: 6, fontVariantNumeric: 'tabular-nums' }}>{total} au total</span>
+      <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-faint)', marginLeft: 6, fontVariantNumeric: 'tabular-nums' }}>{total} au total</span>
     </div>
   )
 }

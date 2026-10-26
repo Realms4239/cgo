@@ -42,7 +42,7 @@ export function ArmButton({ label, confirmLabel = 'CONFIRMER ?', onConfirm, disa
             left: 0,
             width: '100%',
             height: 1,
-            background: 'var(--t-danger, #e22718)',
+            background: 'var(--t-danger)',
             transformOrigin: 'left center',
           }}
         />

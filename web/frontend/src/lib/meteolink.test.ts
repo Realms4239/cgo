@@ -14,6 +14,7 @@ describe('meteolink', () => {
   })
   it('panel chooser exists', () => {
     const s=read('web/frontend/src/components/PanelChooser.tsx')
-    expect(s).toContain('Wall')
+    expect(s).toContain('PANELS.map')
+    expect(s).toContain('aria-pressed=')
   })
 })

@@ -354,7 +354,7 @@ export default function CampagneView() {
           ].map(x => (
             <div key={x.n} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 16 }}>
               <span className="mono" style={{ fontSize: 'var(--fs-head)', color: 'var(--t-live)' }}>{x.n}</span>
-              <span className="mono" style={{ fontSize: 'var(--fs-tag)', letterSpacing: 'var(--tt-08)', textTransform: 'uppercase', color: 'var(--text-body)' }}>{x.t}</span>
+              <span className="mono" style={{ fontSize: 'var(--fs-tag)', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--text-body)' }}>{x.t}</span>
               <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', lineHeight: 1.6, overflowWrap: 'break-word' }}>{x.d}</span>
             </div>
           ))}
@@ -388,7 +388,7 @@ export default function CampagneView() {
         <div className="card" data-testid="matrix-table">
           <div className="card-head">Matrice — état par cellule</div>
           <div style={{ overflowX: 'auto', minWidth: 0 }}>
-          <table className="data-table" style={{ width:'100%', minWidth: 340, borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:11 }}>
+          <table className="data-table" style={{ width:'100%', minWidth: 340, borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize: 'var(--fs-tag)' }}>
             <thead><tr style={{ color:'var(--text-body-strong)', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
               <th style={{ padding: 'var(--sp-1) var(--sp-2)' }}>profil</th><th>file × CC</th><th>répétitions</th><th>état</th>
             </tr></thead><tbody>
@@ -408,7 +408,7 @@ export default function CampagneView() {
             })))}
             </tbody></table>
           </div>
-          <div className="mono muted" style={{ fontSize:10, marginTop:6, overflowWrap: 'anywhere' }}>La campagne teste chaque combinaison dans cet ordre : profils, puis files, puis contrôles de congestion, puis répétitions{live?.running && live?.event_id != null ? ` · événement #${live.event_id}/${live?.total_events ?? '—'}` : ''}</div>
+          <div className="mono muted" style={{ fontSize: 'var(--fs-micro)', marginTop:6, overflowWrap: 'anywhere' }}>La campagne teste chaque combinaison dans cet ordre : profils, puis files, puis contrôles de congestion, puis répétitions{live?.running && live?.event_id != null ? ` · événement #${live.event_id}/${live?.total_events ?? '—'}` : ''}</div>
         </div>
         )}
       </div>
@@ -416,13 +416,13 @@ export default function CampagneView() {
       <aside className="panel-stack cockpit" style={{position:'fixed', right:0, top:48, bottom:28, width:380, zIndex:40, backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderLeft:'1px solid var(--hairline)', background:'rgba(7,7,7,0.85)', overflowY:'auto', padding:12}}>
       {peek && (
         <PeekPopover rect={peek.rect}>
-          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text-muted)', marginBottom:4}}>live small — 20 pts</div>
+          <div className="mono" style={{fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', color:'var(--text-muted)', marginBottom:4}}>live small — 20 pts</div>
           <div style={{display:'flex', alignItems:'end', gap:1, height:28}}>
             {peek.data.map((v,i)=>(
               <i key={i} style={{flex:1, height: `${Math.max(2, Math.min(28, (v/200)*28))}px`, background: 'var(--t-threshold)', borderRadius:1, opacity: 0.7 + (i/peek.data.length)*0.3}} />
             ))}
           </div>
-          <div className="mono" style={{fontSize:10, color:'var(--t-threshold)', marginTop:4}}>{peek.data.at(-1)?.toFixed(1) ?? '—'} ms</div>
+          <div className="mono" style={{fontSize: 'var(--fs-micro)', color:'var(--t-threshold)', marginTop:4}}>{peek.data.at(-1)?.toFixed(1) ?? '—'} ms</div>
         </PeekPopover>
       )}
       <div className="card">
@@ -446,7 +446,7 @@ export default function CampagneView() {
         <div className="form-row">
           <label title=">1 sature un lien avec perte où un CUBIC mono-flux s'effondre">Flux de charge</label>
           <input type="number" min={1} max={8} value={flows} onChange={e=>setFlows(parseInt(e.target.value)||1)} style={{width:64}} />
-          <span className="mono muted" style={{fontSize:10}}>1–8 · défaut 4</span>
+          <span className="mono muted" style={{fontSize: 'var(--fs-micro)'}}>1–8 · défaut 4</span>
         </div>
         <div className="form-row">
           <label><Explain term="canal">Canal</Explain></label>
@@ -465,7 +465,7 @@ export default function CampagneView() {
                     borderColor: active ? 'var(--t-live)' : 'var(--hairline)',
                     color: active ? 'var(--t-live)' : 'var(--text-muted)',
                     background: active ? 'var(--live-dim)' : 'transparent',
-                    opacity: blocked ? 'var(--state-disabled-opacity, 0.45)' : 1,
+                    opacity: blocked ? 'var(--disabled-opacity, 0.5)' : 1,
                     cursor: blocked ? 'not-allowed' : 'pointer',
                   }}
                 >{m}</button>
@@ -478,19 +478,19 @@ export default function CampagneView() {
         )}
         <div className="form-row">
           <label><Explain term="deadline">Deadline</Explain></label>
-          <input title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" type="number" min={200} max={5000} step={100} placeholder="1000" value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11}} />
-          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms</span>
+          <input title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" type="number" min={200} max={5000} step={100} placeholder="1000" value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)'}} />
+          <span className="mono muted" style={{fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)'}}>ms</span>
         </div>
         <div className="form-row" style={{gap:8, border:'1px solid var(--hairline)', background:'rgba(244,180,0,0.06)', padding: 'var(--sp-1) var(--sp-2)', marginTop:6}} onMouseEnter={e=>setPeek({rect:e.currentTarget.getBoundingClientRect(), data: liveRing.small.slice(-20).map(([,v]:[number,number])=>v)})} onMouseLeave={()=>setPeek(null)}>
-          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--text-muted)'}}>cost preview</span>
-          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color: live?.wasted_bytes != null ? 'var(--t-threshold)' : 'var(--text-faint)', fontVariantNumeric:'tabular-nums'}}>
+          <span className="mono" style={{fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tracking-wide)', textTransform:'uppercase', color:'var(--text-muted)'}}>cost preview</span>
+          <span className="mono" style={{fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)', color: live?.wasted_bytes != null ? 'var(--t-threshold)' : 'var(--text-faint)', fontVariantNumeric:'tabular-nums'}}>
             {(() => {
               if (!live || live.wasted_bytes == null || live.cost_ar_per_h == null) return '—'
               const w = formatBytesFR(live.wasted_bytes)
               return `${w.num} ${w.unit} gâchés · ${groupDigits(live.cost_ar_per_h, 2)} Ar/h`
             })()}
           </span>
-          <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10, marginLeft:'auto'}}>octets gâchés × tarif unique</span>
+          <span className="mono muted" style={{fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', marginLeft:'auto'}}>octets gâchés × tarif unique</span>
         </div>
         <div className="form-row" style={{gap:8}}>
           <span title={live?.running ? 'campagne en cours — arrêter d\'abord' : undefined}><ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running} /></span>
@@ -646,22 +646,22 @@ export default function CampagneView() {
         {importForm && <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
             <InlineField label="Identifiant" error={importValidation.errors.id} helper="jamais P1–P4 (référentiel protégé) — ex. P-site-fibre">
-              <input name="import-id" value={impId} onChange={e=>setImpId(e.target.value)} placeholder="P-site-fibre" style={{ background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input name="import-id" value={impId} onChange={e=>setImpId(e.target.value)} placeholder="P-site-fibre" style={{ background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)' }} />
             </InlineField>
             <InlineField label="Capacité (Mbit/s)" error={importValidation.errors.capacity} helper="> 0">
-              <input type="number" min={0.1} step={0.1} value={impCap} onChange={e=>setImpCap(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={0.1} step={0.1} value={impCap} onChange={e=>setImpCap(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)' }} />
             </InlineField>
             <InlineField label="Cap. montante (Mbit/s)" error={undefined} helper="0 = symétrique — ex. 5 pour 4G 20/5">
-              <input type="number" min={0} step={0.1} value={impCapUp} onChange={e=>setImpCapUp(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={0} step={0.1} value={impCapUp} onChange={e=>setImpCapUp(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)' }} />
             </InlineField>
             <InlineField label="RTT (ms)" error={importValidation.errors.delay} helper="> 0">
-              <input type="number" min={1} value={impDelay} onChange={e=>setImpDelay(parseInt(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={1} value={impDelay} onChange={e=>setImpDelay(parseInt(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)' }} />
             </InlineField>
             <InlineField label="Gigue (ms)" error={importValidation.errors.jitter} helper="≥ 0 — ex. 30 pour VSAT">
-              <input type="number" min={0} step={0.5} value={impJitter} onChange={e=>setImpJitter(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={0} step={0.5} value={impJitter} onChange={e=>setImpJitter(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)' }} />
             </InlineField>
             <InlineField label="Perte (%)" error={importValidation.errors.loss} helper="≥ 0 — ex. 1 pour VSAT">
-              <input type="number" min={0} step={0.1} value={impLoss} onChange={e=>setImpLoss(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={0} step={0.1} value={impLoss} onChange={e=>setImpLoss(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)' }} />
             </InlineField>
             <div className="form-row" style={{gap:8}}>
               <ArmButton label="CONFIRMER IMPORT" onConfirm={importProfile} disabled={!importValidation.valid} />

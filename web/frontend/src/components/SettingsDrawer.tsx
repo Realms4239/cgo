@@ -53,37 +53,37 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
     onClose()
   }
   return (
-    <div role="dialog" aria-label="Réglages" style={{ position: 'fixed', inset: 0, zIndex: 650, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'flex-end' }} onClick={onClose}>
-      <div style={{ width: 380, height: '100%', background: 'var(--surface-soft, #0b0b0c)', borderLeft: '1px solid var(--hairline)', padding: 16, overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div className="card-head" style={{ marginBottom: 12 }}>Réglages</div>
+    <div role="dialog" aria-label="Réglages" className="modal-drawer" onClick={onClose}>
+      <div className="modal-drawer-panel" onClick={e => e.stopPropagation()}>
+        <div className="card-head settings-title">Réglages</div>
         {FIELDS.map(f => {
           const p = param(f.skey, schema)
           const def = p?.default ?? (DEFAULTS as any)[f.key]
           return (
-            <div key={f.key} className="form-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 2, marginBottom: 12 }}>
-              <label className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
+            <div key={f.key} className="form-row settings-row">
+              <label className="mono settings-label">
                 {f.label}{p?.unit ? ` (${p.unit})` : ''}
               </label>
               {f.key === 'target' ? (
-                <input value={String(s[f.key])} maxLength={Number(p?.max ?? 64)} placeholder={String(def)} onChange={e => setS({ ...s, target: e.target.value })} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'var(--font-mono)', fontSize: 11 }} />
+                <input className="settings-input" value={String(s[f.key])} maxLength={Number(p?.max ?? 64)} placeholder={String(def)} onChange={e => setS({ ...s, target: e.target.value })} />
               ) : (
-                <input type="number" min={p?.min} max={p?.max} step={p?.step ?? 1} placeholder={String(def)} value={Number(s[f.key])} onChange={e => setS({ ...s, [f.key]: parseFloat(e.target.value) || 0 })} style={{ width: 120, background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'var(--font-mono)', fontSize: 11 }} />
+                <input className="settings-input settings-input-num" type="number" min={p?.min} max={p?.max} step={p?.step ?? 1} placeholder={String(def)} value={Number(s[f.key])} onChange={e => setS({ ...s, [f.key]: parseFloat(e.target.value) || 0 })} />
               )}
-              <span className="mono" style={{ fontSize: 9, color: '#9aa0a8' }}>{p?.desc ?? f.label}</span>
+              <span className="mono settings-desc">{p?.desc ?? f.label}</span>
             </div>
           )
         })}
-        <div className="form-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 2, marginBottom: 12 }}>
-          <label className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>
+        <div className="form-row settings-row">
+          <label className="mono settings-label">
             Palier tarifaire (coûts affichés)
           </label>
-          <select data-testid="tier-select" value={tier} onChange={e => setTier(e.target.value)} style={{ background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+          <select className="settings-input" data-testid="tier-select" value={tier} onChange={e => setTier(e.target.value)}>
             {tiers.length === 0 && <option value="">—</option>}
             {tiers.map(t => <option key={t.name} value={t.name}>{t.name} — {t.ar_per_gb} Ar/Go</option>)}
           </select>
-          <span className="mono" style={{ fontSize: 9, color: '#9aa0a8' }}>le forfait où vit l'institution — tous les coûts affichés suivent</span>
+          <span className="mono settings-desc">le forfait où vit l'institution — tous les coûts affichés suivent</span>
         </div>
-        <div className="form-row" style={{ gap: 8, marginTop: 12 }}>
+        <div className="form-row settings-actions">
           <button className="btn btn-primary" onClick={apply}>ENREGISTRER</button>
           <button className="btn" onClick={() => setS({ ...DEFAULTS })}>DÉFAUTS</button>
           <button className="btn" onClick={onClose}>ANNULER</button>

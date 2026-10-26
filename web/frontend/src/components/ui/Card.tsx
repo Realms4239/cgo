@@ -21,7 +21,7 @@ export function Card({ head, sub, right, children, testid, term, style, classNam
     <div
       data-testid={testid}
       className={'card' + (className ? ' ' + className : '')}
-      style={{ border: '1px solid var(--hairline, #26262a)', background: 'var(--surface-card, #101012)', padding: 12, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6, ...style }}
+      style={{ border: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: 12, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6, ...style }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

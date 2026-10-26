@@ -18,8 +18,8 @@ export function EventBadge({ compact }: { compact?: boolean }) {
       className="mono"
       title={`cellule en cours — façonnage appliqué au bord : ${live.profile ?? ''} ${live.profile_capacity_mbps ?? ''} Mbit/s, délai ${live.profile_delay_ms ?? ''} ms, gigue ${live.profile_jitter_ms ?? ''} ms, perte ${live.profile_loss_pct ?? ''} %`}
       style={{
-        fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: '0.06em',
-        color: 'var(--t-live, #5ad3e3)', border: '1px solid rgba(90,211,227,0.35)',
+        fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tracking-caps)',
+        color: 'var(--t-live)', border: '1px solid rgba(90,211,227,0.35)',
         padding: '3px 8px', whiteSpace: 'nowrap', textTransform: 'uppercase',
       }}
     >

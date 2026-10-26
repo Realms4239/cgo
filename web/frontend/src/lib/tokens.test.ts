@@ -18,7 +18,7 @@ describe('tokens', () => {
   it('METEOLINK wordmark has glow', () => {
     const s = read('web/frontend/src/components/MeteolinkWordmark.tsx')
     // canonical METEOLINK uses filter drop-shadow cyan + gradient, fallback #f2f2f4 — exhaustive per DESIGN §3
-    expect(s).toMatch(/drop-shadow.*rgba\(90,211,227/)
+    expect(s).toMatch(/drop-shadow.*var\(--t-live\)/)
     expect(s).toContain('linear-gradient')
   })
   it('tokens.css has radial glow', () => {

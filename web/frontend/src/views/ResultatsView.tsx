@@ -13,6 +13,7 @@ import { fmtIQR } from '../lib/format'
 import { asArray, improve, shouldLogScale } from '../lib/format'
 import { lienScore, components as lienComponents, type LienMetrics } from '../lib/lien'
 import { cellEncoding, chipGroups, fmtHalf, halfInterval, type ChipKey } from '../lib/results'
+import { paletteOnce } from '../lib/palette'
 
 type Group = {
   profile: string; qdisc: string; cc: string; direction?: string
@@ -56,7 +57,9 @@ const decodeSub = (g: { profile: string; qdisc: string; cc: string }): string =>
 // identité couleur AQM × CC — chaque file une teinte contrastée, chaque CC
 // un marqueur : une ligne P1-cake/BBR se distingue de P2-pfifo/cubic d'un
 // coup d'œil, sans lire. Teintes hors tricolore identité (DESIGN.md).
-const QCOLOR: Record<string, string> = { cake: '#1fd4a0', fq_codel: '#5ad3e3', pfifo_fast: '#9aa3ad' }
+// couleurs concrètes (canvas ECharts) — la palette lit les tokens CSS
+const P = paletteOnce()
+const QCOLOR: Record<string, string> = { cake: P.qdisc.cake, fq_codel: P.qdisc.fq_codel, pfifo_fast: P.qdisc.pfifo_fast }
 const CCMARK: Record<string, string> = { cubic: '◆', bbr: '◇' }
 
 // TradeSpace — le nuage paramétrable façon DeepSWE (score vs coût) : axes X/Y
@@ -72,9 +75,9 @@ const TSPACE: { key: TSpaceKey; label: string; unit: string; dir: 'down' | 'up' 
   { key: 'cost', label: 'coût', unit: 'Ar/h', dir: 'down' },
   { key: 'indice', label: 'indice LIEN', unit: '/100', dir: 'up' },
 ]
-const PAL_PROFILE = ['#5ad3e3', '#1fa348', '#f4b400', '#b48ce8', '#e2635c', '#8b9099']
-const PAL_QDISC: Record<string, string> = { cake: '#1fd4a0', fq_codel: '#5ad3e3', pfifo_fast: '#9aa3ad' }
-const PAL_CC: Record<string, string> = { cubic: '#e08a4c', bbr: '#4c9be8' }
+const PAL_PROFILE = P.profile
+const PAL_QDISC: Record<string, string> = P.qdisc
+const PAL_CC: Record<string, string> = P.cc
 
 // valeurs brutes LIEN d'un groupe (null = non mesurée, exclue de la moyenne)
 // — coût au palier unique de référence (5556 Ar/Go), comme costRef ci-bas
@@ -288,8 +291,8 @@ export default function ResultatsView() {
     const fam = (g: Group): string => colorBy === 'profile' ? g.profile : colorBy === 'qdisc' ? g.qdisc : g.cc
     const famVals = Array.from(new Set(pts.map(p => fam(p.g)))).sort()
     const famColor = (f: string): string => {
-      if (colorBy === 'qdisc') return PAL_QDISC[f] ?? '#8b9099'
-      if (colorBy === 'cc') return PAL_CC[f] ?? '#8b9099'
+      if (colorBy === 'qdisc') return PAL_QDISC[f] ?? P.textMuted
+      if (colorBy === 'cc') return PAL_CC[f] ?? P.textMuted
       const i = famVals.indexOf(f)
       return PAL_PROFILE[i % PAL_PROFILE.length]
     }
@@ -318,9 +321,9 @@ export default function ResultatsView() {
           position: 'top' as const,
           distance: 10,
           color: famColor(fv),
-          fontSize: 11,
-          fontFamily: 'JetBrains Mono',
-          textBorderColor: '#070707',
+          fontSize: 'var(--fs-tag)',
+          fontFamily: 'var(--font-mono)',
+          textBorderColor: P.canvas,
           textBorderWidth: 3,
         },
         labelLayout: { hideOverlap: true },
@@ -342,8 +345,8 @@ export default function ResultatsView() {
         data: rail.map(p => [p.x, p.y] as [number, number]),
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#1fa348', width: 2 },
-        itemStyle: { color: '#1fa348', borderColor: '#0b0b0c', borderWidth: 1 },
+        lineStyle: { color: P.ok, width: 2 },
+        itemStyle: { color: P.ok, borderColor: P.surfaceSoft, borderWidth: 1 },
         z: 10,
         tooltip: { trigger: 'item' as const, formatter: (par: any) => `enveloppe — ${(par.value as [number, number])[0].toFixed(1)} ${xm.unit} · ${(par.value as [number, number])[1].toFixed(1)} ${ym.unit}` },
       } as any)
@@ -352,8 +355,8 @@ export default function ResultatsView() {
       ...base,
       grid: { ...base.grid, left: 56, right: 28, top: 20, bottom: 52 },
       // mots sur les axes, pas seulement en légende (Gate A : labels OK)
-      xAxis: { ...base.xAxis, type: 'value' as const, name: `${xm.label} (${xm.unit})`, nameLocation: 'middle' as const, nameGap: 30, nameTextStyle: { color: '#7e838c', fontSize: 10, fontFamily: 'JetBrains Mono' } },
-      yAxis: { ...base.yAxis, type: (yLog ? 'log' : 'value') as 'log' | 'value', name: `${ym.label} (${ym.unit})${yLog ? ' — échelle log' : ''}`, nameTextStyle: { color: '#7e838c', fontSize: 10, fontFamily: 'JetBrains Mono' } },
+      xAxis: { ...base.xAxis, type: 'value' as const, name: `${xm.label} (${xm.unit})`, nameLocation: 'middle' as const, nameGap: 30, nameTextStyle: { color: P.textFaint, fontSize: 'var(--fs-micro)', fontFamily: 'var(--font-mono)' } },
+      yAxis: { ...base.yAxis, type: (yLog ? 'log' : 'value') as 'log' | 'value', name: `${ym.label} (${ym.unit})${yLog ? ' — échelle log' : ''}`, nameTextStyle: { color: P.textFaint, fontSize: 'var(--fs-micro)', fontFamily: 'var(--font-mono)' } },
       tooltip: { ...base.tooltip, trigger: 'item' as const },
       series,
     }
@@ -537,10 +540,10 @@ export default function ResultatsView() {
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
     <button key={label} className="btn" onClick={onClick} title={label} style={{
-      padding: '3px 10px', fontSize: 11, fontFamily: 'var(--font-mono)',
-      border: '1px solid ' + (active ? '#3a3a40' : 'var(--hairline)'),
+      padding: '3px 10px', fontSize: 'var(--fs-tag)', fontFamily: 'var(--font-mono)',
+      border: '1px solid ' + (active ? 'var(--hairline-strong)' : 'var(--hairline)'),
       background: active ? 'rgba(90,211,227,0.12)' : 'transparent',
-      color: active ? '#7fd6e8' : '#a9aeb6',
+      color: active ? 'var(--t-live)' : 'var(--text-body)',
     }}>{label}</button>
   )
   // méta source : le run qui nourrit les chiffres, en clair
@@ -593,17 +596,17 @@ export default function ResultatsView() {
 
       {/* bandeau benchmark — source, provenance, export (façon DeepSWE) */}
       <div className="card bench-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap' }}>
-        <span className="mono" style={{ fontSize: 12, fontWeight: 500 }}>Meteolink Leaderboard</span>
-        <span className="mono muted" style={{ fontSize: 11 }}>{safeGroups.length} groupes · {metaRun} · {validTotal} mesures valides</span>
-        {liveSnapRunning && <span className="mono" style={{ fontSize: 10, color: '#1fa348', border: '1px solid currentColor', padding: '2px 8px' }}>● CAMPAGNE EN COURS</span>}
-        <select data-testid="run-select" value={runSel} onChange={e => { runTouched.current = true; setRunSel(e.target.value) }} title="source des chiffres : en direct = dernier run gelé — identifiant complet dans la liste" style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '6px 8px', fontFamily: 'JetBrains Mono', fontSize: 11, maxWidth: '100%' }}>
+        <span className="mono" style={{ fontSize: 'var(--fs-cap)', fontWeight: 500 }}>Meteolink Leaderboard</span>
+        <span className="mono muted" style={{ fontSize: 'var(--fs-tag)' }}>{safeGroups.length} groupes · {metaRun} · {validTotal} mesures valides</span>
+        {liveSnapRunning && <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--t-ok)', border: '1px solid currentColor', padding: '2px 8px' }}>● CAMPAGNE EN COURS</span>}
+        <select data-testid="run-select" value={runSel} onChange={e => { runTouched.current = true; setRunSel(e.target.value) }} title="source des chiffres : en direct = dernier run gelé — identifiant complet dans la liste" style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)', maxWidth: '100%' }}>
           <option value="">{newest ? `⚡ En direct — ${newest}` : '⚡ En direct'}</option>
           <option value="__all__">tous runs (gelés)</option>
           {orderedRuns.map(id => <option key={id} value={id} title={id}>{id === newest ? `⚡ ${id}` : id}</option>)}
         </select>
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
         <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>MD</a>
-        <button className="btn" title="Lire le classement : métriques et règles de lecture" aria-label="Lire le classement" onClick={() => setInfoOpen(true)} style={{ padding: '7px 12px', fontSize: 13 }}>ⓘ</button>
+        <button className="btn" title="Lire le classement : métriques et règles de lecture" aria-label="Lire le classement" onClick={() => setInfoOpen(true)} style={{ padding: '7px 12px', fontSize: 'var(--fs-body)' }}>ⓘ</button>
       </div>
       {infoOpen && <ResultatsInfoModal onClose={() => setInfoOpen(false)} />}
 
@@ -611,14 +614,14 @@ export default function ResultatsView() {
           dans le duel ci-dessous (dédupliqué : constat/duel/verdict). */}
       <div className="card" style={{ padding: '10px 14px', border: '1px solid ' + (top ? CRAFT.ok : 'var(--hairline)') }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>constat de campagne</span>
-          <button className="btn" data-testid="constat-button" onClick={() => setInterpProfile(filtered[0]?.profile ?? 'P2')} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 10 }}>Interprétation complète →</button>
+          <span className="mono" style={{ fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>constat de campagne</span>
+          <button className="btn" data-testid="constat-button" onClick={() => setInterpProfile(filtered[0]?.profile ?? 'P2')} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 'var(--fs-micro)' }}>Interprétation complète →</button>
         </div>
-        <p className="mono" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.6, color: '#c3c9d1', maxWidth: '68ch' }}>
+        <p className="mono" style={{ margin: '8px 0 0', fontSize: 'var(--fs-body)', lineHeight: 1.6, color: 'var(--text-body-strong)', maxWidth: '68ch' }}>
           {duelReady && lossRegime
             ? 'Sur P3, toutes les files se valent : aucune sonde n\u2019arrive à temps (0 % partout)'
             : duelReady
-              ? <>{top.profile} : {top.qdisc}/{top.cc} en tête sur {rankMeta.label} (n={validN(top as Group)} réplications valides) — <button className="btn" onClick={() => document.getElementById('duel')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} style={{ padding: '2px 10px', fontSize: 11 }}>Voir le duel ↓</button></>
+              ? <>{top.profile} : {top.qdisc}/{top.cc} en tête sur {rankMeta.label} (n={validN(top as Group)} réplications valides) — <button className="btn" onClick={() => document.getElementById('duel')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} style={{ padding: '2px 10px', fontSize: 'var(--fs-tag)' }}>Voir le duel ↓</button></>
               : 'aucun groupe comparable — lancez une campagne ou élargissez les filtres'}
         </p>
       </div>
@@ -632,33 +635,33 @@ export default function ResultatsView() {
         const good = duelImp != null && duelImp > 0
         const col = (label: string, v: number | null, n: number, color: string) => (
           <div style={{ minWidth: 0, textAlign: 'center' }}>
-            <div className="mono" style={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#a9aeb6', marginBottom: 6 }}>{label}</div>
-            <div className="mono" style={{ fontSize: 26, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color, lineHeight: 1 }}>
+            <div className="mono" style={{ fontSize: 'var(--fs-cap)', letterSpacing: 'var(--tracking-caps)', textTransform: 'uppercase', color: 'var(--text-body)', marginBottom: 6 }}>{label}</div>
+            <div className="mono" style={{ fontSize: 'var(--fs-head)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color, lineHeight: 1 }}>
               {v != null ? v.toFixed(1) : '—'}
             </div>
-            <div className="mono" style={{ fontSize: 12, color: '#a9aeb6', marginTop: 4 }}>{rankMeta.unit} · {n} mesures valides</div>
+            <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body)', marginTop: 4 }}>{rankMeta.unit} · {n} mesures valides</div>
           </div>
         )
         return (
           <div className="card rank-verdict" id="duel" data-testid="rank-verdict" style={{ padding: '18px 20px' }}>
-            {col(`${baselineIsPfifo ? 'pfifo' : (baselineRow as Group).qdisc} — avant`, bv, validN(baselineRow as Group), '#a9aeb6')}
+            {col(`${baselineIsPfifo ? 'pfifo' : (baselineRow as Group).qdisc} — avant`, bv, validN(baselineRow as Group), 'var(--text-body)')}
             <div style={{ textAlign: 'center' }}>
-              <div className="mono" data-testid="rank-diff" style={{ fontSize: 34, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: good ? '#1fa348' : '#d6d8dd', lineHeight: 1 }}>
+              <div className="mono" data-testid="rank-diff" style={{ fontSize: 'var(--fs-head)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: good ? 'var(--t-ok)' : 'var(--text-body-strong)', lineHeight: 1 }}>
                 {lossRegime ? 'égalité' : duelImp != null ? (duelImp > 0 ? `+${duelImp} %` : duelImp < 0 ? `${duelImp} %` : '0 %') : '—'}
               </div>
               {!lossRegime && duelImp != null && duelImp !== 0 && (
-                <div className="mono" style={{ fontSize: 13, color: duelImp > 0 ? '#1fa348' : 'var(--t-danger-text, #e84a3a)', marginTop: 4, lineHeight: 1.4 }}>{duelArrow} {duelImp > 0 ? 'mieux' : 'moins bon'}</div>
+                <div className="mono" style={{ fontSize: 'var(--fs-body)', color: duelImp > 0 ? 'var(--t-ok)' : 'var(--t-danger-text)', marginTop: 4, lineHeight: 1.4 }}>{duelArrow} {duelImp > 0 ? 'mieux' : 'moins bon'}</div>
               )}
-              <div className="mono" style={{ fontSize: 11, color: '#a9aeb6', marginTop: 6, maxWidth: 130 }}>{rankMeta.label}</div>
+              <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-body)', marginTop: 6, maxWidth: 130 }}>{rankMeta.label}</div>
             </div>
-            {col(`1er — ${top.qdisc}/${top.cc}`, tv, validN(top as Group), good ? '#1fa348' : '#d6d8dd')}
+            {col(`1er — ${top.qdisc}/${top.cc}`, tv, validN(top as Group), good ? 'var(--t-ok)' : 'var(--text-body-strong)')}
           </div>
         )
       })()}
 
       {/* critère — rangée conservée (les puces de rang ne bougent pas) + légende repliée */}
       <div className="form-row chip-row" data-testid="chip-row" style={{ gap: 6, alignItems: 'center', marginBottom: 6 }}>
-        <span className="mono" style={{ fontSize: 'var(--fs-micro)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>classer par</span>
+        <span className="mono" style={{ fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>classer par</span>
         {RANKS.map(r => chip(r.label + (r.dir === 'up' ? ' ↑' : ' ↓'), rankKey === r.key, () => setRankKey(r.key)))}
         <button className="btn" aria-expanded={legendOpen} onClick={() => setLegendOpen(o => !o)} style={{ marginLeft: 'auto', padding: '3px 10px', fontSize: 'var(--fs-micro)' }}>légende</button>
       </div>
@@ -679,7 +682,7 @@ export default function ResultatsView() {
         ))}
       </div>
       {singleVerdict && (
-        <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', margin: '2px 0 10px', paddingLeft: 2 }}>{singleVerdict}</div>
+        <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-body-strong)', margin: '2px 0 10px', paddingLeft: 2 }}>{singleVerdict}</div>
       )}
 
       {filtered.length === 0 && <div className="card"><EmptyState kind="empty" hint={safeGroups.length === 0 && effectiveRun ? 'run vide ou supprimé — passez à tous runs' : 'aucun groupe pour ces filtres — élargissez la sélection'} /></div>}
@@ -703,7 +706,7 @@ export default function ResultatsView() {
           </tr></thead>
           <tbody>
         {ranked.map((g, i) => {
-          const barColor = QCOLOR[g.qdisc] ?? '#6b7078'
+          const barColor = QCOLOR[g.qdisc] ?? 'var(--text-faint)'
           const key = `${g.profile}/${g.qdisc}/${g.cc}/${g.direction ?? 'up'}`
           const open = expanded === key
           const cellDelta = deltas[`${g.profile}|${g.qdisc}|${g.cc}${g.direction && g.direction !== 'up' ? `|${g.direction}` : ''}`]?.small_p95_pct
@@ -737,7 +740,7 @@ export default function ResultatsView() {
           }
           return (
             <Fragment key={key}>
-            <tr className="lb-row" tabIndex={0} aria-expanded={open} title={`${g.profile} ${g.qdisc} ${g.cc} — cliquer pour le détail`} style={{ background: 'transparent', cursor: 'pointer', opacity: expanded && !open ? 0.35 : 1, filter: expanded && !open ? 'saturate(0.5)' : 'none', transition: 'opacity 250ms ease, filter 250ms ease' }} onClick={() => setExpanded(open ? null : key)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(open ? null : key) } }}>
+            <tr className="lb-row" tabIndex={0} aria-expanded={open} title={`${g.profile} ${g.qdisc} ${g.cc} — cliquer pour le détail`} style={{ background: 'transparent', cursor: 'pointer', opacity: expanded && !open ? 0.35 : 1, filter: expanded && !open ? 'saturate(0.5)' : 'none', transition: 'opacity var(--dur-base) var(--ease), filter var(--dur-base) var(--ease)' }} onClick={() => setExpanded(open ? null : key)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(open ? null : key) } }}>
               <td className="lb-rank mono">{i + 1}</td>
               <td className="lb-id">
                 {/* identité en deux lignes : la cellule, puis le sous-libellé
@@ -797,29 +800,29 @@ export default function ResultatsView() {
                   {/* mesures en langue opérateur — chaque ligne dit ce que c'est,
                       la valeur, et ce que ça signifie. Fini le dialecte CSV. */}
                   <div style={{ display: 'grid', gap: 8 }}>
-                    <div className="mono" style={{ fontSize: 12, color: '#d6d8dd', fontVariantNumeric: 'tabular-nums' }}>
-                      Latence du lien <span style={{ color: '#8b9099' }}>(RTT p95)</span> : <b style={{ fontWeight: 600 }}>{fmtIQR(g.rtt_p95_median, g.rtt_p95_iqr)}</b> ms
-                      <span style={{ color: '#a9aeb6' }}> — temps d'aller-retour des paquets sous charge</span>
+                    <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body-strong)', fontVariantNumeric: 'tabular-nums' }}>
+                      Latence du lien <span style={{ color: 'var(--text-muted)' }}>(RTT p95)</span> : <b style={{ fontWeight: 600 }}>{fmtIQR(g.rtt_p95_median, g.rtt_p95_iqr)}</b> ms
+                      <span style={{ color: 'var(--text-body)' }}> — temps d'aller-retour des paquets sous charge</span>
                     </div>
-                    <div className="mono" style={{ fontSize: 12, color: '#d6d8dd', fontVariantNumeric: 'tabular-nums' }}>
-                      Réactivité des petits objets <span style={{ color: '#8b9099' }}>(small p95)</span> : <b style={{ fontWeight: 600 }}>{fmtIQR(g.small_p95_median, g.small_p95_iqr)}</b> ms
-                      <span style={{ color: '#a9aeb6' }}> — charger une page/mesure pendant un transfert lourd</span>
+                    <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body-strong)', fontVariantNumeric: 'tabular-nums' }}>
+                      Réactivité des petits objets <span style={{ color: 'var(--text-muted)' }}>(small p95)</span> : <b style={{ fontWeight: 600 }}>{fmtIQR(g.small_p95_median, g.small_p95_iqr)}</b> ms
+                      <span style={{ color: 'var(--text-body)' }}> — charger une page/mesure pendant un transfert lourd</span>
                     </div>
                     {g.small_p95_valid_ci95 && (
-                      <div className="mono" style={{ fontSize: 12, color: '#a9aeb6', fontVariantNumeric: 'tabular-nums' }}>
+                      <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body)', fontVariantNumeric: 'tabular-nums' }}>
                         IC95 : {g.small_p95_valid_ci95[0].toFixed(0)}–{g.small_p95_valid_ci95[1].toFixed(0)} ms
                       </div>
                     )}
-                    <div className="mono" style={{ fontSize: 12, color: g.quarantined > 0 ? '#f4b400' : '#a9aeb6' }}>
+                    <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: g.quarantined > 0 ? 'var(--t-threshold)' : 'var(--text-body)' }}>
                       {g.quarantined > 0
                         ? `${g.quarantined} mesure(s) sur ${g.count} écartée(s) — incohérentes, exclues du calcul (détail : vue Provenance)`
                         : `les ${g.count} mesures sont cohérentes — aucune écartée`}
                     </div>
-                    <div className="mono" style={{ fontSize: 12, color: '#a9aeb6', fontVariantNumeric: 'tabular-nums' }}>
+                    <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body)', fontVariantNumeric: 'tabular-nums' }}>
                       Coût : {wasted == null || wasted <= 0 ? 'rien gaspillé' : (wasted >= 1048576 ? (wasted / 1048576).toFixed(1) + ' MiB gaspillés' : wasted >= 1024 ? (wasted / 1024).toFixed(0) + ' Kio gaspillés' : wasted + ' o gaspillés')} · {cost == null || cost <= 0 ? '0 Ar' : (cost >= 1000 ? (cost / 1000).toFixed(1) + ' kAr' : cost.toFixed(0) + ' Ar')}
                     </div>
                     {g.hardware_recommendation && (
-                      <div className="mono" style={{ fontSize: 12, color: '#5ad3e3', lineHeight: 1.5 }}>
+                      <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--t-live)', lineHeight: 1.5 }}>
                         Recommandation terrain : {g.hardware_recommendation}
                       </div>
                     )}
@@ -829,38 +832,38 @@ export default function ResultatsView() {
                     const score = lienScore(lienAll, groupLien(g))
                     if (score == null) return null
                     const rows: { label: string; q: number | null; color: string }[] = [
-                      { label: 'small p95', q: comp.small, color: '#f4b400' },
-                      { label: 'RTT', q: comp.rtt, color: '#5ad3e3' },
-                      { label: 'goodput', q: comp.goodput, color: '#b48ae0' },
-                      { label: 'échéances', q: comp.deadline, color: '#1fa348' },
-                      { label: 'coût', q: comp.cost, color: '#9aa3ad' },
+                      { label: 'small p95', q: comp.small, color: 'var(--t-threshold)' },
+                      { label: 'RTT', q: comp.rtt, color: 'var(--t-live)' },
+                      { label: 'goodput', q: comp.goodput, color: 'var(--t-bbr)' },
+                      { label: 'échéances', q: comp.deadline, color: 'var(--t-ok)' },
+                      { label: 'coût', q: comp.cost, color: 'var(--t-neutral)' },
                     ]
                     return (
                       <div data-testid="lien-score" style={{ marginTop: 10 }}>
-                        <div className="mono" style={{ fontSize: 13, color: '#d6d8dd' }}>
+                        <div className="mono" style={{ fontSize: 'var(--fs-body)', color: 'var(--text-body-strong)' }}>
                           Score LIEN : {Math.round(score)}/100 — comment il se décompose
                         </div>
                         <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
                           {rows.map(r => (
                             <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span className="mono" style={{ fontSize: 12, color: '#a9aeb6', minWidth: 80 }}>{r.label}</span>
+                              <span className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body)', minWidth: 80 }}>{r.label}</span>
                               <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
                                 <div style={{ height: '100%', width: `${r.q == null ? 0 : Math.round(r.q * 100)}%`, background: r.color, borderRadius: 3 }} />
                               </div>
-                              <span className="mono" style={{ fontSize: 12, color: '#a9aeb6', minWidth: 92, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              <span className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body)', minWidth: 92, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                                 {r.q == null ? '— · 20 %' : `${Math.round(r.q * 100)}/100 · 20 %`}
                               </span>
                             </div>
                           ))}
                         </div>
-                        <div className="mono" style={{ fontSize: 12, color: '#a9aeb6', marginTop: 8 }}>
+                        <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body)', marginTop: 8 }}>
                           Note sur 100 = moyenne des 5 notes, une par critère.
                         </div>
                       </div>
                     )
                   })()}
                   <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
-                    <button className="btn" onClick={e => { e.stopPropagation(); setInterpProfile(g.profile) }} style={{ padding: '4px 10px', fontSize: 10 }}>interpréter {g.profile} →</button>
+                    <button className="btn" onClick={e => { e.stopPropagation(); setInterpProfile(g.profile) }} style={{ padding: '4px 10px', fontSize: 'var(--fs-micro)' }}>interpréter {g.profile} →</button>
                   </div>
                 </div>
               </td></tr>
@@ -874,7 +877,7 @@ export default function ResultatsView() {
         {/* échelle de valeur partagée — les barres mesurent v sur [0–max],
             pas la bonté. Sans ligne valide, pas d'échelle à lire. */}
         {finiteVals.length > 0 && (
-          <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '8px 14px 12px', borderTop: '1px solid var(--hairline-faint)', fontSize: 11, color: '#a9aeb6' }}>
+          <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '8px 14px 12px', borderTop: '1px solid var(--hairline-faint)', fontSize: 'var(--fs-tag)', color: 'var(--text-body)' }}>
             <span>0 {rankMeta.unit}</span><span>les barres mesurent la valeur, pas le rang</span><span>{vmax.toFixed(1)} {rankMeta.unit} →</span>
           </div>
         )}
@@ -884,37 +887,37 @@ export default function ResultatsView() {
       )}
       <div className="card" style={{ padding: 12, position: 'relative' }}>
         <div style={{ marginBottom: 4 }}>
-          <span className="mono" style={{ fontSize: 13, fontWeight: 600, color: '#f2f2f4' }}>TradeSpace — compromis mesurés</span>
+          <span className="mono" style={{ fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text-primary)' }}>TradeSpace — compromis mesurés</span>
           {(() => {
             const xmR = TSPACE.find(t => t.key === xk) ?? TSPACE[0]
             const ymR = TSPACE.find(t => t.key === yKey) ?? TSPACE[0]
-            return <div className="mono" style={{ fontSize: 11, color: '#a9aeb6', marginTop: 2 }}>{ymR.label} ({ymR.unit}) en fonction de {xmR.label} ({xmR.unit}) — médianes gelées, {filtered.length} groupes · {metaRun}</div>
+            return <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-body)', marginTop: 2 }}>{ymR.label} ({ymR.unit}) en fonction de {xmR.label} ({xmR.unit}) — médianes gelées, {filtered.length} groupes · {metaRun}</div>
           })()}
         </div>
         <div className="form-row chip-row" style={{ gap: 6, alignItems: 'center', marginBottom: 6 }}>
-          <span className="mono" title="Y = le critère du classement — un seul modèle mental" style={{ fontSize: 10, color: '#5ad3e3' }}>Y {(() => TSPACE.find(t => t.key === yKey)?.label)()}</span>
-          <span className="mono" style={{ fontSize: 10, color: '#8b9099' }}>X</span>
+          <span className="mono" title="Y = le critère du classement — un seul modèle mental" style={{ fontSize: 'var(--fs-micro)', color: 'var(--t-live)' }}>Y {(() => TSPACE.find(t => t.key === yKey)?.label)()}</span>
+          <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>X</span>
           {TSPACE.filter(t => t.key !== yKey).map(t => chip(t.label, xk === t.key, () => setXKey(t.key)))}
-          <span className="mono" style={{ fontSize: 10, color: '#8b9099' }}>couleur</span>
+          <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>couleur</span>
           {(['profile', 'qdisc', 'cc'] as const).map(v => chip({ profile: 'profil', qdisc: 'file', cc: 'CC' }[v], colorBy === v, () => setColorBy(v)))}
         </div>
         <div className="ts-wrap">
           <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-            <span className="mono" style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, color: 'var(--text-faint)', pointerEvents: 'none', zIndex: 1 }}>
+            <span className="mono" style={{ position: 'absolute', top: 2, right: 4, fontSize: 'var(--fs-micro)', color: 'var(--text-faint)', pointerEvents: 'none', zIndex: 1 }}>
               optimal {cornerArrow}
             </span>
             <div ref={scatterRef} style={{ height: 320 }} />
           </div>
           <aside className="ts-rail" aria-label="Enveloppe — points non dominés">
-            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#1fa348', marginBottom: 6 }}>Enveloppe — {frontier.length} point{frontier.length > 1 ? 's' : ''}</div>
-            {frontier.length === 0 && <div className="mono" style={{ fontSize: 11, color: '#8b9099' }}>aucun point — élargissez les filtres</div>}
+            <div className="mono" style={{ fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--t-ok)', marginBottom: 6 }}>Enveloppe — {frontier.length} point{frontier.length > 1 ? 's' : ''}</div>
+            {frontier.length === 0 && <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-muted)' }}>aucun point — élargissez les filtres</div>}
             {(() => {
               const xmR = TSPACE.find(t => t.key === xk) ?? TSPACE[0]
               const ymR = TSPACE.find(t => t.key === yKey) ?? TSPACE[0]
               return frontier.map(p => (
-                <div key={p.name} className="mono" style={{ fontSize: 11, padding: '5px 0 5px 10px', borderLeft: '2px solid #1fa348', marginBottom: 4, color: '#d6d8dd', overflowWrap: 'anywhere' }}>
-                  <div style={{ color: '#f2f2f4' }}>{p.name}</div>
-                  <div style={{ color: '#1fa348', fontVariantNumeric: 'tabular-nums' }}>{p.y.toFixed(1)} {ymR.unit} · {p.x.toFixed(1)} {xmR.unit}</div>
+                <div key={p.name} className="mono" style={{ fontSize: 'var(--fs-tag)', padding: '5px 0 5px 10px', borderLeft: '2px solid var(--t-ok)', marginBottom: 4, color: 'var(--text-body-strong)', overflowWrap: 'anywhere' }}>
+                  <div style={{ color: 'var(--text-primary)' }}>{p.name}</div>
+                  <div style={{ color: 'var(--t-ok)', fontVariantNumeric: 'tabular-nums' }}>{p.y.toFixed(1)} {ymR.unit} · {p.x.toFixed(1)} {xmR.unit}</div>
                 </div>
               ))
             })()}
@@ -925,9 +928,9 @@ export default function ResultatsView() {
           if (sp >= 0.18 || filtered.length < 2) return null
           const xmR = TSPACE.find(t => t.key === xk) ?? TSPACE[0]
           const alt = TSPACE.filter(t => t.key !== yKey && t.key !== xk).sort((a, b) => xSpread(b.key) - xSpread(a.key))[0]
-          return <div className="mono" style={{ fontSize: 11, color: '#f4b400', marginTop: 6 }}>« {xmR.label} » varie peu sur ces groupes — les points s'alignent{alt ? `, essayez ${alt.label}` : ''}.</div>
+          return <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--t-threshold)', marginTop: 6 }}>« {xmR.label} » varie peu sur ces groupes — les points s'alignent{alt ? `, essayez ${alt.label}` : ''}.</div>
         })()}
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>{caption}</div>
+        <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-muted)', marginTop: 6 }}>{caption}</div>
       </div>
       <Provenance source="mesures gelées des campagnes" refresh="au gel" state="live" extra={`${safeGroups.length} groupes · hash ${hash8}`} />
     </div>

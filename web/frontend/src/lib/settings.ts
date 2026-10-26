@@ -69,6 +69,8 @@ export function dropsLevel(drops: number): Level {
   return 'crit'
 }
 
+import { TOKEN } from './palette'
+
 export const LEVEL_COLOR: Record<Level, string> = {
-  ok: '#1fa348', warn: '#f4b400', crit: '#e84a3a',
+  ok: TOKEN.ok, warn: TOKEN.threshold, crit: TOKEN.dangerText,
 }

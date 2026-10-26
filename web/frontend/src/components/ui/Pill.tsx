@@ -15,13 +15,13 @@ export function Pill({ label, value, on = true, onClick, title }: {
       aria-pressed={on}
       style={{
         fontFamily: 'var(--font-mono, JetBrains Mono)',
-        fontSize: 10,
+        fontSize: 'var(--fs-micro)',
         fontVariantNumeric: 'tabular-nums',
-        letterSpacing: '0.06em',
+        letterSpacing: 'var(--tracking-caps)',
         padding: '4px 8px',
-        border: '1px solid var(--hairline, #26262a)',
+        border: '1px solid var(--hairline)',
         background: on ? 'rgba(90,211,227,0.08)' : 'transparent',
-        color: on ? 'var(--t-live, #5ad3e3)' : 'var(--text-muted, #8b9099)',
+        color: on ? 'var(--t-live)' : 'var(--text-muted)',
         cursor: 'pointer',
         display: 'inline-flex',
         gap: 6,
@@ -29,7 +29,7 @@ export function Pill({ label, value, on = true, onClick, title }: {
         lineHeight: 1.4,
       }}
     >
-      <span style={{ color: 'var(--text-faint, #767b84)' }}>{label}</span>
+      <span style={{ color: 'var(--text-faint)' }}>{label}</span>
       {value ? <b style={{ fontWeight: 700 }}>{value}</b> : null}
     </button>
   )

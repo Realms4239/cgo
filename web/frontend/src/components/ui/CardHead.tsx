@@ -3,8 +3,8 @@ export function CardHead({ label, sub, right }: { label: React.ReactNode; sub?: 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
       <div style={{ minWidth: 0 }}>
-        <span className="mono" style={{ fontFamily: 'var(--font-mono, JetBrains Mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8b9099)' }}>{label}</span>
-        {sub ? <div className="mono" style={{ fontSize: 10, color: 'var(--text-faint, #767b84)', marginTop: 2 }}>{sub}</div> : null}
+        <span className="mono" style={{ fontFamily: 'var(--font-mono, JetBrains Mono)', fontSize: 'var(--fs-tag)', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{label}</span>
+        {sub ? <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-faint)', marginTop: 2 }}>{sub}</div> : null}
       </div>
       {right}
     </div>
