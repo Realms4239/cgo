@@ -260,6 +260,21 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 /* rangées de chips — scroll horizontal, jamais 3 lignes empilées */
 .chip-row { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: thin; padding-bottom: 8px; }
 .chip-row > * { flex: 0 0 auto; }
+/* filtres du classement — trois groupes étiquetés qui wrappent (le scroll
+   nowrap de vingt puces rendait la rangée illisible) */
+.chip-groups { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); align-items: center; margin-bottom: 8px; }
+.chip-group { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; min-width: 0; }
+.chip-group-lbl { font: 700 var(--fs-micro) var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin-right: 2px; }
+/* épingle de comparaison — révélée au survol/focus, jamais cachée au clavier */
+.lb-pin { opacity: 0; transition: opacity var(--dur-fast) var(--ease); }
+.lb-row:hover .lb-pin, .lb-row:focus-within .lb-pin, .lb-pin[aria-pressed="true"], .lb-pin:focus-visible { opacity: 1; }
+/* détail déplié — rythme de liste de définitions (une colonne ≤640px) */
+.lb-dl { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 4px var(--sp-3); margin: 0 0 10px; font-size: var(--fs-cap); }
+.lb-dl dt { color: var(--text-faint); }
+.lb-dl dd { margin: 0; color: var(--text-body); font-variant-numeric: tabular-nums; }
+.lb-dl .lb-unit { font-size: var(--fs-micro); color: var(--text-faint); }
+.lb-dl .lb-note { color: var(--text-muted); }
+@media (max-width: 640px) { .lb-dl { grid-template-columns: 1fr; } }
 /* tableaux à ids longs — scroll horizontal + liseré de bord droit (affordance :
    il reste du contenu, dont REJOUER, vers la droite sur 390px) */
 .tbl-scroll { scrollbar-width: thin; box-shadow: inset -12px 0 12px -12px rgba(90,211,227,0.22); }

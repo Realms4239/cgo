@@ -12,6 +12,7 @@ import { useUIStore } from '../store/ui'
 import { fmtIQR } from '../lib/format'
 import { asArray, improve, shouldLogScale } from '../lib/format'
 import { lienScore, components as lienComponents, type LienMetrics } from '../lib/lien'
+import { cellEncoding, chipGroups, fmtHalf, halfInterval, type ChipKey } from '../lib/results'
 
 type Group = {
   profile: string; qdisc: string; cc: string; direction?: string
@@ -100,6 +101,7 @@ export default function ResultatsView() {
   const [fCc, setFCc] = useState('tous')
   const [interpProfile, setInterpProfile] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [legendOpen, setLegendOpen] = useState(false)
   const [deltas, setDeltas] = useState<Record<string, { small_p95_pct?: number }>>({})
   // source : '' = EN DIRECT (dernier run gelé), '__all__' = tous runs, sinon run figé
   const [runSel, setRunSel] = useState('')
@@ -567,19 +569,22 @@ export default function ResultatsView() {
     if (c.key === 'deadline') return v.toFixed(0)
     return v.toFixed(1)
   }
-  // teinte d'une cellule secondaire : écart signé vs la référence du duel
-  // (même baseline partout — une seule histoire). alpha ∝ |écart|.
-  const heatOf = (c: MetricCol, g: Group): { bg: string; fg: string; title?: string } => {
-    const b = baselineRow ? c.get(baselineRow) : null
-    const v = c.get(g)
-    const imp = b != null && v != null ? improve(b, v, c.dir) : null
-    if (imp == null || imp === 0) return { bg: 'transparent', fg: '#f2f2f4' }
-    const alpha = Math.min(0.22, Math.abs(imp) / 150)
-    return {
-      bg: imp > 0 ? `rgba(31,163,72,${alpha.toFixed(2)})` : `rgba(226,39,24,${alpha.toFixed(2)})`,
-      fg: imp > 0 ? '#1fa348' : 'var(--t-danger-text, #e84a3a)',
-      title: `${imp > 0 ? 'mieux' : 'moins bon'} que ${baselineIsPfifo ? 'pfifo' : (baselineRow as Group).qdisc} de ${Math.abs(imp)} % sur ${c.label}`,
-    }
+  // filtres par dimension — la porte d'écriture unique des trois groupes
+  const filterOf: Record<ChipKey, string> = { profile: fProfile, qdisc: fQdisc, cc: fCc }
+  const setFilter = (k: ChipKey, v: string) => {
+    if (k === 'profile') setFProfile(v)
+    else if (k === 'qdisc') setFQdisc(v)
+    else setFCc(v)
+  }
+  // épingle unique : deux états (A puis B), re-cliquer libère — un seul
+  // contrôle révélé au survol/focus remplace les deux boutons permanents.
+  const cyclePin = (e: React.MouseEvent, pin: Pinned, isA: boolean, isB: boolean) => {
+    e.stopPropagation()
+    if (isA) { setPinA(null); return }
+    if (isB) { setPinB(null); return }
+    if (!pinA) { setPinA(pin); return }
+    if (!pinB) { setPinB(pin); return }
+    setPinA(pin)
   }
 
   return (
@@ -651,19 +656,27 @@ export default function ResultatsView() {
         )
       })()}
 
-      {/* critère + filtres — rangée scrollable (jamais 3 lignes à 390px) */}
-      <div className="form-row chip-row" data-testid="chip-row" style={{ gap: 6, alignItems: 'center', marginBottom: 8 }}>
-        <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}>classer par</span>
+      {/* critère — rangée conservée (les puces de rang ne bougent pas) + légende repliée */}
+      <div className="form-row chip-row" data-testid="chip-row" style={{ gap: 6, alignItems: 'center', marginBottom: 6 }}>
+        <span className="mono" style={{ fontSize: 'var(--fs-micro)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>classer par</span>
         {RANKS.map(r => chip(r.label + (r.dir === 'up' ? ' ↑' : ' ↓'), rankKey === r.key, () => setRankKey(r.key)))}
-        <span style={{ width: 12 }} />
-        {(['tous', ...distinct('profile')] as string[]).map(v => chip(v, fProfile === v, () => setFProfile(v)))}
-        {(['tous', ...distinct('qdisc')] as string[]).map(v => chip(v, fQdisc === v, () => setFQdisc(v)))}
-        {(['tous', ...distinct('cc')] as string[]).map(v => chip(v, fCc === v, () => setFCc(v)))}
-        {/* clé couleur — chaque file sa teinte, chaque congestion son signe */}
-        <span style={{ width: 12 }} />
-        <span className="mono" style={{ fontSize: 11, color: '#a9aeb6' }} title="chaque discipline de file a sa couleur, chaque congestion son signe">
+        <button className="btn" aria-expanded={legendOpen} onClick={() => setLegendOpen(o => !o)} style={{ marginLeft: 'auto', padding: '3px 10px', fontSize: 'var(--fs-micro)' }}>légende</button>
+      </div>
+      {legendOpen && (
+        <div className="mono" data-testid="chip-legend" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-muted)', marginBottom: 6 }} title="chaque discipline de file a sa couleur, chaque congestion son signe">
           <span style={{ color: QCOLOR.pfifo_fast }}>■</span> pfifo <span style={{ color: QCOLOR.fq_codel }}>■</span> fq_codel <span style={{ color: QCOLOR.cake }}>■</span> cake · ◆ cubic ◇ bbr
-        </span>
+        </div>
+      )}
+      {/* trois groupes étiquetés qui wrappent — plus de rangée nowrap de 20 puces */}
+      <div className="chip-groups" data-testid="chip-groups">
+        {chipGroups(distinct).map(group => (
+          <div key={group.key} className="chip-group">
+            <span className="chip-group-lbl">{group.label}</span>
+            {group.values.map(v => (
+              <span key={v}>{chip(v, filterOf[group.key] === v, () => setFilter(group.key, v))}</span>
+            ))}
+          </div>
+        ))}
       </div>
       {singleVerdict && (
         <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', margin: '2px 0 10px', paddingLeft: 2 }}>{singleVerdict}</div>
@@ -702,30 +715,21 @@ export default function ResultatsView() {
           const metricCell = (c: MetricCol) => {
             const h = hero(g, c)
             const ok = h.v !== Number.MAX_SAFE_INTEGER && (c.key === 'cost' || c.dir === 'up' ? h.v >= 0 : h.v > 0)
-            const primary = c.rankKey === rankKey
-            const half = h.hi > h.lo ? ((h.hi - h.lo) / 2) : null
-            const heat = !primary ? heatOf(c, g) : null
+            const enc = cellEncoding(c.rankKey === rankKey)
+            const half = halfInterval(h.lo, h.hi)
             return (
-              <td key={c.key} className={primary ? 'lb-prim' : 'lb-sec'} title={heat?.title} style={heat ? { background: heat.bg, ...(c.key === 'cost' ? { whiteSpace: 'nowrap' as const } : null) } : (c.key === 'cost' ? { whiteSpace: 'nowrap' as const } : undefined)}>
-                <div className="mono" style={{ fontSize: primary ? 13 : 12, fontWeight: primary ? 600 : 500, color: !ok ? 'var(--text-faint, #7e838c)' : heat ? heat.fg : '#f2f2f4', fontVariantNumeric: 'tabular-nums', textAlign: 'right', overflowWrap: 'anywhere' }}>
-                  {ok ? <>{fmtCell(c, h.v)} <span style={{ fontWeight: 400, fontSize: 10, color: '#8b9099' }}>{c.unit}</span></> : '—'}
+              <td key={c.key} className={c.rankKey === rankKey ? 'lb-prim' : 'lb-sec'} style={c.key === 'cost' ? { whiteSpace: 'nowrap' as const } : undefined}>
+                <div className="mono" style={{ fontSize: 'var(--fs-body)', fontWeight: c.rankKey === rankKey ? 600 : 500, color: ok ? 'var(--text-body)' : 'var(--text-faint)', fontVariantNumeric: 'tabular-nums', textAlign: 'right', overflowWrap: 'anywhere' }}>
+                  {ok ? <>{fmtCell(c, h.v)} <span style={{ fontWeight: 400, fontSize: 'var(--fs-micro)', color: 'var(--text-faint)' }}>{c.unit}</span></> : '—'}
                 </div>
-                <div className="mono" style={{ fontSize: 10, color: '#8b9099', marginTop: 2, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {ok ? <>{half != null ? `±${half.toFixed(half >= 10 ? 0 : 1)} · ` : ''}n={h.n}</> : 'non mesuré'}
-                </div>
-                {primary && (
+                {enc === 'bar' && ok && (
                   <div style={{ height: 12, position: 'relative', marginTop: 4, minWidth: 80 }}>
                     <div style={{ position: 'absolute', inset: '2px 0', background: 'rgba(255,255,255,0.04)', borderRadius: 2, overflow: 'hidden' }}>
-                      {ok && <div className="leader-bar" data-leader={key} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${vpos(h.v)}%`, background: barColor, transformOrigin: 'left center', borderRadius: 2 }} />}
+                      <div className="leader-bar" data-leader={key} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${vpos(h.v)}%`, background: barColor, transformOrigin: 'left center', borderRadius: 2 }} />
                     </div>
-                    {ok && half != null && (
-                      <div title={`intervalle [${h.lo.toFixed(1)}–${h.hi.toFixed(1)}] ${c.unit}`} style={{ position: 'absolute', top: '50%', marginTop: -1, height: 2, left: `${vpos(h.lo)}%`, width: `${Math.max(1.5, vpos(h.hi) - vpos(h.lo))}%`, borderLeft: '2px solid #f2f2f4', borderRight: '2px solid #f2f2f4', background: '#f2f2f4' }} />
+                    {half != null && (
+                      <div title={`intervalle [${h.lo.toFixed(1)}–${h.hi.toFixed(1)}] ${c.unit}`} style={{ position: 'absolute', top: '50%', marginTop: -1, height: 2, left: `${vpos(h.lo)}%`, width: `${Math.max(1.5, vpos(h.hi) - vpos(h.lo))}%`, borderLeft: '2px solid var(--text-primary)', borderRight: '2px solid var(--text-primary)', background: 'var(--text-primary)' }} />
                     )}
-                  </div>
-                )}
-                {c.key === 'small' && cellDelta != null && (
-                  <div className="mono" title={`vs run précédent, même cellule — ${cellDelta <= 0 ? 'mieux' : 'moins bon'} (la valeur ${cellDelta <= 0 ? 'baisse' : 'monte'})`} style={{ fontSize: 10, color: cellDelta <= 0 ? '#1fa348' : 'var(--t-danger-text, #e84a3a)', fontVariantNumeric: 'tabular-nums', textAlign: 'right', marginTop: 2 }}>
-                    {cellDelta <= 0 ? '↘' : '↗'}{Math.abs(cellDelta)} %
                   </div>
                 )}
               </td>
@@ -736,38 +740,59 @@ export default function ResultatsView() {
             <tr className="lb-row" tabIndex={0} aria-expanded={open} title={`${g.profile} ${g.qdisc} ${g.cc} — cliquer pour le détail`} style={{ background: 'transparent', cursor: 'pointer', opacity: expanded && !open ? 0.35 : 1, filter: expanded && !open ? 'saturate(0.5)' : 'none', transition: 'opacity 250ms ease, filter 250ms ease' }} onClick={() => setExpanded(open ? null : key)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(open ? null : key) } }}>
               <td className="lb-rank mono">{i + 1}</td>
               <td className="lb-id">
-                <div className="mono" style={{ fontSize: 13, fontWeight: 500, color: '#f2f2f4', overflowWrap: 'anywhere' }}>
+                {/* identité en deux lignes : la cellule, puis le sous-libellé
+                    décodé. Le verdict et l'épingle vivent dans le détail. */}
+                <div className="mono" style={{ fontSize: 'var(--fs-body)', fontWeight: 500, color: 'var(--text-body)', overflowWrap: 'anywhere' }}>
                   {g.profile} · {g.qdisc} / {g.cc} <span title={g.cc === 'bbr' ? 'contrôle de congestion BBR (Google) — sonde le débit, peu agressif' : 'contrôle de congestion CUBIC — remplit les files, agressif'} style={{ color: barColor }}>{CCMARK[g.cc] ?? ''}</span>
-                  {g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: '#5ad3e3' }}> ↓</span> : null}
+                  {g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: 'var(--t-live)' }}> ↓</span> : null}
                 </div>
-                <div className="mono" style={{ fontSize: 11, color: '#a9aeb6', marginTop: 2, overflowWrap: 'anywhere' }}>{decodeSub(g)}</div>
-                {!singleVerdict && <div className="mono" style={{ fontSize: 11, color: '#c3c9d1', marginTop: 2, overflowWrap: 'anywhere' }}>{rowVerdicts[i]}</div>}
-                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                  <button className="btn" title="épingler comme A pour le duel" aria-label={`épingler ${g.profile} ${g.qdisc} ${g.cc} comme A`} onClick={e => { e.stopPropagation(); setPinA(pin) }} style={{ padding: '2px 8px', fontSize: 10, background: isA ? 'rgba(90,211,227,0.15)' : 'transparent', color: isA ? CRAFT.live : 'var(--text-muted)' }}>A</button>
-                  <button className="btn" title="épingler comme B pour le duel" aria-label={`épingler ${g.profile} ${g.qdisc} ${g.cc} comme B`} onClick={e => { e.stopPropagation(); setPinB(pin) }} style={{ padding: '2px 8px', fontSize: 10, background: isB ? 'rgba(31,163,72,0.15)' : 'transparent', color: isB ? CRAFT.ok : 'var(--text-muted)' }}>B</button>
-                </div>
+                <div className="mono lb-id-sub" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-muted)', marginTop: 2, overflowWrap: 'anywhere' }}>{decodeSub(g)}</div>
+                <button
+                  className="btn lb-pin"
+                  aria-pressed={isA || isB}
+                  aria-label={`comparer ${g.profile} ${g.qdisc} ${g.cc}`}
+                  title={isA ? 'épinglé A — cliquer pour libérer' : isB ? 'épinglé B — cliquer pour libérer' : pinA ? 'épingler comme B' : 'épingler comme A'}
+                  onClick={e => cyclePin(e, pin, isA, isB)}
+                  style={{ padding: '2px 8px', fontSize: 'var(--fs-micro)', marginTop: 4, background: isA ? 'var(--live-dim)' : isB ? 'var(--ok-dim)' : 'transparent', color: isA ? 'var(--t-live)' : isB ? 'var(--t-ok)' : 'var(--text-muted)' }}
+                >{isA ? 'A' : isB ? 'B' : 'comparer'}</button>
               </td>
               {COLS.map(c => metricCell(c))}
             </tr>
             {open && (
             <tr className="lb-detail"><td colSpan={2 + COLS.length}>
-                {/* repli 390px : les secondaires masquées se relisent ici */}
-                <div className="mono" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginBottom: 10 }}>
+                {/* détail en liste de définitions : valeur, dispersion et n
+                    par métrique (repli 390px compris), verdict de ligne et
+                    dérive de run — une seule colonne de lecture. */}
+                <dl className="lb-dl mono">
                   {COLS.map(c => {
                     const dh = hero(g, c)
                     const dv = c.get(g)
-                    const dhalf = dh.hi > dh.lo ? ((dh.hi - dh.lo) / 2) : null
+                    const dhalf = halfInterval(dh.lo, dh.hi)
                     return (
-                      <div key={c.key} style={{ border: '1px solid var(--hairline-faint)', padding: '8px 10px' }}>
-                        <div style={{ fontSize: 10, color: '#8b9099' }}>{c.label}{c.rankKey === rankKey ? ' — critère' : ''}</div>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: dv != null ? '#f2f2f4' : 'var(--text-faint, #7e838c)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
-                          {dv != null ? <>{fmtCell(c, dv)} <span style={{ fontSize: 10, fontWeight: 400 }}>{c.unit}</span></> : '—'}
-                        </div>
-                        <div style={{ fontSize: 10, color: '#8b9099', marginTop: 2 }}>{dhalf != null ? `±${dhalf.toFixed(dhalf >= 10 ? 0 : 1)} ${c.unit} · ` : ''}n={dh.n}</div>
-                      </div>
+                      <Fragment key={c.key}>
+                        <dt>{c.label}{c.rankKey === rankKey ? ' — critère' : ''}</dt>
+                        <dd>
+                          {dv != null ? <>{fmtCell(c, dv)} <span className="lb-unit">{c.unit}</span></> : '—'}
+                          <span className="lb-note"> · n={dh.n}{dhalf != null ? ` · ${fmtHalf(dhalf)} ${c.unit}` : ''}</span>
+                        </dd>
+                      </Fragment>
                     )
                   })}
-                </div>
+                  {!singleVerdict && (
+                    <Fragment>
+                      <dt>verdict</dt>
+                      <dd>{rowVerdicts[i]}</dd>
+                    </Fragment>
+                  )}
+                  {cellDelta != null && (
+                    <Fragment>
+                      <dt>vs run précédent</dt>
+                      <dd style={{ color: cellDelta <= 0 ? 'var(--t-ok)' : 'var(--t-danger-text)' }}>
+                        {cellDelta <= 0 ? '↘ mieux' : '↗ moins bon'} — {Math.abs(cellDelta)} % sur small p95
+                      </dd>
+                    </Fragment>
+                  )}
+                </dl>
                 <div style={{ padding: '12px 14px', border: '1px solid var(--hairline)', background: 'rgba(255,255,255,0.015)' }}>
                   {/* mesures en langue opérateur — chaque ligne dit ce que c'est,
                       la valeur, et ce que ça signifie. Fini le dialecte CSV. */}
