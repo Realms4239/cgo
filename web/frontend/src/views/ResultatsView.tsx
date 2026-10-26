@@ -539,7 +539,7 @@ export default function ResultatsView() {
   const singleVerdict = ranked.length > 1 && rowVerdicts.every(v => v === rowVerdicts[0]) ? rowVerdicts[0] as string : null
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <button key={label} className="btn" onClick={onClick} title={label} style={{
+    <button key={label} className="btn" onClick={onClick} title={label} aria-pressed={active} style={{
       padding: '3px 10px', fontSize: 'var(--fs-tag)', fontFamily: 'var(--font-mono)',
       border: '1px solid ' + (active ? 'var(--hairline-strong)' : 'var(--hairline)'),
       background: active ? 'rgba(90,211,227,0.12)' : 'transparent',
@@ -697,7 +697,7 @@ export default function ResultatsView() {
             <th className="lb-rank" title="Rang sur ce critère — 1er en haut">#</th>
             <th className="lb-id" title="Profil de lien · file d'attente · contrôle de congestion">Configuration <span aria-hidden="true">ⓘ</span></th>
             {COLS.map(c => (
-              <th key={c.key} className={c.rankKey === rankKey ? 'lb-prim' : 'lb-sec'}>
+              <th key={c.key} className={c.rankKey === rankKey ? 'lb-prim' : 'lb-sec'} aria-sort={c.rankKey === rankKey ? (c.dir === 'down' ? 'ascending' : 'descending') : 'none'}>
                 <button className="lb-sort" onClick={() => setRankKey(c.rankKey)} title={`${c.tip} — cliquer pour classer par ${c.label}`} aria-label={`Classer par ${c.label}`}>
                   {c.label}{c.rankKey === rankKey ? (c.dir === 'up' ? ' ↑' : ' ↓') : ''} <span aria-hidden="true" className="lb-info">ⓘ</span>
                 </button>

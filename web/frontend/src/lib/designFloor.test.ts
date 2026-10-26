@@ -89,6 +89,12 @@ describe('design floor — portes source', () => {
     expect(read(join(SRC, 'styles', 'index.css'))).toMatch(/^:focus-visible\s*\{/m)
   })
 
+  it('résultats : en-têtes triables avec aria-sort, puces de sélection avec aria-pressed', () => {
+    const src = read(join(SRC, 'views', 'ResultatsView.tsx'))
+    expect(src, 'aria-sort sur la colonne triée').toContain('aria-sort=')
+    expect(src, 'les puces de rang/filtre sont des bascules').toContain('aria-pressed={active}')
+  })
+
   it('nav de tête et rail dérivent de la même source PANELS', () => {
     const chooser = read(join(SRC, 'components', 'PanelChooser.tsx'))
     const rail = read(join(SRC, 'components', 'Rail.tsx'))

@@ -72,7 +72,9 @@ export default function CampagneView() {
   const [auditProvider, setAuditProvider] = useState('')
   const [auditDuration, setAuditDuration] = useState(20)
   const [auditDirection, setAuditDirection] = useState<AuditDirection>(DEFAULT_AUDIT_DIRECTION)
-  const [auditTarget, setAuditTarget] = useState('8.8.8.8')
+  // Vide = puits du banc détecté côté serveur (dualns/legacy/external) ;
+  // forcer 8.8.8.8 ici contournerait la détection M4 sur le banc durci.
+  const [auditTarget, setAuditTarget] = useState('')
   const [presets, setPresets] = useState<{id:string;label:string;site:string;link_type:string;provider:string;duration:number;target:string;notes:string}[]>([])
   const [presetNote, setPresetNote] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -195,7 +197,7 @@ export default function CampagneView() {
           provider: auditProvider,
           duration: declaration.duration,
           direction: declaration.direction,
-          target: auditTarget || '8.8.8.8',
+          target: auditTarget || undefined,
           iface: auditIface || undefined,
           routeros_iface: auditRosIface || undefined,
         }),
@@ -583,8 +585,8 @@ export default function CampagneView() {
                 <InlineField label="Fournisseur" helper="ex. yas — gelé avec la ligne">
                   <input className="c-input" name="audit-provider" value={auditProvider} onChange={e => setAuditProvider(e.target.value)} placeholder="yas" />
                 </InlineField>
-                <InlineField label="Cible ping" helper="défaut 8.8.8.8">
-                  <input className="c-input" name="audit-target" value={auditTarget} onChange={e => setAuditTarget(e.target.value)} />
+                <InlineField label="Cible ping" helper="vide = puits du banc détecté">
+                  <input className="c-input" name="audit-target" value={auditTarget} onChange={e => setAuditTarget(e.target.value)} placeholder="détecté" />
                 </InlineField>
                 <InlineField label="Interface Linux" helper="optionnel — ex. eth0, pour le script tc">
                   <input className="c-input" name="audit-iface" value={auditIface} onChange={e => setAuditIface(e.target.value)} placeholder="eth0" />
