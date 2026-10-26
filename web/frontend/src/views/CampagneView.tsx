@@ -28,6 +28,7 @@ import { PeekPopover } from '../components/PeekPopover'
 import AuditHistoryModal from '../components/AuditHistoryModal'
 import { live as liveRing } from '../lib/live'
 import { GATE_LABELS } from '../lib/gates'
+import { canalGate, effectiveChannelModel, type ChannelModel } from '../lib/canal'
 
 const ALL_QDISCS = ['pfifo_fast','fq_codel','cake'] as const
 const ALL_CC = ['cubic','bbr'] as const
@@ -46,7 +47,16 @@ export default function CampagneView() {
     <label key={p.id}><input type="checkbox" checked={profiles.includes(p.id)} onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))} /> <Explain term={p.id}>{p.id}</Explain></label>
   )
   const [reps, setReps] = useState(3)
-  const [flows, setFlows] = useState(1)
+  // 4 flux par défaut (régime du banc durci, décision 6) — 1 = régime historique.
+  const [flows, setFlows] = useState(4)
+  const [channelModel, setChannelModel] = useState<ChannelModel>('clean')
+  // Porte du canal : rafales légales seulement si TOUS les profils sont P2/P3
+  // (même règle que le 400 serveur). Bloqué ⇒ le modèle effectif retombe clean.
+  const canal = canalGate(profiles)
+  const effectiveModel = effectiveChannelModel(channelModel, canal)
+  useEffect(() => {
+    if (!canal.allowed && channelModel === 'bursty') setChannelModel('clean')
+  }, [canal.allowed, channelModel])
   // La deadline voyage avec la campagne: le champ montre la valeur
   // réelle de l'opérateur et suit les Réglages (événement meteolink-settings).
   const [deadlineMs, setDeadlineMs] = useState(loadSettings().deadlineMs)
@@ -289,7 +299,7 @@ export default function CampagneView() {
   const start = async () => {
     setMsg('démarrage…')
     try {
-      const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, flows, deadline_ms: deadlineMs, target: loadSettings().target }) })
+      const r = await fetch('/api/run/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profiles, reps, flows, channel_model: effectiveModel, deadline_ms: deadlineMs, target: loadSettings().target }) })
       if (!r.ok) {
         const txt = await r.text().catch(() => String(r.status))
         setMsg('échec: ' + txt.slice(0,120))
@@ -343,9 +353,9 @@ export default function CampagneView() {
             { n: '③', t: 'Exporter', d: 'récit + chiffres vérifiables' },
           ].map(x => (
             <div key={x.n} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 16 }}>
-              <span className="mono" style={{ fontSize: 18, color: 'var(--t-live, #5ad3e3)' }}>{x.n}</span>
-              <span className="mono" style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-body, #f2f2f4)' }}>{x.t}</span>
-              <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted, #8b9099)', lineHeight: 1.6, overflowWrap: 'break-word' }}>{x.d}</span>
+              <span className="mono" style={{ fontSize: 'var(--fs-head)', color: 'var(--t-live)' }}>{x.n}</span>
+              <span className="mono" style={{ fontSize: 'var(--fs-tag)', letterSpacing: 'var(--tt-08)', textTransform: 'uppercase', color: 'var(--text-body)' }}>{x.t}</span>
+              <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', lineHeight: 1.6, overflowWrap: 'break-word' }}>{x.d}</span>
             </div>
           ))}
         </div>
@@ -379,8 +389,8 @@ export default function CampagneView() {
           <div className="card-head">Matrice — état par cellule</div>
           <div style={{ overflowX: 'auto', minWidth: 0 }}>
           <table className="data-table" style={{ width:'100%', minWidth: 340, borderCollapse:'collapse', fontFamily:'var(--font-mono)', fontSize:11 }}>
-            <thead><tr style={{ color:'#c3c9d1', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
-              <th style={{ padding:'6px 8px' }}>profil</th><th>file × CC</th><th>répétitions</th><th>état</th>
+            <thead><tr style={{ color:'var(--text-body-strong)', textAlign:'left', borderBottom:'1px solid var(--hairline)' }}>
+              <th style={{ padding: 'var(--sp-1) var(--sp-2)' }}>profil</th><th>file × CC</th><th>répétitions</th><th>état</th>
             </tr></thead><tbody>
             {profiles.flatMap((p, pi) => ALL_QDISCS.flatMap((q, qi) => ALL_CC.map((c, ci) => {
               // ordre serveur (matrix.go) : profils × [pfifo, fq_codel, cake] × [cubic, bbr] × reps, event_id dès 1
@@ -390,9 +400,9 @@ export default function CampagneView() {
               const cur = live?.running ? live?.event_id ?? 0 : 0
               const st = cur === 0 ? 'attente' : (cellStart + reps - 1 < cur ? 'terminée' : (cellStart <= cur ? 'en cours' : 'attente'))
               const n = Math.max(0, Math.min(reps, cur - cellStart + (st === 'en cours' ? 1 : 0)))
-              const color = st === 'terminée' ? '#1fa348' : st === 'en cours' ? '#5ad3e3' : 'var(--text-faint, #7e838c)'
+              const color = st === 'terminée' ? 'var(--t-ok)' : st === 'en cours' ? 'var(--t-live)' : 'var(--text-faint)'
               return (<tr key={`${p}/${q}/${c}`} style={{ borderBottom:'1px solid var(--hairline-faint)' }}>
-                <td style={{ padding:'6px 8px' }}>{p}</td><td>{q} × {c}</td>
+                <td style={{ padding: 'var(--sp-1) var(--sp-2)' }}>{p}</td><td>{q} × {c}</td>
                 <td style={{ fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap' }}>{n}/{reps}</td>
                 <td style={{ color, whiteSpace:'nowrap' }}>{st}</td></tr>)
             })))}
@@ -406,13 +416,13 @@ export default function CampagneView() {
       <aside className="panel-stack cockpit" style={{position:'fixed', right:0, top:48, bottom:28, width:380, zIndex:40, backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderLeft:'1px solid var(--hairline)', background:'rgba(7,7,7,0.85)', overflowY:'auto', padding:12}}>
       {peek && (
         <PeekPopover rect={peek.rect}>
-          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'#8b9099', marginBottom:4}}>live small — 20 pts</div>
+          <div className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, color:'var(--text-muted)', marginBottom:4}}>live small — 20 pts</div>
           <div style={{display:'flex', alignItems:'end', gap:1, height:28}}>
             {peek.data.map((v,i)=>(
-              <i key={i} style={{flex:1, height: `${Math.max(2, Math.min(28, (v/200)*28))}px`, background: '#f4b400', borderRadius:1, opacity: 0.7 + (i/peek.data.length)*0.3}} />
+              <i key={i} style={{flex:1, height: `${Math.max(2, Math.min(28, (v/200)*28))}px`, background: 'var(--t-threshold)', borderRadius:1, opacity: 0.7 + (i/peek.data.length)*0.3}} />
             ))}
           </div>
-          <div className="mono" style={{fontSize:10, color:'#f4b400', marginTop:4}}>{peek.data.at(-1)?.toFixed(1) ?? '—'} ms</div>
+          <div className="mono" style={{fontSize:10, color:'var(--t-threshold)', marginTop:4}}>{peek.data.at(-1)?.toFixed(1) ?? '—'} ms</div>
         </PeekPopover>
       )}
       <div className="card">
@@ -436,16 +446,44 @@ export default function CampagneView() {
         <div className="form-row">
           <label title=">1 sature un lien avec perte où un CUBIC mono-flux s'effondre">Flux de charge</label>
           <input type="number" min={1} max={8} value={flows} onChange={e=>setFlows(parseInt(e.target.value)||1)} style={{width:64}} />
-          <span className="mono muted" style={{fontSize:10}}>1–8</span>
+          <span className="mono muted" style={{fontSize:10}}>1–8 · défaut 4</span>
         </div>
         <div className="form-row">
+          <label><Explain term="canal">Canal</Explain></label>
+          <div role="group" aria-label="Modèle de canal" style={{ display: 'flex', gap: 'var(--sp-1)', flexWrap: 'wrap' }}>
+            {(['clean', 'bursty'] as const).map(m => {
+              const blocked = m === 'bursty' && !canal.allowed
+              const active = effectiveModel === m
+              return (
+                <button
+                  key={m} type="button" className="btn" aria-pressed={active}
+                  disabled={blocked}
+                  title={blocked ? canal.reason : m === 'bursty' ? 'rafales — canal propre P2/P3' : 'canal propre, sans rafales'}
+                  onClick={() => setChannelModel(m)}
+                  style={{
+                    padding: 'var(--sp-1) var(--sp-2)',
+                    borderColor: active ? 'var(--t-live)' : 'var(--hairline)',
+                    color: active ? 'var(--t-live)' : 'var(--text-muted)',
+                    background: active ? 'var(--live-dim)' : 'transparent',
+                    opacity: blocked ? 'var(--state-disabled-opacity, 0.45)' : 1,
+                    cursor: blocked ? 'not-allowed' : 'pointer',
+                  }}
+                >{m}</button>
+              )
+            })}
+          </div>
+        </div>
+        {!canal.allowed && (
+          <div className="mono muted" data-testid="canal-reason" style={{ fontSize: 'var(--fs-micro)', marginTop: -4 }}>{canal.reason}</div>
+        )}
+        <div className="form-row">
           <label><Explain term="deadline">Deadline</Explain></label>
-          <input title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" type="number" min={200} max={5000} step={100} placeholder="1000" value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid #26262a', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11}} />
+          <input title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" type="number" min={200} max={5000} step={100} placeholder="1000" value={deadlineMs} onChange={e=>setDeadlineMs(parseInt(e.target.value)||1000)} style={{width:80, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11}} />
           <span className="mono muted" style={{fontFamily:'JetBrains Mono', fontSize:10}}>ms</span>
         </div>
-        <div className="form-row" style={{gap:8, border:'1px solid #26262a', background:'rgba(244,180,0,0.06)', padding:'6px 8px', marginTop:6}} onMouseEnter={e=>setPeek({rect:e.currentTarget.getBoundingClientRect(), data: liveRing.small.slice(-20).map(([,v]:[number,number])=>v)})} onMouseLeave={()=>setPeek(null)}>
-          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#8b9099'}}>cost preview</span>
-          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color: live?.wasted_bytes != null ? '#f4b400' : 'var(--text-faint, #7e838c)', fontVariantNumeric:'tabular-nums'}}>
+        <div className="form-row" style={{gap:8, border:'1px solid var(--hairline)', background:'rgba(244,180,0,0.06)', padding: 'var(--sp-1) var(--sp-2)', marginTop:6}} onMouseEnter={e=>setPeek({rect:e.currentTarget.getBoundingClientRect(), data: liveRing.small.slice(-20).map(([,v]:[number,number])=>v)})} onMouseLeave={()=>setPeek(null)}>
+          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--text-muted)'}}>cost preview</span>
+          <span className="mono" style={{fontFamily:'JetBrains Mono', fontSize:11, color: live?.wasted_bytes != null ? 'var(--t-threshold)' : 'var(--text-faint)', fontVariantNumeric:'tabular-nums'}}>
             {(() => {
               if (!live || live.wasted_bytes == null || live.cost_ar_per_h == null) return '—'
               const w = formatBytesFR(live.wasted_bytes)
@@ -602,28 +640,28 @@ export default function CampagneView() {
               } catch { useUIStore.getState().pushToast('échec import audit', 'err') }
             }} title="transforme le dernier audit du lien réel en profil rejouable sur le banc" style={{ marginLeft: 'auto', padding: '2px 10px' }}>AUDIT → PROFIL</button>
             <button className="btn" onClick={()=>setImportForm(true)} style={{ padding: '2px 10px' }}>IMPORTER</button>
-            <span className="mono muted" style={{ fontSize: 10 }}>{importMsg}</span>
+            <span className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>{importMsg}</span>
           </>}
         </div>
         {importForm && <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
             <InlineField label="Identifiant" error={importValidation.errors.id} helper="jamais P1–P4 (référentiel protégé) — ex. P-site-fibre">
-              <input name="import-id" value={impId} onChange={e=>setImpId(e.target.value)} placeholder="P-site-fibre" style={{ background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input name="import-id" value={impId} onChange={e=>setImpId(e.target.value)} placeholder="P-site-fibre" style={{ background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <InlineField label="Capacité (Mbit/s)" error={importValidation.errors.capacity} helper="> 0">
-              <input type="number" min={0.1} step={0.1} value={impCap} onChange={e=>setImpCap(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={0.1} step={0.1} value={impCap} onChange={e=>setImpCap(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <InlineField label="Cap. montante (Mbit/s)" error={undefined} helper="0 = symétrique — ex. 5 pour 4G 20/5">
-              <input type="number" min={0} step={0.1} value={impCapUp} onChange={e=>setImpCapUp(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={0} step={0.1} value={impCapUp} onChange={e=>setImpCapUp(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <InlineField label="RTT (ms)" error={importValidation.errors.delay} helper="> 0">
-              <input type="number" min={1} value={impDelay} onChange={e=>setImpDelay(parseInt(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={1} value={impDelay} onChange={e=>setImpDelay(parseInt(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <InlineField label="Gigue (ms)" error={importValidation.errors.jitter} helper="≥ 0 — ex. 30 pour VSAT">
-              <input type="number" min={0} step={0.5} value={impJitter} onChange={e=>setImpJitter(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={0} step={0.5} value={impJitter} onChange={e=>setImpJitter(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <InlineField label="Perte (%)" error={importValidation.errors.loss} helper="≥ 0 — ex. 1 pour VSAT">
-              <input type="number" min={0} step={0.1} value={impLoss} onChange={e=>setImpLoss(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding:'6px 8px', fontFamily:'JetBrains Mono', fontSize:11 }} />
+              <input type="number" min={0} step={0.1} value={impLoss} onChange={e=>setImpLoss(parseFloat(e.target.value)||0)} style={{ width:100, background:'var(--surface-card)', color:'var(--text-body)', border:'1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily:'JetBrains Mono', fontSize:11 }} />
             </InlineField>
             <div className="form-row" style={{gap:8}}>
               <ArmButton label="CONFIRMER IMPORT" onConfirm={importProfile} disabled={!importValidation.valid} />

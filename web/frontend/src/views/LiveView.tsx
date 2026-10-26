@@ -24,6 +24,7 @@ import { CardHead } from '../components/ui/CardHead'
 import { Pill } from '../components/ui/Pill'
 import { loadSettings, latencyLevel, dropsLevel, deadlineLevel, goodputLevel, jfiLevel, LEVEL_COLOR, type Settings } from '../lib/settings'
 import { formatBytesFR, formatCostAR, verdictWord, truncateWords } from '../lib/format'
+import { paletteOnce } from '../lib/palette'
 
 type Craft = 'line' | 'bar' | 'area'
 type Tri = { metric: boolean; chart: Craft; source: 'live' | 'frozen' | 'both' }
@@ -50,7 +51,7 @@ function useChart(_title: string, _unit: string) {
     // légende basse Grafana — noms des séries sous le graphe, grille remontée
     const names = series.map(s => (s as { name?: string }).name).filter((n): n is string => !!n)
     const leg = empty || names.length === 0 ? {} : {
-      legend: { bottom: 0, left: 'center', textStyle: { color: '#8b9099', fontFamily: 'JetBrains Mono', fontSize: 10 }, itemWidth: 14, itemHeight: 2, data: names },
+      legend: { bottom: 0, left: 'center', textStyle: { color: paletteOnce().textMuted, fontFamily: 'JetBrains Mono', fontSize: 'var(--fs-micro)' }, itemWidth: 14, itemHeight: 2, data: names },
       grid: { left: 64, right: 32, top: 48, bottom: 58, containLabel: true },
     }
     const opt = { animation: false, ...base, ...(empty ? { dataZoom: [] } : {}), ...leg, ...extra, series } as unknown as EChartsOption
@@ -210,7 +211,7 @@ export default function LiveView() {
   // p95 partiel honnête — le nombre est vrai (fenêtre courante), seulement
   // la complétude est indiquée : "en cours 42 s/120 s" si la phase tourne.
   const phaseTotalHint = liveSnap?.running && liveSnap.phase && liveSnap.phase_total_s
-    ? <span className="mono" style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-faint)' }}>
+    ? <span className="mono" style={{ marginLeft: 'auto', fontSize: 'var(--fs-micro)', color: 'var(--text-faint)' }}>
         {liveSnap.small_p95_ms > 0 ? `p95 partiel ${liveSnap.small_p95_ms.toFixed(1)} ms — ` : ''}
         {liveSnap.phase} en cours
       </span>
@@ -229,7 +230,7 @@ export default function LiveView() {
     const p50 = live.rtt50.at(-1)?.[1] ?? liveSnap?.rtt_p50_ms ?? 0
     return computeQDI(p95, p50)
   })()
-  const jfiVal: number | null = (() => {
+  const jfiClient: number | null = (() => {
     const gVals = live.goodput.slice(-20).map(([, v]) => v).filter(v => v > 0.01)
     if (gVals.length >= 2) {
       const allEqual = gVals.every(v => v === gVals[0])
@@ -242,6 +243,10 @@ export default function LiveView() {
     }
     return null
   })()
+  // JFI du serveur (0–100, mesuré par flux) prioritaire quand il existe ;
+  // sinon repli sur les anneaux — l'échelle d'affichage suit la source.
+  const jfiServerPct = liveSnap?.running && (liveSnap?.jfi_pct ?? 0) > 0 ? Number(liveSnap.jfi_pct) : 0
+  const jfiVal: number | null = jfiServerPct > 0 ? jfiServerPct / 100 : jfiClient
 
   const rttP95 = liveSnap?.rtt_p95_ms ?? live.rtt95.at(-1)?.[1] ?? 0
   const rttP50 = liveSnap?.rtt_p50_ms ?? live.rtt50.at(-1)?.[1] ?? 0
@@ -251,6 +256,10 @@ export default function LiveView() {
   const idle = !liveSnap?.running && live.rtt95.length === 0 && live.small.length === 0
   const wasted: number | null = idle ? null : liveSnap?.wasted_bytes ?? null
   const costAr: number | null = idle ? null : liveSnap?.cost_ar_per_h ?? null
+  // Coûts entreprise : GOLD (modèle A, capacité dépréciée) et APN 150 Ar/Go
+  // (modèle B, facturé au volume) — mesurés par le serveur, jamais dérivés ici.
+  const costPrimary: number | null = idle ? null : liveSnap?.cost_primary_ar_per_h ?? null
+  const costB2B: number | null = idle ? null : liveSnap?.cost_b2b_ar_per_h ?? null
   const deadlineOk: number | null = idle ? null : liveSnap?.deadline_ok_pct ?? null
   const spark = (r: [number, number][]) => r.map(([, v]) => v).slice(-20)
   const trendOf = (arr: number[]): 'up' | 'down' | 'flat' => {
@@ -366,8 +375,8 @@ export default function LiveView() {
     <div id="wall" className="panel-stack" style={{ position: 'relative' }}>
       {peek && (
         <PeekPopover rect={peek.rect}>
-          <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>live p95 — point</div>
-          <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--t-live)' }}>{peek.value.toFixed(1)} ms</div>
+          <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>live p95 — point</div>
+          <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-body)', color: 'var(--t-live)' }}>{peek.value.toFixed(1)} ms</div>
           <div style={{ display: 'flex', alignItems: 'end', gap: 1, height: 20, marginTop: 4 }}>
             {live.rtt95.slice(-20).map(([, v]: [number, number], i: number) => <i key={i} style={{ flex: 1, height: `${Math.max(2, Math.min(20, (v / 300) * 20))}px`, background: CRAFT.live, borderRadius: 1, opacity: 0.6 + i * 0.02 }} />)}
           </div>
@@ -406,16 +415,18 @@ export default function LiveView() {
         <MetricCard term="deadline_ok" label="Échéances" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? 'var(--text-faint)' : LEVEL_COLOR[deadlineLevel(deadlineOk)]} trend="flat" spark={spark(live.deadline)} verdict={deadlineOk === null ? undefined : verdictWord(deadlineLevel(deadlineOk))} verdictLevel={deadlineOk === null ? undefined : deadlineLevel(deadlineOk)} threshold={{ marker: 95, max: 100 }} />
         <MetricCard term="rtt_p50" label="RTT médian" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP50, settings)]} spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} verdict={rttP50 ? verdictWord(latencyLevel(rttP50, settings)) : undefined} verdictLevel={rttP50 ? latencyLevel(rttP50, settings) : undefined} />
         <div data-testid="qdi-sparkline"><MetricCard term="QDI" label="Dispersion" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
-        <Card head="JFI" sub="équité inter-flux (0–1)" testid="qdi-card" term="JFI">
+        <Card head="JFI" sub={jfiServerPct > 0 ? 'équité inter-flux mesurée' : 'équité inter-flux (rings, 0–1)'} testid="qdi-card" term="JFI">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
-            <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: jfiVal === null ? 'var(--text-body)' : LEVEL_COLOR[jfiLevel(jfiVal)], fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{jfiVal === null ? '—' : jfiVal.toFixed(2)}</span>
+            <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-head)', fontWeight: 700, color: jfiVal === null ? 'var(--text-body)' : LEVEL_COLOR[jfiLevel(jfiVal)], fontVariantNumeric: 'tabular-nums', letterSpacing: 'var(--tt-neg-02)' }}>{jfiVal === null ? '—' : jfiServerPct > 0 ? `${jfiServerPct.toFixed(1)} %` : jfiVal.toFixed(2)}</span>
             <DonutJFI value={jfiVal} />
-            {jfiVal !== null && <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 6px', border: '1px solid #26262a', background: LEVEL_COLOR[jfiLevel(jfiVal)] + '14', color: LEVEL_COLOR[jfiLevel(jfiVal)], lineHeight: 1 }}>{verdictWord(jfiLevel(jfiVal))}</span>}
+            {jfiVal !== null && <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', padding: '2px 6px', border: '1px solid var(--hairline)', background: LEVEL_COLOR[jfiLevel(jfiVal)] + '14', color: LEVEL_COLOR[jfiLevel(jfiVal)], lineHeight: 1 }}>{verdictWord(jfiLevel(jfiVal))}</span>}
           </div>
         </Card>
         <MetricCard term="drops" label="Pertes" value={idle ? '—' : String(drops)} unit="" color={LEVEL_COLOR[dropsLevel(drops)]} trend={drops > 0 ? 'up' : 'flat'} spark={spark(live.drops)} verdict={idle ? undefined : verdictWord(dropsLevel(drops))} verdictLevel={idle ? undefined : dropsLevel(drops)} />
         <MetricCard term="wasted" label="Gaspillé" value={formatBytesFR(wasted).num} unit={formatBytesFR(wasted).unit} color={wasted == null ? 'var(--text-faint)' : CRAFT.threshold} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} spark={spark(live.wasted)} />
-        <MetricCard term="cost_ar_per_h" label="Coût" value={formatCostAR(costAr).num} unit={formatCostAR(costAr).unit} color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.cost)} />
+        <MetricCard term="cost_primary_ar_per_h" label="Coût entreprise" value={formatCostAR(costPrimary).num} unit={formatCostAR(costPrimary).unit} color={costPrimary == null ? 'var(--text-faint)' : CRAFT.threshold} trend="flat" />
+        <MetricCard term="cost_b2b_ar_per_h" label="Coût B2B" value={formatCostAR(costB2B).num} unit={formatCostAR(costB2B).unit} color={costB2B == null ? 'var(--text-faint)' : CRAFT.threshold} trend="flat" />
+        <MetricCard term="cost_ar_per_h" label="Coût détail (gelé)" value={formatCostAR(costAr).num} unit={formatCostAR(costAr).unit} color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.cost)} />
       </div>
       )}
       {showLiveSrc && (
@@ -442,7 +453,7 @@ export default function LiveView() {
           Contrôle de forme — prescrire CAKE alors que CAKE est déjà appliqué
           au bord contredit l'état propre (preuve shape=cake aux shots). */}
       {showLiveSrc && rttP95 != null && rttP95 > settings.critMs && !(shape?.applied && shape.qdisc === 'cake') && (
-        <div className="mono" data-testid="runbook-pointer" style={{ gridColumn: '1 / -1', fontSize: 10, color: 'var(--t-warn, #f4b400)', border: '1px dashed rgba(244,180,0,0.4)', padding: '6px 10px' }}>
+        <div className="mono" data-testid="runbook-pointer" style={{ gridColumn: '1 / -1', fontSize: 'var(--fs-micro)', color: 'var(--t-warn)', border: '1px dashed rgba(244,180,0,0.4)', padding: '6px 10px' }}>
           bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
         </div>
       )}
@@ -456,11 +467,11 @@ export default function LiveView() {
           label={`Figée vs appliqué — ${baseline?.qdisc ?? 'pfifo'} → ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
           sub={`source ${tri.source} · hash ${hash8} · ${wallGroups ? `${wallGroups.length} groupes gelés` : 'en attente'}`}
           right={diffAB != null ? (
-            <span className="diff-badge mono" style={{ background: diffAB > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diffAB > 0 ? CRAFT.ok : CRAFT.danger), color: diffAB > 0 ? CRAFT.ok : CRAFT.danger, padding: '4px 10px', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{diffAB > 0 ? `-${diffAB}%` : `${diffAB}%`}</span>
+            <span className="diff-badge mono" style={{ background: diffAB > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diffAB > 0 ? CRAFT.ok : CRAFT.danger), color: diffAB > 0 ? CRAFT.ok : CRAFT.danger, padding: '4px 10px', fontSize: 'var(--fs-body)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{diffAB > 0 ? `-${diffAB}%` : `${diffAB}%`}</span>
           ) : undefined}
         />
         {diffAB != null && (
-          <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+          <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>
             {diffAB > 0
               ? `cake répond ${diffAB} % plus vite que la file simple — médianes figées, même campagne`
               : `la file simple répond ${Math.abs(diffAB)} % plus vite — médianes figées, même campagne`}
@@ -470,10 +481,10 @@ export default function LiveView() {
         <div style={{ border: '1px solid var(--hairline)', background: 'rgba(90,211,227,0.03)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
             <div style={{ minWidth: 0 }}>
-              <span className="mono" style={{ fontFamily: 'var(--font-mono, JetBrains Mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8b9099)' }}>
+              <span className="mono" style={{ fontFamily: 'var(--font-mono, JetBrains Mono)', fontSize: 'var(--fs-tag)', letterSpacing: 'var(--tt-08)', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                 Contrôle du bord — {locked ? `figée ${locked.at}` : 'référence'} vs {shape?.applied ? shape.qdisc : 'sans façonnage'}
               </span>
-              <div className="mono" style={{ fontSize: 10, color: 'var(--text-faint, #767b84)', marginTop: 2 }}>{shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}</div>
+              <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-faint)', marginTop: 2 }}>{shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'}</div>
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
@@ -482,10 +493,10 @@ export default function LiveView() {
                     type="number" min={1} max={1000} placeholder="20" value={shapeCap}
                     onChange={e => setShapeCap(parseInt(e.target.value) || 20)}
                     aria-label="capacité du bord (Mbit/s)"
-                    style={{ width: 74, background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '5px 6px', fontFamily: 'var(--font-mono)', fontSize: 10 }}
+                    style={{ width: 74, background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: '5px 6px', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)' }}
                   />
                 </Explain>
-                <span className="mono" style={{ fontSize: 9, color: '#9aa0a8' }}>Mbit/s</span>
+                <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-body)' }}>Mbit/s</span>
                 <Pill label="conditions" value={linkOpen ? 'masquer' : `${settings.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
                 {/* une campagne active possède le shaper — le levier répond 409 :
                     on grise au lieu de laisser l'opérateur lever une erreur */}
@@ -508,34 +519,34 @@ export default function LiveView() {
           </div>
           {/* burst test — CUBIC vs BBR à travers le bord façonné, sous surveillance */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a8aeb7' }}><Explain term="burst">Burst test</Explain></span>
+            <span className="mono" style={{ fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tt-08)', textTransform: 'uppercase', color: 'var(--text-body)' }}><Explain term="burst">Burst test</Explain></span>
             {['cubic', 'bbr'].map(c => (
               <button key={c} className="btn" onClick={() => setBurstCc(c)} style={{
-                padding: '3px 10px', fontSize: 10, fontFamily: 'var(--font-mono)',
-                border: '1px solid ' + (burstCc === c ? '#3a3a40' : 'var(--hairline)'),
+                padding: '3px 10px', fontSize: 'var(--fs-micro)', fontFamily: 'var(--font-mono)',
+                border: '1px solid ' + (burstCc === c ? 'var(--hairline-strong)' : 'var(--hairline)'),
                 background: burstCc === c ? 'rgba(90,211,227,0.12)' : 'transparent',
-                color: burstCc === c ? '#7fd6e8' : '#a8aeb7',
+                color: burstCc === c ? 'var(--t-live)' : 'var(--text-body)',
               }}>{c}</button>
             ))}
-            <button className="btn" onClick={runBurst} disabled={bursting || !!liveSnap?.running} style={{ padding: '4px 12px', fontSize: 10 }}>
+            <button className="btn" onClick={runBurst} disabled={bursting || !!liveSnap?.running} style={{ padding: '4px 12px', fontSize: 'var(--fs-micro)' }}>
               {bursting ? `burst ${burstCc}…` : `TESTER ${burstCc.toUpperCase()}`}
             </button>
-            <span className="mono" style={{ fontSize: 9, color: '#9aa0a8' }}>{liveSnap?.running ? 'indisponible pendant la campagne' : 'traverse le bord façonné — regardez goodput et RTT'}</span>
+            <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-body)' }}>{liveSnap?.running ? 'indisponible pendant la campagne' : 'traverse le bord façonné — regardez goodput et RTT'}</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn" onClick={lockBaseline} disabled={liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 10 }}>FIGER L'AVANT{liveSmallMedian != null ? ` — ${liveSmallMedian.toFixed(1)} ms` : ''}</button>
+            <button className="btn" onClick={lockBaseline} disabled={liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 'var(--fs-micro)' }}>FIGER L'AVANT{liveSmallMedian != null ? ` — ${liveSmallMedian.toFixed(1)} ms` : ''}</button>
             {locked && <Pill label="avant" value={`${locked.ms} ms @ ${locked.at}`} on title="avant figé — cliquer pour libérer" onClick={() => { setLocked(null); try { localStorage.removeItem('wall-baseline') } catch { } }} />}
-            <button className="btn btn-primary" onClick={exportConstat} disabled={locked == null || liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 10, marginLeft: 'auto' }}>TÉLÉCHARGER LE CONSTAT</button>
+            <button className="btn btn-primary" onClick={exportConstat} disabled={locked == null || liveSmallMedian == null} style={{ padding: '6px 10px', fontSize: 'var(--fs-micro)', marginLeft: 'auto' }}>TÉLÉCHARGER LE CONSTAT</button>
           </div>
-          {shapeMsg && <div className="mono" style={{ fontSize: 10, color: shapeMsg.includes('erreur') || shapeMsg.includes('échec') ? CRAFT.danger : CRAFT.ok }}>{shapeMsg}</div>}
+          {shapeMsg && <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: shapeMsg.includes('erreur') || shapeMsg.includes('échec') ? CRAFT.danger : CRAFT.ok }}>{shapeMsg}</div>}
           {locked && showLiveSrc && liveSmallMedian != null && (
             <div>
-              <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+              <div className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
                 <span>avant → maintenant, même fenêtre</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums', color: liveDiff != null && liveDiff > 0 ? CRAFT.ok : CRAFT.danger }}>{liveDiff != null ? `${liveDiff > 0 ? '-' : '+'}${Math.abs(liveDiff)} %` : '—'}</span>
               </div>
-              <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed #767b84', borderRadius: 2, overflow: 'hidden', marginTop: 4, position: 'relative' }}>
-                <div style={{ width: `${Math.min(100, (locked.ms / Math.max(locked.ms, liveSmallMedian)) * 100)}%`, height: '100%', background: '#767b84', opacity: 0.9, transition: 'width 0.4s ease' }} />
+              <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed var(--text-faint)', borderRadius: 2, overflow: 'hidden', marginTop: 4, position: 'relative' }}>
+                <div style={{ width: `${Math.min(100, (locked.ms / Math.max(locked.ms, liveSmallMedian)) * 100)}%`, height: '100%', background: 'var(--text-faint)', opacity: 0.9, transition: 'width 0.4s ease' }} />
               </div>
               <div style={{ height: 10, background: 'rgba(90,211,227,0.08)', border: '1px solid ' + CRAFT.live, borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
                 <div style={{ width: `${Math.min(100, (liveSmallMedian / Math.max(locked.ms, liveSmallMedian)) * 100)}%`, height: '100%', background: CRAFT.live, boxShadow: '0 0 6px rgba(90,211,227,0.5)', transition: 'width 0.4s ease' }} />
@@ -546,16 +557,16 @@ export default function LiveView() {
         {showFrozenSrc && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-faint)', display: 'flex', justifyContent: 'space-between' }}>
+              <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', color: 'var(--text-faint)', display: 'flex', justifyContent: 'space-between' }}>
                 <span>baseline figée — gris pointillé</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-body)' }}>{baseline ? `${baseline.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
-              <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed #767b84', borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
-                <div style={{ width: `${baseline ? (baseline.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: '#767b84', opacity: 0.9, transition: 'width 0.4s ease' }} />
+              <div style={{ height: 10, background: 'rgba(118,123,132,0.08)', border: '1px dashed var(--text-faint)', borderRadius: 2, overflow: 'hidden', marginTop: 4 }}>
+                <div style={{ width: `${baseline ? (baseline.small_p95_median / maxAB) * 100 : 0}%`, height: '100%', background: 'var(--text-faint)', opacity: 0.9, transition: 'width 0.4s ease' }} />
               </div>
             </div>
             <div>
-              <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: CRAFT.bbr, display: 'flex', justifyContent: 'space-between' }}>
+              <div className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', color: CRAFT.bbr, display: 'flex', justifyContent: 'space-between' }}>
                 <span>{shape?.applied ? shape.qdisc : "cake"} — violet uni{cakeBest?.best ? ' ★' : ''}</span>
                 <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-body)' }}>{cakeBest ? `${cakeBest.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
@@ -571,7 +582,7 @@ export default function LiveView() {
         <div className="card" data-testid="journal" style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <CardHead label="Journal" sub={`${Math.min(journal.length, 12)} affichés sur ${journalTotal} reçus`} />
           {journal.slice(0, 12).map((e, i) => (
-            <div key={i} className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+            <div key={i} className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
               <span style={{ color: 'var(--text-faint)' }}>{e.ts.slice(11, 19)}</span>
               <span style={{ color: 'var(--t-live)', minWidth: 84 }}>{e.kind}</span>
               <span className="ev-msg" title={e.msg} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{truncateWords(e.msg, 120)}</span>

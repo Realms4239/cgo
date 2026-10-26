@@ -18,6 +18,13 @@ export interface LiveFrame {
   drops: number
   wasted_bytes?: number
   cost_ar_per_h?: number
+  // Coûts entreprise (miroir de pkg/campagne.Snapshot) : scénario GOLD (modèle A)
+  // et B2B APN 150 Ar/Go (modèle B) — le cost_ar_per_h détail reste à côté.
+  cost_primary_ar_per_h?: number
+  cost_b2b_ar_per_h?: number
+  // JFI mesuré par le serveur, 0–100 (0 = mono-flux/n.a.) — préféré aux rings
+  // client quand > 0, sinon computeJFI côté mur.
+  jfi_pct?: number
   deadline_ok_pct?: number
   gates: (boolean | null)[]
   running: boolean
