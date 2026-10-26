@@ -143,6 +143,11 @@ footer .fill { margin-left: auto; }
 .brush .handle { width: 16px; fill: rgba(90,211,227,0.25); stroke: rgba(90,211,227,0.6); }
 .brush .selection { fill: rgba(90,211,227,0.08); stroke: rgba(90,211,227,0.4); }
 
+@media (max-width: 1500px) {
+  /* 1366 : la tagline cède avant les contrôles — pas de seconde rangée dans le header */
+  .hd-sub { display: none; }
+}
+
 @media (max-width: 899px) {
   #shell, #shell.rail-min { grid-template-columns: 1fr; grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: "hd" "side" "main" "ft"; }
   /* surcharge largeur inline par classe — le rail devient bande horizontale 48px */

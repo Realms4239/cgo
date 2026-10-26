@@ -15,6 +15,24 @@ Les deux modes :
 Le mode se force via `--mode observe|full|auto` (défaut `auto`).
 Vérification : `GET /api/health` → `{ok, version, mode}`.
 
+### 1.1 Matrice des capacités (Windows vs Linux)
+
+| Capacité | Windows (observation) | Linux (complet) |
+|---|---|---|
+| Audit du lien (RTT, petits objets, charge) | ✅ | ✅ |
+| Campagne / matrice AQM × CC | 501 | ✅ |
+| Façonnage du bord (`tc`/netem) | 501 | ✅ (CAP_NET_ADMIN) |
+| Surveillance continue | 501 | ✅ |
+| `TCP_INFO` (RTT noyau, retransmissions) | n/a — hors Linux | ✅ |
+| `netns` / banc `dualns` | n/a — hors Linux | ✅ (`kit/run-dualns.sh`) |
+| Porte offloads du banc (GRO/GSO/TSO) | n/a — `warn`, pas un échec | ✅ (échec franc si actif) |
+
+**n/a ≠ échec** : `cgo doctor` et `/api/doctor` rendent
+`n/a — hors Linux (mode observation)` pour ces portes. Un `warn` Windows
+ne doit pas être lu comme une régression ; la porte offloads échoue
+franchement sur Linux quand le banc est monté et que GRO/GSO/TSO restent
+actifs (commit `4968745`).
+
 ---
 
 ## 1. Windows — mode observation
@@ -137,3 +155,21 @@ voir `docs/usage.fr.md`.
 [ ] cgo shape --restore exécuté une fois (bord propre au départ)
 [ ] service systemd actif : systemctl status meteolink
 ```
+
+## 6. Ligne de sécurité — dashboard mono-opérateur
+
+`kit/run-dualns.sh serve` lie le dashboard à `10.99.0.2:9090` dans le
+netns `ns_client`, en HTTP brut. Ce n'est **pas** un service multi-tenant
+durci :
+
+- **pas d'authentification ni d'autorisation** : quiconque atteint le port
+  (ou le loopback de l'hôte) peut lancer/arrêter une campagne, appliquer ou
+  retirer un façonnage, changer le palier tarifaire ;
+- **pas de jeton CSRF ni de rate limit** ; le corps JSON est borné à 1 Mio,
+  ce n'est pas un contrôle d'accès ;
+- **le façonnage modifie réellement le bord** : banc/labo ou mini-PC DSI,
+  jamais exposé sur Internet ; n'ouvrir le 9090 que sur le réseau
+  d'administration.
+
+Ce qui est protégé : l'intégrité des mesures (gel SHA-256) et la validation
+des entrées. Ce qui ne l'est pas : l'accès au levier de façonnage.
