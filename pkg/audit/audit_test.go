@@ -52,6 +52,67 @@ func TestRunDirectionDown(t *testing.T) {
 	}
 }
 
+// T5 — OnProgress publie les phases vivantes (début + ~1 Hz), un temps
+// monotone et les échantillons de la fenêtre courante, sans valeur inventée.
+func TestRunOnProgressReportsLivePhases(t *testing.T) {
+	var mu sync.Mutex
+	var got []Progress
+	d := Deps{
+		Ping:  func(context.Context, string, int) []float64 { return []float64{20, 21, 22, 23, 30} },
+		Small: func(context.Context) (float64, error) { return 15, nil },
+		BulkLoad: func(context.Context, string, string, int) LoadOutcome {
+			return LoadOutcome{Bytes: 1_000_000, PerFlow: []uint64{1_000_000}, Elapsed: time.Second}
+		},
+		OnProgress: func(p Progress) {
+			mu.Lock()
+			got = append(got, p)
+			mu.Unlock()
+		},
+	}
+	if _, err := Run(context.Background(), Params{AuditID: "a", Duration: 2, Direction: "up", Target: "x"}, d); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) < 4 {
+		t.Fatalf("trop peu de progressions : %d", len(got))
+	}
+	seen := map[string]bool{}
+	prevElapsed := -1
+	for _, p := range got {
+		seen[p.Phase] = true
+		if p.ElapsedSec < prevElapsed {
+			t.Fatalf("ElapsedSec recule : %d puis %d", prevElapsed, p.ElapsedSec)
+		}
+		prevElapsed = p.ElapsedSec
+		if p.PhaseRemainSec < 0 {
+			t.Fatalf("PhaseRemainSec négatif : %+v", p)
+		}
+		if len(p.SamplesRTT) > 32 || len(p.SamplesSmall) > 32 {
+			t.Fatalf("échantillons > 32 : %d/%d", len(p.SamplesRTT), len(p.SamplesSmall))
+		}
+	}
+	for _, want := range []string{"repos", "charge"} {
+		if !seen[want] {
+			t.Fatalf("phase %q jamais publiée : %+v", want, got)
+		}
+	}
+	if last := got[len(got)-1]; last.LastRTTms != 30 || last.LastSmallMs != 15 {
+		t.Fatalf("dernier échantillon : %+v", last)
+	}
+}
+
+func TestLivePhaseNameBoth(t *testing.T) {
+	for in, want := range map[string]string{
+		"baseline": "repos", "load": "charge", "load-down": "charge-down",
+		"drain": "drain", "drain-down": "drain",
+	} {
+		if got := livePhaseName(in); got != want {
+			t.Fatalf("livePhaseName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 // TestRunDirectionBothRunsTwoLoadWindows — both : une seule baseline partagée,
 // fenêtre up PUIS fenêtre down (avec répit entre les deux), mini-drain up →
 // DrainMs, drain final down → DrainDownMs.

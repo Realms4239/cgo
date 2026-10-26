@@ -128,6 +128,21 @@ type Deps struct {
 	Ping     func(ctx context.Context, target string, n int) []float64
 	Small    func(ctx context.Context) (float64, error)
 	BulkLoad func(ctx context.Context, addr, direction string, flows int) LoadOutcome
+	// OnProgress — état vivant (~1 Hz + début de phase) ; nil = no-op.
+	OnProgress func(Progress)
+}
+
+// Progress — ce que l'audit observe en direct. Échantillons = les ≤32
+// dernières valeurs de la fenêtre courante, jamais un zéro fabriqué pour
+// une sonde perdue (Last* ne retient qu'une valeur reçue).
+type Progress struct {
+	Phase          string    `json:"phase"` // repos, charge, charge-down, drain
+	ElapsedSec     int       `json:"elapsed_sec"`
+	PhaseRemainSec int       `json:"phase_remain_sec"`
+	LastRTTms      float64   `json:"last_rtt_ms"`
+	LastSmallMs    float64   `json:"last_small_ms"`
+	SamplesRTT     []float64 `json:"samples_rtt_ms"`
+	SamplesSmall   []float64 `json:"samples_small_ms"`
 }
 
 // LoadOutcome — le résultat d'une fenêtre de charge : total, par flux (JFI),
@@ -251,8 +266,32 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	// telemetry — la série brute (une ligne par sonde réellement reçue).
 	var telemetry []TelemetryRow
 
+	// emitProgress — publie l'état vivant sans allouer les fenêtres : les
+	// tranches pointent les ≤32 dernières valeurs déjà écrites (les appends
+	// ultérieurs ne les mutent pas). Nil-guarded : le CLI ne paie rien.
+	emitProgress := func(phase string, deadline time.Time, rtt, small []float64) {
+		if d.OnProgress == nil {
+			return
+		}
+		remain := int(math.Ceil(time.Until(deadline).Seconds()))
+		if remain < 0 {
+			remain = 0
+		}
+		d.OnProgress(Progress{
+			Phase:          phase,
+			ElapsedSec:     int(time.Since(start).Seconds()),
+			PhaseRemainSec: remain,
+			LastRTTms:      lastNonZero(rtt),
+			LastSmallMs:    lastNonZero(small),
+			SamplesRTT:     tailFloats(rtt, 32),
+			SamplesSmall:   tailFloats(small, 32),
+		})
+	}
+
 	collectWindow := func(phase string, secs int, dstRTT, dstSmall *[]float64) {
 		deadline := time.Now().Add(time.Duration(secs) * time.Second)
+		livePhase := livePhaseName(phase)
+		emitProgress(livePhase, deadline, *dstRTT, *dstSmall)
 		for time.Now().Before(deadline) {
 			select {
 			case <-ctx.Done():
@@ -273,6 +312,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 					telemetry = append(telemetry, TelemetryRow{Phase: phase, OffsetMs: offset, SmallMs: v})
 				}
 			}
+			emitProgress(livePhase, deadline, *dstRTT, *dstSmall)
 			time.Sleep(400 * time.Millisecond)
 		}
 	}
@@ -632,6 +672,42 @@ func phasePlan(duration int, withLoad bool) (idle, loaded, rec int) {
 		loaded = 1
 	}
 	return idle, loaded, rec
+}
+
+// livePhaseName — les phases de télémétrie (anglaises, gelées) deviennent
+// les phases vivantes (françaises) que l'opérateur voit ; « both » se
+// distingue par charge puis charge-down.
+func livePhaseName(phase string) string {
+	switch phase {
+	case "baseline":
+		return "repos"
+	case "load":
+		return "charge"
+	case "load-down":
+		return "charge-down"
+	case "drain", "drain-down":
+		return "drain"
+	}
+	return phase
+}
+
+// lastNonZero — dernière valeur réellement reçue (un 0 de sonde perdue
+// n'est pas une mesure nulle).
+func lastNonZero(xs []float64) float64 {
+	for i := len(xs) - 1; i >= 0; i-- {
+		if xs[i] != 0 {
+			return xs[i]
+		}
+	}
+	return 0
+}
+
+// tailFloats — les n dernières valeurs, sans copie (snapshot déjà écrit).
+func tailFloats(xs []float64, n int) []float64 {
+	if len(xs) > n {
+		return xs[len(xs)-n:]
+	}
+	return xs
 }
 
 // lossPercent — probes received vs probes attempted. Recovery probes are

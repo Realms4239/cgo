@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/audit"
@@ -178,6 +179,10 @@ type Deps struct {
 	// réseau : les défauts d'audit/start suivent le banc, pas un 10.200.0.1
 	// en dur (M4).
 	SinksFn func() audit.Sinks
+	// AuditDepsFn — dépendances de l'audit (tests : ping/small/bulk
+	// instantanés) ; nil ⇒ implémentations réelles. OnProgress est posé
+	// par le handler, jamais par l'injection.
+	AuditDepsFn func() audit.Deps
 }
 
 // observeBlocked — les hôtes Windows observent : l'audit fonctionne, les
@@ -215,6 +220,10 @@ var auditMu sync.Mutex
 var lastAudit *audit.Result
 var lastAuditReport *audit.Report
 var auditRunning bool
+var auditCancel context.CancelFunc
+var auditStartedAt time.Time
+var auditTotalSec int
+var auditProgress atomic.Value // audit.Progress : écrit par l'audit, lu sans verrou
 
 // Journal — mémoire opérateur: anneau des 50 derniers événements.
 var eventsMu sync.Mutex
@@ -1163,22 +1172,44 @@ func New(d Deps) Handler {
 			writeErr(w, r, "audit already running", http.StatusConflict)
 			return
 		}
+		// contexte détaché de la requête HTTP mais annulable par l'opérateur
+		runCtx, cancel := context.WithCancel(context.Background())
 		auditRunning = true
+		auditCancel = cancel
+		auditStartedAt = time.Now()
+		auditTotalSec = body.Duration
+		auditProgress.Store(audit.Progress{Phase: "repos"})
 		auditMu.Unlock()
 		asymmetric := true
 		if body.Asymmetric != nil {
 			asymmetric = *body.Asymmetric
 		}
 		go func() {
-			defer func() { auditMu.Lock(); auditRunning = false; auditMu.Unlock() }()
+			defer func() {
+				cancel()
+				auditMu.Lock()
+				auditRunning = false
+				auditCancel = nil
+				auditMu.Unlock()
+			}()
 			p := auditParamsFromRequest(map[string]any{
 				"site": body.Site, "link_type": body.LinkType, "provider": body.Provider,
 				"duration": float64(body.Duration), "target": body.Target,
 				"direction": body.Direction, "flows": float64(body.Flows),
 				"small_url": body.SmallURL, "bulk_addr": body.BulkAddr,
 			})
-			// contexte détaché: l'audit survit à cette requête HTTP
-			res, err := audit.Run(context.Background(), p, audit.Deps{})
+			deps := audit.Deps{}
+			if d.AuditDepsFn != nil {
+				deps = d.AuditDepsFn()
+			}
+			deps.OnProgress = func(pr audit.Progress) { auditProgress.Store(pr) }
+			res, err := audit.Run(runCtx, p, deps)
+			// Annulation opérateur : ni ligne CSV partielle ni artefact, et
+			// un événement distinct de l'échec (arrêt volontaire ≠ panne).
+			if runCtx.Err() != nil {
+				recordEvent("audit", fmt.Sprintf("annulé par l'opérateur — %s (%s)", p.Site, p.LinkType))
+				return
+			}
 			if err != nil {
 				recordEvent("audit", fmt.Sprintf("échec — %s (%s) : %s", p.Site, p.LinkType, err))
 				return
@@ -1227,6 +1258,48 @@ func New(d Deps) Handler {
 		auditMu.Lock()
 		defer auditMu.Unlock()
 		writeJSON(w, map[string]any{"running": auditRunning, "last": lastAudit, "report": lastAuditReport})
+	})
+	// Audit vivant — la carte « Observer » sonde ceci toutes les 2 s. Pas
+	// d'audit ⇒ running:false seul : aucun zéro ne se lit comme mesuré.
+	mux.HandleFunc("GET /api/audit/live", func(w http.ResponseWriter, _ *http.Request) {
+		auditMu.Lock()
+		running, started, total := auditRunning, auditStartedAt, auditTotalSec
+		auditMu.Unlock()
+		if !running {
+			writeJSON(w, map[string]any{"running": false})
+			return
+		}
+		pr, _ := auditProgress.Load().(audit.Progress)
+		rttSamples, smallSamples := pr.SamplesRTT, pr.SamplesSmall
+		if rttSamples == nil {
+			rttSamples = []float64{}
+		}
+		if smallSamples == nil {
+			smallSamples = []float64{}
+		}
+		writeJSON(w, map[string]any{
+			"running":          true,
+			"phase":            pr.Phase,
+			"elapsed_sec":      int(time.Since(started).Seconds()),
+			"total_sec":        total,
+			"phase_remain_sec": pr.PhaseRemainSec,
+			"last_rtt_ms":      pr.LastRTTms,
+			"last_small_ms":    pr.LastSmallMs,
+			"samples":          map[string]any{"rtt_ms": rttSamples, "small_ms": smallSamples},
+		})
+	})
+	// Arrêt opérateur — la goroutine d'audit voit son contexte annulé,
+	// n'écrit rien de partiel et journalise « annulé par l'opérateur ».
+	mux.HandleFunc("POST /api/audit/stop", func(w http.ResponseWriter, _ *http.Request) {
+		auditMu.Lock()
+		cancel, running := auditCancel, auditRunning
+		auditMu.Unlock()
+		if !running || cancel == nil {
+			writeJSON(w, map[string]any{"stopped": false})
+			return
+		}
+		cancel()
+		writeJSON(w, map[string]any{"stopped": true})
 	})
 	// Rapport d'audit — artefact persistant, pas seulement l'état en mémoire.
 	// Sans audit_id, le dernier rapport ; avec, la copie archivée.
