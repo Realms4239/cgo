@@ -1,5 +1,5 @@
 import type { LiveFrame } from './types'
-import { pushFrame, live as liveRing } from './live'
+import { pushFrame, pushIface, live as liveRing } from './live'
 import { useUIStore } from '../store/ui'
 
 let es: EventSource | null = null
@@ -26,6 +26,8 @@ export function connectSSE() {
     try {
       if (store.getState().replayRunning) return // pause live during replay
       const data = JSON.parse(ev.data) as Partial<LiveFrame>
+      // l'interface se mesure hors campagne : pousser AVANT la porte "measured"
+      if (data.ts) pushIface(data)
       // delta: retain last structural + sparse values (SPEC §2.4)
       let structural = false
       for (const k of ['profile','qdisc','cc','phase','load_status','running',

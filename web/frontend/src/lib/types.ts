@@ -15,6 +15,18 @@ export interface LiveFrame {
   rtt_p95_ms: number
   small_p95_ms: number
   bulk_goodput_mbps: number
+  // Interface observée (additif, absent quand CGO_IFACE est vide).
+  // iface_valid=false invalide tous les champs numériques.
+  iface_name?: string
+  iface_source?: 'twin' | 'prod' | 'unknown'
+  iface_rx_mbps?: number
+  iface_tx_mbps?: number
+  iface_rx_drops?: number
+  iface_tx_drops?: number
+  iface_window_ms?: number
+  iface_sample_ts?: number
+  iface_valid?: boolean
+  iface_gap?: string
   drops: number
   wasted_bytes?: number
   cost_ar_per_h?: number
