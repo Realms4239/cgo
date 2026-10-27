@@ -5,9 +5,12 @@ package iface
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 const procNetDev = "/proc/net/dev"
@@ -95,3 +98,103 @@ func ReadCounters(path string) (map[string]Counters, error) {
 	}
 	return out, nil
 }
+
+type prev struct {
+	c Counters
+	t time.Time
+}
+
+// Sampler — un seul échantillonneur par interface, lu par le hub 10 Hz.
+// Read avance la base ; Latest ne la touche jamais.
+type Sampler struct {
+	mu     sync.Mutex
+	path   string
+	name   string
+	source string
+	now    func() time.Time
+	prev   *prev
+	last   Sample
+}
+
+// New — échantillonneur de production sur /proc/net/dev.
+func New(name, source string) *Sampler {
+	return newSampler(procNetDev, name, source, time.Now)
+}
+
+// newSampler — le chemin et l'horloge sont injectables pour les tests Windows.
+func newSampler(path, name, source string, now func() time.Time) *Sampler {
+	s := &Sampler{path: path, name: name, source: NormalizeSource(source), now: now}
+	s.last = Sample{Name: name, Source: s.source, Gap: "warmup"}
+	return s
+}
+
+// Read — une fenêtre réelle entre deux lectures de compteurs.
+// Aucun plancher d'octets : les compteurs sont exacts, un petit delta est un
+// petit débit réel. Aucun clamp : un compteur qui n'a pas reculé est réel.
+func (s *Sampler) Read() Sample {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+
+	all, err := ReadCounters(s.path)
+	if err != nil {
+		s.prev = nil
+		return s.gap(now, 0, "read")
+	}
+	c, ok := all[s.name]
+	if !ok {
+		s.prev = nil
+		return s.gap(now, 0, "absent")
+	}
+	if s.prev == nil {
+		s.prev = &prev{c: c, t: now}
+		return s.gap(now, 0, "warmup")
+	}
+
+	dt := now.Sub(s.prev.t)
+	ms := float64(dt) / float64(time.Millisecond)
+	if dt <= 0 {
+		s.prev = &prev{c: c, t: now}
+		return s.gap(now, 0, "clock")
+	}
+	if dt > 500*time.Millisecond {
+		s.prev = &prev{c: c, t: now}
+		return s.gap(now, round1(ms), "slow")
+	}
+	if c.RXBytes < s.prev.c.RXBytes || c.TXBytes < s.prev.c.TXBytes {
+		s.prev = &prev{c: c, t: now}
+		return s.gap(now, round1(ms), "reset")
+	}
+
+	rx := float64(c.RXBytes-s.prev.c.RXBytes) * 8 / 1e6 / dt.Seconds()
+	tx := float64(c.TXBytes-s.prev.c.TXBytes) * 8 / 1e6 / dt.Seconds()
+	s.prev = &prev{c: c, t: now}
+	return s.emit(Sample{
+		Name: s.name, Source: s.source,
+		RXMbps: rx, TXMbps: tx,
+		RXDrops: c.RXDrops, TXDrops: c.TXDrops,
+		WindowMs: round1(ms), SampleTS: now.UnixMilli(),
+		Valid: true,
+	})
+}
+
+// Latest — le dernier échantillon, sans avancer la base. Utilisé par /api/state.
+func (s *Sampler) Latest() Sample {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.last
+}
+
+func (s *Sampler) gap(now time.Time, windowMs float64, reason string) Sample {
+	return s.emit(Sample{
+		Name: s.name, Source: s.source,
+		SampleTS: now.UnixMilli(), WindowMs: windowMs, Gap: reason,
+	})
+}
+
+func (s *Sampler) emit(x Sample) Sample {
+	s.last = x
+	return x
+}
+
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
