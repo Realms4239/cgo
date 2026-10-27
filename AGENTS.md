@@ -26,9 +26,9 @@ before acting. The artifact wins over the entry's prose.
   `make verify-selftest` — the gates' own fault proofs.
 - Exit 0 = every gate passed. Exit 1 = a named gate failed. Exit 2 = a gate
   could not run; **2 is not green**, and the skipped gate is named.
-- These targets are installed by slice 9 Phase B. Until they exist, run the
-  manual gates listed in `docs/superpowers/plans/README.md` and report a
-  missing prerequisite as "not runnable here", never as passed.
+- The targets exist since slice 9 Phase B. On a host without `make`, run
+  `python tools/verify.py` with the same flags and say so; never report a
+  missing prerequisite as passed.
 
 ## Never touch
 
@@ -58,6 +58,16 @@ merge to `main` without the human's decision.
 5. Commit one logical group with explicit paths.
 
 A slice that needs two scopes is two slices. A blocker is recorded, not hidden.
+
+## Cadence
+
+- At most three active slices; blocked slices do not count. A fourth active
+  slice is refused until one closes or is deferred.
+- Friday routine: run the full `make verify`, update the `VERIFY` rows touched
+  that week, append a checkpoint, and name any blocker older than 48 hours with
+  its owner and unblock condition.
+- A slice closes only when its acceptance runs and its rows move to `VERIFIED`
+  or `BLOCKED` with a named condition. "Windows-green" is not "done".
 
 ## Roles
 

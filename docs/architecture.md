@@ -3,6 +3,8 @@
 > Binaire unique Go embarquant le dashboard React (`web/frontend` via `go:embed`).
 > Squelette : `cmd/cgo` (CLI + serveur) et `pkg/` — dix paquets à responsabilité unique.
 
+Les règles d'exploitation et l'état courant des affirmations vivent dans `AGENTS.md` et `docs/VERIFY.md`.
+
 ## Composants
 
 | Paquet | Rôle |

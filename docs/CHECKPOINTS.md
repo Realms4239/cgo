@@ -201,3 +201,38 @@ end, at a settled decision, and at a handoff.
   later slice fixes E5.
 - Bench: untouched this session; no live run, no namespace, process or
   listener change; the VM is not contacted.
+
+## 2026-10-27 23:48 UTC · slice 9 Phase D: first weekly checkpoint
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `86f4e51`.
+- Changed: `README.md` and `docs/architecture.md` point at `AGENTS.md`,
+  `make verify` and `docs/VERIFY.md`; `AGENTS.md` gains the WIP cap (three
+  active slices, blocked ones excluded), the Friday routine and the closure
+  rule, and drops the stale "until they exist" clause for the Makefile targets.
+- Full verification run: `python tools/verify.py` → six `PASS`,
+  `6 passed, 0 failed, 0 not run`, exit 0, 11.6 s on DESKTOP-B6K9UCM. Frozen
+  audit 159 runs / 528 lines / 22 cells; 179 headers against 5 frozen eras;
+  `go vet` + `go test`; 5 safe CLI invocations; 448 tracked files clean;
+  5 documents linked.
+- `VERIFY` rows touched this week: six-gate row stays `PENDING` (line count
+  now 596 with hooks); hooks row added `PENDING` with the clone proof; Go-suite
+  determinism added `REFUTED` (E5); second-copy row kept `PENDING` with the
+  2026-10-28 absence check. No row was promoted to `VERIFIED` by this builder.
+- Blockers older than 48 hours: none at this writing (the oldest rows are
+  dated 2026-10-27). Open decisions with owners: production read-only request
+  still unsent (human/operator); the 18 legacy `backup/*.tar.gz` stay tracked
+  until the human chooses untrack or allowlist; E5 test flake awaits a later
+  slice (human to schedule).
+- D4 artifacts: untracked `backup/runs-*.tar.gz` (11 new), `backup/thesis/`,
+  `data/`, `book/` (ignored by design), `testbed-bootstrap*`, `unp*/`,
+  `epbfBBR.md`, `session-*`, `handoff-*`, `critical-review-*`, `.perch/`,
+  `tools/__pycache__/`, `tracked*.txt`, `tree.txt`, and a modified
+  `web/frontend/dist/index.html` — none touched, all out of scope. Second copy
+  of `book/`: none found, so the working tree is the only copy. Largest
+  tracked file 352 240 o (`web/frontend/public/fonts/inter-var.woff2`);
+  hygiene ceiling 384 KiB with `docs/img/` allowed.
+- Unproven/blocked: `make` is not installed here, so the Makefile targets were
+  exercised as `python tools/verify.py ...`; that is named, not hidden.
+- Next: whole-slice acceptance (§7 of the plan), then close slice 9 or keep it
+  open on the outstanding verifier re-runs.
+- Bench: untouched; no live run, namespace, process or listener change.

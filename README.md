@@ -322,6 +322,8 @@ $ cgo figures
 
 Toute aide sur Meteolink est la bienvenue. Le plus utile est de l'essayer et donner votre retour. N'hésitez pas à utiliser le suivi d'issues `GitHub` et les `pull requests` pour discuter et proposer des changements de code.
 
+Travailler sur ce dépôt : lire `AGENTS.md` pour les règles d'exploitation, lancer `make verify` pour les six portes, et consulter `docs/VERIFY.md` pour l'état courant des affirmations. Le détail des portes et de leurs preuves est dans `docs/superpowers/specs/2026-10-27-cgo-engineering-system-design.md`.
+
 ## À propos
 
 Meteolink est un banc d'essai réseau autonome et visualiseur interactif pour auditer les liens d'accès contraints et comparer les politiques AQM/BBR — s'exécute dans un terminal sur les systèmes *nix ou directement dans votre navigateur.
