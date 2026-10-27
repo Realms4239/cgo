@@ -89,3 +89,24 @@ end, at a settled decision, and at a handoff.
   gate. Nothing is pending in code.
 - Bench: down; no namespaces, processes or listeners; tunnel closed; VM
   running.
+
+## 2026-10-27 21:46 UTC · slice 10 closed
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `3556493`.
+- Changed: `docs/VERIFY.md` (chart-advance row) and the plan index (slice 10
+  **Done**, acceptance line). No code changed.
+- Decided: the plan's gate is "the interface chart advances at least 8 times
+  per second". The foreground run advanced 259 real samples in 25.23 s
+  (10.27/s) with 0 long tasks, so the gate passes on that criterion. Repaints
+  were 201 (7.97/s), bounded by this host's compositor; that number stays in
+  its own REFUTED row and 10 repaints/s is not claimed anywhere.
+- Proven: twin SSE 325 unique samples / 32 s, window p95 101.3 ms, 0.032 %
+  byte delta, gap and race gates — all on CGO-DEV; Windows suite and targeted
+  Linux cross-build green.
+- Unproven/blocked: 10 repaints/s on this host; production numbers (Phase 2,
+  read-only access); full Linux `go build ./...` (only `cmd/cgo-gui`);
+  `go run ./cmd/cgo verify` (untracked `camp-fin3`); slice 9 Phase B.
+- Next: slice 9 Phase B is the next planned scope and needs a go; otherwise
+  send the read-only production request from the design appendix.
+- Bench: down; no namespaces, processes or listeners; tunnel closed; VM
+  running.
