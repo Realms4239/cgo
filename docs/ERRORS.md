@@ -44,3 +44,33 @@ A fixed defect stays because it is the evidence that it was understood.
 - Proof: recorded in the umbrella spec and the corpus inventory; no live re-run
   in this session.
 - Lesson: a table that mixes bench regimes is not a comparison.
+
+## E3. Renaming `c-cli` flushes its default route (observed 2026-10-27)
+
+- Symptom: after `ip link set c-cli name c-cli-gap` and back,
+  `ping 10.30.0.2` from `ns_client` returns "Network is unreachable"; the bench
+  itself is up.
+- Cause: Linux drops an interface's routes when its name changes; the twin's
+  default route was added by hand
+  (`ip route add default via 10.10.0.2 dev c-cli initcwnd 50`) and nothing
+  re-adds it.
+- Fix: re-add the same route after the rename; the sink answers again (302 ms).
+  A future gap test should capture the route before the rename and restore it.
+- Proof: the gap capture shows `20 absent`, `1 warmup`, `65 valid`; after the
+  restore, `46 valid` frames and the ping succeed. Recorded in `docs/VERIFY.md`.
+- Lesson: an interface rename is not L3-transparent; measure, then restore.
+
+## E4. `run-dualns.sh down` leaves root-owned sink and dashboard (observed 2026-10-27)
+
+- Symptom: after `down`, `ip netns list` is empty but `pgrep` still shows
+  `cgo-linux testbedsrv` and `cgo-linux --serve`.
+- Cause: `down` runs an unprivileged `pkill -f "testbedsrv -http 10.30.0.2"`
+  against a root process started with `$SUDO`, and it never stops the
+  dashboard, which runs via `exec $SUDO ip netns exec ns_client ...`.
+- Fix: stop them with privilege, e.g.
+  `sudo pkill -f "[c]go-linux --serve"; sudo pkill -f "[t]estbedsrv -http 10.30.0.2"`;
+  the bracket keeps the invoking shell from matching itself. Script fix
+  deferred: pre-existing and outside slice 10's measurement contract.
+- Proof: after the manual stop, `pgrep`, `ip netns list` and `ss -ltnp` are
+  empty on CGO-DEV; the VM stays up.
+- Lesson: deleting namespaces does not kill the processes inside them.
