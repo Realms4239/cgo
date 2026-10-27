@@ -152,6 +152,9 @@ type RunOpts struct {
 // Deps relie le serveur au noyau campagne.
 type Deps struct {
 	GetSnap func() any
+	// NextSnap — fournisseur du hub 10 Hz. Nil ⇒ GetSnap. Le hub lit un
+	// échantillon frais ; /api/state garde GetSnap (dernier échantillon).
+	NextSnap func() any
 	StartFn func(o RunOpts) error
 	StopFn  func()
 	// SkipFn coupe la cellule en cours sans arrêter la matrice — l'event
@@ -356,6 +359,10 @@ func New(d Deps) Handler {
 	snap := d.GetSnap
 	if snap == nil {
 		snap = func() any { return map[string]any{"running": false} }
+	}
+	next := d.NextSnap
+	if next == nil {
+		next = snap
 	}
 
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -1608,7 +1615,7 @@ func New(d Deps) Handler {
 	})
 
 	mux.Handle("GET /api/stream", http.HandlerFunc(hub.SSE))
-	hub.Serve(func() any { return snap() })
+	hub.Serve(func() any { return next() })
 
 	spa := http.FileServer(http.FS(frontend.FS))
 	// Vue Compare — lignes gelées brutes d'un run, protégée contre le cheminement.
