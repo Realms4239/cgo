@@ -2,6 +2,9 @@
 
 > Vérifiée contre `pkg/api/server.go`, `sse.go` et `translate.go`. Tout corps
 > JSON est limité à 1 Mio (`http.MaxBytesReader`).
+> Les mutations (`POST`) refusent `403` une requête navigateur cross-site
+> (`Sec-Fetch-Site: cross-site`) ; les clients directs (curl, CLI) ne sont pas
+> concernés.
 > **Mode observation** (Windows, ou `--mode observe`) : les endpoints de
 > contrôle — `POST /api/shape`, `POST /api/run/start`, `POST /api/watch`,
 > `POST /api/burst` — répondent `501` avec un message pointant vers

@@ -165,8 +165,10 @@ durci :
 - **pas d'authentification ni d'autorisation** : quiconque atteint le port
   (ou le loopback de l'hôte) peut lancer/arrêter une campagne, appliquer ou
   retirer un façonnage, changer le palier tarifaire ;
-- **pas de jeton CSRF ni de rate limit** ; le corps JSON est borné à 1 Mio,
-  ce n'est pas un contrôle d'accès ;
+- **pas de jeton CSRF ni de rate limit** ; les mutations refusent seulement
+  `Sec-Fetch-Site: cross-site` (garde navigateur, contournable par un client
+  direct) ; le corps JSON est borné à 1 Mio, ce n'est pas un contrôle
+  d'accès ;
 - **le façonnage modifie réellement le bord** : banc/labo ou mini-PC DSI,
   jamais exposé sur Internet ; n'ouvrir le 9090 que sur le réseau
   d'administration.
