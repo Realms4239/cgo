@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,12 +39,17 @@ func envDefault(k, def string) string {
 	return def
 }
 
-// readAuditReport loads the archived JSON artifact. The id is reduced to its
-// base name so a query string cannot walk out of data/audits.
+// readAuditReport loads the archived JSON artifact. The id is validated with
+// the same guard as writes — a malformed id never silently resolves another
+// audit's file. Empty id reads the global last-report copy.
 func readAuditReport(id string) (*audit.Report, error) {
 	path := filepath.Join("data", "audit_report.json")
 	if id != "" {
-		path = filepath.Join("data", "audits", filepath.Base(id), "audit_report.json")
+		clean, err := audit.ArtifactID(id)
+		if err != nil {
+			return nil, err
+		}
+		path = filepath.Join("data", "audits", clean, "audit_report.json")
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -1116,8 +1122,11 @@ func New(d Deps) Handler {
 			body.Duration = 600
 		}
 		if len(body.Site) > 80 {
-			body.Site = body.Site[:80]
+			body.Site = truncateUTF8(body.Site, 80)
 		}
+		// une cible en blanc ferait échouer le ping sans dire pourquoi :
+		// elle retombe sur le banc détecté, comme une cible absente.
+		body.Target = strings.TrimSpace(body.Target)
 		if len(body.Target) > 64 {
 			writeErr(w, r, "cible trop longue", http.StatusBadRequest)
 			return
@@ -1191,6 +1200,17 @@ func New(d Deps) Handler {
 		}
 		go func() {
 			defer func() {
+				// Une panne de dépendance ne doit pas tuer le dashboard :
+				// net/http ne récupère pas les goroutines détachées. On
+				// journalise la pile, on efface le rapport de ce run et on
+				// rend la main (auditRunning=false) pour le suivant.
+				if rec := recover(); rec != nil {
+					log.Printf("audit: panne interne : %v\n%s", rec, debug.Stack())
+					recordEvent("audit", fmt.Sprintf("panne interne — %s (%s) : %v", body.Site, body.LinkType, rec))
+					auditMu.Lock()
+					lastAuditReport = nil
+					auditMu.Unlock()
+				}
 				cancel()
 				auditMu.Lock()
 				auditRunning = false
@@ -1743,7 +1763,37 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"events": out})
 	})
 	mux.Handle("/", spa)
-	return Handler{Handler: mux, hubClose: func() { hub.Close() }}
+	return Handler{Handler: crossSiteGuard(mux), hubClose: func() { hub.Close() }}
+}
+
+// crossSiteGuard — un navigateur venu d'un autre site ne déclenche pas de
+// mutation (CSRF) : Sec-Fetch-Site: cross-site est refusé sur les verbes non
+// sûrs. Les clients non-navigateur (curl, CLI, tests) n'envoient pas cet
+// en-tête et restent inchangés ; aucun jeton n'est introduit.
+func crossSiteGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+		default:
+			if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+				writeErr(w, r, "requête cross-site refusée", http.StatusForbidden)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// truncateUTF8 — coupe à max octets sans fendre un caractère : un site coupé
+// au milieu d'un « é » laisserait un U+FFFD dans le CSV et le rapport.
+func truncateUTF8(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	for max > 0 && s[max]&0xC0 == 0x80 {
+		max--
+	}
+	return s[:max]
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

@@ -501,7 +501,7 @@ func WriteArtifacts(rep *Report, baseDir string) (jsonPath, mdPath string, err e
 	if baseDir == "" {
 		baseDir = "data"
 	}
-	id, err := auditID(rep.AuditID)
+	id, err := ArtifactID(rep.AuditID)
 	if err != nil {
 		return "", "", err
 	}
