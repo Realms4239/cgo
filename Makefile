@@ -1,7 +1,7 @@
 GO ?= go
 FRONTEND := web/frontend
 
-.PHONY: build test vet test-real figures frontend clean
+.PHONY: build test vet test-real figures frontend clean verify verify-fast verify-selftest hooks
 
 build: frontend
 	$(GO) build -o bin/cgo$(shell go env GOEXE) ./cmd/cgo
@@ -20,6 +20,20 @@ test-real:
 
 figures: build
 	./bin/cgo figures
+
+verify:
+	python tools/verify.py
+
+verify-fast:
+	python tools/verify.py --fast
+
+verify-selftest:
+	python tools/verify.py --selftest
+
+hooks:
+	git config core.hooksPath .githooks
+	chmod +x .githooks/pre-commit .githooks/pre-push 2>/dev/null || true
+	python tools/verify.py --list
 
 frontend:
 	cd $(FRONTEND) && bun run build
