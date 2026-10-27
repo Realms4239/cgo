@@ -348,6 +348,7 @@ func printAuditSummary(rep *audit.Report) {
 
 func usage() {
 	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--tls=false] [--http-addr 127.0.0.1:9080] [--mode observe|full|auto]
+       env: CGO_IFACE=<iface> CGO_IFACE_SOURCE=twin|prod|unknown   # débit interface 10 Hz
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify

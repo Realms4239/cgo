@@ -47,6 +47,8 @@ case "$CMD" in
     # trafic mesuré, et meteolink.dev/127.0.0.1 n'existe pas dans ns_client.
     echo "[run-dualns] dashboard → http://10.99.0.2:9090 (navigateur hôte)"
     exec $SUDO ip netns exec ns_client env CGO_DASHBOARD__ADDR=10.99.0.2:9090 \
+      CGO_IFACE="${CGO_IFACE:-c-cli}" \
+      CGO_IFACE_SOURCE="${CGO_IFACE_SOURCE:-twin}" \
       "$BIN" --serve --tls=false --http-addr=
     ;;
   down)

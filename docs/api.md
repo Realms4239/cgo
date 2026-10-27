@@ -25,6 +25,16 @@
 | `/api/cost/enterprise` | GET | — | `{"plans":[{name, monthly_opex_mga, cir_mbps?\|fup_bytes?}], "tariffs":[{name, ar_per_gb, quoted?}], "emergency_ar_per_gb":5556, "primary_mapping":{fiber,other,4g,5g,vsat}, "disclaimer"}` — **tout est sérialisé depuis `pkg/metrics`** : un tarif changé au paquet met à jour l'API et les coûts calculés côté serveur pour l'UI, aucun nombre recopié ; un plan CIR n'a pas de FUP et inversement (champ absent, jamais un zéro qui lit « mesuré ») ; `quoted:true` = devis opérateur (tarif APN), à présenter comme tel | — |
 | `/api/burst` | POST | `{cc: cubic\|bbr, seconds: 2–10 (défaut 4)}` | `{"ok":true,"cc","seconds"}` — sonde bulk à travers le bord façonné, bloquant | `400` JSON invalide, cc/seconds hors bornes ; `409` campagne active ; `501` mode observation ; `503` moteur non câblé ; `500` échec sonde |
 
+**Champs d'interface (additifs).** Quand `CGO_IFACE` est défini côté serveur,
+chaque frame `/api/state` et `/api/stream` porte en plus :
+`iface_name`, `iface_source` (`twin` | `prod` | `unknown`), `iface_rx_mbps`,
+`iface_tx_mbps`, `iface_rx_drops`, `iface_tx_drops`, `iface_window_ms`,
+`iface_sample_ts`, `iface_valid`, `iface_gap`. `iface_valid:false` invalide
+tous les champs numériques ; `iface_gap` vaut `warmup`, `absent`, `reset`,
+`slow`, `read` ou `clock`. Aucun champ `iface_*` n'est présent quand
+`CGO_IFACE` est vide. Le hub 10 Hz lit un échantillon frais ; `/api/state`
+renvoie le dernier échantillon sans avancer la fenêtre.
+
 ## Profils
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
