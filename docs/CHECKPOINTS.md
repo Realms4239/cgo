@@ -236,3 +236,41 @@ end, at a settled decision, and at a handoff.
 - Next: whole-slice acceptance (§7 of the plan), then close slice 9 or keep it
   open on the outstanding verifier re-runs.
 - Bench: untouched; no live run, namespace, process or listener change.
+
+## 2026-10-27 23:52 UTC · slice 9 whole-slice acceptance
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `1b64039`.
+- Ran the plan's §7 sequence on DESKTOP-B6K9UCM, in order.
+- `python tools/verify.py --list` → six gates, each with a proof, exit 0.
+- `python tools/verify.py --selftest` → six `caught` with six controls,
+  exit 0:
+  `frozen` (mutation caught in `camp-fin3/aqm_eval.csv`), `provenance` (extra
+  column + two bad sidecars), `tests` (failing test + vet error), `exit`
+  (code 3, panic, refusal + verdict contract), `hygiene` (key, token, tailnet,
+  `.docx`), `links` (missing path + missing plan link).
+- `python tools/verify.py` → six `PASS`,
+  `6 passed, 0 failed, 0 not run`, exit 0, tests 24.4 s.
+- `go test ./...` → exit 0, all packages `ok` (cached), no failure; the E5
+  flake did not reproduce this run.
+- `go vet ./...` → exit 0.
+- `GOOS=linux GOARCH=amd64 go build ./...` → **exit 1**, only
+  `cmd/cgo-gui` (`fyne.io/fyne/v2` → `github.com/go-gl/gl/v2.1/gl: build
+  constraints exclude all Go files`). Pre-existing and recorded since slice 10;
+  not caused by this slice. The scoped cross-build
+  `GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build ./pkg/... ./cmd/cgo/...
+  ./cmd/meteolink/...` → exit 0, so the product and CLI cross-build.
+- `python book/tools/audit-archive.py` → exit 0, both `OK` lines (159 runs /
+  528 lines; 22 cells / 159 manifests).
+- `git status --short` → only the intended tracked change
+  (`web/frontend/dist/index.html`, untouched build artifact) and the known
+  untracked user artifacts listed in the Phase D checkpoint. No `git add -A`,
+  no frozen change, no CSV schema change, no `.dist`, eBPF, IFB, BBRv3 or
+  thesis edit, no live run.
+- Pass conditions met except the full Linux cross-build, which fails only in
+  the pre-existing Fyne GUI package; that condition is named as unmet, not
+  waived. Builder acceptance only: the six-gate and hooks rows stay `PENDING`
+  until an independent verifier re-runs them.
+- Next: independent verifier pass; then the human decides closure/merge and
+  the 18 legacy `backup/*.tar.gz` question. Slice 9 stays **In progress** in
+  the index until that happens.
+- Bench: untouched; no live run, namespace, process or listener change.

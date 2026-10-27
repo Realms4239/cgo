@@ -33,7 +33,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 6 | Ingress IFB shaping | `2026-10-27-cgo-ifb-ingress-design.md` | `2026-10-27-cgo-ifb-ingress.md` | **Proposed** | Linux 6.8 bench for live acceptance; Windows for engine | User approval, then execute Tasks 1–8; Task 9 stays blocked until the bench is stable |
 | 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
 | 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
-| 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **In progress** (Phases A–C done) | — (process layer; runs before any live slice) | Phase D: cadence and retirement |
+| 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **In progress** (Phases A–D done; verifier pass owed) | — (process layer; runs before any live slice) | Independent verifier re-runs the six gates, the hooks proof and the whole-slice acceptance; then the human decides closure |
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
 
 ## What each live plan covers
@@ -101,11 +101,12 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Scope guard: no product code, no CSV schema change, no frozen run, no eBPF,
   IFB, BBRv3, `.dist`, UI, or thesis work; no CI, no document register, no
   weekly file, no full mutation harness.
-- Next action: Phase D (pointers, WIP and Friday cadence). Phases A–C are
-  committed; the builder runs of the six gates and the hooks are recorded in
-  `docs/VERIFY.md` as `PENDING` until an independent re-run. `make` is not
+- Next action: an independent verifier re-runs the six gates, the hooks clone
+  proof and the whole-slice acceptance, owns the `VERIFIED` rows, and only
+  then does the human decide closure. Phases A–D are committed. `make` is not
   installed on DESKTOP-B6K9UCM, so the Makefile targets were exercised through
-  their underlying commands.
+  their underlying commands; the full Linux cross-build still fails only in
+  the pre-existing `cmd/cgo-gui` Fyne package.
 
 ### Slice 10 — live interface observation (done)
 
