@@ -8,17 +8,44 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/api"
 	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/pkg/doctor"
+	"github.com/Realms4239/cgo/pkg/iface"
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/probe"
 	"github.com/Realms4239/cgo/pkg/qdisc"
 	"github.com/Realms4239/cgo/pkg/results"
 )
+
+// liveFrame — snapshot de campagne + échantillon interface, aplatis en JSON.
+// Les champs iface_* sont additifs ; absents quand CGO_IFACE est vide.
+type liveFrame struct {
+	campagne.Snapshot
+	iface.Sample
+}
+
+// envSampler — CGO_IFACE / CGO_IFACE_SOURCE, lus une fois au démarrage.
+// Pas d'auto-détection : une mauvaise interface serait une mesure mal étiquetée.
+func envSampler(getenv func(string) string, goos string) *iface.Sampler {
+	name := getenv("CGO_IFACE")
+	if name == "" {
+		return nil
+	}
+	if goos != "linux" {
+		log.Printf("CGO_IFACE=%s ignoré — /proc/net/dev absent sur %s", name, goos)
+		return nil
+	}
+	src := getenv("CGO_IFACE_SOURCE")
+	if src != "" && iface.NormalizeSource(src) != src {
+		log.Printf("CGO_IFACE_SOURCE=%q inconnu — source non déclarée", src)
+	}
+	return iface.New(name, src)
+}
 
 // runServer démarre le tableau de bord + l'API avec le cœur de campagne.
 // mode: "full" (Linux bench/edge) or "observe" (Windows workstation).
@@ -33,6 +60,17 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		log.Printf("runs gelés intégrés : %d fichiers", n)
 	}
 	live := campagne.NewLive()
+	sampler := envSampler(os.Getenv, runtime.GOOS)
+	getSnap := func() any { return live.Get() }
+	nextSnap := getSnap
+	if sampler != nil {
+		getSnap = func() any {
+			return liveFrame{Snapshot: live.Get(), Sample: sampler.Latest()}
+		}
+		nextSnap = func() any {
+			return liveFrame{Snapshot: live.Get(), Sample: sampler.Read()}
+		}
+	}
 
 	// deadline par défaut — même registre que GET /api/schema
 	defaultDeadline := func() float64 {
@@ -258,7 +296,8 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(r.Qdisc), r.CapMbps, 100)
 	}
 	handler := api.New(api.Deps{
-		GetSnap:   func() any { return live.Get() },
+		GetSnap:   getSnap,
+		NextSnap:  nextSnap,
 		StartFn:   startFn,
 		StopFn:    stopFn,
 		SkipFn:    skipFn,

@@ -155,8 +155,8 @@ type Deps struct {
 	// NextSnap — fournisseur du hub 10 Hz. Nil ⇒ GetSnap. Le hub lit un
 	// échantillon frais ; /api/state garde GetSnap (dernier échantillon).
 	NextSnap func() any
-	StartFn func(o RunOpts) error
-	StopFn  func()
+	StartFn  func(o RunOpts) error
+	StopFn   func()
 	// SkipFn coupe la cellule en cours sans arrêter la matrice — l'event
 	// n'est pas gelé, il reste re-exécutable à la reprise.
 	SkipFn func()
