@@ -74,3 +74,26 @@ A fixed defect stays because it is the evidence that it was understood.
 - Proof: after the manual stop, `pgrep`, `ip netns list` and `ss -ltnp` are
   empty on CGO-DEV; the VM stays up.
 - Lesson: deleting namespaces does not kill the processes inside them.
+
+## E5. `TestSkipJournalsViaHook` flakes on Windows temp cleanup (observed 2026-10-28)
+
+- Symptom: `go test ./...` fails intermittently with
+  `TempDir RemoveAll cleanup: unlinkat ...\run-skip-j: Le répertoire n'est pas
+  vide` (the directory is not empty), in a clone run of the `tests` gate; the
+  same gate passed before and after.
+- Cause: the test waits at most 3 s for `IsRunning()` to become false, but the
+  next cell's `Small` blocks until the global context is cancelled, so the
+  loop cannot succeed; the deferred `m.Stop()` only cancels the context and
+  does not wait for the run goroutine, whose `defer w.Freeze(...)` is still
+  writing when `t.TempDir()` cleanup starts. Windows refuses to unlink an open
+  file, so cleanup fails. Linux tolerates the unlink.
+- Fix: none in this slice — slice 9's scope guard forbids product code.
+  Proposed one-line test fix for a later slice: after `m.Stop()`, poll
+  `m.IsRunning()` before returning (or give `Matrix` a done channel that
+  `Stop` waits on).
+- Proof: 1 failure in 4 full-set runs on 2026-10-28 (clone feature-push
+  proof, `go test exit 1`, 12.2 s); 5 targeted re-runs of
+  `go test ./pkg/campagne -run TestSkipJournalsViaHook -count=5` → `ok`,
+  17.4 s.
+- Lesson: a gate is only as honest as its flakes are loud; a fire-and-forget
+  `Stop` plus `t.TempDir()` is a Windows race, not a product failure.

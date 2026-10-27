@@ -155,3 +155,49 @@ end, at a settled decision, and at a handoff.
   keeping the exact-path allowlist.
 - Bench: untouched this session; no live run, no namespace, process or
   listener change; the VM is not contacted.
+
+## 2026-10-27 23:46 UTC · slice 9 Phase C: hooks and branch guard
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `8420b70`.
+- Changed: `.githooks/pre-commit` (9 lines), `.githooks/pre-push` (13 lines),
+  both mode 100755; `core.hooksPath=.githooks` set in the real repo. The
+  Makefile `hooks` target was already committed in Phase B (`4bb33d3`), so the
+  Phase C commit holds only the two hook files.
+- Also committed before the hooks: `e8a752c` tracks the ten 2026-10-27 spec and
+  plan files the index names. The clone proof had failed the `links` gate in a
+  fresh clone because those files existed only in this working tree.
+- Proven in a disposable clone of `8420b70` on DESKTOP-B6K9UCM:
+  - fake `ghp_` token staged → `sh .githooks/pre-commit` exit 1, one
+    `token shape` finding;
+  - staged a probe file under `book/data/` → exit 1, `forbidden tracked path`
+    (and `frozen` `SKIP` with no `book/`);
+  - refspec naming `refs/heads/main` → `sh .githooks/pre-push` exit 1 with
+    `pre-push: push to main refused; merge is a user decision`;
+  - same refspec with `CGO_ALLOW_MAIN=1` → exit 2: `frozen` and `provenance`
+    `SKIP` (no `book/`), `tests`/`exit`/`hygiene`/`links` `PASS` — the
+    fail-closed result the plan predicts for a clone without the corpus;
+  - missing `python` on `PATH` → exit 2, `pre-commit: python not found`;
+  - clean index from `docs/` → exit 0;
+  - feature refspec → full set ran.
+  Temp clone removed; the real index was never given the fake token.
+- Live proof: both real commits (`e8a752c`, `8420b70`) ran through the real
+  pre-commit hook and printed the selected gates. Gate total 596 lines
+  (`tools/verify.py` 491 + `tools/verify_test.py` 83 + hooks 22), ceiling 600.
+- New finding, recorded as `docs/ERRORS.md` E5: the feature-push proof hit a
+  pre-existing Windows flake in `pkg/campagne` —
+  `TestSkipJournalsViaHook` failed once in 4 full-set runs with `TempDir
+  RemoveAll cleanup: ... Le répertoire n'est pas vide`. The test waits 3 s for
+  `IsRunning()` but the next cell blocks until global cancel; the deferred
+  `Stop()` only cancels and does not wait for `w.Freeze()`. Five targeted
+  re-runs passed. Not fixed: slice 9's scope guard forbids product code.
+- Unproven/blocked: `make` is not installed on this host, so `make hooks` was
+  not runnable; `git config core.hooksPath .githooks` was run directly and
+  `chmod +x` was applied (mode 100755 is in the index). Hook rows in
+  `docs/VERIFY.md` stay `PENDING` until an independent verifier re-runs them.
+  The `tests` gate is flaky on Windows until E5 is fixed; a pre-push can fail
+  for that reason and the message names the test.
+- Next: Phase D (pointers, WIP/Friday cadence). Human decisions owed: untrack
+  the 18 legacy `backup/*.tar.gz` or keep the exact-path allowlist; whether a
+  later slice fixes E5.
+- Bench: untouched this session; no live run, no namespace, process or
+  listener change; the VM is not contacted.
