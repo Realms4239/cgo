@@ -30,4 +30,12 @@ describe('LiveView metrics', () => {
     expect(s).toContain('Coût entreprise')
     expect(s).toContain('Coût B2B')
   })
+
+  it('expose le débit interface brut et distingue les deux plans', () => {
+    const s = readLive()
+    expect(s).toContain('Débit interface')
+    expect(s).toContain('chart-iface')
+    expect(s).toContain('rawLineSeries')
+    expect(s).toContain('Débit utile applicatif')
+  })
 })

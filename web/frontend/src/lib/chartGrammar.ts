@@ -88,6 +88,23 @@ export function lineSeries(name: string, data: [number, number][], color: string
   }
 }
 
+// rawLineSeries — série brute : aucun lissage, aucun LTTB, les trous coupent.
+// Le débit d'interface est une mesure échantillonnée ; une courbe lissée
+// inventerait des points entre deux fenêtres réelles.
+export function rawLineSeries(name: string, data: [number, number | null][], color: string) {
+  return {
+    name,
+    type: 'line' as const,
+    showSymbol: false,
+    smooth: false,
+    connectNulls: false,
+    lineStyle: { width: 2, cap: 'round' as const, join: 'round' as const, color },
+    emphasis: { focus: 'series' as const, lineStyle: { width: 3 } },
+    blur: { lineStyle: { opacity: 0.2 } },
+    data,
+  }
+}
+
 // bar craft — pareto/grouped bars (Résultats, A/B, any future panel multiplicity)
 export function barSeries(name: string, data: [string | number, number][], color: string, unit = '') {
   return {

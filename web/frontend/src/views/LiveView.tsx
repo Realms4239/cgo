@@ -3,7 +3,7 @@ import type { EChartsOption } from 'echarts'
 import Explain from '../components/Explain'
 import EventBadge from '../components/EventBadge'
 import { echarts } from '../lib/echarts'
-import { baseOption, lineSeries, barSeries, chargeMarkArea, CRAFT } from '../lib/chartGrammar'
+import { baseOption, lineSeries, barSeries, chargeMarkArea, rawLineSeries, CRAFT } from '../lib/chartGrammar'
 import { live, clearLive } from '../lib/live'
 import { computeQDI } from '../lib/qdi'
 import { computeJFI } from '../lib/jfi'
@@ -44,7 +44,7 @@ function craftSeries(craft: Craft, name: string, data: [number, number][], color
 function useChart(_title: string, _unit: string) {
   const chart = useRef<echarts.ECharts | null>(null)
   const onReady = useCallback((c: echarts.ECharts | null) => { chart.current = c }, [])
-  const setData = (series: ReturnType<typeof lineSeries>[], extra?: Record<string, unknown>) => {
+  const setData = (series: { name?: string; data?: unknown[] }[], extra?: Record<string, unknown>) => {
     if (!chart.current || chart.current.getWidth() < 10) return
     const empty = !series.some(s => ((s.data as unknown[]) ?? []).length > 1)
     const base = baseOption(_title, _unit, { idle: empty })
@@ -105,7 +105,8 @@ export default function LiveView() {
   }, [])
   const rtt = useChart('RTT', 'ms')
   const small = useChart('Petits objets p95', 'ms')
-  const goodput = useChart('Bulk goodput', 'Mbit/s')
+  const goodput = useChart('Débit utile applicatif', 'Mbit/s')
+  const iface = useChart('Interface', 'Mbit/s')
   const liveSnap = useUIStore((s: any) => s.live)
   const replayRunning = useUIStore((s: any) => s.replayRunning)
   const replayRunId = useUIStore((s: any) => s.replayRunId)
@@ -172,9 +173,24 @@ export default function LiveView() {
 
   const lastRef = useRef(0)
   const seqRef = useRef(-1)
+  const ifaceSeqRef = useRef(-1)
+  const ifaceLastRef = useRef(0)
   // la boucle ne tourne que s'il y a de la donnée à peindre — idle = zéro frame
-  const rafActive = live.rtt95.length > 0 || live.small.length > 0 || live.goodput.length > 0 || lockedRingRef.current.length > 0
+  const rafActive = live.rtt95.length > 0 || live.small.length > 0 || live.goodput.length > 0 || lockedRingRef.current.length > 0 || live.iface.rx.length > 0
   useRafLoop((ts) => {
+    // interface — porte 10 Hz propre, série brute, jamais passé par LTTB
+    if (live.iface.seq !== ifaceSeqRef.current && ts - ifaceLastRef.current >= 100) {
+      const charging = live.phase === 'charge'
+      const cs = charging ? live.phaseSince['charge'] ?? live.iface.rx[0]?.[0] ?? Date.now() - 1000 : 0
+      const ce = charging ? live.iface.rx.at(-1)?.[0] ?? Date.now() : 0
+      const ma = chargeMarkArea(cs, ce, charging)
+      iface.setData([
+        { ...rawLineSeries('RX', live.iface.rx, CRAFT.live), markArea: ma } as any,
+        { ...rawLineSeries('TX', live.iface.tx, CRAFT.ok) } as any,
+      ])
+      ifaceSeqRef.current = live.iface.seq
+      ifaceLastRef.current = ts
+    }
     // dirty-check — les anneaux n'ont pas bougé : rien à re-rendre, frame gratuite
     if (live.seq === seqRef.current) return
     if (ts - lastRef.current < 250) return
@@ -364,6 +380,29 @@ export default function LiveView() {
   const heroEmpty = live.small.length === 0
   const rttEmpty = live.rtt95.length === 0
   const goodputEmpty = live.goodput.length === 0
+  const ifaceRx = live.iface.rx.at(-1)?.[1] ?? null
+  const ifaceTx = live.iface.tx.at(-1)?.[1] ?? null
+  const ifaceFmt = (v: number | null) => (v == null ? '—' : v.toFixed(1))
+  const ifaceSourceLabel = live.iface.source === 'twin' ? 'twin'
+    : live.iface.source === 'prod' ? 'production' : 'source non déclarée'
+  const ifaceDrops = live.iface.valid
+    ? `pertes IF RX ${live.iface.rxDrops} · TX ${live.iface.txDrops}`
+    : 'pertes IF RX — · TX —'
+  // raisons connues en français ; une raison inconnue s'affiche telle quelle
+  const GAP_FR: Record<string, string> = {
+    warmup: 'démarrage', absent: 'interface absente', reset: 'compteur réinitialisé',
+    slow: 'fenêtre trop longue', read: 'lecture impossible', clock: 'horloge',
+  }
+  const ifaceGap = live.iface.gap ? (GAP_FR[live.iface.gap] ?? live.iface.gap) : ''
+  const ifaceRight = `${live.iface.name || '—'} · RX ${ifaceFmt(ifaceRx)} · TX ${ifaceFmt(ifaceTx)} Mbit/s · fenêtre ${live.iface.windowMs > 0 ? live.iface.windowMs.toFixed(0) : '—'} ms · ${ifaceDrops} · ${ifaceSourceLabel}${ifaceGap ? ' · ' + ifaceGap : ''}`
+  const ifaceEmpty = live.iface.rx.length === 0
+  const ifaceHint = !live.iface.name
+    ? 'interface non observée — déclarer CGO_IFACE côté serveur'
+    : live.iface.gap === 'absent' ? 'interface absente' : "en attente d'échantillons"
+  const ifaceSub = !live.iface.name ? 'compteurs noyau'
+    : live.iface.windowMs > 0 && live.iface.windowMs <= 150 ? 'compteurs noyau · échantillon 10 Hz · fenêtre 60 s'
+    : live.iface.windowMs > 0 ? `compteurs noyau · échantillon ${live.iface.windowMs.toFixed(0)} ms`
+    : 'compteurs noyau'
   // Timeline 48 — bandes de phase depuis live.phaseSince, bornes FIGÉES :
   // recupEnd = chargeEnd + 30s nominal — la bande ne grandit pas avec now.
   const hasData = live.rtt95.length > 0
@@ -375,7 +414,7 @@ export default function LiveView() {
   const tEnd = tRecup + 30000
 
   // couture d'instrumentation: lire options/pixels depuis les sondes
-  if (typeof window !== 'undefined') (window as any).__CGO_CHARTS = { rtt: rtt.chart.current, small: small.chart.current, goodput: goodput.chart.current }
+  if (typeof window !== 'undefined') (window as any).__CGO_CHARTS = { rtt: rtt.chart.current, small: small.chart.current, goodput: goodput.chart.current, iface: iface.chart.current }
   // une seule voix d'attente partout — le vide ne parle qu'une langue
   const IDLE_HINT = 'en attente — démarrez une campagne depuis Campagne'
   return (
@@ -408,6 +447,18 @@ export default function LiveView() {
       </Card>
       )}
       {!liveSnap && !showLiveSrc && <div className="card live-empty"><EmptyState kind="idle" hint={IDLE_HINT} /></div>}
+      {showLiveSrc && (
+        <Card
+          head="Débit interface"
+          sub={ifaceSub}
+          className="live-hero-card"
+          right={<span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-faint)' }}>{ifaceRight}</span>}
+        >
+          <div className="chart-flex">
+            <ChartSurface title="Interface" unit="Mbit/s" domId="chart-iface" height="100%" empty={ifaceEmpty} hint={ifaceHint} onReady={iface.onReady} />
+          </div>
+        </Card>
+      )}
       {/* guide de lecture (U6a) — que disent ces chiffres, repliable, au-dessus du bento */}
       <LiveGuide />
       {/* Q4 metric pill — toggles the metric groups; one 5-col bento, 10 cells, no misaligned rows */}
@@ -447,12 +498,12 @@ export default function LiveView() {
           <ChartSurface title="RTT" unit="ms" domId="chart-rtt" height={180} empty={rttEmpty} hint={IDLE_HINT} onReady={rtt.onReady} />
         </Card>
         <Card
-          head="Bulk goodput"
+          head="Débit utile applicatif"
           sub="mesuré au récepteur (compteur noyau)"
           onMouseEnter={e => { setHovered(true); const v = live.goodput.at(-1)?.[1] ?? goodputVal; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); goodput.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.goodput.length - 1) }) }}
           onMouseLeave={() => { setHovered(false); setPeek(null) }}
         >
-          <ChartSurface title="Bulk goodput" unit="Mbit/s" domId="chart-goodput" height={180} empty={goodputEmpty} hint={IDLE_HINT} onReady={goodput.onReady} />
+          <ChartSurface title="Débit utile applicatif" unit="Mbit/s" domId="chart-goodput" height={180} empty={goodputEmpty} hint={IDLE_HINT} onReady={goodput.onReady} />
         </Card>
       </div>
       )}
