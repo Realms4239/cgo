@@ -70,3 +70,22 @@ end, at a settled decision, and at a handoff.
 - Next: decide whether to certify the paint gate on a 60 Hz browser or to
   relax the gate constant (a design change, not a silent edit); send the
   read-only production request; then slice 9 Phase B.
+
+## 2026-10-27 21:41 UTC · paint gate retried foreground, still below 8
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `f33dbe2`.
+- Changed: `docs/VERIFY.md` evidence and the plan index next action only.
+- Proven: on DESKTOP-B6K9UCM, Edge 151 foreground maximized `1536×864`,
+  focused, 25 s during a 60 MiB upload: `201` paints / 25.230 s = `7.97/s`,
+  `0` long tasks, 15 rAF gaps > 40 ms, rAF `45.4 fps` (p50 `17.4 ms`); chart
+  data advanced `259` times (10.3/s); SSE 261 frames, 0 dropped; ring 260,
+  valid, `c-cli`/`twin`. Other runs: 7.1 headless, 7.2 offscreen, 7.1
+  on-screen behind windows, 8.0 offscreen. The limit is the host compositor
+  (45–52 fps with frame skips), not JS.
+- Unproven/blocked: the ≥8 paints/s gate. No stable ≥60 Hz surface is
+  available here; slice 10 stays **In progress**.
+- Next: the human decides between accepting the data-advance reading
+  (10.3/s, 0 long tasks) as rendering evidence and changing the approved
+  gate. Nothing is pending in code.
+- Bench: down; no namespaces, processes or listeners; tunnel closed; VM
+  running.

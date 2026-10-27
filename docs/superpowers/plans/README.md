@@ -34,7 +34,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
 | 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
 | 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **In progress** (Phase A done) | — (process layer; runs before any live slice) | Phase B: gate runner and six gates |
-| 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **In progress** | 9 Phase A; twin bench | Browser paint gate: no ≥60 Hz surface here (rAF 46–52 fps → 7.1–8.0 paints/s) |
+| 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **In progress** | 9 Phase A; twin bench | Paint gate: this host's compositor is 45–52 fps with frame skips → 7.1–8.0 paints/s |
 
 ## What each live plan covers
 
@@ -121,11 +121,14 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Acceptance: the twin SSE, byte-accounting, gap and race gates pass on
   CGO-DEV (325 unique samples in 32 s, window p95 101.3 ms, 0.032 % byte
   delta). The browser paint gate fails as measured: 7.1–8.0 paints/s on a
-  46–52 Hz surface, below the 8/s bar. See `docs/VERIFY.md`.
+  46–52 Hz surface, below the 8/s bar; the foreground run had 0 long tasks
+  and 10.3 chart-data advances/s. See `docs/VERIFY.md`.
 - Plan: `2026-10-27-cgo-live-interface-observation.md` (Tasks 1–10).
-- Next action: re-run the 25 s paint trace on a browser whose rAF reaches
-  60 Hz; no code change is pending. Production numbers wait for operator
-  read-only access and are Phase 2.
+- Next action: a stable ≥60 Hz surface for the 25 s paint trace (this host
+  skips frames at 45–52 fps); otherwise the human decides between accepting
+  the data-advance reading and changing the approved gate. No code change is
+  pending. Production numbers wait for operator read-only access and are
+  Phase 2.
 
 ## Historical plans
 
