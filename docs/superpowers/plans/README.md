@@ -34,7 +34,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
 | 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
 | 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **In progress** (Phase A done) | — (process layer; runs before any live slice) | Phase B: gate runner and six gates |
-| 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Approved** | 9 Phase A; twin bench | Execute the plan after slice 9 Phase A; twin acceptance + browser trace |
+| 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **In progress** | 9 Phase A; twin bench | Browser paint gate: no ≥60 Hz surface here (rAF 46–52 fps → 7.1–8.0 paints/s) |
 
 ## What each live plan covers
 
@@ -105,7 +105,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   contains no live claim; Phase A re-runs the frozen audit and records the
   first dated verification.
 
-### Slice 10 — live interface observation (approved)
+### Slice 10 — live interface observation (in progress)
 
 - Scope: a Linux `/proc/net/dev` sampler driven by the existing 10 Hz hub
   clock, additive `iface_*` frame fields, `CGO_IFACE`/`CGO_IFACE_SOURCE`, a
@@ -118,9 +118,14 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Evidence: the pre-slice 10 Hz probe on the twin measured a 100.4–101.8 ms
   window and a 0.2 % byte agreement with the qdisc for the same 25 s upload.
   That is a source probe, not the slice's acceptance.
+- Acceptance: the twin SSE, byte-accounting, gap and race gates pass on
+  CGO-DEV (325 unique samples in 32 s, window p95 101.3 ms, 0.032 % byte
+  delta). The browser paint gate fails as measured: 7.1–8.0 paints/s on a
+  46–52 Hz surface, below the 8/s bar. See `docs/VERIFY.md`.
 - Plan: `2026-10-27-cgo-live-interface-observation.md` (Tasks 1–10).
-- Next action: slice 9 Phase A, then Task 1. The twin bench is available.
-  Production numbers wait for operator read-only access and are Phase 2.
+- Next action: re-run the 25 s paint trace on a browser whose rAF reaches
+  60 Hz; no code change is pending. Production numbers wait for operator
+  read-only access and are Phase 2.
 
 ## Historical plans
 
