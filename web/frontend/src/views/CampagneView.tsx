@@ -197,7 +197,7 @@ export default function CampagneView() {
           provider: auditProvider,
           duration: declaration.duration,
           direction: declaration.direction,
-          target: auditTarget || undefined,
+          target: auditTarget.trim() || undefined,
           iface: auditIface || undefined,
           routeros_iface: auditRosIface || undefined,
         }),
@@ -447,7 +447,7 @@ export default function CampagneView() {
         </div>
         <div className="form-row">
           <label title=">1 sature un lien avec perte où un CUBIC mono-flux s'effondre">Flux de charge</label>
-          <input type="number" min={1} max={8} value={flows} onChange={e=>setFlows(parseInt(e.target.value)||1)} style={{width:64}} />
+          <input type="number" min={1} max={8} value={flows} onChange={e=>setFlows(Math.min(8, Math.max(1, parseInt(e.target.value) || 4)))} style={{width:64}} />
           <span className="mono muted" style={{fontSize: 'var(--fs-micro)'}}>1–8 · défaut 4</span>
         </div>
         <div className="form-row">
