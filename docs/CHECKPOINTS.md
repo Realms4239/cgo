@@ -110,3 +110,48 @@ end, at a settled decision, and at a handoff.
   send the read-only production request from the design appendix.
 - Bench: down; no namespaces, processes or listeners; tunnel closed; VM
   running.
+
+## 2026-10-27 23:29 UTC · slice 9 Phase B: six gates
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `7424eaa`.
+- Changed: `tools/verify.py` (new), `tools/verify_test.py` (new), `Makefile`
+  (`verify`, `verify-fast`, `verify-selftest`, `hooks`); plan index row 9 and
+  the slice 9 next action; this entry; two `docs/VERIFY.md` rows moved to
+  `PENDING` with the builder run.
+- Proven: `python tools/verify.py` → six `PASS`, `6 passed, 0 failed, 0 not
+  run`, exit 0 on DESKTOP-B6K9UCM. `python tools/verify.py --selftest` → six
+  `caught` proofs with six controls, exit 0. `python tools/verify_test.py` →
+  8 tests OK. `--fast` → 5 gates; `--staged` on an empty index → `hygiene`
+  only. Gate total 574 lines; `MAX_GATE_LINES` 600; largest tracked file
+  352 240 o (woff2), hygiene ceiling 384 KiB with `docs/img/` allowed.
+- Proven (gate facts): `frozen` runs the existing audit, 159 runs / 528 lines;
+  `provenance` checks 179 `data/runs` headers against the 5 frozen eras and
+  0 valuation sidecars; `tests` runs `go vet ./...` + `go test ./...`;
+  `exit` builds the CLI and runs 5 safe invocations; `hygiene` scans 434
+  tracked files; `links` scans 5 documents.
+- Deviations from the plan's literal text, named rather than hidden:
+  1. `provenance` seals against the **set** of frozen headers, not the first
+     run: the corpus has 5 sealed schema eras (17/18/19/22/23 columns) and
+     the first-run rule would fail 164 of 179 local runs.
+  2. `hygiene` carries an exact-path allowlist: 18 `backup/*.tar.gz` tracked
+     before the rule (new archives still fail), `pkg/results/runs-frozen.tar.gz`
+     (`//go:embed` in `pkg/results/seed.go`, build-critical), and the two
+     tailnet addresses named deliberately in `AGENTS.md` and the append-only
+     ledgers. A new address still fails.
+  3. `links` only treats a backticked token with `/` and an existing top-level
+     directory as a path; otherwise numeric metrics, schema filenames, branch
+     names and IPs were false positives (73 on the real tree). One index token
+     changed from pkg/probe/bpf to `pkg/probe` because the eBPF package does
+     not exist yet.
+- Unproven/blocked: `make` is not installed on this host (`make: command not
+  found`), so `make verify` was not runnable; the same command ran directly as
+  `python tools/verify.py`. The six-gate `VERIFY` row is `PENDING` until an
+  independent verifier re-runs it. Full Linux `go build ./...` still fails
+  only in `cmd/cgo-gui` (Fyne `go-gl/gl` build constraints), pre-existing.
+  Phase C hooks and Phase D cadence are not started. The production read-only
+  request is still unsent.
+- Next: Phase C (hooks and branch guard), then Phase D. Human decision owed on
+  whether to untrack the 18 legacy `backup/*.tar.gz` archives instead of
+  keeping the exact-path allowlist.
+- Bench: untouched this session; no live run, no namespace, process or
+  listener change; the VM is not contacted.

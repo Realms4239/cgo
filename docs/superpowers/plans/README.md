@@ -33,7 +33,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 6 | Ingress IFB shaping | `2026-10-27-cgo-ifb-ingress-design.md` | `2026-10-27-cgo-ifb-ingress.md` | **Proposed** | Linux 6.8 bench for live acceptance; Windows for engine | User approval, then execute Tasks 1–8; Task 9 stays blocked until the bench is stable |
 | 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
 | 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
-| 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **In progress** (Phase A done) | — (process layer; runs before any live slice) | Phase B: gate runner and six gates |
+| 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **In progress** (Phases A–B done) | — (process layer; runs before any live slice) | Phase C: hooks and branch guard |
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
 
 ## What each live plan covers
@@ -49,7 +49,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 
 ### Slice 4 — eBPF ground truth (blocked)
 
-- Scope: `pkg/probe/bpf` retransmit bytes and socket RTT, `tcp_retransmit_skb`
+- Scope: eBPF probe under `pkg/probe`: retransmit bytes and socket RTT, `tcp_retransmit_skb`
   raw tracepoint, `tcp_rcv_established` socket sample, `kfree_skb` qdisc-drop
   counter, all-or-nothing per window, `source: ebpf` provenance.
 - Scope guard: no BBRv3, `.dist`, IFB, UI, or thesis work in this slice.
@@ -93,7 +93,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Waits for the measurement slices. The IFB report JSON and Markdown are
   available to the future UI, but no frontend change is in the IFB slice.
 
-### Slice 9 — engineering system (proposed)
+### Slice 9 — engineering system (in progress)
 
 - Scope: root `AGENTS.md`, three ledgers (`docs/VERIFY.md`,
   `docs/CHECKPOINTS.md`, `docs/ERRORS.md`), six gates with one fault proof each,
@@ -101,9 +101,9 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Scope guard: no product code, no CSV schema change, no frozen run, no eBPF,
   IFB, BBRv3, `.dist`, UI, or thesis work; no CI, no document register, no
   weekly file, no full mutation harness.
-- Next action: user approval, then Phase A only. The design deliberately
-  contains no live claim; Phase A re-runs the frozen audit and records the
-  first dated verification.
+- Next action: Phase C (hooks and branch guard), then Phase D (cadence).
+  Phases A–B are committed; the builder run of the six gates is recorded in
+  `docs/VERIFY.md` as `PENDING` until an independent re-run.
 
 ### Slice 10 — live interface observation (done)
 
