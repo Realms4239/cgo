@@ -1110,6 +1110,7 @@ func New(d Deps) Handler {
 			BulkAddr       string `json:"bulk_addr"`
 			Iface          string `json:"iface"`
 			RouterOSIface  string `json:"routeros_iface"`
+			RouterOSLan    string `json:"routeros_lan"`
 			Qdisc          string `json:"qdisc"`
 			Asymmetric     *bool  `json:"asymmetric"`
 			CPUConstrained bool   `json:"cpu_constrained"`
@@ -1253,7 +1254,11 @@ func New(d Deps) Handler {
 			if err := audit.AppendLinkAudit("data", res); err != nil {
 				recordEvent("audit", fmt.Sprintf("échec écriture CSV — %s : %s", p.Site, err))
 			}
-			link := remediate.Link{Interface: body.Iface, RouterOSInterface: body.RouterOSIface}
+			link := remediate.Link{
+				Interface:            body.Iface,
+				RouterOSInterface:    body.RouterOSIface,
+				RouterOSLanInterface: body.RouterOSLan,
+			}
 			rep, rerr := audit.BuildReport(res, link, body.Qdisc, asymmetric, body.CPUConstrained)
 			if rerr != nil {
 				recordEvent("audit", fmt.Sprintf("rapport impossible — %s : %s", p.Site, rerr))
@@ -1389,7 +1394,11 @@ func New(d Deps) Handler {
 			res := lastAudit
 			auditMu.Unlock()
 			if res != nil && res.AuditID == rep.AuditID {
-				link := remediate.Link{Interface: iface, RouterOSInterface: strings.TrimSpace(q.Get("routeros_iface"))}
+				link := remediate.Link{
+					Interface:            iface,
+					RouterOSInterface:    strings.TrimSpace(q.Get("routeros_iface")),
+					RouterOSLanInterface: strings.TrimSpace(q.Get("routeros_lan")),
+				}
 				asym := q.Get("asymmetric") != "false"
 				rebuilt, err := audit.BuildReport(res, link, q.Get("qdisc"), asym, q.Get("cpu_constrained") == "true")
 				if err == nil {

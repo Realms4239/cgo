@@ -166,6 +166,7 @@ WantedBy=multi-user.target
 		// emit a tc command against the wrong device.
 		iface := fs.String("iface", "", "Linux egress device to shape in the remediation (e.g. eth0)")
 		rosIface := fs.String("routeros-iface", "", "RouterOS interface for the remediation script (e.g. ether1-wan)")
+		rosLan := fs.String("ros-lan", "", "RouterOS LAN/private interface for the download remediation script (e.g. ether2-lan)")
 		reportPath := fs.String("report", "", "additional report path (.md or .json); the standard data/audits/<id>/ artifacts are always written")
 		qdisc := fs.String("qdisc", "", "qdisc for the remediation: cake, fq_codel, pfifo_fast (empty = recommended)")
 		asymmetric := fs.Bool("asymmetric", true, "link is asymmetric (uplink << downlink); drives the qdisc recommendation")
@@ -215,7 +216,11 @@ WantedBy=multi-user.target
 		// artifact an operator pastes into a ticket and the evidence whose
 		// hashes a reviewer can re-check. It is written even when no
 		// remediation can be emitted; the "not measured" section says why.
-		link := remediate.Link{Interface: *iface, RouterOSInterface: *rosIface}
+		link := remediate.Link{
+			Interface:            *iface,
+			RouterOSInterface:    *rosIface,
+			RouterOSLanInterface: *rosLan,
+		}
 		rep, err := audit.BuildReport(res, link, *qdisc, *asymmetric, *cpuBound)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit report:", err)
