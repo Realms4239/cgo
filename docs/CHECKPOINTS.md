@@ -655,3 +655,56 @@ end, at a settled decision, and at a handoff.
   human's. No `book/` path was staged.
 - Next: human review of the rendered book; fill the front-matter placeholders;
   merge to `main` remains the human's decision.
+
+## 2026-10-28 20:52 UTC · slice 13 production-facing reframing
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `31ad4b1` (book working tree;
+  `book/` is gitignored and was not staged).
+- Changed: `PRODUCT.md` (description and thesis title; gitignored, working tree
+  only); `book/content/00-front.js`
+  and `book/content/00-couverture.xml` (title page/cover); `01-intro.js`,
+  `03-partie2.js`, `04-pratique.js`, `06-conclusion.js`; the stale extraction
+  headers in `015-organisme`, `03-partie2`, `04-pratique`, `07-refs`,
+  `08-glossaire`, `09-annexes`; new spec and plan; plan index; this checkpoint.
+- Title decision: the latest IDEA draft supplies the main title,
+  « Architecture d’ordonnancement et de régulation de trafic pour la
+  sécurisation des flux temps réel du système d’information de Météo
+  Madagascar ». The subtitle is written for the evidence actually produced:
+  « audit client-side, banc reproductible et comparaison des politiques AQM/BBR
+  sur les liens d’accès contraints ». The memos’ production numbers, hostname/IP,
+  and alternate titles stay excluded; the chapter I limitation paragraph still
+  says the production server was not measured.
+- Added to the book: one edge-architecture sentence in the introduction and one
+  in the conclusion; one chapter II paragraph for Model A (capacity
+  depreciation, 1 388,89 Ar/h at GOLD), Model B (metered volume, ×20 for 180 s),
+  Model C (WIS 2.0 SLA, 220 ms / 95 % as the DGM operator objective, not a WMO
+  mandate), the primary-scenario mapping (fiber→GOLD, 4G/5G→APN 150 Ar/Go,
+  VSAT→wholesale 81,38 Ar/Go) and the contractual-scenario disclaimer; one
+  limits paragraph naming eBPF, BBRv3 and trace-driven `.dist` as perspectives
+  whose prerequisites (object/Linux 6.8, kernel 7.1, ≥30-sample trace) are
+  absent. No production claim was added.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64):
+  `python book/tools/audit-archive.py` → exit 0, both `OK` lines;
+  all ten modules load under node;
+  `node book/build-docx.js` → `book/memoire-rebuild.docx` (3055 Ko);
+  `memoire.docx` SHA-256 unchanged (`bd171227…6a2e030`);
+  `python book/tools/audit-biblio.py` → 47/47 cited;
+  `python book/tools/audit-renvois.py` → 40 literal references, one
+  pre-existing Figure 2 warning;
+  body 15,042 words, total 16,743, within the slice ceilings 15,300/17,000;
+  new title present in `word/document.xml`, old title absent;
+  six stale headers removed; no `extrait automatiquement` remains.
+- Numeric-token diff against the slice-12 snapshot: 0 lost; 8 added, all
+  contractual-scenario or blocked-directive values: `180` (Model B window),
+  `2.0` (the 2³⁰ token), `388,89` (from 1 388,89), `600` (from 3 600), `720`
+  (monthly hours), `81,38` (wholesale Ar/Go), `6.8` (Linux prerequisite), `7.1`
+  (BBRv3 kernel prerequisite). Every slice-12 required string and Table 15 row
+  is unchanged.
+- Unproven/blocked: production measurement (read-only access pending); field
+  audit (not executed); Linux 6.8 live acceptance, eBPF, BBRv3, `.dist`
+  (blocked or deferred as in `docs/VERIFY.md`); the tariff values are
+  contractual scenarios, not measurements; independent verifier pending for
+  this slice. No `book/` path was staged.
+- Next: human review of the rendered book; production access remains the
+  unblock condition for the live claims; merge to `main` is the human's
+  decision.

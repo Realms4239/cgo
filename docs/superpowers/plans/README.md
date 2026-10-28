@@ -37,6 +37,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
 | 11 | Frozen corpus seal anchor | `2026-10-28-cgo-corpus-seal-design.md` | `2026-10-28-cgo-corpus-seal.md` | **Done** (verifier pass 2026-10-28) | — | — (follow-up: FAIL instead of SKIP on a partial `book/`; recorded) |
 | 12 | Book truth-up & prose restructure | `2026-10-28-cgo-book-truth-up-design.md` | `2026-10-28-cgo-book-truth-up.md` | **Done** (book working tree, never committed) | 1–3, 6, 10, 11 | — (human review of the rendered book; front-matter placeholders remain) |
+| 13 | Production-facing reframing & economic reconciliation | `2026-10-28-cgo-production-reframing-design.md` | `2026-10-28-cgo-production-reframing.md` | **Done** (book working tree, never committed) | 12 | — (human review of the rendered book; production access and independent verification remain open) |
 
 ## What each live plan covers
 
@@ -177,6 +178,27 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   the rendered document. `book/` is working-tree only, never staged.
 - Next: human review of the rendered book; fill supervisor/jury/date
   placeholders; Master vs Licence wording remains the human's decision.
+
+### Slice 13 — production-facing reframing and economic reconciliation
+
+- Scope: adopt the latest IDEA title (« Architecture d’ordonnancement et de
+  régulation de trafic… ») with an honest subtitle, in `PRODUCT.md`, the book
+  title page and the cover; add the edge-architecture framing, the enterprise
+  Model A/B/C and WIS 2.0 SLA paragraph, the blocked-directive status, and the
+  source-of-truth headers.
+- Scope guard: no production measurement or control, no hostname/IP, no live
+  bench, no UI redesign, no new table/annex, no `book/` commit. The memos supply
+  the title direction only; their numbers and production claims stay excluded.
+- Evidence: 2026-10-28 on DESKTOP-B6K9UCM: `python book/tools/audit-archive.py`
+  → exit 0, both `OK` lines; all ten modules load; `node book/build-docx.js` →
+  `book/memoire-rebuild.docx` (3055 Ko); `memoire.docx` hash unchanged;
+  `audit-biblio` 47/47 cited; body 15,042 words, total 16,743 (within the
+  slice's 15,300/17,000 ceilings); numeric diff against the slice-12 snapshot
+  shows 0 lost and 8 added tokens, all contractual-scenario or blocked-
+  directive values; new title present in `word/document.xml`, old title absent.
+  `book/` is working-tree only, never staged.
+- Unproven: no production measurement, no field audit, no Linux live
+  acceptance; independent verifier pending.
 
 ## Historical plans
 
