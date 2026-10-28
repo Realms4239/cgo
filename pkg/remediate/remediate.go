@@ -24,6 +24,9 @@ type Link struct {
 	Interface string
 	// RouterOSInterface is the RouterOS interface name (e.g. "ether1-wan").
 	RouterOSInterface string
+	// RouterOSLanInterface is the RouterOS private/LAN interface that carries
+	// the download direction (e.g. "ether2-lan"). RouterOS has no IFB.
+	RouterOSLanInterface string
 	// CapacityMbps is the measured bottleneck rate, in Mbit/s.
 	CapacityMbps float64
 	// RTTms is the measured idle round-trip time, in milliseconds.
@@ -42,6 +45,10 @@ const (
 	QdiscPfifo   = "pfifo_fast"
 )
 
+// IngressIFB is the intermediate functional block device that receives the
+// redirected WAN ingress. The remediation creates it when absent.
+const IngressIFB = "ifb0"
+
 // shaperHeadroom is the fraction of the measured bottleneck the shaper is set
 // to. A shaper configured at exactly the achieved rate contends with the real
 // bottleneck and under-delivers; 95% keeps the queue on our side of the link
@@ -57,7 +64,7 @@ func (e ErrUnmeasured) Error() string {
 
 // Validate refuses to build a remediation from unmeasured or impossible values.
 func (l Link) Validate() error {
-	if l.Interface == "" && l.RouterOSInterface == "" {
+	if l.Interface == "" && l.RouterOSInterface == "" && l.RouterOSLanInterface == "" {
 		return ErrUnmeasured{"interface", "no egress device named"}
 	}
 	if !(l.CapacityMbps > 0) {
@@ -168,6 +175,72 @@ func LinuxTC(l Link, qdisc string) ([]string, error) {
 	}
 }
 
+// ingressSetup is the bench-independent plumbing that gives ingress a real
+// queue: tc cannot queue on an ingress qdisc, so the packet is redirected to
+// an IFB and shaped there. Every command is idempotent.
+func ingressSetup(dev string) []string {
+	return []string{
+		fmt.Sprintf("tc qdisc del dev %s ingress 2>/dev/null || true", dev),
+		fmt.Sprintf("tc qdisc del dev %s root 2>/dev/null || true", IngressIFB),
+		"modprobe ifb sch_ingress act_mirred cls_matchall 2>/dev/null || true",
+		fmt.Sprintf("ip link add %s type ifb 2>/dev/null || true", IngressIFB),
+		fmt.Sprintf("ip link set %s up", IngressIFB),
+		fmt.Sprintf("tc qdisc add dev %s handle ffff: ingress", dev),
+		fmt.Sprintf("tc filter add dev %s parent ffff: protocol all matchall action mirred egress redirect dev %s", dev, IngressIFB),
+	}
+}
+
+// LinuxTCIngress returns the download command set. The WAN device loses its
+// ingress hook to the IFB; the shaper lives on the IFB, where packets are
+// egress and can actually be queued. CAKE uses ingress mode and dual-dsthost
+// for per-host fairness toward the LAN; ack-filter is deliberately absent.
+func LinuxTCIngress(l Link, qdisc string) ([]string, error) {
+	if err := l.Validate(); err != nil {
+		return nil, err
+	}
+	if l.Interface == "" {
+		return nil, ErrUnmeasured{"interface", "Linux ingress generation needs Interface"}
+	}
+	dev := l.Interface
+	base := ingressSetup(dev)
+
+	switch qdisc {
+	case QdiscCake:
+		args := []string{
+			fmt.Sprintf("tc qdisc replace dev %s root cake", IngressIFB),
+			"bandwidth " + rate(l.shapedRate()),
+			fmt.Sprintf("rtt %.0fms", l.RTTms),
+			"ingress",
+			"dual-dsthost",
+			"nat",
+			"diffserv4",
+		}
+		if l.Overhead > 0 {
+			args = append(args, fmt.Sprintf("overhead %d", l.Overhead))
+		}
+		return append(base, strings.Join(args, " ")), nil
+
+	case QdiscFqCodel:
+		burst := fmt.Sprintf("%d", l.burstBytes())
+		return append(base,
+			fmt.Sprintf("tc qdisc replace dev %s root handle 1: tbf rate %s burst %s latency 400ms",
+				IngressIFB, rate(l.shapedRate()), burst),
+			fmt.Sprintf("tc qdisc replace dev %s parent 1:1 handle 10: fq_codel", IngressIFB),
+		), nil
+
+	case QdiscPfifo:
+		burst := fmt.Sprintf("%d", l.burstBytes())
+		return append(base,
+			fmt.Sprintf("tc qdisc replace dev %s root handle 1: tbf rate %s burst %s latency 400ms",
+				IngressIFB, rate(l.shapedRate()), burst),
+			fmt.Sprintf("tc qdisc replace dev %s parent 1:1 handle 10: pfifo limit 1000", IngressIFB),
+		), nil
+
+	default:
+		return nil, fmt.Errorf("remediate: unknown qdisc %q (want cake, fq_codel or pfifo_fast)", qdisc)
+	}
+}
+
 // RouterOS returns a RouterOS v7+ script for the requested qdisc.
 //
 // RouterOS v7 implements cake as a queue kind, so the script is a queue type
@@ -223,6 +296,64 @@ func RouterOS(l Link, qdisc string) (string, error) {
 		b.WriteString("/queue type add name=cgo-fifo kind=fifo\n\n")
 		fmt.Fprintf(&b, "/queue tree add name=cgo-wan-out parent=%s max-limit=%d \\\n", iface, bits)
 		b.WriteString("    queue=cgo-fifo comment=\"cgo-managed\"\n")
+		return b.String(), nil
+
+	default:
+		return "", fmt.Errorf("remediate: unknown qdisc %q (want cake, fq_codel or pfifo_fast)", qdisc)
+	}
+}
+
+// RouterOSIngress returns the download queue tree. RouterOS has no IFB: a
+// download is shaped as an egress queue on the LAN/private interface, which
+// is where the traffic leaves toward clients. The object names and comment
+// are disjoint from the upload cleanup, so either script can be pasted alone.
+func RouterOSIngress(l Link, qdisc string) (string, error) {
+	if err := l.Validate(); err != nil {
+		return "", err
+	}
+	if l.RouterOSLanInterface == "" {
+		return "", ErrUnmeasured{"routeros_lan_interface", "RouterOS ingress generation needs RouterOSLanInterface"}
+	}
+	iface := l.RouterOSLanInterface
+	bits := int64(math.Round(l.shapedRate() * 1000000))
+
+	var b strings.Builder
+	b.WriteString("# CGO download remediation - RouterOS v7+\n")
+	b.WriteString("# RouterOS has no IFB. This is a queue tree on the LAN/private\n")
+	b.WriteString("# interface, which is where download traffic egresses toward clients.\n")
+	b.WriteString("# It shapes the same direction at a different point than the Linux IFB.\n")
+	b.WriteString("# Requires RouterOS >= 7.10 for kind=cake. Verify with: /system resource print\n")
+	fmt.Fprintf(&b, "# Sized from a measured %.2f Mbit/s bottleneck and %.0f ms idle RTT.\n", l.CapacityMbps, l.RTTms)
+	fmt.Fprintf(&b, "# Shaped at %.0f%% of measured rate (%d bit/s) to stay below the real bottleneck.\n", shaperHeadroom*100, bits)
+	b.WriteString("# Idempotent: removes its own objects before recreating them.\n\n")
+
+	b.WriteString("/queue tree remove [find where comment=\"cgo-managed-ingress\"]\n")
+	b.WriteString("/queue type remove [find where name~\"^cgoingress-\"]\n\n")
+
+	switch qdisc {
+	case QdiscCake:
+		b.WriteString("# No ack-filter: a download data stream is not an ACK stream.\n\n")
+		b.WriteString("/queue type add name=cgoingress-cake kind=cake \\\n")
+		fmt.Fprintf(&b, "    cake-bandwidth=%d cake-rtt=%.0fms \\\n", bits, l.RTTms)
+		b.WriteString("    cake-flowmode=dual-dsthost cake-nat=yes cake-diffserv=diffserv4 \\\n")
+		b.WriteString("    cake-wash=yes\n\n")
+		fmt.Fprintf(&b, "/queue tree add name=cgoingress-lan-in parent=%s max-limit=%d \\\n", iface, bits)
+		b.WriteString("    queue=cgoingress-cake comment=\"cgo-managed-ingress\"\n")
+		return b.String(), nil
+
+	case QdiscFqCodel:
+		b.WriteString("# NOTE: RouterOS v7 has no fq_codel queue kind.\n")
+		b.WriteString("# This is sfq, the closest native equivalent. It is NOT fq_codel.\n\n")
+		b.WriteString("/queue type add name=cgoingress-sfq kind=sfq sfq-perturb=10\n\n")
+		fmt.Fprintf(&b, "/queue tree add name=cgoingress-lan-in parent=%s max-limit=%d \\\n", iface, bits)
+		b.WriteString("    queue=cgoingress-sfq comment=\"cgo-managed-ingress\"\n")
+		return b.String(), nil
+
+	case QdiscPfifo:
+		b.WriteString("# Baseline only - no AQM. Expect bufferbloat under load.\n\n")
+		b.WriteString("/queue type add name=cgoingress-fifo kind=fifo\n\n")
+		fmt.Fprintf(&b, "/queue tree add name=cgoingress-lan-in parent=%s max-limit=%d \\\n", iface, bits)
+		b.WriteString("    queue=cgoingress-fifo comment=\"cgo-managed-ingress\"\n")
 		return b.String(), nil
 
 	default:
