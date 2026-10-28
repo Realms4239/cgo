@@ -1,6 +1,6 @@
 # CGO — plan and specification index
 
-*Last updated: 2026-10-27 · Branch: `rebuild/plan1-economics-audit`*
+*Last updated: 2026-10-28 · Branch: `rebuild/plan1-economics-audit`*
 
 This is the single index for every CGO rebuild plan. A **spec** is the design
 contract for one slice; a **plan** is the implementation contract that follows
@@ -30,7 +30,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 3 | UI/API surface | same umbrella spec | `2026-10-25-cgo-plan3-ui-api-surface.md` | **Done** (29/29 checked) | 1–2 | — |
 | 4 | eBPF ground truth | `2026-10-27-cgo-ebpf-ground-truth-design.md` | `2026-10-27-cgo-ebpf-ground-truth.md` | **Blocked** | stable Linux 6.8 host; prebuilt `bpf_probe.o` | Build `bpf_probe.o` on Linux 6.8, then execute the plan; Windows cannot run Task 1 Step 4 or the live gates |
 | 5 | Trace-driven netem `.dist` | `2026-10-27-cgo-trace-driven-dist-design.md` | `2026-10-27-cgo-trace-driven-dist.md` | **Deferred** (user stopped execution) | real field trace; Linux 6.8 bench for acceptance | Resume only on user request; do not commit a `.dist` built from the two local `SMOKE-TEST` traces |
-| 6 | Ingress IFB shaping | `2026-10-27-cgo-ifb-ingress-design.md` | `2026-10-27-cgo-ifb-ingress.md` | **Windows-green** | Linux 6.8 bench for live acceptance; Windows for engine | Live acceptance blocked on a stable Linux 6.8 bench; Task 9 is not executed. |
+| 6 | Ingress IFB shaping | `2026-10-27-cgo-ifb-ingress-design.md` | `2026-10-27-cgo-ifb-ingress.md` | **Windows-green** (verifier pass 2026-10-28) | Linux 6.8 bench for live acceptance; Windows for engine | Engine row `VERIFIED`; Task 9 not executed, live acceptance blocked on a stable Linux 6.8 bench. |
 | 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
 | 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
 | 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **Done** (verifier pass 2026-10-28) | — (process layer; runs before any live slice) | — (merge to `main` is the human's decision) |
@@ -65,7 +65,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   rows, below the 30-sample floor, and are not citable. Live netem acceptance
   needs the Linux 6.8 bench.
 
-### Slice 6 — ingress IFB shaping (proposed)
+### Slice 6 — ingress IFB shaping (Windows-green)
 
 - Scope: Linux IFB ingress commands in `pkg/remediate`, direction-aware
   `BuildReport`, RouterOS LAN queue tree, opt-in `CGO_SHAPE_MODE=ingress`
@@ -74,6 +74,10 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   ingress campaign.
 - Blocker: live acceptance needs the Linux 6.8 bench. Windows proves command
   generation and orchestration only.
+- Evidence: independent verifier pass 2026-10-28 at `ad203f9` on
+  DESKTOP-B6K9UCM: all seven re-runs exit 0 except the pre-existing
+  `cmd/cgo-gui` cross-build, four fault proofs red-then-green, six gates
+  `6 passed`. Engine row `VERIFIED`; Task 9 row stays `BLOCKED`.
 
 ### Slice 7 — BBRv3 evaluation matrix (deferred)
 
