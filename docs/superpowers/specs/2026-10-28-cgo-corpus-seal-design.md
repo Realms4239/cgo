@@ -32,8 +32,9 @@ corpus-wide anchor, and `book/` is gitignored. A committed anchor outside
   can be checked by hand on any host.
 - **D3 — Fail closed when `book/` is present.** The gate FAILs if the anchor is
   absent, malformed, missing a run, listing an extra run, or mismatched. It
-  SKIPs only when `book/` itself is absent (a fresh clone), as the `frozen`
-  gate does today.
+  SKIPs when `book/` is absent (a fresh clone). The pre-existing gate also
+  SKIPs on a partial `book/` (missing audit or `data/runs`); that path exits 2
+  and is a recorded follow-up, not a green result.
 - **D4 — The gate never writes the anchor.** Re-cutting is a deliberate act
   with a documented command, so a corrupted corpus cannot re-seal itself in a
   gate run.

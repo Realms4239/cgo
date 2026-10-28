@@ -35,7 +35,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
 | 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **Done** (verifier pass 2026-10-28) | — (process layer; runs before any live slice) | — (merge to `main` is the human's decision) |
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
-| 11 | Frozen corpus seal anchor | `2026-10-28-cgo-corpus-seal-design.md` | `2026-10-28-cgo-corpus-seal.md` | **In progress** | — | Cut the anchor, extend `frozen`, prove a rewritten manifest is caught |
+| 11 | Frozen corpus seal anchor | `2026-10-28-cgo-corpus-seal-design.md` | `2026-10-28-cgo-corpus-seal.md` | **Done** (verifier pass 2026-10-28) | — | — (follow-up: FAIL instead of SKIP on a partial `book/`; recorded) |
 
 ## What each live plan covers
 
@@ -138,14 +138,19 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Next action: —. The Phase 2 production adapter waits for operator
   read-only access.
 
-### Slice 11 — frozen corpus seal anchor (in progress)
+### Slice 11 — frozen corpus seal anchor (done)
 
 - Scope: a committed SHA-256 anchor over the 159 run manifests, checked by the
   `frozen` gate; fail closed when `book/` is present and the anchor does not
   match. Closes the self-referential seal the slice 9 verifier named.
 - Scope guard: no change to `book/`, its audit, CSV schemas, or frozen runs;
   no signing key, new gate, dependency, UI, or thesis work.
-- Evidence: pending — the anchor is not cut yet.
+- Evidence: independent verifier pass 2026-10-28 at `06bc310` on
+  DESKTOP-B6K9UCM: 159 `OK` from `sha256sum -c`, 9 unit tests, six gates
+  `6 passed`, six `caught`; a temp copy with `quarantine.json` and its manifest
+  rewritten consistently passed the audit and was caught by the seal. Gate
+  layer 649 lines ≤ 650. Recorded follow-up: the pre-existing SKIP on a partial
+  `book/` still says "book/ absent"; it exits 2, so it cannot certify.
 
 ## Historical plans
 
