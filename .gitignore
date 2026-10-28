@@ -73,4 +73,5 @@ web/frontend/shots-fresh/
 # machine junk
 nul
 cgo-*.exe
+__pycache__/
 pkg/api/data/
