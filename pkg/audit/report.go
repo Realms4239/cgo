@@ -147,6 +147,11 @@ type Remediation struct {
 	// RouterOS is the RouterOS v7+ script, empty when no RouterOS interface
 	// was named.
 	RouterOS string `json:"routeros,omitempty"`
+	// LinuxTCIngress is the ordered download command set for a down (or both)
+	// measurement. It stays an empty array for an upload-only report.
+	LinuxTCIngress []string `json:"linux_tc_ingress,omitempty"`
+	// RouterOSIngress is the LAN queue-tree script for the download direction.
+	RouterOSIngress string `json:"routeros_ingress,omitempty"`
 }
 
 // BuildReport assembles a report from an audit result.
@@ -283,30 +288,74 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 	})
 
 	// Remediation only from a real measurement. This is the guard that keeps a
-	// guessed bandwidth out of a production router config.
-	if res.ThroughputMbps > 0 && res.RTTIdleP50 > 0 {
-		link.CapacityMbps = res.ThroughputMbps
+	// guessed bandwidth out of a production router config. A `down` headline
+	// already lives in ThroughputMbps; a `both` result has separate mirrors.
+	upCap, downCap := 0.0, 0.0
+	switch res.Direction {
+	case "down":
+		downCap = res.ThroughputMbps
+	case "both":
+		upCap = res.ThroughputMbps
+		downCap = res.ThroughputDownMbps
+	default: // "", "up"
+		upCap = res.ThroughputMbps
+	}
+	if res.RTTIdleP50 <= 0 || (upCap <= 0 && downCap <= 0) {
+		rep.Unavailable = append(rep.Unavailable, Unavailable{
+			Metric: "remediation",
+			Reason: "capacity or idle RTT unmeasured; a queue config sized from a guess would be deployed blindly",
+		})
+	} else {
 		link.RTTms = res.RTTIdleP50
 		rec := remediate.Recommend(link, asymmetric, cpuConstrained)
 		useQdisc := qdisc
 		if useQdisc == "" {
 			useQdisc = rec.Qdisc
 		}
-		tcCmds, err := remediate.LinuxTC(link, useQdisc)
-		if err == nil {
-			rem := &Remediation{Qdisc: useQdisc, Reason: rec.Reason, LinuxTC: tcCmds}
+		rem := &Remediation{Qdisc: useQdisc, Reason: rec.Reason, LinuxTC: []string{}}
+		if upCap > 0 {
+			link.CapacityMbps = upCap
+			if cmds, err := remediate.LinuxTC(link, useQdisc); err == nil {
+				rem.LinuxTC = cmds
+			}
 			if link.RouterOSInterface != "" {
 				if script, err := remediate.RouterOS(link, useQdisc); err == nil {
 					rem.RouterOS = script
 				}
 			}
-			rep.Remediation = rem
+		} else if res.Direction == "both" {
+			rep.Unavailable = append(rep.Unavailable, Unavailable{
+				Metric: "remediation (upload)",
+				Reason: "upload throughput unmeasured; the download remediation is not promoted to an upload config",
+			})
 		}
-	} else {
-		rep.Unavailable = append(rep.Unavailable, Unavailable{
-			Metric: "remediation",
-			Reason: "capacity or idle RTT unmeasured; a queue config sized from a guess would be deployed blindly",
-		})
+		if downCap > 0 {
+			link.CapacityMbps = downCap
+			if cmds, err := remediate.LinuxTCIngress(link, useQdisc); err == nil {
+				rem.LinuxTCIngress = cmds
+			}
+			if link.RouterOSLanInterface != "" {
+				if script, err := remediate.RouterOSIngress(link, useQdisc); err == nil {
+					rem.RouterOSIngress = script
+				}
+			}
+		} else if res.Direction == "both" {
+			rep.Unavailable = append(rep.Unavailable, Unavailable{
+				Metric: "remediation (download)",
+				Reason: "download throughput unmeasured; the upload remediation is not promoted to a download config",
+			})
+		}
+		if res.Direction == "down" {
+			rem.Reason = "download path: the shaper queues packets after they cross the link (Linux IFB ingress or RouterOS LAN queue tree); the upload ack-filter does not apply to a download data stream"
+		}
+		if len(rem.LinuxTC) > 0 || len(rem.LinuxTCIngress) > 0 || rem.RouterOS != "" || rem.RouterOSIngress != "" {
+			rep.Remediation = rem
+		} else {
+			rep.Unavailable = append(rep.Unavailable, Unavailable{
+				Metric: "remediation",
+				Reason: "no interface was named, so no command set could be generated",
+			})
+		}
 	}
 
 	return rep, nil
@@ -468,15 +517,35 @@ func (r *Report) RenderMarkdown() string {
 	if r.Remediation != nil {
 		b.WriteString("## Remediation\n\n")
 		fmt.Fprintf(&b, "Recommended qdisc: **%s** — %s\n\n", r.Remediation.Qdisc, r.Remediation.Reason)
-		b.WriteString("### Linux\n\n```sh\n")
-		for _, c := range r.Remediation.LinuxTC {
-			b.WriteString(c + "\n")
+		if len(r.Remediation.LinuxTC) > 0 {
+			b.WriteString("### Linux — upload (egress)\n\n```sh\n")
+			for _, c := range r.Remediation.LinuxTC {
+				b.WriteString(c + "\n")
+			}
+			b.WriteString("```\n\n")
 		}
-		b.WriteString("```\n\n")
+		if len(r.Remediation.LinuxTCIngress) > 0 {
+			b.WriteString("### Linux — download (ingress IFB)\n\n```sh\n")
+			for _, c := range r.Remediation.LinuxTCIngress {
+				b.WriteString(c + "\n")
+			}
+			b.WriteString("```\n\n")
+			if r.Remediation.Qdisc == remediate.QdiscCake {
+				b.WriteString("CAKE runs in `ingress` mode on `ifb0`: the packet has already crossed the link when it is dropped, and `ack-filter` does not apply to a download data stream.\n\n")
+			} else {
+				b.WriteString("The download is shaped on `ifb0` after the packet has crossed the link; `ingress` is CAKE-only and is not used with this qdisc, and `ack-filter` does not apply to a download data stream.\n\n")
+			}
+		}
 		if r.Remediation.RouterOS != "" {
-			b.WriteString("### MikroTik RouterOS v7+\n\n```\n")
+			b.WriteString("### MikroTik RouterOS v7+ — upload (WAN)\n\n```\n")
 			b.WriteString(r.Remediation.RouterOS)
 			b.WriteString("```\n\n")
+		}
+		if r.Remediation.RouterOSIngress != "" {
+			b.WriteString("### MikroTik RouterOS v7+ — download (LAN queue tree)\n\n```\n")
+			b.WriteString(r.Remediation.RouterOSIngress)
+			b.WriteString("```\n\n")
+			b.WriteString("RouterOS has no IFB: this is a LAN-interface egress queue tree, not byte-equivalent to the Linux IFB.\n\n")
 		}
 	}
 
