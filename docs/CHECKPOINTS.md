@@ -361,3 +361,25 @@ end, at a settled decision, and at a handoff.
   `book/` copy. No next slice is approved; slices 4–7 remain blocked/deferred
   and 8 is unplanned.
 - Bench: untouched; no live run, namespace, process or listener change.
+
+## 2026-10-28 00:51 UTC · verifier pass on the last two builder-only rows
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `e01d84f`. Independent
+  verifier session, no edits or commits by it, corpus read-only.
+- `frozen` row: `python tools/verify.py --only frozen` exit 0;
+  `python book/tools/audit-archive.py` exit 0 with both `OK` lines; the audit
+  checks each manifest's file set and per-file SHA-256; the fault proof on a
+  temp copy caught the mutation. The claim was **narrowed** by the verifier:
+  "unchanged since the seal" is not provable, because `book/` is gitignored and
+  there is no hash above the 159 manifests. A file rewritten together with its
+  own manifest would pass. Row now claims exactly what the audit proves.
+- `tests`/Linux row: `go vet ./...` exit 0; `go test -count=1 ./...` exit 0 in
+  190 s (the builder's 11.8 s was a cache hit); full Linux cross-build exit 1
+  only in `cmd/cgo-gui` (pre-existing, `35bb021`), scoped
+  `./pkg/... ./cmd/cgo/... ./cmd/meteolink/...` exit 0. Row narrowed to name
+  the excluded package instead of reading as all-green.
+- Both rows are now `VERIFIED` on verifier evidence; one row stays `PENDING`:
+  the second copy of `book/`, which needs the human's destination.
+- Open finding, not fixed (needs scope): commit a corpus-wide anchor (SHA-256
+  over the 159 manifests) so the `frozen` seal stops being self-referential.
+- Bench: untouched; no live run, namespace, process or listener change.
