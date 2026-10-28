@@ -219,3 +219,62 @@ répondent `available: false` plutôt que d'inventer (`F8 : honest empty`) ;
 (ii) les cellules invalides sont exposées, pas masquées ; (iii) l'audit d'un
 lien réel (`pkg/audit`) précède l'import d'un profil, pour que la matrice
 mesure le terrain et non une abstraction.
+
+## 9. Façonnage descendant : IFB (Linux) et file LAN (RouterOS)
+
+Le façonnage egress ne corrige pas un téléchargement : quand le paquet arrive,
+il a déjà traversé le lien. Linux le résout par un **IFB** : l'ingress de
+l'interface WAN est redirigé par `matchall`/`mirred` vers `ifb0`, puis un qdisc
+racine ordinaire met le paquet en file sur `ifb0` — côté réception.
+
+### 9.1 Banc `dualns`
+
+- `ifb0` vit dans `ns_client` ; le redirect et le qdisc ingress vivent sur
+  `c-cli`, l'interface d'accès mesurée.
+- Le CAKE descendant de `e-wan` est **absent** en mode ingress. S'il restait,
+  le goulot serait en amont de l'IFB et la file de l'IFB ne se formerait
+  jamais.
+- Le CAKE montant de `e-srv` reste en place : il n'est pas sur le chemin
+  descendant.
+- Le CAKE par défaut sur `ifb0` est un confort de banc (`up --ingress on`) ;
+  une cellule de campagne remplace la racine `ifb0` puis la supprime en
+  sortie. Après une campagne, `check` peut donc signaler l'absence de CAKE
+  sur `ifb0` jusqu'au prochain `up --ingress on`.
+- Le mode du banc et celui de la campagne doivent coïncider :
+  `CGO_SHAPE_MODE=ingress` sert aussi de défaut à `up`/`check`/`show` du banc
+  lorsque `--ingress` est absent, pour que le pré-contrôle de `cgo run` voie
+  la même topologie.
+- Le banc ne modélise pas le LAN derrière le client : le téléchargement
+  aboutit dans le même namespace que les sondes. C'est un raccourci de banc
+  documenté, pas une topologie CPE complète.
+
+### 9.2 Comptabilité
+
+- Les pertes à l'IFB sont des pertes **hôtes**, après traversée du lien
+  émulé ; elles ne prouvent pas une perte au lien distant et ne libèrent pas
+  de capacité.
+- En mode `ingress`, CAKE compte les paquets jetés comme transférés et
+  maintient au moins deux paquets par flux. Un compteur de pertes ingress
+  n'est donc pas comparable tel quel à un compteur egress ; toute table qui
+  les compare doit le dire.
+- Le RTT mesuré inclut le lien netem et la file IFB. Aucun horodatage noyau
+  ne sépare les deux : on ne présente pas `RTT − repos` comme un temps de
+  séjour dans la file du lien distant.
+- Le mode `ingress` est opt-in (`CGO_SHAPE_MODE=ingress`) et limité à
+  `bench=dualns` + `direction=down`. `up` garde le chemin egress ; `both` est
+  refusé plutôt qu'approché.
+
+### 9.3 RouterOS
+
+RouterOS n'a pas d'IFB. Le script descendant est une **file sur l'interface
+LAN/privée**, là où le trafic descendant sort vers les clients. Ce n'est pas
+un équivalent octet pour octet de l'IFB Linux : le point de passage diffère.
+Les objets portent `cgoingress-*` et `comment="cgo-managed-ingress"`, disjoints
+du nettoyage montant (`^cgo-`, `comment="cgo-managed"`).
+
+### 9.4 Preuve
+
+Les tests Windows prouvent la génération des commandes, les champs du rapport
+et l'ordre fermé-échec du préflight. Ils ne prouvent pas qu'un noyau 6.8
+accepte les commandes ni que l'IFB jette réellement sous charge. Cette preuve
+est la tâche d'acceptation Linux, distincte et bloquée.
