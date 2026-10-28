@@ -507,3 +507,34 @@ end, at a settled decision, and at a handoff.
 - Next: human decisions still open: merge to `main`, the 18 legacy
   `backup/*.tar.gz`, the production read-only request, a corpus-wide seal
   anchor, an offsite copy of `book/`.
+
+## 2026-10-28 18:00 UTC · slice 11 corpus seal anchor (Windows)
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `53a2cc6` (spec+plan+index
+  `7117afd`, anchor+gate `7fa0ed4`, `.gitattributes` `53a2cc6`). Slice 11 is
+  **In progress** until the independent verifier owns the row.
+- Changed: `docs/frozen-manifests.sha256` (159 lines,
+  `<sha256>  book/data/runs/<run>/manifest.json`, LF forced by
+  `.gitattributes`); `tools/verify.py` `seal_findings` + the `frozen` FAIL
+  path + a seal fault proof (a copied manifest rewritten with its file: the
+  audit exits 0, the seal catches it); `tools/verify_test.py` `test_seal`;
+  `MAX_GATE_LINES` 600 → 650 (649 used; no gate added, nothing deleted).
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64):
+  `sha256sum -c docs/frozen-manifests.sha256` → 159 `OK`, exit 0;
+  `git ls-files --eol` → `i/lf w/lf attr/text eol=lf`;
+  `python tools/verify_test.py` → 9 tests OK;
+  `python tools/verify.py --only frozen` → PASS, detail ends
+  `docs/frozen-manifests.sha256: 159 manifests`;
+  `python tools/verify.py --only frozen --selftest` → `caught` (`seal caught a
+  rewritten manifest; audit caught book/data/runs/camp-fin3/aqm_eval.csv`);
+  `python tools/verify.py --selftest` → six `caught`;
+  `python tools/verify.py` → `6 passed, 0 failed, 0 not run`. `make` is absent
+  on this host; the target ran as `python tools/verify.py`, named not waived.
+- Unproven: this is a seal, not a signature; a writer who can rewrite the
+  anchor and the manifests together is out of scope. No live bench, namespace,
+  qdisc, process or listener was touched; `book/`, its audit, the CSV schemas
+  and the frozen runs are unchanged (`git diff --stat 7117afd~1..HEAD -- book/`
+  empty). The previous `VERIFIED` row that says "no corpus-wide seal anchor
+  exists" is superseded by the new row; the verifier owns that wording.
+- Next: independent verifier re-runs the delta and owns the `PENDING` row; then
+  the index moves from **In progress** to **Done**.
