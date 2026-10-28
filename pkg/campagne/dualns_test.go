@@ -105,6 +105,7 @@ func TestApplyPhysicsAllIfaces(t *testing.T) {
 }
 
 func TestProdDepsDualNSWiring(t *testing.T) {
+	t.Setenv("CGO_SHAPE_MODE", "egress")
 	up := ProdDepsDualNS("")
 	if up.Bench != "dualns" || up.ChannelModel != "clean" {
 		t.Fatalf("étiquettes : %+v", up)
@@ -121,5 +122,33 @@ func TestProdDepsDualNSWiring(t *testing.T) {
 	}
 	if up.BulkN == nil {
 		t.Fatal("BulkN doit être câblé (multi-flux, JFI)")
+	}
+	if up.ShapeMode != "egress" || up.IngressPreflight != nil {
+		t.Fatalf("default path must stay egress: %+v", up)
+	}
+}
+
+func TestProdDepsDualNSIngressWiring(t *testing.T) {
+	t.Setenv("CGO_SHAPE_MODE", "ingress")
+	t.Setenv("CGO_CLIENT_NS", "ns_test_client")
+	t.Setenv("CGO_INGRESS_IF", "c-test")
+	t.Setenv("CGO_INGRESS_DEV", "ifb9")
+
+	d := ProdDepsDualNS("down")
+	if d.ShapeMode != "ingress" {
+		t.Fatalf("shape mode lost: %q", d.ShapeMode)
+	}
+	if d.ShaperIf != "ifb9" {
+		t.Fatalf("shaper is not on the IFB: %q", d.ShaperIf)
+	}
+	if d.IngressPreflight == nil {
+		t.Fatal("ingress preflight not wired")
+	}
+	if d.StatsFn == nil {
+		t.Fatal("ifb0 stats not wired")
+	}
+	r, ok := d.TCShaper.(qdisc.NsRunner)
+	if !ok || r.Ns != "ns_test_client" {
+		t.Fatalf("shaper runner is not the client namespace: %#v", d.TCShaper)
 	}
 }

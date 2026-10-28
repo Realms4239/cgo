@@ -67,7 +67,8 @@ func ProdDepsDualNS(direction string) Deps {
 		shaperIf = env("CGO_SHAPER_IF", "e-wan") // émission edge → client : le download
 	}
 	edge := qdisc.NsRunner{Ns: env("CGO_EDGE_NS", "ns_edge_router")}
-	return Deps{
+	shapeMode := env("CGO_SHAPE_MODE", "egress")
+	deps := Deps{
 		TC:            qdisc.NsRunner{Ns: env("CGO_WAN_NS", "ns_wan_emulator")}, // netem : les deux sens
 		TCShaper:      edge,                                                     // shaper : là où naît le congestionnement
 		CliIf:         env("CGO_CLI_IF", "w-edge"),
@@ -79,6 +80,7 @@ func ProdDepsDualNS(direction string) Deps {
 		Direction:     direction,
 		Bench:         "dualns",
 		ChannelModel:  env("CGO_CHANNEL_MODEL", "clean"),
+		ShapeMode:     shapeMode,
 		BaselineSec:   envInt("CGO_BASELINE_SEC", 0),
 		ChargeSec:     envInt("CGO_CHARGE_SEC", 0),
 		RecupSec:      envInt("CGO_RECUP_SEC", 0),
@@ -95,4 +97,23 @@ func ProdDepsDualNS(direction string) Deps {
 			return sts
 		},
 	}
+	if shapeMode == "ingress" {
+		clientNS := env("CGO_CLIENT_NS", "ns_client")
+		ingressIf := env("CGO_INGRESS_IF", "c-cli")
+		ingressDev := env("CGO_INGRESS_DEV", "ifb0")
+		client := qdisc.NsRunner{Ns: clientNS}
+		deps.TCShaper = client
+		deps.ShaperIf = ingressDev
+		deps.IngressPreflight = func() error {
+			return qdisc.CheckIngress(qdisc.NsCommand{Ns: clientNS}, ingressIf, ingressDev)
+		}
+		deps.StatsFn = func() []qdisc.Stats {
+			sts, err := qdisc.PollStats(client, ingressDev)
+			if err != nil {
+				return nil
+			}
+			return sts
+		}
+	}
+	return deps
 }
