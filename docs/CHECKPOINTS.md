@@ -304,8 +304,9 @@ end, at a settled decision, and at a handoff.
 - E5 did not reproduce in the verifier pass (0 occurrences, fresh suite
   included); the determinism row stays `REFUTED`, because five passes do not
   overturn a recorded failure.
-- Rows moved to `VERIFIED` by the verifier, text applied verbatim: six gates;
-  hooks. `docs/VERIFY.md` now carries the verifier's command output, date and
+- Rows moved to `VERIFIED` by the verifier, text applied from its verdict with
+  two path spellings reworded for clone hermeticity (no verdict changed): six
+  gates; hooks. `docs/VERIFY.md` now carries the verifier's command output, date and
   host. `make verify` and the full Linux cross-build remain named-unmet, not
   waived.
 - Slice 9 closes: acceptance ran, rows moved, and the remaining conditions are
