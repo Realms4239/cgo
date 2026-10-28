@@ -446,3 +446,64 @@ end, at a settled decision, and at a handoff.
   Linux 6.8 bench exists. Human decisions still open: merge to `main`, the
   18 legacy `backup/*.tar.gz`, the production read-only request, a
   corpus-wide seal anchor, an offsite copy of `book/`.
+
+## 2026-10-28 16:39 UTC · slice 6 ingress IFB: independent verification (Windows)
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `ad203f9`; delta
+  `6de4982~1..HEAD`, ten commits as listed in the plan. Slice 6 is
+  **Windows-verified**: the verifier re-ran every gate named in the `PENDING`
+  row and now owns the row as `VERIFIED`. Task 9 is not executed and its
+  live-acceptance row stays `BLOCKED`.
+- Commands on DESKTOP-B6K9UCM (Windows 10, MINGW64):
+  - `go test -count=1 ./pkg/remediate/... ./pkg/qdisc/... ./pkg/campagne/...
+    ./pkg/audit/... ./cmd/cgo/... ./pkg/api/...` → exit 0; six packages `ok`
+    (`pkg/audit` 180.088 s, `pkg/campagne` 11.367 s, `pkg/api` 65.607 s).
+  - `go vet ./...` → exit 0, no output.
+  - `go test -count=1 ./...` → exit 0, 17 packages `ok`, no failure.
+  - `GOOS=linux GOARCH=amd64 go build ./...` → exit 1, sole failing package
+    `cmd/cgo-gui` (`fyne` → `go-gl/gl` v2.1 "build constraints exclude all Go
+    files"), pre-existing; scoped `pkgs=$(go list ./... | grep -v
+    '/cmd/cgo-gui$'); GOOS=linux GOARCH=amd64 go build $pkgs` → exit 0,
+    18 packages.
+  - `bash -n kit/cgo-bench-dualns.sh kit/run-dualns.sh` → exit 0.
+  - `python tools/verify.py` → exit 0, six `PASS`, `6 passed, 0 failed,
+    0 not run` (`make` absent, named not waived).
+  - `python book/tools/audit-archive.py` → exit 0, both `OK` lines (159 runs /
+    528 lignes / 208 valides / 74 degraded / 246 invalid; 22 cellules /
+    159 manifestes).
+- Fault proofs, each restored with `git checkout --`; `git status --short`
+  identical to baseline afterwards:
+  1. `validateShapeMode` moved below `applyPhysics` →
+     `TestRunEventIngressRefusesWrongTopology` up/both/legacy/unknown fail
+     `qdisc mutation before validation` (`[[qdisc del dev w-edge root]
+     [qdisc replace dev w-edge root handle 1: netem ...]]`), and the
+     `no preflight` subtest panics at `campagne.go:308`; restore → `ok`.
+  2. `d.IngressPreflight()` removed →
+     `TestRunEventIngressPreflightFailsBeforeMutation` fail `accepted a cell
+     whose IFB preflight failed`; restore → `ok`.
+  3. `ingress` dropped from the cake branch of `ApplyIngressShaper` →
+     `TestApplyIngressShaperCake` fail (`got ... rtt 100ms`, `want ...
+     rtt 100ms ingress`); restore → `ok`.
+  4. `dual-dsthost` → `triple-isolate` in `LinuxTCIngress` →
+     `TestLinuxTCIngressCake` fail (missing the `dual-dsthost` line; output
+     shows `triple-isolate`); restore → `ok`.
+- Read checks: `validateShapeMode` refuses `ingress` unless `Bench=="dualns"`,
+  `Direction=="down"`, non-nil `TCShaper`+`ShaperIf`, and non-nil
+  `IngressPreflight`; `defaults` sets `egress`; the preflight runs before
+  `applyPhysics`. `BuildReport` sizes `down` from `ThroughputMbps` into ingress
+  only (`LinuxTC` stays `[]string{}`) and `both` from `ThroughputMbps` /
+  `ThroughputDownMbps` into both; Markdown sections are conditional.
+  Ingress cleanup (`^cgoingress-`, `comment="cgo-managed-ingress"`) cannot
+  match the upload objects (`^cgo-`, `comment="cgo-managed"`), and the upload
+  script contains no `cgoingress-`. `git diff --stat 6de4982~1..HEAD -- book/`
+  empty; `-- web/` empty; no CSV or UI file in the delta (D15).
+- No narrowing was needed: every claim in the `PENDING` row reproduced.
+- Unproven/blocked: Task 9 — no Linux 6.8 run, so nothing here proves the
+  kernel accepts the IFB/`mirred`/CAKE-ingress commands, that `ifb0` drops
+  under load, or that RouterOS accepts `kind=cake` on the LAN queue tree. The
+  bench scripts were syntax-checked only; no namespace, qdisc, listener or
+  live link was touched. Ingress drop counters are host-side and not
+  comparable to egress (methodology §9.2).
+- Next: human decisions still open: merge to `main`, the 18 legacy
+  `backup/*.tar.gz`, the production read-only request, a corpus-wide seal
+  anchor, an offsite copy of `book/`.
