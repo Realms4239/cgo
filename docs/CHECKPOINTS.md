@@ -352,10 +352,12 @@ end, at a settled decision, and at a handoff.
   -count=10 -v` → 10× `PASS`, skip test 0.11 s per run;
   `go test -count=1 ./pkg/campagne` → `ok`, 8.1 s (was 10.9-11.1 s);
   `python tools/verify.py --only tests` → `PASS`, 18.8 s.
-- `docs/ERRORS.md` E5 carries the update; `docs/VERIFY.md` gains a `PENDING`
-  row for this delta (independent re-run owed). The earlier E5 row stays
-  `VERIFIED` for `8a67673`; its inline loop is superseded here.
-- Next: verifier re-run for the delta, then the open human decisions stand —
-  untrack or keep the 18 legacy `backup/*.tar.gz`, merge to `main`, production
-  read-only request, second `book/` copy.
+- `docs/ERRORS.md` E5 carries the update; `docs/VERIFY.md` row is `VERIFIED`
+  on the independent re-run of `e60ab55`: 20/20 targeted runs (skip test
+  0.11–0.12 s per run), fresh `pkg/campagne` 8.207 s, fresh full suite
+  3 m 10.4 s, `--only tests` `PASS` 74.8 s. Not a determinism claim.
+- Next: the open human decisions stand — untrack or keep the 18 legacy
+  `backup/*.tar.gz`, merge to `main`, production read-only request, second
+  `book/` copy. No next slice is approved; slices 4–7 remain blocked/deferred
+  and 8 is unplanned.
 - Bench: untouched; no live run, namespace, process or listener change.
