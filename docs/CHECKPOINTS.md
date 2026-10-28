@@ -383,3 +383,21 @@ end, at a settled decision, and at a handoff.
 - Open finding, not fixed (needs scope): commit a corpus-wide anchor (SHA-256
   over the 159 manifests) so the `frozen` seal stops being self-referential.
 - Bench: untouched; no live run, namespace, process or listener change.
+
+## 2026-10-28 03:09 UTC · backup: dated off-tree copy of book/ + restore drill
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `9c91150`. Human picked the
+  off-tree copy; destination is the only other local volume.
+- Copy: `D:\cgo-backup\book-2026-10-28`, 1019 files, 26,193,291 bytes
+  (identical to `book/`); `diff -r book <copy>` → exit 0, no output.
+- Restore drill: archive copied back to an approved temp dir, then
+  `python <restored>/book/tools/audit-archive.py` → exit 0 with both `OK`
+  lines (159 runs / 528 lignes / 208 valides / 74 degraded / 246 invalid;
+  22 cellules / 159 manifestes); `diff -r` restored vs tree → exit 0; the
+  drill copy was deleted after the proof.
+- Named limit: `D:` is the second partition of the same physical disk
+  (Disk 0, Colorful SL500 256 GB). This survives repo corruption or deletion,
+  not disk failure. An external or remote copy is still owed for that.
+- `docs/VERIFY.md` row leaves `PENDING` only after a verifier re-runs it;
+  builder evidence recorded, row still `PENDING` until then.
+- Bench: untouched; no live run, namespace, process or listener change.
