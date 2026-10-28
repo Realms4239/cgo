@@ -32,6 +32,20 @@ func fastDeps() Deps {
 	}
 }
 
+// stopWait annule la matrice et attend la fin du gel : les defers passent
+// avant le nettoyage de t.TempDir(), et Windows refuse de supprimer un
+// fichier encore ouvert (E5). La borne expirée est signalée, pas avalée.
+func stopWait(t *testing.T, m *Matrix) {
+	t.Helper()
+	m.Stop()
+	for i := 0; i < 200 && m.IsRunning(); i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if m.IsRunning() {
+		t.Errorf("matrice encore en cours 2 s après Stop : t.TempDir() court après Freeze")
+	}
+}
+
 type fakeTC struct{}
 
 func (fakeTC) Run(args ...string) ([]byte, error) { return nil, nil }

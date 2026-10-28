@@ -336,3 +336,26 @@ end, at a settled decision, and at a handoff.
   No next slice is approved; slices 4–7 remain blocked/deferred and 8 is
   unplanned.
 - Bench: untouched; no live run, namespace, process or listener change.
+
+## 2026-10-28 00:38 UTC · maintenance: E5 residual risks in the tests
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `d7626a5`.
+- Changed: `pkg/campagne/campagne_test.go` gains `stopWait(t, m)` (Stop then a
+  bounded wait for `IsRunning()`, and it reports a bound expiry instead of
+  swallowing it); `skip_journal_test.go` uses it and now waits on the `OnSkip`
+  channel instead of a matrix-finished loop that could never end (cells 2..9
+  also block in `Small`), which removes ~3 s of dead wait;
+  `failclass_test.go` uses the same helper, closing the pattern the verifier
+  named. Test-only: no product code, no gate logic, no CSV or frozen change.
+- Proven: `gofmt -l pkg/campagne/` empty; `go vet ./pkg/campagne` exit 0;
+  `go test ./pkg/campagne -run 'TestSkipJournalsViaHook|TestFailureIsNotASkip'
+  -count=10 -v` → 10× `PASS`, skip test 0.11 s per run;
+  `go test -count=1 ./pkg/campagne` → `ok`, 8.1 s (was 10.9-11.1 s);
+  `python tools/verify.py --only tests` → `PASS`, 18.8 s.
+- `docs/ERRORS.md` E5 carries the update; `docs/VERIFY.md` gains a `PENDING`
+  row for this delta (independent re-run owed). The earlier E5 row stays
+  `VERIFIED` for `8a67673`; its inline loop is superseded here.
+- Next: verifier re-run for the delta, then the open human decisions stand —
+  untrack or keep the 18 legacy `backup/*.tar.gz`, merge to `main`, production
+  read-only request, second `book/` copy.
+- Bench: untouched; no live run, namespace, process or listener change.

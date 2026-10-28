@@ -103,3 +103,10 @@ A fixed defect stays because it is the evidence that it was understood.
   -count=20` → `ok`, 64.6 s; `go test -count=1 ./...` → exit 0,
   `pkg/campagne` `ok` 10.9 s; `python tools/verify.py --only tests` → `PASS`,
   75.0 s. No product code changed.
+- Update 2026-10-28 (2): the wait moved into a shared test helper `stopWait`
+  (`pkg/campagne/campagne_test.go`), used by `TestSkipJournalsViaHook` and
+  `TestFailureIsNotASkip`, and it now reports a bound expiry instead of
+  swallowing it. The skip test waits on the journal channel, not on a
+  matrix-finished loop that could never end (cells 2..9 block in `Small` too),
+  which removes ~3 s of dead wait: fresh `pkg/campagne` 8.1 s, down from
+  10.9-11.1 s. Test-only.
