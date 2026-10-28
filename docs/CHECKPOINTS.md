@@ -325,9 +325,12 @@ end, at a settled decision, and at a handoff.
   `ok`, 64.6 s; `go test -count=1 ./...` → exit 0, all packages `ok`,
   `pkg/campagne` 10.9 s; `python tools/verify.py --only tests` → `PASS`,
   75.0 s. `gofmt -l` empty.
-- `docs/ERRORS.md` E5 carries the update; `docs/VERIFY.md` gains a `PENDING`
-  row (builder evidence, independent re-run owed). The older determinism row
-  stays `REFUTED`: one clean run does not erase the recorded failure.
+- `docs/ERRORS.md` E5 carries the update; `docs/VERIFY.md` row is `VERIFIED`
+  on the independent re-run: 20/20 targeted runs, fresh `pkg/campagne` 11.1 s,
+  fresh full suite 3 m 10.3 s, `--only tests` `PASS` 74.7 s. E5 did not
+  reproduce; the row verifies the fix, not that the suite is deterministic.
+  The older determinism row stays `REFUTED`: one clean run does not erase the
+  recorded failure.
 - Next: the open decisions stand — untrack or keep the 18 legacy
   `backup/*.tar.gz`, merge to `main`, and the production read-only request.
   No next slice is approved; slices 4–7 remain blocked/deferred and 8 is
