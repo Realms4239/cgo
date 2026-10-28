@@ -313,3 +313,23 @@ end, at a settled decision, and at a handoff.
   named. Merge to `main` stays the human's decision; the 18 legacy
   `backup/*.tar.gz` decision and the E5 scheduling are still open.
 - Bench: untouched; no live run, namespace, process or listener change.
+
+## 2026-10-28 00:27 UTC · maintenance: E5 test flake fixed
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `80602fc`.
+- Changed: `pkg/campagne/skip_journal_test.go` only. `defer m.Stop()` became a
+  deferred `Stop` plus a bounded wait for `IsRunning()` to clear, so `Freeze`
+  finishes before `t.TempDir()` cleanup. No product code, no gate logic, no
+  CSV or frozen corpus change.
+- Proven: `go test ./pkg/campagne -run TestSkipJournalsViaHook -count=20` →
+  `ok`, 64.6 s; `go test -count=1 ./...` → exit 0, all packages `ok`,
+  `pkg/campagne` 10.9 s; `python tools/verify.py --only tests` → `PASS`,
+  75.0 s. `gofmt -l` empty.
+- `docs/ERRORS.md` E5 carries the update; `docs/VERIFY.md` gains a `PENDING`
+  row (builder evidence, independent re-run owed). The older determinism row
+  stays `REFUTED`: one clean run does not erase the recorded failure.
+- Next: the open decisions stand — untrack or keep the 18 legacy
+  `backup/*.tar.gz`, merge to `main`, and the production read-only request.
+  No next slice is approved; slices 4–7 remain blocked/deferred and 8 is
+  unplanned.
+- Bench: untouched; no live run, namespace, process or listener change.

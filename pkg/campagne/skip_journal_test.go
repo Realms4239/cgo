@@ -32,7 +32,15 @@ func TestSkipJournalsViaHook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer m.Stop()
+	// Stop annule le contexte mais n'attend pas la goroutine : sans cette
+	// attente, Freeze écrit encore quand t.TempDir() nettoie, et Windows
+	// refuse de supprimer un fichier ouvert (E5).
+	defer func() {
+		m.Stop()
+		for i := 0; i < 200 && m.IsRunning(); i++ {
+			time.Sleep(10 * time.Millisecond)
+		}
+	}()
 	// laisser la 1re cellule démarrer (setSkipCancel posé par la boucle
 	// matrice juste avant RunEvent) — le bulk bloqué garde la fenêtre ouverte
 	time.Sleep(100 * time.Millisecond)

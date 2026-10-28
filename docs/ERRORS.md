@@ -97,3 +97,9 @@ A fixed defect stays because it is the evidence that it was understood.
   17.4 s.
 - Lesson: a gate is only as honest as its flakes are loud; a fire-and-forget
   `Stop` plus `t.TempDir()` is a Windows race, not a product failure.
+- Update 2026-10-28: fixed in the test only — `TestSkipJournalsViaHook` now
+  waits after `m.Stop()` for `IsRunning()` to clear before `t.TempDir()`
+  cleanup. Proof: `go test ./pkg/campagne -run TestSkipJournalsViaHook
+  -count=20` → `ok`, 64.6 s; `go test -count=1 ./...` → exit 0,
+  `pkg/campagne` `ok` 10.9 s; `python tools/verify.py --only tests` → `PASS`,
+  75.0 s. No product code changed.
