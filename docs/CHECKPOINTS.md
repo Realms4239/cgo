@@ -274,3 +274,41 @@ end, at a settled decision, and at a handoff.
   the 18 legacy `backup/*.tar.gz` question. Slice 9 stays **In progress** in
   the index until that happens.
 - Bench: untouched; no live run, namespace, process or listener change.
+
+## 2026-10-28 00:16 UTC · slice 9 independent verifier pass
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `04fad4d`. Independent
+  verifier session, no edits or commits by it; all captures outside the repo.
+- Re-ran at `30081a6` and `04fad4d`: `--list` exit 0; `--selftest` six
+  `caught` + six controls, exit 0; `python tools/verify.py` six `PASS`,
+  `6 passed, 0 failed, 0 not run` (17.5 s builder tree / 82.9 s verifier,
+  tests cached in the first); `go test ./...` exit 0 plus a fresh
+  `go test -count=1 ./...` exit 0 in 3 m 09.9 s; `go vet ./...` exit 0;
+  full Linux cross-build exit 1 only `cmd/cgo-gui` (same Fyne error);
+  scoped `GOOS=linux CGO_ENABLED=0` build exit 0; audit exit 0 with both `OK`
+  lines; `verify_test.py` 8 OK; gate total 596.
+- Verifier refutations, both acted on:
+  1. The hooks row's `CGO_ALLOW_MAIN=1` claim was true at `8420b70` but false
+     at HEAD `30081a6`: `links` failed on backticked references to the
+     untracked thesis directory and the bytecode cache, which exist only in
+     this working tree. Fixed in
+     `04fad4d` by re-wording the ledgers; re-proved in a fresh clone: exit 2,
+     `frozen`/`provenance` `SKIP`, `tests`/`exit`/`hygiene`/`links` `PASS`.
+  2. The Phase D untracked list omitted `doc-final-build.cjs` and
+     `doc-morceau5-build.cjs`. Named here rather than rewriting the entry;
+     both stay untracked and out of scope.
+- Verifier findings kept open: the pre-existing `data/runs` shorthand in
+  `docs/CHECKPOINTS.md` and the plan index resolves against the untracked
+  local `data/runs`; it is skipped in a clone, but would fail `links` if
+  `data/` existed without `data/runs`. Not changed in this slice.
+- E5 did not reproduce in the verifier pass (0 occurrences, fresh suite
+  included); the determinism row stays `REFUTED`, because five passes do not
+  overturn a recorded failure.
+- Rows moved to `VERIFIED` by the verifier, text applied verbatim: six gates;
+  hooks. `docs/VERIFY.md` now carries the verifier's command output, date and
+  host. `make verify` and the full Linux cross-build remain named-unmet, not
+  waived.
+- Slice 9 closes: acceptance ran, rows moved, and the remaining conditions are
+  named. Merge to `main` stays the human's decision; the 18 legacy
+  `backup/*.tar.gz` decision and the E5 scheduling are still open.
+- Bench: untouched; no live run, namespace, process or listener change.

@@ -33,7 +33,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 6 | Ingress IFB shaping | `2026-10-27-cgo-ifb-ingress-design.md` | `2026-10-27-cgo-ifb-ingress.md` | **Proposed** | Linux 6.8 bench for live acceptance; Windows for engine | User approval, then execute Tasks 1–8; Task 9 stays blocked until the bench is stable |
 | 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
 | 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
-| 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **In progress** (Phases A–D done; verifier pass owed) | — (process layer; runs before any live slice) | Independent verifier re-runs the six gates, the hooks proof and the whole-slice acceptance; then the human decides closure |
+| 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **Done** (verifier pass 2026-10-28) | — (process layer; runs before any live slice) | — (merge to `main` is the human's decision) |
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
 
 ## What each live plan covers
@@ -93,7 +93,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Waits for the measurement slices. The IFB report JSON and Markdown are
   available to the future UI, but no frontend change is in the IFB slice.
 
-### Slice 9 — engineering system (in progress)
+### Slice 9 — engineering system (done)
 
 - Scope: root `AGENTS.md`, three ledgers (`docs/VERIFY.md`,
   `docs/CHECKPOINTS.md`, `docs/ERRORS.md`), six gates with one fault proof each,
@@ -101,12 +101,14 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Scope guard: no product code, no CSV schema change, no frozen run, no eBPF,
   IFB, BBRv3, `.dist`, UI, or thesis work; no CI, no document register, no
   weekly file, no full mutation harness.
-- Next action: an independent verifier re-runs the six gates, the hooks clone
-  proof and the whole-slice acceptance, owns the `VERIFIED` rows, and only
-  then does the human decide closure. Phases A–D are committed. `make` is not
-  installed on DESKTOP-B6K9UCM, so the Makefile targets were exercised through
-  their underlying commands; the full Linux cross-build still fails only in
-  the pre-existing `cmd/cgo-gui` Fyne package.
+- Evidence: independent verifier pass 2026-10-28 on DESKTOP-B6K9UCM, at
+  `04fad4d`: six gates `VERIFIED`, hooks `VERIFIED`, `--selftest` six `caught`,
+  gate total 596 lines, frozen audit and scoped Linux build green. One
+  hermeticity defect was found and fixed (`04fad4d`), then re-proved in a fresh
+  clone. `make` is absent on this host, so the targets were run as
+  `python tools/verify.py`; the full Linux cross-build still fails only in the
+  pre-existing `cmd/cgo-gui` Fyne package. Merge to `main` is the human's
+  decision.
 
 ### Slice 10 — live interface observation (done)
 
