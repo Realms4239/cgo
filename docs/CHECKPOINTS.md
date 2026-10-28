@@ -403,3 +403,46 @@ end, at a settled decision, and at a handoff.
   `OK` lines, drill copy deleted, disk claim re-checked. Not an offsite copy:
   an external or remote copy is still owed for disk failure.
 - Bench: untouched; no live run, namespace, process or listener change.
+
+## 2026-10-28 03:49 UTC · slice 6 ingress IFB: Tasks 1–8 (Windows-green)
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `b05fb85` (bench commit
+  `e508cec`, docs `b05fb85`). Slice 6 stays **Windows-green**: Task 9 is not
+  executed.
+- Changed: seven code commits — `575a30d` `LinuxTCIngress`/`RouterOSIngress`/
+  `ingressSetup` + `RouterOSLanInterface`; `9c0cca5` `pkg/qdisc/ingress.go`
+  (`ApplyIngressShaper`, read-only `CheckIngress`, `NsCommand`);
+  `3005510` `Deps.ShapeMode`/`Deps.IngressPreflight`, `validateShapeMode`,
+  preflight before any qdisc mutation; `cb3abcf` `ProdDepsDualNS` ingress env
+  (`CGO_SHAPE_MODE`, `CGO_CLIENT_NS`, `CGO_INGRESS_IF`, `CGO_INGRESS_DEV`);
+  `449454a` direction-aware `Remediation` (`LinuxTCIngress`,
+  `RouterOSIngress`, separate up/down capacities, direction-specific
+  headings); `757fad6` `--ros-lan` / `routeros_lan` CLI+API contract;
+  `e508cec` bench `--ingress on|off` (IFB in `ns_client`, `e-wan` CAKE deleted
+  in ingress mode, mode-aware `check`/`show`). Docs: methodology §9, roadmap
+  row 6 → **Windows-green**, one `PENDING` ledger row. Plan checkboxes are
+  not maintained (repo precedent for slices 1–2).
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64):
+  focused `go test ./pkg/remediate/... ./pkg/qdisc/... ./pkg/campagne/...
+  ./pkg/audit/... ./cmd/cgo/... ./pkg/api/...` → exit 0 (fresh per task:
+  `pkg/audit` 178.2 s, `pkg/campagne` 8.078 s, `pkg/api` 63.3 s);
+  `go test ./...` → exit 0; `go vet ./...` → exit 0, no output;
+  `GOOS=linux GOARCH=amd64 go build ./...` → exit 1 only in `cmd/cgo-gui`
+  (pre-existing Fyne/go-gl constraints), scoped build of the other 18
+  packages → exit 0; `bash -n kit/cgo-bench-dualns.sh kit/run-dualns.sh` →
+  exit 0; `python book/tools/audit-archive.py` → exit 0, both `OK` lines
+  (159 runs / 528 lignes / 208 valides / 74 degraded / 246 invalid; 22
+  cellules / 159 manifestes); `python tools/verify.py` → exit 0,
+  `6 passed, 0 failed, 0 not run`. `make` is absent on this host; the target
+  ran as `python tools/verify.py`, named not waived.
+- Unproven/blocked: Task 9 — no Linux 6.8 run, so nothing here proves the
+  kernel accepts the IFB/`mirred`/CAKE-ingress commands, that `ifb0` drops
+  under load, or that RouterOS accepts `kind=cake` on the LAN queue tree.
+  The bench scripts were syntax-checked only; no namespace, qdisc, listener
+  or live link was touched. Ingress drop counters are host-side and not
+  comparable to egress (methodology §9.2).
+- Next: independent verifier re-runs the slice-6 delta and owns the
+  `PENDING` row; the live-acceptance row stays `BLOCKED` until a stable
+  Linux 6.8 bench exists. Human decisions still open: merge to `main`, the
+  18 legacy `backup/*.tar.gz`, the production read-only request, a
+  corpus-wide seal anchor, an offsite copy of `book/`.
