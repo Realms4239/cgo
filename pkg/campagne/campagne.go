@@ -69,6 +69,13 @@ type Deps struct {
 	// shaper doit vivre là où le congestionnement naît).
 	Direction string
 
+	// ShapeMode — "egress" (défaut) ou "ingress" (IFB sur l'ingress WAN).
+	// ingress exige bench=dualns + direction=down + un preflight non nil.
+	ShapeMode string
+	// IngressPreflight — lecture seule de ifb0/ingress/mirred, AVANT toute
+	// mutation qdisc. nil en mode ingress ⇒ la cellule est refusée.
+	IngressPreflight func() error
+
 	BaselineSec int
 	ChargeSec   int
 	RecupSec    int
@@ -245,6 +252,35 @@ func defaults(d *Deps) {
 	if d.Bench == "" {
 		d.Bench = "legacy"
 	}
+	if d.ShapeMode == "" {
+		d.ShapeMode = "egress"
+	}
+}
+
+// validateShapeMode refuses an ingress cell whose topology or ownership is
+// wrong, before any qdisc mutation. The bench owns ifb0 and the redirect; the
+// campaign owns only the qdisc on the IFB.
+func validateShapeMode(d *Deps) error {
+	switch d.ShapeMode {
+	case "egress":
+		return nil
+	case "ingress":
+		if d.Bench != "dualns" {
+			return fmt.Errorf("shape_mode ingress invalide sur bench %q — dualns uniquement", d.Bench)
+		}
+		if d.Direction != "down" {
+			return fmt.Errorf("shape_mode ingress invalide en direction %q — down uniquement (le shaper ingress ne corrige pas l'upload)", d.Direction)
+		}
+		if d.TCShaper == nil || d.ShaperIf == "" {
+			return fmt.Errorf("shape_mode ingress sans shaper/iface — ifb0 et son runner sont requis")
+		}
+		if d.IngressPreflight == nil {
+			return fmt.Errorf("shape_mode ingress sans preflight — ifb0/ingress/mirred non vérifiés, cellule refusée")
+		}
+		return nil
+	default:
+		return fmt.Errorf("shape_mode %q invalide (egress|ingress)", d.ShapeMode)
+	}
 }
 
 // RunEvent exécute une cellule de bout en bout et rend la ligne gelée.
@@ -267,6 +303,15 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		return ev, fmt.Errorf("channel_model %q invalide (clean|bursty)", d.ChannelModel)
 	}
 	ge := burstGEOrNull(prof.ID, d.ChannelModel)
+
+	if err := validateShapeMode(&d); err != nil {
+		return ev, err
+	}
+	if d.ShapeMode == "ingress" {
+		if err := d.IngressPreflight(); err != nil {
+			return ev, fmt.Errorf("ingress preflight: %w", err)
+		}
+	}
 
 	// Physique : le saut de latence ET chaque iface supplémentaire (banc
 	// durci : w-edge + c-wan, les deux sens voient délai et perte).
@@ -296,7 +341,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// congestionnement du download naît côté source. ProdDeps câble
 	// TCShaper sur NsRunner(cgo-srv)/veth-s pour ce cas.
 	capDown := prof.CapDown()
-	if d.Direction == "down" {
+	if d.ShapeMode == "ingress" {
+		if err := qdisc.ApplyIngressShaper(shaper, shaperIf, ev.Qdisc, capDown, prof.DelayMs); err != nil {
+			return ev, fmt.Errorf("shaper ingress: %w", err)
+		}
+	} else if d.Direction == "down" {
 		if err := qdisc.ApplyShaper(shaper, shaperIf, ev.Qdisc, capDown, prof.DelayMs); err != nil {
 			return ev, fmt.Errorf("shaper down: %w", err)
 		}
