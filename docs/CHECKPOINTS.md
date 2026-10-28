@@ -579,3 +579,22 @@ end, at a settled decision, and at a handoff.
   qdisc, process or listener was touched; `book/` and its frozen runs unchanged.
 - Next: the index can move slice 11 from **In progress** to **Done**; merge to
   `main` remains the human's decision.
+
+## 2026-10-28 20:01 UTC · slice 12 approved, not implemented
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `f2a6f07`.
+- Changed: `docs/superpowers/specs/2026-10-28-cgo-book-truth-up-design.md`,
+  `docs/superpowers/plans/2026-10-28-cgo-book-truth-up.md`, and plan index
+  row 12. No `book/` file touched.
+- Proven: the spec and plan are committed; the commit's pre-commit hook ran
+  `hygiene` and `links`, `2 passed, 0 failed, 0 not run`. No book gate was
+  run this session.
+- Unproven/blocked: the book still carries the stale title, the three-site
+  field-audit claim, the retail cost default, the English "eight gates"
+  sentence, and no coverage of the corpus seal, the live interface chart, or
+  IFB ingress. All are scoped in the plan. Production measurement, field
+  audit, live Linux acceptance, eBPF, BBRv3, and `.dist` remain blocked or
+  deferred as in `docs/VERIFY.md`.
+- Next: execute the plan inline, Task 1 first (baseline word counts, numeric
+  snapshot, audit), then Tasks 2–12. The user asked to stop before any book
+  edit.
