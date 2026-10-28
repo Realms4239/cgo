@@ -35,6 +35,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
 | 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **Done** (verifier pass 2026-10-28) | — (process layer; runs before any live slice) | — (merge to `main` is the human's decision) |
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
+| 11 | Frozen corpus seal anchor | `2026-10-28-cgo-corpus-seal-design.md` | `2026-10-28-cgo-corpus-seal.md` | **In progress** | — | Cut the anchor, extend `frozen`, prove a rewritten manifest is caught |
 
 ## What each live plan covers
 
@@ -136,6 +137,15 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Plan: `2026-10-27-cgo-live-interface-observation.md` (Tasks 1–10).
 - Next action: —. The Phase 2 production adapter waits for operator
   read-only access.
+
+### Slice 11 — frozen corpus seal anchor (in progress)
+
+- Scope: a committed SHA-256 anchor over the 159 run manifests, checked by the
+  `frozen` gate; fail closed when `book/` is present and the anchor does not
+  match. Closes the self-referential seal the slice 9 verifier named.
+- Scope guard: no change to `book/`, its audit, CSV schemas, or frozen runs;
+  no signing key, new gate, dependency, UI, or thesis work.
+- Evidence: pending — the anchor is not cut yet.
 
 ## Historical plans
 
