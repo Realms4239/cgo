@@ -538,3 +538,44 @@ end, at a settled decision, and at a handoff.
   exists" is superseded by the new row; the verifier owns that wording.
 - Next: independent verifier re-runs the delta and owns the `PENDING` row; then
   the index moves from **In progress** to **Done**.
+
+## 2026-10-28 18:13 UTC · slice 11 corpus seal anchor — verifier pass (Windows)
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `06bc310` (delta `7117afd`
+  spec+plan+index, `7fa0ed4` anchor+gate+test, `53a2cc6` `.gitattributes`,
+  `06bc310` builder ledger). This entry is the independent verifier, not the
+  builder.
+- Re-ran on DESKTOP-B6K9UCM (Windows 10, MINGW64); `make` is absent, so the
+  target ran as `python tools/verify.py`, named not waived:
+  `python tools/verify_test.py` → 9 tests OK;
+  `python tools/verify.py --only frozen` → PASS, detail ends
+  `docs/frozen-manifests.sha256: 159 manifests`;
+  `python tools/verify.py --selftest` → six `caught`;
+  `python tools/verify.py` → `6 passed, 0 failed, 0 not run`;
+  `sha256sum -c docs/frozen-manifests.sha256` → 159 `OK`, exit 0;
+  `git ls-files --eol docs/frozen-manifests.sha256` →
+  `i/lf w/lf attr/text eol=lf`;
+  gate layer 649 lines ≤ `MAX_GATE_LINES` 650;
+  `python book/tools/audit-archive.py` → exit 0, both `OK` lines.
+- Anchor re-derived independently: 159 lines, sorted, unique, every path under
+  `book/data/runs/` and present, every hash matches.
+- Fault proof on a temp copy only (never `C:\cgo\book`): control `seal_findings`
+  empty and copied audit exit 0; then `book/data/runs/camp-fin3/quarantine.json`
+  and its `manifest.json` rewritten consistently → copied audit exit 0 (the
+  rewrite is internally consistent) but `seal_findings` =
+  `book/data/runs/camp-fin3/manifest.json: manifest changed`. An extra run, a
+  deleted run and an absent anchor each produced a finding; temp root deleted.
+- Delta: `git diff --stat 7117afd~1..HEAD -- book/` empty; `-- pkg/ cmd/ web/`
+  empty; no CSV or UI file in the delta. The gate only reads the anchor;
+  `prove_frozen` writes its own temp copy; the real anchor is clean vs
+  `HEAD` after a full verify run.
+- Narrowing recorded in `docs/VERIFY.md`: `gate_frozen` also SKIPs when `book/`
+  exists but `book/tools/audit-archive.py` or `book/data/runs` is missing (the
+  pre-existing SKIP condition, unchanged by this slice). That path exits 2,
+  which is not green, so it cannot certify a corrupted corpus, but its detail
+  says "book/ absent" inaccurately; follow-up: FAIL on a partial `book/`.
+- Unproven: this is a seal, not a signature; a writer who can rewrite the
+  anchor together with the manifests is out of scope. No live bench, namespace,
+  qdisc, process or listener was touched; `book/` and its frozen runs unchanged.
+- Next: the index can move slice 11 from **In progress** to **Done**; merge to
+  `main` remains the human's decision.
