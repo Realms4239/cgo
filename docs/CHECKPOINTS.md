@@ -398,6 +398,8 @@ end, at a settled decision, and at a handoff.
 - Named limit: `D:` is the second partition of the same physical disk
   (Disk 0, Colorful SL500 256 GB). This survives repo corruption or deletion,
   not disk failure. An external or remote copy is still owed for that.
-- `docs/VERIFY.md` row leaves `PENDING` only after a verifier re-runs it;
-  builder evidence recorded, row still `PENDING` until then.
+- `docs/VERIFY.md` row is `VERIFIED` on the independent re-run: same 1019
+  files / 26,193,291 B, clean `diff -r`, restore drill audit exit 0 with both
+  `OK` lines, drill copy deleted, disk claim re-checked. Not an offsite copy:
+  an external or remote copy is still owed for disk failure.
 - Bench: untouched; no live run, namespace, process or listener change.
