@@ -32,7 +32,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 5 | Trace-driven netem `.dist` | `2026-10-27-cgo-trace-driven-dist-design.md` | `2026-10-27-cgo-trace-driven-dist.md` | **Deferred** (user stopped execution) | real field trace; Linux 6.8 bench for acceptance | Resume only on user request; do not commit a `.dist` built from the two local `SMOKE-TEST` traces |
 | 6 | Ingress IFB shaping | `2026-10-27-cgo-ifb-ingress-design.md` | `2026-10-27-cgo-ifb-ingress.md` | **Windows-green** (verifier pass 2026-10-28) | Linux 6.8 bench for live acceptance; Windows for engine | Engine row `VERIFIED`; Task 9 not executed, live acceptance blocked on a stable Linux 6.8 bench. |
 | 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
-| 8 | UI/thesis integration | not written | not written | **Not planned** | measurements from slices 4–7 | UI badge, waste/SLA surfaces, thesis chapter |
+| 8 | Audit report surface & thesis citation | `2026-10-28-cgo-audit-surface-citation-design.md` | `2026-10-28-cgo-audit-surface-citation.md` | **Proposed** | 1, 3, 10 (done); not 4–7 | Awaiting approval to build; the thesis edit stays the human's (`book/` is never committed) |
 | 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **Done** (verifier pass 2026-10-28) | — (process layer; runs before any live slice) | — (merge to `main` is the human's decision) |
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
 | 11 | Frozen corpus seal anchor | `2026-10-28-cgo-corpus-seal-design.md` | `2026-10-28-cgo-corpus-seal.md` | **Done** (verifier pass 2026-10-28) | — | — (follow-up: FAIL instead of SKIP on a partial `book/`; recorded) |
@@ -93,10 +93,16 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   **Deferred by the user**; do not execute now. Revisit only on request, after
   the kernel is available.
 
-### Slice 8 — UI/thesis integration (not planned yet)
+### Slice 8 — audit report surface & thesis citation (proposed)
 
-- Waits for the measurement slices. The IFB report JSON and Markdown are
-  available to the future UI, but no frontend change is in the IFB slice.
+- Scope: type and render the ingress remediation the report already carries;
+  render `phases`; use the shared `Provenance` line; add a "cite this report"
+  Markdown copy with the report id and full `source_sha256`; correct
+  `docs/api.md` for `/api/remediate`, `/api/audit/presets` and the CSV export.
+- Scope guard: no `book/` edit (the thesis paste is the human's), no Go or CSV
+  shape change, no new audit form field, chart, or dependency, no eBPF/IFB
+  live badge.
+- Evidence: pending — spec and plan written, no code.
 
 ### Slice 9 — engineering system (done)
 
