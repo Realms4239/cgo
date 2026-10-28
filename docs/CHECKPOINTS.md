@@ -223,10 +223,10 @@ end, at a settled decision, and at a handoff.
   still unsent (human/operator); the 18 legacy `backup/*.tar.gz` stay tracked
   until the human chooses untrack or allowlist; E5 test flake awaits a later
   slice (human to schedule).
-- D4 artifacts: untracked `backup/runs-*.tar.gz` (11 new), `backup/thesis/`,
-  `data/`, `book/` (ignored by design), `testbed-bootstrap*`, `unp*/`,
+- D4 artifacts: untracked `backup/runs-*.tar.gz` (11 new), thesis sources under
+  `backup/`, `data/`, `book/` (ignored by design), `testbed-bootstrap*`, `unp*/`,
   `epbfBBR.md`, `session-*`, `handoff-*`, `critical-review-*`, `.perch/`,
-  `tools/__pycache__/`, `tracked*.txt`, `tree.txt`, and a modified
+  the bytecode cache under `tools/`, `tracked*.txt`, `tree.txt`, and a modified
   `web/frontend/dist/index.html` — none touched, all out of scope. Second copy
   of `book/`: none found, so the working tree is the only copy. Largest
   tracked file 352 240 o (`web/frontend/public/fonts/inter-var.woff2`);
