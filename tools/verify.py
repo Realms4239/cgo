@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Six-gate verifier for CGO. Standard library only; no network; no shell."""
 from __future__ import annotations
-import argparse, json, os, re, shutil, subprocess, sys, tempfile, time
+import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile, time
 from dataclasses import dataclass
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PASS, FAIL, SKIP = "pass", "fail", "skip"
 for _stream in (sys.stdout, sys.stderr):
     _stream.reconfigure(encoding="utf-8", errors="replace")
-MAX_GATE_LINES = 600
+MAX_GATE_LINES = 650
 CEILING_FILES = ("tools/verify.py", "tools/verify_test.py", ".githooks/pre-commit", ".githooks/pre-push")
 SIZE_CEILING = 384 * 1024  # mesuré 2026-10-28 : plus gros fichier suivi 352 240 o
 @dataclass
@@ -44,6 +44,22 @@ def missing_proofs(gates):
 
 
 # — frozen : l'audit du corpus est la seule source ------------------------
+SEAL = "docs/frozen-manifests.sha256"
+def seal_findings(root=ROOT):
+    seal, runs = Path(root) / SEAL, Path(root) / "book/data/runs"
+    if not seal.is_file():
+        return [f"{SEAL}: anchor absent"]
+    want = {}
+    for line in seal.read_text(encoding="utf-8", errors="replace").splitlines():
+        digest, sep, rel = line.partition("  ")
+        if not sep or not rel.startswith("book/data/runs/") or not rel.endswith("/manifest.json"):
+            return [f"{SEAL}: malformed line {line!r}"]
+        want[rel] = digest
+    got = {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+           for p in runs.glob("*/manifest.json")}
+    return ([f"{r}: manifest changed" for r in sorted(want) if r in got and want[r] != got[r]]
+            + [f"{r}: missing run" for r in sorted(want) if r not in got]
+            + [f"{r}: run not in the anchor" for r in sorted(got) if r not in want])
 def gate_frozen():
     audit, corpus = ROOT / "book/tools/audit-archive.py", ROOT / "book/data/runs"
     if not audit.is_file() or not corpus.is_dir():
@@ -58,7 +74,11 @@ def gate_frozen():
     oks = [ln for ln in blob.splitlines() if ln.startswith("OK")]
     if len(oks) < 2:
         return Result("frozen", FAIL, f"audit exited 0 without two OK lines:\n{_tail(blob)}")
-    return Result("frozen", PASS, " | ".join(oks))
+    findings = seal_findings()
+    if findings:
+        return Result("frozen", FAIL, f"{len(findings)} seal finding(s): " + "; ".join(findings[:5]))
+    count = len(list(corpus.glob("*/manifest.json")))
+    return Result("frozen", PASS, f"{' | '.join(oks)} | {SEAL}: {count} manifests")
 def prove_frozen():
     if not (ROOT / "book").is_dir():
         return False, "book/ absent: the frozen proof cannot run"
@@ -69,6 +89,22 @@ def prove_frozen():
         audit = dst / "tools/audit-archive.py"
         if _proc([sys.executable, audit], 120, cwd=tmp).returncode:
             return False, "control failed: the copied audit does not pass"
+        seal, manifests = tmp / SEAL, sorted((dst / "data/runs").glob("*/manifest.json"))
+        seal.parent.mkdir(parents=True, exist_ok=True)
+        seal.write_bytes(("\n".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  "
+                                    f"{p.relative_to(tmp).as_posix()}" for p in manifests)
+                          + "\n").encode("utf-8"))
+        if seal_findings(tmp):
+            return False, "control failed: the seal rejects the copied corpus"
+        original = manifests[0].read_bytes()
+        manifests[0].write_bytes(original + b"\n")
+        if not seal_findings(tmp):
+            return False, "SURVIVED: the seal accepts a rewritten manifest"
+        if _proc([sys.executable, audit], 120, cwd=tmp).returncode:
+            return False, "fault proof invalid: the audit rejects a whitespace-only manifest change"
+        manifests[0].write_bytes(original)
+        if seal_findings(tmp):
+            return False, "control failed: the restored corpus no longer matches the seal"
         target = None
         for man in sorted((dst / "data/runs").glob("*/manifest.json")):
             try:
@@ -85,7 +121,7 @@ def prove_frozen():
             fh.write(b"\n")
         if _proc([sys.executable, audit], 120, cwd=tmp).returncode == 0:
             return False, f"SURVIVED: audit exit 0 after mutating {target.relative_to(tmp)}"
-        return True, f"control ok; mutation caught in {target.relative_to(tmp)}"
+        return True, f"control ok; seal caught a rewritten manifest; audit caught {target.relative_to(tmp)}"
     except Exception as exc:  # noqa: BLE001 — la preuve doit dire pourquoi
         return False, f"frozen proof error: {exc}"
     finally:

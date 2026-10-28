@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Unit tests for tools/verify.py. No network, no bench, no real tree mutation."""
+import hashlib
 import sys
 import tempfile
 import unittest
@@ -69,6 +70,22 @@ class VerifyTests(unittest.TestCase):
             name = "bare"
             prove = None
         self.assertEqual(verify.missing_proofs([Bare()]), ["bare"])
+
+    def test_seal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            man = root / "book/data/runs/r1/manifest.json"
+            man.parent.mkdir(parents=True)
+            man.write_text("{}\n", encoding="utf-8")
+            seal = root / "docs/frozen-manifests.sha256"
+            seal.parent.mkdir()
+            digest = hashlib.sha256(man.read_bytes()).hexdigest()
+            seal.write_text(f"{digest}  book/data/runs/r1/manifest.json\n", encoding="utf-8")
+            self.assertEqual(verify.seal_findings(root), [])
+            man.write_text("{}\n\n", encoding="utf-8")
+            self.assertTrue(verify.seal_findings(root))
+            seal.unlink()
+            self.assertTrue(verify.seal_findings(root))
 
     def test_line_ceiling(self):
         with tempfile.TemporaryDirectory() as tmp:
