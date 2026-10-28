@@ -12,17 +12,24 @@
 #    run-dualns.sh serve           up + dashboard dans ns_client (avant-plan)
 #    run-dualns.sh down            tout retirer
 #  Options: --bin PATH (défaut $CGO_BIN ou ~/cgo/cgo-linux)
+#           --ingress on|off (façonnage descendant IFB, opt-in)
 # ============================================================================
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BIN="${CGO_BIN:-$HOME/cgo/cgo-linux}"
 CMD="${1:-up}"; shift 2>/dev/null || true
+INGRESS=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --bin) BIN="$2"; shift 2;;
+    --ingress) INGRESS="$2"; shift 2;;
     *) echo "unknown option: $1" >&2; exit 2;;
   esac
 done
+case "$INGRESS" in
+  ""|on|off) ;;
+  *) echo "ingress must be on|off" >&2; exit 2;;
+esac
 [ -x "$BIN" ] || { echo "[!] binaire introuvable: $BIN (compilez: go build -o $BIN ./cmd/cgo)" >&2; exit 1; }
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -31,7 +38,11 @@ fi
 
 case "$CMD" in
   up|serve)
-    "$HERE/cgo-bench-dualns.sh" up || exit 1
+    if [ -n "$INGRESS" ]; then
+      "$HERE/cgo-bench-dualns.sh" up --ingress "$INGRESS" || exit 1
+    else
+      "$HERE/cgo-bench-dualns.sh" up || exit 1
+    fi
     # puits : petit objet + masse, DANS ns_server — jamais dans le routeur
     # (un puits à l'edge court-circuiterait le shaper : 193 Mbit/s à travers
     # un plafond de 20, vu en prod).
@@ -57,5 +68,5 @@ case "$CMD" in
     echo "[run-dualns] down"
     ;;
   *)
-    echo "usage: $0 up|serve|down [--bin PATH]" >&2; exit 2;;
+    echo "usage: $0 up|serve|down [--bin PATH] [--ingress on|off]" >&2; exit 2;;
 esac
