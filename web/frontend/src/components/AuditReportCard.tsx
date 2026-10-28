@@ -4,7 +4,9 @@
 import { Badge } from './ui/StatusPip'
 import { CardHead } from './ui/CardHead'
 import { Stat } from './ui/Stat'
+import { Provenance } from './ui/Provenance'
 import { directionLabel } from '../lib/auditFlow'
+import { auditCitation } from '../lib/citation'
 import { formatBytesFR, formatCostAR, groupDigits } from '../lib/format'
 import type {
   AuditCapsla,
@@ -100,6 +102,16 @@ export function AuditReportCard({ report, onCopy }: {
         <span style={{ marginLeft: 'auto' }}><Badge tone={gradeTone(report.bloat_grade)}>{report.bloat_grade || 'non mesuré'}</Badge></span>
       </div>
       <Muted>{directionLabel(m.direction)}{report.timestamp ? ` · ${report.timestamp}` : ''}</Muted>
+
+      {report.phases && (report.phases.baseline_seconds != null || report.phases.load_seconds != null || report.phases.recovery_seconds != null) ? (
+        <Section title="Fenêtre">
+          <div data-testid="audit-phases" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--sp-2)' }}>
+            {report.phases.baseline_seconds != null ? <Kpi label="repos" value={String(report.phases.baseline_seconds)} unit="s" /> : null}
+            {report.phases.load_seconds != null ? <Kpi label="charge" value={String(report.phases.load_seconds)} unit="s" /> : null}
+            {report.phases.recovery_seconds != null ? <Kpi label="récupération" value={String(report.phases.recovery_seconds)} unit="s" /> : null}
+          </div>
+        </Section>
+      ) : null}
 
       <Section title="Constat">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'var(--sp-2)' }}>
@@ -207,6 +219,13 @@ export function AuditReportCard({ report, onCopy }: {
       </Section>
 
       <Section title="Preuves">
+        <Provenance
+          source={report.provenance?.source_file || 'rapport d’audit'}
+          refresh="au gel"
+          state="live"
+          n={report.provenance?.row_count}
+          extra={report.provenance?.source_sha256 ? `sha256 ${report.provenance.source_sha256.slice(0, 12)}…` : undefined}
+        />
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)' }}>
           {report.provenance?.source_sha256 ? (
             <button className="btn" style={{ padding: 'var(--sp-1) var(--sp-2)' }} title={report.provenance.source_sha256}
@@ -221,10 +240,11 @@ export function AuditReportCard({ report, onCopy }: {
             </button>
           ) : null}
         </div>
-        {report.provenance?.source_file ? <Muted>source : {report.provenance.source_file} · {report.provenance.row_count ?? 0} lignes</Muted> : null}
         {report.provenance?.telemetry_file ? <Muted>série brute : {report.provenance.telemetry_file}</Muted> : null}
         <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', alignItems: 'baseline' }}>
           <a className="mono" href={mdHref} target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-micro)', color: 'var(--t-live)' }}>rapport Markdown ↗</a>
+          <button className="btn" style={{ padding: 'var(--sp-1) var(--sp-2)' }}
+            onClick={() => onCopy(auditCitation(report), 'Citation du rapport')}>CITER CE RAPPORT</button>
           {m.data_used_mb ? <Muted>données consommées par l'audit : {Number(m.data_used_mb).toFixed(2)} Mo</Muted> : null}
         </div>
       </Section>
@@ -241,6 +261,21 @@ export function AuditReportCard({ report, onCopy }: {
                   onClick={() => onCopy(report.remediation?.routeros ?? '', 'Script RouterOS')}>COPIER ROUTEROS</button>
               ) : null}
             </div>
+            {(report.remediation.linux_tc_ingress?.length || report.remediation.routeros_ingress) ? (
+              <div data-testid="audit-remediation-ingress" style={{ borderTop: '1px solid var(--hairline-faint)', paddingTop: 'var(--sp-2)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+                <Muted>téléchargement (ingress IFB)</Muted>
+                <div style={{ display: 'flex', gap: 'var(--sp-1)', flexWrap: 'wrap' }}>
+                  {report.remediation.linux_tc_ingress?.length ? (
+                    <button className="btn" style={{ padding: 'var(--sp-1) var(--sp-2)' }}
+                      onClick={() => onCopy((report.remediation?.linux_tc_ingress ?? []).join('\n'), 'Script tc ingress')}>COPIER LINUX TC (INGRESS)</button>
+                  ) : null}
+                  {report.remediation.routeros_ingress ? (
+                    <button className="btn" style={{ padding: 'var(--sp-1) var(--sp-2)' }}
+                      onClick={() => onCopy(report.remediation?.routeros_ingress ?? '', 'Script RouterOS ingress')}>COPIER ROUTEROS (INGRESS)</button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </>
         ) : (
           <Muted>non émise — capacité ou RTT repos non mesurés ; une file dimensionnée au hasard serait déployée à l'aveugle.</Muted>

@@ -32,7 +32,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 5 | Trace-driven netem `.dist` | `2026-10-27-cgo-trace-driven-dist-design.md` | `2026-10-27-cgo-trace-driven-dist.md` | **Deferred** (user stopped execution) | real field trace; Linux 6.8 bench for acceptance | Resume only on user request; do not commit a `.dist` built from the two local `SMOKE-TEST` traces |
 | 6 | Ingress IFB shaping | `2026-10-27-cgo-ifb-ingress-design.md` | `2026-10-27-cgo-ifb-ingress.md` | **Windows-green** (verifier pass 2026-10-28) | Linux 6.8 bench for live acceptance; Windows for engine | Engine row `VERIFIED`; Task 9 not executed, live acceptance blocked on a stable Linux 6.8 bench. |
 | 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
-| 8 | Audit report surface & thesis citation | `2026-10-28-cgo-audit-surface-citation-design.md` | `2026-10-28-cgo-audit-surface-citation.md` | **Proposed** | 1, 3, 10 (done); not 4–7 | Awaiting approval to build; the thesis edit stays the human's (`book/` is never committed) |
+| 8 | Audit report surface & thesis citation | `2026-10-28-cgo-audit-surface-citation-design.md` | `2026-10-28-cgo-audit-surface-citation.md` | **In progress** (builder pass; verifier pending) | 1, 3, 10 (done); not 4–7 | Independent verifier re-runs `npm test`, `npm run build`, the Go tests and `python tools/verify.py`; the thesis paste stays the human's |
 | 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **Done** (verifier pass 2026-10-28) | — (process layer; runs before any live slice) | — (merge to `main` is the human's decision) |
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
 | 11 | Frozen corpus seal anchor | `2026-10-28-cgo-corpus-seal-design.md` | `2026-10-28-cgo-corpus-seal.md` | **Done** (verifier pass 2026-10-28) | — | — (follow-up: FAIL instead of SKIP on a partial `book/`; recorded) |
@@ -95,7 +95,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   **Deferred by the user**; do not execute now. Revisit only on request, after
   the kernel is available.
 
-### Slice 8 — audit report surface & thesis citation (proposed)
+### Slice 8 — audit report surface & thesis citation (builder pass)
 
 - Scope: type and render the ingress remediation the report already carries;
   render `phases`; use the shared `Provenance` line; add a "cite this report"
@@ -104,7 +104,15 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Scope guard: no `book/` edit (the thesis paste is the human's), no Go or CSV
   shape change, no new audit form field, chart, or dependency, no eBPF/IFB
   live badge.
-- Evidence: pending — spec and plan written, no code.
+- Evidence: 2026-10-29 on DESKTOP-B6K9UCM: `npm test` → 40 files, 156 tests
+  passed (6 new: citation and SSR DOM); `npm run build` → typecheck + Vite +
+  bundle, exit 0 (339.9 KB gz); `go test ./pkg/api/... ./cmd/cgo/...` → `ok`;
+  full `python tools/verify.py` → first run hit the E5-family Windows
+  `TempDir` cleanup flake in `TestMatrixFilteredSubmatrix` (no Go change in
+  this slice), targeted re-run `PASS`, `--only tests` `PASS`, full re-run
+  `6 passed, 0 failed, 0 not run`. No live audit; fixture reports only.
+- Next: independent verifier re-runs the commands and owns the `VERIFIED` row;
+  the human pastes the citation into the thesis.
 
 ### Slice 9 — engineering system (done)
 

@@ -708,3 +708,41 @@ end, at a settled decision, and at a handoff.
 - Next: human review of the rendered book; production access remains the
   unblock condition for the live claims; merge to `main` is the human's
   decision.
+
+## 2026-10-28 21:22 UTC · slice 8 audit surface and citation (builder pass)
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `5293799` (pre-commit).
+- Changed: `web/frontend/src/lib/types.ts` (ingress fields);
+  `web/frontend/src/components/AuditReportCard.tsx` (ingress block, phases,
+  shared `Provenance`, citation action); new
+  `web/frontend/src/lib/citation.ts` and `citation.test.ts`; new
+  `AuditReportCard.dom.test.tsx`; `docs/api.md` (`/api/remediate`,
+  `/api/audit/presets`, CSV provenance correction); spec, plan, index,
+  `docs/ERRORS.md`, `docs/VERIFY.md`, this checkpoint.
+- Behaviour: download remediation renders only when `linux_tc_ingress` or
+  `routeros_ingress` is non-empty; `phases` renders only the present windows,
+  never zero-filled; the report card shows exactly one `data-testid="provenance"`
+  and keeps both seal buttons plus the Markdown link; `CITER CE RAPPORT` builds
+  the citation from report fields only (id, site, link/provider, timestamp,
+  direction, full `source_sha256`), omits missing fields, and returns empty for
+  an empty id. `docs/api.md` now matches the code for the two endpoints and the
+  CSV/Markdown provenance distinction.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64):
+  `cd web/frontend && npm test` → 40 files, 156 tests passed (6 new: 3 citation,
+  3 SSR DOM);
+  `npm run build` → `tsc --noEmit` + Vite + bundle check, exit 0,
+  1038.7 KB raw / 339.9 KB gz;
+  `go test ./pkg/api/... ./cmd/cgo/...` → `ok`, 67.2 s / 11.9 s;
+  `python tools/verify.py` → first run FAIL `tests` on
+  `TestMatrixFilteredSubmatrix` with the known E5-family Windows
+  `TempDir RemoveAll` cleanup shape (this slice changed no Go file); targeted
+  `go test ./pkg/campagne -run TestMatrixFilteredSubmatrix -count=1` → `PASS`,
+  4.2 s; `python tools/verify.py --only tests` → `PASS`, 29.8 s; full re-run
+  → `6 passed, 0 failed, 0 not run`.
+- Unproven: no live audit, bench, namespace, qdisc, or listener; the card is
+  exercised with fixture reports only. `web/frontend/dist/index.html` stays a
+  known working-tree modification from the build, not a commit. No `book/`
+  edit. The independent verifier has not re-run the commands; the `VERIFY` row
+  stays `PENDING`.
+- Next: independent verifier re-runs the four commands and owns the `VERIFIED`
+  row; the human pastes the citation into the thesis.

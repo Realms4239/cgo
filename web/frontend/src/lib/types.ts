@@ -108,6 +108,8 @@ export interface AuditRemediation {
   reason?: string
   linux_tc?: string[]
   routeros?: string
+  linux_tc_ingress?: string[]
+  routeros_ingress?: string
 }
 
 export interface AuditEconomicsScenario {

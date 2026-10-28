@@ -110,3 +110,13 @@ A fixed defect stays because it is the evidence that it was understood.
   matrix-finished loop that could never end (cells 2..9 block in `Small` too),
   which removes ~3 s of dead wait: fresh `pkg/campagne` 8.1 s, down from
   10.9-11.1 s. Test-only.
+- Update 2026-10-29 (recurrence, different test): the full `tests` gate failed
+  once in `TestMatrixFilteredSubmatrix` with the same Windows cleanup shape:
+  `TempDir RemoveAll cleanup: unlinkat ...\run-1793221204: Le répertoire n'est
+  pas vide`. This is the E5 family, not a product regression; slice 8 changed
+  no Go file. Proof: targeted
+  `go test ./pkg/campagne -run TestMatrixFilteredSubmatrix -count=1` → `PASS`,
+  4.2 s; `python tools/verify.py --only tests` → `PASS`, 29.8 s; full
+  `python tools/verify.py` re-run → `6 passed, 0 failed, 0 not run`. The
+  slice-9 fix covered the skip test, not every matrix test that starts a run;
+  the general fix (a done channel that `Stop` waits on) remains open.

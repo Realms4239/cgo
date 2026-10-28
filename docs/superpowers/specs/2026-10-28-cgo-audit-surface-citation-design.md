@@ -1,6 +1,7 @@
 # CGO Audit Report Surface & Thesis Citation — Design Specification
 
-*Date: 2026-10-28 · Status: proposed, awaiting human approval · Slice 8 ·
+*Date: 2026-10-28 · Status: approved by direct user instruction; implemented
+(builder pass, independent verifier pending) · Slice 8 ·
 Branch: `rebuild/plan1-economics-audit`*
 
 This slice finishes the audit report surface and makes a sealed report citable.
