@@ -598,3 +598,60 @@ end, at a settled decision, and at a handoff.
 - Next: execute the plan inline, Task 1 first (baseline word counts, numeric
   snapshot, audit), then Tasks 2–12. The user asked to stop before any book
   edit.
+
+## 2026-10-28 20:24 UTC · slice 12 book truth-up and prose restructure
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `36bfc14` (book working tree;
+  `book/` is gitignored and was not staged). The IDEA memos stayed out of the
+  book as the spec requires: contradictory numbers, forbidden hostname/IP, and
+  unperformed production claims.
+- Changed: `book/content/00-front.js`, `01-intro.js`, `015-organisme.js`,
+  `02-partie1.js`, `03-partie2.js`, `04-pratique.js`, `06-conclusion.js`,
+  `08-glossaire.js`, `09-annexes.js`, and the cover `00-couverture.xml`
+  (working tree, never committed); `docs/CHECKPOINTS.md`, `docs/VERIFY.md`,
+  `docs/superpowers/plans/README.md`.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64):
+  `python book/tools/audit-archive.py` → exit 0, both `OK` lines
+  (`159 runs, 528 lignes, 208 valides, 74 degraded, 246 invalid`; `22 cellules,
+  159 manifestes, inventaire, texte et tableau 15 cohérents`);
+  all ten content modules load under node;
+  `node book/build-docx.js` → `book/memoire-rebuild.docx` (3054 Ko);
+  `memoire.docx` SHA-256 unchanged (`bd171227…6a2e030`);
+  `python book/tools/audit-biblio.py` → 47/47 references cited;
+  `python book/tools/audit-renvois.py` → 40 literal references, one
+  pre-existing Figure 2 caption warning unchanged;
+  word counts body 14,761 and total 16,462 (baseline 24,373), within the plan's
+  ~14,500 body and ~16,400 total targets;
+  new title present in `word/document.xml`; old title, `eight quality gates`,
+  `160 runs`, `trois sites`, and `conditions réelles de l’institution` absent.
+- Numeric-token diff: 31 tokens disappeared, each justified here; no result
+  value was lost. `01-intro` `2016`, `2026`: compressed intro; the BBR date and
+  the tariff year remain covered in chapters II and I. `02-partie1` `0,32 1,12
+  106 237 1,25 7 5,6 120 166 680`: descriptive operator-catalogue and
+  public-debate figures deleted by plan Task 5 Step 4; none feeds a result or a
+  cost row. `03-partie2` `0,15 0,3 0,36 13,9`: components of the R-score worked
+  example; the four scores (`92,9`, `91,4`, `71,5`, `92,1`) remain. `2011`:
+  duplicate of the introduction. `72`: now spelled « soixante-douze ».
+  `04-pratique` `300`: UI Campagne detail compressed into Annex E; `4.4`: old
+  section reference removed; `71,5 91,4 92,1 92,9`: theoretical R scores removed
+  from the RQ3 answer, retained in chapter II. `06-conclusion` `159 208 528`:
+  de-duplicated, retained in chapter III and the annexes; `27`: citation moved
+  to the chapter III limits and restored there; `5.8`: old section reference
+  removed. `09-annexes` `79`: Figure 12 commentary compressed; `8.8`: hardcoded
+  `8.8.8.8` target removed from the preset prose, the command takes a site
+  parameter. Required values (`324,25`, `209,25`, `210,3`, `51,75`, `45,75`,
+  `46,15`) and the six Table 15 rows remain.
+- Claims table (spec §5): all ten resolved — title, field-audit claim,
+  bench-versus-field separation, enterprise-primary cost framing, seven measured
+  gates, interface chart in Annex E labelled `twin`, IFB ingress labelled with
+  its blocked live acceptance, corpus seal, regime label, and blocked eBPF /
+  BBRv3 / `.dist` kept out of the feature prose. Table 13 stays in chapter III
+  to preserve Word `SEQ` numbering (moving it would have renumbered Table 15);
+  its walkthrough moved to Annex E.
+- Unproven/blocked: production measurement (read-only access pending); field
+  audit (not executed); Linux 6.8 live acceptance, eBPF, BBRv3, and `.dist`
+  (blocked or deferred as in `docs/VERIFY.md`). `book/` is a working tree only;
+  supervisor, jury, date, and Master-vs-Licence placeholders remain the
+  human's. No `book/` path was staged.
+- Next: human review of the rendered book; fill the front-matter placeholders;
+  merge to `main` remains the human's decision.
