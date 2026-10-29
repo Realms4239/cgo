@@ -1,31 +1,15 @@
-// Sheet 380 backdrop Auditer — Kit cockpit ① Auditer 30s Yas 4G → ② Comparer live → ③ Exporter
-import { useEffect, useRef, useState } from 'react'
+// Kit cockpit — configurer la campagne, lire l'état et la matrice.
+import { useEffect, useState } from 'react'
 import { ArmButton } from '../components/ArmButton'
 import { Timeline } from '../components/Timeline'
 import { loadSettings } from '../lib/settings'
 import Explain from '../components/Explain'
 import { EmptyState } from '../components/ui/EmptyState'
-import { Card } from '../components/ui/Card'
-import { AuditLive } from '../components/AuditLive'
-import { AuditReportCard } from '../components/AuditReportCard'
-import {
-  AUDIT_DURATIONS,
-  DEFAULT_AUDIT_DIRECTION,
-  auditStep,
-  directionLabel,
-  durationChoice,
-  nextAuditStage,
-  validateAuditDeclaration,
-  type AuditStage,
-} from '../lib/auditFlow'
-import type { AuditDirection, AuditLive as AuditLiveState, AuditReport } from '../lib/types'
 import { formatBytesFR, groupDigits } from '../lib/format'
 import { useUIStore } from '../store/ui'
 import { InlineField } from '../components/InlineField'
 import { validate } from '../lib/validation'
-import { animateShake } from '../lib/anime'
 import { PeekPopover } from '../components/PeekPopover'
-import AuditHistoryModal from '../components/AuditHistoryModal'
 import { live as liveRing } from '../lib/live'
 import { GATE_LABELS } from '../lib/gates'
 import { canalGate, effectiveChannelModel, type ChannelModel } from '../lib/canal'
@@ -66,29 +50,8 @@ export default function CampagneView() {
     return () => window.removeEventListener('meteolink-settings', on)
   }, [])
   const [msg, setMsg] = useState('')
-  const [auditMsg, setAuditMsg] = useState('')
-  const [auditSite, setAuditSite] = useState('Département X')
-  const [auditLink, setAuditLink] = useState('5g')
-  const [auditProvider, setAuditProvider] = useState('')
-  const [auditDuration, setAuditDuration] = useState(20)
-  const [auditDirection, setAuditDirection] = useState<AuditDirection>(DEFAULT_AUDIT_DIRECTION)
-  // Vide = puits du banc détecté côté serveur (dualns/legacy/external) ;
-  // forcer 8.8.8.8 ici contournerait la détection M4 sur le banc durci.
-  const [auditTarget, setAuditTarget] = useState('')
-  const [presets, setPresets] = useState<{id:string;label:string;site:string;link_type:string;provider:string;duration:number;target:string;notes:string}[]>([])
-  const [presetNote, setPresetNote] = useState('')
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [historyN, setHistoryN] = useState<number|null>(null)
   const [importMsg, setImportMsg] = useState('')
   const [importForm, setImportForm] = useState(false)
-  const [auditAdvanced, setAuditAdvanced] = useState(() => {
-    try { return localStorage.getItem('audit-advanced-open') === '1' } catch { return false }
-  })
-  const [auditStage, setAuditStage] = useState<AuditStage>('idle')
-  const [auditLiveState, setAuditLiveState] = useState<AuditLiveState | null>(null)
-  const [auditReport, setAuditReport] = useState<AuditReport | null>(null)
-  const [auditIface, setAuditIface] = useState('')
-  const [auditRosIface, setAuditRosIface] = useState('')
   const [impId, setImpId] = useState('')
   const [impCap, setImpCap] = useState(20)
   const [impCapUp, setImpCapUp] = useState(0)
@@ -97,12 +60,7 @@ export default function CampagneView() {
   const [impLoss, setImpLoss] = useState(0)
   const [peek, setPeek] = useState<{ rect: DOMRect; data: number[] } | null>(null)
 
-  const auditPollRef = useRef<number | null>(null)
-  const auditStoppedRef = useRef(false)
-  const auditFormRef = useRef<HTMLDivElement>(null)
-  useEffect(() => () => { if (auditPollRef.current) clearInterval(auditPollRef.current) }, [])
-
-  // Esc clears flash + audit error hint
+  // Esc clears flash
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -112,173 +70,6 @@ export default function CampagneView() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
-
-  const auditValidation = validateAuditDeclaration({
-    site: auditSite,
-    link_type: auditLink,
-    duration: auditDuration,
-    direction: auditDirection,
-  })
-  const auditCustomDuration = durationChoice(auditDuration) === 'custom'
-
-  const copyText = (text: string, label: string) => {
-    navigator.clipboard?.writeText(text).then(
-      () => useUIStore.getState().pushToast(`${label} copié`, 'ok'),
-      () => useUIStore.getState().pushToast('Copie impossible — sélectionnez le texte', 'err'),
-    )
-  }
-
-  // presets RQ1 + compteur d'historique : chargés à l'ouverture de la carte
-  const refreshHistoryN = () => {
-    fetch('/api/audit/list').then(r => r.json()).then(j => setHistoryN((j.audits || []).length)).catch(() => {})
-  }
-
-  const stopAuditPoll = () => {
-    if (auditPollRef.current) {
-      clearInterval(auditPollRef.current)
-      auditPollRef.current = null
-    }
-  }
-
-  // Observer : /api/audit/live pour l'état vivant, /api/audit/status pour la
-  // fin (rapport présent ou annulation). 2 s, comme la carte le promet.
-  const pollAudit = () => {
-    stopAuditPoll()
-    const tick = () => {
-      Promise.all([
-        fetch('/api/audit/live').then(res => res.ok ? res.json() : Promise.reject(new Error(String(res.status)))),
-        fetch('/api/audit/status').then(res => res.ok ? res.json() : Promise.reject(new Error(String(res.status)))),
-      ]).then(([lv, st]) => {
-        const liveFrame = lv as AuditLiveState
-        setAuditLiveState(liveFrame?.running ? liveFrame : null)
-        const report = (st?.report ?? null) as AuditReport | null
-        if (report) setAuditReport(report)
-        if (st?.running) return
-        stopAuditPoll()
-        if (report) {
-          setAuditStage(s => nextAuditStage(s, 'finish'))
-          const p95 = report.measured?.rtt_idle_p95_ms ?? 0
-          setAuditMsg(p95 > 0 ? `audit terminé — p95 repos ${p95.toFixed(1)} ms` : 'audit terminé')
-        } else {
-          setAuditStage(s => nextAuditStage(s, 'cancel'))
-          setAuditMsg(auditStoppedRef.current ? 'audit annulé — aucun rapport écrit' : 'audit interrompu — aucun rapport écrit')
-          auditStoppedRef.current = false
-        }
-        refreshHistoryN()
-      }).catch(() => {
-        stopAuditPoll()
-        setAuditLiveState(null)
-        setAuditStage(s => s === 'observing' ? 'declared' : s)
-        setAuditMsg('suivi interrompu — vérifiez /api/audit/status')
-      })
-    }
-    void tick()
-    auditPollRef.current = window.setInterval(tick, 2000)
-  }
-
-  const startAudit = async () => {
-    const declaration = auditValidation.value
-    if (!auditValidation.valid || !declaration) {
-      if (auditFormRef.current) animateShake(auditFormRef.current)
-      return
-    }
-    const store = useUIStore.getState()
-    setAuditMsg('démarrage…')
-    setAuditReport(null)
-    setAuditLiveState(null)
-    auditStoppedRef.current = false
-    try {
-      const r = await fetch('/api/audit/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          site: declaration.site,
-          link_type: declaration.link_type,
-          provider: auditProvider,
-          duration: declaration.duration,
-          direction: declaration.direction,
-          target: auditTarget.trim() || undefined,
-          iface: auditIface || undefined,
-          routeros_iface: auditRosIface || undefined,
-        }),
-      })
-      if (r.status === 409) throw new Error('un audit tourne déjà')
-      if (!r.ok) throw new Error(String(r.status))
-      await r.json().catch(() => ({}))
-      store.pushToast(`Audit lancé — ${declaration.site}`, 'ok')
-      store.setFlash({ type: 'success', msg: `Audit lancé — ${declaration.site}` })
-      setAuditMsg('audit en cours…')
-      setAuditStage(s => nextAuditStage(s, 'start'))
-      pollAudit()
-    } catch (e: any) {
-      store.pushToast('Échec audit: ' + e.message, 'err')
-      store.setFlash({ type: 'danger', msg: 'Échec audit' })
-      if (auditFormRef.current) animateShake(auditFormRef.current)
-      setAuditMsg('échec: ' + e.message)
-    }
-  }
-
-  const stopAudit = async () => {
-    auditStoppedRef.current = true
-    setAuditMsg('annulation demandée…')
-    try {
-      const r = await fetch('/api/audit/stop', { method: 'POST' })
-      if (!r.ok) throw new Error(String(r.status))
-      useUIStore.getState().pushToast('Annulation demandée', 'blue')
-    } catch (e: any) {
-      auditStoppedRef.current = false
-      setAuditMsg('échec annulation: ' + e.message)
-      useUIStore.getState().pushToast('Échec annulation: ' + e.message, 'err')
-    }
-  }
-
-  // À l'ouverture, la carte rejoint l'audit déjà en cours ou le dernier rapport.
-  const syncAuditStatus = () => {
-    fetch('/api/audit/status').then(r => r.json()).then(j => {
-      if (j.running) {
-        setAuditStage(s => (s === 'idle' || s === 'declared') ? 'observing' : s)
-        setAuditMsg('audit en cours…')
-        pollAudit()
-      } else if (j.report) {
-        setAuditReport(j.report as AuditReport)
-        setAuditStage(s => (s === 'idle' || s === 'declared') ? 'done' : s)
-      }
-    }).catch(() => {})
-  }
-
-  const toggleAudit = () => {
-    if (auditStage === 'observing') return
-    if (auditStage !== 'idle') {
-      stopAuditPoll()
-      setAuditLiveState(null)
-      setAuditStage(s => nextAuditStage(s, 'close'))
-      return
-    }
-    setAuditStage(s => nextAuditStage(s, 'open'))
-    fetch('/api/audit/presets').then(r => r.json()).then(j => setPresets(j.presets || [])).catch(() => {})
-    refreshHistoryN()
-    syncAuditStatus()
-  }
-
-  const toggleAuditAdvanced = () => {
-    setAuditAdvanced(o => {
-      try { localStorage.setItem('audit-advanced-open', o ? '0' : '1') } catch { }
-      return !o
-    })
-  }
-
-  const restartAudit = () => {
-    setAuditStage(s => nextAuditStage(s, 'again'))
-    setAuditReport(null)
-    setAuditLiveState(null)
-    setAuditMsg('')
-    auditStoppedRef.current = false
-  }
-
-  const applyPreset = (p: { site: string; link_type: string; provider: string; duration: number; target: string; notes: string; label: string }) => {
-    setAuditSite(p.site); setAuditLink(p.link_type); setAuditProvider(p.provider)
-    setAuditDuration(p.duration); setAuditTarget(p.target); setPresetNote(p.notes)
-  }
 
   const importValidation = validate(
     { id: impId, capacity: impCap, delay: impDelay, jitter: impJitter, loss: impLoss },
@@ -350,7 +141,7 @@ export default function CampagneView() {
         <h1 className="view-title" style={{ margin: '16px auto' }}>Campagne — pilotez la mesure</h1>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--gap, 24px)' }}>
           {[
-            { n: '①', t: 'Auditer', d: "30 s sur le lien réel, sans droits admin" },
+            { n: '①', t: 'Configurer', d: 'profil, files, CC, débit — la matrice suit' },
             { n: '②', t: 'Comparer', d: 'pfifo vs CAKE en direct, même échelle' },
             { n: '③', t: 'Exporter', d: 'récit + chiffres vérifiables' },
           ].map(x => (
@@ -500,134 +291,6 @@ export default function CampagneView() {
           <span className="mono muted">{msg}</span>
         </div>
       </div>
-
-      <Card
-        head="Audit du lien"
-        term="audit"
-        sub="audit standard · non intrusif"
-        testid="audit-card"
-        right={(
-          <div style={{ display: 'flex', gap: 'var(--sp-1)', flexWrap: 'wrap' }}>
-            <button className="btn" onClick={() => setHistoryOpen(true)} style={{ padding: 'var(--sp-1) var(--sp-2)' }} title="audits gelés : rapprochement au référentiel, import par ligne">HISTORIQUE{historyN !== null ? ` (${historyN})` : ''}</button>
-            <button className="btn" onClick={toggleAudit} disabled={auditStage === 'observing'} style={{ padding: 'var(--sp-1) var(--sp-2)' }} title={auditStage === 'observing' ? 'audit en cours — annuler d’abord' : undefined}>{auditStage === 'idle' ? 'OUVRIR' : 'FERMER'}</button>
-          </div>
-        )}
-      >
-        {auditStage !== 'idle' && (
-          <div aria-label="étapes de l'audit" role="list" className="mono" style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', fontSize: 'var(--fs-micro)' }}>
-            {['Déclarer', 'Observer', 'Lire'].map((label, i) => {
-              const active = auditStep(auditStage) === i + 1
-              return (
-                <span key={label} role="listitem" aria-current={active ? 'step' : undefined} style={{ color: active ? 'var(--t-live)' : 'var(--text-faint)' }}>
-                  {i + 1}. {label}
-                </span>
-              )
-            })}
-          </div>
-        )}
-
-        {auditStage === 'declared' && <>
-          {presets.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)' }}>
-              {presets.map(p => (
-                <button key={p.id} className="c-chip" style={{ cursor: 'pointer' }} title={`${p.site} · ${p.link_type} · ${p.duration}s → ${p.target} — ${p.notes}`} onClick={() => applyPreset(p)}>⚑ {p.label}</button>
-              ))}
-            </div>
-          )}
-          {presetNote && <div className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>ⓘ {presetNote}</div>}
-          <div ref={auditFormRef} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-            <InlineField label="Site" error={auditValidation.errors.site} helper={!auditSite ? 'requis' : undefined}>
-              <input className="c-input" name="site" value={auditSite} onChange={e => setAuditSite(e.target.value)} />
-            </InlineField>
-            <InlineField label="Type de lien" error={auditValidation.errors.link_type}>
-              <select className="c-input" value={auditLink} onChange={e => setAuditLink(e.target.value)}>
-                {['fiber', '5g', '4g', 'vsat', 'other'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </InlineField>
-            <InlineField label="Durée" error={auditValidation.errors.duration} helper={auditCustomDuration ? `durée libre : ${auditDuration} s` : '20 ou 60 s — durée libre dans avancé'}>
-              <div role="group" aria-label="Durée de l'audit" style={{ display: 'flex', gap: 'var(--sp-1)', flexWrap: 'wrap' }}>
-                {AUDIT_DURATIONS.map(d => (
-                  <button
-                    key={d} type="button" className="btn" aria-pressed={auditDuration === d}
-                    onClick={() => setAuditDuration(d)}
-                    style={{
-                      padding: 'var(--sp-1) var(--sp-2)',
-                      borderColor: auditDuration === d ? 'var(--t-live)' : 'var(--hairline)',
-                      color: auditDuration === d ? 'var(--t-live)' : 'var(--text-muted)',
-                      background: auditDuration === d ? 'var(--live-dim)' : 'transparent',
-                    }}
-                  >{d} s</button>
-                ))}
-              </div>
-            </InlineField>
-            <InlineField label="Sens" helper="fenêtre de charge exercée">
-              <div role="group" aria-label="Sens de l'audit" style={{ display: 'flex', gap: 'var(--sp-1)', flexWrap: 'wrap' }}>
-                {(['up', 'down', 'both'] as const).map(d => (
-                  <button
-                    key={d} type="button" className="btn" aria-pressed={auditDirection === d}
-                    onClick={() => setAuditDirection(d)}
-                    style={{
-                      padding: 'var(--sp-1) var(--sp-2)',
-                      borderColor: auditDirection === d ? 'var(--t-live)' : 'var(--hairline)',
-                      color: auditDirection === d ? 'var(--t-live)' : 'var(--text-muted)',
-                      background: auditDirection === d ? 'var(--live-dim)' : 'transparent',
-                    }}
-                  >{directionLabel(d)}</button>
-                ))}
-              </div>
-            </InlineField>
-
-            <button className="btn" aria-expanded={auditAdvanced} onClick={toggleAuditAdvanced} style={{ alignSelf: 'flex-start', padding: 'var(--sp-1) var(--sp-2)' }}>
-              {auditAdvanced ? 'MASQUER LES CHAMPS AVANCÉS' : 'CHAMPS AVANCÉS'}
-            </button>
-            {auditAdvanced && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
-                <InlineField label="Fournisseur" helper="ex. yas — gelé avec la ligne">
-                  <input className="c-input" name="audit-provider" value={auditProvider} onChange={e => setAuditProvider(e.target.value)} placeholder="yas" />
-                </InlineField>
-                <InlineField label="Cible ping" helper="vide = puits du banc détecté">
-                  <input className="c-input" name="audit-target" value={auditTarget} onChange={e => setAuditTarget(e.target.value)} placeholder="détecté" />
-                </InlineField>
-                <InlineField label="Interface Linux" helper="optionnel — ex. eth0, pour le script tc">
-                  <input className="c-input" name="audit-iface" value={auditIface} onChange={e => setAuditIface(e.target.value)} placeholder="eth0" />
-                </InlineField>
-                <InlineField label="Interface RouterOS" helper="optionnel — ex. ether1-wan">
-                  <input className="c-input" name="audit-ros-iface" value={auditRosIface} onChange={e => setAuditRosIface(e.target.value)} placeholder="ether1-wan" />
-                </InlineField>
-                <InlineField label="Durée libre (s)" helper="10–600 s">
-                  <input className="c-input" type="number" min={10} max={600} value={auditDuration} onChange={e => setAuditDuration(parseInt(e.target.value) || 0)} />
-                </InlineField>
-              </div>
-            )}
-          </div>
-          <div className="form-row" style={{ gap: 'var(--sp-2)', marginTop: 'var(--sp-2)' }}>
-            <ArmButton label="LANCER AUDIT" confirmLabel="CONFIRMER AUDIT" onConfirm={startAudit} disabled={!auditValidation.valid} />
-            <span className="mono muted">{auditMsg}</span>
-          </div>
-        </>}
-
-        {auditStage === 'observing' && (
-          <>
-            <AuditLive live={auditLiveState} direction={auditDirection} onStop={stopAudit} />
-            {auditMsg && <span className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>{auditMsg}</span>}
-          </>
-        )}
-
-        {auditStage === 'done' && auditReport && (
-          <>
-            <AuditReportCard report={auditReport} onCopy={copyText} />
-            <div className="form-row" style={{ gap: 'var(--sp-2)', marginTop: 'var(--sp-2)' }}>
-              <button className="btn" onClick={restartAudit}>NOUVEL AUDIT</button>
-              <span className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>{auditMsg}</span>
-            </div>
-          </>
-        )}
-        {auditStage === 'done' && !auditReport && (
-          <div className="mono muted" style={{ fontSize: 'var(--fs-micro)' }}>rapport absent — relancez un audit.</div>
-        )}
-
-        {historyOpen && <AuditHistoryModal onClose={() => { setHistoryOpen(false); refreshHistoryN() }} onImported={m => setAuditMsg(m)} />}
-      </Card>
 
       <div className="card">
         <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>

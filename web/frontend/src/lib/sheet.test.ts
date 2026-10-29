@@ -13,7 +13,7 @@ describe('sheet',()=>{
   })
   it('Sheet cockpit has 3-step helpers',()=>{
     const s=read('web/frontend/src/views/CampagneView.tsx')
-    expect(s).toContain('Auditer')
+    expect(s).toContain('Configurer')
   })
   it('Sheet is a real fixed overlay sliding over the wall',()=>{
     const s=read('web/frontend/src/views/CampagneView.tsx')

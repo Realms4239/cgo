@@ -567,6 +567,49 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 
 .edge-ab-head-cake { color: var(--t-bbr); }
 
+/* ---- destination header (Auditer, Banc, Preuves) ---- */
+.mode-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--sp-4); border-bottom: 1px solid var(--hairline); padding-bottom: var(--sp-3); flex-wrap: wrap; }
+.mode-head h1 { font: 600 var(--fs-head) var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; margin: 0; color: var(--text-primary); }
+.mode-head p { color: var(--text-muted); font-size: var(--fs-body); margin: var(--sp-1) 0 0; max-width: 70ch; }
+.mode-head-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* ---- niveau 2 : détails scientifiques repliés ---- */
+.sci-details { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--hairline); padding-top: var(--sp-2); }
+.sci-details-toggle { align-self: flex-start; padding: var(--sp-1) var(--sp-2); font-size: var(--fs-micro); }
+.sci-details-toggle[aria-expanded="true"] { border-color: var(--hairline-strong); color: var(--t-live); }
+.sci-details-body { display: flex; flex-direction: column; gap: var(--sp-2); border: 1px solid var(--hairline); background: rgba(255,255,255,0.015); padding: var(--sp-3); min-width: 0; }
+
+/* ---- Auditer ---- */
+.audit-page { max-width: 1080px; }
+.audit-steps { list-style: none; display: flex; gap: var(--sp-4); flex-wrap: wrap; padding: 0; }
+.audit-steps li { font-size: var(--fs-micro); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-faint); }
+.audit-steps li.on { color: var(--t-live); }
+.audit-idle { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+.audit-declare { display: flex; flex-direction: column; gap: var(--sp-2); }
+.audit-presets { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.audit-preset { cursor: pointer; }
+.audit-preset-note { font-size: var(--fs-micro); }
+.audit-form { display: flex; flex-direction: column; gap: var(--sp-2); }
+.audit-pills { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
+.audit-advanced-toggle { align-self: flex-start; padding: var(--sp-1) var(--sp-2); }
+.audit-launch { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }
+.audit-msg { font-size: var(--fs-micro); }
+.audit-last-report { align-self: flex-start; }
+.audit-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+.audit-summary-cell { border: 1px solid var(--hairline); background: var(--surface-card); padding: var(--sp-3); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.audit-summary-cell span { font: 700 var(--fs-micro) var(--font-mono); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+.audit-summary-cell b { font: 600 var(--fs-head)/1.1 var(--font-mono); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.audit-summary-cell b small { font-size: var(--fs-tag); color: var(--text-faint); }
+.audit-summary-cell em { font: 400 var(--fs-tag) var(--font-mono); font-style: normal; color: var(--text-muted); }
+.audit-summary-cell em[data-level="ok"] { color: var(--t-ok); }
+.audit-summary-cell em[data-level="warn"] { color: var(--t-threshold); }
+.audit-summary-cell em[data-level="crit"] { color: var(--t-danger-text); }
+.audit-verdict { font-size: var(--fs-body); line-height: 1.6; color: var(--text-body-strong); max-width: 78ch; }
+.audit-remedy { display: flex; flex-direction: column; gap: var(--sp-1); border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
+.audit-remedy-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+@media (max-width: 900px) { .audit-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .audit-summary { grid-template-columns: 1fr; } }
+
 /* ---- Synthèse : accueil opérateur, une lecture, une action ---- */
 .syn { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
 .syn-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--sp-4); border-bottom: 1px solid var(--hairline); padding-bottom: var(--sp-3); }

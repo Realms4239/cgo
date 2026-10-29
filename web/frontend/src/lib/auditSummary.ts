@@ -70,24 +70,42 @@ function storage(): Storage | null {
   }
 }
 
-export function loadLastSummary(): AuditSummary | null {
+const valid = (v: unknown): v is AuditSummary => {
+  const x = v as AuditSummary
+  return !!x && typeof x.audit_id === 'string' && typeof x.site === 'string'
+}
+
+// Deux audits suffisent : le dernier et celui d'avant, pour que la
+// comparaison survive à un rechargement sans reconstruire d'historique.
+export function loadAuditPair(): { last: AuditSummary | null; previous: AuditSummary | null } {
   const s = storage()
-  if (!s) return null
+  if (!s) return { last: null, previous: null }
   try {
     const raw = s.getItem(KEY)
-    if (!raw) return null
-    const v = JSON.parse(raw) as AuditSummary
-    return v && typeof v.audit_id === 'string' && typeof v.site === 'string' ? v : null
+    if (!raw) return { last: null, previous: null }
+    const v = JSON.parse(raw)
+    if (valid(v)) return { last: v, previous: null }
+    const pair = v as { last?: unknown; previous?: unknown }
+    return {
+      last: valid(pair?.last) ? pair.last : null,
+      previous: valid(pair?.previous) ? pair.previous : null,
+    }
   } catch {
-    return null
+    return { last: null, previous: null }
   }
+}
+
+export function loadLastSummary(): AuditSummary | null {
+  return loadAuditPair().last
 }
 
 export function saveLastSummary(summary: AuditSummary): void {
   const s = storage()
   if (!s) return
+  const pair = loadAuditPair()
+  const previous = pair.last && pair.last.audit_id !== summary.audit_id ? pair.last : pair.previous
   try {
-    s.setItem(KEY, JSON.stringify(summary))
+    s.setItem(KEY, JSON.stringify({ last: summary, previous }))
   } catch {
     /* quota / mode privé : la comparaison reste absente, jamais inventée */
   }

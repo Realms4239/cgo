@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { compareAudits, loadLastSummary, saveLastSummary, summaryOf, type AuditSummary } from './auditSummary'
+import { compareAudits, loadAuditPair, loadLastSummary, saveLastSummary, summaryOf, type AuditSummary } from './auditSummary'
 import type { AuditReport } from './types'
 
 const report = (over: Partial<AuditReport> = {}): AuditReport => ({
@@ -61,6 +61,14 @@ describe('résumé local', () => {
     const s = summaryOf(report())
     saveLastSummary(s)
     expect(loadLastSummary()?.audit_id).toBe('audit-1')
+  })
+
+  it('conserve aussi l’audit d’avant — la comparaison survit au rechargement', () => {
+    saveLastSummary({ audit_id: 'a1', site: 'Département X', link_type: '5g', small_p95_ms: 400 })
+    saveLastSummary({ audit_id: 'a2', site: 'Département X', link_type: '5g', small_p95_ms: 300 })
+    const pair = loadAuditPair()
+    expect(pair.last?.audit_id).toBe('a2')
+    expect(pair.previous?.audit_id).toBe('a1')
   })
 
   it('un localStorage corrompu ne casse pas le tableau de bord', () => {
