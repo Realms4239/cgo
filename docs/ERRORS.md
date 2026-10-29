@@ -120,3 +120,38 @@ A fixed defect stays because it is the evidence that it was understood.
   `python tools/verify.py` re-run → `6 passed, 0 failed, 0 not run`. The
   slice-9 fix covered the skip test, not every matrix test that starts a run;
   the general fix (a done channel that `Stop` waits on) remains open.
+- Update 2026-10-29 (fix): `TestMatrixFilteredSubmatrix` and the new
+  `TestExplicitBBRv3AcceptedWhenPresent` now `defer stopWait(t, m)`, so the
+  matrix is stopped and drained before `t.TempDir()` cleanup. Stress:
+  `go test ./pkg/campagne -run
+  'TestMatrixFilteredSubmatrix|TestExplicitBBRv3AcceptedWhenPresent' -count=10`
+  → `ok`, 11.0 s. Full suite green. The generic done-channel remains a design
+  improvement, not a current failure.
+
+## E6. Host blocks IPv4 ICMP loopback (observed 2026-10-29)
+
+- Symptom: `go test ./pkg/probe -run TestPingLiveLoopback` fails with “live ping
+  returned no samples”; a manual `ping 127.0.0.1` loses 100 %.
+- Diagnosis: `ping -4 8.8.8.8` and `ping -6 ::1` both answer; only IPv4 loopback
+  is filtered on this Windows host (public firewall profile enabled, rule
+  inspection denied to the current user). The product's external IPv4 path is
+  not implicated.
+- Fix: the smoke test uses `::1` and keeps the real `ping` binary and parser in
+  the path; the comment records the host quirk. No product code changed.
+- Lesson: a live integration test must name the environment it depends on; a
+  blocked loopback is not a parser regression. Do not “fix” it by fabricating
+  samples.
+
+## E7. Full C: disk and a cold Go cache made the exit gate time out (observed 2026-10-29)
+
+- Symptom: `python tools/verify.py` → `tests` failed with `link.exe: resize
+  output file failed: Espace insuffisant sur le disque`, then the `exit` gate's
+  `go build ./cmd/cgo` timed out after 300 s.
+- Cause: C: was at 99 % (1.2 GB free) and `go clean -cache` had emptied the
+  build cache; the first link plus the test binaries did not fit in the wall.
+- Fix: removed only regenerable caches and our own temp artifacts (`go clean
+  -cache`, `/tmp/cgo-ui`, old screenshots), then warmed `go build ./cmd/cgo`
+  before rerunning. Full verify → `6 passed, 0 failed, 0 not run`. No product
+  code changed.
+- Lesson: run the disk check before a full gate on this host; a cold cache needs
+  one warm build and ~2.5 GB free.

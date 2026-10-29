@@ -746,3 +746,53 @@ end, at a settled decision, and at a handoff.
   stays `PENDING`.
 - Next: independent verifier re-runs the four commands and owns the `VERIFIED`
   row; the human pastes the citation into the thesis.
+
+## 2026-10-29 15:41 UTC · deferred engines Windows pass, integrity truth, Synthèse UI
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `9a59276` before the ledger
+  commit (code commits `53bd6a2`, `41ef618`, `ca09893`, `9a59276`). `book/` and
+  `PRODUCT.md` stay working-tree only.
+- Changed: `pkg/results`, `pkg/api`, `web/frontend` integrity counts; `pkg/model`,
+  `pkg/doctor`, `pkg/campagne`, `cmd/cgo`, `kit/install-bbr3.sh` for BBRv3;
+  `pkg/audit`, `pkg/qdisc`, `pkg/campagne`, `cmd/cgo` for trace-driven `.dist`;
+  `web/frontend` Synthèse, SVG nav, deferred mounting and last-audit strip;
+  `book/content` and `book/figures` (topology, current UI captures); `PRODUCT.md`
+  rewritten (gitignored); docs, plan index, ledgers.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-10-29:
+  `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (after the
+  environment fixes below);
+  `cd web/frontend && npm test` → 41 files, 161 tests passed;
+  `npm run build` → typecheck + Vite + bundle, exit 0, 342.3 KB gz;
+  `go test ./... -count=1` → every package `ok`, including the new model,
+  doctor, campagne, audit, qdisc and cmd tests;
+  `bash -n kit/install-bbr3.sh` → exit 0;
+  `GOOS=linux GOARCH=amd64 go build ./pkg/... ./cmd/cgo/... ./cmd/meteolink/...`
+  → exit 0;
+  `python book/tools/audit-archive.py` → exit 0, both `OK` lines;
+  `python book/tools/audit-biblio.py` → 47/47 cited;
+  `node book/build-docx.js` → `book/memoire-rebuild.docx` (2793 Ko);
+  `memoire.docx` SHA-256 unchanged (`bd171227…6a2e030`);
+  book body 15,042 words, total 16,752 (ceilings 15,300/17,000);
+  `book/figures/figR1-topologie.png` now shows the four-namespace dual-ns
+  topology with the management veth and IFB ingress; Annex E uses fresh
+  1920×1080 captures of Campagne, Live replay, Résultats, Comparaison and
+  Provenance, and the provenance capture shows 159 runs / 208 valid / 74
+  degraded / 246 quarantined.
+- Environment failures, all recorded: C: at 99 % plus a cold Go cache made the
+  `exit` gate time out (E7); IPv4 ICMP loopback is blocked on this host while
+  external IPv4 and `::1` answer, so `TestPingLiveLoopback` now uses `::1`
+  (E6); the E5-family Windows temp-cleanup flake recurred in
+  `TestMatrixFilteredSubmatrix`, and that test plus the new bbr3 test now
+  `defer stopWait(t, m)` — 10× stress pass (E5 update).
+- Live test: **not possible**. `ssh Airis@100.72.251.32` timed out;
+  `tailscale status` could not reach `tailscaled`; the PC2 runbook is a
+  Windows/WSL Graylog lab, not the Linux 6.8 CGO bench. No live audit,
+  campaign, IFB or BBRv3 run was attempted. The `PC2 / nemo live bench access`
+  row is `BLOCKED`.
+- Unproven: Linux 6.8 live acceptance for the bench, IFB ingress, interface
+  sampler, `.dist` and BBRv3; production access and field audit; eBPF ground
+  truth. The engines are Windows-green, not live-verified. Independent
+  verifier pending for slices 8 and 14 and both engine rows.
+- Next: restore the tailnet and PC2 or use the Linux 6.8 bench; then run the
+  `.dist`/BBRv3 Task 8 acceptance. Human review of the rendered book and the
+  Synthèse screenshots remains the decision point.

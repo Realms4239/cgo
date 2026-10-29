@@ -83,6 +83,38 @@ Ces profils sont des **défauts surchargeables** par import (`/api/profile/impor
 ce qui permet de caler la matrice sur un lien réel audité au préalable
 (`pkg/audit` → `data/link_audit.csv`).
 
+### 2.1 Distribution empirique (`.dist`)
+
+Le délai d'un profil peut être rejoué depuis une trace d'audit plutôt que
+depuis le couple déclaré `delay/jitter`. La calibration ne retient que la
+phase **baseline** de `data/audits/<id>/telemetry.csv` : les échantillons
+sous charge décrivent l'AQM testé, pas le lien.
+
+```
+cgo calibrate --audit audit-XXXX --profile P2
+```
+
+Le profil doit exister (`pkg/model`, import compris) et sa médiane RTT doit
+dépasser son `delay_ms`. La commande écrit `data/calibrations/P2.dist`
+(table netem native, 1024 entrées, échelle 8192) et `P2.json` (provenance
+scellée : audit source, SHA-256 de la télémétrie et du `.dist`, site, type
+de lien, percentiles source et reconstruits).
+
+Convention : `delay_ms` est un **RTT**. Le mode dist pose `plancher/2` sur
+chaque saut et la table empirique sur le seul saut mesuré (`w-edge` en
+montée, `c-wan` en descente), donc RTT ≈ plancher + résidu. Le mode est
+opt-in :
+
+```
+CGO_DELAY_MODEL=dist CGO_CALIBRATION_DIR=$PWD/data/calibrations   cgo run --bench dualns --profiles P2 --direction up
+```
+
+Une calibration absente, périmée (profil modifié) ou dont le `.dist` ne
+correspond plus au sceau arrête l'événement **avant** toute mutation qdisc :
+jamais de repli synthétique. `both` est refusé (une trace = un sens). Le
+scalaire reste le défaut. Les traces `SMOKE-TEST` locales ne sont pas une
+preuve terrain et aucun `.dist` qui en dérive n'est cité.
+
 ## 3. Plan factoriel
 
 Matrice complète (**Tableau 3**) : profils × qdiscs × CC × répétitions.
@@ -278,3 +310,50 @@ Les tests Windows prouvent la génération des commandes, les champs du rapport
 et l'ordre fermé-échec du préflight. Ils ne prouvent pas qu'un noyau 6.8
 accepte les commandes ni que l'IFB jette réellement sous charge. Cette preuve
 est la tâche d'acceptation Linux, distincte et bloquée.
+
+## 10. BBRv3 : noyau, étiquette et matrice 3×3
+
+La section 9 est réservée au façonnage descendant IFB (plan distinct). Cette
+section décrit la troisième ligne de contrôle du plan factoriel.
+
+### 10.1 Pourquoi un noyau
+
+BBRv3 n'est pas un module de contrôle de congestion : Google le publie comme
+une arborescence de noyau complète (`google/bbr`), avec des changements dans
+le cœur TCP. Le noyau 6.8 d'Ubuntu n'expose que `bbr`, qui est **BBRv1**.
+La décision #8 du projet reste donc vraie : `bbr` signifie BBRv1. BBRv3
+entre sous une étiquette additive, `bbr3`, et seulement sur un hôte dont le
+noyau enregistre ce nom.
+
+### 10.2 Provisionnement opt-in
+
+`kit/install-bbr3.sh` construit la branche `bbr-v3-2026-09-16-01` (Linux 7.1)
+sur la VM, avec `CONFIG_TCP_CONG_BBR=y` et `CONFIG_TCP_CONG_BBR3=y`. Les deux
+contrôles vivent alors dans le même noyau : la comparaison v1/v3 ne change
+qu'une variable. Le script n'est jamais appelé par `cgo run`, `cgo deploy` ou
+`cgo kit bootstrap` ; il s'exécute sur la console ou via `cgo kit ssh`. Le
+redémarrage est manuel par défaut. Le noyau précédent reste dans GRUB.
+
+### 10.3 Matrice
+
+```bash
+./kit/run-dualns.sh up
+sudo ip netns exec ns_client env CGO_BENCH=dualns ~/cgo/cgo-linux run \
+  --bench dualns --direction up --profiles P2 \
+  --qdiscs pfifo_fast,fq_codel,cake \
+  --cc cubic,bbr,bbr3 \
+  --reps 3 --flows 4 --target 10.30.0.2
+```
+
+Neuf cellules, trois répétitions, 27 événements. Le sens montant reproduit
+la campagne du mémoire. Ce jeu de runs est **autonome** : il ne se fusionne
+pas numériquement avec les cellules du corpus 6.8 ni avec le Tableau 15,
+qui viennent d'un autre banc et d'un autre régime de flux. Chaque manifeste
+gele le noyau (`kernel`) avec la configuration ; une ligne `cc=bbr3` n'est
+citable qu'avec ce noyau.
+
+### 10.4 Portée
+
+La matrice n'active ni ECN ni L4S : les cellules comparent le comportement
+sous perte et délai, pas les signaux ECN de BBRv3. Le façonnage descendant
+reste celui de la section 9 ; la matrice ne dépend pas de l'IFB.

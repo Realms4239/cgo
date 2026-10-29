@@ -68,6 +68,10 @@ renvoie le dernier échantillon sans avancer la fenêtre.
 | `/api/run/rows?run=` | GET | — | `{"run", "rows": [lignes brutes aqm_eval.csv]}` | `400` id de run vide ou contenant `/`, `\`, `.` (anti-traversal) ; `404` run introuvable ou vide |
 | `/api/events` | GET | — | `{"events": [{ts, kind, msg}, …]}` — anneau des 50 derniers | — |
 
+`cc=bbr3` n'est accepté que si `/proc/sys/net/ipv4/tcp_available_congestion_control`
+expose exactement le token `bbr3` ; sinon `400` avec le chemin
+`kit/install-bbr3.sh`, jamais un repli silencieux. `bbr` reste BBRv1.
+
 ## Intégrité, rapport, figures
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |

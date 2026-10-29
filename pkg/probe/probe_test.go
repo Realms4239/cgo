@@ -31,10 +31,13 @@ func TestParsePingWindowsLocales(t *testing.T) {
 	}
 }
 
-// TestPingLiveLoopback — le binaire ping réel répond sur 127.0.0.1 avec les
-// args de la plateforme (`-n` Windows, `-c` Unix). ~2 s.
+// TestPingLiveLoopback — le binaire ping réel répond sur la boucle locale.
+// On utilise ::1 : sur cet hôte Windows, 127.0.0.1 perd 100 % des ICMP
+// (filtre local), alors que ::1 et l'ICMP IPv4 externe répondent. Le test
+// garde donc le vrai binaire ping et son parseur sans dépendre de ce défaut
+// d'environnement ; l'audit IPv4 réel est couvert par les cibles externes.
 func TestPingLiveLoopback(t *testing.T) {
-	s, err := Ping(context.Background(), "127.0.0.1", 2, 200)
+	s, err := Ping(context.Background(), "::1", 2, 200)
 	if err != nil {
 		t.Fatalf("live ping failed: %v", err)
 	}

@@ -1,6 +1,6 @@
 # CGO — plan and specification index
 
-*Last updated: 2026-10-28 · Branch: `rebuild/plan1-economics-audit`*
+*Last updated: 2026-10-29 · Branch: `rebuild/plan1-economics-audit`*
 
 This is the single index for every CGO rebuild plan. A **spec** is the design
 contract for one slice; a **plan** is the implementation contract that follows
@@ -29,15 +29,16 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 2 | Hardened bench & campaign | same umbrella spec | `2026-10-25-cgo-plan2-bench-campaign.md` | **Done** (committed; checkboxes not maintained) | 1 | — |
 | 3 | UI/API surface | same umbrella spec | `2026-10-25-cgo-plan3-ui-api-surface.md` | **Done** (29/29 checked) | 1–2 | — |
 | 4 | eBPF ground truth | `2026-10-27-cgo-ebpf-ground-truth-design.md` | `2026-10-27-cgo-ebpf-ground-truth.md` | **Blocked** | stable Linux 6.8 host; prebuilt `bpf_probe.o` | Build `bpf_probe.o` on Linux 6.8, then execute the plan; Windows cannot run Task 1 Step 4 or the live gates |
-| 5 | Trace-driven netem `.dist` | `2026-10-27-cgo-trace-driven-dist-design.md` | `2026-10-27-cgo-trace-driven-dist.md` | **Deferred** (user stopped execution) | real field trace; Linux 6.8 bench for acceptance | Resume only on user request; do not commit a `.dist` built from the two local `SMOKE-TEST` traces |
+| 5 | Trace-driven netem `.dist` | `2026-10-27-cgo-trace-driven-dist-design.md` | `2026-10-27-cgo-trace-driven-dist.md` | **Windows-green** (engine Tasks 1–7) | real field trace; Linux 6.8 bench for acceptance | Produce a field trace of at least 30 baseline samples, run `cgo calibrate`, then Task 8 on Linux; never cite a `SMOKE-TEST` `.dist` |
 | 6 | Ingress IFB shaping | `2026-10-27-cgo-ifb-ingress-design.md` | `2026-10-27-cgo-ifb-ingress.md` | **Windows-green** (verifier pass 2026-10-28) | Linux 6.8 bench for live acceptance; Windows for engine | Engine row `VERIFIED`; Task 9 not executed, live acceptance blocked on a stable Linux 6.8 bench. |
-| 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Deferred** | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Deferred by the user; revisit only when a 7.1 BBRv3 kernel is built and booted. Do not execute now |
+| 7 | BBRv3 evaluation matrix | `2026-10-27-cgo-bbrv3-matrix-design.md` | `2026-10-27-cgo-bbrv3-matrix.md` | **Windows-green** (engine Tasks 1–7) | 7.1 BBRv3 kernel provisioning; live Linux acceptance | Build and boot the 7.1 BBRv3 kernel on the bench VM, then run Task 8; `bbr` still means BBRv1 |
 | 8 | Audit report surface & thesis citation | `2026-10-28-cgo-audit-surface-citation-design.md` | `2026-10-28-cgo-audit-surface-citation.md` | **In progress** (builder pass; verifier pending) | 1, 3, 10 (done); not 4–7 | Independent verifier re-runs `npm test`, `npm run build`, the Go tests and `python tools/verify.py`; the thesis paste stays the human's |
 | 9 | Engineering system (AIR × DIS synthesis) | `2026-10-27-cgo-engineering-system-design.md` | `2026-10-27-cgo-engineering-system.md` | **Done** (verifier pass 2026-10-28) | — (process layer; runs before any live slice) | — (merge to `main` is the human's decision) |
 | 10 | Live interface observation | `2026-10-27-cgo-live-interface-observation-design.md` | `2026-10-27-cgo-live-interface-observation.md` | **Done** | 9 Phase A; twin bench | — (Phase 2 pending operator access) |
 | 11 | Frozen corpus seal anchor | `2026-10-28-cgo-corpus-seal-design.md` | `2026-10-28-cgo-corpus-seal.md` | **Done** (verifier pass 2026-10-28) | — | — (follow-up: FAIL instead of SKIP on a partial `book/`; recorded) |
 | 12 | Book truth-up & prose restructure | `2026-10-28-cgo-book-truth-up-design.md` | `2026-10-28-cgo-book-truth-up.md` | **Done** (book working tree, never committed) | 1–3, 6, 10, 11 | — (human review of the rendered book; front-matter placeholders remain) |
 | 13 | Production-facing reframing & economic reconciliation | `2026-10-28-cgo-production-reframing-design.md` | `2026-10-28-cgo-production-reframing.md` | **Done** (book working tree, never committed) | 12 | — (human review of the rendered book; production access and independent verification remain open) |
+| 14 | Operator overview & navigation | `2026-10-29-cgo-operator-overview-design.md` | `2026-10-29-cgo-operator-overview.md` | **Done** (builder pass; verifier pending) | 8, 13 | Independent verifier re-runs `npm test`, `npm run build` and `python tools/verify.py` |
 
 ## What each live plan covers
 
@@ -59,14 +60,20 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Blocker: no committed `bpf_probe.o`; Windows has no clang/bpftool/BTF; the
   CGO-DEV VM is unstable. Do not call eBPF "verified" before the live test.
 
-### Slice 5 — trace-driven `.dist` (deferred)
+### Slice 5 — trace-driven `.dist` (Windows-green)
 
 - Scope: strict telemetry reader, baseline-only quantile table, sealed native
   netem `.dist` + sidecar, opt-in `CGO_DELAY_MODEL=dist`, fail-closed loading.
 - Scope guard: no IFB, BBRv3, eBPF, UI, or thesis work here.
-- Blocker: a real field trace. The two `SMOKE-TEST` traces have 19 and 25
-  rows, below the 30-sample floor, and are not citable. Live netem acceptance
-  needs the Linux 6.8 bench.
+- Evidence: 2026-10-29 on DESKTOP-B6K9UCM: `go test ./pkg/audit ./pkg/qdisc
+  ./cmd/cgo ./pkg/campagne` → `ok`; `TestReadTelemetry*`, `TestBuildCalibration*`,
+  `TestWriteLoadCalibration*`, `TestApplyPhysicsDist*` and
+  `TestRunCalibrateWritesSealedArtifacts` pass; `bash -n kit/install-bbr3.sh`
+  clean; full `python tools/verify.py` → 6 passed. No `.dist` artifact is
+  committed; tests use `t.TempDir()`. Task 8 remains blocked.
+- Next: produce a real field trace of at least 30 baseline samples, run
+  `cgo calibrate`, then the Linux 6.8 netem acceptance. Never cite a
+  `SMOKE-TEST` `.dist`.
 
 ### Slice 6 — ingress IFB shaping (Windows-green)
 
@@ -82,7 +89,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   `cmd/cgo-gui` cross-build, four fault proofs red-then-green, six gates
   `6 passed`. Engine row `VERIFIED`; Task 9 row stays `BLOCKED`.
 
-### Slice 7 — BBRv3 evaluation matrix (deferred)
+### Slice 7 — BBRv3 evaluation matrix (Windows-green)
 
 - Scope: additive `bbr3` label gated on an exact token in
   `/proc/sys/net/ipv4/tcp_available_congestion_control`; P2 ×
@@ -90,10 +97,14 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   `flows=4`; documented command, not a new preset.
 - Scope guard: `bbr` keeps meaning BBRv1; no UI, ECN/L4S, IFB, `.dist`, eBPF,
   or thesis chapter. The frozen corpus and Tableau 15 stay untouched.
-- Blocker: the 7.1 BBRv3 kernel must be built and booted on the bench VM.
-  Windows can only prove the engine; `--cc bbr3` fails closed on a stock host.
-  **Deferred by the user**; do not execute now. Revisit only on request, after
-  the kernel is available.
+- Evidence: 2026-10-29 on DESKTOP-B6K9UCM: `go test ./pkg/model ./pkg/doctor
+  ./pkg/campagne ./cmd/cgo` → `ok`; exact-token gating refuses explicit `bbr3`
+  on a stock host and accepts it when the stub kernel exposes it; the kernel
+  release is frozen in the matrix config; `bash -n kit/install-bbr3.sh` clean;
+  `GOOS=linux go build ./pkg/... ./cmd/cgo/... ./cmd/meteolink/...` → exit 0.
+  Full `python tools/verify.py` → 6 passed. Task 8 remains blocked.
+- Next: build and boot the 7.1 BBRv3 kernel on the bench VM, then run Task 8;
+  `bbr` still means BBRv1. No live BBRv3 claim is made.
 
 ### Slice 8 — audit report surface & thesis citation (builder pass)
 
@@ -207,6 +218,21 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   `book/` is working-tree only, never staged.
 - Unproven: no production measurement, no field audit, no Linux live
   acceptance; independent verifier pending.
+
+### Slice 14 — operator overview and navigation (builder pass)
+
+- Scope: add the Synthèse landing (frozen-proof counts, aggregated P2 constat,
+  next action, last audit, four shortcuts), authored SVG nav icons, contextual
+  chart toggles, and first-visit mounting of the heavy views.
+- Scope guard: no redesign of the four existing views, no new data claim, no
+  new backend endpoint or dependency, no production access.
+- Evidence: 2026-10-29 on DESKTOP-B6K9UCM: `cd web/frontend && npm test` → 41
+  files, 161 tests passed; `npm run build` → typecheck + Vite + bundle, 342.3 KB
+  gz; screenshots at 1920×1080 and 1366×1080 show 159 runs / 208 valid / 74
+  degraded / 246 quarantined and the aggregate P2 constat; full
+  `python tools/verify.py` → 6 passed.
+- Next: independent verifier re-runs the frontend gates; visual review stays
+  the human's.
 
 ## Historical plans
 
