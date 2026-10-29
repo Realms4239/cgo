@@ -608,3 +608,10 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .syn-proof-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .syn-proof-cell b { font: 600 30px/1 var(--font-mono); color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-tight); }
 .syn-proof-cell span { font: var(--fs-micro) var(--font-mono); color: var(--text-faint); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
+.syn-audit { border-top: 1px solid var(--hairline); padding-top: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+.syn-audit-row { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; }
+.syn-audit-row > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.syn-audit-row span { font: var(--fs-micro) var(--font-mono); color: var(--text-faint); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
+.syn-audit-row b { font: 600 var(--fs-body) var(--font-mono); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.syn-audit-row .btn { margin-left: auto; }
+@media (max-width: 900px) { .syn-audit-row .btn { margin-left: 0; } }

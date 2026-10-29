@@ -5,6 +5,7 @@ import { CardHead } from '../components/ui/CardHead'
 import { Provenance } from '../components/ui/Provenance'
 import { NavIcon } from '../components/NavIcon'
 import { nextStep, pickHeadline, type SynGroup } from '../lib/synthese'
+import type { AuditReport } from '../lib/types'
 
 type Integrity = {
   available?: boolean
@@ -25,6 +26,7 @@ export default function SyntheseView() {
   const running = useUIStore(s => !!s.live?.running)
   const [integrity, setIntegrity] = useState<Integrity | null>(null)
   const [groups, setGroups] = useState<SynGroup[]>([])
+  const [audit, setAudit] = useState<AuditReport | null>(null)
   const [mode, setMode] = useState('')
   const [failed, setFailed] = useState(false)
 
@@ -34,12 +36,14 @@ export default function SyntheseView() {
       fetch('/api/integrity').then(r => r.json()).catch(() => null),
       fetch('/api/results').then(r => r.json()).catch(() => null),
       fetch('/api/health').then(r => r.json()).catch(() => null),
-    ]).then(([i, r, h]) => {
+      fetch('/api/audit/status').then(r => r.json()).catch(() => null),
+    ]).then(([i, r, h, a]) => {
       if (!alive) return
       if (i?.available) setIntegrity(i)
       else setFailed(true)
       if (Array.isArray(r?.groups)) setGroups(r.groups)
       if (h?.mode) setMode(h.mode)
+      setAudit(a?.report ?? a?.last ?? null)
     })
     return () => { alive = false }
   }, [])
@@ -133,6 +137,27 @@ export default function SyntheseView() {
           </button>
         ))}
       </nav>
+
+      <section className="syn-audit">
+        <CardHead label="Dernier audit" />
+        {audit ? (
+          <div className="syn-audit-row">
+            <div>
+              <b>{audit.site || 'site —'}</b>
+              <span>{audit.link_type || 'lien —'}{audit.provider ? ` · ${audit.provider}` : ''}</span>
+            </div>
+            <div><span>p95 chargé</span><b>{pct(audit.measured?.rtt_loaded_p95_ms)}<small> ms</small></b></div>
+            <div><span>échéances</span><b>{audit.cap_sla?.measured ? `${pct(audit.cap_sla.ok_pct)} %` : '—'}</b></div>
+            <Badge tone={audit.bloat_grade?.startsWith('A') ? 'success' : audit.bloat_grade?.startsWith('C') ? 'warning' : 'steel'}>{audit.bloat_grade || 'non noté'}</Badge>
+            <button className="btn" onClick={() => setPanel('campagne')}>Ouvrir l’audit</button>
+          </div>
+        ) : (
+          <div className="syn-audit-row">
+            <p className="syn-read">Aucun audit sur ce poste. Un audit de 60 s mesure le lien sans droits administrateur et scelle son rapport.</p>
+            <button className="btn btn-primary" onClick={() => setPanel('campagne')}>Auditer un lien</button>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
