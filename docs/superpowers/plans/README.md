@@ -39,7 +39,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 12 | Book truth-up & prose restructure | `2026-10-28-cgo-book-truth-up-design.md` | `2026-10-28-cgo-book-truth-up.md` | **Done** (book working tree, never committed) | 1–3, 6, 10, 11 | — (human review of the rendered book; front-matter placeholders remain) |
 | 13 | Production-facing reframing & economic reconciliation | `2026-10-28-cgo-production-reframing-design.md` | `2026-10-28-cgo-production-reframing.md` | **Done** (book working tree, never committed) | 12 | — (human review of the rendered book; production access and independent verification remain open) |
 | 14 | Operator overview & navigation | `2026-10-29-cgo-operator-overview-design.md` | `2026-10-29-cgo-operator-overview.md` | **Done** (builder pass; verifier pending) | 8, 13 | Independent verifier re-runs `npm test`, `npm run build` and `python tools/verify.py` |
-| 15 | Interface v2 — four-mode console | `2026-10-29-cgo-interface-v2-design.md` | — (plan after spec review) | **Approved** | 8, 10, 14 | Review the spec, then write the implementation plan; no code yet |
+| 15 | Interface v2 + academic title | `2026-10-29-cgo-interface-v2-design.md` | — (plan after spec review) | **Approved** (revised after critique) | 8, 10, 14 | Review the revised spec, then write the implementation plan; no code yet |
 
 ## What each live plan covers
 

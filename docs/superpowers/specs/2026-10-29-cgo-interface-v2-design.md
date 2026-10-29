@@ -1,205 +1,255 @@
-# CGO interface v2 — four-mode operator console
+# CGO interface v2 and academic title
 
-*Status: approved by user 2026-10-29 · Branch: `rebuild/plan1-economics-audit` ·
-Slice 15 · UI only; no API, CSV, corpus, or book change*
+*Status: revised after critical review, awaiting user spec review · 2026-10-29 ·
+Branch: `rebuild/plan1-economics-audit` · Slice 15 · UI and product copy only;
+no API, CSV, corpus, or measurement change*
 
 ---
 
 ## 1. Why
 
 The current interface has six panels, a top tab row and a left rail. The audit
-lives in a sidebar inside Campagne; the same proof/status appears in Synthèse,
-the ribbon and Provenance; parameters such as target, provider and interfaces
-are visible up front; and every view mounts at boot. The openchamber slice-10
-session and the older UI plans converge on the same diagnosis: the product has
-three verbs (audit, shape/compare, prove), but the interface exposes six
-intents and a wall of controls.
+lives in a sidebar inside Campagne; proof/status is repeated in Synthèse, the
+ribbon and Provenance; parameters such as target, provider and interfaces are
+visible up front; every view mounts at boot. The operator cannot answer three
+questions in one place: what is the real link doing, what would remediation
+change, and what does it cost?
 
-The redesign is a **feature-preserving rearrangement**, not a feature cut.
-Every current screen, modal, chart, table, control, replay, compare, citation
-and history surface remains reachable. Only the duplicated navigation chrome
-and the decorative WebGL background are removed.
+This spec replaces the navigation shell, flattens the benchmark workspace, and
+sets a two-layer language: plain operational French by default, the academic
+statistics one disclosure down. It preserves every current feature.
 
-## 2. Sources and decisions carried over
+## 2. Academic title (adopted)
 
-| Source | What it settles |
-|---|---|
-| `PRODUCT.md` | Three product verbs, primary DSI technician, no production control |
-| `DESIGN.md` | Dark instrument world, tokens, Inter/mono discipline |
-| 2026-09-03 leaderboard design | Benchmark banner, IQR/n, compare, method drawer |
-| 2026-09-05 proof design | Valid-only, CI/MW/Cliff, results pinning, TUI parity |
-| Plan 3 (2026-10-25) | Staged audit, report card, cockpit, results dépouillés, design floor |
-| Slice 10 session (openchamber) | One-screen “what is protected / what it costs / what changed”; twin/observed labels; no replay buffer or interpolation; 10 Hz sampler |
-| Slice 14 Synthèse | Proof counts, aggregate P2 constat, next action, last audit |
+The thesis title becomes:
 
-The IDEA memos are used for the **operator story** (protected classes, cost,
-change) only. Their production-control claims, hostname/IP and unmeasured
-latency numbers stay excluded, as slice 12/13 established.
+> **Optimisation du transport réseau et garantie d’échéances temps réel pour la
+> diffusion d’alertes hydrométéorologiques sur des liens d’accès contraints**
 
-## 3. The four modes
+Subtitle:
 
-`Aperçu · Audit · Lab · Evidence`. One mode rail, keyboard 1–4. `Aperçu` is the
-landing; its primary action is `Auditer un lien`.
+> **Régulation du bufferbloat par gestion active de file (AQM), contrôle de
+> congestion BBR et application au système d’information de Météo Madagascar**
 
-**Aperçu** — the one-screen operator story, three columns/sections:
-- **Ce qui est protégé** — the last sealed audit's critical-traffic deadline
-  rate and the frozen P2 comparison (file simple vs best active discipline),
-  each labelled `gelé`, `twin`, or `observé`. No production-protection claim.
-- **Ce que ça coûte** — enterprise primary scenario and the retail overage
-  bound from the last report; contractual-scenario disclaimer.
-- **Ce qui a changé** — last audit vs the previous audit on the same site/link
-  when both exist; otherwise an explicit “aucune comparaison disponible”.
-Primary action: Audit. Secondary links: Lab, Evidence.
+The title states the optimisation and the real-time deadline objective; the
+subtitle states the mechanism and the institutional case. “Garantie” is the
+evaluated deadline objective on the bench, not a production SLA. The chapter I
+limitation paragraph stays: no production measurement, no production control.
+The string is applied verbatim to `PRODUCT.md`, the book title page, the cover
+XML, the running header and the metadata; no other title variant survives.
 
-**Audit** — presets, four visible decisions, advanced disclosure, phase
-timeline, full report, citation, remediation, history. See §6.
+## 3. Four modes, no nested tabs
 
-**Lab** — sub-tabs `Campagne · Live · Résultats`. All current cockpit, matrix,
-live wall, controls, journal, leaderboard, filters, compare, export and replay
-features remain; advanced controls collapse. See §7.
+`Tableau de bord · Auditer · Banc d’essai · Preuves & Rapports`. One mode rail,
+keyboard 1–4. Each mode is a single screen; the benchmark is not a second tab
+taxonomy.
 
-**Evidence** — current Provenance: proof banner, source explanations, runs
-table, quarantine, manifest verification. See §9.
+- **Tableau de bord** — the operator story: what the real link is doing, what
+  remediation would change, what it costs, what changed since the last audit.
+- **Auditer** — presets, four visible decisions, live phases, full report,
+  citation, remediation, history.
+- **Banc d’essai** — one linear workspace: `Configurer → Observer → Résultats`.
+  All campaign/live/results features sit in those three sections; no sub-tabs.
+- **Preuves & Rapports** — corpus proof, runs, quarantine, audit reports and
+  exportable citations.
 
-## 4. Feature preservation map
+The mode rail replaces the old `PanelChooser` + `Rail` pair. The decorative
+WebGL mesh is removed. `AuditHistoryModal`, `CompareView`, `SettingsDrawer`,
+`CommandPalette`, `Explain`, `LiveGuide`, `Interpretation`, replay, toasts and
+the flash banner stay.
+
+## 4. Tableau de bord: real vs simulated
+
+The dashboard separates the two evidence worlds in plain French. It never uses
+`twin`, `gelé`, `AQM`, `QDI` or gate IDs as primary labels.
+
+**État du lien réel — audit**
+- Shows the last sealed audit: site/link, timestamp, loaded small-object delay
+  (“Délai sous charge : 328 ms — élevé”), critical-traffic deadline rate
+  (“Alertes à l’heure : 60 % — danger”), and the audit verdict.
+- Label: **« Mesuré sur le lien réel, sans modification »**.
+- If no audit exists: “Aucun audit sur ce poste” with the audit action.
+
+**Remédiation recommandée — simulation**
+- Shows the frozen P2 comparison as a projection, not a measurement of the
+  audited link: file simple vs best active discipline, with `n`.
+- Plain labels: “Avec la file simple : 60 % des alertes à l’heure” vs “Avec
+  CAKE : 98 %”; “Délai sous charge : 328 ms → 210 ms”.
+- Label: **« Simulation de remédiation sur profil P2 — pas une mesure du lien »**.
+- A link to the full results; no claim that the production link was shaped.
+
+**Ce que ça coûte**
+- Enterprise primary scenario and retail overage bound from the last report;
+  “Perte financière : X Ar/h”; contractual-scenario disclaimer verbatim.
+
+**Ce qui a changé**
+- Compares the current audit with the previous audit stored in the local
+  session summary (site, link, deadline rate, loaded delay, timestamp).
+- Label: “Comparaison locale avec l’audit précédent”. If absent or the
+  site/link differs: “Aucune comparaison disponible” — no multi-round-trip
+  archaeology, no blank wait.
+
+## 5. Two-layer language
+
+**Layer 1 — operator.** Plain French, no statistics:
+- `small_p95` → “Délai sous charge” with a qualitative band (faible/modéré/
+  élevé/critique).
+- `deadline_ok_pct` → “Alertes à l’heure” with a danger/ok state.
+- `qdi_ms` → “Instabilité du lien” (stable/modérée/sévère).
+- `cost_ar_per_h` → “Perte financière” (Ar/h).
+- grade → “Qualité du lien” (A–F with words).
+- remediation → one primary button “Copier la configuration MikroTik” and one
+  “Copier la configuration Linux”; raw scripts behind the drawer.
+
+**Layer 2 — researcher.** A per-mode `Détails scientifiques` disclosure:
+- percentiles, IQR, IC95, n, Mann-Whitney, Cliff’s delta, QDI;
+- gates G0–G7 and `Unavailable` entries;
+- full provenance chain, source/telemetry SHA-256, raw scripts;
+- the frozen campaign table and figure links.
+
+The default screen must remain readable by a DSI technician or director; the
+drawer must retain every number the thesis uses.
+
+## 6. Auditer: global execution state
+
+The audit session lives at the application root, not inside the view. It owns
+presets, form, validation, start/stop, polling and the final report. The
+`Auditer` view is a presentation layer over that state.
+
+- Visible decisions: site, link type, duration (20/60), direction.
+- `Avancé`: provider, target, ifaces, free duration, RouterOS LAN, asymmetric,
+  CPU-constrained.
+- Presets fill the form; they never auto-launch.
+- Start → `Observer` (phase timeline, live cards, cancel) → `Lire` (report,
+  citation, remediation, history).
+- Switching to Tableau de bord or Banc d’essai while an audit runs does not
+  stop polling or lose the run; the ribbon shows “Audit en cours” and the view
+  is restored on return. No “suivi interrompu” unless the backend actually
+  stops.
+- Start refusals keep the form and show the server reason; stop keeps the
+  no-partial-CSV rule.
+
+## 7. Banc d’essai: one linear workspace
+
+No sub-tabs. One page with three sections:
+
+1. **Configurer** — profiles, repetitions, flows, channel, deadline, direction,
+   and `LANCER LA CAMPAGNE`. `Avancé`: qdiscs, CCs, target, bench.
+2. **Observer** — the live hero trace, compact metric strip, comparison wall,
+   journal and `Réglages` (shaping/watch/essai). Hidden/collapsed until a run
+   or replay starts; the campaign state is already global SSE.
+3. **Résultats** — the leaderboard, one filter bar, IQR/CI/n in the scientific
+   drawer, compare pin, export, citation and method drawer.
+
+All current campaign/live/results features are preserved inside these sections.
+Replay from Preuves & Rapports lands in `Observer`; `CompareView` opens from
+`Résultats`; no feature requires a nested tab.
+
+## 8. Preuves & Rapports
+
+Corpus proof banner (runs, valid, degraded, quarantined, seal), runs table with
+replay, quarantine table, manifest verification. Add the existing audit list /
+last report and its citation/export surface, so “rapports” is a real destination
+rather than a hidden modal. No new endpoint; `/api/audit/list` and
+`/api/audit/report` already exist.
+
+## 9. Shell and status ribbon
+
+- **Mode rail**: four modes, authored SVG icons, labels when pinned, bottom bar
+  under 700 px. Keyboard 1–4.
+- **Status ribbon**: observation/full · SSE · “Audit en cours” when running ·
+  last audit site/grade · corpus counts · seal `hash8` · `Vérifier`. Fed once by
+  `/api/health`, `/api/integrity`, `/api/audit/status`; refreshed on reconnect
+  and after an audit; no polling.
+- **Visual**: existing dark tokens; hairline sections; Inter for UI, JetBrains
+  Mono for data, Cormorant only in the wordmark; no gradient text, no WebGL,
+  no decorative motion.
+- **Parameters**: only decisions that change the result are visible; advanced
+  controls persist per mode in localStorage.
+
+## 10. Feature preservation map
 
 | Current feature | New home |
 |---|---|
-| Synthèse proof counts / P2 constat / next action / last audit | Aperçu; counts also in the ribbon |
-| Audit presets, form, validation, live phases, stop, report, citation, remediation, history modal | Audit |
-| Campagne cockpit, matrix, SSE state, gates, campaign start/stop | Lab › Campagne |
-| Live cards, charts, comparison wall, journal, shaping/watch controls | Lab › Live |
-| Résultats leaderboard, filters, IQR/CI/n, pin/compare, export, method drawer | Lab › Résultats |
-| Provenance proof banner, runs, quarantine, verify, replay | Evidence |
-| Command palette, settings drawer, explain popovers, toasts, flash | Global |
-| TUI, CLI, API | Unchanged |
-| PanelChooser tri controls (`groupes/craft/source`) | Lab header / `Affichage` |
-| Rail gate strip, sparkline, phase/SSE status | Status ribbon or Lab › Live header |
+| Synthèse counts/P2 constat/next action/last audit | Tableau de bord; counts also in ribbon |
+| Audit presets/form/live/report/citation/history | Auditer |
+| Campagne cockpit/matrix/SSE/gates | Banc d’essai › Configurer + Observer |
+| Live cards/charts/wall/journal/controls | Banc d’essai › Observer |
+| Résultats leaderboard/filters/compare/export | Banc d’essai › Résultats |
+| Provenance proof/runs/quarantine/verify | Preuves & Rapports |
+| Audit list/report/citation | Preuves & Rapports + Auditer |
+| PanelChooser tri controls | Banc d’essai › Affichage |
+| Rail gates/sparkline/phase/SSE | Ribbon or Banc d’essai › Observer |
+| Command palette/settings/explain/toasts/replay | Global |
 | WebGL mesh | Removed; decoration only |
 
-No feature surface is deleted. `AuditHistoryModal`, `CompareView`,
-`SettingsDrawer`, `CommandPalette`, `Explain`, `LiveGuide`, `Interpretation`,
-`Replay`, `Toasts`, `FlashBanner` and all tables/charts stay in the tree.
+No feature surface is deleted. `SyntheseView` is reworked into the dashboard,
+not removed.
 
-## 5. Shell and visual system
+## 11. Throughput
 
-- **Mode rail**: three-state active marker, text labels when pinned, icons when
-  collapsed; bottom bar under 700 px. Authored SVG icons only.
-- **Status ribbon**: observation/full · SSE · last audit (site + grade or none)
-  · corpus `runs / valid / degraded / quarantined` · seal `hash8` · `Vérifier`.
-  Fed once by `/api/health`, `/api/integrity`, `/api/audit/status`; refreshed on
-  reconnect/mode change; expandable provenance drawer. It never polls.
-- **Visual**: existing dark tokens; hairline sections instead of nested cards;
-  Inter for UI, JetBrains Mono for data, Cormorant only in the wordmark; accent
-  colors only for state; no gradient text, no WebGL, no decorative motion.
-- **Parameters**: only decisions that change the result are visible; the rest
-  live under `Avancé` with localStorage persistence per mode.
-- **Motion**: 150–250 ms, state only; reduced-motion paths preserved.
+- One mode mounted at a time; Banc d’essai sections mount when their stage is
+  reached. First-visit cache after.
+- Audit polling lives at the root and continues across modes; no re-fetch burst
+  on return.
+- Remove WebGL and duplicated chrome; status ribbon does three one-shot fetches.
+- Live chart keeps canvas, sample-arrival drawing, no interpolation, no replay
+  buffer; measure sample-to-pixel; do not claim 10 repaints/s.
+- No new dependency; `check-bundle.mjs` stays the budget gate. Record first
+  paint, mode switch and chart advance on this host.
 
-## 6. Audit
+## 12. Errors
 
-Visible form: site, link type, duration (20/60), direction (up/down/both).
-`Avancé`: provider, target, ifaces, free duration, RouterOS LAN, asymmetric,
-CPU-constrained. Three preset rows fill the form but never auto-launch.
-`LANCER L'AUDIT` keeps the double-confirm ArmButton and existing validation.
-
-Stages: `Déclarer` → `Observer` (phase timeline Repos/Charge/Drain, including
-`charge-down`; `AuditLive`; cancel) → `Lire` (`AuditReportCard`: constat,
-charge, CAP SLA, economics, proofs, citation, remediation, unavailable).
-`NOUVEL AUDIT` and the existing history modal remain. Switching mode stops
-polling but not the audit; returning re-reads `/api/audit/status`.
-
-## 7. Lab
-
-Sub-tabs mount on first visit and stay mounted.
-- **Campagne**: profiles, repetitions, flows, channel, deadline, direction,
-  one `LANCER LA CAMPAGNE`; qdiscs/CC/target/bench behind `Avancé`; matrix
-  below; SSE/gates detail in a disclosure. Remove the three-card hero and the
-  audit sidebar.
-- **Live**: hero trace, compact metric strip, comparison wall, collapsible
-  journal; `Réglages` disclosure for shaping/watch/essai. Keep the raw RX/TX
-  interface chart, `smooth:false`, no interpolation, gap breaks.
-- **Résultats**: leaderboard primary; one filter bar; compare toggle per row;
-  export, citation, method drawer. Keep IQR/CI/n and the existing columns.
-
-## 8. Aperçu data rules
-
-- Uses only existing endpoints: `/api/integrity`, `/api/results`,
-  `/api/audit/status`; for “Ce qui a changé”, `/api/audit/list` and
-  `/api/audit/report?audit_id=` to load the previous comparable report. No new
-  endpoint.
-- A missing audit or missing comparison is stated, never zero-filled.
-- “Ce qui est protégé” uses the audit's measured deadline rate and the frozen
-  P2 aggregate with `n`; no production claim.
-- “Ce que ça coûte” uses the report's enterprise scenario; retail remains the
-  overage bound; the disclaimer is verbatim.
-- “Ce qui a changé” requires two comparable audits on the same site/link;
-  otherwise no delta.
-
-## 9. Evidence
-
-Current Provenance content preserved: proof banner (runs, valid, degraded,
-quarantined, seal), runs table with replay, quarantine table, manifest verify.
-Primary action `VÉRIFIER LES MANIFESTES`; detail one level down. The ribbon
-carries the same counts, but Evidence remains the authoritative table.
-
-## 10. Throughput
-
-- Only the active mode and active Lab sub-tab mount; first-visit cache after.
-- Remove `WebGLMesh` from the shell; remove the always-on multi-view mount.
-- Status ribbon does three one-shot fetches, no polling.
-- Live chart keeps the canvas path, draws on real sample arrival, no replay
-  buffer, no interpolation; measure sample-to-pixel, do not claim 10 repaints/s.
-- No new npm/Go dependency; `check-bundle.mjs` stays the budget gate.
-- Acceptance must measure, not assert: first paint, mode switch, and chart
-  advance on this host; record the numbers.
-
-## 11. Errors
-
-- Ribbon fetch failure: `—` + retry; never fabricated counts.
+- Ribbon fetch failure: `—` + retry; never invented counts.
 - Audit start 400/409/501/503: keep the form, show the server reason.
-- Poll failure: “suivi interrompu”, offer refresh; never present a stale report.
+- Backend stop: “suivi interrompu” only when `/api/audit/status` says not
+  running; a mode switch never produces that message.
 - Stop: no partial CSV; report only when status returns.
-- Lab campaign errors unchanged; Evidence verify errors explicit.
-- Unmount during an audit: polling stops, audit continues; return recovers it.
+- Campaign errors stay in Banc d’essai; Evidence verification errors explicit.
 
-## 12. Migration
+## 13. Migration
 
-1. Store: `mode` + `labTab`; replace `panel`. Update App, Rail replacement,
-   Campagne/Live/Results/Evidence entry points, tests.
-2. Shell: ModeRail + StatusRibbon + Aperçu; `SyntheseView` is reworked into
-   `ApercuView` (not deleted); remove PanelChooser/Rail/WebGL.
-3. Audit: extract `useAuditSession` from CampagneView; create `AuditView` +
-   `AuditStage`; remove audit state/sidebar/history from Campagne.
-4. Lab: `LabView` sub-tabs; trim Campagne hero; disclose advanced controls.
-5. Evidence: re-shell Provenance as EvidenceView; no data changes.
-6. Tests/screenshots; no API change.
+1. Store: `mode: dashboard|audit|bench|evidence`; root audit session state;
+   remove `panel`/`labTab`.
+2. Shell: `ModeRail`, `StatusRibbon`, dashboard; remove PanelChooser/Rail/WebGL;
+   rework `SyntheseView` into the dashboard.
+3. Audit: move `useAuditSession` to the root provider; AuditView presentation.
+4. Bench: merge Campagne/Live/Results into one page with three sections; remove
+   sub-tabs; move tri controls to `Affichage`.
+5. Evidence: add audit reports list/citation; keep corpus proof.
+6. Title: update PRODUCT.md, book title page, cover XML, running header and
+   metadata to the §2 string.
 
-## 13. Acceptance
+## 14. Acceptance
 
-- Four modes reachable at 1920/1366/390; Audit default action visible; no
-  horizontal overflow; keyboard 1–4.
-- All feature map rows verified by source test or screenshot.
-- Audit form shows four decisions; advanced disclosure persists; start/stop/
-  report/citation/remediation path unchanged.
-- Lab sub-tabs preserve current data and controls; tri controls reachable.
-- Evidence counts equal `/api/integrity`; seal/copy/verify work.
-- Frontend tests updated and green; typecheck/build; full six gates.
-- Screenshots: Aperçu, Audit idle, Lab Campagne, Lab Résultats, Evidence.
-- No live audit claimed; no API/CSV/corpus/book change.
+- Four modes at 1920/1366/390; keyboard 1–4; no nested tabs.
+- Tableau de bord shows “Mesuré sur le lien réel” and “Simulation de
+  remédiation” as separate, plainly labelled blocks; no `twin`/`gelé` primary
+  labels.
+- Audit survives a mode switch: polling continues, ribbon shows “Audit en
+  cours”, return restores the live/report state; no false “suivi interrompu”.
+- Banc d’essai preserves every campaign/live/results control; no sub-tabs.
+- Every operator label is plain French; scientific details live in the drawer.
+- Preuves & Rapports lists reports and citations without new endpoints.
+- Frontend tests updated and green; typecheck/build; full six gates; screenshots
+  for the four modes and the three bench sections.
+- Title string appears in PRODUCT.md, cover/title page, header and metadata;
+  book audit/build still green.
+- No live audit claimed; no API/CSV/corpus/measurement change.
 
-## 14. Out of scope
+## 15. Out of scope
 
-Backend changes, new endpoints, a new audit-comparison backend, live
-Linux/eBPF/BBRv3/`.dist`, production access, book/thesis edits, a new chart
-library, dark/light theme switch, role-based modes.
+Backend changes, new endpoints (including a diff endpoint), live Linux/eBPF/
+BBRv3/`.dist`, production access, field audit, book prose changes beyond the
+title, role-based modes, new chart library, dark/light switch.
 
-## 15. Risks
+## 16. Risks
 
-- The refactor is broad: extract the audit hook first, keep view internals,
-  move one mode at a time, and keep the 161-test suite green.
-- Aperçu can duplicate Lab/Résultats: keep it summary-only and link to detail.
-- Removing chrome can break keyboard/e2e: update `Rail.test.ts`,
-  `designFloor.test.ts`, `meteolink.test.ts` and capture all modes.
-- Throughput claims must be measured on this host, with the compositor limit
-  recorded rather than hidden.
+- Flattening the bench may produce a long page: use progressive sections and
+  anchor navigation, not nested tabs.
+- Root audit state must be created before the view extraction; test mode-switch
+  continuity explicitly.
+- Removing chrome can break e2e/keyboard tests; update `Rail.test.ts`,
+  `designFloor.test.ts`, `meteolink.test.ts`.
+- Title change touches the book and PRODUCT; run `audit-archive`, `audit-biblio`
+  and `build-docx` after the edit; `book/` stays uncommitted.

@@ -36,7 +36,7 @@ map, not a claim ledger: the authoritative status of a number remains
 | 12 | Book truth-up & restructure | **Done** | `31ad4b1`; book working tree, never committed | Human review of rendered book; placeholders. |
 | 13 | Production-facing reframing | **Done** | `5293799`; title + Model A/B/C + WIS SLA | Book working tree; production access remains blocked. |
 | 14 | Operator overview (Synthèse) | **Builder pass** | `ca09893`, `9a59276`; 161 frontend tests, 6 gates | Independent verifier. |
-| 15 | Interface v2 (four modes) | **Approved** | Spec `2026-10-29-cgo-interface-v2-design.md` | Implementation plan next; no code yet. |
+| 15 | Interface v2 + academic title | **Approved** | Spec `2026-10-29-cgo-interface-v2-design.md`; title Option A adopted | Implementation plan next; no code yet. |
 
 ## Historical plans and what survived
 
@@ -52,11 +52,14 @@ ideas are implemented in slices 1–3, 8 and 10.
 
 | Idea | Source | Disposition |
 |---|---|---|
-| One-screen “what is protected / what it costs / what changed” | `C:\IDEA`; slice-10 session | **Adopted** as Aperçu, as a communication layer over the measured report. |
+| Three service classes A/B/C (alerts, telemetry, bulk) | Slice-10 session | **Adopted as copy/framing**, but only the measured small/bulk series are shown; no invented class metrics. |
+| One-screen “what is protected / what it costs / what changed” | `C:\IDEA`; slice-10 session | **Adopted** as Tableau de bord, split into real audit vs remediation simulation. |
 | Production control / “one-click protection” | `C:\IDEA` | **Rejected as a claim**; the product exports reviewed Linux/RouterOS configuration and says `twin`/`observé`. |
 | Production hostname/IP in the title or UI | `C:\IDEA` | **Rejected**; pseudonymous server, no IP/topology (confidentiality). |
-| Production-oriented title | `C:\IDEA` | **Partially adopted**: main title changed, honest audit/bench subtitle added in slice 13. |
-| Executive one-screen dashboard replacing the cockpit | `C:\IDEA` | **Partially adopted**: Aperçu is the operator story; the Lab cockpit remains for engineers. |
+| Production-oriented title | `C:\IDEA` | **Superseded** by the Option A academic title (2026-10-29): optimisation, temps réel, alertes hydrométéorologiques, AQM/BBR. |
+| Executive one-screen dashboard replacing the cockpit | `C:\IDEA` | **Partially adopted**: Tableau de bord is the operator story; Banc d’essai keeps the engineering cockpit. |
+| Nested Lab sub-tabs (`Campagne/Live/Résultats`) | Slice 15 draft | **Rejected after critique**: one linear Banc d’essai workspace, no nested tabs. |
+| Blending real audit and synthetic simulation | Slice 15 draft | **Rejected after critique**: two separate, plainly labelled blocks — “Mesuré sur le lien réel” and “Simulation de remédiation”. |
 | Three service classes A/B/C (alerts, telemetry, bulk) | Slice-10 session | **Adopted as copy/framing**, but only the measured small/bulk series are shown; no invented class metrics. |
 | eBPF ground truth | Slice 4 | **Kept, blocked** on object + Linux 6.8. |
 | Trace-driven `.dist` | Slice 5 | **Delivered engine**, live blocked on a real trace. |
