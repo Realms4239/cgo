@@ -57,8 +57,14 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   raw tracepoint, `tcp_rcv_established` socket sample, `kfree_skb` qdisc-drop
   counter, all-or-nothing per window, `source: ebpf` provenance.
 - Scope guard: no BBRv3, `.dist`, IFB, UI, or thesis work in this slice.
-- Blocker: no committed `bpf_probe.o`; Windows has no clang/bpftool/BTF; the
-  CGO-DEV VM is unstable. Do not call eBPF "verified" before the live test.
+- Blocker: no committed `bpf_probe.o`; Windows has no clang/bpftool/BTF. The
+  CGO-DEV VM is reachable through PC2 but its SSH rejects every recorded
+  key/user, and PC2's WSL is 6.18 without clang/bpftool/tc. Do not call eBPF
+  "verified" before the live test.
+- Evidence 2026-10-29: the CO-RE source (`pkg/probe/bpf/bpf_probe.c`),
+  `BUILD.md`, `vmlinux.h` ignore rule and `make bpf`/`make bpf-check` targets
+  are committed. No object, loader, or hash exists; the next step is exactly
+  `make bpf` on a stable Linux 6.8 host, then the Go loader/tests.
 
 ### Slice 5 — trace-driven `.dist` (Windows-green)
 

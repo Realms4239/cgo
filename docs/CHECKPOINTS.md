@@ -796,3 +796,33 @@ end, at a settled decision, and at a handoff.
 - Next: restore the tailnet and PC2 or use the Linux 6.8 bench; then run the
   `.dist`/BBRv3 Task 8 acceptance. Human review of the rendered book and the
   Synthèse screenshots remains the decision point.
+
+## 2026-10-29 16:06 UTC · Linux 6.8 live attempt and eBPF build preparation
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `0bebb9f` plus the uncommitted
+  eBPF source/build-target change.
+- Live attempt: Tailscale recovered and PC2 `nemo` (`100.72.251.32`) answered
+  ping and SSH. The `CGO-DEV` VirtualBox VM (Ubuntu, 3 GB, 1 vCPU, SSH
+  2222→22) started headless; its SSH port opened, but every recorded user/key
+  pair was refused (`altfloat`, `cgo`, `ubuntu`, `meteolink`, `airis`, `root`
+  × `id_ed25519`, `nemo_lab`, `nemo_ed25519`). No password is recorded. The VM
+  was powered off again and verified `poweroff`. PC2's WSL is Ubuntu 26.04 on
+  kernel `6.18.54.1-microsoft-standard-WSL2`, exposes only `reno cubic`, and
+  lacks `tc`, `iperf3`, `clang`, `bpftool` and `jq`; it cannot certify the
+  Linux 6.8 path. No live audit, campaign, IFB, `.dist` or BBRv3 run occurred.
+- eBPF preparation: `pkg/probe/bpf/bpf_probe.c` (four programs, two maps),
+  `pkg/probe/bpf/BUILD.md`, the `vmlinux.h` ignore rule and the
+  `make bpf`/`make bpf-check` maintainer targets are landed. `make` is absent
+  on this Windows host, so the target was not run. No object, hash, loader or
+  test ships; the slice stays **Blocked** until `make bpf` runs on a stable
+  Linux 6.8 host. No object or digest was fabricated.
+- Proven: `python tools/verify.py` → `6 passed, 0 failed, 0 not run` at
+  `0bebb9f`; frontend 161 tests and build green; eBPF C source is a maintainer
+  artefact only, not compiled by the Go build.
+- Unproven: the eBPF object and attach, Linux 6.8 live acceptance for the bench,
+  IFB, `.dist` and BBRv3, production access and field audit. The live blocker is
+  now the missing VM credential/key, not the tailnet.
+- Next: install a known key in CGO-DEV through its console (or supply the
+  `altfloat` password), then `make bpf`, `make bpf-check`, the opt-in eBPF
+  integration test and the Task 8 acceptance. Alternatively provide a stable
+  Linux 6.8 host.

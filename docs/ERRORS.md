@@ -155,3 +155,17 @@ A fixed defect stays because it is the evidence that it was understood.
   code changed.
 - Lesson: run the disk check before a full gate on this host; a cold cache needs
   one warm build and ~2.5 GB free.
+
+## E8. CGO-DEV boots but no recorded SSH identity is accepted (observed 2026-10-29)
+
+- Symptom: after `VBoxManage startvm CGO-DEV --type headless`, port 2222 opens
+  but every recorded user/key pair returns `Permission denied
+  (publickey,password)`; host SSH to PC2 itself is fine.
+- Tried: users `altfloat`, `cgo`, `ubuntu`, `meteolink`, `airis`, `root`; keys
+  `id_ed25519`, `nemo_lab`, `nemo_ed25519`. PC2’s VirtualBox NAT forwards
+  `0.0.0.0:2222 → guest:22`; the guest IP property is `10.0.2.15`.
+- State: the VM was powered off again (`VMState="poweroff"`); no guest command
+  ran, no file was changed, no Graylog component was touched.
+- Unblock: install a known public key through the VirtualBox console (or record
+  the `altfloat` password), then `cgo kit keysetup`; or provide a stable Linux
+  6.8 host. A 6.18 WSL is not a substitute for the 6.8 acceptance.
