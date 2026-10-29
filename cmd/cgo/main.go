@@ -277,7 +277,7 @@ WantedBy=multi-user.target
 		fs := flag.NewFlagSet("run", flag.ExitOnError)
 		profiles := fs.String("profiles", "P2", "profils à tester (P1,P2,P3-importé)")
 		qdiscs := fs.String("qdiscs", "", "files à tester (pfifo_fast,fq_codel,cake) — vide = toutes")
-		ccs := fs.String("cc", "", "contrôles de congestion (cubic,bbr) — vide = tous")
+		ccs := fs.String("cc", "", "contrôles de congestion (cubic,bbr,bbr3) — vide = tous ; bbr3 si le noyau l'expose")
 		direction := fs.String("direction", "up", "sens de charge : up | down | both (RRUL séquentiel)")
 		reps := fs.Int("reps", 3, "répétitions par cellule (1–5)")
 		flows := fs.Int("flows", 4, "flux de charge concurrents (1–8 ; 1 = régime historique gelé)")
@@ -291,6 +291,8 @@ WantedBy=multi-user.target
 		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *flows, *target, *direction, *dataDir, *runID, *bench, *channelModel); code != 0 {
 			os.Exit(code)
 		}
+	case "calibrate":
+		os.Exit(runCalibrate(os.Args[2:]))
 	default:
 		usage()
 		os.Exit(2)
@@ -357,6 +359,7 @@ func usage() {
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify
+       cgo calibrate --audit audit-XXXX --profile P2   # trace baseline → .dist netem
        cgo figures
        cgo doctor                # rapport de capacités (tc, BBR, CAP_NET_ADMIN)
        cgo shape --restore       # retire les qdiscs root posés par meteolink

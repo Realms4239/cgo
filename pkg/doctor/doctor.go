@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/Realms4239/cgo/pkg/model"
 )
 
 type Check struct {
@@ -52,19 +54,7 @@ func Report(mode string) (string, []Check) {
 	} else {
 		checks = append(checks, Check{Name: "cap_net_admin", Status: "warn", Detail: "sans CAP_NET_ADMIN le tc échouera — sudo setcap cap_net_admin+ep ./cgo"})
 	}
-	bbr := "indéterminé"
-	if raw, err := os.ReadFile("/proc/sys/net/ipv4/tcp_available_congestion_control"); err == nil {
-		if strings.Contains(string(raw), "bbr") {
-			bbr = "disponible"
-		} else {
-			bbr = "absent — modprobe tcp_bbr (kit/install.sh)"
-		}
-	}
-	st := "warn"
-	if mode == "full" && strings.Contains(bbr, "absent") {
-		st = "fail"
-	}
-	checks = append(checks, Check{Name: "bbr", Status: st, Detail: bbr})
+	checks = append(checks, ccChecks(mode)...)
 	checks = append(checks, benchOffloadCheck())
 	if _, err := exec.LookPath("ping"); err == nil {
 		checks = append(checks, Check{Name: "ping", Status: "ok", Detail: "présent"})
@@ -154,4 +144,40 @@ func benchOffloadCheck() Check {
 		}
 	}
 	return Check{Name: "bench-offloads", Status: "ok", Detail: "6 interfaces de transit relues off (GRO/GSO/TSO)"}
+}
+
+// ccChecks — deux lignes distinctes : « bbr » (v1, mainline) et « bbr3 »
+// (noyau BBRv3). Le token exact, jamais le préfixe : contains("bbr")
+// déclarait bbr disponible sur un noyau qui n'expose que bbr3.
+func ccChecks(mode string) []Check {
+	raw, err := os.ReadFile("/proc/sys/net/ipv4/tcp_available_congestion_control")
+	if err != nil {
+		return ccChecksFrom(mode, nil, false)
+	}
+	return ccChecksFrom(mode, model.ParseCCList(string(raw)), true)
+}
+
+func ccChecksFrom(mode string, list []string, readable bool) []Check {
+	if !readable {
+		return []Check{
+			{Name: "bbr", Status: "warn", Detail: "indéterminé — /proc/sys/net/ipv4/tcp_available_congestion_control illisible"},
+			{Name: "bbr3", Status: "warn", Detail: "indéterminé — même fichier illisible"},
+		}
+	}
+	present := map[string]bool{}
+	for _, c := range list {
+		present[c] = true
+	}
+	bbr := Check{Name: "bbr", Status: "ok", Detail: "disponible (BBRv1, mainline)"}
+	if !present["bbr"] {
+		bbr = Check{Name: "bbr", Status: "warn", Detail: "absent — modprobe tcp_bbr (kit/install.sh)"}
+		if mode == "full" {
+			bbr.Status = "fail"
+		}
+	}
+	bbr3 := Check{Name: "bbr3", Status: "warn", Detail: "absent — optionnel : kit/install-bbr3.sh (noyau BBRv3, 7.1)"}
+	if present["bbr3"] {
+		bbr3 = Check{Name: "bbr3", Status: "ok", Detail: "disponible (BBRv3)"}
+	}
+	return []Check{bbr, bbr3}
 }

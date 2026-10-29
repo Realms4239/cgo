@@ -152,3 +152,115 @@ func TestProdDepsDualNSIngressWiring(t *testing.T) {
 		t.Fatalf("shaper runner is not the client namespace: %#v", d.TCShaper)
 	}
 }
+
+func writeDistCalibration(t *testing.T, dir, profile string, delay float64) {
+	t.Helper()
+	rtts := make([]float64, 64)
+	for i := range rtts {
+		rtts[i] = delay + float64(i%8)
+	}
+	cal, err := qdisc.BuildCalibration(model.Profile{ID: profile, DelayMs: delay}, "audit-test", rtts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cal.SourceTelemetrySHA256 = "test"
+	cal.Created = "2026-10-27T00:00:00Z"
+	if err := qdisc.WriteCalibration(dir, cal); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestApplyPhysicsDistMeasuredHop(t *testing.T) {
+	dir := t.TempDir()
+	writeDistCalibration(t, dir, "P2", 100)
+	f := &qdisc.FakeRunner{}
+	d := Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: dir}
+	if err := applyPhysics(&d, model.Profiles["P2"], nil); err != nil {
+		t.Fatal(err)
+	}
+	var up, down string
+	for _, c := range f.Calls {
+		joined := strings.Join(c, " ")
+		if !strings.Contains(joined, "netem") {
+			continue
+		}
+		if strings.Contains(joined, "dev w-edge") {
+			up = joined
+		}
+		if strings.Contains(joined, "dev c-wan") {
+			down = joined
+		}
+	}
+	if !strings.Contains(up, "delay 50ms") || !strings.Contains(up, "distribution P2") {
+		t.Fatalf("w-edge doit porter la table : %q", up)
+	}
+	if !strings.Contains(down, "delay 50ms 0ms") || strings.Contains(down, "distribution") {
+		t.Fatalf("c-wan doit rester au plancher sans table : %q", down)
+	}
+}
+
+func TestApplyPhysicsDistDownUsesDownlinkHop(t *testing.T) {
+	dir := t.TempDir()
+	writeDistCalibration(t, dir, "P2", 100)
+	f := &qdisc.FakeRunner{}
+	d := Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: dir, Direction: "down"}
+	if err := applyPhysics(&d, model.Profiles["P2"], nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range f.Calls {
+		joined := strings.Join(c, " ")
+		if strings.Contains(joined, "dev c-wan") && strings.Contains(joined, "netem") && !strings.Contains(joined, "distribution P2") {
+			t.Fatalf("c-wan mesuré doit porter la table : %q", joined)
+		}
+		if strings.Contains(joined, "dev w-edge") && strings.Contains(joined, "distribution") {
+			t.Fatalf("w-edge non mesuré ne doit pas porter la table : %q", joined)
+		}
+	}
+}
+
+func TestApplyPhysicsDistFailsClosed(t *testing.T) {
+	dir := t.TempDir()
+	writeDistCalibration(t, dir, "P2", 100)
+	stale := model.Profiles["P2"]
+	stale.DelayMs = 120
+	cases := []struct {
+		name string
+		deps Deps
+		prof model.Profile
+	}{
+		{"calibration absente", Deps{TC: &qdisc.FakeRunner{}, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: t.TempDir()}, model.Profiles["P2"]},
+		{"direction both", Deps{TC: &qdisc.FakeRunner{}, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: dir, Direction: "both"}, model.Profiles["P2"]},
+		{"banc legacy", Deps{TC: &qdisc.FakeRunner{}, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "legacy", DelayModel: "dist", CalibrationDir: dir}, model.Profiles["P2"]},
+		{"deux ifaces", Deps{TC: &qdisc.FakeRunner{}, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan", "c-wan2"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: dir}, model.Profiles["P2"]},
+		{"plancher périmé", Deps{TC: &qdisc.FakeRunner{}, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: dir}, stale},
+	}
+	for _, tc := range cases {
+		f := tc.deps.TC.(*qdisc.FakeRunner)
+		if err := applyPhysics(&tc.deps, tc.prof, nil); err == nil {
+			t.Fatalf("%s : erreur attendue", tc.name)
+		}
+		if len(f.Calls) != 0 {
+			t.Fatalf("%s : tc appelé avant l'échec : %v", tc.name, f.Calls)
+		}
+	}
+}
+
+func TestProdDepsDualNSDistEnv(t *testing.T) {
+	t.Setenv("CGO_DELAY_MODEL", "dist")
+	t.Setenv("CGO_CALIBRATION_DIR", t.TempDir())
+	d := ProdDepsDualNS("up")
+	if d.DelayModel != "dist" || d.CalibrationDir == "" {
+		t.Fatalf("dist non câblé : %+v", d)
+	}
+	ns, ok := d.TC.(qdisc.NsRunner)
+	if !ok || len(ns.Env) != 1 || ns.Env[0] != "TC_LIB_DIR="+d.CalibrationDir {
+		t.Fatalf("NsRunner.Env = %+v (calib %q)", d.TC, d.CalibrationDir)
+	}
+}
+
+func TestProdDepsLegacyDistWired(t *testing.T) {
+	t.Setenv("CGO_DELAY_MODEL", "dist")
+	if d := ProdDeps(); d.DelayModel != "dist" {
+		t.Fatalf("CGO_DELAY_MODEL ignoré par le banc legacy : %+v", d)
+	}
+}

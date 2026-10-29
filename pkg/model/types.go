@@ -81,10 +81,15 @@ type CC string
 
 const (
 	Cubic CC = "cubic"
-	BBR   CC = "bbr"
+	BBR   CC = "bbr"  // BBRv1 — « bbr » ne veut jamais dire v3.
+	BBRv3 CC = "bbr3" // BBRv3 — seulement si le noyau l'expose.
 )
 
 var AllCC = []CC{Cubic, BBR}
+
+// KnownCC — étiquettes acceptées. bbr3 reste gatée à l'exécution : une
+// demande explicite sur un noyau sans bbr3 est refusée, jamais repliée.
+var KnownCC = []CC{Cubic, BBR, BBRv3}
 
 // Gate G0–G7 per SPEC §2.2.
 type Gate int

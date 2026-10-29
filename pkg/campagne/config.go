@@ -26,6 +26,7 @@ type matrixConfig struct {
 	// se lisent dans le gel — deux régimes ne se mélangent jamais en secret.
 	ChannelModel string `json:"channel_model"`
 	Bench        string `json:"bench"`
+	Kernel       string `json:"kernel,omitempty"`
 }
 
 func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]byte, error) {
@@ -72,6 +73,6 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 		Direction: dir, Target: deps.Target, BulkAddr: deps.BulkAddr,
 		SmallURL: deps.SmallURL, Flows: flows, BaselineSec: baseline,
 		ChargeSec: charge, DeadlineMs: deps.DeadlineMs,
-		ChannelModel: cm, Bench: bench,
+		ChannelModel: cm, Bench: bench, Kernel: readKernelRelease(),
 	})
 }

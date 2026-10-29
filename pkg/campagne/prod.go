@@ -3,6 +3,7 @@ package campagne
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/Realms4239/cgo/pkg/probe"
@@ -52,14 +53,16 @@ func prodDeps(direction string) Deps {
 		statsRunner = qdisc.NsRunner{Ns: env("CGO_SRV_NS", "cgo-srv")}
 	}
 	return Deps{
-		TC:        qdisc.ExecRunner{}, // netem sur veth-c (ns principal)
-		TCShaper:  shaper,             // shaper : veth-c (up) ou veth-s via netns (down)
-		CliIf:     cliIf,
-		ShaperIf:  shaperIf,
-		Target:    target,
-		SmallURL:  small,
-		BulkAddr:  bulk,
-		Direction: direction,
+		TC:             qdisc.ExecRunner{}, // netem sur veth-c (ns principal)
+		TCShaper:       shaper,             // shaper : veth-c (up) ou veth-s via netns (down)
+		CliIf:          cliIf,
+		ShaperIf:       shaperIf,
+		Target:         target,
+		SmallURL:       small,
+		BulkAddr:       bulk,
+		Direction:      direction,
+		DelayModel:     env("CGO_DELAY_MODEL", "scalar"),
+		CalibrationDir: env("CGO_CALIBRATION_DIR", filepath.Join("data", "calibrations")),
 		// Optional shortened windows for stress runs; zero keeps the thesis
 		// defaults (30/120/30). Never set in the frozen campaign environment.
 		BaselineSec: envInt("CGO_BASELINE_SEC", 0),

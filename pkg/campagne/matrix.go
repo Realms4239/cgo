@@ -64,7 +64,7 @@ func (m *Matrix) IsRunning() bool {
 // la progression arrive dans Live.
 func StartMatrix(base context.Context, profiles []string, reps int,
 	deps Deps, dataDir string) (*Matrix, error) {
-	return startMatrix(base, newRunID(), profiles, allQdiscStrings(), allCCStrings(), reps, deps, dataDir)
+	return startMatrix(base, newRunID(), profiles, allQdiscStrings(), DefaultCCs(), reps, deps, dataDir)
 }
 
 // StartMatrixFiltered — sous-matrice ciblée : axes qdiscs/CC explicites.
@@ -78,7 +78,7 @@ func StartMatrixFiltered(base context.Context, profiles []string, qdiscs, ccs []
 
 func StartMatrixWithID(base context.Context, runID string, profiles []string, reps int,
 	deps Deps, dataDir string) (*Matrix, error) {
-	return startMatrix(base, runID, profiles, allQdiscStrings(), allCCStrings(), reps, deps, dataDir)
+	return startMatrix(base, runID, profiles, allQdiscStrings(), DefaultCCs(), reps, deps, dataDir)
 }
 
 // StartMatrixFilteredWithID — reprise d'une matrice interrompue : les
@@ -96,14 +96,6 @@ func allQdiscStrings() []string {
 	out := make([]string, len(model.AllQdiscs))
 	for i, q := range model.AllQdiscs {
 		out[i] = string(q)
-	}
-	return out
-}
-
-func allCCStrings() []string {
-	out := make([]string, len(model.AllCC))
-	for i, c := range model.AllCC {
-		out[i] = string(c)
 	}
 	return out
 }
@@ -136,12 +128,15 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 		}
 	}
 	validCC := map[string]bool{}
-	for _, c := range model.AllCC {
+	for _, c := range model.KnownCC {
 		validCC[string(c)] = true
 	}
 	for _, c := range ccs {
 		if !validCC[c] {
 			return nil, fmt.Errorf("cc inconnu: %s", c)
+		}
+		if c == string(model.BBRv3) && !ccPresent(c) {
+			return nil, fmt.Errorf("cc bbr3 indisponible sur cet hôte : le noyau n'expose pas bbr3 (kit/install-bbr3.sh) — refus plutôt qu'exécuter un autre contrôle sous cette étiquette")
 		}
 	}
 

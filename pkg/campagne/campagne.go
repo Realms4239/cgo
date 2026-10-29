@@ -62,6 +62,11 @@ type Deps struct {
 	// Bench — étiquette de provenance : "legacy" (testbed.sh, reproduction
 	// du corpus gelé) | "dualns" (banc durci, chemin de production).
 	Bench string
+	// DelayModel — "scalar" (défaut : delay/jitter déclarés) | "dist"
+	// (table empirique par profil, chargée fail-closed AVANT toute mutation).
+	DelayModel string
+	// CalibrationDir — répertoire des <profil>.dist/.json.
+	CalibrationDir string
 
 	// Direction — sens de la charge : "" ou "up" = upload (client → sink,
 	// shaper sur l'émission cliente, comportement historique) ; "down" =
@@ -251,6 +256,9 @@ func defaults(d *Deps) {
 	}
 	if d.Bench == "" {
 		d.Bench = "legacy"
+	}
+	if d.DelayModel == "" {
+		d.DelayModel = "scalar"
 	}
 	if d.ShapeMode == "" {
 		d.ShapeMode = "egress"

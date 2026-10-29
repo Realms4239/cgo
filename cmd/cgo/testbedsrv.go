@@ -58,7 +58,8 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 				c.SetReadDeadline(time.Time{})
 				if dl, cc := probe.ParseDownloadHello(hdr[:nr]); dl {
 					if err := probe.SetConnCC(c, cc); err != nil {
-						log.Printf("[src] CC %q refusée: %v (défaut hôte)", cc, err)
+						log.Printf("[src] CC %q refusée: %v — source fermée, cellule vouée à l'échec (pas de repli cubic silencieux)", cc, err)
+						return
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 					defer cancel()

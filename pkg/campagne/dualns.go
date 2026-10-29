@@ -3,6 +3,7 @@ package campagne
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/probe"
@@ -44,10 +45,60 @@ func burstGEOrNull(profileID, channelModel string) *qdisc.GEModel {
 // Reset d'abord : une cellule périmée peut avoir laissé une racine étrangère.
 func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
 	ifaces := append([]string{d.CliIf}, d.PhysicsIfaces...)
+	switch d.DelayModel {
+	case "", "scalar":
+	case "dist":
+		return applyPhysicsDist(d, prof, ge, ifaces)
+	default:
+		return fmt.Errorf("delay_model %q invalide (scalar|dist)", d.DelayModel)
+	}
 	for _, ifc := range ifaces {
 		_, _ = d.TC.Run("qdisc", "del", "dev", ifc, "root")
 		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, prof.DelayMs, prof.JitterMs, prof.LossPct, ge); err != nil {
 			return fmt.Errorf("netem %s: %w", ifc, err)
+		}
+	}
+	return nil
+}
+
+// applyPhysicsDist — physique d'une trace : plancher RTT/2 sur chaque saut,
+// table empirique sur le seul saut mesuré. Toute validation (calibration,
+// profil, sens, banc) passe AVANT le premier reset/tc : un artefact absent
+// ou périmé ne laisse jamais une racine à moitié configurée.
+func applyPhysicsDist(d *Deps, prof model.Profile, ge *qdisc.GEModel, ifaces []string) error {
+	if d.Direction == "both" {
+		return fmt.Errorf("delay_model dist: direction both impossible — la trace mesure un seul sens")
+	}
+	if d.Bench != "dualns" {
+		return fmt.Errorf("delay_model dist: banc dualns requis (banc %q)", d.Bench)
+	}
+	if d.CalibrationDir == "" {
+		return fmt.Errorf("delay_model dist: répertoire de calibration vide (CGO_CALIBRATION_DIR)")
+	}
+	cal, err := qdisc.LoadCalibration(d.CalibrationDir, prof.ID)
+	if err != nil {
+		return err
+	}
+	if cal.FloorMs != prof.DelayMs {
+		return fmt.Errorf("calibration %s périmée : plancher %.2f ms ≠ profil %.2f ms (relancer cgo calibrate)", prof.ID, cal.FloorMs, prof.DelayMs)
+	}
+	if len(d.PhysicsIfaces) != 1 {
+		return fmt.Errorf("delay_model dist: une seule PhysicsIfaces attendue, %d fournie(s)", len(d.PhysicsIfaces))
+	}
+	measured := d.CliIf
+	if d.Direction == "down" {
+		measured = d.PhysicsIfaces[0]
+	}
+	for _, ifc := range ifaces {
+		_, _ = d.TC.Run("qdisc", "del", "dev", ifc, "root")
+		if ifc == measured {
+			if err := qdisc.ApplyNetemDistribution(d.TC, ifc, cal.FloorMs/2, cal.ScaleMs, prof.LossPct, ge, prof.ID); err != nil {
+				return fmt.Errorf("netem dist %s: %w", ifc, err)
+			}
+			continue
+		}
+		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, cal.FloorMs/2, 0, prof.LossPct, ge); err != nil {
+			return fmt.Errorf("netem dist %s: %w", ifc, err)
 		}
 	}
 	return nil
@@ -67,23 +118,34 @@ func ProdDepsDualNS(direction string) Deps {
 		shaperIf = env("CGO_SHAPER_IF", "e-wan") // émission edge → client : le download
 	}
 	edge := qdisc.NsRunner{Ns: env("CGO_EDGE_NS", "ns_edge_router")}
+	delayModel := env("CGO_DELAY_MODEL", "scalar")
+	calibDir := env("CGO_CALIBRATION_DIR", filepath.Join("data", "calibrations"))
+	wan := qdisc.NsRunner{Ns: env("CGO_WAN_NS", "ns_wan_emulator")}
+	if delayModel == "dist" {
+		if abs, err := filepath.Abs(calibDir); err == nil {
+			calibDir = abs
+		}
+		wan.Env = []string{"TC_LIB_DIR=" + calibDir}
+	}
 	shapeMode := env("CGO_SHAPE_MODE", "egress")
 	deps := Deps{
-		TC:            qdisc.NsRunner{Ns: env("CGO_WAN_NS", "ns_wan_emulator")}, // netem : les deux sens
-		TCShaper:      edge,                                                     // shaper : là où naît le congestionnement
-		CliIf:         env("CGO_CLI_IF", "w-edge"),
-		PhysicsIfaces: []string{env("CGO_DOWNLINK_PHYS_IF", "c-wan")},
-		ShaperIf:      shaperIf,
-		Target:        target,
-		SmallURL:      small,
-		BulkAddr:      bulk,
-		Direction:     direction,
-		Bench:         "dualns",
-		ChannelModel:  env("CGO_CHANNEL_MODEL", "clean"),
-		ShapeMode:     shapeMode,
-		BaselineSec:   envInt("CGO_BASELINE_SEC", 0),
-		ChargeSec:     envInt("CGO_CHARGE_SEC", 0),
-		RecupSec:      envInt("CGO_RECUP_SEC", 0),
+		TC:             wan, // netem : les deux sens
+		TCShaper:       edge,
+		CliIf:          env("CGO_CLI_IF", "w-edge"),
+		PhysicsIfaces:  []string{env("CGO_DOWNLINK_PHYS_IF", "c-wan")},
+		ShaperIf:       shaperIf,
+		Target:         target,
+		SmallURL:       small,
+		BulkAddr:       bulk,
+		Direction:      direction,
+		Bench:          "dualns",
+		ChannelModel:   env("CGO_CHANNEL_MODEL", "clean"),
+		DelayModel:     delayModel,
+		CalibrationDir: calibDir,
+		ShapeMode:      shapeMode,
+		BaselineSec:    envInt("CGO_BASELINE_SEC", 0),
+		ChargeSec:      envInt("CGO_CHARGE_SEC", 0),
+		RecupSec:       envInt("CGO_RECUP_SEC", 0),
 		BulkN: func(ctx context.Context, addr, cc string, n int) ([]uint64, error) {
 			return probe.BulkSendNTo(ctx, addr, cc, n)
 		},

@@ -3,8 +3,12 @@ package audit
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -68,4 +72,92 @@ func WriteTelemetry(baseDir string, res *Result) (string, error) {
 	}
 	w.Flush()
 	return path, w.Error()
+}
+
+// ReadTelemetry — lecture stricte de data/audits/<id>/telemetry.csv.
+// L'en-tête doit être exactement celui du writer : une colonne déplacée
+// changerait le sens des nombres. Une sonde absente reste absente (0) ;
+// elle n'est jamais réinventée en mesure.
+func ReadTelemetry(baseDir, id string) ([]TelemetryRow, error) {
+	safe, err := ArtifactID(id)
+	if err != nil {
+		return nil, err
+	}
+	path := filepath.Join(baseDir, "audits", safe, "telemetry.csv")
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("audit: lecture télémétrie %s: %w", path, err)
+	}
+	defer f.Close()
+
+	r := csv.NewReader(f)
+	r.FieldsPerRecord = len(telemetryHeader)
+	header, err := r.Read()
+	if err != nil {
+		return nil, fmt.Errorf("audit: en-tête télémétrie %s: %w", path, err)
+	}
+	if !slices.Equal(header, telemetryHeader) {
+		return nil, fmt.Errorf("audit: en-tête télémétrie %s = %v, attendu %v", path, header, telemetryHeader)
+	}
+
+	var rows []TelemetryRow
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("audit: ligne télémétrie %s: %w", path, err)
+		}
+		row, err := parseTelemetryRow(rec)
+		if err != nil {
+			return nil, fmt.Errorf("audit: ligne télémétrie %s: %w", path, err)
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+func parseTelemetryRow(rec []string) (TelemetryRow, error) {
+	var row TelemetryRow
+	row.Phase = strings.TrimSpace(rec[0])
+	if row.Phase == "" {
+		return row, fmt.Errorf("phase vide")
+	}
+	offset, err := strconv.ParseInt(strings.TrimSpace(rec[1]), 10, 64)
+	if err != nil || offset < 0 {
+		return row, fmt.Errorf("offset_ms invalide %q", rec[1])
+	}
+	row.OffsetMs = offset
+
+	for _, f := range []struct {
+		name string
+		dst  *float64
+		raw  string
+	}{
+		{"rtt_ms", &row.RTTms, rec[2]},
+		{"small_ms", &row.SmallMs, rec[3]},
+	} {
+		s := strings.TrimSpace(f.raw)
+		if s == "" {
+			continue
+		}
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil || v < 0 || math.IsNaN(v) || math.IsInf(v, 0) {
+			return row, fmt.Errorf("%s invalide %q", f.name, f.raw)
+		}
+		*f.dst = v
+	}
+
+	if s := strings.TrimSpace(rec[4]); s != "" {
+		v, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			return row, fmt.Errorf("bulk_bytes invalide %q", rec[4])
+		}
+		row.BulkBytes = v
+	}
+	if row.RTTms == 0 && row.SmallMs == 0 && row.BulkBytes == 0 {
+		return row, fmt.Errorf("ligne sans mesure (rtt, small et bulk vides)")
+	}
+	return row, nil
 }

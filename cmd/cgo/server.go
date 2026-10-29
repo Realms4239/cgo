@@ -217,11 +217,7 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 			qdiscs = qs
 		}
 		if len(ccs) == 0 {
-			cs := make([]string, len(model.AllCC))
-			for i, c := range model.AllCC {
-				cs[i] = string(c)
-			}
-			ccs = cs
+			ccs = campagne.DefaultCCs()
 		}
 		// Reprise : un run_id existant rejoue les cellules manquantes au lieu
 		// de geler un doublon (PC/VM éteints en pleine matrice). Vide = frais.

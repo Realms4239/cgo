@@ -32,11 +32,25 @@ func (ExecRunner) Run(args ...string) ([]byte, error) {
 }
 
 // NsRunner runs tc inside a network namespace (ip netns exec NS tc …).
-type NsRunner struct{ Ns string }
+// Env porte les variables à garder à travers sudo (TC_LIB_DIR pour .dist) :
+// « sudo env VAR=… ip netns exec … tc » ne dépend pas d'env_keep.
+type NsRunner struct {
+	Ns  string
+	Env []string // paires VAR=value
+}
 
 func (r NsRunner) Run(args ...string) ([]byte, error) {
-	full := append([]string{"netns", "exec", r.Ns, "tc"}, args...)
-	return exec.Command("sudo", append([]string{"ip"}, full...)...).CombinedOutput()
+	return exec.Command("sudo", nsTCArgs(r.Ns, r.Env, args)...).CombinedOutput()
+}
+
+func nsTCArgs(ns string, env, args []string) []string {
+	full := make([]string, 0, len(env)+len(args)+6)
+	if len(env) > 0 {
+		full = append(full, "env")
+		full = append(full, env...)
+	}
+	full = append(full, "ip", "netns", "exec", ns, "tc")
+	return append(full, args...)
 }
 
 // FakeRunner records invocations; Run always succeeds.

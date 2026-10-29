@@ -139,11 +139,7 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 		qdiscs = qs
 	}
 	if ccs == nil {
-		cs := make([]string, len(model.AllCC))
-		for i, c := range model.AllCC {
-			cs[i] = string(c)
-		}
-		ccs = cs
+		ccs = campagne.DefaultCCs()
 	}
 
 	var m *campagne.Matrix

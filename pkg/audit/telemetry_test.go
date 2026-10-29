@@ -76,3 +76,52 @@ func TestSealTelemetryAndDualSeals(t *testing.T) {
 		t.Fatal("sceau télémétrie absent du rendu")
 	}
 }
+
+func TestReadTelemetryStrict(t *testing.T) {
+	dir := t.TempDir()
+	res := &Result{AuditID: "audit-read", Telemetry: []TelemetryRow{
+		{Phase: "baseline", OffsetMs: 0, RTTms: 20.5},
+		{Phase: "baseline", OffsetMs: 400, RTTms: 21.25, SmallMs: 25},
+		{Phase: "load", OffsetMs: 800, RTTms: 30, BulkBytes: 1234},
+	}}
+	if _, err := WriteTelemetry(dir, res); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := ReadTelemetry(dir, "audit-read")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 3 || rows[1].RTTms != 21.25 || rows[1].SmallMs != 25 || rows[2].BulkBytes != 1234 {
+		t.Fatalf("lignes relues : %+v", rows)
+	}
+}
+
+func TestReadTelemetryRejectsUnknownHeader(t *testing.T) {
+	dir := t.TempDir()
+	auditDir := filepath.Join(dir, "audits", "audit-bad")
+	if err := os.MkdirAll(auditDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "phase,offset,rtt_ms,small_ms,bulk_bytes\nbaseline,0,20,0,\n"
+	if err := os.WriteFile(filepath.Join(auditDir, "telemetry.csv"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadTelemetry(dir, "audit-bad"); err == nil {
+		t.Fatal("en-tête inconnu accepté — les colonnes glisseraient en silence")
+	}
+}
+
+func TestReadTelemetryRejectsEmptyProbe(t *testing.T) {
+	dir := t.TempDir()
+	auditDir := filepath.Join(dir, "audits", "audit-empty")
+	if err := os.MkdirAll(auditDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "phase,offset_ms,rtt_ms,small_ms,bulk_bytes\nbaseline,0,0,0,\n"
+	if err := os.WriteFile(filepath.Join(auditDir, "telemetry.csv"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadTelemetry(dir, "audit-empty"); err == nil {
+		t.Fatal("ligne sans mesure acceptée — un zéro deviendrait une mesure")
+	}
+}

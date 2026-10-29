@@ -39,14 +39,7 @@ func GEMeanLoss(ge GEModel) float64 {
 // ApplyNetemGE — netem racine avec perte Gilbert-Elliott (forme documentée
 // à 4 arguments). Handle 1: conservé (un shaper peut s'empiler en 1:1).
 func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEModel) error {
-	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
-		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs),
-		"loss", "gemodel",
-		fmt.Sprintf("%g", ge.GoodToBad),
-		fmt.Sprintf("%g", ge.BadToGood),
-		fmt.Sprintf("%g", ge.LossBad),
-		fmt.Sprintf("%g", ge.LossGood)}
-	if _, err := r.Run(args...); err != nil {
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, 0, &ge, ""); err != nil {
 		return fmt.Errorf("netem ge %s: %w", iface, err)
 	}
 	return nil
@@ -57,16 +50,43 @@ func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEMode
 // se reproduit par là) ou Gilbert-Elliott (ge fourni, 4 arguments). Une
 // seule des deux formes de perte, jamais les deux.
 func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel) error {
-	if ge != nil {
-		return ApplyNetemGE(r, iface, delayMs, jitterMs, *ge)
-	}
-	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
-		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs)}
-	if lossPct > 0 {
-		args = append(args, "loss", fmt.Sprintf("%g%%", lossPct))
-	}
-	if _, err := r.Run(args...); err != nil {
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, ""); err != nil {
 		return fmt.Errorf("netem %s: %w", iface, err)
 	}
 	return nil
+}
+
+// ApplyNetemDistribution — netem du saut mesuré : la table empirique
+// remplace la gigue déclarée. tc exige delay ET jitter avec
+// « distribution » ; un nom ou une gigue invalide est refusé AVANT tc.
+func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string) error {
+	if dist == "" {
+		return fmt.Errorf("netem dist %s: nom de distribution vide", iface)
+	}
+	if jitterMs <= 0 {
+		return fmt.Errorf("netem dist %s: jitter %.6g ≤ 0 (tc exige delay+jitter)", iface, jitterMs)
+	}
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist); err != nil {
+		return fmt.Errorf("netem dist %s: %w", iface, err)
+	}
+	return nil
+}
+
+func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string) error {
+	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
+		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs)}
+	if ge != nil {
+		args = append(args, "loss", "gemodel",
+			fmt.Sprintf("%g", ge.GoodToBad),
+			fmt.Sprintf("%g", ge.BadToGood),
+			fmt.Sprintf("%g", ge.LossBad),
+			fmt.Sprintf("%g", ge.LossGood))
+	} else if lossPct > 0 {
+		args = append(args, "loss", fmt.Sprintf("%g%%", lossPct))
+	}
+	if dist != "" {
+		args = append(args, "distribution", dist)
+	}
+	_, err := r.Run(args...)
+	return err
 }
