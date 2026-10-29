@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useUIStore, PANELS } from '../store/ui'
 import { StatusPip } from './ui/StatusPip'
+import { NavIcon } from './NavIcon'
 import { explain } from '../lib/explain'
 import { live as liveRing } from '../lib/live'
 import { paletteOnce } from '../lib/palette'
@@ -39,10 +40,9 @@ export default function Rail(){
     ctx.stroke()
     ctx.globalAlpha=1
   },[pinned,sample])
-  const ICONS:Record<string,string>={campagne:'◉', live:'∼', resultats:'▦', integrite:'⬢'}
   const lastSmall=liveOn?liveRing.small.at(-1)?.[1]:undefined
   return <aside ref={ref} className={'rail '+(pinned?'pinned':'')} data-pinned={pinned?'1':'0'} aria-label="Navigation" style={{'--rail-w': pinned?232:56} as any}>
-    {PANELS.map(p=><button key={p.id} className={'nav-btn'+(panel===p.id?' on':'')} data-panel={p.id} onClick={()=>setPanel(p.id)} title={p.label} aria-label={p.label} aria-pressed={panel===p.id}><span className="nav-icon" aria-hidden="true">{ICONS[p.id]||'•'}</span>{pinned?<span className="nav-lbl">{p.label}</span>:<span className="sr-only">{p.label}</span>}{pinned&&<span className="nav-key">{p.key}</span>}</button>)}
+    {PANELS.map(p=><button key={p.id} className={'nav-btn'+(panel===p.id?' on':'')} data-panel={p.id} onClick={()=>setPanel(p.id)} title={p.label} aria-label={p.label} aria-pressed={panel===p.id}><span className="nav-icon" aria-hidden="true"><NavIcon id={p.id} /></span>{pinned?<span className="nav-lbl">{p.label}</span>:<span className="sr-only">{p.label}</span>}{pinned&&<span className="nav-key">{p.key}</span>}</button>)}
     <button onClick={()=>setPinned(!pinned)} aria-label="Épingler" className="nav-btn rail-pin">{pinned?'◀':'▶'}</button>
     <canvas ref={canvasRef} className="miniSparkline" width={32} height={12} aria-hidden="true" />
     {pinned && liveOn && lastSmall != null && (

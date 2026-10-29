@@ -41,7 +41,7 @@ describe('Rail polish', () => {
   it('Rail has icons and bento scoped', () => {
     const r=readAny(['web/frontend/src/components/Rail.tsx','src/components/Rail.tsx'])
     expect(r).toContain('nav-icon')
-    expect(r).toContain('ICONS')
+    expect(r).toContain('NavIcon')
     const css=readAny(['web/frontend/src/styles/index.css','src/styles/index.css'])
     expect(css).toContain('#v-campagne .panel-stack')
     expect(css).toMatch(/max-width:\s*1180/)

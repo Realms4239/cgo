@@ -7,6 +7,7 @@ import { Pill } from './ui/Pill'
 export default function PanelChooser() {
   const panel = useUIStore((s: any) => s.panel)
   const setPanel = useUIStore((s: any) => s.setPanel)
+  const showTri = panel === 'live' || panel === 'resultats'
 
   const [tri, setTri] = useState<{metric:boolean; chart:'line'|'bar'|'area'; source:'live'|'frozen'|'both'}>(()=>{
     try {
@@ -44,11 +45,13 @@ export default function PanelChooser() {
           </button>
         )
       })}
+      {showTri ? <>
       <span className="panel-chooser-sep" aria-hidden />
-      {/* labeled controls — the control name is always visible, no cryptic one-word chrome */}
+      {/* labeled controls — visibles seulement là où les graphiques existent */}
       <Pill label="groupes" value={tri.metric ? 'on' : 'off'} on={tri.metric} onClick={() => setTri(t => ({ ...t, metric: !t.metric }))} title="groupes de métriques on/off" />
       <Pill label="craft" value={tri.chart} on={tri.chart !== 'line'} onClick={() => setTri(t => ({ ...t, chart: t.chart === 'line' ? 'bar' : t.chart === 'bar' ? 'area' : 'line' }))} title="chart craft line|bar|area" />
       <Pill label="source" value={tri.source} on={tri.source !== 'live'} onClick={() => setTri(t => ({ ...t, source: t.source === 'live' ? 'frozen' : t.source === 'frozen' ? 'both' : 'live' }))} title="source : live = mesures en cours uniquement · gelé = archives uniquement" />
+      </> : null}
     </div>
   )
 }

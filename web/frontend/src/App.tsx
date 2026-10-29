@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { useUIStore, PANELS } from './store/ui'
+import { useUIStore, PANELS, type PanelId } from './store/ui'
 import { connectSSE, disconnectSSE } from './lib/sse'
 import { clearLive } from './lib/live'
 import { animateViewEnter } from './lib/anime'
+import SyntheseView from './views/SyntheseView'
 import CampagneView from './views/CampagneView'
 import LiveView from './views/LiveView'
 import ResultatsView from './views/ResultatsView'
@@ -29,6 +30,13 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [mode, setMode] = useState<string>('')
+  // les vues lourdes (ECharts, tableaux) ne se montent qu'à la première visite ;
+  // une fois montées elles restent en place pour un retour instantané.
+  const [mounted, setMounted] = useState<Partial<Record<PanelId, boolean>>>({ synthese: true })
+
+  useEffect(() => {
+    setMounted(m => m[panel] ? m : { ...m, [panel]: true })
+  }, [panel])
 
   useEffect(() => {
     connectSSE()
@@ -114,11 +122,13 @@ export default function App() {
         {/* quick actions are running-state chrome — never block an idle view */}
         {live?.running && <QuickActionsPrompt />}
         <main id="main">
-          {/* vues toutes montées — retour instantané, pas de refetch/réinit ECharts à chaque switch */}
-          <section id="v-campagne" className="view" hidden={panel !== 'campagne'}><CampagneView /></section>
-          <section id="v-live" className="view" hidden={panel !== 'live'}><LiveView /></section>
-          <section id="v-resultats" className="view" hidden={panel !== 'resultats'}><ResultatsView /></section>
-          <section id="v-integrite" className="view" hidden={panel !== 'integrite'}><IntegriteView /></section>
+          {/* vues montées à la première visite — le socle et les graphiques
+              lourds ne bloquent plus le premier rendu */}
+          <section id="v-synthese" className="view" hidden={panel !== 'synthese'}><SyntheseView /></section>
+          {mounted.campagne ? <section id="v-campagne" className="view" hidden={panel !== 'campagne'}><CampagneView /></section> : null}
+          {mounted.live ? <section id="v-live" className="view" hidden={panel !== 'live'}><LiveView /></section> : null}
+          {mounted.resultats ? <section id="v-resultats" className="view" hidden={panel !== 'resultats'}><ResultatsView /></section> : null}
+          {mounted.integrite ? <section id="v-integrite" className="view" hidden={panel !== 'integrite'}><IntegriteView /></section> : null}
         </main>
 
         <footer className="foot-ticker">
