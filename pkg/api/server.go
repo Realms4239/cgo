@@ -878,13 +878,14 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, _ *http.Request) {
 		runs, _ := filepath.Glob("data/runs/*")
 		sort.Strings(runs)
-		valid, quarantined := 0, 0
+		valid, degraded, quarantined := 0, 0, 0
 		manifests := 0
 		var runIDs []string
 		type runBreak struct {
 			Run         string `json:"run"`
 			Rows        int    `json:"rows"`
 			Valid       int    `json:"valid"`
+			Degraded    int    `json:"degraded"`
 			Quarantined int    `json:"quarantined"`
 		}
 		breakdown := []runBreak{}
@@ -895,10 +896,13 @@ func New(d Deps) Handler {
 			gs, _ := results.Scan("data/runs", filepath.Base(p))
 			b := runBreak{Run: filepath.Base(p)}
 			for _, g := range gs {
-				valid += g.Count - g.Quarantined
+				strict := g.Count - g.Quarantined - g.Degraded
+				valid += strict
+				degraded += g.Degraded
 				quarantined += g.Quarantined
 				b.Rows += g.Count
-				b.Valid += g.Count - g.Quarantined
+				b.Valid += strict
+				b.Degraded += g.Degraded
 				b.Quarantined += g.Quarantined
 			}
 			breakdown = append(breakdown, b)
@@ -922,7 +926,7 @@ func New(d Deps) Handler {
 			writeJSON(w, map[string]any{"available": false, "reason": "intégrité disponible après gel (jalon M2)"})
 			return
 		}
-		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "quarantined": quarantined, "run_ids": runIDs, "breakdown": breakdown, "updated": updated, "sha256": figures.ProvenanceSHA("data/runs"), "hash8": figures.ProvenanceHash8("data/runs")})
+		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "degraded": degraded, "quarantined": quarantined, "run_ids": runIDs, "breakdown": breakdown, "updated": updated, "sha256": figures.ProvenanceSHA("data/runs"), "hash8": figures.ProvenanceHash8("data/runs")})
 	})
 	mux.HandleFunc("GET /api/report/export", func(w http.ResponseWriter, r *http.Request) {
 		fmtParam := r.URL.Query().Get("format")

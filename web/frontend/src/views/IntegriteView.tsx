@@ -11,9 +11,9 @@ import { paginate, Paginate } from '../components/ui/Paginate'
 
 type Integrity = {
   available: boolean; reason?: string
-  runs?: number; manifests?: number; valid?: number; quarantined?: number
+  runs?: number; manifests?: number; valid?: number; degraded?: number; quarantined?: number
   run_ids?: string[]
-  breakdown?: { run: string; rows: number; valid: number; quarantined: number }[]
+  breakdown?: { run: string; rows: number; valid: number; degraded?: number; quarantined: number }[]
   updated?: string
 }
 
@@ -100,6 +100,7 @@ export default function IntegriteView() {
         <span className="mono int-proof-title">Preuve gelée</span>
         <span className="mono int-proof-fact" data-testid="proof-runs">{data.runs} runs archivés · {data.manifests} manifestes signés</span>
         <span className="mono int-proof-fact int-proof-ok"><Explain term="valid_only">{data.valid} mesures valides</Explain></span>
+        <span className="mono int-proof-fact" style={{ color: (data.degraded || 0) > 0 ? 'var(--t-threshold)' : 'var(--text-muted)' }}>{data.degraded ?? 0} dégradées</span>
         <span className="mono int-proof-fact" style={{ color:(data.quarantined||0)>0?'var(--t-danger-text)':'var(--text-muted)' }}>{data.quarantined} mesures écartées</span>
         <span className="mono int-proof-fact int-proof-updated">mis à jour {data.updated || '—'}</span>
       </div>
@@ -150,11 +151,11 @@ export default function IntegriteView() {
         <div className="tbl-scroll int-scroll" data-testid="runs-scroll">
         <table className="data-table int-table">
           <thead><tr className="int-thead-row">
-            <th>run</th><th>lignes</th><th>valides</th><th>quar.</th><th>résultats</th><th>rejouer</th>
+            <th>run</th><th>lignes</th><th>valides</th><th>dégradées</th><th>quar.</th><th>résultats</th><th>rejouer</th>
           </tr></thead><tbody>
-          {paginate(Array.isArray(data.breakdown) ? data.breakdown : (asArray<string>(data.run_ids).map(id=>({run:id,rows:0,valid:0,quarantined:0}))), runsPage, RUNS_PAGE_SIZE).map(b=>(
+          {paginate(Array.isArray(data.breakdown) ? data.breakdown : (asArray<string>(data.run_ids).map(id=>({run:id,rows:0,valid:0,degraded:0,quarantined:0}))), runsPage, RUNS_PAGE_SIZE).map(b=>(
             <tr key={b.run} className="int-row" onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
-              <td className="int-td-run"><span title={b.run} className="int-run-id">{b.run}</span></td><td>{b.rows}</td><td>{b.valid}</td><td>{b.quarantined}</td>
+              <td className="int-td-run"><span title={b.run} className="int-run-id">{b.run}</span></td><td>{b.rows}</td><td>{b.valid}</td><td>{b.degraded ?? 0}</td><td>{b.quarantined}</td>
               <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" className="int-link">résultats</a></td>
               <td><button className="btn btn-primary int-replay" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setPanel('live') }}>Rejouer</button></td>
             </tr>

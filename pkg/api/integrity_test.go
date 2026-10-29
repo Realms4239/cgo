@@ -18,6 +18,32 @@ import (
 // dernier aqm_eval.csv (complet + 8 caractères) pour que le tiroir Wall + la pastille
 // Archives + le Rapport + les figures RDF portent le MÊME hash8. Chdir vers un
 // dossier temp — ne jamais polluer le dépôt.
+// TestIntegrityCounts — valid strict, degraded and quarantined sont trois
+// comptes distincts ; « valid » n'inclut jamais les lignes dégradées.
+func TestIntegrityCounts(t *testing.T) {
+	dir := chdirTemp(t)
+	writeCSVRun(t, dir, "run-counts", header18,
+		"run-counts,1,P2,cake,bbr,1,100,114,14,209.2,98.1,18.1,81,0,117288,12.10,0.0,valid",
+		"run-counts,2,P2,cake,bbr,1,101,115,14,209.3,98.0,18.0,82,0,117300,12.2,0.0,degraded",
+		"run-counts,3,P2,cake,bbr,1,102,116,14,209.4,97.9,17.9,83,0,117400,12.3,0.0,invalid",
+	)
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/api/integrity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	s := string(body)
+	for _, want := range []string{`"valid":1`, `"degraded":1`, `"quarantined":1`, `"rows":3`} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("integrity counts missing %s in %s", want, s)
+		}
+	}
+}
+
 func TestIntegrityProvenance(t *testing.T) {
 	dir := t.TempDir()
 	old, err := os.Getwd()

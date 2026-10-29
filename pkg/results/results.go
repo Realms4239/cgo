@@ -19,6 +19,7 @@ type Group struct {
 	Direction   string `json:"direction"`
 	Count       int    `json:"count"`
 	Quarantined int    `json:"quarantined"`
+	Degraded    int    `json:"degraded"`
 
 	RTTp95Median   float64    `json:"rtt_p95_median"`
 	RTTp95IQR      [2]float64 `json:"rtt_p95_iqr"`
@@ -56,6 +57,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		rtts, smalls, goodputs, deadlines, wasteds, costs []float64
 		vSmalls, vDeadlines                               []float64 // valid-only
 		quarantined                                       int
+		degraded                                          int
 		count                                             int
 		profile, qdisc, cc, direction                     string
 	}
@@ -122,6 +124,9 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 				b.quarantined++
 				continue
 			}
+			if get(r, iGate) == "degraded" {
+				b.degraded++
+			}
 			if get(r, iGate) == "valid" {
 				add(&b.vSmalls, get(r, iSmall))
 				add(&b.vDeadlines, get(r, iDead))
@@ -147,7 +152,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		dlo, dhi := metrics.BootstrapMedianCI95(b.vDeadlines, 10000, 42)
 		out = append(out, Group{
 			Profile: b.profile, Qdisc: b.qdisc, CC: b.cc, Direction: b.direction,
-			Count: b.count, Quarantined: b.quarantined,
+			Count: b.count, Quarantined: b.quarantined, Degraded: b.degraded,
 			RTTp95Median: rs.Median, RTTp95IQR: [2]float64{rs.IQRLow, rs.IQRHigh},
 			Smallp95Median: ss.Median, Smallp95IQR: [2]float64{ss.IQRLow, ss.IQRHigh}, GoodputMedian: gs.Median, DeadlineMedian: ds.Median,
 			WastedMedian: ws.Median, CostMedian: cs.Median,
