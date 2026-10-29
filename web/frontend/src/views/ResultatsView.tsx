@@ -33,11 +33,11 @@ type Group = {
 // le classement EST la comparaison toutes cellules (Q1/Q2): critère choisi,
 // filtres profil/file/CC, verdict recalculé — tout depuis les CSV gelés.
 const RANKS = [
-  { key: 'small_p95_median', label: 'small p95', dir: 'down' as const, unit: 'ms', term: 'small_p95' },
-  { key: 'rtt_p95_median', label: 'RTT p95', dir: 'down' as const, unit: 'ms', term: 'rtt_p95' },
-  { key: 'goodput_median', label: 'goodput', dir: 'up' as const, unit: 'Mbit/s', term: 'bulk_goodput' },
-  { key: 'deadline_median', label: 'échéance', dir: 'up' as const, unit: '%', term: 'deadline_ok' },
-  { key: 'cost', label: 'coût', dir: 'down' as const, unit: 'Ar/h', term: 'cost_ar_per_h' },
+  { key: 'small_p95_median', label: 'Délai sous charge', dir: 'down' as const, unit: 'ms', term: 'small_p95' },
+  { key: 'rtt_p95_median', label: 'Latence', dir: 'down' as const, unit: 'ms', term: 'rtt_p95' },
+  { key: 'goodput_median', label: 'Débit utile', dir: 'up' as const, unit: 'Mbit/s', term: 'bulk_goodput' },
+  { key: 'deadline_median', label: "Alertes à l'heure", dir: 'up' as const, unit: '%', term: 'deadline_ok' },
+  { key: 'cost', label: 'Perte financière', dir: 'down' as const, unit: 'Ar/h', term: 'cost_ar_per_h' },
 ]
 
 // décodage config en mots simples — mêmes faits que lib/explain.ts,
@@ -68,11 +68,11 @@ const CCMARK: Record<string, string> = { cubic: '◆', bbr: '◇' }
 // visibles : une seule note qui dit « ce lien tient-il ses promesses ».
 type TSpaceKey = 'small' | 'rtt' | 'goodput' | 'deadline' | 'cost' | 'indice'
 const TSPACE: { key: TSpaceKey; label: string; unit: string; dir: 'down' | 'up' }[] = [
-  { key: 'small', label: 'small p95', unit: 'ms', dir: 'down' },
-  { key: 'rtt', label: 'RTT p95', unit: 'ms', dir: 'down' },
-  { key: 'goodput', label: 'goodput', unit: 'Mb/s', dir: 'up' },
-  { key: 'deadline', label: 'échéance', unit: '%', dir: 'up' },
-  { key: 'cost', label: 'coût', unit: 'Ar/h', dir: 'down' },
+  { key: 'small', label: 'Délai sous charge', unit: 'ms', dir: 'down' },
+  { key: 'rtt', label: 'Latence', unit: 'ms', dir: 'down' },
+  { key: 'goodput', label: 'Débit utile', unit: 'Mb/s', dir: 'up' },
+  { key: 'deadline', label: "Alertes à l'heure", unit: '%', dir: 'up' },
+  { key: 'cost', label: 'Perte financière', unit: 'Ar/h', dir: 'down' },
   { key: 'indice', label: 'indice LIEN', unit: '/100', dir: 'up' },
 ]
 const PAL_PROFILE = P.profile
@@ -89,7 +89,7 @@ const groupLien = (g: Group): LienMetrics => ({
   cost: (() => { const w = g.wasted_median ?? g.wasted_bytes ?? null; if (w == null) return null; if (w <= 0) return 0; return (w / 1073741824) * 5556 * 20 })(),
 })
 
-export default function ResultatsView() {
+export default function ResultatsView({ embedded = false }: { embedded?: boolean }) {
   const [groups, setGroups] = useState<Group[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   // pré-gel (aucun gel) = écran neutre, jamais "erreur" : le genre d'erreur
@@ -395,8 +395,8 @@ export default function ResultatsView() {
     return () => { cancelled = true }
   }, [groups])
 
-  if (err) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind={errKind} hint={err} /></div>
-  if (!groups) return <div className="card"><h1 className="view-title">Résultats</h1><EmptyState kind="loading" hint="agrégation des réplications" /></div>
+  if (err) return <div className="card">{!embedded && <h1 className="view-title">Résultats</h1>}<EmptyState kind={errKind} hint={err} /></div>
+  if (!groups) return <div className="card">{!embedded && <h1 className="view-title">Résultats</h1>}<EmptyState kind="loading" hint="agrégation des réplications" /></div>
 
   const rankMeta = RANKS.find(r => r.key === rankKey) ?? RANKS[0]
   // coût au palier unique de référence (5556 Ar/Go) depuis le gaspillage
@@ -419,31 +419,31 @@ export default function ResultatsView() {
   }
   const COLS: MetricCol[] = [
     {
-      key: 'small', rankKey: 'small_p95_median', label: 'small p95', unit: 'ms', dir: 'down',
+      key: 'small', rankKey: 'small_p95_median', label: 'Délai sous charge', unit: 'ms', dir: 'down',
       tip: "Temps de chargement d'une sonde pendant un transfert lourd — plus bas = mieux",
       get: g => { const v = g.small_p95_valid_median ?? g.small_p95_median; return typeof v === 'number' && v > 0 ? v : null },
       ci: g => g.small_p95_valid_ci95 ?? g.small_p95_valid_iqr ?? g.small_p95_iqr ?? null,
     },
     {
-      key: 'rtt', rankKey: 'rtt_p95_median', label: 'RTT p95', unit: 'ms', dir: 'down',
+      key: 'rtt', rankKey: 'rtt_p95_median', label: 'Latence', unit: 'ms', dir: 'down',
       tip: 'Aller-retour d\u2019un paquet sous charge — plus bas = mieux',
       get: g => (typeof g.rtt_p95_median === 'number' && g.rtt_p95_median > 0 ? g.rtt_p95_median : null),
       ci: g => g.rtt_p95_iqr ?? null,
     },
     {
-      key: 'goodput', rankKey: 'goodput_median', label: 'goodput', unit: 'Mbit/s', dir: 'up',
+      key: 'goodput', rankKey: 'goodput_median', label: 'Débit utile', unit: 'Mbit/s', dir: 'up',
       tip: 'Débit utile mesuré au récepteur — plus haut = mieux',
       get: g => (typeof g.goodput_median === 'number' && g.goodput_median >= 0 ? g.goodput_median : null),
       ci: () => null,
     },
     {
-      key: 'deadline', rankKey: 'deadline_median', label: 'échéance', unit: '%', dir: 'up',
+      key: 'deadline', rankKey: 'deadline_median', label: "Alertes à l'heure", unit: '%', dir: 'up',
       tip: 'Part des sondes arrivées à temps — plus haut = mieux',
       get: g => { const v = g.deadline_median ?? g.deadline_ok_pct; return typeof v === 'number' && v >= 0 ? v : null },
       ci: () => null,
     },
     {
-      key: 'cost', rankKey: 'cost', label: 'coût', unit: 'Ar/h', dir: 'down',
+      key: 'cost', rankKey: 'cost', label: 'Perte financière', unit: 'Ar/h', dir: 'down',
       tip: 'Argent perdu en retransmissions, au tarif unique — plus bas = mieux',
       get: g => costRef(g),
       ci: () => null,
@@ -548,7 +548,7 @@ export default function ResultatsView() {
   )
   // méta source : le run qui nourrit les chiffres, en clair
   const validTotal = safeGroups.reduce((a, g) => a + validN(g), 0)
-  const metaRun = effectiveRun ? `run gelé ${effectiveRun}` : 'tous runs (gelés)'
+  const metaRun = effectiveRun ? `run archivé ${effectiveRun}` : 'tous runs (archivés)'
   // coin du TradeSpace : où vit l'optimum (down = plus bas = mieux) —
   // suit l'axe X CHOISI (plus de substitution silencieuse)
   const yd = (TSPACE.find(t => t.key === yKey)?.dir ?? 'down') === 'down'
@@ -592,16 +592,16 @@ export default function ResultatsView() {
 
   return (
     <div className="panel-stack" style={{ position: 'relative' }}>
-      <h1 className="view-title">Résultats — classement</h1>
+      {!embedded && <h1 className="view-title">Résultats — classement</h1>}
 
       {/* bandeau benchmark — source, provenance, export (façon DeepSWE) */}
       <div className="card bench-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap' }}>
         <span className="mono" style={{ fontSize: 'var(--fs-cap)', fontWeight: 500 }}>Meteolink Leaderboard</span>
         <span className="mono muted" style={{ fontSize: 'var(--fs-tag)' }}>{safeGroups.length} groupes · {metaRun} · {validTotal} mesures valides</span>
         {liveSnapRunning && <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--t-ok)', border: '1px solid currentColor', padding: '2px 8px' }}>● CAMPAGNE EN COURS</span>}
-        <select data-testid="run-select" value={runSel} onChange={e => { runTouched.current = true; setRunSel(e.target.value) }} title="source des chiffres : en direct = dernier run gelé — identifiant complet dans la liste" style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)', maxWidth: '100%' }}>
+        <select data-testid="run-select" value={runSel} onChange={e => { runTouched.current = true; setRunSel(e.target.value) }} title="source des chiffres : en direct = dernier run archivé — identifiant complet dans la liste" style={{ marginLeft: 'auto', background: 'var(--surface-card)', color: 'var(--text-body)', border: '1px solid var(--hairline)', padding: 'var(--sp-1) var(--sp-2)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)', maxWidth: '100%' }}>
           <option value="">{newest ? `⚡ En direct — ${newest}` : '⚡ En direct'}</option>
-          <option value="__all__">tous runs (gelés)</option>
+          <option value="__all__">tous runs (archivés)</option>
           {orderedRuns.map(id => <option key={id} value={id} title={id}>{id === newest ? `⚡ ${id}` : id}</option>)}
         </select>
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
@@ -805,7 +805,7 @@ export default function ResultatsView() {
                       <span style={{ color: 'var(--text-body)' }}> — temps d'aller-retour des paquets sous charge</span>
                     </div>
                     <div className="mono" style={{ fontSize: 'var(--fs-cap)', color: 'var(--text-body-strong)', fontVariantNumeric: 'tabular-nums' }}>
-                      Réactivité des petits objets <span style={{ color: 'var(--text-muted)' }}>(small p95)</span> : <b style={{ fontWeight: 600 }}>{fmtIQR(g.small_p95_median, g.small_p95_iqr)}</b> ms
+                      Délai sous charge <span style={{ color: 'var(--text-muted)' }}>(petits objets p95)</span> : <b style={{ fontWeight: 600 }}>{fmtIQR(g.small_p95_median, g.small_p95_iqr)}</b> ms
                       <span style={{ color: 'var(--text-body)' }}> — charger une page/mesure pendant un transfert lourd</span>
                     </div>
                     {g.small_p95_valid_ci95 && (
@@ -832,11 +832,11 @@ export default function ResultatsView() {
                     const score = lienScore(lienAll, groupLien(g))
                     if (score == null) return null
                     const rows: { label: string; q: number | null; color: string }[] = [
-                      { label: 'small p95', q: comp.small, color: 'var(--t-threshold)' },
-                      { label: 'RTT', q: comp.rtt, color: 'var(--t-live)' },
-                      { label: 'goodput', q: comp.goodput, color: 'var(--t-bbr)' },
-                      { label: 'échéances', q: comp.deadline, color: 'var(--t-ok)' },
-                      { label: 'coût', q: comp.cost, color: 'var(--t-neutral)' },
+                      { label: 'Délai sous charge', q: comp.small, color: 'var(--t-threshold)' },
+                      { label: 'Latence', q: comp.rtt, color: 'var(--t-live)' },
+                      { label: 'Débit utile', q: comp.goodput, color: 'var(--t-bbr)' },
+                      { label: "Alertes à l'heure", q: comp.deadline, color: 'var(--t-ok)' },
+                      { label: 'Perte financière', q: comp.cost, color: 'var(--t-neutral)' },
                     ]
                     return (
                       <div data-testid="lien-score" style={{ marginTop: 10 }}>
@@ -891,7 +891,7 @@ export default function ResultatsView() {
           {(() => {
             const xmR = TSPACE.find(t => t.key === xk) ?? TSPACE[0]
             const ymR = TSPACE.find(t => t.key === yKey) ?? TSPACE[0]
-            return <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-body)', marginTop: 2 }}>{ymR.label} ({ymR.unit}) en fonction de {xmR.label} ({xmR.unit}) — médianes gelées, {filtered.length} groupes · {metaRun}</div>
+            return <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-body)', marginTop: 2 }}>{ymR.label} ({ymR.unit}) en fonction de {xmR.label} ({xmR.unit}) — médianes archivées, {filtered.length} groupes · {metaRun}</div>
           })()}
         </div>
         <div className="form-row chip-row" style={{ gap: 6, alignItems: 'center', marginBottom: 6 }}>
@@ -932,7 +932,7 @@ export default function ResultatsView() {
         })()}
         <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-muted)', marginTop: 6 }}>{caption}</div>
       </div>
-      <Provenance source="mesures gelées des campagnes" refresh="au gel" state="live" extra={`${safeGroups.length} groupes · hash ${hash8}`} />
+      <Provenance source="mesures archivées des campagnes" refresh="au gel" state="live" extra={`${safeGroups.length} groupes · hash ${hash8}`} />
     </div>
   )
 }

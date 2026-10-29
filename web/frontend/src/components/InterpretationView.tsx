@@ -43,12 +43,12 @@ export default function InterpretationView({ profile, onClose }: { profile: stri
     <div className="card interp-card" data-testid="interpretation">
       <div className="card-head interp-head">
         <span className="interp-head-title">Interprétation — {profile}</span>
-        <span className="mono interp-head-note">chiffres gelés, vérifiables</span>
+        <span className="mono interp-head-note">chiffres archivés, vérifiables</span>
         <button className="btn interp-close" onClick={onClose}>FERMER</button>
       </div>
       <div className="interp-body">
         {!data && <span className="mono muted interp-wait">calcul…</span>}
-        {data && !data.available && <span className="mono muted interp-wait">{data.reason ?? 'aucune donnée gelée pour ce profil'}</span>}
+        {data && !data.available && <span className="mono muted interp-wait">{data.reason ?? 'aucune donnée archivée pour ce profil'}</span>}
         {data?.available && (
           <>
             {/* verdict d'abord, en français, gros et lisible */}

@@ -17,7 +17,7 @@ type Integrity = {
   updated?: string
 }
 
-export default function IntegriteView() {
+export default function IntegriteView({ embedded = false }: { embedded?: boolean }) {
   const [data, setData] = useState<Integrity|null>(null)
   const [err, setErr] = useState<string|null>(null)
   const [msg, setMsg] = useState('')
@@ -25,7 +25,8 @@ export default function IntegriteView() {
   const [regenOk, setRegenOk] = useState(false)
   const [peek, setPeek] = useState<{ rect: DOMRect; run: string } | null>(null)
   const replayRunning = useUIStore(s=>s.replayRunning)
-  const setPanel = useUIStore(s=>s.setPanel)
+  const setMode = useUIStore(s=>s.setMode)
+  const setBenchStage = useUIStore(s=>s.setBenchStage)
   const [groups, setGroups] = useState<any[]|null>(null)
   const [peekGroups, setPeekGroups] = useState<any[]|null>(null)
   const [quar, setQuar] = useState<{run:string;event_id:number;profile:string;qdisc:string;cc:string;gate_status:string;failed_gates?:string[]}[]>([])
@@ -68,9 +69,9 @@ export default function IntegriteView() {
     else setMsg('échec: '+r.status)
   }
 
-  if (err) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="error" hint={err} /></div>
-  if (!data) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="loading" hint="vérification des archives" /></div>
-  if (!data.available) return <div className="card"><h1 className="view-title">Intégrité</h1><EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary int-retry" onClick={load}>Réessayer</button></div>
+  if (err) return <div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="error" hint={err} /></div>
+  if (!data) return <div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="loading" hint="vérification des archives" /></div>
+  if (!data.available) return <div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary int-retry" onClick={load}>Réessayer</button></div>
 
   // Quarantaine synthétique retirée — gate_status réel depuis Scan.
   // single scroll: main défile déjà (double-scroll supprimé).
@@ -94,10 +95,10 @@ export default function IntegriteView() {
           })()}
         </PeekPopover>
       )}
-      <h1 className="view-title">Intégrité — archives gelées</h1>
+      {!embedded && <h1 className="view-title">Intégrité — archives scellées</h1>}
       {/* bandeau preuve — 4 faits Grafana, mots pleins, jamais de soupe */}
       <div className="card int-proof" data-testid="proof-banner">
-        <span className="mono int-proof-title">Preuve gelée</span>
+        <span className="mono int-proof-title">Preuve scellée</span>
         <span className="mono int-proof-fact" data-testid="proof-runs">{data.runs} runs archivés · {data.manifests} manifestes signés</span>
         <span className="mono int-proof-fact int-proof-ok"><Explain term="valid_only">{data.valid} mesures valides</Explain></span>
         <span className="mono int-proof-fact" style={{ color: (data.degraded || 0) > 0 ? 'var(--t-threshold)' : 'var(--text-muted)' }}>{data.degraded ?? 0} dégradées</span>
@@ -110,7 +111,7 @@ export default function IntegriteView() {
         <div className="int-sources">
           <div className="mono int-source-line"><b>Manifestes signés</b> — la liste scellée de chaque run archivé (fichiers + empreinte) · dans le dossier de chaque run · mis à jour {data.updated || '—'}</div>
           <div className="mono int-source-line"><b>Quarantaine</b> — les mesures écartées par les <Explain term="G3">portes de validation</Explain> · dans le registre de quarantaine du serveur · à chaque gel de campagne</div>
-          <div className="mono int-source-line"><b>Mesures</b> — le tableur des mesures gelées, une ligne par sondage · dans le fichier de mesures de chaque run · mis à jour {data.updated || '—'}</div>
+          <div className="mono int-source-line"><b>Mesures</b> — le tableur des mesures archivées, une ligne par sondage · dans le fichier de mesures de chaque run · mis à jour {data.updated || '—'}</div>
           <div className="mono int-source-line"><b>Journal</b> — les opérations (campagnes, audits) racontées au fil de l'eau · dans le journal opérateur ci-dessous · en continu</div>
         </div>
       </div>
@@ -124,7 +125,7 @@ export default function IntegriteView() {
       {/* RDF provenance — important look, not debug dump */}
       <div className="card int-rdf">
         <div className="card-head int-rdf-head">
-          <span>RDF — provenance gelée</span>
+          <span>RDF — provenance scellée</span>
           <span className="mono int-rdf-tag">frozen-wave</span>
         </div>
         <div className="int-rdf-body">
@@ -135,14 +136,14 @@ export default function IntegriteView() {
               sha256:{(data as any).sha256}
             </div>
           ) : (
-            <div title="empreinte SHA non exposée par /api/integrity — afficher le manifest gelé">
-              <EmptyState kind="empty" hint="empreinte SHA non exposée par /api/integrity — afficher le manifest gelé" />
+            <div title="empreinte SHA non exposée par /api/integrity — afficher le manifeste archivé">
+              <EmptyState kind="empty" hint="empreinte SHA non exposée par /api/integrity — afficher le manifeste archivé" />
             </div>
           )}
-          <div className="mono int-rdf-note">manifestes signés · registre de quarantaine · tableur des mesures — les trois couvrent les mêmes runs gelés, l'empreinte ci-dessus les scelle</div>
+          <div className="mono int-rdf-note">manifestes signés · registre de quarantaine · tableur des mesures — les trois couvrent les mêmes runs archivés, l'empreinte ci-dessus les scelle</div>
           <div className="int-badges">
             <span className="mono int-badge int-badge-live">Mémoire, tableau 7</span>
-            <span className="mono int-badge int-badge-ok">gelé • vérifiable</span>
+            <span className="mono int-badge int-badge-ok">archivé • vérifiable</span>
           </div>
         </div>
       </div>
@@ -157,7 +158,7 @@ export default function IntegriteView() {
             <tr key={b.run} className="int-row" onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
               <td className="int-td-run"><span title={b.run} className="int-run-id">{b.run}</span></td><td>{b.rows}</td><td>{b.valid}</td><td>{b.degraded ?? 0}</td><td>{b.quarantined}</td>
               <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" className="int-link">résultats</a></td>
-              <td><button className="btn btn-primary int-replay" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setPanel('live') }}>Rejouer</button></td>
+              <td><button className="btn btn-primary int-replay" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setBenchStage('observe'); setMode('bench') }}>Rejouer</button></td>
             </tr>
           ))}
           </tbody></table>
@@ -250,7 +251,7 @@ export default function IntegriteView() {
       </div>
       <div className="card">
         <div className="card-head">Figures</div>
-        <p className="mono muted int-fig-note">Générées par <span className="mono int-fig-code">make figures</span> depuis les CSV gelés.</p>
+        <p className="mono muted int-fig-note">Générées par <span className="mono int-fig-code">make figures</span> depuis les CSV archivés.</p>
         <div className="int-fig-actions">
           <button className="btn btn-primary" onClick={regen}>Régénérer</button>
           <span className="mono muted">{regenOk ? '✓ disponible' : ''}</span>
@@ -293,16 +294,16 @@ export default function IntegriteView() {
         <div className="card-head">Replay {replayRunning && <span className="mono int-replay-live">● en cours</span>}</div>
         {replayRunning ? (
           <div className="int-replay-row">
-            <span className="mono muted">replay actif — voir le Tableau live</span>
+            <span className="mono muted">replay actif — voir l'observation du banc</span>
             <button className="btn int-replay-stop" onClick={()=>stopReplay()}>Arrêter</button>
-            <button className="btn btn-primary" onClick={()=>setPanel('live')}>Voir le Tableau live</button>
+            <button className="btn btn-primary" onClick={()=>{ setBenchStage('observe'); setMode('bench') }}>Voir l'observation</button>
           </div>
         ) : replayRuns.length===0 ? <p className="mono muted">aucun run à rejouer</p> :
           <ul className="int-replay-list">
             {replayRuns.map(id=>(
               <li key={id} className="int-replay-item">
                 <span title={id} className="int-replay-id">{id}</span>
-                <button className="btn btn-primary int-replay" onClick={()=>{ startReplay(id); setPanel('live')}}>Rejouer</button>
+                <button className="btn btn-primary int-replay" onClick={()=>{ startReplay(id); setBenchStage('observe'); setMode('bench')}}>Rejouer</button>
               </li>
             ))}
           </ul>

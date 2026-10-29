@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { PANELS, useUIStore } from '../store/ui'
+import { MODES, useUIStore } from '../store/ui'
 import { createTimeline, stagger } from 'animejs'
 import { prefersReducedMotion, EASE } from '../lib/anime'
 
-// Cmd-K palette — filters 4 panels + 3 quick actions
+// Cmd-K palette — quatre destinations + actions rapides
 const QUICK = [
-  { label: 'Démarrer campagne', panel: 'campagne' as const },
-  { label: 'Voir le Tableau live', panel: 'live' as const },
-  { label: 'Voir résultats', panel: 'resultats' as const },
+  { label: 'Auditer le lien réel', mode: 'audit' as const },
+  { label: "Ouvrir le banc d'essai", mode: 'bench' as const },
+  { label: 'Voir les preuves et rapports', mode: 'evidence' as const },
 ]
 
 export default function CommandPalette({ open, onClose }: { open: boolean; onClose: ()=>void }){
@@ -15,9 +15,9 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
   const inputRef=useRef<HTMLInputElement>(null)
   const listRef=useRef<HTMLUListElement>(null)
   const prevFocusRef=useRef<HTMLElement|null>(null)
-  const setPanel=useUIStore((s:any)=>s.setPanel)
+  const setMode=useUIStore((s:any)=>s.setMode)
 
-  const items = [...PANELS.map(p=>({label:p.label, panel:p.id})), ...QUICK]
+  const items = [...MODES.map(p=>({label:p.label, mode:p.id})), ...QUICK]
   const filtered = items.filter(i=> i.label.toLowerCase().includes(q.toLowerCase()))
 
   useEffect(()=>{ if(open) { setQ(''); setTimeout(()=>inputRef.current?.focus(), 0) } },[open])
@@ -65,7 +65,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
         <button onClick={onClose} aria-label="Fermer" className="palette-close">Esc</button>
       </div>
       <ul ref={listRef} className="palette-list">
-        {filtered.map(it=> <li key={it.label} role="button" tabIndex={0} onClick={()=>{ setPanel(it.panel); onClose() }} onKeyDown={e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setPanel(it.panel); onClose() } }} className="palette-item"><span>{it.label}</span><span className="palette-item-panel">{it.panel}</span></li>)}
+        {filtered.map(it=> <li key={`${it.mode}-${it.label}`} role="button" tabIndex={0} onClick={()=>{ setMode(it.mode); onClose() }} onKeyDown={e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setMode(it.mode); onClose() } }} className="palette-item"><span>{it.label}</span><span className="palette-item-panel">{it.mode}</span></li>)}
         {filtered.length===0 && <li className="palette-empty">Aucun résultat</li>}
       </ul>
     </div>

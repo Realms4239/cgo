@@ -4,7 +4,7 @@ import { useUIStore } from '../store/ui'
 import { asArray } from '../lib/format'
 import { paginate, Paginate } from './ui/Paginate'
 
-// Historique des audits gelés — modale depuis la carte audit de Campagne.
+// Historique des audits archivés — modale depuis la carte audit de Campagne.
 // Chaque ligne porte son rapprochement au référentiel et s'importe en
 // profil rejouable d'un clic (?audit_id= : pas de relance pour importer
 // la fibre quand la pointe est la dernière).
@@ -42,12 +42,12 @@ export default function AuditHistoryModal({ onClose, onImported }: { onClose: ()
     <div role="dialog" aria-label="Historique des audits" className="modal-backdrop" onClick={onClose}>
       <div className="modal-panel" onClick={e=>e.stopPropagation()}>
         <div className="card-head modal-head">
-          <span>Audits gelés ({rows?.length ?? '…'})</span>
+          <span>Audits archivés ({rows?.length ?? '…'})</span>
           <button className="btn modal-head-btn" onClick={load}>RÉACTUALISER</button>
           <button className="btn modal-head-btn-plain" onClick={onClose}>FERMER</button>
         </div>
         {rows === null && <div className="mono muted modal-loading">chargement…</div>}
-        {rows !== null && rows.length === 0 && <div className="mono muted modal-loading">aucun audit gelé — le premier se lance depuis le protocole RQ1 ci-dessous.</div>}
+        {rows !== null && rows.length === 0 && <div className="mono muted modal-loading">aucun audit archivé — lancez le premier depuis Auditer.</div>}
         {rows !== null && rows.length > 0 && (
         <div className="modal-table-wrap">
         <table className="mono modal-table">

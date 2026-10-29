@@ -26,32 +26,34 @@ export function pickHeadline(groups: SynGroup[]): Headline {
   return { simple, best }
 }
 
+export type NextMode = 'audit' | 'bench' | 'evidence'
+
 export function nextStep(running: boolean, runs: number | undefined): {
   title: string
   body: string
   cta: string
-  panel: 'campagne' | 'live' | 'resultats'
+  mode: NextMode
 } {
   if (running) {
     return {
       title: 'La campagne tourne',
       body: 'Suivez la charge, les cartes et les portes en direct. Le gel s’écrit cellule par cellule.',
-      cta: 'Ouvrir le live',
-      panel: 'live',
+      cta: "Voir l'observation",
+      mode: 'bench',
     }
   }
   if (!runs) {
     return {
       title: 'Aucun corpus lisible',
       body: 'Lancez une première campagne sur le banc, ou vérifiez le chemin data/runs avant de conclure.',
-      cta: 'Ouvrir la campagne',
-      panel: 'campagne',
+      cta: "Ouvrir le banc d'essai",
+      mode: 'bench',
     }
   }
   return {
     title: 'Auditer un lien ou relire le corpus',
     body: `${runs} runs sont gelés. Un audit de 60 s ajoute une ligne de terrain sans toucher au réseau de production.`,
-    cta: 'Ouvrir la campagne',
-    panel: 'campagne',
+    cta: 'Auditer le lien',
+    mode: 'audit',
   }
 }

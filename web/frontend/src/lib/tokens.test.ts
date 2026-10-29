@@ -11,9 +11,11 @@ function read(p: string): string {
 }
 
 describe('tokens', () => {
-  it('METEOLINK wordmark exists in App.tsx', () => {
+  it('METEOLINK wordmark is rendered by App through its component', () => {
     const app = read('web/frontend/src/App.tsx')
-    expect(app).toContain('METEOLINK')
+    expect(app).toContain('MeteolinkWordmark')
+    const wordmark = read('web/frontend/src/components/MeteolinkWordmark.tsx')
+    expect(wordmark).toContain('METEOLINK')
   })
   it('METEOLINK wordmark has glow', () => {
     const s = read('web/frontend/src/components/MeteolinkWordmark.tsx')
@@ -35,8 +37,8 @@ describe('tokens', () => {
     // plus de backdrop-filter sur .card — la cause n°1 de jank a été retirée
     expect(css).not.toContain('.card')
     const idx = read('web/frontend/src/styles/index.css')
-    // le blur survit uniquement sur les overlays flottants
-    expect(idx).toContain('.panel-chooser')
+    // aucune carte ne porte de backdrop-filter (le blur reste aux overlays flottants)
+    expect(idx).not.toMatch(/\.card\s*\{[^}]*backdrop-filter/)
   })
   it('tokens.css has hairline fading', () => {
     const css = read('web/frontend/src/styles/tokens.css')
@@ -51,13 +53,18 @@ describe('tokens', () => {
   })
 })
 
-describe('mobile 390 — nav non recouverte par le header', () => {
-  it('le panel-chooser est masqué <=899px : le rail horizontal est la navigation', () => {
+describe('mobile 390 — navigation', () => {
+  it('le rail des modes devient horizontal sous 899px', () => {
     const css = read('web/frontend/src/styles/index.css')
-    // bug vu en e2e deep-probe@390 : le chooser wrappait sur ~200px,
-    // débordait la rangée header 48px et interceptait les clics de la nav (z-index 10).
     const m = css.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)
     expect(m, 'bloc media max-width:899px présent').not.toBeNull()
-    expect(m![0]).toMatch(/\.panel-chooser \{[^}]*display: none/)
+    expect(m![0]).toMatch(/\.mode-rail \{[^}]*flex-direction: row/)
+  })
+
+  it('sous 700px, les quatre destinations passent en barre basse', () => {
+    const css = read('web/frontend/src/styles/index.css')
+    const m = css.match(/@media \(max-width: 700px\) \{[\s\S]*?\n\}/)
+    expect(m, 'bloc media max-width:700px présent').not.toBeNull()
+    expect(m![0]).toMatch(/\.mode-rail \{[^}]*position: fixed/)
   })
 })

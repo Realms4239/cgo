@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { svg, text, animate, stagger } from 'animejs'
+import { svg, animate } from 'animejs'
 import { prefersReducedMotion, EASE } from '../lib/anime'
 
 export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
@@ -13,22 +13,12 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
       const drawable = svg.createDrawable(path)
       animate(drawable as any, { draw: ['0 0', '0 1'], duration: 800, ease: 'linear' } as any)
     }
-    const textEl = el.querySelector('.wordmark-text') as HTMLElement | null
-    const target = (textEl ?? el) as HTMLElement
+    // Le dégradé vit sur l'élément entier : découper en caractères créait des
+    // spans sans background-clip et rendait le mot invisible.
+    const target = (el.querySelector('.wordmark-text') ?? el) as HTMLElement
     try {
-      const splitter = (text as any).splitText(target, { chars: true }) as any
-      const chars: Element[] = splitter?.chars ?? []
-      if (chars.length) {
-        animate(chars as any, {
-          translateY: [8, 0],
-          opacity: [0, 1],
-          duration: 600,
-          ease: EASE,
-          delay: stagger(30, { grid: [4, 2], from: 'center' } as any),
-        } as any)
-      }
+      animate(target, { translateY: [8, 0], opacity: [0, 1], duration: 600, ease: EASE } as any)
     } catch {}
-    void svg.createDrawable; void text.splitText
   }, [])
   return (
     <span ref={ref} className="wordmark-lockup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flex: '0 0 auto', minWidth: 0 }}>

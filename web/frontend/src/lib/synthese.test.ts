@@ -21,7 +21,7 @@ describe('pickHeadline', () => {
 
 describe('nextStep', () => {
   it('suit une campagne en cours', () => {
-    expect(nextStep(true, 159).panel).toBe('live')
+    expect(nextStep(true, 159).mode).toBe('bench')
   })
   it('ne prétend pas lire un corpus absent', () => {
     expect(nextStep(false, 0).title).toContain('Aucun corpus')

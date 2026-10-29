@@ -104,7 +104,7 @@ export default function LiveView() {
     return () => window.removeEventListener('meteolink-settings', on)
   }, [])
   const rtt = useChart('RTT', 'ms')
-  const small = useChart('Petits objets p95', 'ms')
+  const small = useChart('Délai sous charge', 'ms')
   const goodput = useChart('Débit utile applicatif', 'Mbit/s')
   const iface = useChart('Interface', 'Mbit/s')
   const liveSnap = useUIStore((s: any) => s.live)
@@ -136,7 +136,7 @@ export default function LiveView() {
   const [burstCc, setBurstCc] = useState('bbr')
   const [bursting, setBursting] = useState(false)
 
-  // Q4 tri-toggle — PanelChooser dispatches {metric, chart: craft, source}
+  // Affichage — DisplayControls dispatches {metric, chart: craft, source}
   useEffect(() => {
     const onTri = (e: Event) => {
       const d = (e as CustomEvent).detail
@@ -209,7 +209,7 @@ export default function LiveView() {
     const series: ReturnType<typeof lineSeries>[] = [{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), CRAFT.threshold), markArea: ma } as any]
     if (locked && lockedRingRef.current.length > 1) {
       series.unshift({
-        name: 'baseline verrouillée', type: 'line', showSymbol: false, smooth: 0.4, smoothMonotone: 'x', sampling: 'lttb' as const,
+        name: 'référence verrouillée', type: 'line', showSymbol: false, smooth: 0.4, smoothMonotone: 'x', sampling: 'lttb' as const,
         lineStyle: { width: 1.5, type: 'dashed' as const, color: CRAFT.steel },
         emphasis: { focus: 'series' }, blur: { lineStyle: { opacity: 0.2 } },
         data: d(lockedRingRef.current),
@@ -231,7 +231,7 @@ export default function LiveView() {
   // la complétude est indiquée : "en cours 42 s/120 s" si la phase tourne.
   const phaseTotalHint = liveSnap?.running && liveSnap.phase && liveSnap.phase_total_s
     ? <span className="mono live-phase-hint">
-        {liveSnap.small_p95_ms > 0 ? `p95 partiel ${liveSnap.small_p95_ms.toFixed(1)} ms — ` : ''}
+        {liveSnap.small_p95_ms > 0 ? `délai partiel ${liveSnap.small_p95_ms.toFixed(1)} ms — ` : ''}
         {liveSnap.phase} en cours
       </span>
     : null
@@ -383,7 +383,7 @@ export default function LiveView() {
   const ifaceRx = live.iface.rx.at(-1)?.[1] ?? null
   const ifaceTx = live.iface.tx.at(-1)?.[1] ?? null
   const ifaceFmt = (v: number | null) => (v == null ? '—' : v.toFixed(1))
-  const ifaceSourceLabel = live.iface.source === 'twin' ? 'twin'
+  const ifaceSourceLabel = live.iface.source === 'twin' ? 'banc'
     : live.iface.source === 'prod' ? 'production' : 'source non déclarée'
   const ifaceDrops = live.iface.valid
     ? `pertes IF RX ${live.iface.rxDrops} · TX ${live.iface.txDrops}`
@@ -416,7 +416,7 @@ export default function LiveView() {
   // couture d'instrumentation: lire options/pixels depuis les sondes
   if (typeof window !== 'undefined') (window as any).__CGO_CHARTS = { rtt: rtt.chart.current, small: small.chart.current, goodput: goodput.chart.current, iface: iface.chart.current }
   // une seule voix d'attente partout — le vide ne parle qu'une langue
-  const IDLE_HINT = 'en attente — démarrez une campagne depuis Campagne'
+  const IDLE_HINT = 'en attente — démarrez une campagne dans Configurer'
   return (
     <div id="wall" className="panel-stack live-stage">
       {peek && (
@@ -435,14 +435,14 @@ export default function LiveView() {
       </div>
       {showLiveSrc && (
       <Card
-        head="Petits objets p95"
-        sub="p95 · fenêtre 180 s"
+        head="Délai sous charge"
+        sub="petits objets p95 · fenêtre 180 s"
         className="live-hero-card"
         onMouseEnter={e => { setHovered(true); const v = live.small.at(-1)?.[1] ?? smallP95; setPeek({ rect: e.currentTarget.getBoundingClientRect(), value: v }); small.chart.current?.dispatchAction({ type: 'showTip', seriesIndex: 0, dataIndex: Math.max(0, live.small.length - 1) }) }}
         onMouseLeave={() => { setHovered(false); setPeek(null) }}
       >
         <div className="chart-flex">
-          <ChartSurface title="Petits objets p95" unit="ms" domId="chart-small" height="100%" empty={heroEmpty} hint={IDLE_HINT} onReady={small.onReady} />
+          <ChartSurface title="Délai sous charge" unit="ms" domId="chart-small" height="100%" empty={heroEmpty} hint={IDLE_HINT} onReady={small.onReady} />
         </div>
       </Card>
       )}
@@ -467,13 +467,13 @@ export default function LiveView() {
           overrode the breakpoints and cropped every card on mobile */}
       {showLiveSrc && (
       <div data-wall-cards="metric-groups" className={'bento-5 wall-span' + (tri.metric ? '' : ' hidden')}>
-        <MetricCard term="small_p95" label="Petits objets p95" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(smallP95, settings)]} spark={spark(live.small)} trend={trendOf(spark(live.small))} verdict={smallP95 ? verdictWord(latencyLevel(smallP95, settings)) : undefined} verdictLevel={smallP95 ? latencyLevel(smallP95, settings) : undefined} />
+        <MetricCard term="small_p95" label="Délai sous charge" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(smallP95, settings)]} spark={spark(live.small)} trend={trendOf(spark(live.small))} verdict={smallP95 ? verdictWord(latencyLevel(smallP95, settings)) : undefined} verdictLevel={smallP95 ? latencyLevel(smallP95, settings) : undefined} />
         <MetricCard term="rtt_p95" label="RTT p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP95, settings)]} spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} verdict={rttP95 ? verdictWord(latencyLevel(rttP95, settings)) : undefined} verdictLevel={rttP95 ? latencyLevel(rttP95, settings) : undefined} />
         <MetricCard term="bulk_goodput" label="Débit utile" value={goodputVal ? goodputVal.toFixed(1) : '—'} unit="Mbit/s" color={LEVEL_COLOR[goodputLevel(goodputVal, settings.shapeCap)]} spark={spark(live.goodput)} trend={trendOf(spark(live.goodput))} verdict={goodputVal ? verdictWord(goodputLevel(goodputVal, settings.shapeCap)) : undefined} verdictLevel={goodputVal ? goodputLevel(goodputVal, settings.shapeCap) : undefined} />
         <MetricCard term="deadline_ok" label="Échéances" value={deadlineOk === null ? '—' : deadlineOk.toFixed(0)} unit={deadlineOk === null ? '' : '%'} color={deadlineOk === null ? 'var(--text-faint)' : LEVEL_COLOR[deadlineLevel(deadlineOk)]} trend="flat" spark={spark(live.deadline)} verdict={deadlineOk === null ? undefined : verdictWord(deadlineLevel(deadlineOk))} verdictLevel={deadlineOk === null ? undefined : deadlineLevel(deadlineOk)} threshold={{ marker: 95, max: 100 }} />
         <MetricCard term="rtt_p50" label="RTT médian" value={rttP50 ? rttP50.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP50, settings)]} spark={spark(live.rtt50)} trend={trendOf(spark(live.rtt50))} verdict={rttP50 ? verdictWord(latencyLevel(rttP50, settings)) : undefined} verdictLevel={rttP50 ? latencyLevel(rttP50, settings) : undefined} />
-        <div data-testid="qdi-sparkline"><MetricCard term="QDI" label="Dispersion" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
-        <Card head="JFI" sub={jfiServerPct > 0 ? 'équité inter-flux mesurée' : 'équité inter-flux (rings, 0–1)'} testid="qdi-card" term="JFI">
+        <div data-testid="qdi-sparkline"><MetricCard term="QDI" label="Instabilité du lien" value={!liveSnap || live.rtt95.length === 0 ? '—' : qdiVal.toFixed(1)} unit="ms" color={CRAFT.threshold} spark={live.rtt95.length === 0 ? undefined : qdiSpark} trend={trendOf(qdiSpark)} /></div>
+        <Card head="Équité entre flux" sub={jfiServerPct > 0 ? 'mesurée par flux' : 'anneaux, 0–1'} testid="qdi-card" term="JFI">
           <div className="jfi-row">
             <span className="mono jfi-value" style={{ color: jfiVal === null ? 'var(--text-body)' : LEVEL_COLOR[jfiLevel(jfiVal)] }}>{jfiVal === null ? '—' : jfiServerPct > 0 ? `${jfiServerPct.toFixed(1)} %` : jfiVal.toFixed(2)}</span>
             <DonutJFI value={jfiVal} />
@@ -484,7 +484,7 @@ export default function LiveView() {
         <MetricCard term="wasted" label="Gaspillé" value={formatBytesFR(wasted).num} unit={formatBytesFR(wasted).unit} color={wasted == null ? 'var(--text-faint)' : CRAFT.threshold} trend={wasted != null && wasted > 0 ? 'up' : 'flat'} spark={spark(live.wasted)} />
         <MetricCard term="cost_primary_ar_per_h" label="Coût entreprise" value={formatCostAR(costPrimary).num} unit={formatCostAR(costPrimary).unit} color={costPrimary == null ? 'var(--text-faint)' : CRAFT.threshold} trend="flat" />
         <MetricCard term="cost_b2b_ar_per_h" label="Coût B2B" value={formatCostAR(costB2B).num} unit={formatCostAR(costB2B).unit} color={costB2B == null ? 'var(--text-faint)' : CRAFT.threshold} trend="flat" />
-        <MetricCard term="cost_ar_per_h" label="Coût détail (gelé)" value={formatCostAR(costAr).num} unit={formatCostAR(costAr).unit} color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.cost)} />
+        <MetricCard term="cost_ar_per_h" label="Coût détail (archive)" value={formatCostAR(costAr).num} unit={formatCostAR(costAr).unit} color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.cost)} />
       </div>
       )}
       {showLiveSrc && (
@@ -522,8 +522,8 @@ export default function LiveView() {
           avant/maintenant (même fenêtre), le 738 figé ne l'écrase plus */}
       <div className="live-wall-overlay card live-overlay" data-testid="live-wall-overlay">
         <CardHead
-          label={`Figée vs appliqué — ${baseline?.qdisc ?? 'pfifo'} → ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
-          sub={`source ${tri.source} · hash ${hash8} · ${wallGroups ? `${wallGroups.length} groupes gelés` : 'en attente'}`}
+          label={`Référence archivée vs appliqué — ${baseline?.qdisc ?? 'pfifo'} → ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
+          sub={`source ${tri.source} · hash ${hash8} · ${wallGroups ? `${wallGroups.length} groupes archivés` : 'en attente'}`}
           right={diffAB != null ? (
             <span className="diff-badge mono" style={{ background: diffAB > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diffAB > 0 ? CRAFT.ok : CRAFT.danger), color: diffAB > 0 ? CRAFT.ok : CRAFT.danger, padding: '4px 10px', fontSize: 'var(--fs-body)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{diffAB > 0 ? `-${diffAB}%` : `${diffAB}%`}</span>
           ) : undefined}
@@ -531,8 +531,8 @@ export default function LiveView() {
         {diffAB != null && (
           <div className="mono live-overlay-note">
             {diffAB > 0
-              ? `cake répond ${diffAB} % plus vite que la file simple — médianes figées, même campagne`
-              : `la file simple répond ${Math.abs(diffAB)} % plus vite — médianes figées, même campagne`}
+              ? `cake répond ${diffAB} % plus vite que la file simple — médianes archivées, même campagne`
+              : `la file simple répond ${Math.abs(diffAB)} % plus vite — médianes archivées, même campagne`}
           </div>
         )}
         {/* edge control — trois sections calmes : Surveillance / Façonnage / Essai */}
@@ -611,7 +611,7 @@ export default function LiveView() {
           <div className="edge-frozen">
             <div>
               <div className="mono edge-ab-head">
-                <span>baseline figée — gris pointillé</span>
+                <span>référence archivée — gris pointillé</span>
                 <span className="edge-ab-num">{baseline ? `${baseline.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
               <div className="edge-bar edge-bar-before">

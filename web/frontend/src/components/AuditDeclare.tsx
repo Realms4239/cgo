@@ -113,7 +113,7 @@ export function AuditDeclare() {
       </button>
       {s.advanced ? (
         <div className="audit-form">
-          <InlineField label="Fournisseur" helper="ex. yas — gelé avec la ligne">
+          <InlineField label="Fournisseur" helper="ex. yas — archivé avec la ligne">
             <input className="c-input" name="audit-provider" value={s.provider} onChange={e => s.patch({ provider: e.target.value })} placeholder="yas" />
           </InlineField>
           <InlineField label="Cible ping" helper="vide = puits du banc détecté">

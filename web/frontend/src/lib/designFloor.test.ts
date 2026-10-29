@@ -95,15 +95,13 @@ describe('design floor — portes source', () => {
     expect(src, 'les puces de rang/filtre sont des bascules').toContain('aria-pressed={active}')
   })
 
-  it('nav de tête et rail dérivent de la même source PANELS', () => {
-    const chooser = read(join(SRC, 'components', 'PanelChooser.tsx'))
-    const rail = read(join(SRC, 'components', 'Rail.tsx'))
-    for (const [name, src] of [['PanelChooser', chooser], ['Rail', rail]] as const) {
-      expect(src, `${name} importe PANELS`).toContain("PANELS } from '../store/ui'")
-      expect(src, `${name} boucle sur PANELS`).toContain('PANELS.map')
-      expect(src, `${name} expose aria-pressed`).toContain('aria-pressed=')
-    }
-    expect(chooser).toContain('const active = panel === p.id')
-    expect(rail).toContain('aria-pressed={panel===p.id}')
+  it('le rail dérive de MODES et chaque destination est une bascule accessible', () => {
+    const rail = read(join(SRC, 'components', 'ModeRail.tsx'))
+    expect(rail, 'importe MODES').toContain("from '../store/ui'")
+    expect(rail, 'importe MODES').toContain('MODES')
+    expect(rail, 'boucle sur MODES').toContain('MODES.map')
+    expect(rail, 'expose aria-pressed').toContain('aria-pressed={mode === m.id}')
+    const app = read(join(SRC, 'App.tsx'))
+    expect(app, 'raccourcis 1–4 depuis MODES').toContain('MODES.find(m => m.key === e.key)')
   })
 })
