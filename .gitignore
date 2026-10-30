@@ -76,3 +76,6 @@ nul
 cgo-*.exe
 __pycache__/
 pkg/api/data/
+
+# cache image CHR — jamais commitée (voir kit/chr/README.md)
+kit/chr/cache/

@@ -1,0 +1,4 @@
+# Image CHR attendue par le wrapper. Le fichier vit sous kit/chr/cache/
+# (gitignoré). Remplacer la ligne ci-dessous par le nom et le SHA-256 de
+# l'image réellement téléchargée, puis laisser le script refuser toute autre.
+# <nom-image>.img  <sha256>
