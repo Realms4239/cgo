@@ -20,7 +20,9 @@ func TestKernelSourceUsesFacts(t *testing.T) {
 	if got.Source != "tcpinfo" || !strings.Contains(got.Reason, "non-Linux") {
 		t.Fatalf("windows host: %+v", got)
 	}
-	kernelFacts = func() (string, bool, bool, error) { return "linux", true, true, &bpf.BuildError{Reason: "objet non embarqué"} }
+	kernelFacts = func() (string, bool, bool, error) {
+		return "linux", true, true, &bpf.BuildError{Reason: "objet non embarqué"}
+	}
 	if got := KernelSource(); got.Source != "tcpinfo" || !strings.Contains(got.Reason, "objet") {
 		t.Fatalf("absent object: %+v", got)
 	}
