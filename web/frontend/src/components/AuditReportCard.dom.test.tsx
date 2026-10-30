@@ -62,3 +62,39 @@ describe('AuditReportCard surface', () => {
     expect(h).toContain(SEAL)
   })
 })
+
+describe('AuditReportCard — validation RouterOS', () => {
+  const remediation = { qdisc: 'cake', linux_tc: ['tc qdisc add dev eth0 root cake'], routeros: '/queue type add name=cgo-cake kind=cake' }
+
+  it('dit la validation avec la version, le niveau et l’empreinte', () => {
+    const h = html(report({
+      remediation,
+      routeros_validation: {
+        version: '7.15.3', level: 'windows-tcg', export_sha256: 'abcdef1234567890',
+        checks: [{ name: 'queue type cgo-cake.kind', expected: 'cake', found: 'cake', pass: true }],
+      },
+    }))
+    expect(h).toContain('Configuration RouterOS validée')
+    expect(h).toContain('7.15.3')
+    expect(h).toContain('abcdef12')
+    expect(h).not.toContain('appliquée')
+  })
+
+  it('un écart dit non validée', () => {
+    const h = html(report({
+      remediation,
+      routeros_validation: {
+        version: '7.15.3', level: 'windows-tcg', export_sha256: 'abcdef1234567890',
+        checks: [{ name: 'queue type cgo-cake.kind', expected: 'cake', found: 'none', pass: false }],
+      },
+    }))
+    expect(h).toContain('Configuration RouterOS non validée')
+    expect(h).not.toContain('Configuration RouterOS validée (')
+  })
+
+  it('un script sans preuve le dit', () => {
+    const h = html(report({ remediation }))
+    expect(h).toContain('non validée')
+    expect(h).toContain('aucune preuve CHR')
+  })
+})

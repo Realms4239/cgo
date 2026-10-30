@@ -137,6 +137,21 @@ export interface AuditCapsla {
   label?: string
 }
 
+export interface RouterOSCheck {
+  name: string
+  expected: string
+  found: string
+  pass: boolean
+}
+
+export interface RouterOSValidation {
+  version?: string
+  level?: string
+  export_sha256?: string
+  proof_path?: string
+  checks?: RouterOSCheck[]
+}
+
 export interface AuditReport {
   audit_id: string
   timestamp?: string
@@ -152,4 +167,5 @@ export interface AuditReport {
   remediation?: AuditRemediation
   economics?: AuditEconomics
   cap_sla?: AuditCapsla
+  routeros_validation?: RouterOSValidation
 }

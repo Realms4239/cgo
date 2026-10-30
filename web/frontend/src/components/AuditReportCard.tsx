@@ -276,6 +276,20 @@ export function AuditReportCard({ report, onCopy }: {
                 </div>
               </div>
             ) : null}
+            {report.remediation.routeros || report.remediation.routeros_ingress ? (
+              <p className="mono" data-testid="ros-validation" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-muted)', marginTop: 4 }}>
+                {(() => {
+                  const v = report.routeros_validation
+                  if (!v) return 'Configuration RouterOS non validée — aucune preuve CHR'
+                  const ok = (v.checks ?? []).every(c => c.pass)
+                  const level = v.level === 'linux-namespace' ? 'CHR + banc' : 'CHR'
+                  const h8 = (v.export_sha256 ?? '').slice(0, 8)
+                  return ok
+                    ? `Configuration RouterOS validée (${v.version ?? '7.x'}, ${level}) · export ${h8}`
+                    : 'Configuration RouterOS non validée — écarts dans le rapport'
+                })()}
+              </p>
+            ) : null}
           </>
         ) : (
           <Muted>non émise — capacité ou RTT repos non mesurés ; une file dimensionnée au hasard serait déployée à l'aveugle.</Muted>
