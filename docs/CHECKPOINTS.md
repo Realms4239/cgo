@@ -1144,7 +1144,7 @@ end, at a settled decision, and at a handoff.
   remaining deferred items are recorded (Fyne parenthesis wording,
   pre-telemetry server wording).
 
-## 2026-10-30 21:05 UTC · tests et débogage — le niveau inconnu et les surfaces non parcourues
+## 2026-10-30 20:16 UTC · tests et débogage — le niveau inconnu et les surfaces non parcourues
 
 - Branch/HEAD: `rebuild/plan1-economics-audit` / `7f9550d`.
 - Debugging: a new integration test of the CHR replay path found that
