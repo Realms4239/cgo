@@ -381,6 +381,29 @@ Subtitle:
   the peak and is untouched by this task; the four extra chunk requests are
   unmeasured on a real link, only on localhost.
 
+## Task 13 — no control that can only dead-end (2026-10-30, builder pass)
+
+- [x] The `has_report` rule from Task 11 generalised: a run with zero archived
+  lines no longer offers `Rejouer` — 23 of 179 archived runs were in that state
+  and each click could only produce an empty replay. The row says
+  `non rejouable` with the reason in its title.
+- [x] One shared language for "nothing here to act on": `.data-missing` styles
+  both the reports table (`non archivé`) and the runs table (`non rejouable`),
+  replacing the reports-only class.
+- [x] `benchLayout.test.ts` pins the contract on both components (gate on
+  `b.rows > 0`, gate on `a.has_report !== 'true'`, single CSS class);
+  `qa-walk.mjs` asserts the arithmetic on the visible page — replayable plus
+  marked equals the rows shown — so a partially gated table cannot pass.
+- [x] Measured: 46 files / 210 tests, `tsc --noEmit` clean, `python
+  tools/verify.py` → 6 passed / 0 failed / 0 not run, `node qa-walk.mjs` →
+  21 steps, 0 failures, 0 console errors, 0 resource errors (7 replayable +
+  5 marked = 12 visible rows; 6 openable + 3 marked = 9 report rows).
+- [x] Committed at `69f8f37`.
+- Unproven: the frozen corpus itself was not re-audited beyond the gates; the
+  `/api/replay/list` set currently covers every run row, so the row-count gate
+  is the operative guard, not the file-existence one.
+
+
 
 ## Acceptance mapping
 

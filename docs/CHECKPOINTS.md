@@ -936,3 +936,22 @@ end, at a settled decision, and at a handoff.
 - Next: the verifier re-runs the six commands above; the human reviews the four
   rendered modes; the Linux 6.8 bench, VM credentials and production read-only
   access remain blocked as listed in `docs/VERIFY.md`.
+
+## 2026-10-30 12:10 UTC · slice 15 Task 13 — no control that can only dead-end
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `69f8f37`.
+- Changed: a run with zero archived lines no longer offers `Rejouer` (23 of 179
+  were in that state) and says `non rejouable` instead; `.data-missing` is now
+  one shared style for both the reports table (`non archivé`) and the runs
+  table, replacing the reports-only class; `benchLayout.test.ts` pins both
+  gates and `qa-walk.mjs` checks the arithmetic on the visible page.
+- Proven on DESKTOP-B6K9UCM: `npm run typecheck` exit 0; `npm test` → 46 files,
+  210 tests; `python tools/verify.py` → 6 passed, 0 failed, 0 not run;
+  `node qa-walk.mjs` on the served build → 21 steps, 0 failures, 0 console
+  errors, 0 resource errors — 7 replayable + 5 marked = 12 visible run rows,
+  6 openable + 3 marked = 9 report rows.
+- Unproven: `/api/replay/list` currently covers every run row, so the row-count
+  gate is the operative guard rather than file existence; no live run; the
+  independent verifier has not re-run these commands.
+- Next: impeccable audit pass on the four modes, then the verifier pass and the
+  human's visual review.
