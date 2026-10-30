@@ -122,6 +122,28 @@ export function auditPhases(direction: AuditDirection): string[] {
   return direction === 'down' ? ['repos', 'charge-down', 'drain'] : ['repos', 'charge', 'drain']
 }
 
+// Miroir exact de `phasePlan` (pkg/audit/audit.go) : la durée déclarée est la
+// durée TOTALE de l'audit, partagée en repos / charge / drain. L'écran le dit
+// avant de lancer, au lieu de laisser l'opérateur deviner ce que « 20 s » veut dire.
+export interface AuditPhasePlan { idle: number; loaded: number; drain: number }
+
+export function auditPhasePlan(duration: number): AuditPhasePlan {
+  const d = duration > 0 ? duration : 10
+  let idle: number
+  let drain: number
+  if (d >= 60) { idle = 10; drain = 10 }
+  else if (d >= 20) { idle = Math.floor(d / 4); drain = Math.floor(d / 4) }
+  else { idle = Math.floor(d / 2); drain = 0 }
+  if (idle < 1) idle = 1
+  const loaded = Math.max(0, d - idle - drain)
+  return { idle, loaded, drain }
+}
+
+export function phasePlanLabel(duration: number): string {
+  const p = auditPhasePlan(duration)
+  return `${duration} s au total : ${p.idle} s repos · ${p.loaded} s charge${p.drain ? ` · ${p.drain} s drain` : ''}`
+}
+
 export function phaseLabel(phase: string | undefined): string {
   switch (phase) {
     case 'repos':

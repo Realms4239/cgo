@@ -10,7 +10,10 @@ import type { AuditReport } from '../lib/types'
 
 type Row = Record<string, string>
 
-export function AuditReportTable({ rows, onOpen }: { rows: Row[]; onOpen: (id: string) => void }) {
+export function AuditReportTable({ rows, onOpen }: {
+  rows: Row[]
+  onOpen: (id: string) => void
+}) {
   if (rows.length === 0) {
     return <EmptyState kind="empty" hint="Aucun rapport d'audit archivé." />
   }
@@ -29,13 +32,13 @@ export function AuditReportTable({ rows, onOpen }: { rows: Row[]; onOpen: (id: s
               <td>{a.rtt_loaded_p95_ms ? `${a.rtt_loaded_p95_ms} ms` : '—'}</td>
               <td>{a.bloat_grade || '—'}</td>
               <td>
-                <button
-                  className="btn audit-report-open"
-                  disabled={!a.audit_id}
-                  onClick={() => a.audit_id && onOpen(a.audit_id)}
-                >
-                  OUVRIR
-                </button>
+                {!a.audit_id ? (
+                  <button className="btn audit-report-open" disabled>OUVRIR</button>
+                ) : a.has_report !== 'true' ? (
+                  <span className="mono audit-report-missing" title="ligne archivée avant le dossier de rapport">non archivé</span>
+                ) : (
+                  <button className="btn audit-report-open" onClick={() => onOpen(a.audit_id)}>OUVRIR</button>
+                )}
               </td>
             </tr>
           ))}
@@ -62,7 +65,9 @@ export default function AuditReportsPanel() {
     fetch(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(j => { setReport(j as AuditReport); setMsg('') })
-      .catch(e => setMsg('rapport introuvable : ' + e.message))
+      // Le serveur a signalé la ligne archivable : un échec ici est une
+      // panne, pas une impasse attendue — elle se dit sans effacer la liste.
+      .catch(() => setMsg('rapport indisponible — réessayez'))
   }
 
   const copyText = (text: string, label: string) => {

@@ -65,6 +65,27 @@ func readAuditReport(id string) (*audit.Report, error) {
 	return &rep, nil
 }
 
+// auditReportExists — le dossier d'archive de ce rapport est-il présent ?
+// Une ligne de link_audit.csv peut précéder l'archivage par dossier : sans ce
+// drapeau, le dashboard propose « OUVRIR » sur une impasse et le premier clic
+// produit un 404.
+func auditReportExists(id string) bool {
+	if id == "" {
+		return false
+	}
+	clean, err := audit.ArtifactID(id)
+	if err != nil {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join("data", "audits", clean, "audit_report.json")); err == nil {
+		return true
+	}
+	auditMu.Lock()
+	last := lastAuditReport
+	auditMu.Unlock()
+	return last != nil && last.AuditID == id
+}
+
 // Schema — source unique de vérité pour chaque contrôle paramétré :
 // le serveur valide depuis ce registre, GET /api/schema le sert, le client
 // rend les champs depuis ce registre (placeholders = valeurs par défaut,
@@ -1439,6 +1460,7 @@ func New(d Deps) Handler {
 					m[h] = row[i]
 				}
 			}
+			m["has_report"] = strconv.FormatBool(auditReportExists(m["audit_id"]))
 			out = append(out, m)
 		}
 		writeJSON(w, map[string]any{"audits": out})

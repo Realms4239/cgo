@@ -64,4 +64,15 @@ describe('banc d’essai linéaire', () => {
     const rail = read('components/ModeRail.tsx')
     expect(rail).toContain('preloadBench')
   })
+
+  it('ouvrir les résultats reste hors du geste : transition, puis saut', () => {
+    const b = read('views/BenchView.tsx')
+    // le montage de la matrice + TradeSpace est la tâche la plus chère de la
+    // page : il ne doit plus se payer dans le task du clic.
+    expect(b).toContain('import { startTransition')
+    expect(b).toContain("startTransition(() => { setStage('results'); setResultsOpen(true) })")
+    expect(b, 'le saut reste urgent, le montage non').toMatch(/const openResults = \(\) => \{\s*startTransition/g)
+    expect(b).toContain('<button className="btn" onClick={openResults}>RÉSULTATS</button>')
+    expect(b).toContain('<button className="btn btn-primary" onClick={openResults}>OUVRIR LES RÉSULTATS</button>')
+  })
 })

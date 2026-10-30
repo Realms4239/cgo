@@ -6,7 +6,7 @@ describe('AuditReportTable', () => {
   it('liste un rapport avec son site, sa note et son action', () => {
     const html = renderToStaticMarkup(
       <AuditReportTable
-        rows={[{ audit_id: 'audit-7', site: 'Département X', link_type: '5g', timestamp: '2026-10-29T08:00:00Z', rtt_loaded_p95_ms: '328', bloat_grade: 'D' }]}
+        rows={[{ audit_id: 'audit-7', site: 'Département X', link_type: '5g', timestamp: '2026-10-29T08:00:00Z', rtt_loaded_p95_ms: '328', bloat_grade: 'D', has_report: 'true' }]}
         onOpen={() => {}}
       />,
     )
@@ -27,5 +27,13 @@ describe('AuditReportTable', () => {
       <AuditReportTable rows={[{ site: 'site sans id' }]} onOpen={() => {}} />,
     )
     expect(html).toContain('disabled')
+  })
+
+  it('une ligne sans dossier d’archive est dite avant le clic', () => {
+    const html = renderToStaticMarkup(
+      <AuditReportTable rows={[{ audit_id: 'audit-old', site: 'Site X', has_report: 'false' }]} onOpen={() => {}} />,
+    )
+    expect(html).toContain('non archivé')
+    expect(html).not.toContain('OUVRIR')
   })
 })

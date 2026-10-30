@@ -85,6 +85,8 @@ header { grid-area: hd; position: relative; z-index: 10; display: flex; align-it
 
 /* main / view */
 main { grid-area: main; overflow-y: auto; position: relative; }
+/* cible du focus après un changement de mode — conteneur, pas une commande */
+main:focus { outline: none; }
 /* vues toutes montées, masquées par l'attribut hidden — le CSS ne pilote plus l'affichage */
 /* view — respire sur grand écran, tient sur projection 1366×768 (clamp) */
 .view { height: 100%; padding: clamp(12px, 2.2vw, 28px); animation: fadeIn 0.35s ease; }
@@ -668,6 +670,7 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .audit-reports-table tbody tr { border-bottom: 1px solid var(--hairline-faint); }
 .audit-reports-table th, .audit-reports-table td { padding: var(--sp-1) var(--sp-2); text-align: left; }
 .audit-report-open { padding: 2px 10px; font-size: var(--fs-micro); }
+.audit-report-missing { font-size: var(--fs-micro); color: var(--text-faint); }
 .audit-report-back { align-self: flex-start; padding: var(--sp-1) var(--sp-2); }
 .audit-reports-msg { font-size: var(--fs-micro); }
 .evidence-page { max-width: 1180px; }

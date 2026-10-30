@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -62,6 +64,43 @@ func TestReadAuditReportRejectsUnsafeID(t *testing.T) {
 		if _, err := readAuditReport(id); err == nil {
 			t.Fatalf("id %q accepté par la lecture", id)
 		}
+	}
+}
+
+// TestAuditReportExists — le drapeau « archivable » suit ce qui existe : un id
+// malformé ou absent ne passe pas, le dossier présent passe, et le rapport en
+// mémoire du suivi courant compte sans être encore relu du disque.
+func TestAuditReportExists(t *testing.T) {
+	t.Chdir(t.TempDir())
+	for _, id := range []string{"", "..", ".", "../x", `..\x`, "a/b"} {
+		if auditReportExists(id) {
+			t.Fatalf("id %q accepté comme archivé", id)
+		}
+	}
+	auditMu.Lock()
+	last := lastAuditReport
+	lastAuditReport = &audit.Report{AuditID: "audit-9"}
+	auditMu.Unlock()
+	defer func() {
+		auditMu.Lock()
+		lastAuditReport = last
+		auditMu.Unlock()
+	}()
+	if !auditReportExists("audit-9") {
+		t.Fatal("rapport du suivi courant non reconnu")
+	}
+	if auditReportExists("audit-8") {
+		t.Fatal("id sans archive reconnu comme archivable")
+	}
+	dir := filepath.Join("data", "audits", "audit-8")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "audit_report.json"), []byte(`{"audit_id":"audit-8"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !auditReportExists("audit-8") {
+		t.Fatal("dossier présent non reconnu")
 	}
 }
 

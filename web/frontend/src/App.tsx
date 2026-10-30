@@ -51,6 +51,8 @@ export default function App() {
     document.title = found ? `${found.label} — Meteolink` : 'Meteolink'
     const main = document.getElementById('main')
     main?.scrollTo({ top: 0 })
+    // la destination est annoncée au clavier et aux lecteurs d'écran
+    main?.focus({ preventScroll: true })
     animateViewEnter()
   }, [mode])
 
@@ -126,7 +128,7 @@ export default function App() {
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         {live?.running && mode === 'bench' ? <QuickActionsPrompt /> : null}
 
-        <main id="main">
+        <main id="main" tabIndex={-1}>
           <section id="v-dashboard" className="view" hidden={mode !== 'dashboard'}><DashboardView /></section>
           {mounted.audit ? <section id="v-audit" className="view" hidden={mode !== 'audit'}><AuditView /></section> : null}
           {mounted.bench ? (

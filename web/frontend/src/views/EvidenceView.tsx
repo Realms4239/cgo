@@ -3,10 +3,10 @@ import AuditReportsPanel from '../components/AuditReportsPanel'
 import { ModeHead } from '../components/ModeHead'
 import IntegriteView from './IntegriteView'
 import { scrollToId } from '../lib/scroll'
-import { useUIStore } from '../store/ui'
+import { useModeActive } from '../lib/hooks'
 
 export default function EvidenceView() {
-  const active = useUIStore(s => s.mode === 'evidence')
+  const active = useModeActive('evidence')
   return (
     <div className="panel-stack evidence-page">
       <ModeHead

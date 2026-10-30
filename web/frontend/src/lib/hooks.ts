@@ -1,4 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { useUIStore, type ModeId } from '../store/ui';
+
+// Une destination masquée ne doit rien peindre ni rien sonder : seul le
+// service racine (session d'audit, SSE) continue.
+export function useModeActive(mode: ModeId): boolean {
+  return useUIStore(s => s.mode === mode);
+}
 
 // Hook de boucle rAF générique — port React du paintLoop d'origine.
 // Le callback lit le singleton `live` mutable et peint de façon impérative

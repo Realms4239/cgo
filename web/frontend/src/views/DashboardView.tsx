@@ -16,6 +16,7 @@ import { remediationView, retailBound } from '../lib/dashboard'
 import { compareAudits, summaryOf } from '../lib/auditSummary'
 import { formatCostAR, groupDigits, relativeTime } from '../lib/format'
 import { loadSettings } from '../lib/settings'
+import { useModeActive } from '../lib/hooks'
 
 type Integrity = {
   available?: boolean
@@ -35,7 +36,7 @@ const signed = (v: number) => `${v > 0 ? '+' : ''}${v}`
 export default function DashboardView() {
   const setMode = useUIStore(s => s.setMode)
   const setBenchStage = useUIStore(s => s.setBenchStage)
-  const active = useUIStore(s => s.mode === 'dashboard')
+  const active = useModeActive('dashboard')
   const running = useUIStore(s => !!s.live?.running)
   const report = useAuditStore(s => s.report)
   const previous = useAuditStore(s => s.previous)

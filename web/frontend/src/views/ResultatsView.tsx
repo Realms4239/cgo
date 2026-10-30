@@ -610,7 +610,7 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
           <option value="__all__">tous runs (archivés)</option>
           {orderedRuns.map(id => <option key={id} value={id} title={id}>{id === newest ? `⚡ ${id}` : id}</option>)}
         </select>
-        {hasViewChanges ? <button className="btn bench-mini" onClick={resetView} title="revenit au dernier run, sans filtre ni épingle">RÉINITIALISER</button> : null}
+        {hasViewChanges ? <button className="btn bench-mini" onClick={resetView} title="revenir au dernier run, sans filtre ni épingle">RÉINITIALISER</button> : null}
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
         <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>MD</a>
         <button className="btn" title="Lire le classement : métriques et règles de lecture" aria-label="Lire le classement" onClick={() => setInfoOpen(true)} style={{ padding: '7px 12px', fontSize: 'var(--fs-body)' }}>ⓘ</button>

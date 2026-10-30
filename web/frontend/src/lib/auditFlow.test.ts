@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AUDIT_LINK_TYPES,
   DEFAULT_AUDIT_DIRECTION,
+  auditPhasePlan,
   auditPhases,
   auditStep,
   directionLabel,
@@ -12,6 +13,7 @@ import {
   normalizeDirection,
   normalizeDuration,
   phaseLabel,
+  phasePlanLabel,
   remainingSeconds,
   validateAuditDeclaration,
   type AuditStage,
@@ -113,5 +115,25 @@ describe('maths live', () => {
     expect(remainingSeconds({ running: true, total_sec: 60, elapsed_sec: 23 })).toBe(37)
     expect(remainingSeconds({ running: true, total_sec: 60, elapsed_sec: 61 })).toBe(0)
     expect(remainingSeconds({ running: false })).toBeNull()
+  })
+})
+
+describe('auditPhasePlan — miroir de phasePlan (pkg/audit)', () => {
+  it('60 s = 10 repos · 40 charge · 10 drain', () => {
+    expect(auditPhasePlan(60)).toEqual({ idle: 10, loaded: 40, drain: 10 })
+  })
+  it('20 s = un quart de repos, un quart de drain, le reste en charge', () => {
+    expect(auditPhasePlan(20)).toEqual({ idle: 5, loaded: 10, drain: 5 })
+  })
+  it('court (< 20 s) = repos seulement, pas de drain inventé', () => {
+    expect(auditPhasePlan(10)).toEqual({ idle: 5, loaded: 5, drain: 0 })
+    expect(auditPhasePlan(0).idle).toBeGreaterThan(0)
+  })
+  it('la durée annoncée est bien la durée totale', () => {
+    for (const d of [10, 20, 45, 60, 120]) {
+      const p = auditPhasePlan(d)
+      expect(p.idle + p.loaded + p.drain).toBe(d)
+    }
+    expect(phasePlanLabel(20)).toBe('20 s au total : 5 s repos · 10 s charge · 5 s drain')
   })
 })

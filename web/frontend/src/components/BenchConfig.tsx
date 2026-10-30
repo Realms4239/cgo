@@ -239,11 +239,11 @@ export default function BenchConfig() {
           <span className="mono muted bench-hint bench-cost-note">octets gâchés × tarif unique</span>
         </div>
         <div className="form-row bench-launch">
-          <span title={live?.running ? "campagne en cours — arrêter d'abord" : undefined}>
-            <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running} />
+          <span title={live?.running ? "campagne en cours — arrêter d'abord" : profiles.length === 0 ? 'choisir au moins un profil' : undefined}>
+            <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running || profiles.length === 0} />
           </span>
           <ArmButton label="ARRÊTER" confirmLabel="CONFIRMER L'ARRÊT" onConfirm={stop} disabled={!live?.running} />
-          <span className="mono muted">{msg}</span>
+          <span className="mono muted">{profiles.length === 0 ? 'aucun profil sélectionné' : msg}</span>
         </div>
       </div>
 

@@ -6,8 +6,8 @@ import { InlineField } from './InlineField'
 import { animateShake } from '../lib/anime'
 import {
   AUDIT_DURATIONS,
-  durationChoice,
   directionLabel,
+  phasePlanLabel,
   validateAuditDeclaration,
 } from '../lib/auditFlow'
 import { useAuditStore } from '../store/audit'
@@ -23,7 +23,6 @@ export function AuditDeclare() {
     duration: s.duration,
     direction: s.direction,
   })
-  const custom = durationChoice(s.duration) === 'custom'
 
   const launch = () => {
     if (!validation.valid) {
@@ -87,7 +86,7 @@ export function AuditDeclare() {
         <InlineField
           label="Durée"
           error={validation.errors.duration}
-          helper={custom ? `durée libre : ${s.duration} s` : '20 ou 60 s — durée libre dans avancé'}
+          helper={phasePlanLabel(s.duration)}
         >
           <div role="group" aria-label="Durée de l'audit" className="audit-pills">
             {AUDIT_DURATIONS.map(d =>
