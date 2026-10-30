@@ -1143,3 +1143,31 @@ end, at a settled decision, and at a handoff.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant; the
   remaining deferred items are recorded (Fyne parenthesis wording,
   pre-telemetry server wording).
+
+## 2026-10-30 21:05 UTC · tests et débogage — le niveau inconnu et les surfaces non parcourues
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `7f9550d`.
+- Debugging: a new integration test of the CHR replay path found that
+  `--level kvm` travelled to `WriteCHRProof` and exited 1 (seal failure)
+  instead of 2 (usage). `levelAllowed` now rejects any level outside
+  windows-tcg/linux-namespace before the report is read. This is the second
+  defect the test-first discipline caught in this surface, after the empty
+  `checks` array rendering as a pass.
+- Test coverage added (`cmd/cgo-chr/run_test.go`): replay end-to-end (exit 0,
+  level, 12/12 checks, sealed hashes, export and transcript files), mutated
+  export (exit 1), report without a RouterOS script (exit 2), unknown level
+  (exit 2); `TestLevelAllowed` extended with the unknown-level rung.
+- Debugging sweep (one-off, then made permanent): settings drawer and command
+  palette open and close on Escape; zero horizontal overflow at 1366, 1024,
+  1920 and 390 px; evidence report open/back; three bench anchors — 0 console
+  errors, 0 page errors. `qa-walk.mjs` now always asserts the six chrome and
+  overflow steps: 29 steps, 0 failures, 0 console/resource errors, peak task
+  267 ms.
+- Proven: `go vet ./cmd/cgo-chr` clean; `go test ./cmd/cgo-chr` ok; frontend
+  suite 46 files / 215 tests (previous run, unchanged by this pass);
+  `python tools/verify.py` was green at `7f99dba` and the only Go change here
+  is the guard plus tests.
+- Unproven: the sweep exercises one browser (Edge) on one host; no screen
+  reader; the Fyne view still has no runtime test here.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant, and
+  the human's visual review.
