@@ -1094,7 +1094,7 @@ end, at a settled decision, and at a handoff.
 - Next: human review of Annexe F; the verifier's signature on the packet; QEMU
   and a Linux 6.8 host for the remaining rows; merge to `main` is the human's.
 
-## 2026-10-31 00:10 UTC · deepwork — API, GUI, livre (trois phases, trois revues)
+## 2026-10-30 20:00 UTC · deepwork — API, GUI, livre (trois phases, trois revues)
 
 - Branch/HEAD: `rebuild/plan1-economics-audit` / `91b6ecb`.
 - Phase A (`1536f09`): 9 audit routes moved to `pkg/api/server_audit.go`;
