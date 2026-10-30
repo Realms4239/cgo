@@ -1,0 +1,9 @@
+# 2026-10-30 12:00:00 by RouterOS 7.15.3
+/queue type
+add cake-ack-filter=filter cake-bandwidth=19000000 cake-diffserv=diffserv4 \
+    cake-flowmode=triple-isolate cake-nat=yes cake-rtt=25ms cake-wash=yes \
+    kind=cake name=cgo-cake
+
+/queue tree
+add comment=cgo-managed max-limit=19000000 name=cgo-wan-out parent=ether1-wan \
+    queue=cgo-cake
