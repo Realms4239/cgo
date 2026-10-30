@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/Realms4239/cgo/pkg/audit"
 )
@@ -16,6 +17,10 @@ type reportFile struct {
 }
 
 func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
+	if ok, reason := levelAllowed(cfg.Level, runtime.GOOS); !ok {
+		fmt.Fprintln(os.Stderr, "chr: "+reason)
+		return 2
+	}
 	raw, err := os.ReadFile(reportPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "chr: rapport illisible: %v\n", err)
@@ -145,4 +150,13 @@ func passed(checks []audit.RouterOSCheck) int {
 		}
 	}
 	return n
+}
+
+// levelAllowed — le niveau linux-namespace exige Linux ; l'affirmer plus tôt
+// évite un échec QEMU obscur et une preuve étiquetée à tort.
+func levelAllowed(level, goos string) (bool, string) {
+	if level == "linux-namespace" && goos != "linux" {
+		return false, "niveau linux-namespace sur " + goos + " — l'attachement aux namespaces exige Linux (utilisez windows-tcg ici)"
+	}
+	return true, ""
 }

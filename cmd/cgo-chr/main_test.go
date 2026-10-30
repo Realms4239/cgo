@@ -24,3 +24,18 @@ func TestBuildQEMUArgsKVM(t *testing.T) {
 		t.Fatalf("linux-namespace did not ask for KVM: %s", args)
 	}
 }
+
+func TestLevelAllowed(t *testing.T) {
+	if ok, _ := levelAllowed("windows-tcg", "linux"); !ok {
+		t.Fatal("windows-tcg refused on Linux")
+	}
+	if ok, _ := levelAllowed("windows-tcg", "windows"); !ok {
+		t.Fatal("windows-tcg refused on Windows")
+	}
+	if ok, reason := levelAllowed("linux-namespace", "windows"); ok || reason == "" {
+		t.Fatalf("linux-namespace accepted on Windows (reason %q)", reason)
+	}
+	if ok, _ := levelAllowed("linux-namespace", "linux"); !ok {
+		t.Fatal("linux-namespace refused on Linux")
+	}
+}
