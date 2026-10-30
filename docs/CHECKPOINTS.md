@@ -905,3 +905,34 @@ end, at a settled decision, and at a handoff.
   `python tools/verify.py`, `node qa-walk.mjs` and `node perf-probe.mjs`; the
   human reviews the four rendered modes; the Linux 6.8 bench, VM credentials and
   production read-only access remain blocked as listed in `docs/VERIFY.md`.
+
+## 2026-10-30 11:20 UTC · slice 15 Task 12 — first chunk and the cost of opening results
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `0c9ccbf`.
+- Changed: `AuditView` and `EvidenceView` join `BenchView` behind `lazy()`, each
+  section keeping its own `Suspense` boundary; `lib/preload.ts` becomes a mode
+  table that `ModeRail` (hover/focus) and `store/ui.setMode` (keyboard, palette,
+  click) both use; `ResultatsView` mounts the TradeSpace one paint after the
+  ranking behind a height-reserving placeholder and lists the mount flag in the
+  chart effect; `qa-walk.mjs` gains a canvas assertion and `benchLayout.test.ts`
+  a lazy-destination gate.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64): `npm run typecheck` exit 0;
+  `npm test` → 46 files, 209 tests; `npm run build` → initial chunk 99.1 KB gz
+  (306.5 KB raw, was 111.5 KB gz / 350.1 KB raw), `AuditView` 4.7 KB gz,
+  `EvidenceView` 6.4 KB gz, four shared UI chunks, total 349.9 KB gz against the
+  600 KB budget; `go test ./pkg/api/ -count=1` ok; `python tools/verify.py` →
+  6 passed, 0 failed, 0 not run. Runtime on the served build: `node qa-walk.mjs`
+  → 20 steps, 0 failures, 0 console errors, 0 resource errors, TradeSpace canvas
+  880×320 px, results-anchor task 163–232 ms over six runs (was 184–463 ms),
+  bench entry 52–97 ms; `node perf-probe.mjs` → heap 7.6 MB (was 8.3 MB), five
+  split runs median shell 962 / DCL 378 / LCP 1,180 ms against the earlier
+  single-sample pass 1,050 / 437 / 1,296 ms.
+- Unproven: this host spreads ±60% run to run — one split run measured shell
+  1,515 ms and bench reveal 1,705 ms — so the timings are reported as medians
+  with their spread, and only the chunk and heap figures are claimed; the boot
+  task (210–310 ms, React init and first render) is the new peak and is not
+  addressed here; the four extra chunk requests are unmeasured on a real link,
+  only on localhost; no live audit or campaign; independent verifier pending.
+- Next: the verifier re-runs the six commands above; the human reviews the four
+  rendered modes; the Linux 6.8 bench, VM credentials and production read-only
+  access remain blocked as listed in `docs/VERIFY.md`.

@@ -348,6 +348,40 @@ Subtitle:
   ECharts subtree out needs the init effect to re-run on deferred mount, which
   is a separate change; the Linux/eBPF acceptance of slice 15 stays open.
 
+## Task 12 — first chunk and the cost of opening results (2026-10-30, builder pass)
+
+- [x] Only the landing destination ships in the first render: `AuditView` and
+  `EvidenceView` join `BenchView` behind `lazy()` with one `Suspense` boundary
+  per section (a single boundary would let a suspending view blank the others).
+- [x] `lib/preload.ts` becomes a table of importers keyed by mode; `ModeRail`
+  prefetches on hover/focus and `store/ui.setMode` prefetches on every mode
+  change, so the keyboard and the command palette get the same warm start as
+  the mouse. One place names the chunk: a new mode cannot be forgotten.
+- [x] Initial chunk 111.5 → 99.1 KB gz (350.1 → 306.5 KB raw); new chunks
+  `AuditView` 4.7 KB gz and `EvidenceView` 6.4 KB gz plus four shared UI chunks;
+  total 349.9 KB gz against the 600 KB budget; JS heap 8.3 → 7.6 MB.
+- [x] The TradeSpace card mounts one paint after the ranking (`chartsReady`) and
+  reserves its height while waiting (`.ts-loading`, 396 px), so opening the
+  results neither blocks the click nor jumps the page; its init effect now lists
+  the mount flag so the chart cannot be left uninitialised.
+- [x] Measured on the served build: results-anchor interaction task 184–463 ms
+  before → 163–232 ms over six runs; bench entry 52–97 ms; `qa-walk` adds
+  “le TradeSpace est réellement peint” (canvas 880×320 px) so a deferred mount
+  cannot pass as a performance win while broken. Final walk: 20 steps,
+  0 failures, 0 console errors, 0 resource errors.
+- [x] `perf-probe` medians over five runs on the split build: shell 962 ms,
+  DCL 378 ms, LCP 1,180 ms (single-sample pass before the split: 1,050 / 437 /
+  1,296 ms). This host spreads ±60% run to run — one split run measured shell
+  1,515 ms and bench reveal 1,705 ms — so the defensible claims are the chunk
+  and heap figures, not the timings.
+- [x] Gates on the final tree: `tsc --noEmit` clean, 46 files / 209 tests,
+  `go test ./pkg/api/ -count=1` ok, `python tools/verify.py` → 6 passed,
+  0 failed, 0 not run; screenshots recaptured at 1920/1366/390.
+- Unproven: the boot task (210–310 ms, React init and first render) is still
+  the peak and is untouched by this task; the four extra chunk requests are
+  unmeasured on a real link, only on localhost.
+
+
 ## Acceptance mapping
 
 | Spec acceptance | Task |
