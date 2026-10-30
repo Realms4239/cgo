@@ -976,3 +976,33 @@ end, at a settled decision, and at a handoff.
   reason the `display: contents` fix is worse); no live run; verifier pending.
 - Next: the verifier pass and the human's visual review; the Linux 6.8 bench,
   VM credentials and production read-only access remain blocked.
+
+## 2026-10-30 18:38 UTC · slice 16 — CHR proof built, waiting on QEMU
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `e14753c`.
+- Changed: `pkg/audit` gains the RouterOS parser (both dialects), the
+  field-level diff, the sealed CHR proof writer and the report block plus its
+  Markdown line; `cmd/cgo-chr` builds the QEMU line for TCG and KVM, drives the
+  serial console through an injectable transport and applies the failure
+  ladder; `kit/chr/` holds the portable wrapper, the pinned-image manifest, the
+  export fixture and the human README; the report card states the validation
+  level and never claims the configuration was applied.
+- Proven on DESKTOP-B6K9UCM: `go build ./... && go test ./... -count=1` → exit
+  0, `cmd/cgo-chr` included; `npm test` → 46 files, 213 tests; `npm run build`
+  → 350.1 KB gz; `python tools/verify.py` → 6 passed, 0 failed, 0 not run.
+  Replay evidence: a labelled fixture report with `remediation.routeros` and
+  the committed export fixture give 12/12 checks, `accepted: true`, sealed
+  `proof.json` at level `windows-tcg`; the same export with
+  `cake-ack-filter=none` exits 1 and names exactly
+  `queue type cgo-cake.cake-ack-filter`.
+- Interrupted once: the pre-commit gate failed with "Espace insuffisant sur le
+  disque" at 12 MB free. Cleared only reproducible caches (`go clean -cache`,
+  `go clean -testcache`, `npm cache clean --force`), re-ran the gate, commit
+  landed. No user file was touched; no backup archive, no `data/`, no `book/`.
+- Unproven: no CHR boot — `qemu-system-x86_64` is absent from this host and no
+  CHR image is cached; the Linux namespace attach is a runbook step, not a
+  result; the fixture report is synthetic and is labelled as such; no
+  production contact.
+- Next: install QEMU and the CHR image (human), run
+  `bash kit/chr/setup-mikrotik-chr.sh` against a report that carries a
+  RouterOS script, then record the `windows-tcg` proof and move the VERIFY row.
