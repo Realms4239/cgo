@@ -202,8 +202,12 @@ footer .fill { margin-left: auto; }
   .mode-rail { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; z-index: 60; border-top: 1px solid var(--hairline); justify-content: space-around; background: var(--surface-soft); }
   .mode-btn { flex: 1 1 0; flex-direction: column; gap: 2px; justify-content: center; padding: 4px; height: 100%; min-height: 48px; }
   .mode-lbl { font-size: var(--fs-micro); letter-spacing: 0; }
-  .btn { min-height: 40px; }
-  .c-input { min-height: 40px; }
+  /* 390 px : les comptes du corpus et le sceau vivent dans Preuves ; le
+     bandeau garde l'état, la connexion, l'audit en cours et l'action */
+  .ribbon-corpus, .ribbon-seal, .ribbon-sep { display: none; }
+  /* cible tactile pleine hauteur — 40 px tenait, 44 px est le plancher */
+  .btn { min-height: 44px; }
+  .c-input { min-height: 44px; }
   .foot-ticker { display: none; }
   main { padding-bottom: 68px; }
 }

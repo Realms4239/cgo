@@ -152,6 +152,17 @@ const worst = longTasks.reduce((m, e) => Math.max(m, e.dur), 0)
 const worstStep = longTasks.length ? afterMark(longTasks.reduce((a, b) => (b.dur > a.dur ? b : a)).t) : '—'
 ok('aucune longue tâche > 400 ms', worst <= 400, `${worst} ms après « ${worstStep} »`)
 
+// 6 — téléphone : le bandeau se comprime, les cibles tactiles tiennent 44 px.
+// Après la collecte : le rechargement remet __LT à zéro, les chiffres mesurés
+// restent ceux du parcours desktop.
+await page.setViewportSize({ width: 390, height: 844 })
+await page.reload({ waitUntil: 'domcontentloaded' })
+await page.waitForTimeout(2500)
+ok('390 px : le corpus et le sceau restent dans Preuves',
+  !(await page.locator('.ribbon-corpus').isVisible().catch(() => false)))
+const btnBox = await page.locator('.status-ribbon .btn').first().boundingBox().catch(() => null)
+ok('390 px : cible tactile au moins 44 px', !!btnBox && btnBox.height >= 44, btnBox ? `${Math.round(btnBox.height)} px` : 'aucune cible')
+
 console.log(JSON.stringify({
   steps,
   failures: steps.filter(s => !s.pass).length,
