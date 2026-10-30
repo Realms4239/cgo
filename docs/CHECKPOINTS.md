@@ -1250,3 +1250,23 @@ end, at a settled decision, and at a handoff.
   believed; this occurrence is the evidence for that rule.
 - Unproven: no human visual review of the new mobile fold; no screen reader.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-30 21:14 UTC · UX + performance — la bande des absences, et le CLS mesuré
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Changed: on the dashboard, when neither the cost nor the change comparison
+  carries a value, the two full-height cards collapse into one band that names
+  both absences with their reasons (`data-testid="dash-quiet"`); as soon as one
+  of the two exists, the grid returns. `bothAbsent` is a pure predicate with a
+  unit test. `perf-probe.mjs` now observes `layout-shift` (excluding recent
+  input) and publishes `cls` — layout stability was the one vital the project
+  never measured.
+- Proven on DESKTOP-B6K9UCM: served build — quiet band present, empty two-card
+  grid absent (1920 screenshot reviewed); `perf-probe` → CLS 0.004, LCP 1152 ms,
+  DCL 427 ms, shell 888 ms, bench 465 ms, 0 console errors; `qa-walk` 34 steps,
+  0 failures, max long task 198 ms; `npm test` 47 files / 218 tests;
+  `npm run build` 350.4 KB gz.
+- Unproven: no Chrome DevTools full trace (MCP not connected) — LCP/CLS come
+  from PerformanceObserver in this probe, not from a trace; INP is proxied by
+  long tasks only; no screen reader; no human review of the desktop fold yet.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
