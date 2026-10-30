@@ -421,6 +421,10 @@ no dependency added for it).
 - [x] Fixed in the batch: at 390 px the ribbon drops the corpus counts, the
   seal and its separator (all still live in Preuves), which removes a dense row
   and lifts the content by ~30 px; `.btn` and `.c-input` go from 40 to 44 px.
+- [x] Fixed the hierarchy inversion on the landing view (`0174c30`): the
+  simulation's percentages were 34 px in full white while the one measured
+  fact was 22 px mono — the projection out-shouted the measurement. The
+  simulation now uses the measurement's body size and a secondary colour.
 - [x] `qa-walk.mjs` now asserts both at 390 px after the desktop collection, so
   the published long-task figures stay those of the desktop walk.
 - [x] Verified: 46 files / 210 tests, `python tools/verify.py` → 6 passed,
