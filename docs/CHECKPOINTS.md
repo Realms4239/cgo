@@ -1069,3 +1069,27 @@ end, at a settled decision, and at a handoff.
   QEMU fail obscurely and stamp a wrong level.
 - Next: the CHR boot (QEMU + image), a Linux 6.8 host for the runbook, the
   verifier's signature on the packet, and the operator's grant.
+
+## 2026-10-30 20:40 UTC · livre — Annexe F et champs REF réparés
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `dcce673` (docs) — book changes
+  stay in the working tree, never committed.
+- Changed: `book/content/09-annexes.js` gains **Annexe F — Télémétrie noyau et
+  validation de la configuration RouterOS** (three tiers and the non-silent
+  fallback, the 6.8 hook facts — `qdisc_drop` absent, `__qdisc_drop` inlined,
+  `kfree_skb` + reason, fentry for exact bytes — the blocked status, and the
+  CHR proof at two levels with 12/12 replay and `accepted : false` on refusal).
+  `book/build-docx.js` now caches each Word `REF` field with the real number
+  read from the content (`REF_NUMS`) instead of a literal `0`.
+- Proven on DESKTOP-B6K9UCM: `node book/build-docx.js` → 2888 Ko;
+  `memoire.docx` SHA-256 unchanged (`bd171227…`); `audit-archive` both `OK`;
+  `audit-nombres` OK; `audit-biblio` 47/47; `audit-sigles` OK;
+  `audit-typo` exit 0 (2 cadratins de couverture, reprise verbatim);
+  `audit-renvois` → OK, 40 renvois littéraux, one pre-existing “Figure 2”
+  warning; zero `Tableau 0` / `Figure 0` left in the rendered text (five
+  before), and `Tableau 13` now resolves in Annex E.
+- Unproven: Annexe F is in the rebuild only, not in the reference
+  `memoire.docx`; no number was added by the annex; the human has not read it;
+  the REF cache assumes content numbers stay the source of truth.
+- Next: human review of Annexe F; the verifier's signature on the packet; QEMU
+  and a Linux 6.8 host for the remaining rows; merge to `main` is the human's.
