@@ -1030,3 +1030,22 @@ end, at a settled decision, and at a handoff.
 - Next: Linux 6.8 host — `make bpf`, tagged build, one audit with the probe,
   then the slice-4 row opens. Slice 18 (verifier packets + methodology
   chapter) is next on this host.
+
+## 2026-10-30 19:40 UTC · slice 18 — paquet vérificateur et chapitre méthodologie
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `7d4e747` (docs commit).
+- Changed: `docs/verification/2026-10-30-slices-8-14-15.md` (seven commands,
+  expected outputs, per-slice evidence, empty signature block) and
+  `docs/thesis_trace_driven_methodology.md` (trace-driven `.dist`,
+  Gilbert–Elliott, the 6.8 `kfree_skb` detour, the BBRv1 table with the CUBIC
+  limitation, the control-point paragraph, and a sources table).
+- Proven on DESKTOP-B6K9UCM: `python tools/verify.py --only links` → 1 passed;
+  every path named in the index resolves. The chapter cites the frozen corpus
+  through `audit-nombres` and the `Tableau 15` limitation row, the tariffs as
+  `RECORDED`, the eBPF and CHR rows as `BLOCKED`, and explicitly refuses the
+  deployment, BBRv3 and production claims.
+- Unproven: the verifier has not run the packet; the chapter is a draft for
+  the author's review and has not been pasted into the book; no number was
+  re-measured for it.
+- Next: slice 19 contract stays blocked on the operator's grant; the human
+  reviews the four modes; a Linux 6.8 host unlocks slices 4–7.
