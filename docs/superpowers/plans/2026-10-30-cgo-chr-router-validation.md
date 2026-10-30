@@ -57,7 +57,7 @@ Copied from `docs/superpowers/specs/2026-10-30-cgo-closing-program-design.md` §
 - Produces: `func ParseRouterOSConfig(text string) RouterOSConfig`
 - Produces: `func (c RouterOSConfig) Get(section, name string) []RouterOSObject`
 
-- [ ] **Step 1: Write the fixture**
+- [x] **Step 1: Write the fixture**
 
 Create `kit/chr/export-fixture.txt` with exactly this content (sanitized: no addresses, no secrets):
 
@@ -73,7 +73,7 @@ add comment=cgo-managed max-limit=19000000 name=cgo-wan-out parent=ether1-wan \
     queue=cgo-cake
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `pkg/audit/routeros_config_test.go`:
 
@@ -148,12 +148,12 @@ func TestParseIgnoresRemovalsAndComments(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `go test ./pkg/audit/ -run 'TestParse' -count=1`
 Expected: FAIL — `undefined: ParseRouterOSConfig`.
 
-- [ ] **Step 4: Implement the parser**
+- [x] **Step 4: Implement the parser**
 
 Create `pkg/audit/routeros_config.go`:
 
@@ -303,12 +303,12 @@ func splitProps(line string) []string {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `go test ./pkg/audit/ -run 'TestParse' -count=1`
 Expected: `ok github.com/Realms4239/cgo/pkg/audit`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add pkg/audit/routeros_config.go pkg/audit/routeros_config_test.go kit/chr/export-fixture.txt
@@ -328,7 +328,7 @@ git commit -m "audit: parse RouterOS script and export into one normalized struc
 - Produces: `type RouterOSCheck struct { Name, Expected, Found string; Pass bool }` (JSON tags `name`, `expected`, `found`, `pass`).
 - Produces: `func CompareRouterOS(expected, found RouterOSConfig) []RouterOSCheck`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `pkg/audit/routeros_compare_test.go`:
 
@@ -406,12 +406,12 @@ func TestCompareDuplicateObjectFails(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `go test ./pkg/audit/ -run 'TestCompare' -count=1`
 Expected: FAIL — `undefined: CompareRouterOS`.
 
-- [ ] **Step 3: Implement the diff**
+- [x] **Step 3: Implement the diff**
 
 Create `pkg/audit/routeros_compare.go`:
 
@@ -491,12 +491,12 @@ func normalizeROS(v string) string {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `go test ./pkg/audit/ -run 'TestCompare' -count=1`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/audit/routeros_compare.go pkg/audit/routeros_compare_test.go
@@ -517,7 +517,7 @@ git commit -m "audit: diff intended RouterOS structure against the device export
 - Produces: `func WriteCHRProof(dir string, p CHRProof, export, transcript []byte) (string, error)`
 - Produces: `func FileSHA256(b []byte) string`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `pkg/audit/routeros_proof_test.go`:
 
@@ -588,12 +588,12 @@ func TestWriteCHRProofRejectsEmptyAuditID(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `go test ./pkg/audit/ -run 'TestWriteCHRProof' -count=1`
 Expected: FAIL — `undefined: CHRProof`.
 
-- [ ] **Step 3: Implement the artifact writer**
+- [x] **Step 3: Implement the artifact writer**
 
 Create `pkg/audit/routeros_proof.go`:
 
@@ -684,12 +684,12 @@ func writeAtomic(path string, b []byte) error {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `go test ./pkg/audit/ -run 'TestWriteCHRProof' -count=1`
 Expected: PASS (3 tests), then `gofmt -l pkg/audit/routeros_proof.go` prints nothing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/audit/routeros_proof.go pkg/audit/routeros_proof_test.go
@@ -709,7 +709,7 @@ git commit -m "audit: seal CHR proof (schema, hashes, atomic write)"
 - Produces: `type RouterOSValidation struct { Version, Level, ExportSHA256, ProofPath string; Checks []RouterOSCheck }`
 - Produces: `Report.RouterOSValidation *RouterOSValidation` (JSON `routeros_validation,omitempty`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `pkg/audit/report_routeros_test.go`:
 
@@ -771,12 +771,12 @@ func TestReportFailedValidationSaysNonValidée(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `go test ./pkg/audit/ -run 'TestReport.*RouterOS' -count=1`
 Expected: FAIL — `undefined: RouterOSValidation`.
 
-- [ ] **Step 3: Implement the field and the Markdown line**
+- [x] **Step 3: Implement the field and the Markdown line**
 
 In `pkg/audit/report.go`, add after the `CAPSLA` field (line 56):
 
@@ -831,12 +831,12 @@ func short8(s string) string {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `go test ./pkg/audit/ -run 'TestReport' -count=1`
 Expected: PASS, including the pre-existing report tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/audit/report.go pkg/audit/report_routeros_test.go
@@ -856,7 +856,7 @@ git commit -m "audit: report carries the CHR validation and states it without cl
 - Produces: `func BuildQEMUArgs(c RunConfig) []string`
 - Produces: `func main()` with flags `--report`, `--image`, `--level`, `--timeout`, `--dry-run`, `--out`, `--qemu`, `--export-file`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `cmd/cgo-chr/main_test.go`:
 
@@ -889,12 +889,12 @@ func TestBuildQEMUArgsKVM(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `go test ./cmd/cgo-chr/ -run 'TestBuildQEMUArgs' -count=1`
 Expected: FAIL — `undefined: BuildQEMUArgs`.
 
-- [ ] **Step 3: Implement the flags and the builder**
+- [x] **Step 3: Implement the flags and the builder**
 
 Create `cmd/cgo-chr/main.go`:
 
@@ -997,12 +997,12 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 
 (Add `import "os"` in `run.go`.)
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `go test ./cmd/cgo-chr/ -run 'TestBuildQEMUArgs' -count=1`
 Expected: PASS (2 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cmd/cgo-chr/main.go cmd/cgo-chr/main_test.go cmd/cgo-chr/run.go
@@ -1024,7 +1024,7 @@ git commit -m "chr: QEMU command line for TCG and KVM, with a dry run"
 - Produces: `func drive(t Transport, script string, timeout time.Duration) (transcript, export string, importErr string, err error)`
 - Produces: `func runWith(deps Deps, cfg RunConfig, reportPath, exportFile, outDir string) int`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `cmd/cgo-chr/serial_test.go`:
 
@@ -1132,12 +1132,12 @@ func TestDriveRejection(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `go test ./cmd/cgo-chr/ -run 'TestDrive' -count=1`
 Expected: FAIL — `undefined: drive`.
 
-- [ ] **Step 3: Implement the serial driver**
+- [x] **Step 3: Implement the serial driver**
 
 Create `cmd/cgo-chr/serial.go`:
 
@@ -1265,7 +1265,7 @@ func lastErrorLine(chunk string) string {
 }
 ```
 
-- [ ] **Step 4: Wire `run` and its ladder**
+- [x] **Step 4: Wire `run` and its ladder**
 
 Replace `cmd/cgo-chr/run.go`:
 
@@ -1449,12 +1449,12 @@ func (q *qemuTransport) Close() error {
 }
 ```
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `go test ./cmd/cgo-chr/ -count=1`
 Expected: PASS. Then `go vet ./cmd/cgo-chr/` and `gofmt -l cmd/cgo-chr` print nothing. Remove the `var _ = time.Second` line and the `time` import if gofmt/vet flags them.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cmd/cgo-chr/serial.go cmd/cgo-chr/serial_test.go cmd/cgo-chr/run.go cmd/cgo-chr/transport.go
@@ -1474,7 +1474,7 @@ git commit -m "chr: drive the RouterOS console, seal the proof, and fail loudly"
 - Consumes: `cmd/cgo-chr` flags (Task 5–6).
 - Produces: an executable wrapper accepting the same flags.
 
-- [ ] **Step 1: Write the wrapper**
+- [x] **Step 1: Write the wrapper**
 
 Create `kit/chr/setup-mikrotik-chr.sh`:
 
@@ -1490,7 +1490,7 @@ cd "$root"
 exec go run ./cmd/cgo-chr "$@"
 ```
 
-- [ ] **Step 2: Pin the image and write the human steps**
+- [x] **Step 2: Pin the image and write the human steps**
 
 Create `kit/chr/chr-image.sha256`:
 
@@ -1540,12 +1540,12 @@ Elle ne prouve ni débit, ni latence, ni qu'une production a changé. Le niveau
 `linux-namespace` ne s'obtient que si l'attachement aux namespaces réussit.
 ```
 
-- [ ] **Step 3: Verify shell syntax and executability**
+- [x] **Step 3: Verify shell syntax and executability**
 
 Run: `bash -n kit/chr/setup-mikrotik-chr.sh && chmod +x kit/chr/setup-mikrotik-chr.sh && echo OK`
 Expected: `OK`.
 
-- [ ] **Step 4: Add the cache ignore rule**
+- [x] **Step 4: Add the cache ignore rule**
 
 Append to `.gitignore` (single explicit line, next to the other data ignores):
 
@@ -1556,7 +1556,7 @@ kit/chr/cache/
 Run: `git check-ignore -v kit/chr/cache/x.img`
 Expected: prints the new rule and exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add kit/chr/setup-mikrotik-chr.sh kit/chr/chr-image.sha256 kit/chr/README.md .gitignore
@@ -1576,7 +1576,7 @@ git commit -m "kit: CHR wrapper, pinned image and the human steps it cannot auto
 - Consumes: `AuditReport.routeros_validation` from the API (Task 4).
 - Produces: `data-testid="ros-validation"` line.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `web/frontend/src/components/AuditReportCard.routeros.test.tsx`:
 
@@ -1627,12 +1627,12 @@ describe('AuditReportCard — validation RouterOS', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cd web/frontend && npx vitest run src/components/AuditReportCard.routeros.test.tsx`
 Expected: FAIL — no `ros-validation` text in the markup.
 
-- [ ] **Step 3: Add the type and the line**
+- [x] **Step 3: Add the type and the line**
 
 In `web/frontend/src/lib/types.ts`, above `export interface AuditReport`:
 
@@ -1674,12 +1674,12 @@ In `AuditReportCard.tsx`, inside the remediation block after the ingress buttons
 ) : null}
 ```
 
-- [ ] **Step 4: Run the tests and the typecheck**
+- [x] **Step 4: Run the tests and the typecheck**
 
 Run: `cd web/frontend && npx vitest run src/components/AuditReportCard.routeros.test.tsx && npm run typecheck`
 Expected: 3 tests pass, typecheck exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/frontend/src/lib/types.ts web/frontend/src/components/AuditReportCard.tsx web/frontend/src/components/AuditReportCard.routeros.test.tsx
@@ -1697,7 +1697,7 @@ git commit -m "ui: le rapport dit si RouterOS a accepté la configuration, et à
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Run the full gates**
+- [x] **Step 1: Run the full gates**
 
 ```bash
 cd web/frontend && npm test && npm run build
@@ -1708,13 +1708,13 @@ python tools/verify.py
 Expected: frontend suite green (46 files + the new one), build exit 0;
 Go suite exit 0; `6 passed, 0 failed, 0 not run`.
 
-- [ ] **Step 2: Update the index row 16**
+- [x] **Step 2: Update the index row 16**
 
 Set the plan cell to `2026-10-30-cgo-chr-router-validation.md`, status
 **In progress** (Windows proof pending QEMU), and the next action to
 `install QEMU + CHR image, then record the windows-tcg proof`.
 
-- [ ] **Step 3: Add the VERIFY row**
+- [x] **Step 3: Add the VERIFY row**
 
 Append:
 
@@ -1722,13 +1722,13 @@ Append:
 | RouterOS 7 configuration compliance via CHR | BLOCKED | Needs `qemu-system-x86_64` (absent on DESKTOP-B6K9UCM 2026-10-30) and a downloaded CHR image under `kit/chr/cache/`; the Go parser, diff, proof writer and UI line are testable without either. A `windows-tcg` proof upgrades only this row | 2026-10-30 | DESKTOP-B6K9UCM (Windows 10, MINGW64) |
 ```
 
-- [ ] **Step 4: Append the checkpoint**
+- [x] **Step 4: Append the checkpoint**
 
 Use the standard entry format: branch/HEAD, changed, proven (the commands and
 their exact results), unproven (no CHR boot, no Linux attach, no production),
 next (install QEMU, run the wrapper, record the proof).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/superpowers/plans/README.md docs/VERIFY.md docs/CHECKPOINTS.md
