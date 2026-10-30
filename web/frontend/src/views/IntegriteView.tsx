@@ -163,7 +163,11 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
             <tr key={b.run} className="int-row" onMouseEnter={e=>setPeek({rect:(e.currentTarget as HTMLElement).getBoundingClientRect(), run:b.run})} onMouseLeave={()=>setPeek(null)}>
               <td className="int-td-run"><span title={b.run} className="int-run-id">{b.run}</span></td><td>{b.rows}</td><td>{b.valid}</td><td>{b.degraded ?? 0}</td><td>{b.quarantined}</td>
               <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" className="int-link">résultats</a></td>
-              <td><button className="btn btn-primary int-replay" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setBenchStage('observe'); setMode('bench') }}>Rejouer</button></td>
+              <td>{b.rows > 0 ? (
+                <button className="btn btn-primary int-replay" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setBenchStage('observe'); setMode('bench') }}>Rejouer</button>
+              ) : (
+                <span className="mono data-missing" title="aucune ligne archivée — rien à rejouer">non rejouable</span>
+              )}</td>
             </tr>
           ))}
           </tbody></table>

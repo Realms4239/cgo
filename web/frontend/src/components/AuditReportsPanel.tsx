@@ -35,7 +35,7 @@ export function AuditReportTable({ rows, onOpen }: {
                 {!a.audit_id ? (
                   <button className="btn audit-report-open" disabled>OUVRIR</button>
                 ) : a.has_report !== 'true' ? (
-                  <span className="mono audit-report-missing" title="ligne archivée avant le dossier de rapport">non archivé</span>
+                  <span className="mono data-missing" title="ligne archivée avant le dossier de rapport">non archivé</span>
                 ) : (
                   <button className="btn audit-report-open" onClick={() => onOpen(a.audit_id)}>OUVRIR</button>
                 )}

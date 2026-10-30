@@ -111,8 +111,16 @@ await page.waitForTimeout(600)
 const rows = await page.locator('#evidence-reports .audit-reports-table tbody tr').count()
 const buttons = page.locator('#evidence-reports button:has-text("OUVRIR")')
 const n = await buttons.count()
-const marked = await page.locator('#evidence-reports .audit-report-missing').count()
+const marked = await page.locator('#evidence-reports .data-missing').count()
 ok('les lignes sans archive sont dites d’avance', rows === 0 || n + marked === rows, `${n} ouvrables, ${marked} non archivées / ${rows} lignes`)
+
+// même contrat pour la table des runs : un run sans ligne archivée ne propose
+// pas un replay qui ne peut produire que du vide
+const runRows = await page.locator('[data-testid="runs-table"] tbody tr').count()
+const replayBtns = await page.locator('[data-testid="runs-table"] [data-testid="run-rejouer"]').count()
+const notReplayable = await page.locator('[data-testid="runs-table"] .data-missing').count()
+ok('un run vide ne propose pas de replay', runRows === 0 || replayBtns + notReplayable === runRows,
+  `${replayBtns} rejouables, ${notReplayable} non rejouables / ${runRows} lignes`)
 let opened = false
 if (n > 0) {
   resourceErrors.length = 0 // le débit ci-dessous ne doit plus rien aux 404

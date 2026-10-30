@@ -70,6 +70,18 @@ describe('banc d’essai linéaire', () => {
     expect(store, 'le clavier préchauffe aussi').toContain('preloadMode(mode)')
   })
 
+  it('une commande sans matière à agir se nomme avant le clic', () => {
+    const i = read('views/IntegriteView.tsx')
+    expect(i).toContain('non rejouable')
+    expect(i, 'le replay se gate sur les lignes archivées').toContain('b.rows > 0')
+    const r = read('components/AuditReportsPanel.tsx')
+    expect(r).toContain('non archivé')
+    expect(r).toContain("a.has_report !== 'true'")
+    const css = read('styles/index.css')
+    expect(css).toContain('.data-missing')
+    expect(css, 'un seul langage pour les deux tables').not.toContain('.audit-report-missing')
+  })
+
   it('ouvrir les résultats reste hors du geste : transition, puis saut', () => {
     const b = read('views/BenchView.tsx')
     // le montage de la matrice + TradeSpace est la tâche la plus chère de la

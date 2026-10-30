@@ -673,7 +673,9 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .audit-reports-table tbody tr { border-bottom: 1px solid var(--hairline-faint); }
 .audit-reports-table th, .audit-reports-table td { padding: var(--sp-1) var(--sp-2); text-align: left; }
 .audit-report-open { padding: 2px 10px; font-size: var(--fs-micro); }
-.audit-report-missing { font-size: var(--fs-micro); color: var(--text-faint); }
+/* une commande sans matière à agir se nomme, elle ne se rejoue pas — même
+   langage dans la table des rapports et dans la table des runs */
+.data-missing { font-size: var(--fs-micro); color: var(--text-faint); }
 .audit-report-back { align-self: flex-start; padding: var(--sp-1) var(--sp-2); }
 .audit-reports-msg { font-size: var(--fs-micro); }
 .evidence-page { max-width: 1180px; }
