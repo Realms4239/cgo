@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useModalFocus } from '../lib/modalFocus'
 import { DEFAULTS, loadSettings, saveSettings, type Settings } from '../lib/settings'
 import { useUIStore } from '../store/ui'
 import { loadSchema, param, type Param } from '../lib/schema'
@@ -24,12 +26,10 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
   const [tiers, setTiers] = useState<{ name: string; ar_per_gb: number }[]>([])
   const [tier, setTier] = useState('')
   const setFlash = useUIStore((st: any) => st.setFlash)
-  // Échap referme — comme la modale ⓘ, le duel et l'interprétation
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  // Même contrat modal que la palette : focus dedans, Échap, retour au
+  // déclencheur. Le panneau est porté hors de #shell, qu'il rend inerte.
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalFocus(true, onClose, panelRef)
   useEffect(() => { loadSchema().then(setSchema).catch(() => {}) }, [])
   useEffect(() => {
     fetch('/api/cost/tiers').then(r => r.json()).then(j => {
@@ -52,9 +52,9 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
     setFlash({ type: 'success', msg: 'Réglages enregistrés' })
     onClose()
   }
-  return (
-    <div role="dialog" aria-label="Réglages" className="modal-drawer" onClick={onClose}>
-      <div className="modal-drawer-panel" onClick={e => e.stopPropagation()}>
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label="Réglages" className="modal-drawer" onClick={onClose}>
+      <div ref={panelRef} className="modal-drawer-panel" onClick={e => e.stopPropagation()}>
         <div className="card-head settings-title">Réglages</div>
         {FIELDS.map(f => {
           const p = param(f.skey, schema)
@@ -90,5 +90,5 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
-  )
+  , document.body)
 }

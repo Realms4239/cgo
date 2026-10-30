@@ -74,12 +74,31 @@ for (const [key, mode] of [['2', 'audit'], ['3', 'bench'], ['4', 'evidence'], ['
 await attempt('réglages (ouverture)', async () => { await page.getByRole('button', { name: 'Réglages' }).click({ timeout: 5000 }) })
 await page.waitForTimeout(350)
 ok('les réglages s’ouvrent', await page.locator('[role="dialog"][aria-label="Réglages"]').count() > 0)
+const setFocus = await page.evaluate(() => document.activeElement?.closest('[role="dialog"][aria-label="Réglages"]') !== null)
+ok('les réglages prennent le focus', setFocus, await page.evaluate(() => document.activeElement?.tagName ?? 'none'))
+let setTrapped = true
+for (let i = 0; i < 12; i++) {
+  await page.keyboard.press('Tab')
+  const inside = await page.evaluate(() => document.activeElement?.closest('[role="dialog"][aria-label="Réglages"]') !== null)
+  if (!inside) { setTrapped = false; break }
+}
+ok('le focus reste dans les réglages', setTrapped)
 await page.keyboard.press('Escape')
 await page.waitForTimeout(300)
 ok('les réglages se ferment', await page.locator('[role="dialog"][aria-label="Réglages"]').count() === 0)
+ok('le focus revient au déclencheur', await page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Réglages'))
 await attempt('palette (ouverture)', async () => { await page.keyboard.press('Control+k') })
 await page.waitForTimeout(350)
 ok('la palette s’ouvre', await page.locator('#palette').count() > 0)
+const palFocus = await page.evaluate(() => document.activeElement?.closest('#palette') !== null)
+ok('la palette prend le focus', palFocus, await page.evaluate(() => document.activeElement?.tagName ?? 'none'))
+let trapped = true
+for (let i = 0; i < 12; i++) {
+  await page.keyboard.press('Tab')
+  const inside = await page.evaluate(() => document.activeElement?.closest('#palette') !== null)
+  if (!inside) { trapped = false; break }
+}
+ok('le focus reste dans la palette', trapped)
 await page.keyboard.press('Escape')
 await page.waitForTimeout(300)
 ok('la palette se ferme', await page.locator('#palette').count() === 0)
