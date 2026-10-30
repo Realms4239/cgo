@@ -712,7 +712,9 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .dash-sim-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
 .dash-sim-pair > div { border-left: 1px solid var(--hairline); padding-left: var(--sp-3); display: flex; flex-direction: column; gap: 2px; }
 .dash-sim-pair span { font: var(--fs-micro) var(--font-mono); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
-.dash-sim-pair b { font: 600 34px/1 var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+/* la simulation conseille, la mesure décide : ses chiffres ne dépassent jamais
+   ceux du lien réel — même corps, couleur secondaire */
+.dash-sim-pair b { font: 600 var(--fs-head)/1.1 var(--font-display); color: var(--text-body-strong); font-variant-numeric: tabular-nums; }
 .dash-sim-pair small { font: var(--fs-micro) var(--font-mono); color: var(--text-faint); }
 .dash-cost { display: flex; flex-direction: column; gap: 2px; }
 .dash-cost span { font: var(--fs-micro) var(--font-mono); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
