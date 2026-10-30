@@ -70,6 +70,30 @@ for (const [key, mode] of [['2', 'audit'], ['3', 'bench'], ['4', 'evidence'], ['
   ok(`touche ${key} → ${mode}`, hidden === null)
 }
 
+// 2b — chrome : réglages et palette s'ouvrent et se referment
+await attempt('réglages (ouverture)', async () => { await page.getByRole('button', { name: 'Réglages' }).click({ timeout: 5000 }) })
+await page.waitForTimeout(350)
+ok('les réglages s’ouvrent', await page.locator('[role="dialog"][aria-label="Réglages"]').count() > 0)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(300)
+ok('les réglages se ferment', await page.locator('[role="dialog"][aria-label="Réglages"]').count() === 0)
+await attempt('palette (ouverture)', async () => { await page.keyboard.press('Control+k') })
+await page.waitForTimeout(350)
+ok('la palette s’ouvre', await page.locator('#palette').count() > 0)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(300)
+ok('la palette se ferme', await page.locator('#palette').count() === 0)
+
+// 2c — aucun débordement horizontal aux largeurs de terrain
+for (const [w, h] of [[1366, 768], [1024, 768]]) {
+  await page.setViewportSize({ width: w, height: h })
+  await page.waitForTimeout(350)
+  const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+  ok(`pas de débordement à ${w} px`, over <= 1, `${over} px`)
+}
+await page.setViewportSize({ width: 1440, height: 900 })
+await page.waitForTimeout(350)
+
 // 3 — auditer : la déclaration est complète et l’avancé se replie
 await page.keyboard.press('2')
 await page.waitForTimeout(800)

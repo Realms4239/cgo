@@ -155,6 +155,9 @@ func passed(checks []audit.RouterOSCheck) int {
 // levelAllowed — le niveau linux-namespace exige Linux ; l'affirmer plus tôt
 // évite un échec QEMU obscur et une preuve étiquetée à tort.
 func levelAllowed(level, goos string) (bool, string) {
+	if level != "windows-tcg" && level != "linux-namespace" {
+		return false, fmt.Sprintf("niveau %q inconnu (windows-tcg ou linux-namespace)", level)
+	}
 	if level == "linux-namespace" && goos != "linux" {
 		return false, "niveau linux-namespace sur " + goos + " — l'attachement aux namespaces exige Linux (utilisez windows-tcg ici)"
 	}

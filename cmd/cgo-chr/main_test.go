@@ -38,4 +38,7 @@ func TestLevelAllowed(t *testing.T) {
 	if ok, _ := levelAllowed("linux-namespace", "linux"); !ok {
 		t.Fatal("linux-namespace refused on Linux")
 	}
+	if ok, reason := levelAllowed("kvm", "linux"); ok || reason == "" {
+		t.Fatalf("unknown level accepted (reason %q)", reason)
+	}
 }
