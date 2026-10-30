@@ -267,11 +267,16 @@ func handleAuditStop() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		auditMu.Lock()
 		cancel, running := auditCancel, auditRunning
-		auditMu.Unlock()
 		if !running || cancel == nil {
+			auditMu.Unlock()
 			writeJSON(w, map[string]any{"stopped": false})
 			return
 		}
+		// Une seule livraison : la goroutine efface encore ces champs à sa
+		// sortie, sans effet. Sans ce nil, deux arrêts rapprochés répondaient
+		// « stopped » deux fois alors qu'un seul avait annulé quelque chose.
+		auditCancel = nil
+		auditMu.Unlock()
 		cancel()
 		writeJSON(w, map[string]any{"stopped": true})
 	}

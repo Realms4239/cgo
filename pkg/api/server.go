@@ -312,6 +312,12 @@ func shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (i
 
 const maxSubs = 64
 
+// validRunID — un identifiant fourni ne contient ni séparateur ni point, donc
+// le glob data/runs/<id>/aqm_eval.csv ne sort jamais de data/runs. Vide veut
+// dire « tous les runs » pour les routes qui l'acceptent. Une seule règle,
+// partagée par results, replay/stream, run/rows et quarantine.
+func validRunID(s string) bool { return !strings.ContainsAny(s, `/\.`) }
+
 // New construit le handler complet avec repli SPA. Le Handler retourné expose
 // CloseHub pour un arrêt propre (stoppe le ticker de diffusion 10 Hz).
 // compareCache — le bootstrap/MW coûte ~ms par cellule : précalcul + cache,
@@ -743,6 +749,10 @@ func New(d Deps) Handler {
 	})
 	mux.HandleFunc("GET /api/results", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
+		if run != "" && !validRunID(run) {
+			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
+			return
+		}
 		groups, _ := results.Scan("data/runs", run)
 		if len(groups) == 0 {
 			writeJSON(w, map[string]any{"available": false, "groups": []any{}, "reason": "résultats disponibles après gel (jalon M2)"})
@@ -1074,8 +1084,7 @@ func New(d Deps) Handler {
 	})
 	mux.HandleFunc("GET /api/replay/stream", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
-		// même garde anti-traversal que /api/run/rows — pas de sortie de data/runs
-		if run == "" || strings.ContainsAny(run, `/\.`) {
+		if run == "" || !validRunID(run) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -1253,7 +1262,7 @@ func New(d Deps) Handler {
 	// Vue Compare — lignes gelées brutes d'un run, protégée contre le cheminement.
 	mux.HandleFunc("GET /api/run/rows", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
-		if id == "" || strings.ContainsAny(id, `/\.`) {
+		if id == "" || !validRunID(id) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -1285,7 +1294,7 @@ func New(d Deps) Handler {
 	// Quarantaine réelle — lignes quarantine.json gelées, tous runs si ?run= vide.
 	mux.HandleFunc("GET /api/quarantine", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
-		if strings.ContainsAny(id, `/\.`) {
+		if !validRunID(id) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
