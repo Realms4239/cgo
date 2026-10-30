@@ -44,6 +44,36 @@ export function qualityWord(grade: string | undefined): string {
   return 'non noté'
 }
 
+export interface OperatorSummary {
+  delayMs?: number
+  delay: Band | null
+  alertsPct?: number
+  alerts: Band | null
+  grade?: string
+  quality: string
+}
+
+// Le même résumé alimente le tableau de bord et la lecture d'audit : un seul
+// calcul, deux présentations — plus de divergence de seuil ou de libellé.
+export function operatorSummary(
+  report: Pick<AuditReport, 'measured' | 'cap_sla' | 'bloat_grade'> | null | undefined,
+  warnMs: number,
+  critMs: number,
+): OperatorSummary {
+  const m = report?.measured
+  const raw = m?.small_measured ? m?.http_small_p95_ms : m?.rtt_loaded_p95_ms
+  const delayMs = typeof raw === 'number' && raw > 0 ? raw : undefined
+  const alertsPct = report?.cap_sla?.measured ? report.cap_sla.ok_pct : undefined
+  return {
+    delayMs,
+    delay: delayBand(delayMs, warnMs, critMs),
+    alertsPct,
+    alerts: alertsBand(alertsPct),
+    grade: report?.bloat_grade,
+    quality: qualityWord(report?.bloat_grade),
+  }
+}
+
 export interface RemediationCell {
   qdisc: string
   cc: string

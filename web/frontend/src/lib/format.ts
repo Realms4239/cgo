@@ -59,6 +59,26 @@ export function fmtCount(v: number | null | undefined): string {
   return groupDigits(Math.round(v))
 }
 
+// relativeTime — l'âge d'un artefact en mots courts ; une date illisible
+// reste vide plutôt que « il y a NaN ».
+export function relativeTime(iso: string | undefined, now = Date.now()): string {
+  if (!iso) return ''
+  const t = Date.parse(iso)
+  if (!Number.isFinite(t)) return ''
+  const s = Math.max(0, Math.round((now - t) / 1000))
+  if (s < 60) return "à l'instant"
+  const m = Math.round(s / 60)
+  if (m < 60) return `il y a ${m} min`
+  const h = Math.round(m / 60)
+  if (h < 24) return `il y a ${h} h`
+  const d = Math.round(h / 24)
+  if (d < 31) return `il y a ${d} j`
+  const mo = Math.round(d / 30)
+  if (mo < 12) return `il y a ${mo} mois`
+  const y = Math.round(mo / 12)
+  return `il y a ${y} an${y >= 2 ? 's' : ''}`
+}
+
 // verdictHeadline — le verdict nomme le GAGNANT, jamais le perdant seul
 // (fini le `0/5 … en faveur de B` qui titrait le perdant). Égalité dite une fois.
 export function verdictHeadline(winsA: number, winsB: number, total: number, nameA: string, nameB: string): string {

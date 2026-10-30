@@ -5,17 +5,15 @@ import { AuditDeclare } from '../components/AuditDeclare'
 import { AuditLive } from '../components/AuditLive'
 import { AuditReportCard, gradeTone } from '../components/AuditReportCard'
 import AuditHistoryModal from '../components/AuditHistoryModal'
+import { ModeHead } from '../components/ModeHead'
+import { OperatorStats } from '../components/OperatorStats'
 import { ScienceDetails } from '../components/ScienceDetails'
 import { Badge } from '../components/ui/StatusPip'
 import { CardHead } from '../components/ui/CardHead'
 import { auditStep } from '../lib/auditFlow'
-import { alertsBand, delayBand, qualityWord } from '../lib/dashboard'
-import { formatCostAR } from '../lib/format'
 import { loadSettings } from '../lib/settings'
 import { useAuditStore } from '../store/audit'
 import { useUIStore } from '../store/ui'
-
-const fmtMs = (v?: number) => (v != null && v > 0 ? v.toFixed(0) : '—')
 
 export default function AuditView() {
   const s = useAuditStore()
@@ -34,30 +32,22 @@ export default function AuditView() {
   }
 
   const report = s.report
-  const m = report?.measured
-  const small = m?.small_measured ? m?.http_small_p95_ms : m?.rtt_loaded_p95_ms
-  const delay = delayBand(small, settings.warnMs, settings.critMs)
-  const alerts = report?.cap_sla?.measured ? alertsBand(report.cap_sla.ok_pct) : null
-  const primary = report?.economics?.primary
-  const cost = formatCostAR(primary?.ar_per_hour)
   const remediation = report?.remediation
 
   return (
     <div className="panel-stack audit-page">
-      <header className="mode-head">
-        <div>
-          <h1>Auditer le lien réel</h1>
-          <p>Mesuré sur le lien réel, sans modification — aucun droit administrateur, aucun CSV partiel.</p>
-        </div>
-        <div className="mode-head-actions">
-          <button className="btn" onClick={() => setHistoryOpen(true)} title="audits archivés : rapprochement au référentiel, import par ligne">
-            HISTORIQUE{s.historyN !== null ? ` (${s.historyN})` : ''}
-          </button>
-          {s.stage === 'idle' ? (
-            <button className="btn" onClick={s.open}>OUVRIR LA DÉCLARATION</button>
-          ) : null}
-        </div>
-      </header>
+      <ModeHead
+        title="Auditer le lien réel"
+        sub="Mesuré sur le lien réel, sans modification — aucun droit administrateur, aucun CSV partiel."
+        actions={(
+          <>
+            <button className="btn" onClick={() => setHistoryOpen(true)} title="audits archivés : rapprochement au référentiel, import par ligne">
+              HISTORIQUE{s.historyN !== null ? ` (${s.historyN})` : ''}
+            </button>
+            {s.stage === 'idle' ? <button className="btn" onClick={s.open}>OUVRIR LA DÉCLARATION</button> : null}
+          </>
+        )}
+      />
 
       <ol className="audit-steps mono" aria-label="étapes de l'audit">
         {['Déclarer', 'Observer', 'Lire'].map((label, i) => {
@@ -111,28 +101,7 @@ export default function AuditView() {
             sub={`${report.site || 'site —'} · ${report.link_type || 'lien —'}${report.timestamp ? ` · ${report.timestamp}` : ''}`}
             right={<Badge tone={gradeTone(report.bloat_grade)}>{report.bloat_grade || 'non noté'}</Badge>}
           />
-          <div className="audit-summary">
-            <div className="audit-summary-cell">
-              <span>Délai sous charge</span>
-              <b>{fmtMs(small)}<small> ms</small></b>
-              <em data-level={delay?.level ?? 'none'}>{delay?.word ?? 'non mesuré'}</em>
-            </div>
-            <div className="audit-summary-cell">
-              <span>Alertes à l'heure</span>
-              <b>{report.cap_sla?.measured ? `${fmtMs(report.cap_sla.ok_pct)} %` : '—'}</b>
-              <em data-level={alerts?.level ?? 'none'}>{alerts?.word ?? 'non mesuré'}</em>
-            </div>
-            <div className="audit-summary-cell">
-              <span>Qualité du lien</span>
-              <b>{report.bloat_grade || '—'}</b>
-              <em>{qualityWord(report.bloat_grade)}</em>
-            </div>
-            <div className="audit-summary-cell">
-              <span>Perte financière</span>
-              <b>{cost.num}<small> {cost.unit}</small></b>
-              <em>scénario contractuel</em>
-            </div>
-          </div>
+          <OperatorStats report={report} warnMs={settings.warnMs} critMs={settings.critMs} includeCost />
           {report.bloat_verdict ? <p className="audit-verdict">{report.bloat_verdict}</p> : null}
 
           {remediation ? (

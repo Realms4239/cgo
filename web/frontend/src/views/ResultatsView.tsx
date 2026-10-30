@@ -14,6 +14,7 @@ import { asArray, improve, shouldLogScale } from '../lib/format'
 import { lienScore, components as lienComponents, type LienMetrics } from '../lib/lien'
 import { cellEncoding, chipGroups, fmtHalf, halfInterval, type ChipKey } from '../lib/results'
 import { paletteOnce } from '../lib/palette'
+import { profileShort } from '../lib/profiles'
 
 type Group = {
   profile: string; qdisc: string; cc: string; direction?: string
@@ -42,17 +43,13 @@ const RANKS = [
 
 // décodage config en mots simples — mêmes faits que lib/explain.ts,
 // raccourcis pour la sous-ligne d'identité (une idée : ce que c'est).
-const PROF_SHORT: Record<string, string> = {
-  P1: 'fibre 80 Mb/s, 20 ms', P2: '4G chargée 20 Mb/s, 100 ms',
-  P3: 'VSAT 5 Mb/s, 600 ms', P4: 'Starlink 100 Mb/s, 40 ms',
-}
 const Q_SHORT: Record<string, string> = {
   cake: 'file qui protège le petit trafic', fq_codel: 'file qui reste courte',
   pfifo_fast: 'file simple, sans protection',
 }
 const CC_SHORT: Record<string, string> = { cubic: 'remplit les files', bbr: 'garde les files courtes' }
 const decodeSub = (g: { profile: string; qdisc: string; cc: string }): string =>
-  `${PROF_SHORT[g.profile] ?? g.profile} · ${Q_SHORT[g.qdisc] ?? g.qdisc} · ${CC_SHORT[g.cc] ?? g.cc}`
+  `${profileShort(g.profile)} · ${Q_SHORT[g.qdisc] ?? g.qdisc} · ${CC_SHORT[g.cc] ?? g.cc}`
 
 // identité couleur AQM × CC — chaque file une teinte contrastée, chaque CC
 // un marqueur : une ligne P1-cake/BBR se distingue de P2-pfifo/cubic d'un
@@ -89,7 +86,7 @@ const groupLien = (g: Group): LienMetrics => ({
   cost: (() => { const w = g.wasted_median ?? g.wasted_bytes ?? null; if (w == null) return null; if (w <= 0) return 0; return (w / 1073741824) * 5556 * 20 })(),
 })
 
-export default function ResultatsView({ embedded = false }: { embedded?: boolean }) {
+export default function ResultatsView({ embedded = false, active = true }: { embedded?: boolean; active?: boolean }) {
   const [groups, setGroups] = useState<Group[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   // pré-gel (aucun gel) = écran neutre, jamais "erreur" : le genre d'erreur
@@ -125,7 +122,7 @@ export default function ResultatsView({ embedded = false }: { embedded?: boolean
   useEffect(() => {
     if (xKey === yKey) setXKey(yKey === 'goodput' ? 'cost' : 'goodput')
   }, [xKey, yKey])
-  const liveSnapRunning = useUIStore((s: any) => !!s.live?.running)
+  const liveSnapRunning = useUIStore((s: any) => active && !!s.live?.running)
   const scatterRef = useRef<HTMLDivElement>(null)
   const reqSeq = useRef(0)
   // run touché par l'opérateur ? Le repli tous-runs sur run vide n'est légitime
@@ -579,6 +576,15 @@ export default function ResultatsView({ embedded = false }: { embedded?: boolean
     else if (k === 'qdisc') setFQdisc(v)
     else setFCc(v)
   }
+  const hasViewChanges = rankKey !== 'small_p95_median' || fProfile !== 'tous' || fQdisc !== 'tous' || fCc !== 'tous' || !!pinA || !!pinB || runSel !== ''
+  const resetView = () => {
+    setRankKey('small_p95_median')
+    setFProfile('tous'); setFQdisc('tous'); setFCc('tous')
+    setPinA(null); setPinB(null)
+    setRunSel('')
+    runTouched.current = false
+    setLegendOpen(false)
+  }
   // épingle unique : deux états (A puis B), re-cliquer libère — un seul
   // contrôle révélé au survol/focus remplace les deux boutons permanents.
   const cyclePin = (e: React.MouseEvent, pin: Pinned, isA: boolean, isB: boolean) => {
@@ -604,6 +610,7 @@ export default function ResultatsView({ embedded = false }: { embedded?: boolean
           <option value="__all__">tous runs (archivés)</option>
           {orderedRuns.map(id => <option key={id} value={id} title={id}>{id === newest ? `⚡ ${id}` : id}</option>)}
         </select>
+        {hasViewChanges ? <button className="btn bench-mini" onClick={resetView} title="revenit au dernier run, sans filtre ni épingle">RÉINITIALISER</button> : null}
         <a className="btn btn-primary" href="/api/report/export?format=csv" download>Exporter CSV</a>
         <a className="btn" href="/api/report/export?format=md" download style={{ border: '1px solid var(--hairline)', padding: '7px 16px' }}>MD</a>
         <button className="btn" title="Lire le classement : métriques et règles de lecture" aria-label="Lire le classement" onClick={() => setInfoOpen(true)} style={{ padding: '7px 12px', fontSize: 'var(--fs-body)' }}>ⓘ</button>

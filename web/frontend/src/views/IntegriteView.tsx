@@ -17,7 +17,7 @@ type Integrity = {
   updated?: string
 }
 
-export default function IntegriteView({ embedded = false }: { embedded?: boolean }) {
+export default function IntegriteView({ embedded = false, active = true }: { embedded?: boolean; active?: boolean }) {
   const [data, setData] = useState<Integrity|null>(null)
   const [err, setErr] = useState<string|null>(null)
   const [msg, setMsg] = useState('')
@@ -49,7 +49,12 @@ export default function IntegriteView({ embedded = false }: { embedded?: boolean
     fetch('/api/events').then(r=>r.json()).then(j=>setEvents(asArray<{ts:string;kind:string;msg:string}>(j.events).reverse())).catch(()=>{})
     fetch('/api/quarantine/summary').then(r=>r.json()).then(j=>setQuarSum(j)).catch(()=>{})
   }
-  useEffect(()=>{ load(); const t=setInterval(load,10000); return ()=>clearInterval(t) }, [])
+  useEffect(()=>{
+    if (!active) return
+    load()
+    const t=setInterval(load,10000)
+    return ()=>clearInterval(t)
+  }, [active])
   useEffect(()=>{
     if (!peek) return
     setPeekGroups(null)

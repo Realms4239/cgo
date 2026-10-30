@@ -24,7 +24,7 @@ export function AuditLive({ live, direction, onStop }: {
     <div data-testid="audit-live" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
         <Badge tone={running ? 'live' : 'steel'}>{running ? 'en cours' : 'attente'}</Badge>
-        <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>
+        <span className="mono" role="status" aria-live="polite" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>
           {phaseLabel(live?.phase)} · reste {remain ?? '—'} s
         </span>
         <span className="mono" style={{ marginLeft: 'auto', fontSize: 'var(--fs-micro)', color: 'var(--text-faint)', fontVariantNumeric: 'tabular-nums' }}>

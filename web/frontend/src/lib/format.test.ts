@@ -1,4 +1,4 @@
-import { fmtIQR, improve, fmtCount, verdictHeadline, shouldLogScale } from './format'
+import { fmtIQR, improve, fmtCount, verdictHeadline, shouldLogScale, relativeTime } from './format'
 import { describe, expect, it } from 'vitest'
 
 describe('fmtIQR', () => {
@@ -55,5 +55,22 @@ describe('shouldLogScale', () => {
     expect(shouldLogScale([0, 0, 0])).toBe(false)
     expect(shouldLogScale([20, 25, 30])).toBe(false)
     expect(shouldLogScale([42])).toBe(false)
+  })
+})
+
+
+describe('relativeTime', () => {
+  const now = Date.parse('2026-10-30T12:00:00Z')
+  it('parle en minutes, heures, jours, mois', () => {
+    expect(relativeTime('2026-10-30T11:59:40Z', now)).toBe("à l'instant")
+    expect(relativeTime('2026-10-30T11:30:00Z', now)).toBe('il y a 30 min')
+    expect(relativeTime('2026-10-30T08:00:00Z', now)).toBe('il y a 4 h')
+    expect(relativeTime('2026-10-27T12:00:00Z', now)).toBe('il y a 3 j')
+    expect(relativeTime('2026-08-30T12:00:00Z', now)).toBe('il y a 2 mois')
+    expect(relativeTime('2024-10-30T12:00:00Z', now)).toBe('il y a 2 ans')
+  })
+  it('une date absente ou illisible reste vide', () => {
+    expect(relativeTime(undefined, now)).toBe('')
+    expect(relativeTime('pas une date', now)).toBe('')
   })
 })

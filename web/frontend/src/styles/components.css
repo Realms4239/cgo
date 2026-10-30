@@ -51,7 +51,7 @@
 .c-kpi-prov { font: var(--tw-400) var(--fs-micro) var(--font-mono); color: var(--text-faint); margin-top: 2px; }
 
 /* Input — surface-card bg, hairline 1px, 6px 8px, focus ring cyan (S5-S6) */
-.c-input { width: 100%; box-sizing: border-box; background: var(--surface-card); color: var(--text-body); border: 1px solid var(--hairline); padding: var(--sp-1) var(--sp-2); font: var(--tw-400) var(--fs-tag) var(--font-mono); border-radius: var(--radius-0); outline: none; transition: border-color var(--dur-fast) var(--ease-standard); }
+.c-input { width: 100%; min-height: 32px; box-sizing: border-box; background: var(--surface-card); color: var(--text-body); border: 1px solid var(--hairline); padding: var(--sp-1) var(--sp-2); font: var(--tw-400) var(--fs-tag) var(--font-mono); border-radius: var(--radius-0); outline: none; transition: border-color var(--dur-fast) var(--ease-standard); }
 .c-input::placeholder { color: var(--text-faint); }
 .c-input:focus { border-color: var(--series-1); outline: 1px solid var(--series-1); outline-offset: 0; }
 .c-input:focus-visible { outline: 1px solid var(--series-1); outline-offset: 2px; }

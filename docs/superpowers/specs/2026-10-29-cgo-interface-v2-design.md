@@ -1,6 +1,6 @@
 # CGO interface v2 and academic title
 
-*Status: revised after critical review, awaiting user spec review · 2026-10-29 ·
+*Status: approved and implemented 2026-10-29 ·
 Branch: `rebuild/plan1-economics-audit` · Slice 15 · UI and product copy only;
 no API, CSV, corpus, or measurement change*
 
@@ -197,6 +197,17 @@ not removed.
   buffer; measure sample-to-pixel; do not claim 10 repaints/s.
 - No new dependency; `check-bundle.mjs` stays the budget gate. Record first
   paint, mode switch and chart advance on this host.
+
+### 11.1 Measured addendum (2026-10-30)
+
+- The bench carries ECharts; it is lazy-loaded. Initial JS: 111.1 KB gz; bench
+  chunk: 234.2 KB gz; total 345.4 KB gz (budget 600 KB).
+- Shell readiness 1,265 ms, DCL 648 ms, LCP 1,952 ms on DESKTOP-B6K9UCM
+  (Chromium, 1366×900, localhost). Baseline before split: 2,171 / 1,264 /
+  2,208 ms.
+- A hidden destination stops its live rAF loop and polling; only the root
+  audit session continues.
+- No ECharts or WebGL on first paint. No new dependency.
 
 ## 12. Errors
 

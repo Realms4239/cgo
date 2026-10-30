@@ -38,4 +38,11 @@ describe('LiveView metrics', () => {
     expect(s).toContain('rawLineSeries')
     expect(s).toContain('Débit utile applicatif')
   })
+
+  it('au repos, le mur attend la première frame mesurée', () => {
+    const s = readLive()
+    expect(s).toContain('const wallData =')
+    expect(s).toContain('const showLiveWall = showLiveSrc && wallData')
+    expect(s).toContain('{showLiveWall && (')
+  })
 })

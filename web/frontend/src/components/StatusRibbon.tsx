@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAuditStore } from '../store/audit'
 import { useUIStore } from '../store/ui'
+import { remainingSeconds } from '../lib/auditFlow'
 import { auditFacts, corpusFacts, ribbonMode, sealFacts, type IntegrityFacts } from '../lib/ribbon'
 
 export default function StatusRibbon() {
@@ -11,7 +12,7 @@ export default function StatusRibbon() {
   const setMode = useUIStore(s => s.setMode)
   const report = useAuditStore(s => s.report)
   const stage = useAuditStore(s => s.stage)
-  const livePhase = useAuditStore(s => s.live?.phase)
+  const auditLive = useAuditStore(s => s.live)
   const [mode, setModeName] = useState('')
   const [integrity, setIntegrity] = useState<IntegrityFacts | null>(null)
   const [failed, setFailed] = useState(false)
@@ -44,7 +45,10 @@ export default function StatusRibbon() {
         SSE {sseStatus}
       </span>
       {auditing ? (
-        <span className="ribbon-item live">Audit en cours{livePhase ? ` · ${livePhase}` : ''}</span>
+        <span className="ribbon-item live">
+          Audit en cours{auditLive?.phase ? ` · ${auditLive.phase}` : ''}
+          {remainingSeconds(auditLive) != null ? ` · ${remainingSeconds(auditLive)} s` : ''}
+        </span>
       ) : null}
       <span className="ribbon-item">{auditFacts(report)}</span>
       <span className="ribbon-item ribbon-corpus">{corpusFacts(integrity)}</span>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useUIStore, MODES, type ModeId } from './store/ui'
 import { useAuditStore } from './store/audit'
 import { connectSSE, disconnectSSE } from './lib/sse'
@@ -7,7 +7,6 @@ import { animateViewEnter } from './lib/anime'
 import { stageAfterCampaign, stageAfterReplay } from './lib/bench'
 import DashboardView from './views/DashboardView'
 import AuditView from './views/AuditView'
-import BenchView from './views/BenchView'
 import EvidenceView from './views/EvidenceView'
 import Toasts from './components/Toasts'
 import FlashBanner from './components/FlashBanner'
@@ -18,6 +17,13 @@ import StatusRibbon from './components/StatusRibbon'
 import QuickActionsPrompt from './components/QuickActionsPrompt'
 import CommandPalette from './components/CommandPalette'
 import MeteolinkWordmark from './components/MeteolinkWordmark'
+
+// Le banc porte ECharts : son chunk n'entre pas dans le premier rendu.
+const BenchView = lazy(() => import('./views/BenchView'))
+
+function BenchFallback() {
+  return <div className="card mode-loading mono muted">Chargement du banc d'essai…</div>
+}
 
 export default function App() {
   const mode = useUIStore(s => s.mode)
@@ -41,6 +47,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const found = MODES.find(m => m.id === mode)
+    document.title = found ? `${found.label} — Meteolink` : 'Meteolink'
+    const main = document.getElementById('main')
+    main?.scrollTo({ top: 0 })
     animateViewEnter()
   }, [mode])
 
@@ -119,7 +129,11 @@ export default function App() {
         <main id="main">
           <section id="v-dashboard" className="view" hidden={mode !== 'dashboard'}><DashboardView /></section>
           {mounted.audit ? <section id="v-audit" className="view" hidden={mode !== 'audit'}><AuditView /></section> : null}
-          {mounted.bench ? <section id="v-bench" className="view" hidden={mode !== 'bench'}><BenchView /></section> : null}
+          {mounted.bench ? (
+            <section id="v-bench" className="view" hidden={mode !== 'bench'}>
+              <Suspense fallback={<BenchFallback />}><BenchView /></Suspense>
+            </section>
+          ) : null}
           {mounted.evidence ? <section id="v-evidence" className="view" hidden={mode !== 'evidence'}><EvidenceView /></section> : null}
         </main>
 

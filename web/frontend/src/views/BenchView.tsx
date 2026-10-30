@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import BenchConfig from '../components/BenchConfig'
 import BenchProgress from '../components/BenchProgress'
 import DisplayControls from '../components/DisplayControls'
+import { ModeHead } from '../components/ModeHead'
 import LiveView from './LiveView'
 import ResultatsView from './ResultatsView'
 import { useUIStore } from '../store/ui'
@@ -11,6 +12,7 @@ import { scrollToId as goTo } from '../lib/scroll'
 export default function BenchView() {
   const stage = useUIStore(s => s.benchStage)
   const setStage = useUIStore(s => s.setBenchStage)
+  const active = useUIStore(s => s.mode === 'bench')
   const running = useUIStore(s => !!s.live?.running)
   const replay = useUIStore(s => s.replayRunning)
   const [resultsOpen, setResultsOpen] = useState(stage === 'results')
@@ -27,12 +29,10 @@ export default function BenchView() {
 
   return (
     <div className="panel-stack bench-page" data-stage={stage}>
-      <header className="mode-head">
-        <div>
-          <h1>Banc d'essai</h1>
-          <p>Configurer la campagne, observer la charge, lire le classement — une seule page linéaire.</p>
-        </div>
-      </header>
+      <ModeHead
+        title="Banc d'essai"
+        sub="Configurer la campagne, observer la charge, lire le classement — une seule page linéaire."
+      />
 
       <nav className="bench-anchors" aria-label="Sections du banc">
         <button className="btn" onClick={() => { setStage('config'); goTo('bench-config') }}>CONFIGURER</button>
@@ -50,14 +50,14 @@ export default function BenchView() {
           <h2 id="bench-observe-title" className="bench-section-title">2 — Observer</h2>
           <DisplayControls />
         </div>
-        <BenchProgress />
-        <LiveView />
+        <BenchProgress active={active} />
+        <LiveView active={active} />
       </section>
 
       <section id="bench-results" className="bench-section" aria-labelledby="bench-results-title">
         <h2 id="bench-results-title" className="bench-section-title">3 — Résultats</h2>
         {resultsOpen ? (
-          <ResultatsView embedded />
+          <ResultatsView embedded active={active} />
         ) : (
           <div className="card bench-held">
             <p className="mono muted">Les résultats s'ouvrent à la fin de la campagne, ou en cliquant sur RÉSULTATS.</p>

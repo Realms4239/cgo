@@ -54,11 +54,11 @@ CSV, corpus, or measurement change · `book/` stays working-tree only*
   `stageAfterCampaign(prev, running)`; `stageAfterReplay(prev, replay)`;
   `sectionOpen(stage, which)` (progressive reveal).
 
-- [ ] Step 1: tests first (red) — summary compare refuses a different site;
+- [x] Step 1: tests first (red) — summary compare refuses a different site;
   delay band boundaries; remediation uses only valid P2 cells; ribbon never
   invents a count; stage machine.
-- [ ] Step 2: implement → green.
-- [ ] Step 3: commit — `ui: libs pures v2 — résumé d'audit, langage opérateur, ribbon, étapes du banc`
+- [x] Step 2: implement → green.
+- [x] Step 3: commit — `ui: libs pures v2 — résumé d'audit, langage opérateur, ribbon, étapes du banc`
 
 ## Task 2 — root audit session and Auditor view
 
@@ -86,10 +86,10 @@ CSV, corpus, or measurement change · `book/` stays working-tree only*
   history modal. Presets never auto-launch.
 - `CampagneView` keeps campaign + matrix + profile import only.
 
-- [ ] Step 1: store + view extraction; typecheck.
-- [ ] Step 2: tests green (update `sheet.test.ts`); no audit polling remains in
+- [x] Step 1: store + view extraction; typecheck.
+- [x] Step 2: tests green (update `sheet.test.ts`); no audit polling remains in
   `CampagneView`.
-- [ ] Step 3: commit — `ui: session d'audit à la racine + vue Auditer (suivi continu, rapport, historique)`
+- [x] Step 3: commit — `ui: session d'audit à la racine + vue Auditer (suivi continu, rapport, historique)`
 
 ## Task 3 — four-mode shell
 
@@ -132,10 +132,10 @@ CSV, corpus, or measurement change · `book/` stays working-tree only*
 - `ScienceDetails`: `<details>`-style disclosure labelled `Détails
   scientifiques`, styles in CSS, no hex.
 
-- [ ] Step 1: store + shell + placeholder views; update tests (red→green).
-- [ ] Step 2: `npm run typecheck && npm test`; keyboard and mode switch
+- [x] Step 1: store + shell + placeholder views; update tests (red→green).
+- [x] Step 2: `npm run typecheck && npm test`; keyboard and mode switch
   smoke-checked in the source tests.
-- [ ] Step 3: commit — `ui: quatre modes — rail, ribbon d'état, coquille v2 sans WebGL`
+- [x] Step 3: commit — `ui: quatre modes — rail, ribbon d'état, coquille v2 sans WebGL`
 
 ## Task 4 — dashboard: real link vs simulated remediation
 
@@ -166,10 +166,10 @@ CSV, corpus, or measurement change · `book/` stays working-tree only*
 - If no audit: “Aucun audit sur ce poste” + audit CTA; if no P2 groups:
   “Aucune campagne gelée — la simulation n'a pas de données.”
 
-- [ ] Step 1: failing DOM test — separate labels, no `twin`/`gelé` primary
+- [x] Step 1: failing DOM test — separate labels, no `twin`/`gelé` primary
   text, cost from `economics.primary`, change only with same site/link.
-- [ ] Step 2: implement → green; `npm run typecheck && npm test`.
-- [ ] Step 3: commit — `ui: tableau de bord — lien réel, simulation P2, coût et changement séparés`
+- [x] Step 2: implement → green; `npm run typecheck && npm test`.
+- [x] Step 3: commit — `ui: tableau de bord — lien réel, simulation P2, coût et changement séparés`
 
 ## Task 5 — bench: one linear workspace
 
@@ -204,10 +204,10 @@ CSV, corpus, or measurement change · `book/` stays working-tree only*
 - Résultats = existing leaderboard/TradeSpace/compare/export with
   `embedded`.
 
-- [ ] Step 1: source tests (bench sections present, no `campagne`/`live`
+- [x] Step 1: source tests (bench sections present, no `campagne`/`live`
   panels, no fixed 380 px cockpit, tri event consumed).
-- [ ] Step 2: implement → green; typecheck + tests.
-- [ ] Step 3: commit — `ui: banc d'essai linéaire — configurer, observer, résultats sans sous-onglets`
+- [x] Step 2: implement → green; typecheck + tests.
+- [x] Step 3: commit — `ui: banc d'essai linéaire — configurer, observer, résultats sans sous-onglets`
 
 ## Task 6 — Evidence: reports and citations
 
@@ -223,9 +223,9 @@ CSV, corpus, or measurement change · `book/` stays working-tree only*
   Markdown link; close returns to the list. No new endpoint.
 - Empty list: “Aucun rapport d'audit archivé.”
 
-- [ ] Step 1: failing test (empty + one row + citation surface).
-- [ ] Step 2: implement → green.
-- [ ] Step 3: commit — `ui: preuves — rapports d'audit et citations dans la destination Preuves`
+- [x] Step 1: failing test (empty + one row + citation surface).
+- [x] Step 2: implement → green.
+- [x] Step 3: commit — `ui: preuves — rapports d'audit et citations dans la destination Preuves`
 
 ## Task 7 — two-layer language pass
 
@@ -241,9 +241,9 @@ CSV, corpus, or measurement change · `book/` stays working-tree only*
   `QDI` in the Explain tooltip; `Délai sous charge` on the small-object card)
 - Modify `views/DashboardView.tsx` if any jargon remains.
 
-- [ ] Step 1: source/DOM assertions on the plain labels and the drawer.
-- [ ] Step 2: implement → green.
-- [ ] Step 3: commit — `ui: deux niveaux de langue — opérateur d'abord, détails scientifiques repliés`
+- [x] Step 1: source/DOM assertions on the plain labels and the drawer.
+- [x] Step 2: implement → green.
+- [x] Step 3: commit — `ui: deux niveaux de langue — opérateur d'abord, détails scientifiques repliés`
 
 ## Task 8 — academic title, docs, ledgers, gates
 
@@ -264,15 +264,53 @@ Subtitle:
 > Régulation du bufferbloat par gestion active de file (AQM), contrôle de
 > congestion BBR et application au système d’information de Météo Madagascar
 
-- [ ] Step 1: apply the title; `python book/tools/audit-archive.py` and
+- [x] Step 1: apply the title; `python book/tools/audit-archive.py` and
   `node book/build-docx.js`; `memoire.docx` hash unchanged.
-- [ ] Step 2: final frontend gates — `npm run typecheck`, `npm test`,
+- [x] Step 2: final frontend gates — `npm run typecheck`, `npm test`,
   `npm run build`; `go test ./...`; `python tools/verify.py` (six gates).
-- [ ] Step 3: screenshots of the four modes and the three bench sections
+- [x] Step 3: screenshots of the four modes and the three bench sections
   (`node capture-fresh.mjs` if the script targets the new shell; otherwise a
   fresh capture script, not a claim).
-- [ ] Step 4: ledger rows + checkpoint; commit explicit paths (no `book/`,
+- [x] Step 4: ledger rows + checkpoint; commit explicit paths (no `book/`,
   no `PRODUCT.md`, no artifact).
+
+## Task 9 — UX, performance and encapsulation polish (2026-10-30)
+
+- [x] **Lazy bench chunk**: `App` imports `BenchView` with `React.lazy` +
+  `Suspense`; hover/focus on the bench destination prefetches it. Initial JS
+  fell from **344.2 KB gz in one chunk** to **111.1 KB gz initial + 234.2 KB gz
+  bench chunk** (total 345.4 KB gz). Shell readiness measured 2,171 → 1,265 ms,
+  DCL 1,264 → 648 ms, LCP 2,208 → 1,952 ms on this host.
+- [x] **Hidden destinations stop working**: `LiveView`, `BenchProgress`,
+  `ResultatsView`, `IntegriteView` and the dashboard receive an `active` prop;
+  the live rAF loop, SSE re-renders and 10 s polls stop while hidden. Only the
+  root audit session continues, by design.
+- [x] **One header, one summary**: `ModeHead` for Auditer / Banc / Preuves;
+  `OperatorStats` and `operatorSummary(report)` shared by the dashboard and the
+  audit view (no duplicated thresholds or labels); `relativeTime` for archive
+  age.
+- [x] **Empty and recovery paths**: first-run dashboard block (3 steps), bench
+  matrix folded as a preview at rest, results `RÉINITIALISER` for filters /
+  rank / pins.
+- [x] **Accessibility**: `aria-current` on the active destination, polite live
+  region for audit phases, accessible names on chart surfaces, ≥32 px controls
+  and ≥40 px on phones.
+- [x] **Detector clean**: two intentional exceptions documented inline
+  (Inter pinned by `DESIGN.md`; identity wordmark gradient). No other findings.
+- [x] **QA tool**: `perf-probe.mjs` measures shell, LCP, DCL, transfers and
+  console errors; `benchLayout.test.ts` pins lazy loading and hidden gating.
+
+## Task 10 — design system, product and book refresh (2026-10-30)
+
+- [x] `DESIGN.md` describes the four-mode shell, ModeHead/OperatorStats/
+  ScienceDetails, the no-hidden-work rule and the motion/a11y floor.
+- [x] `PRODUCT.md` UI row states the four modes, root audit session, real vs
+  simulated split and the code-split performance.
+- [x] Book: Table 13 becomes the four modes; Annex E rewritten with five new
+  v2 captures (`book-tableau`, `book-auditer`, `book-banc-configurer`,
+  `book-banc-resultats`, `book-preuves`); Table/Figure numbers preserved.
+  `audit-archive`, `audit-biblio`, `audit-renvois`, `audit-nombres` and
+  `build-docx` green; `memoire.docx` hash unchanged.
 
 ## Acceptance mapping
 

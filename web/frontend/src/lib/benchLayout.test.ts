@@ -15,9 +15,9 @@ describe('banc d’essai linéaire', () => {
       expect(b, `section ${id}`).toContain(`id="${id}"`)
     }
     expect(b).toContain('<BenchConfig />')
-    expect(b).toContain('<BenchProgress />')
-    expect(b).toContain('<LiveView />')
-    expect(b).toContain('<ResultatsView embedded />')
+    expect(b).toContain('<BenchProgress active={active} />')
+    expect(b).toContain('<LiveView active={active} />')
+    expect(b).toContain('<ResultatsView embedded active={active} />')
     expect(b, 'aucun sous-onglet').not.toContain('role="tablist"')
   })
 
@@ -47,5 +47,21 @@ describe('banc d’essai linéaire', () => {
     expect(b).toContain('<DisplayControls />')
     const app = read('App.tsx')
     expect(app).not.toContain('DisplayControls')
+  })
+
+  it('hors destination, le mur ne se re-rend plus au rythme du SSE', () => {
+    expect(read('views/BenchView.tsx')).toContain('active={active}')
+    expect(read('views/LiveView.tsx')).toContain('rafActive && active')
+    expect(read('views/LiveView.tsx')).toContain('active ? s.live : null')
+    expect(read('views/ResultatsView.tsx')).toContain('active && !!s.live?.running')
+    expect(read('views/IntegriteView.tsx')).toContain('if (!active) return')
+  })
+
+  it('le banc se charge à la demande, sans ECharts dans le premier rendu', () => {
+    const app = read('App.tsx')
+    expect(app).toContain("lazy(() => import('./views/BenchView'))")
+    expect(app).toContain('<Suspense')
+    const rail = read('components/ModeRail.tsx')
+    expect(rail).toContain('preloadBench')
   })
 })

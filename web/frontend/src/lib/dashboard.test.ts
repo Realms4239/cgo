@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertsBand, delayBand, instabilityBand, qualityWord, remediationView, retailBound } from './dashboard'
+import { alertsBand, delayBand, instabilityBand, operatorSummary, qualityWord, remediationView, retailBound } from './dashboard'
 
 describe('bandes opérateur', () => {
   it('délai : quatre mots, seuils des Réglages', () => {
@@ -71,5 +71,36 @@ describe('borne détail', () => {
 
   it('aucun scénario ⇒ null', () => {
     expect(retailBound({ economics: { scenarios: [] } })).toBeNull()
+  })
+})
+
+
+describe('operatorSummary', () => {
+  it('préfère le petit objet mesuré et n’invente pas un SLA', () => {
+    const s = operatorSummary({
+      measured: { small_measured: true, http_small_p95_ms: 328, rtt_loaded_p95_ms: 410 },
+      cap_sla: { measured: false },
+      bloat_grade: 'D',
+    }, 40, 100)
+    expect(s.delayMs).toBe(328)
+    expect(s.delay?.word).toBe('élevé')
+    expect(s.alertsPct).toBeUndefined()
+    expect(s.alerts).toBeNull()
+    expect(s.quality).toBe('faible')
+  })
+
+  it('replie sur le RTT chargé quand le petit objet n’est pas mesuré', () => {
+    const s = operatorSummary({ measured: { rtt_loaded_p95_ms: 80 }, bloat_grade: 'B' }, 40, 100)
+    expect(s.delayMs).toBe(80)
+    expect(s.delay?.word).toBe('modéré')
+    expect(s.quality).toBe('bon')
+  })
+
+  it('sans rapport, tout reste non mesuré', () => {
+    const s = operatorSummary(null, 40, 100)
+    expect(s.delayMs).toBeUndefined()
+    expect(s.delay).toBeNull()
+    expect(s.alertsPct).toBeUndefined()
+    expect(s.quality).toBe('non noté')
   })
 })

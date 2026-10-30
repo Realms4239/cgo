@@ -11,6 +11,7 @@ import { live as liveRing } from '../lib/live'
 import { loadSettings } from '../lib/settings'
 import { validate } from '../lib/validation'
 import { formatBytesFR, groupDigits } from '../lib/format'
+import { profileShort } from '../lib/profiles'
 import { canalGate, effectiveChannelModel } from '../lib/canal'
 
 const ALL_QDISCS = ['pfifo_fast', 'fq_codel', 'cake'] as const
@@ -159,15 +160,18 @@ export default function BenchConfig() {
         <div className="card-head">Campagne — ce qui change le résultat</div>
         <div className="form-row">
           <label>Profils</label>
-          <div className="check-row">
+          <div className="check-row bench-profiles">
             {refProfiles.map(p => (
-              <label key={p.id}>
+              <label key={p.id} className="bench-profile">
                 <input
                   type="checkbox"
                   checked={profiles.includes(p.id)}
                   onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))}
-                />{' '}
-                <Explain term={p.id}>{p.id}</Explain>
+                />
+                <span>
+                  <Explain term={p.id}>{p.id}</Explain>
+                  <small>{profileShort(p.id)}</small>
+                </span>
               </label>
             ))}
           </div>

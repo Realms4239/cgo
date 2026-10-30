@@ -86,7 +86,7 @@ const ChartSurface = memo(function ChartSurface({ title, unit, domId, height, em
   }, [])
   return (
     <div className="chart-surface" style={{ height }}>
-      <div ref={boxRef} id={domId} className="chart-box" />
+      <div ref={boxRef} id={domId} className="chart-box" role="img" aria-label={`${title} — ${unit}`} />
       {empty && <EmptyChart hint={hint} />}
     </div>
   )
@@ -94,7 +94,7 @@ const ChartSurface = memo(function ChartSurface({ title, unit, domId, height, em
 
 type WallGroup = { qdisc: string; profile: string; small_p95_median: number; best?: boolean; hardware_recommendation?: string }
 
-export default function LiveView() {
+export default function LiveView({ active = true }: { active?: boolean }) {
   // settings — reactive: Réglages diffuse `meteolink-settings`, les seuils de
   // sévérité et la capacité du bord suivent sans rechargement (stale ref bug).
   const [settings, setSettings] = useState<Settings>(loadSettings())
@@ -107,7 +107,9 @@ export default function LiveView() {
   const small = useChart('Délai sous charge', 'ms')
   const goodput = useChart('Débit utile applicatif', 'Mbit/s')
   const iface = useChart('Interface', 'Mbit/s')
-  const liveSnap = useUIStore((s: any) => s.live)
+  // Inactif (autre destination), le mur ne se re-rend plus au rythme du SSE.
+  const liveSnap = useUIStore((s: any) => (active ? s.live : null))
+  const running = useUIStore((s: any) => !!s.live?.running)
   const replayRunning = useUIStore((s: any) => s.replayRunning)
   const replayRunId = useUIStore((s: any) => s.replayRunId)
   const bannerRef = useRef<HTMLDivElement>(null)
@@ -148,11 +150,11 @@ export default function LiveView() {
   }, [])
 
   // idle honnête: un nouveau run part d'anneaux vides — pas de séries périmées
-  useEffect(() => { if (liveSnap?.running) clearLive() }, [liveSnap?.running])
+  useEffect(() => { if (running) clearLive() }, [running])
 
   // historique gelé pour la baseline A/B vs CAKE hors course
   useEffect(() => {
-    if (liveSnap?.running || replayRunning) return
+    if (!active || running || replayRunning) return
     let cancelled = false
     fetch('/api/results').then(r => r.json()).then(j => { if (!cancelled && j.available) setWallGroups(j.groups) }).catch(() => {})
     fetch('/api/integrity').then(r => r.json()).then(j => {
@@ -164,7 +166,7 @@ export default function LiveView() {
     fetch('/api/shape').then(r => r.json()).then(j => { if (!cancelled) setShape(j) }).catch(() => {})
     fetch('/api/events').then(r => r.json()).then(j => { if (!cancelled && j?.events) { setJournalTotal(j.events.length); setJournal(j.events.slice(-50).reverse()) } }).catch(() => {})
     return () => { cancelled = true }
-  }, [liveSnap?.running, replayRunning])
+  }, [active, running, replayRunning])
 
   const hash8 = wallHash || (() => {
     const src = `${liveSnap?.profile ?? ''}${liveSnap?.qdisc ?? ''}${liveSnap?.cc ?? ''}${wallGroups?.[0]?.profile ?? ''}`
@@ -217,7 +219,7 @@ export default function LiveView() {
     }
     small.setData(series)
     goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(live.goodput as any), CRAFT.bbr), markArea: ma } as any])
-  }, rafActive)
+  }, rafActive && active)
 
   const banner = replayRunning ? `Replay — ${replayRunId}`
     : !liveSnap ? 'Hors ligne — en attente du flux'
@@ -377,6 +379,10 @@ export default function LiveView() {
   const diffAB = baseline && cakeBest && baseline.small_p95_median > 0 ? Math.round(((baseline.small_p95_median - cakeBest.small_p95_median) / baseline.small_p95_median) * 100) : null
   const showLiveSrc = tri.source !== 'frozen'
   const showFrozenSrc = tri.source !== 'live'
+  // Au repos, le mur ne peint pas cinq cartes vides : la trace, les cartes et
+  // le guide attendent la première frame mesurée (ou un rejeu).
+  const wallData = live.small.length > 0 || live.rtt95.length > 0 || live.iface.rx.length > 0 || replayRunning
+  const showLiveWall = showLiveSrc && wallData
   const heroEmpty = live.small.length === 0
   const rttEmpty = live.rtt95.length === 0
   const goodputEmpty = live.goodput.length === 0
@@ -433,7 +439,7 @@ export default function LiveView() {
         <EventBadge />
         {phaseTotalHint}
       </div>
-      {showLiveSrc && (
+      {showLiveWall && (
       <Card
         head="Délai sous charge"
         sub="petits objets p95 · fenêtre 180 s"
@@ -447,7 +453,7 @@ export default function LiveView() {
       </Card>
       )}
       {!liveSnap && !showLiveSrc && <div className="card live-empty"><EmptyState kind="idle" hint={IDLE_HINT} /></div>}
-      {showLiveSrc && (
+      {showLiveWall && (
         <Card
           head="Débit interface"
           sub={ifaceSub}
@@ -465,7 +471,7 @@ export default function LiveView() {
       {/* Q4 metric pill — responsive bento owned by CSS (container queries:
           5 col → 2 @1100 → 1 @640); the inline gridTemplateColumns variant
           overrode the breakpoints and cropped every card on mobile */}
-      {showLiveSrc && (
+      {showLiveWall && (
       <div data-wall-cards="metric-groups" className={'bento-5 wall-span' + (tri.metric ? '' : ' hidden')}>
         <MetricCard term="small_p95" label="Délai sous charge" value={smallP95 ? smallP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(smallP95, settings)]} spark={spark(live.small)} trend={trendOf(spark(live.small))} verdict={smallP95 ? verdictWord(latencyLevel(smallP95, settings)) : undefined} verdictLevel={smallP95 ? latencyLevel(smallP95, settings) : undefined} />
         <MetricCard term="rtt_p95" label="RTT p95" value={rttP95 ? rttP95.toFixed(1) : '—'} unit="ms" color={LEVEL_COLOR[latencyLevel(rttP95, settings)]} spark={spark(live.rtt95)} trend={trendOf(spark(live.rtt95))} verdict={rttP95 ? verdictWord(latencyLevel(rttP95, settings)) : undefined} verdictLevel={rttP95 ? latencyLevel(rttP95, settings) : undefined} />
@@ -487,7 +493,7 @@ export default function LiveView() {
         <MetricCard term="cost_ar_per_h" label="Coût détail (archive)" value={formatCostAR(costAr).num} unit={formatCostAR(costAr).unit} color={costAr == null ? 'var(--text-faint)' : CRAFT.threshold} trend={costAr != null && costAr > 0 ? 'up' : 'flat'} spark={spark(live.cost)} />
       </div>
       )}
-      {showLiveSrc && (
+      {showLiveWall && (
       <div className="wall-span duo wall-duo">
         <Card
           head="RTT"

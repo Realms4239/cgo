@@ -10,16 +10,11 @@ import { Provenance } from '../components/ui/Provenance'
 import { NavIcon } from '../components/NavIcon'
 import { ScienceDetails } from '../components/ScienceDetails'
 import { gradeTone } from '../components/AuditReportCard'
+import { OperatorStats } from '../components/OperatorStats'
 import { nextStep, pickHeadline, type SynGroup } from '../lib/synthese'
-import {
-  alertsBand,
-  delayBand,
-  qualityWord,
-  remediationView,
-  retailBound,
-} from '../lib/dashboard'
+import { remediationView, retailBound } from '../lib/dashboard'
 import { compareAudits, summaryOf } from '../lib/auditSummary'
-import { formatCostAR, groupDigits } from '../lib/format'
+import { formatCostAR, groupDigits, relativeTime } from '../lib/format'
 import { loadSettings } from '../lib/settings'
 
 type Integrity = {
@@ -40,6 +35,7 @@ const signed = (v: number) => `${v > 0 ? '+' : ''}${v}`
 export default function DashboardView() {
   const setMode = useUIStore(s => s.setMode)
   const setBenchStage = useUIStore(s => s.setBenchStage)
+  const active = useUIStore(s => s.mode === 'dashboard')
   const running = useUIStore(s => !!s.live?.running)
   const report = useAuditStore(s => s.report)
   const previous = useAuditStore(s => s.previous)
@@ -51,6 +47,7 @@ export default function DashboardView() {
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
+    if (!active) return
     let alive = true
     Promise.all([
       fetch('/api/integrity').then(r => r.json()).catch(() => null),
@@ -62,12 +59,9 @@ export default function DashboardView() {
       if (Array.isArray(r?.groups)) setGroups(r.groups)
     })
     return () => { alive = false }
-  }, [running])
+  }, [active, running])
 
   const m = report?.measured
-  const delayValue = m?.small_measured ? m?.http_small_p95_ms : m?.rtt_loaded_p95_ms
-  const delay = delayBand(delayValue, settings.warnMs, settings.critMs)
-  const alerts = report?.cap_sla?.measured ? alertsBand(report.cap_sla.ok_pct) : null
   const primary = report?.economics?.primary
   const cost = formatCostAR(primary?.ar_per_hour)
   const retail = retailBound(report)
@@ -108,25 +102,10 @@ export default function DashboardView() {
                 <span>{report.site || 'site —'}</span>
                 <span>{report.link_type || 'lien —'}{report.provider ? ` · ${report.provider}` : ''}</span>
                 {report.timestamp ? <span>{report.timestamp.slice(0, 16).replace('T', ' ')}</span> : null}
+                {report.timestamp ? <span className="dash-ago">{relativeTime(report.timestamp)}</span> : null}
                 <Badge tone={gradeTone(report.bloat_grade)}>{report.bloat_grade || 'non noté'}</Badge>
               </div>
-              <div className="dash-stats">
-                <div className="audit-summary-cell">
-                  <span>Délai sous charge</span>
-                  <b>{ms(delayValue)}<small> ms</small></b>
-                  <em data-level={delay?.level ?? 'none'}>{delay?.word ?? 'non mesuré'}</em>
-                </div>
-                <div className="audit-summary-cell">
-                  <span>Alertes à l'heure</span>
-                  <b>{report.cap_sla?.measured ? `${pct(report.cap_sla.ok_pct)} %` : '—'}</b>
-                  <em data-level={alerts?.level ?? 'none'}>{alerts?.word ?? 'non mesuré'}</em>
-                </div>
-                <div className="audit-summary-cell">
-                  <span>Qualité du lien</span>
-                  <b>{report.bloat_grade || '—'}</b>
-                  <em>{qualityWord(report.bloat_grade)}</em>
-                </div>
-              </div>
+              <OperatorStats report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
               {report.bloat_verdict ? <p className="syn-read">{report.bloat_verdict}</p> : null}
               <div className="dash-actions">
                 <button className="btn btn-primary" onClick={() => { showReport(); setMode('audit') }}>Ouvrir le rapport</button>
@@ -211,6 +190,7 @@ export default function DashboardView() {
         </section>
       </div>
 
+      {report ? (
       <div className="dash-grid dash-grid-even">
         <section className="card dash-card" data-testid="dash-cost">
           <CardHead label="Ce que ça coûte" sub="scénario contractuel, pas une mesure" />
@@ -269,6 +249,18 @@ export default function DashboardView() {
           )}
         </section>
       </div>
+      ) : (
+        <section className="card dash-onboarding" data-testid="dash-onboarding">
+          <CardHead label="Premier pas" sub="trois gestes, aucune promesse" />
+          <h2>Le tableau se remplit après le premier audit.</h2>
+          <ol className="dash-steps">
+            <li><b>1 — Auditer</b><span>60 s sur le lien réel, sans droits administrateur.</span></li>
+            <li><b>2 — Comparer</b><span>Le banc projette la file simple et CAKE sur le profil P2.</span></li>
+            <li><b>3 — Prouver</b><span>Le rapport scellé et le corpus restent citables.</span></li>
+          </ol>
+          <button className="btn btn-primary" onClick={() => setMode('audit')}>AUDITER UN LIEN</button>
+        </section>
+      )}
 
       <section className="syn-proof" aria-label="Preuve archivée">
         <div className="syn-proof-head">
