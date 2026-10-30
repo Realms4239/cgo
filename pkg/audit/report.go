@@ -54,6 +54,21 @@ type Report struct {
 	// CAPSLA is the 220 ms operator-objective assessment of the loaded 16 KB
 	// completions (Model C). Measured=false means unavailable, never a pass.
 	CAPSLA metrics.CAPSLA `json:"cap_sla"`
+
+	// RouterOSValidation is the CHR proof for this report's remediation
+	// script. Absent means "not validated", never "validated by default".
+	RouterOSValidation *RouterOSValidation `json:"routeros_validation,omitempty"`
+}
+
+// RouterOSValidation records what a CHR run proved about this report's
+// RouterOS script: the device version, the evidence level, the export hash
+// and the field-level checks. It never claims the configuration was applied.
+type RouterOSValidation struct {
+	Version      string          `json:"version"`
+	Level        string          `json:"level"`
+	ExportSHA256 string          `json:"export_sha256"`
+	ProofPath    string          `json:"proof_path,omitempty"`
+	Checks       []RouterOSCheck `json:"checks"`
 }
 
 // Phases records the audit schedule actually executed. A 60 s audit is
@@ -548,8 +563,32 @@ func (r *Report) RenderMarkdown() string {
 			b.WriteString("RouterOS has no IFB: this is a LAN-interface egress queue tree, not byte-equivalent to the Linux IFB.\n\n")
 		}
 	}
+	if v := r.RouterOSValidation; v != nil {
+		ok := true
+		for _, c := range v.Checks {
+			if !c.Pass {
+				ok = false
+			}
+		}
+		level := "CHR"
+		if v.Level == "linux-namespace" {
+			level = "CHR + banc"
+		}
+		if ok {
+			fmt.Fprintf(&b, "### Validation RouterOS\n\nConfiguration RouterOS validée (%s, %s) · export %s\n\n", v.Version, level, short8(v.ExportSHA256))
+		} else {
+			fmt.Fprintf(&b, "### Validation RouterOS\n\nConfiguration RouterOS non validée (%s, %s) — écarts dans le rapport.\n\n", v.Version, level)
+		}
+	}
 
 	return b.String()
+}
+
+func short8(s string) string {
+	if len(s) > 8 {
+		return s[:8]
+	}
+	return s
 }
 
 // SortUnavailable orders the unavailable list for stable output.
