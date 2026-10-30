@@ -668,6 +668,9 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .audit-summary-cell em[data-level="ok"] { color: var(--t-ok); }
 .audit-summary-cell em[data-level="warn"] { color: var(--t-threshold); }
 .audit-summary-cell em[data-level="crit"] { color: var(--t-danger-text); }
+/* Une absence ne pèse pas comme une mesure : cellule compacte, chiffre discret */
+.audit-summary-cell[data-empty] { padding: var(--sp-2) var(--sp-3); }
+.audit-summary-cell[data-empty] b { font-size: var(--fs-body); color: var(--text-faint); }
 .audit-verdict { font-size: var(--fs-body); line-height: 1.6; color: var(--text-body-strong); max-width: 78ch; }
 .audit-remedy { display: flex; flex-direction: column; gap: var(--sp-1); border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
 .audit-remedy-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
@@ -732,6 +735,12 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 @media (max-width: 900px) {
   .dash-grid, .dash-sim-pair { grid-template-columns: 1fr; }
   .dash-stats, .dash-dl { grid-template-columns: 1fr; }
+  /* en colonne, une absence tient sur une ligne : libellé à gauche,
+     valeur et raison à droite — deux cellules vides ne mangent plus
+     un écran de téléphone */
+  .dash-stats .audit-summary-cell[data-empty] { flex-direction: row; align-items: baseline; gap: var(--sp-2); padding-block: var(--sp-1); }
+  .dash-stats .audit-summary-cell[data-empty] span { flex: 1 1 auto; }
+  .dash-stats .audit-summary-cell[data-empty] em { margin-left: auto; }
 }
 
 /* ---- Synthèse : accueil opérateur, une lecture, une action ---- */
