@@ -955,3 +955,24 @@ end, at a settled decision, and at a handoff.
   independent verifier has not re-run these commands.
 - Next: impeccable audit pass on the four modes, then the verifier pass and the
   human's visual review.
+
+## 2026-10-30 19:10 UTC · slice 15 Task 14 — impeccable audit and the mobile pass
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `1668941`.
+- Changed: impeccable audit of the four modes (detector 0 findings on sources;
+  URL scan unavailable — puppeteer absent, no dependency added). Two fixes from
+  the audit: at 390 px the ribbon drops the corpus counts, the seal and its
+  separator (still live in Preuves) and `.btn`/`.c-input` rise from 40 to 44 px;
+  `qa-walk.mjs` asserts both at 390 px after the desktop long-task collection.
+- Proven on DESKTOP-B6K9UCM: `npm test` → 46 files, 210 tests;
+  `python tools/verify.py` → 6 passed, 0 failed, 0 not run; `node qa-walk.mjs`
+  → 23 steps, 0 failures, 0 console errors, 0 resource errors (44 px measured,
+  corpus hidden at 390 px); screenshots recaptured at 1920/1366/390 and the
+  390 dashboard checked by eye — header two rows instead of three.
+  Audit scores: a11y 3/4, performance 4/4, theming 4/4, responsive 3/4,
+  integrity 4/4 → 18/20.
+- Unproven: the audit is the builder's own pass, not an independent reviewer;
+  the ribbon's `role="status"` still wraps its buttons (P3, recorded with the
+  reason the `display: contents` fix is worse); no live run; verifier pending.
+- Next: the verifier pass and the human's visual review; the Linux 6.8 bench,
+  VM credentials and production read-only access remain blocked.

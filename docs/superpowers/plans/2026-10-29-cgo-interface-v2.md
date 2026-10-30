@@ -403,6 +403,36 @@ Subtitle:
   `/api/replay/list` set currently covers every run row, so the row-count gate
   is the operative guard, not the file-existence one.
 
+## Task 14 — impeccable audit of the four modes (2026-10-30, builder pass)
+
+Audit at `69f8f37` on the served build, screenshots at 1920/1366/390, detector
+over `web/frontend/src` → 0 findings (URL scan unavailable: puppeteer absent,
+no dependency added for it).
+
+| Dimension | Score | Evidence |
+|---|---|---|
+| Accessibility | 3/4 | Focus-visible ring global, skip link, labelled fields, `main` focus on mode change, canvas `role="img"` + label, contrast of `--text-faint` on card ≈ 4.9:1. Open: `role="status"` on the ribbon also wraps its two buttons — a live region containing controls, P3. |
+| Performance | 4/4 | Lazy destinations, deferred TradeSpace, gated rAF/SSE, 99.1 KB gz initial, peak task ≤317 ms across walks. |
+| Theming | 4/4 | Every colour through tokens; no hex in components (detector clean). |
+| Responsive | 3/4 | No overflow at 390/1366/1920; touch targets were 40 px, now 44 px; ribbon carried three rows at 390, now two. |
+| Implementation integrity | 4/4 | No control that can only dead-end (reports, replay), real-vs-simulated separation, truthful `non mesuré`, no invented counts. |
+| **Total** | **18/20** | Excellent (minor polish) |
+
+- [x] Fixed in the batch: at 390 px the ribbon drops the corpus counts, the
+  seal and its separator (all still live in Preuves), which removes a dense row
+  and lifts the content by ~30 px; `.btn` and `.c-input` go from 40 to 44 px.
+- [x] `qa-walk.mjs` now asserts both at 390 px after the desktop collection, so
+  the published long-task figures stay those of the desktop walk.
+- [x] Verified: 46 files / 210 tests, `python tools/verify.py` → 6 passed,
+  `node qa-walk.mjs` → 23 steps, 0 failures, 0 console errors, 0 resource
+  errors; screenshots recaptured.
+- [x] Committed at `1668941`.
+- Deferred (P3, named): the ribbon's live region also contains its buttons;
+  `role="status"` on the text-only group would need `display: contents`, which
+  older Safari drops from the accessibility tree — worse than the smell, so it
+  stays and is recorded here.
+
+
 
 
 ## Acceptance mapping
