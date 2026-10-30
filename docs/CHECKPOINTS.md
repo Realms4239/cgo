@@ -1196,3 +1196,35 @@ end, at a settled decision, and at a handoff.
   (le contrat est prouvé au runtime par le parcours).
 - Next: règles du repo inchangées — QEMU/Linux, signature du vérificateur,
   grant opérateur, revue humaine.
+
+## 2026-10-30 20:51 UTC · débogage systématique — arrêt d'audit, identifiant de run, et un incident
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `5d2c6dd`.
+- **Incident, disclosed**: while probing POST validation with supposed
+  reject-only bodies, `POST /api/audit/start` with `duration: 0` was accepted —
+  0 means “default 30 s”, not “invalid” — so a live audit started against the
+  default target on this host. It was stopped immediately (`stop`), the
+  cancelled run wrote **no row** (`data/link_audit.csv` ends at
+  `audit-1793015258`, 2026-10-26), and state returned to `running:false`.
+  Lesson recorded: a reject-only battery may only use values the API provably
+  rejects (`direction=sideways`, `flows=99`), never a zero that the schema
+  defaults. The frozen corpus (`book/data/runs`) was never involved.
+- Defect 1 — `POST /api/audit/stop` answered `{"stopped":true}` twice for two
+  rapid requests while `running` still said true: `handleAuditStop` delivered
+  `cancel()` without consuming `auditCancel`, which only the goroutine's defer
+  clears. Fixed by consuming it under the same lock; test
+  `TestAuditStopDeliversCancelOnce` reproduces the state without network.
+- Defect 2 — `GET /api/results?run=…` passed the id into a glob
+  (`data/runs/<run>/aqm_eval.csv`) with no traversal guard, while replay/stream,
+  run/rows and quarantine all rejected the same input with 400. One
+  `validRunID` rule now guards all four; test `TestResultsRejectsUnsafeRun`
+  requires 400 on four hostile ids and 200 on a safe unknown run.
+- Proven on DESKTOP-B6K9UCM: `go test ./pkg/api -count=1` → ok 63.6 s;
+  `python tools/verify.py` → 6 passed, 0 failed, 0 not run; live server after
+  restart — hostile run 400, plain run 200, idle stop `{"stopped":false}`,
+  status `running:false`.
+- Unproven: the stop fix was proven by unit state, not by a second real live
+  audit (none will be run without approval); the quarantine empty-id case
+  keeps its old behaviour (`!validRunID("")` is false, so empty is allowed).
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant,
+  human visual review.
