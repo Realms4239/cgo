@@ -1171,3 +1171,28 @@ end, at a settled decision, and at a handoff.
   reader; the Fyne view still has no runtime test here.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant, and
   the human's visual review.
+
+## 2026-10-30 20:30 UTC · débogage systématique — la palette morte et le tiroir sans focus
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `936af6c`.
+- Phase 1 (preuves, avant toute correction) : sous `reducedMotion: reduce`,
+  tout est visible (opacité 1, 0 erreur) — hypothèse écartée. Sur les deux
+  surfaces modales : les réglages laissaient le focus sur la goupille et Tab
+  fuyait vers le rail ; la palette laissait `activeElement = BODY`, Tab
+  n'entrait jamais. Mesure décisive : `#palette` est un descendant de `#shell`
+  (App.tsx:119) et la palette posait `#shell.inert = true` — elle s'inertait
+  elle-même. Contre-preuve : `shell.inert = false` puis `input.focus()` →
+  `activeElement = INPUT`.
+- Phase 2–3 : le tiroir n'avait aucun code de focus ; la palette en avait un,
+  faux par construction. Une seule cause racine par surface, chacune testée en
+  échec avant correction (`qa-walk` : « la palette prend le focus » False/BODY,
+  « le focus reste dans les réglages » False).
+- Phase 4 : `useModalFocus` partagé — portail hors de `#shell`, inertie du
+  fond, focus dans le panneau, Tab/Shift-Tab piégés, Échap, focus rendu au
+  déclencheur ; palette et tiroir l'utilisent. Preuves : parcours 34 étapes,
+  0 échec, 0 erreur console, focus INPUT des deux côtés, focus rendu à la
+  goupille ; `npm test` 46 fichiers / 215 tests ; build 350.3 KB gz.
+- Non couvert : un lecteur d'écran réel ; le tiroir n'a pas de test unitaire
+  (le contrat est prouvé au runtime par le parcours).
+- Next: règles du repo inchangées — QEMU/Linux, signature du vérificateur,
+  grant opérateur, revue humaine.
