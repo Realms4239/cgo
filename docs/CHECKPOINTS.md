@@ -1123,3 +1123,23 @@ end, at a settled decision, and at a handoff.
   the deepwork state lives at `.slim/deepwork/book-arch-gui.md` (gitignored).
 - Next: human read of Annexe E/F; verifier signature on the packet; QEMU and a
   Linux 6.8 host for the blocked rows; merge to `main` is the human's.
+
+## 2026-10-30 20:35 UTC · polish — région live du bandeau, et l'assertion qui manquait
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `7f99dba` + this pass.
+- Changed: `StatusRibbon` no longer carries `role="status"` on the container;
+  the running-audit item alone carries `role="status" aria-live="polite"`, so a
+  health reload no longer re-announces corpus counts, the seal or the two
+  buttons. `qa-walk.mjs` now asserts what its step name claimed: corpus AND
+  seal hidden at 390 px (before, only the corpus was checked).
+- Proven on DESKTOP-B6K9UCM: `npm run typecheck` clean; `npm test` 46 files /
+  215 tests; `npm run build` 350.2 KB gz; served page DOM check —
+  container role `null`, `aria-live` count in the ribbon `0` at rest,
+  `Télémétrie : TCP_INFO` still rendered; `node qa-walk.mjs` → 23 steps,
+  0 failures, 0 console/resource errors, “corpus masqué, sceau masqué”,
+  44 px targets, TradeSpace canvas 880×320, peak task 254 ms.
+- Unproven: the live region's actual announcement was not heard on a screen
+  reader; only the DOM contract was checked. No other a11y surface re-audited.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant; the
+  remaining deferred items are recorded (Fyne parenthesis wording,
+  pre-telemetry server wording).

@@ -431,10 +431,10 @@ no dependency added for it).
   `node qa-walk.mjs` → 23 steps, 0 failures, 0 console errors, 0 resource
   errors; screenshots recaptured.
 - [x] Committed at `1668941`.
-- Deferred (P3, named): the ribbon's live region also contains its buttons;
-  `role="status"` on the text-only group would need `display: contents`, which
-  older Safari drops from the accessibility tree — worse than the smell, so it
-  stays and is recorded here.
+- Closed (was the P3 of this audit, 2026-10-30 polish pass): the ribbon's live
+  region wrapped its buttons. Instead of the rejected `display: contents`
+  group, the live region now covers only the running-audit item, the one
+  time-sensitive fact; at rest the ribbon holds no live region at all.
 
 
 
