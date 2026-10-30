@@ -40,6 +40,10 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 13 | Production-facing reframing & economic reconciliation | `2026-10-28-cgo-production-reframing-design.md` | `2026-10-28-cgo-production-reframing.md` | **Done** (book working tree, never committed) | 12 | — (human review of the rendered book; production access and independent verification remain open) |
 | 14 | Operator overview & navigation | `2026-10-29-cgo-operator-overview-design.md` | `2026-10-29-cgo-operator-overview.md` | **Done** (builder pass; verifier pending) | 8, 13 | Independent verifier re-runs `npm test`, `npm run build` and `python tools/verify.py` |
 | 15 | Interface v2 + academic title | `2026-10-29-cgo-interface-v2-design.md` | `2026-10-29-cgo-interface-v2.md` | **Done** (builder pass, Tasks 1–14; verifier pending) | 8, 10, 14 | Independent verifier re-runs `npm test`, `npm run build`, `go test ./...`, `python tools/verify.py`, then `node qa-walk.mjs` and `node perf-probe.mjs` against the served fresh bundle; the human reviews the four rendered modes |
+| 16 | RouterOS v7 compliance via CHR (QEMU) | `2026-10-30-cgo-closing-program-design.md` | — (plan pending) | **Proposed** | human: install QEMU + CHR image; slice 1 (remediation script) | Spec review, then plan; Windows `windows-tcg` proof first, Linux namespace attach in the runbook |
+| 17 | Slice-4 Go half + portable host readiness + runbook | same | — (plan pending) | **Proposed** | 16 report surface; slice 4 plan | Loader/fallback/report with stub, portable host-readiness script (kit, planned), acceptance runbook, telemetry badge; no eBPF claim |
+| 18 | Verifier packets + methodology chapter | same | — (plan pending) | **Proposed** | 16, 17; slices 8/14/15 | Verifier packet (builder prepares, verifier signs) and the thesis methodology chapter (docs, planned) |
+| 19 | sadcnwp read-only case study | same | — (plan pending) | **Blocked** | operator grant | Contract only; nothing executes until the grant |
 
 ## What each live plan covers
 
@@ -295,6 +299,11 @@ BBRv3 (slice 7) ◄── provisioning + live acceptance        [deferred]
 UI/thesis (slice 8) ◄── measurements from 4–7
 Live interface observation (slice 10) ◄── slice 9 Phase A + twin bench
 Interface v2 (slice 15) ◄── 8, 10, 14        [builder pass]
+
+Closing program (slices 16–19) ◄── 1 (remediation script), 15 (UI surface)
+      16 CHR compliance ──► 17 runbook + telemetry badge ──► 18 verifier
+      packets + methodology chapter
+      19 sadcnwp case study ◄── operator grant                [blocked]
 ```
 
 Slices 4–7 are independent of each other, but they share the same Linux 6.8
