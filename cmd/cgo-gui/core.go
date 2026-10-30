@@ -192,6 +192,19 @@ func dashHealth(c *kit.Config) (string, bool) {
 	return "", false
 }
 
+// telemetryLabelGUI — même vocabulaire que le bandeau web, sans invention :
+// trois états, jamais un quatrième.
+func telemetryLabelGUI(source string) string {
+	switch source {
+	case "ebpf":
+		return "eBPF"
+	case "tcpinfo":
+		return "TCP_INFO"
+	default:
+		return "non instrumenté"
+	}
+}
+
 func dashGet(client *http.Client, u string) (string, bool) {
 	resp, err := client.Get(u)
 	if err != nil {
@@ -199,13 +212,22 @@ func dashGet(client *http.Client, u string) (string, bool) {
 	}
 	defer resp.Body.Close()
 	var doc struct {
-		OK      bool   `json:"ok"`
-		Version string `json:"version"`
+		OK        bool   `json:"ok"`
+		Version   string `json:"version"`
+		Telemetry struct {
+			Source string `json:"source"`
+		} `json:"telemetry"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&doc); err != nil || !doc.OK {
 		return "", false
 	}
-	return doc.Version, true
+	// Un document sans version reste un dashboard joignable : on le dit,
+	// on ne le déguise ni en injoignable ni en version vide.
+	ver := strings.TrimSpace(doc.Version)
+	if ver == "" {
+		ver = "version inconnue"
+	}
+	return ver + " · télémétrie " + telemetryLabelGUI(doc.Telemetry.Source), true
 }
 
 func portOpenGUI(host, port string) bool {
