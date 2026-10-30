@@ -1006,3 +1006,27 @@ end, at a settled decision, and at a handoff.
 - Next: install QEMU and the CHR image (human), run
   `bash kit/chr/setup-mikrotik-chr.sh` against a report that carries a
   RouterOS script, then record the `windows-tcg` proof and move the VERIFY row.
+
+## 2026-10-30 19:10 UTC · slice 17 — moitié Go du slice 4, readiness, runbook, badge
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `ec0cf68`.
+- Changed: `pkg/probe/bpf` gains the typed contract, typed errors, the object
+  behind `-tags ebpf_object` and a pure fallback ladder; `probe.KernelSource`
+  injects the host facts; the report carries an additive `kernel_telemetry`
+  with its reason; `/api/health` exposes the source and the ribbon shows
+  `Télémétrie : …`; `kit/host-readiness.sh` and the acceptance runbook for
+  slices 4–7 exist. The runbook's commands were corrected against the real
+  CLI (`run` has no sub-command, `--profiles`, ingress via `CGO_SHAPE_MODE`,
+  `calibrate --audit/--profile`, installer without `--dry-run`).
+- Proven on DESKTOP-B6K9UCM: `go test` on the four touched packages → ok;
+  `npm test` → 46 files, 214 tests; `npm run build` → 350.2 KB gz;
+  `python tools/verify.py` → 6 passed; runtime `/api/health` →
+  `{"source":"tcpinfo","reason":"hôte non-Linux"}` and the page renders
+  `Télémétrie : TCP_INFO` with that title; readiness prints n/a rows (exit 0)
+  and exits 2 with `--require-linux`.
+- Unproven: no object built, nothing attached, no audit ran with the probe —
+  `source: ebpf` is untestable here and the ladder says so; the runbook was
+  not executed on Linux; `root` approximates CAP_BPF in `kernelFacts`.
+- Next: Linux 6.8 host — `make bpf`, tagged build, one audit with the probe,
+  then the slice-4 row opens. Slice 18 (verifier packets + methodology
+  chapter) is next on this host.

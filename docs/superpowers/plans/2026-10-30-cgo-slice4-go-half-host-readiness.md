@@ -54,7 +54,7 @@ From `docs/superpowers/specs/2026-10-30-cgo-closing-program-design.md` §2.1 and
 - Produces: `type Globals struct`.
 - Produces: `type UnavailableError struct{ Reason string }`, `type BuildError struct{ Reason string }`, both with `Error()`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `pkg/probe/bpf/types_test.go`:
 
@@ -94,12 +94,12 @@ func TestErrorsAreTypedAndReadable(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run it — must fail**
+- [x] **Step 2: Run it — must fail**
 
 Run: `go test ./pkg/probe/bpf/ -run 'TestSummary|TestErrors' -count=1`
 Expected: FAIL — `undefined: Summary`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `types.go` (contract copied from the slice-4 plan so later tasks do not rename fields):
 
@@ -165,12 +165,12 @@ type BuildError struct{ Reason string }
 func (e *BuildError) Error() string { return "ebpf : objet invalide : " + e.Reason }
 ```
 
-- [ ] **Step 4: Run it — must pass**
+- [x] **Step 4: Run it — must pass**
 
 Run: `go test ./pkg/probe/bpf/ -run 'TestSummary|TestErrors' -count=1 && gofmt -l pkg/probe/bpf`
 Expected: `ok`, and gofmt prints nothing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/probe/bpf/types.go pkg/probe/bpf/errors.go pkg/probe/bpf/types_test.go
@@ -192,7 +192,7 @@ git commit -m "probe: typed eBPF contract and errors, copied from the slice-4 pl
 - Produces: `func ObjectBytes() ([]byte, error)`, `func ObjectSHA256() (string, error)`.
 - Produces: `func Status(goos string, btf, caps bool, objectErr error) (source, reason string)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `pkg/probe/bpf/status_test.go`:
 
@@ -238,12 +238,12 @@ func TestObjectAbsentByDefault(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run it — must fail**
+- [x] **Step 2: Run it — must fail**
 
 Run: `go test ./pkg/probe/bpf/ -run 'TestStatus|TestObjectAbsent' -count=1`
 Expected: FAIL — `undefined: Status`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `assets_absent.go`:
 
@@ -319,12 +319,12 @@ func ObjectSHA256() (string, error) {
 }
 ```
 
-- [ ] **Step 4: Run it — must pass**
+- [x] **Step 4: Run it — must pass**
 
 Run: `go test ./pkg/probe/bpf/ -count=1 && gofmt -l pkg/probe/bpf; echo fmt-ok`
 Expected: `ok`, `fmt-ok`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/probe/bpf/assets_absent.go pkg/probe/bpf/assets_embedded.go pkg/probe/bpf/status.go pkg/probe/bpf/status_test.go
@@ -345,7 +345,7 @@ git commit -m "probe: object behind a build tag and a pure fallback ladder"
 - Produces: `func KernelSource() KernelSourceInfo`
 - Produces (test seam): `var kernelFacts = func() (goos string, btf, caps bool, objectErr error)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `pkg/probe/kernelsource_test.go`:
 
@@ -389,12 +389,12 @@ func TestKernelSourceOnThisHostIsHonest(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run it — must fail**
+- [x] **Step 2: Run it — must fail**
 
 Run: `go test ./pkg/probe/ -run 'TestKernelSource' -count=1`
 Expected: FAIL — `undefined: KernelSource`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `kernelsource.go`:
 
@@ -440,12 +440,12 @@ func KernelSource() KernelSourceInfo {
 }
 ```
 
-- [ ] **Step 4: Run it — must pass**
+- [x] **Step 4: Run it — must pass**
 
 Run: `go test ./pkg/probe/ -run 'TestKernelSource' -count=1 && gofmt -l pkg/probe`
 Expected: `ok`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/probe/kernelsource.go pkg/probe/kernelsource_test.go
@@ -464,7 +464,7 @@ git commit -m "probe: KernelSource names the source and its reason on this host"
 - Produces: `type KernelTelemetry struct { Available bool; Source, Reason, ObjectSHA256 string; RetransPayloadBytes, QdiscDropPackets uint64 }` (JSON `kernel_telemetry`).
 - Produces: `Report.KernelTelemetry *KernelTelemetry`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `pkg/audit/report_telemetry_test.go`:
 
@@ -514,12 +514,12 @@ func TestReportWithoutTelemetryOmitsBoth(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run it — must fail**
+- [x] **Step 2: Run it — must fail**
 
 Run: `go test ./pkg/audit/ -run 'TestReportTelemetry|TestReportWithoutTelemetry' -count=1`
 Expected: FAIL — `undefined: KernelTelemetry`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add the type next to `RouterOSValidation` in `pkg/audit/report.go`:
 
@@ -571,12 +571,12 @@ func reasonClause(reason string) string {
 }
 ```
 
-- [ ] **Step 4: Run it — must pass**
+- [x] **Step 4: Run it — must pass**
 
 Run: `go test ./pkg/audit/ -run 'TestReport' -count=1 && gofmt -l pkg/audit/report.go; echo fmt-ok`
 Expected: `ok`, `fmt-ok`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/audit/report.go pkg/audit/report_telemetry_test.go
@@ -598,7 +598,7 @@ git commit -m "audit: report states the kernel telemetry tier and its fallback r
 - Produces (JSON): `/api/health` gains `"telemetry": {"source": "...", "reason": "..."}`.
 - Produces: `telemetryLabel(source: string): string` → `eBPF` | `TCP_INFO` | `non instrumenté`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `pkg/api/health_telemetry_test.go`:
 
@@ -651,12 +651,12 @@ it('nomme la télémétrie sans mentir', () => {
 
 (add `telemetryLabel` to the existing import from `./ribbon`.)
 
-- [ ] **Step 2: Run both — must fail**
+- [x] **Step 2: Run both — must fail**
 
 Run: `go test ./pkg/api/ -run TestHealthExposesTelemetry -count=1` → FAIL (no `telemetry` field).
 Run: `cd web/frontend && npx vitest run src/lib/ribbon.test.ts` → FAIL (`telemetryLabel` not exported).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `pkg/api/server.go`, health handler:
 
@@ -689,12 +689,12 @@ export function telemetryLabel(source: string | undefined): string {
 
 with `import { telemetryLabel } from '../lib/ribbon'` merged into the existing import.
 
-- [ ] **Step 4: Run everything**
+- [x] **Step 4: Run everything**
 
 Run: `go test ./pkg/api/ -run TestHealthExposesTelemetry -count=1 && cd web/frontend && npx vitest run src/lib/ribbon.test.ts src/components/StatusRibbon.test.tsx 2>/dev/null; npm run typecheck`
 Expected: Go `ok`; ribbon tests pass; typecheck exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/api/server.go pkg/api/health_telemetry_test.go web/frontend/src/lib/ribbon.ts web/frontend/src/lib/ribbon.test.ts web/frontend/src/components/StatusRibbon.tsx
@@ -712,7 +712,7 @@ git commit -m "api/ui: the ribbon names the kernel telemetry tier, with its reas
 **Interfaces:**
 - Produces: an executable script; `--require-linux` exits 2 off Linux; otherwise exit 0 when every required check is `OK` or `n/a`, 1 when a required one is `MISSING`.
 
-- [ ] **Step 1: Write the script**
+- [x] **Step 1: Write the script**
 
 ```bash
 #!/usr/bin/env bash
@@ -755,12 +755,12 @@ ls kit/chr/cache/*.img >/dev/null 2>&1 && need "image CHR" OK présente || need 
 echo; [ "$missing" = 0 ] && { echo "résumé : hôte prêt pour l'acceptation"; exit 0; } || { echo "résumé : des lignes requises manquent"; exit 1; }
 ```
 
-- [ ] **Step 2: Verify syntax and the Windows table**
+- [x] **Step 2: Verify syntax and the Windows table**
 
 Run: `bash -n kit/host-readiness.sh && chmod +x kit/host-readiness.sh && bash kit/host-readiness.sh; echo "EXIT=$?"`
 Expected: table with `n/a` rows, `EXIT=0`.
 
-- [ ] **Step 3: Write the runbook**
+- [x] **Step 3: Write the runbook**
 
 Create `docs/runbooks/2026-10-30-host-acceptance.md` with, per slice 4, 5, 6, 7: prerequisite, exact commands, expected output lines, sealed artifact path, and a **« ne pas conclure »** line. Order and time-box:
 
@@ -772,7 +772,7 @@ Create `docs/runbooks/2026-10-30-host-acceptance.md` with, per slice 4, 5, 6, 7:
 6. Slice 7: boot the 7.1 BBRv3 kernel; `bbr` still means BBRv1; matrix run.
 7. Never run two slices' acceptance concurrently (namespaces and qdiscs collide).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add kit/host-readiness.sh docs/runbooks/2026-10-30-host-acceptance.md
@@ -788,7 +788,7 @@ git commit -m "kit: read-only host readiness and the acceptance runbook for slic
 - Modify: `docs/VERIFY.md` (new row: eBPF Go half on Windows)
 - Modify: `docs/CHECKPOINTS.md` (append)
 
-- [ ] **Step 1: Run the gates**
+- [x] **Step 1: Run the gates**
 
 ```bash
 cd web/frontend && npm test && npm run build
@@ -796,13 +796,13 @@ cd ../.. && go build ./... && go test ./... -count=1
 python tools/verify.py
 ```
 
-- [ ] **Step 2: Index row 17** → **In progress** (Windows half built; live row blocked), plan linked.
+- [x] **Step 2: Index row 17** → **In progress** (Windows half built; live row blocked), plan linked.
 
-- [ ] **Step 3: VERIFY row** — “eBPF Go half (loader contract, fallback ladder, report block, badge) on Windows” **VERIFIED** with the commands; the existing slice-4 row stays **BLOCKED** (no object, no live attach).
+- [x] **Step 3: VERIFY row** — “eBPF Go half (loader contract, fallback ladder, report block, badge) on Windows” **VERIFIED** with the commands; the existing slice-4 row stays **BLOCKED** (no object, no live attach).
 
-- [ ] **Step 4: Checkpoint** — branch/HEAD, changed, proven, unproven (no eBPF claim), next.
+- [x] **Step 4: Checkpoint** — branch/HEAD, changed, proven, unproven (no eBPF claim), next.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/superpowers/plans/README.md docs/VERIFY.md docs/CHECKPOINTS.md
