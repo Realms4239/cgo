@@ -392,7 +392,7 @@ func TestCompareMissingObjectFails(t *testing.T) {
 }
 
 func TestCompareDuplicateObjectFails(t *testing.T) {
-	dup := exportCake + "add kind=cake name=cgo-cake\n"
+	dup := exportCake + "/queue type\nadd kind=cake name=cgo-cake\n"
 	checks := CompareRouterOS(ParseRouterOSConfig(scriptCake), ParseRouterOSConfig(dup))
 	var sawDup bool
 	for _, c := range checks {
@@ -616,10 +616,9 @@ type CHRInfo struct {
 }
 
 type ImportResult struct {
-	Accepted  bool     `json:"accepted"`
-	ErrorLine string   `json:"error_line,omitempty"`
-	Reason    string   `json:"reason,omitempty"`
-	ErrorLines []string `json:"error_lines,omitempty"`
+	Accepted  bool   `json:"accepted"`
+	ErrorLine string `json:"error_line,omitempty"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 // CHRProof is the sealed evidence that a RouterOS instance accepted the
@@ -1036,55 +1035,76 @@ import (
 	"bytes"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 // fakeCHR replays a RouterOS console: banner, login, password, prompt, then
 // answers each line. It is the seam that keeps CI VM-free.
+// Read blocks until a Write has produced output: returning (0, nil) would trip
+// bufio's empty-read limit and fail the test for the wrong reason.
 type fakeCHR struct {
-	out  bytes.Buffer
-	in   io.Reader
-	done bool
+	mu     sync.Mutex
+	buf    bytes.Buffer
+	closed bool
 }
 
-func newFakeCHR(rejectLine string) *fakeCHR {
+func newFakeCHR() *fakeCHR {
 	f := &fakeCHR{}
-	f.out.WriteString("MikroTik RouterOS 7.15.3 (c) 1999-2025\r\n\r\nlogin: ")
+	f.buf.WriteString("MikroTik RouterOS 7.15.3 (c) 1999-2025\r\n\r\nlogin: ")
 	return f
 }
 
 func (f *fakeCHR) Read(p []byte) (int, error) {
-	if f.out.Len() > 0 {
-		return f.out.Read(p)
+	for {
+		f.mu.Lock()
+		if f.buf.Len() > 0 {
+			n, _ := f.buf.Read(p)
+			f.mu.Unlock()
+			return n, nil
+		}
+		if f.closed {
+			f.mu.Unlock()
+			return 0, io.EOF
+		}
+		f.mu.Unlock()
+		time.Sleep(time.Millisecond)
 	}
-	if f.done {
-		return 0, io.EOF
-	}
-	return 0, nil
+}
+
+func (f *fakeCHR) emit(s string) {
+	f.mu.Lock()
+	f.buf.WriteString(s)
+	f.mu.Unlock()
 }
 
 func (f *fakeCHR) Write(p []byte) (int, error) {
 	line := strings.TrimSpace(string(p))
 	switch {
 	case line == "admin":
-		f.out.WriteString("\r\npassword: ")
+		f.emit("\r\npassword: ")
 	case line == "":
-		f.out.WriteString("\r\n[admin@MikroTik] > ")
+		f.emit("\r\n[admin@MikroTik] > ")
 	case strings.HasPrefix(line, "/export"):
-		f.out.WriteString("\r\n/queue type\r\nadd cake-ack-filter=filter cake-bandwidth=19000000 cake-diffserv=diffserv4 cake-flowmode=triple-isolate cake-nat=yes cake-rtt=25ms cake-wash=yes kind=cake name=cgo-cake\r\n/queue tree\r\nadd comment=cgo-managed max-limit=19000000 name=cgo-wan-out parent=ether1-wan queue=cgo-cake\r\n[admin@MikroTik] > ")
+		f.emit("\r\n/queue type\r\nadd cake-ack-filter=filter cake-bandwidth=19000000 cake-diffserv=diffserv4 cake-flowmode=triple-isolate cake-nat=yes cake-rtt=25ms cake-wash=yes kind=cake name=cgo-cake\r\n/queue tree\r\nadd comment=cgo-managed max-limit=19000000 name=cgo-wan-out parent=ether1-wan queue=cgo-cake\r\n[admin@MikroTik] > ")
 	case line == "REJECT":
-		f.out.WriteString("\r\nfailure: bad command name\r\n[admin@MikroTik] > ")
+		f.emit("\r\nfailure: bad command name\r\n[admin@MikroTik] > ")
 	default:
-		f.out.WriteString("\r\n[admin@MikroTik] > ")
+		f.emit("\r\n[admin@MikroTik] > ")
 	}
 	return len(p), nil
 }
 
-func (f *fakeCHR) Close() error { f.done = true; return nil }
+func (f *fakeCHR) Close() error {
+	f.mu.Lock()
+	f.closed = true
+	f.mu.Unlock()
+	return nil
+}
 
 func TestDriveHappyPath(t *testing.T) {
-	tr := newFakeCHR("")
+	tr := newFakeCHR()
 	transcript, export, importErr, err := drive(tr, "/queue type add name=cgo-cake kind=cake\n", 2*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -1101,7 +1121,7 @@ func TestDriveHappyPath(t *testing.T) {
 }
 
 func TestDriveRejection(t *testing.T) {
-	tr := newFakeCHR("")
+	tr := newFakeCHR()
 	_, _, importErr, err := drive(tr, "REJECT\n", 2*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -1258,7 +1278,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 
 	"github.com/Realms4239/cgo/pkg/audit"
 	"github.com/Realms4239/cgo/pkg/remediate"
@@ -1290,7 +1309,7 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 	script := rep.Remediation.RouterOS + "\n" + rep.Remediation.RouterOSIngress
 	expected := audit.ParseRouterOSConfig(script)
 
-	var export string
+	var export, transcript string
 	importErr := ""
 	if exportFile != "" {
 		b, err := os.ReadFile(exportFile)
@@ -1299,28 +1318,32 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 			return 2
 		}
 		export = string(b)
+		transcript = "mode rejeu — aucun transcript de console\n"
 	} else {
+		if _, err := os.Stat(cfg.Image); err != nil {
+			fmt.Fprintf(os.Stderr, "chr: image CHR absente (%s) — voir kit/chr/README.md\n", cfg.Image)
+			return 2
+		}
 		tr, err := startQEMU(cfg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "chr: %v\n", err)
 			return 2
 		}
 		defer tr.Close()
-		transcript, exp, impErr, err := drive(tr, script, cfg.Timeout)
-		importErr = impErr
+		var exp string
+		transcript, exp, importErr, err = drive(tr, script, cfg.Timeout)
 		export = exp
 		if err != nil {
 			p := audit.CHRProof{AuditID: rep.AuditID, ReportSHA256: audit.FileSHA256(raw),
 				CHR: audit.CHRInfo{ImageSHA256: imageHash(cfg.Image)}, Level: cfg.Level,
 				Accelerator: accelerator(cfg.Level),
-				Import: audit.ImportResult{Accepted: false, Reason: err.Error()}}
+				Import:      audit.ImportResult{Accepted: false, Reason: err.Error()}}
 			if _, werr := audit.WriteCHRProof(outDir, p, []byte(export), []byte(transcript)); werr != nil {
 				fmt.Fprintf(os.Stderr, "chr: sceau non écrit: %v\n", werr)
 			}
 			fmt.Fprintf(os.Stderr, "chr: %v\n", err)
 			return 1
 		}
-		_ = transcript
 	}
 
 	found := audit.ParseRouterOSConfig(export)
@@ -1339,7 +1362,7 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 		Import:      audit.ImportResult{Accepted: accepted, ErrorLine: importErr},
 		Checks:      checks,
 	}
-	path, err := audit.WriteCHRProof(outDir, p, []byte(export), []byte(export))
+	path, err := audit.WriteCHRProof(outDir, p, []byte(export), []byte(transcript))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "chr: sceau non écrit: %v\n", err)
 		return 1
@@ -1396,8 +1419,6 @@ func passed(checks []audit.RouterOSCheck) int {
 	}
 	return n
 }
-
-var _ = time.Second
 ```
 
 Create `cmd/cgo-chr/transport.go`:
