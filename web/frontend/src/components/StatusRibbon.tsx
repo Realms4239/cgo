@@ -42,7 +42,7 @@ export default function StatusRibbon() {
   const auditing = stage === 'observing'
 
   return (
-    <div className="status-ribbon" role="status" aria-label="État de la mesure" data-testid="status-ribbon">
+    <div className="status-ribbon" aria-label="État de la mesure" data-testid="status-ribbon">
       <span className={'ribbon-item ribbon-mode' + (m.observation ? ' observation' : '')}>{m.text}</span>
       <span className="ribbon-sep" aria-hidden="true" />
       <span className={'ribbon-item' + (connected ? ' ok' : ' off')}>
@@ -52,7 +52,10 @@ export default function StatusRibbon() {
         Télémétrie : {telemetryLabel(telemetry.source)}
       </span>
       {auditing ? (
-        <span className="ribbon-item live">
+        // Seul fait réellement temporel du bandeau : l'audit en cours.
+        // L'annoncer seul évite de relire les comptes du corpus à chaque
+        // rechargement — un lecteur d'écran n'a pas à entendre le décor.
+        <span className="ribbon-item live" role="status" aria-live="polite">
           Audit en cours{auditLive?.phase ? ` · ${auditLive.phase}` : ''}
           {remainingSeconds(auditLive) != null ? ` · ${remainingSeconds(auditLive)} s` : ''}
         </span>
