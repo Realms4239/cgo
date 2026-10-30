@@ -36,7 +36,7 @@ map, not a claim ledger: the authoritative status of a number remains
 | 12 | Book truth-up & restructure | **Done** | `31ad4b1`; book working tree, never committed | Human review of rendered book; placeholders. |
 | 13 | Production-facing reframing | **Done** | `5293799`; title + Model A/B/C + WIS SLA | Book working tree; production access remains blocked. |
 | 14 | Operator overview (Synthèse) | **Builder pass** | `ca09893`, `9a59276`; 161 frontend tests, 6 gates | Independent verifier. |
-| 15 | Interface v2 + academic title | **Approved** | Spec `2026-10-29-cgo-interface-v2-design.md`; title Option A adopted | Implementation plan next; no code yet. |
+| 15 | Interface v2 + academic title | **Builder pass** | `66e0877`, `8f9af74`, `7b79a30`, `7303ede`; 46 files / 202 tests, 345.4 KB gz, six gates, book rebuilt | Independent verifier; human visual review of the four modes. |
 
 ## Historical plans and what survived
 
@@ -60,7 +60,6 @@ ideas are implemented in slices 1–3, 8 and 10.
 | Executive one-screen dashboard replacing the cockpit | `C:\IDEA` | **Partially adopted**: Tableau de bord is the operator story; Banc d’essai keeps the engineering cockpit. |
 | Nested Lab sub-tabs (`Campagne/Live/Résultats`) | Slice 15 draft | **Rejected after critique**: one linear Banc d’essai workspace, no nested tabs. |
 | Blending real audit and synthetic simulation | Slice 15 draft | **Rejected after critique**: two separate, plainly labelled blocks — “Mesuré sur le lien réel” and “Simulation de remédiation”. |
-| Three service classes A/B/C (alerts, telemetry, bulk) | Slice-10 session | **Adopted as copy/framing**, but only the measured small/bulk series are shown; no invented class metrics. |
 | eBPF ground truth | Slice 4 | **Kept, blocked** on object + Linux 6.8. |
 | Trace-driven `.dist` | Slice 5 | **Delivered engine**, live blocked on a real trace. |
 | BBRv3 | Slice 7 | **Delivered engine**, live blocked on a 7.1 kernel. |
@@ -68,8 +67,8 @@ ideas are implemented in slices 1–3, 8 and 10.
 | `kit schedule` nightly campaigns | 2026-09-05 extension | **Archived**; not installed, would dominate aggregates. |
 | Production read-only collector | Slice-10 appendix | **Drafted, not sent**; awaits operator approval. |
 | 10 chart repaints/s | Slice 10 | **REFUTED on this host** (7.97/s, compositor-bound); chart data advances 10.27/s. |
-| Six-panel shell + top tabs + rail | Current UI | **Replaced** by four modes in slice 15. |
-| WebGL decorative mesh | Current UI | **Removed** for throughput; not a feature. |
+| Six-panel shell + top tabs + rail | Current UI | **Replaced** by four modes in slice 15 (`7b79a30`). |
+| WebGL decorative mesh | Current UI | **Removed** for throughput; not a feature. The bench + ECharts chunk is now lazy-loaded (`7303ede`). |
 
 ## Current proof boundary
 
@@ -80,4 +79,4 @@ ideas are implemented in slices 1–3, 8 and 10.
   object, production measurement, field audit.
 - **Book**: rebuilt and audited in the working tree; `book/` and `PRODUCT.md`
   are never committed.
-- **Interface**: slice 15 is design-approved; no code has been written.
+- **Interface**: slice 15 ships in the working tree — four modes, root audit session, one linear bench, real-vs-simulation dashboard, lazy bench chunk (111.2 KB gz initial). No live audit was claimed.

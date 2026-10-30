@@ -1,6 +1,6 @@
 # CGO — plan and specification index
 
-*Last updated: 2026-10-29 · Branch: `rebuild/plan1-economics-audit`*
+*Last updated: 2026-10-30 · Branch: `rebuild/plan1-economics-audit`*
 
 This is the single index for every CGO rebuild plan. A **spec** is the design
 contract for one slice; a **plan** is the implementation contract that follows
@@ -39,7 +39,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 | 12 | Book truth-up & prose restructure | `2026-10-28-cgo-book-truth-up-design.md` | `2026-10-28-cgo-book-truth-up.md` | **Done** (book working tree, never committed) | 1–3, 6, 10, 11 | — (human review of the rendered book; front-matter placeholders remain) |
 | 13 | Production-facing reframing & economic reconciliation | `2026-10-28-cgo-production-reframing-design.md` | `2026-10-28-cgo-production-reframing.md` | **Done** (book working tree, never committed) | 12 | — (human review of the rendered book; production access and independent verification remain open) |
 | 14 | Operator overview & navigation | `2026-10-29-cgo-operator-overview-design.md` | `2026-10-29-cgo-operator-overview.md` | **Done** (builder pass; verifier pending) | 8, 13 | Independent verifier re-runs `npm test`, `npm run build` and `python tools/verify.py` |
-| 15 | Interface v2 + academic title | `2026-10-29-cgo-interface-v2-design.md` | `2026-10-29-cgo-interface-v2.md` | **In progress** | 8, 10, 14 | Execute the eight plan tasks; no live audit, no API/corpus change |
+| 15 | Interface v2 + academic title | `2026-10-29-cgo-interface-v2-design.md` | `2026-10-29-cgo-interface-v2.md` | **Done** (builder pass; verifier pending) | 8, 10, 14 | Independent verifier re-runs `npm test`, `npm run build`, `go test ./...` and `python tools/verify.py`; the human reviews the four rendered modes |
 
 ## What each live plan covers
 
@@ -241,6 +241,36 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
 - Next: independent verifier re-runs the frontend gates; visual review stays
   the human's.
 
+### Slice 15 — interface v2 and the academic title
+
+- Scope: four modes (Tableau de bord, Auditer, Banc d'essai, Preuves &
+  Rapports) on one rail with keys 1–4; the audit session moved to the app root
+  so a mode switch never stops polling or fakes "suivi interrompu"; the bench
+  became one linear page (Configurer → Observer → Résultats) with no sub-tabs;
+  the dashboard separates "Mesuré sur le lien réel" from "Simulation de
+  remédiation sur profil P2"; operator French by default with a
+  `Détails scientifiques` drawer; WebGL mesh, PanelChooser and Rail removed.
+- Performance: the bench and ECharts are lazy-loaded and prefetched on
+  hover/focus. Initial JS went from 344.2 KB gz in one chunk to 111.2 KB gz
+  initial + 234.3 KB gz on demand (total 345.4 KB gz, budget 600). Measured on
+  this host with `node perf-probe.mjs`: shell 2,171 → 1,422 ms, DCL 1,264 →
+  612 ms, LCP 2,208 → 1,536 ms, 0 console errors. A hidden destination stops
+  its rAF loop and its 10 s polls.
+- Title: Option A applied verbatim to `PRODUCT.md`, the title page, the cover
+  XML and the document metadata; the old title is absent from the rendered
+  book.
+- Evidence: 2026-10-30 on DESKTOP-B6K9UCM at `7303ede`: `npm run typecheck`
+  clean; `npm test` → 46 files, 202 tests passed; `npm run build` → 345.4 KB
+  gz; `go test ./... -count=1` and `python tools/verify.py` → `6 passed, 0
+  failed, 0 not run`; `python book/tools/audit-archive.py` → both `OK` lines;
+  `node book/build-docx.js` → `book/memoire-rebuild.docx` (2887 Ko) with
+  `memoire.docx` hash unchanged; impeccable detector → 0 findings after two
+  documented inline waivers (Inter and the identity wordmark gradient, both
+  pinned by `DESIGN.md`).
+- Unproven: no live audit was run (fixtures and the archived corpus only); the
+  visual review of the four modes and the independent verification remain
+  open; `book/` and `PRODUCT.md` stay uncommitted.
+
 ## Historical plans
 
 | Plan | Status | Why it is here |
@@ -264,6 +294,7 @@ Plans 1–3 (done)
 BBRv3 (slice 7) ◄── provisioning + live acceptance        [deferred]
 UI/thesis (slice 8) ◄── measurements from 4–7
 Live interface observation (slice 10) ◄── slice 9 Phase A + twin bench
+Interface v2 (slice 15) ◄── 8, 10, 14        [builder pass]
 ```
 
 Slices 4–7 are independent of each other, but they share the same Linux 6.8

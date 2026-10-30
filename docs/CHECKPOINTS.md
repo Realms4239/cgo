@@ -826,3 +826,41 @@ end, at a settled decision, and at a handoff.
   `altfloat` password), then `make bpf`, `make bpf-check`, the opt-in eBPF
   integration test and the Task 8 acceptance. Alternatively provide a stable
   Linux 6.8 host.
+
+## 2026-10-30 09:52 UTC · Interface v2 shipped — four modes, root audit session, linear bench, Option A title
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `7303ede`. Slice 15 commits:
+  `66e0877` (pure libs: audit summary, operator language, ribbon, bench
+  stages), `8f9af74` (audit session at the app root + Auditer view),
+  `7b79a30` (four-mode shell, dashboard, linear bench, evidence reports,
+  operator language), `7303ede` (polish, lazy bench chunk, shared
+  headers/summaries, accessibility).
+- What changed: `PanelChooser`, `Rail`, `WebGLMesh`, `SyntheseView` and
+  `CampagneView` are gone; the navigation is one `ModeRail` with keys 1–4 and a
+  `StatusRibbon` fed once by `/api/health`, `/api/integrity` and the audit
+  store. The audit session lives in `store/audit.ts`, so switching destination
+  keeps polling and never prints “suivi interrompu” unless the backend stops.
+  The bench is one page (Configurer → Observer → Résultats) with shared
+  campaign state in `store/bench.ts`. The dashboard separates “Mesuré sur le
+  lien réel, sans modification” from “Simulation de remédiation sur profil P2
+  — pas une mesure du lien”, adds cost, a local previous-audit comparison, the
+  archived proof and a first-run path. Statistics moved to
+  `Détails scientifiques` drawers. The Option A title and subtitle were applied
+  verbatim to `PRODUCT.md`, the title page, the cover XML and the document
+  metadata, and Annex E plus Table 13 now describe the four modes.
+- Proven on DESKTOP-B6K9UCM: `npm run typecheck` clean; `npm test` → 46 files,
+  202 tests; `npm run build` → 345.4 KB gz total (111.2 KB gz initial + 234.3 KB
+  gz lazy bench chunk); `node perf-probe.mjs` → shell 1,422 ms, DCL 612 ms,
+  LCP 1,536 ms, bench reveal 890 ms, 0 console errors (baseline before the
+  split: 2,171 / 1,264 / 2,208 ms, one 344.2 KB gz chunk); `go test ./...
+  -count=1` PASS; `python tools/verify.py` → 6 passed, 0 failed, 0 not run;
+  book `audit-archive`, `audit-biblio`, `audit-renvois`, `audit-nombres` and
+  `build-docx` green with `memoire.docx` unchanged; impeccable detector clean
+  after two inline waivers for values `DESIGN.md` pins.
+- Unproven: no live audit, campaign, IFB, `.dist`, BBRv3 or eBPF run; the
+  screenshots and the four rendered modes still need the human’s review; an
+  independent verifier has not re-run these commands; `book/` and `PRODUCT.md`
+  remain uncommitted by design.
+- Next: the verifier re-runs the four commands above; the human reviews the
+  modes; the long-standing blockers (Linux 6.8 bench, VM credentials,
+  production read-only access) are unchanged.
