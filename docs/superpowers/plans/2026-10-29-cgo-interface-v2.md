@@ -312,6 +312,42 @@ Subtitle:
   `audit-archive`, `audit-biblio`, `audit-renvois`, `audit-nombres` and
   `build-docx` green; `memoire.docx` hash unchanged.
 
+## Task 11 — quality of life and runtime QA (2026-10-30, builder pass)
+
+- [x] `GET /api/audit/list` carries `has_report` per row (`auditReportExists`,
+  `pkg/api/server.go`): the evidence panel says `non archivé` before the click
+  instead of letting the first click answer 404. Six of nine archived rows are
+  openable; the three that precede folder archiving are named. No CSV schema
+  change, no new endpoint.
+- [x] Opening the bench results leaves the click task: `startTransition` wraps
+  the stage/section state, the scroll stays urgent. Bench entry peak task
+  138 ms → 87 ms; the results mount measures 184–246 ms across runs and is now
+  a second task, not the click's own.
+- [x] `qa-walk.mjs` marks each step in page time and attributes every long
+  task to the gesture that produced it; adds a 400 ms budget step and asserts
+  the declarative report contract (`ouvrables + non archivées = lignes`,
+  first `OUVRIR` opens with zero 404). Final walk: 19 steps, 0 failures,
+  0 console errors, 0 resource errors, peak task 276 ms (boot, before the
+  first mark), 10 long tasks in the whole walk.
+- [x] `perf-probe.mjs` on the rebuilt bundle: shell 1050 ms, DCL 437 ms,
+  LCP 1296 ms, bench destination 551 ms, 0 console errors. Initial chunk
+  111.5 KB gz, lazy bench chunk 234.2 KB gz, total 345.6 KB gz.
+- [x] QoL: `DÉMARRER` disabled with an explanation when no profile is
+  selected; the duration field states the phase plan (mirror of
+  `pkg/audit` `phasePlan`) instead of “durée libre dans avancé”; results
+  reset tooltip typo fixed.
+- [x] Abstraction: `useModeActive(mode)` replaces the four duplicated
+  `s.mode === …` selectors; `main` takes focus on mode change so the
+  destination is announced (`tabIndex={-1}`, `outline: none`).
+- [x] Gates on the final tree: 46 files / 209 tests, `tsc --noEmit` clean,
+  `go build ./... && go test ./... -count=1` clean (two new API tests),
+  `python tools/verify.py` 6 passed / 0 failed / 0 not run.
+- [x] Screenshots recaptured for the four modes and the three bench sections
+  at 1920/1366/390.
+- Unproven: the 184 ms results mount is still one React unit — splitting the
+  ECharts subtree out needs the init effect to re-run on deferred mount, which
+  is a separate change; the Linux/eBPF acceptance of slice 15 stays open.
+
 ## Acceptance mapping
 
 | Spec acceptance | Task |

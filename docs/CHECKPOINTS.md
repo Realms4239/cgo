@@ -864,3 +864,44 @@ end, at a settled decision, and at a handoff.
 - Next: the verifier re-runs the four commands above; the human reviews the
   modes; the long-standing blockers (Linux 6.8 bench, VM credentials,
   production read-only access) are unchanged.
+
+## 2026-10-30 10:49 UTC · slice 15 Task 11 — quality of life and runtime QA on the served build
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `43f2066`.
+- Changed: `pkg/api/server.go` gains `auditReportExists` and a `has_report`
+  field on `GET /api/audit/list`, so `AuditReportsPanel` marks a row
+  `non archivé` from the server's word instead of learning it from a failed
+  click; `BenchView` opens the results section inside `startTransition`;
+  `web/frontend/qa-walk.mjs` is committed for the first time and now attributes
+  every long task to the gesture that produced it; `useModeActive` replaces four
+  duplicated mode selectors; `BenchConfig` disarms DÉMARRER with no profile and
+  says why; `AuditDeclare` states the phase plan of the chosen duration.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64): `npm run typecheck` exit 0;
+  `npm test` → 46 files, 209 tests passed; `npm run build` → 111.5 KB gz initial
+  + 234.2 KB gz lazy bench = 345.6 KB gz total; `go build ./... && go test
+  ./... -count=1` exit 0 with two new API tests
+  (`TestAuditReportExists`, `TestAuditListMarksArchivableReports`); `python
+  tools/verify.py` → 6 passed, 0 failed, 0 not run; the pre-commit hook re-ran
+  three gates at `43f2066` → 3 passed. Runtime against the served build
+  (`--serve --addr 127.0.0.1:9091 --mode observe`, embedded fresh bundle):
+  `node qa-walk.mjs` → 19 steps, 0 failures, 0 console errors, 0 resource
+  errors, 10 long tasks, peak 276 ms (boot, before the first mark), bench entry
+  87 ms, results mount 184–246 ms across runs; `node perf-probe.mjs` → shell
+  1,050 ms, DCL 437 ms, LCP 1,296 ms, bench reveal 551 ms, 0 console errors,
+  heap 8.3 MB (previous pass: 1,422 / 612 / 1,536 / 890 ms).
+  `GET /api/audit/list` → 9 rows, 6 `has_report=true`, exactly the six
+  `data/audits/<id>/audit_report.json` folders on disk; the three rows that
+  precede folder archiving now read `non archivé` before any click.
+  Screenshots recaptured: four modes and three bench sections at 1920, two at
+  1366, two at 390 in `web/frontend/shots-fresh/`.
+- Unproven: no live audit or campaign run — archived corpus and fixtures only;
+  the results mount is still a single unrecoverable React unit (splitting the
+  ECharts subtree out needs its init effect to re-run on a deferred mount, a
+  separate change); long-task figures vary run to run (peak 184–276 ms), so the
+  QA gate is a 400 ms budget, not a point estimate; the independent verifier has
+  not re-run these commands; `book/`, `PRODUCT.md`, `DESIGN.md` and
+  `web/frontend/dist/index.html` stay uncommitted by design.
+- Next: the verifier re-runs `npm test`, `npm run build`, `go test ./...`,
+  `python tools/verify.py`, `node qa-walk.mjs` and `node perf-probe.mjs`; the
+  human reviews the four rendered modes; the Linux 6.8 bench, VM credentials and
+  production read-only access remain blocked as listed in `docs/VERIFY.md`.

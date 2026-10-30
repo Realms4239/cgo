@@ -36,7 +36,7 @@ map, not a claim ledger: the authoritative status of a number remains
 | 12 | Book truth-up & restructure | **Done** | `31ad4b1`; book working tree, never committed | Human review of rendered book; placeholders. |
 | 13 | Production-facing reframing | **Done** | `5293799`; title + Model A/B/C + WIS SLA | Book working tree; production access remains blocked. |
 | 14 | Operator overview (Synthèse) | **Builder pass** | `ca09893`, `9a59276`; 161 frontend tests, 6 gates | Independent verifier. |
-| 15 | Interface v2 + academic title | **Builder pass** | `66e0877`, `8f9af74`, `7b79a30`, `7303ede`; 46 files / 202 tests, 345.4 KB gz, six gates, book rebuilt | Independent verifier; human visual review of the four modes. |
+| 15 | Interface v2 + academic title | **Builder pass** | `66e0877`, `8f9af74`, `7b79a30`, `7303ede`, `43f2066`; 46 files / 209 tests, 345.6 KB gz, six gates, runtime QA green (19 steps, 0 console/resource errors, peak task 276 ms), book rebuilt | Independent verifier; human visual review of the four modes. |
 
 ## Historical plans and what survived
 
