@@ -58,6 +58,10 @@ type Report struct {
 	// RouterOSValidation is the CHR proof for this report's remediation
 	// script. Absent means "not validated", never "validated by default".
 	RouterOSValidation *RouterOSValidation `json:"routeros_validation,omitempty"`
+
+	// KernelTelemetry is the eBPF or TCP_INFO tier for this audit. Absent
+	// means the build did not attempt it — never a silent zero.
+	KernelTelemetry *KernelTelemetry `json:"kernel_telemetry,omitempty"`
 }
 
 // RouterOSValidation records what a CHR run proved about this report's
@@ -69,6 +73,18 @@ type RouterOSValidation struct {
 	ExportSHA256 string          `json:"export_sha256"`
 	ProofPath    string          `json:"proof_path,omitempty"`
 	Checks       []RouterOSCheck `json:"checks"`
+}
+
+// KernelTelemetry is what the kernel tier could say for this audit, and why,
+// when it could not say more. Source is ebpf|tcpinfo|unavailable; a reason
+// always accompanies a fallback.
+type KernelTelemetry struct {
+	Available           bool   `json:"available"`
+	Source              string `json:"source,omitempty"`
+	Reason              string `json:"reason,omitempty"`
+	ObjectSHA256        string `json:"object_sha256,omitempty"`
+	RetransPayloadBytes uint64 `json:"retrans_payload_bytes,omitempty"`
+	QdiscDropPackets    uint64 `json:"qdisc_drop_packets,omitempty"`
 }
 
 // Phases records the audit schedule actually executed. A 60 s audit is
@@ -580,8 +596,25 @@ func (r *Report) RenderMarkdown() string {
 			fmt.Fprintf(&b, "### Validation RouterOS\n\nConfiguration RouterOS non validée (%s, %s) — écarts dans le rapport.\n\n", v.Version, level)
 		}
 	}
+	if k := r.KernelTelemetry; k != nil {
+		switch k.Source {
+		case "ebpf":
+			fmt.Fprintf(&b, "### Télémétrie noyau\n\nTélémétrie noyau : eBPF — %d octets réémis, %d paquets écartés.\n\n", k.RetransPayloadBytes, k.QdiscDropPackets)
+		case "tcpinfo":
+			fmt.Fprintf(&b, "### Télémétrie noyau\n\nRepli TCP_INFO — %s.\n\n", k.Reason)
+		default:
+			fmt.Fprintf(&b, "### Télémétrie noyau\n\nTélémétrie noyau non instrumentée%s.\n\n", reasonClause(k.Reason))
+		}
+	}
 
 	return b.String()
+}
+
+func reasonClause(reason string) string {
+	if reason == "" {
+		return ""
+	}
+	return " — " + reason
 }
 
 func short8(s string) string {
