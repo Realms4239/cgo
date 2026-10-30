@@ -1228,3 +1228,25 @@ end, at a settled decision, and at a handoff.
   keeps its old behaviour (`!validRunID("")` is false, so empty is allowed).
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant,
   human visual review.
+
+## 2026-10-30 21:04 UTC · UX — l'absence ne pèse plus comme une mesure
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `34090b6`.
+- Changed: `OperatorStats` tags each cell without a value (`data-empty`) and
+  the stylesheet gives those cells a compact row under 900 px: on a phone the
+  two unmeasured facts (`alertes à l'heure`, `qualité du lien`) took ~90 px
+  each with a large dash — more space than the one measured fact. Measured
+  values keep the numeral; absences read as one line. Desktop grid unchanged
+  apart from a lighter padding on empty cells.
+- Proven on DESKTOP-B6K9UCM: measured heights in the browser — 2 empty cells
+  at 24 px on 390 px, 0 at 1920; SSR test (3 empty without a report, 0 with a
+  measured one, the first fixture was wrong because it omitted the CAP SLA and
+  was fixed, not the component); `npm test` 47 files / 217 tests;
+  `npm run build` 350.3 KB gz; screenshots recaptured at 1920/1366/390.
+- Long-task gate: one walk reported 520 ms (budget 400). Two immediate re-runs
+  measured 194 ms and 212 ms with the same per-step profile, right after a
+  90 s test suite — recorded as host contention, not a code regression, and
+  the threshold was NOT relaxed. A single breach must be re-run before being
+  believed; this occurrence is the evidence for that rule.
+- Unproven: no human visual review of the new mobile fold; no screen reader.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
