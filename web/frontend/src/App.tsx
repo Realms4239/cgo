@@ -6,8 +6,6 @@ import { clearLive } from './lib/live'
 import { animateViewEnter } from './lib/anime'
 import { stageAfterCampaign, stageAfterReplay } from './lib/bench'
 import DashboardView from './views/DashboardView'
-import AuditView from './views/AuditView'
-import EvidenceView from './views/EvidenceView'
 import Toasts from './components/Toasts'
 import FlashBanner from './components/FlashBanner'
 import SettingsDrawer from './components/SettingsDrawer'
@@ -18,11 +16,18 @@ import QuickActionsPrompt from './components/QuickActionsPrompt'
 import CommandPalette from './components/CommandPalette'
 import MeteolinkWordmark from './components/MeteolinkWordmark'
 
-// Le banc porte ECharts : son chunk n'entre pas dans le premier rendu.
+// Seule la destination d'atterrissage est dans le premier rendu : le banc
+// porte ECharts, l'audit et les preuves portent leurs propres panneaux.
 const BenchView = lazy(() => import('./views/BenchView'))
+const AuditView = lazy(() => import('./views/AuditView'))
+const EvidenceView = lazy(() => import('./views/EvidenceView'))
+
+function ViewFallback({ label }: { label: string }) {
+  return <div className="card mode-loading mono muted">{label}</div>
+}
 
 function BenchFallback() {
-  return <div className="card mode-loading mono muted">Chargement du banc d'essai…</div>
+  return <ViewFallback label="Chargement du banc d'essai…" />
 }
 
 export default function App() {
@@ -130,13 +135,21 @@ export default function App() {
 
         <main id="main" tabIndex={-1}>
           <section id="v-dashboard" className="view" hidden={mode !== 'dashboard'}><DashboardView /></section>
-          {mounted.audit ? <section id="v-audit" className="view" hidden={mode !== 'audit'}><AuditView /></section> : null}
+          {mounted.audit ? (
+            <section id="v-audit" className="view" hidden={mode !== 'audit'}>
+              <Suspense fallback={<ViewFallback label="Chargement de l’audit…" />}><AuditView /></Suspense>
+            </section>
+          ) : null}
           {mounted.bench ? (
             <section id="v-bench" className="view" hidden={mode !== 'bench'}>
               <Suspense fallback={<BenchFallback />}><BenchView /></Suspense>
             </section>
           ) : null}
-          {mounted.evidence ? <section id="v-evidence" className="view" hidden={mode !== 'evidence'}><EvidenceView /></section> : null}
+          {mounted.evidence ? (
+            <section id="v-evidence" className="view" hidden={mode !== 'evidence'}>
+              <Suspense fallback={<ViewFallback label="Chargement des preuves…" />}><EvidenceView /></Suspense>
+            </section>
+          ) : null}
         </main>
 
         <footer className="foot-ticker">

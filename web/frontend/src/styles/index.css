@@ -345,6 +345,9 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .tbl-scroll { scrollbar-width: thin; box-shadow: inset -12px 0 12px -12px rgba(90,211,227,0.22); }
 /* TradeSpace — graphe + rail enveloppe côte à côte, empilés à l'étroit */
 .ts-wrap { display: flex; gap: 16px; align-items: stretch; }
+/* le nuage monte une frame après le classement : la carte réserve sa hauteur,
+   sinon l'ouverture des résultats fait sauter la page sous le curseur */
+.ts-loading { min-height: 396px; display: flex; align-items: center; justify-content: center; }
 .ts-rail { flex: 0 0 230px; width: 230px; min-width: 0; border-left: 1px solid var(--hairline-faint); padding-left: 14px; }
 @media (max-width: 720px) {
   .ts-wrap { flex-direction: column; }

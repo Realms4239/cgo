@@ -1,6 +1,6 @@
 // Rail des quatre destinations — une seule source, jamais de sous-onglets.
 import { MODES, useUIStore } from '../store/ui'
-import { preloadBench } from '../lib/preload'
+import { preloadMode } from '../lib/preload'
 import { NavIcon } from './NavIcon'
 
 export default function ModeRail() {
@@ -22,8 +22,8 @@ export default function ModeRail() {
           aria-label={m.label}
           title={`${m.label} — touche ${m.key}`}
           onClick={() => setMode(m.id)}
-          onMouseEnter={m.id === 'bench' ? () => { void preloadBench() } : undefined}
-          onFocus={m.id === 'bench' ? () => { void preloadBench() } : undefined}
+          onMouseEnter={() => { preloadMode(m.id) }}
+          onFocus={() => { preloadMode(m.id) }}
         >
           <span className="mode-icon" aria-hidden="true"><NavIcon id={m.id} /></span>
           {pinned ? <span className="mode-lbl">{m.label}</span> : <span className="sr-only">{m.label}</span>}

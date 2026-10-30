@@ -57,12 +57,17 @@ describe('banc d’essai linéaire', () => {
     expect(read('views/IntegriteView.tsx')).toContain('if (!active) return')
   })
 
-  it('le banc se charge à la demande, sans ECharts dans le premier rendu', () => {
+  it('les trois destinations différées se chargent à la demande', () => {
     const app = read('App.tsx')
-    expect(app).toContain("lazy(() => import('./views/BenchView'))")
+    for (const view of ['BenchView', 'AuditView', 'EvidenceView']) {
+      expect(app, view).toContain(`lazy(() => import('./views/${view}'))`)
+      expect(app, `${view} hors du premier rendu`).not.toContain(`import ${view} from './views/${view}'`)
+    }
     expect(app).toContain('<Suspense')
     const rail = read('components/ModeRail.tsx')
-    expect(rail).toContain('preloadBench')
+    expect(rail).toContain('preloadMode(m.id)')
+    const store = read('store/ui.ts')
+    expect(store, 'le clavier préchauffe aussi').toContain('preloadMode(mode)')
   })
 
   it('ouvrir les résultats reste hors du geste : transition, puis saut', () => {

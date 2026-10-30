@@ -124,6 +124,15 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
   }, [xKey, yKey])
   const liveSnapRunning = useUIStore((s: any) => active && !!s.live?.running)
   const scatterRef = useRef<HTMLDivElement>(null)
+  // Le nuage est le morceau le plus cher à monter (ECharts + enveloppe + rail) :
+  // il arrive après la première peinture, pour que le geste qui ouvre les
+  // résultats ne paie pas le graphique dans son propre task.
+  const [chartsReady, setChartsReady] = useState(false)
+  useEffect(() => {
+    let r2 = 0
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setChartsReady(true)) })
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
+  }, [])
   const reqSeq = useRef(0)
   // run touché par l'opérateur ? Le repli tous-runs sur run vide n'est légitime
   // qu'au chargement initial — un choix explicite mérite un écran explicite
@@ -369,7 +378,7 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
       setCaption(`Y : ${ym.label} (${ym.unit}) · X : ${xm.label} (${xm.unit}) — ${pts.length} groupes · ${bp.g.profile}·${bp.g.qdisc}·${bp.g.cc} en tête (${bp.y.toFixed(1)} ${ym.unit})${stretch}`)
     }
     return () => { ro.disconnect(); c.dispose() }
-  }, [groups, xk, yKey, colorBy, fProfile, fQdisc, fCc])
+  }, [groups, xk, yKey, colorBy, fProfile, fQdisc, fCc, chartsReady])
 
   // delta vs run précédent — la dérive temporelle depuis l'historique gelé
   useEffect(() => {
@@ -892,6 +901,7 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
       {pinA && pinB && (
         <CompareView a={pinA} b={pinB} onClose={() => { setPinA(null); setPinB(null) }} />
       )}
+      {chartsReady && (
       <div className="card" style={{ padding: 12, position: 'relative' }}>
         <div style={{ marginBottom: 4 }}>
           <span className="mono" style={{ fontSize: 'var(--fs-body)', fontWeight: 600, color: 'var(--text-primary)' }}>TradeSpace — compromis mesurés</span>
@@ -939,6 +949,12 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
         })()}
         <div className="mono" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-muted)', marginTop: 6 }}>{caption}</div>
       </div>
+      )}
+      {!chartsReady && (
+        <div className="card ts-loading" role="status">
+          <span className="mono muted">TradeSpace — préparation du nuage…</span>
+        </div>
+      )}
       <Provenance source="mesures archivées des campagnes" refresh="au gel" state="live" extra={`${safeGroups.length} groupes · hash ${hash8}`} />
     </div>
   )

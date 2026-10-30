@@ -93,6 +93,12 @@ await mark('ancre résultats')
 await attempt('ancre résultats', async () => { await page.locator('.bench-anchors button:has-text("RÉSULTATS")').click({ timeout: 5000 }) })
 await page.waitForSelector('#bench-results .lb-card', { timeout: 20000 }).catch(() => {})
 ok('résultats montés', await page.locator('#bench-results .lb-card').count() > 0)
+// le nuage arrive après la première peinture : sans cette preuve, un montage
+// différé silencieusement cassé passerait comme une victoire de performance.
+await page.waitForSelector('#bench-results .ts-wrap canvas', { timeout: 8000 }).catch(() => {})
+const canvasBox = await page.locator('#bench-results .ts-wrap canvas').first().boundingBox().catch(() => null)
+ok('le TradeSpace est réellement peint', !!canvasBox && canvasBox.width > 100 && canvasBox.height > 100,
+  canvasBox ? `${Math.round(canvasBox.width)}×${Math.round(canvasBox.height)} px` : 'aucun canvas')
 const reset = page.locator('button:has-text("RÉINITIALISER")')
 ok('réinitialiser apparaît après filtre', await reset.count() === 0 || await reset.isVisible())
 
