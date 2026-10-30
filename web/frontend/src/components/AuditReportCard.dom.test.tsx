@@ -97,4 +97,13 @@ describe('AuditReportCard — validation RouterOS', () => {
     expect(h).toContain('non validée')
     expect(h).toContain('aucune preuve CHR')
   })
+
+  it('zéro vérification n’est pas une validation', () => {
+    const h = html(report({
+      remediation,
+      routeros_validation: { version: '7.15.3', level: 'windows-tcg', export_sha256: 'abcdef1234567890', checks: [] },
+    }))
+    expect(h).toContain('non validée — aucune vérification')
+    expect(h).not.toContain('Configuration RouterOS validée (')
+  })
 })

@@ -53,3 +53,18 @@ func TestReportFailedValidationSaysNonValidée(t *testing.T) {
 		t.Fatal("failed validation rendered as a pass")
 	}
 }
+
+func TestReportEmptyChecksIsNotAValidation(t *testing.T) {
+	rep := Report{AuditID: "audit-1"}
+	rep.RouterOSValidation = &RouterOSValidation{
+		Version: "7.15.3", Level: "windows-tcg", ExportSHA256: "abcdef123456",
+		Checks: []RouterOSCheck{},
+	}
+	md := rep.RenderMarkdown()
+	if !strings.Contains(md, "non validée") || !strings.Contains(md, "aucune vérification") {
+		t.Fatalf("empty checks not stated:\n%s", md)
+	}
+	if strings.Contains(md, "Configuration RouterOS validée") {
+		t.Fatal("empty checks rendered as a pass")
+	}
+}

@@ -580,7 +580,9 @@ func (r *Report) RenderMarkdown() string {
 		}
 	}
 	if v := r.RouterOSValidation; v != nil {
-		ok := true
+		// Zéro vérification n'est pas une validation : un tableau vide
+		// passait pour un succès dans le Markdown comme dans la carte.
+		ok := len(v.Checks) > 0
 		for _, c := range v.Checks {
 			if !c.Pass {
 				ok = false
@@ -590,9 +592,12 @@ func (r *Report) RenderMarkdown() string {
 		if v.Level == "linux-namespace" {
 			level = "CHR + banc"
 		}
-		if ok {
+		switch {
+		case len(v.Checks) == 0:
+			fmt.Fprintf(&b, "### Validation RouterOS\n\nConfiguration RouterOS non validée (%s, %s) — aucune vérification.\n\n", v.Version, level)
+		case ok:
 			fmt.Fprintf(&b, "### Validation RouterOS\n\nConfiguration RouterOS validée (%s, %s) · export %s\n\n", v.Version, level, short8(v.ExportSHA256))
-		} else {
+		default:
 			fmt.Fprintf(&b, "### Validation RouterOS\n\nConfiguration RouterOS non validée (%s, %s) — écarts dans le rapport.\n\n", v.Version, level)
 		}
 	}

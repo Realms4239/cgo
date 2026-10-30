@@ -281,9 +281,13 @@ export function AuditReportCard({ report, onCopy }: {
                 {(() => {
                   const v = report.routeros_validation
                   if (!v) return 'Configuration RouterOS non validée — aucune preuve CHR'
-                  const ok = (v.checks ?? []).every(c => c.pass)
+                  const checks = v.checks ?? []
+                  // Zéro vérification n'est pas une validation : un tableau
+                  // vide passait pour un succès, c'était un mensonge silencieux.
+                  const ok = checks.length > 0 && checks.every(c => c.pass)
                   const level = v.level === 'linux-namespace' ? 'CHR + banc' : 'CHR'
                   const h8 = (v.export_sha256 ?? '').slice(0, 8)
+                  if (checks.length === 0) return 'Configuration RouterOS non validée — aucune vérification'
                   return ok
                     ? `Configuration RouterOS validée (${v.version ?? '7.x'}, ${level}) · export ${h8}`
                     : 'Configuration RouterOS non validée — écarts dans le rapport'
