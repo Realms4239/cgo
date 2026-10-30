@@ -1093,3 +1093,33 @@ end, at a settled decision, and at a handoff.
   the REF cache assumes content numbers stay the source of truth.
 - Next: human review of Annexe F; the verifier's signature on the packet; QEMU
   and a Linux 6.8 host for the remaining rows; merge to `main` is the human's.
+
+## 2026-10-31 00:10 UTC · deepwork — API, GUI, livre (trois phases, trois revues)
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `91b6ecb`.
+- Phase A (`1536f09`): 9 audit routes moved to `pkg/api/server_audit.go`;
+  `server.go` 1,899 → 1,495. Oracle gate PASS: route lists identical, 377 body
+  lines byte-identical, package state declared once, `handleAuditStart`
+  locking/goroutine untouched, `go vet` clean, targeted tests ok.
+- Phase B (`17ab85c`): `cmd/cgo-gui` diagnostic composes
+  `version · télémétrie eBPF|TCP_INFO|non instrumenté` from `/api/health`.
+  Both shells render that string, so the Fyne view gained it without the
+  Linux-only file being edited blind. Gate PASS; remediation added
+  `version inconnue` for an empty version and two test cases.
+- Phase C: Annexe E gained the ribbon paragraph and the validation sentence;
+  book rebuilt (2,889 Ko), `memoire.docx` hash unchanged, five audits green.
+  The oracle found a blocking overclaim (a concrete `validée (7.15.3, CHR)`
+  implying an acceptance): reworded as a format plus the replay caveat. The
+  follow-up gate found the same empty-`checks` hole in the Markdown renderer;
+  fixed in `pkg/audit/report.go` and the card, each with a test (`91b6ecb`).
+- Proven: `python tools/verify.py` → 6 passed; frontend 46 files / 215 tests;
+  `go test ./cmd/cgo-gui` ok; `go vet ./pkg/api ./cmd/cgo-gui` clean.
+- Non-blocking, recorded for later: “non instrumenté” for a pre-telemetry
+  server that may run eBPF (under-claims; vocabulary is prescribed); the Fyne
+  open-dashboard line puts two facts in one “(version …)” parenthesis; qa-walk
+  asserts only the corpus hidden at 390 px, not the seal; `core.go` carries
+  pre-existing gofmt noise left untouched to keep diffs reviewable.
+- Book working tree and `web/frontend/dist/index.html` uncommitted by rule;
+  the deepwork state lives at `.slim/deepwork/book-arch-gui.md` (gitignored).
+- Next: human read of Annexe E/F; verifier signature on the packet; QEMU and a
+  Linux 6.8 host for the blocked rows; merge to `main` is the human's.
