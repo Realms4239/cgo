@@ -292,6 +292,9 @@ footer .fill { margin-left: auto; }
 .bench-matrix th, .bench-matrix td { padding: var(--sp-1) var(--sp-2); text-align: left; }
 .bench-num-col { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bench-matrix-note { font-size: var(--fs-micro); margin-top: 6px; overflow-wrap: anywhere; }
+/* deux faits absents tiennent en une bande, pas en deux cartes */
+.dash-quiet { display: flex; flex-direction: column; gap: var(--sp-1); }
+.dash-quiet b { color: var(--text-body-strong); }
 @media (max-width: 900px) { .bench-progress-grid { grid-template-columns: 1fr; } }
 
 /* QuickActions — ne jamais occlure sur petit viewport (wrap + max-w) */

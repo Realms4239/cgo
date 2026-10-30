@@ -12,7 +12,7 @@ import { ScienceDetails } from '../components/ScienceDetails'
 import { gradeTone } from '../components/AuditReportCard'
 import { OperatorStats } from '../components/OperatorStats'
 import { nextStep, pickHeadline, type SynGroup } from '../lib/synthese'
-import { remediationView, retailBound } from '../lib/dashboard'
+import { bothAbsent, remediationView, retailBound } from '../lib/dashboard'
 import { compareAudits, summaryOf } from '../lib/auditSummary'
 import { formatCostAR, groupDigits, relativeTime } from '../lib/format'
 import { loadSettings } from '../lib/settings'
@@ -192,6 +192,12 @@ export default function DashboardView() {
       </div>
 
       {report ? (
+        bothAbsent(!!primary, !!(change.comparable && currentSummary)) ? (
+          <section className="card dash-quiet" data-testid="dash-quiet">
+            <p className="syn-read"><b>Ce que ça coûte</b> — non mesuré : aucun coût n’est chiffré plutôt qu’un zéro fabriqué.</p>
+            <p className="syn-read"><b>Ce qui a changé</b> — aucune comparaison disponible{change.reason ? ` — ${change.reason}` : ''}. Il faut deux audits du même site et du même type de lien.</p>
+          </section>
+        ) : (
       <div className="dash-grid dash-grid-even">
         <section className="card dash-card" data-testid="dash-cost">
           <CardHead label="Ce que ça coûte" sub="scénario contractuel, pas une mesure" />
@@ -250,6 +256,7 @@ export default function DashboardView() {
           )}
         </section>
       </div>
+        )
       ) : (
         <section className="card dash-onboarding" data-testid="dash-onboarding">
           <CardHead label="Premier pas" sub="trois gestes, aucune promesse" />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertsBand, delayBand, instabilityBand, operatorSummary, qualityWord, remediationView, retailBound } from './dashboard'
+import { alertsBand, bothAbsent, delayBand, instabilityBand, operatorSummary, qualityWord, remediationView, retailBound } from './dashboard'
 
 describe('bandes opérateur', () => {
   it('délai : quatre mots, seuils des Réglages', () => {
@@ -102,5 +102,10 @@ describe('operatorSummary', () => {
     expect(s.delay).toBeNull()
     expect(s.alertsPct).toBeUndefined()
     expect(s.quality).toBe('non noté')
+  })
+  it('deux absences tiennent en une bande', () => {
+    expect(bothAbsent(false, false)).toBe(true)
+    expect(bothAbsent(true, false)).toBe(false)
+    expect(bothAbsent(false, true)).toBe(false)
   })
 })

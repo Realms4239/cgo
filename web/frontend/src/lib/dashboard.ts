@@ -107,3 +107,10 @@ export function retailBound(report: Pick<AuditReport, 'economics'> | null | unde
   const s = report?.economics?.scenarios?.find(x => x.model === 'emergency')
   return s && finite(s.ar_per_hour) ? s.ar_per_hour : null
 }
+
+// Deux cartes vides côte à côte pèsent plus qu'un fait : quand ni le coût ni
+// la comparaison ne portent de valeur, une seule bande les dit — même règle
+// que les cellules compactes sur téléphone.
+export function bothAbsent(hasCost: boolean, hasChange: boolean): boolean {
+  return !hasCost && !hasChange
+}
