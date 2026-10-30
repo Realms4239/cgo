@@ -1049,3 +1049,23 @@ end, at a settled decision, and at a handoff.
   re-measured for it.
 - Next: slice 19 contract stays blocked on the operator's grant; the human
   reviews the four modes; a Linux 6.8 host unlocks slices 4–7.
+
+## 2026-10-30 20:05 UTC · slice 19 contract — rien ne s'exécute avant le grant
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `50e9179` (code) + this docs commit.
+- Changed: `docs/superpowers/specs/2026-10-30-cgo-case-study-contract.md` fixes
+  what the case study would read (operator-supplied dumps only), what is never
+  done (no capture, load, write, root, login, scan, query), the five
+  deliverables, the acceptance rules (declared/observed/inferred labels,
+  pseudonym by default, one unreproducible cell named) and the exact request
+  to put to the operator.
+- Proven on DESKTOP-B6K9UCM: docs only; `python tools/verify.py --only links`
+  → 1 passed. No connection was made to any operator system; no artifact was
+  produced.
+- Unproven: everything the slice would produce — the slice is BLOCKED on the
+  written grant; no hostname, address or topology is recorded anywhere.
+- Also in this wave: `cmd/cgo-chr` refuses `--level linux-namespace` off Linux
+  with exit 2 and a named reason (test `TestLevelAllowed`), instead of letting
+  QEMU fail obscurely and stamp a wrong level.
+- Next: the CHR boot (QEMU + image), a Linux 6.8 host for the runbook, the
+  verifier's signature on the packet, and the operator's grant.
