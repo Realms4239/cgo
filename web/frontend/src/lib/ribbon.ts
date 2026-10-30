@@ -33,3 +33,10 @@ export function ribbonMode(mode?: string): { text: string; observation: boolean 
     ? { text: 'observation', observation: true }
     : { text: mode || 'complet', observation: false }
 }
+
+// La télémétrie noyau ne s'invente pas : trois états, jamais un quatrième.
+export function telemetryLabel(source: string | undefined): string {
+  if (source === 'ebpf') return 'eBPF'
+  if (source === 'tcpinfo') return 'TCP_INFO'
+  return 'non instrumenté'
+}

@@ -24,6 +24,7 @@ import (
 	"github.com/Realms4239/cgo/pkg/figures"
 	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/pkg/probe"
 	"github.com/Realms4239/cgo/pkg/profile"
 	"github.com/Realms4239/cgo/pkg/remediate"
 	"github.com/Realms4239/cgo/pkg/results"
@@ -387,7 +388,7 @@ func New(d Deps) Handler {
 	}
 
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"ok": true, "version": d.Version, "mode": d.Mode})
+		writeJSON(w, map[string]any{"ok": true, "version": d.Version, "mode": d.Mode, "telemetry": probe.KernelSource()})
 	})
 	mux.HandleFunc("GET /api/doctor", func(w http.ResponseWriter, _ *http.Request) {
 		if d.DoctorFn != nil {

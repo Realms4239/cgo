@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAuditStore } from '../store/audit'
 import { useUIStore } from '../store/ui'
 import { remainingSeconds } from '../lib/auditFlow'
-import { auditFacts, corpusFacts, ribbonMode, sealFacts, type IntegrityFacts } from '../lib/ribbon'
+import { auditFacts, corpusFacts, ribbonMode, sealFacts, telemetryLabel, type IntegrityFacts } from '../lib/ribbon'
 
 export default function StatusRibbon() {
   const connected = useUIStore(s => s.connected)
@@ -15,6 +15,7 @@ export default function StatusRibbon() {
   const auditLive = useAuditStore(s => s.live)
   const [mode, setModeName] = useState('')
   const [integrity, setIntegrity] = useState<IntegrityFacts | null>(null)
+  const [telemetry, setTelemetry] = useState<{ source?: string; reason?: string }>({})
   const [failed, setFailed] = useState(false)
 
   const load = () => {
@@ -24,7 +25,10 @@ export default function StatusRibbon() {
     ]).then(([h, i]) => {
       const hOk = h.status === 'fulfilled'
       const iOk = i.status === 'fulfilled'
-      if (hOk) setModeName((h.value as any)?.mode ?? '')
+      if (hOk) {
+        setModeName((h.value as any)?.mode ?? '')
+        setTelemetry((h.value as any)?.telemetry ?? {})
+      }
       if (iOk) setIntegrity(i.value as IntegrityFacts)
       setFailed(!hOk || !iOk)
     })
@@ -43,6 +47,9 @@ export default function StatusRibbon() {
       <span className="ribbon-sep" aria-hidden="true" />
       <span className={'ribbon-item' + (connected ? ' ok' : ' off')}>
         SSE {sseStatus}
+      </span>
+      <span className="ribbon-item" data-testid="ribbon-telemetry" title={telemetry.reason || undefined}>
+        Télémétrie : {telemetryLabel(telemetry.source)}
       </span>
       {auditing ? (
         <span className="ribbon-item live">

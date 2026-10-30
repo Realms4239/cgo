@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { auditFacts, corpusFacts, ribbonMode, sealFacts } from './ribbon'
+import { auditFacts, corpusFacts, ribbonMode, sealFacts, telemetryLabel } from './ribbon'
 
 describe('ribbon', () => {
   it('ne fabrique pas un compte quand l’intégrité est absente', () => {
@@ -26,5 +26,11 @@ describe('ribbon', () => {
   it('mode observation contre mode complet', () => {
     expect(ribbonMode('observe')).toEqual({ text: 'observation', observation: true })
     expect(ribbonMode('full').observation).toBe(false)
+  })
+  it('nomme la télémétrie sans mentir', () => {
+    expect(telemetryLabel('ebpf')).toBe('eBPF')
+    expect(telemetryLabel('tcpinfo')).toBe('TCP_INFO')
+    expect(telemetryLabel('')).toBe('non instrumenté')
+    expect(telemetryLabel('autre')).toBe('non instrumenté')
   })
 })
