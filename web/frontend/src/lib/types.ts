@@ -152,6 +152,29 @@ export interface RouterOSValidation {
   checks?: RouterOSCheck[]
 }
 
+// ── Télémétrie noyau (miroir de pkg/audit.KernelTelemetry) — les flux ne
+// viennent que de l'objet eBPF ; TCP_INFO n'a pas de lignes par flux.
+export interface KernelFlow {
+  local: string
+  peer: string
+  retrans_payload_bytes: number
+  retrans_events: number
+  qdisc_drop_packets: number
+  srtt_us: number
+}
+
+export interface KernelTelemetry {
+  available?: boolean
+  source?: string
+  reason?: string
+  object_sha256?: string
+  retrans_payload_bytes?: number
+  qdisc_drop_packets?: number
+  flows_seen?: number
+  flows_total?: number
+  flows?: KernelFlow[]
+}
+
 export interface AuditReport {
   audit_id: string
   timestamp?: string
@@ -168,4 +191,5 @@ export interface AuditReport {
   economics?: AuditEconomics
   cap_sla?: AuditCapsla
   routeros_validation?: RouterOSValidation
+  kernel_telemetry?: KernelTelemetry
 }

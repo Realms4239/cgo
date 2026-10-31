@@ -31,6 +31,33 @@ func TestReportTelemetryEBPFSaysAttach(t *testing.T) {
 	}
 }
 
+func TestReportTelemetryFlowsSerialize(t *testing.T) {
+	rep := Report{AuditID: "audit-1"}
+	rep.KernelTelemetry = &KernelTelemetry{
+		Available:  true,
+		Source:     "ebpf",
+		FlowsSeen:  2,
+		FlowsTotal: 2,
+		Flows: []KernelFlow{
+			{Local: "10.0.0.1:40000", Peer: "10.0.0.2:5201", RetransPayloadBytes: 2048, RetransEvents: 3, QdiscDropPackets: 1, SRTTus: 12000},
+			{Local: "10.0.0.1:40002", Peer: "10.0.0.2:5201", RetransPayloadBytes: 512, RetransEvents: 1, QdiscDropPackets: 0, SRTTus: 15000},
+		},
+	}
+	b, _ := json.Marshal(rep)
+	if !strings.Contains(string(b), `"flows":[`) {
+		t.Fatalf("flows missing from JSON: %s", b)
+	}
+	if !strings.Contains(string(b), `"flows_total":2`) {
+		t.Fatalf("flows_total missing from JSON: %s", b)
+	}
+
+	rep.KernelTelemetry = &KernelTelemetry{Available: true, Source: "ebpf", RetransPayloadBytes: 4096}
+	b, _ = json.Marshal(rep)
+	if strings.Contains(string(b), `"flows"`) {
+		t.Fatalf("flowless telemetry still serialized flows: %s", b)
+	}
+}
+
 func TestReportWithoutTelemetryOmitsBoth(t *testing.T) {
 	rep := Report{AuditID: "audit-1"}
 	b, _ := json.Marshal(rep)

@@ -79,12 +79,26 @@ type RouterOSValidation struct {
 // when it could not say more. Source is ebpf|tcpinfo|unavailable; a reason
 // always accompanies a fallback.
 type KernelTelemetry struct {
-	Available           bool   `json:"available"`
-	Source              string `json:"source,omitempty"`
-	Reason              string `json:"reason,omitempty"`
-	ObjectSHA256        string `json:"object_sha256,omitempty"`
-	RetransPayloadBytes uint64 `json:"retrans_payload_bytes,omitempty"`
-	QdiscDropPackets    uint64 `json:"qdisc_drop_packets,omitempty"`
+	Available           bool         `json:"available"`
+	Source              string       `json:"source,omitempty"`
+	Reason              string       `json:"reason,omitempty"`
+	ObjectSHA256        string       `json:"object_sha256,omitempty"`
+	RetransPayloadBytes uint64       `json:"retrans_payload_bytes,omitempty"`
+	QdiscDropPackets    uint64       `json:"qdisc_drop_packets,omitempty"`
+	FlowsSeen           int          `json:"flows_seen,omitempty"`
+	FlowsTotal          int          `json:"flows_total,omitempty"`
+	Flows               []KernelFlow `json:"flows,omitempty"`
+}
+
+// KernelFlow is one sender-side flow as the kernel tier saw it. Present only
+// when the eBPF object ran; TCP_INFO has no per-flow rows.
+type KernelFlow struct {
+	Local               string `json:"local"`
+	Peer                string `json:"peer"`
+	RetransPayloadBytes uint64 `json:"retrans_payload_bytes"`
+	RetransEvents       uint64 `json:"retrans_events"`
+	QdiscDropPackets    uint64 `json:"qdisc_drop_packets"`
+	SRTTus              uint32 `json:"srtt_us"`
 }
 
 // Phases records the audit schedule actually executed. A 60 s audit is

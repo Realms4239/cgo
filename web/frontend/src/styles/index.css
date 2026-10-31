@@ -700,6 +700,19 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 /* une commande sans matière à agir se nomme, elle ne se rejoue pas — même
    langage dans la table des rapports et dans la table des runs */
 .data-missing { font-size: var(--fs-micro); color: var(--text-faint); }
+/* anneau noyau — barres fines des flux mesurés par l'objet eBPF seulement ;
+   le repli TCP_INFO n'a pas de lignes par flux et n'affiche rien */
+.kernel-ring { display: flex; flex-direction: column; gap: var(--sp-1); }
+.kernel-ring-summary { font-size: var(--fs-micro); color: var(--text-muted); }
+.kernel-ring-track {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  min-height: 6px;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 1px;
+}
+.kernel-slot { display: block; height: 6px; background: var(--t-live); flex: 1 1 0; min-width: 4px; }
 /* le préambule de provenance s'ouvre sur demande : la preuve d'abord */
 .int-sources-details > summary { cursor: pointer; list-style: none; }
 .int-sources-details > summary::-webkit-details-marker { display: none; }

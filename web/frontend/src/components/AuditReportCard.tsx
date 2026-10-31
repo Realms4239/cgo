@@ -5,6 +5,7 @@ import { Badge } from './ui/StatusPip'
 import { CardHead } from './ui/CardHead'
 import { Stat } from './ui/Stat'
 import { Provenance } from './ui/Provenance'
+import { KernelRing } from './KernelRing'
 import { directionLabel } from '../lib/auditFlow'
 import { auditCitation } from '../lib/citation'
 import { formatBytesFR, formatCostAR, groupDigits } from '../lib/format'
@@ -294,6 +295,7 @@ export function AuditReportCard({ report, onCopy }: {
                 })()}
               </p>
             ) : null}
+            {report.kernel_telemetry ? <KernelRing k={report.kernel_telemetry} /> : null}
           </>
         ) : (
           <Muted>non émise — capacité ou RTT repos non mesurés ; une file dimensionnée au hasard serait déployée à l'aveugle.</Muted>
