@@ -1270,3 +1270,23 @@ end, at a settled decision, and at a handoff.
   from PerformanceObserver in this probe, not from a trace; INP is proxied by
   long tasks only; no screen reader; no human review of the desktop fold yet.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-31 00:26 UTC · débogage — une hypothèse réfutée, et l'invariant qui la remplace
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Lead: selecting one of the 23 zero-line archived runs looked like a blank
+  results panel (my probe reported `rows: 0`, `emptyState: 0`).
+- Phase 1: the probe searched `.empty-state`/`data-testid="empty-state"`, but
+  `EmptyState` renders `.c-empty` (`web/frontend/src/components/ui/EmptyState.tsx:9`).
+  Re-probe with the real class: one `.c-empty` with
+  “run vide ou supprimé — passez à tous runs”, and the reset control visible.
+  **No product defect** — the defect was in the measurement.
+- Action: the walk now asserts the real invariant, dataset-independent — after
+  choosing a run, the panel shows either rows (`.lb-card`) or an explicit empty
+  state (`.c-empty`), never a mute zone. 35 steps, 0 failures, 0 console or
+  resource errors, peak long task 204 ms.
+- Lesson recorded: a selector written from memory is a hypothesis; read the
+  component before believing an absence it reports.
+- Unproven: the invariant walk happened to pick a run with data; the empty
+  branch is proven by the corrected probe today, not continuously.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
