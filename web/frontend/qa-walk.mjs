@@ -134,6 +134,8 @@ for (const id of ['bench-config', 'bench-observe', 'bench-results']) {
 }
 await mark('ancre résultats')
 await attempt('ancre résultats', async () => { await page.locator('.bench-anchors button:has-text("RÉSULTATS")').click({ timeout: 5000 }) })
+const focusInResults = await page.evaluate(() => !!document.activeElement?.closest('#bench-results'))
+ok('l’ancre déplace le focus dans la section', focusInResults, await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName || 'none'))
 await page.waitForSelector('#bench-results .lb-card', { timeout: 20000 }).catch(() => {})
 ok('résultats montés', await page.locator('#bench-results .lb-card').count() > 0)
 // le nuage arrive après la première peinture : sans cette preuve, un montage

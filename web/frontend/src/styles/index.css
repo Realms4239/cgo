@@ -79,6 +79,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--t-live); }
 /* banc d'essai — trois sections, ancres, pas d'onglets */
 .bench-page { max-width: 1180px; }
 .bench-anchors { display: flex; gap: var(--sp-2); flex-wrap: wrap; position: sticky; top: 0; z-index: 5; background: var(--canvas-solid); padding: 6px 0; border-bottom: 1px solid var(--hairline); }
+/* tout saut d'ancre atterrit sous la barre, jamais dessous */
+#bench-config, #bench-observe, #bench-results,
+#evidence-corpus, #evidence-reports, #v-audit [id] { scroll-margin-top: 72px; }
+
 .bench-section { scroll-margin-top: 56px; display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .bench-section-title { font: 600 var(--fs-body) var(--font-mono); text-transform: uppercase; letter-spacing: var(--tracking-caps); color: var(--text-muted); border-bottom: 1px solid var(--hairline-faint); padding-bottom: 4px; }
 .bench-held { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
