@@ -1400,3 +1400,17 @@ end, at a settled decision, and at a handoff.
   needs a mount-aware fix first, not a CSS trick.
 - Unproven: no human read of the shortened dashboard.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-31 06:18 UTC · coupe plus dure — les sous-titres cessent de réciter la page
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Changed: destination subtitles shortened to one line each and reduced to
+  their unique fact — Auditer keeps “sans droits administrateur · aucun CSV
+  partiel” (the report tag already states “mesuré, sans modification”),
+  Banc “une page : configurer, observer, lire” (the three section titles say
+  it), Preuves lists its three proof objects. No claim removed.
+- Proven: 47 files / 218 tests; build 350.3 KB gz.
+- Stopped here on purpose: the remaining harsh cuts are the spec-pinned
+  shortcut row (human scope) and the archived-comparison card behind a
+  mount-aware disclosure (engineer task: canvas must not mount at zero size).
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
