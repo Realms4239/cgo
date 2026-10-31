@@ -1414,3 +1414,18 @@ end, at a settled decision, and at a handoff.
   shortcut row (human scope) and the archived-comparison card behind a
   mount-aware disclosure (engineer task: canvas must not mount at zero size).
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-31 06:30 UTC · a11y — les retours d'action sont annoncés
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Checked before cutting: the big Observer card is the edge-control panel
+  (Surveillance, Façonnage, Essai), not a pure archived comparison — hiding it
+  behind a disclosure would hide controls. The cut was dropped, and the reason
+  is recorded instead of forced.
+- Changed: the audit declaration message and the shaping result line carry
+  role=status / aria-live=polite; the ribbon keeps no live region (only the
+  running-audit item does). 47 files / 218 tests; build 350.3 KB gz; typecheck
+  clean.
+- Unproven: no screen-reader pass; the announcement wording was not heard.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant, and a
+  human scanning pass before further layout cuts.
