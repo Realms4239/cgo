@@ -83,6 +83,7 @@ export const FALLBACK = {
   '--chart-pfifo': '#9aa3ad',
   '--chart-cubic': '#e08a4c',
   '--chart-bbr': '#4c9be8',
+  '--chart-bbr3': '#b48ae0',
   '--chart-profile-1': '#5ad3e3',
   '--chart-profile-2': '#1fa348',
   '--chart-profile-3': '#f4b400',
@@ -158,7 +159,7 @@ export function palette(): Palette {
       fq_codel: cssVar('--chart-fq-codel'),
       pfifo_fast: cssVar('--chart-pfifo'),
     },
-    cc: { cubic: cssVar('--chart-cubic'), bbr: cssVar('--chart-bbr') },
+    cc: { cubic: cssVar('--chart-cubic'), bbr: cssVar('--chart-bbr'), bbr3: cssVar('--chart-bbr3') },
     profile: [
       cssVar('--chart-profile-1'), cssVar('--chart-profile-2'), cssVar('--chart-profile-3'),
       cssVar('--chart-profile-4'), cssVar('--chart-profile-5'), cssVar('--chart-profile-6'),

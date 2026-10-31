@@ -47,7 +47,10 @@ const Q_SHORT: Record<string, string> = {
   cake: 'file qui protège le petit trafic', fq_codel: 'file qui reste courte',
   pfifo_fast: 'file simple, sans protection',
 }
-const CC_SHORT: Record<string, string> = { cubic: 'remplit les files', bbr: 'garde les files courtes' }
+const CC_SHORT: Record<string, string> = {
+  cubic: 'remplit les files', bbr: 'garde les files courtes',
+  bbr3: 'plafonne quand la perte monte',
+}
 const decodeSub = (g: { profile: string; qdisc: string; cc: string }): string =>
   `${profileShort(g.profile)} · ${Q_SHORT[g.qdisc] ?? g.qdisc} · ${CC_SHORT[g.cc] ?? g.cc}`
 
@@ -57,7 +60,7 @@ const decodeSub = (g: { profile: string; qdisc: string; cc: string }): string =>
 // couleurs concrètes (canvas ECharts) — la palette lit les tokens CSS
 const P = paletteOnce()
 const QCOLOR: Record<string, string> = { cake: P.qdisc.cake, fq_codel: P.qdisc.fq_codel, pfifo_fast: P.qdisc.pfifo_fast }
-const CCMARK: Record<string, string> = { cubic: '◆', bbr: '◇' }
+const CCMARK: Record<string, string> = { cubic: '◆', bbr: '◇', bbr3: '◈' }
 
 // TradeSpace — le nuage paramétrable façon DeepSWE (score vs coût) : axes X/Y
 // au choix parmi les métriques + indice composite, couleur par dimension.
@@ -762,7 +765,7 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
                 {/* identité en deux lignes : la cellule, puis le sous-libellé
                     décodé. Le verdict et l'épingle vivent dans le détail. */}
                 <div className="mono" style={{ fontSize: 'var(--fs-body)', fontWeight: 500, color: 'var(--text-body)', overflowWrap: 'anywhere' }}>
-                  {g.profile} · {g.qdisc} / {g.cc} <span title={g.cc === 'bbr' ? 'contrôle de congestion BBR (Google) — sonde le débit, peu agressif' : 'contrôle de congestion CUBIC — remplit les files, agressif'} style={{ color: barColor }}>{CCMARK[g.cc] ?? ''}</span>
+                  {g.profile} · {g.qdisc} / {g.cc} <span title={g.cc === 'bbr' ? 'contrôle de congestion BBR (Google) — sonde le débit, peu agressif' : g.cc === 'bbr3' ? 'BBRv3 — BBR sensible à la perte, noyau 7.1 requis' : 'contrôle de congestion CUBIC — remplit les files, agressif'} style={{ color: barColor }}>{CCMARK[g.cc] ?? ''}</span>
                   {g.direction && g.direction !== 'up' ? <span title="sens download mesuré" style={{ color: 'var(--t-live)' }}> ↓</span> : null}
                 </div>
                 <div className="mono lb-id-sub" style={{ fontSize: 'var(--fs-tag)', color: 'var(--text-muted)', marginTop: 2, overflowWrap: 'anywhere' }}>{decodeSub(g)}</div>

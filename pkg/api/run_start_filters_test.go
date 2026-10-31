@@ -38,6 +38,9 @@ func TestRunStartSubmatrixFilters(t *testing.T) {
 	if code := post(`{"profiles":["P2"],"qdiscs":["hfsc"],"ccs":["bbr"],"reps":1}`); code != http.StatusBadRequest {
 		t.Fatalf("qdisc inconnu: %d, want 400", code)
 	}
+	if code := post(`{"profiles":["P2"],"qdiscs":["none"],"ccs":["bbr"],"reps":1}`); code != http.StatusBadRequest {
+		t.Fatalf("qdisc none hors matrice: %d, want 400", code)
+	}
 	if code := post(`{"profiles":["P2"],"qdiscs":["cake"],"ccs":["westwood"],"reps":1}`); code != http.StatusBadRequest {
 		t.Fatalf("cc inconnue: %d, want 400", code)
 	}
@@ -46,6 +49,29 @@ func TestRunStartSubmatrixFilters(t *testing.T) {
 	}
 	if code := post(`{"profiles":["P2"],"ccs":["bbr"],"reps":1}`); code != http.StatusBadRequest {
 		t.Fatalf("cc sans qdisc: %d, want 400", code)
+	}
+}
+
+// TestRunStartAcceptsBBRv3Label — l'API valide des libellés, pas la
+// disponibilité : bbr3 atteint le moteur, qui le refuse avec le chemin
+// d'installation si le noyau ne l'expose pas (jamais un repli silencieux).
+func TestRunStartAcceptsBBRv3Label(t *testing.T) {
+	var got RunOpts
+	srv := httptest.NewServer(New(Deps{StartFn: func(o RunOpts) error { got = o; return nil }}))
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/api/run/start", "application/json",
+		strings.NewReader(`{"profiles":["P2"],"qdiscs":["cake"],"ccs":["bbr3"],"reps":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("bbr3 étiquette connue: %d, want 200", resp.StatusCode)
+	}
+	if len(got.CCs) != 1 || got.CCs[0] != "bbr3" {
+		t.Fatalf("bbr3 perdu avant le moteur: %+v", got.CCs)
 	}
 }
 

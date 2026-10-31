@@ -8,11 +8,12 @@ import { useUIStore } from '../store/ui'
 import { useBenchStore } from '../store/bench'
 import { live as liveRing } from '../lib/live'
 import { GATE_LABELS } from '../lib/gates'
-
-const ALL_QDISCS = ['pfifo_fast', 'fq_codel', 'cake'] as const
-const ALL_CC = ['cubic', 'bbr'] as const
+import { useCapabilities } from '../lib/hooks'
 
 export default function BenchProgress({ active = true }: { active?: boolean }) {
+  const caps = useCapabilities()
+  const qdiscs = caps?.qdiscs ?? []
+  const ccs = caps?.ccs ?? []
   const live = useUIStore(s => (active ? s.live : null))
   const profiles = useBenchStore(s => s.profiles)
   const reps = useBenchStore(s => s.reps)
@@ -33,7 +34,7 @@ export default function BenchProgress({ active = true }: { active?: boolean }) {
   }
   const hasTimeline = ps.baseline != null || ps.charge != null || ps.recup != null
 
-  const matrix = profiles.length > 0 ? (
+  const matrix = caps && profiles.length > 0 ? (
     <div className="card" data-testid="matrix-table">
       <div className="card-head">Matrice — état par cellule</div>
       <div className="bench-matrix-scroll">
@@ -42,9 +43,9 @@ export default function BenchProgress({ active = true }: { active?: boolean }) {
             <tr><th>profil</th><th>file × contrôle</th><th>répétitions</th><th>état</th></tr>
           </thead>
           <tbody>
-            {profiles.flatMap((p, pi) => ALL_QDISCS.flatMap((q, qi) => ALL_CC.map((c, ci) => {
-              // ordre serveur (matrix.go) : profils × [pfifo, fq_codel, cake] × [cubic, bbr] × reps
-              const cellStart = ((pi * ALL_QDISCS.length + qi) * ALL_CC.length + ci) * reps + 1
+            {profiles.flatMap((p, pi) => qdiscs.flatMap((q, qi) => ccs.map((c, ci) => {
+              // ordre serveur (config.go) : profils × files × contrôles × reps
+              const cellStart = ((pi * qdiscs.length + qi) * ccs.length + ci) * reps + 1
               const cur = live?.running ? live?.event_id ?? 0 : 0
               const st = cur === 0 ? 'attente' : (cellStart + reps - 1 < cur ? 'terminée' : (cellStart <= cur ? 'en cours' : 'attente'))
               const n = Math.max(0, Math.min(reps, cur - cellStart + (st === 'en cours' ? 1 : 0)))

@@ -169,3 +169,25 @@ A fixed defect stays because it is the evidence that it was understood.
 - Unblock: install a known public key through the VirtualBox console (or record
   the `altfloat` password), then `cgo kit keysetup`; or provide a stable Linux
   6.8 host. A 6.18 WSL is not a substitute for the 6.8 acceptance.
+
+## E9. The API gate made bbr3 unreachable over HTTP (observed 2026-10-31)
+
+- Symptom: the engine accepts `bbr3` only when `/proc` exposes it and refuses
+  otherwise with the `install-bbr3` path, but `/api/run/start` rejected
+  `ccs:["bbr3"]` as `cc inconnu` even on a kernel that exposes it; the bench UI
+  also hard-coded `['cubic','bbr']`.
+- Cause: the handler validated the matrix axes against the settings enums
+  (`shape_qdisc`, `burst_cc`) instead of the model lists the engine uses; the
+  UI duplicated those lists. Three copies drifted. The qdisc enum also
+  accepted `none`, which the engine rejects.
+- Fix: `campagne.CapabilitiesNow()` + `GET /api/capabilities` (qdiscs, runnable
+  CCs, known CCs, kernel release, bbr3); `/api/run/start` validates
+  `model.AllQdiscs` / `model.KnownCC`, leaving availability to the engine's
+  fail-closed gate; the frontend reads the payload once (`loadCapabilities`) and
+  renders it in Configurer and the matrix preview; results recognize `bbr3`.
+- Proof: `go test ./pkg/campagne ./pkg/api ./pkg/model` ok; frontend 52 files /
+  231 tests; typecheck; build 351.0 KB gz; on 9092 `/api/capabilities` returned
+  `ccs:["cubic","bbr"]`, `known_ccs` with `bbr3`, `bbr3:false`; the captured
+  Configurer names the missing kernel and the installer. No 7.1 kernel booted.
+- Lesson: a whitelist copied from a settings enum is not a capability; one
+  payload from the host is the seam.

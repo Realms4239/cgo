@@ -15,6 +15,7 @@ export const EXPLAIN: Record<string, string> = {
   // contrôles de congestion
   cubic: 'CC par défaut de Linux: il cherche la capacité en augmentant la fenêtre, ralentit sur perte.',
   bbr: 'CC de Google: il mesure le chemin (débit + RTT) et tient la file du réseau courte — insensible au bufferbloat.',
+  bbr3: 'BBRv3: BBR qui réagit à la perte et plafonne son volume en vol quand elle dépasse son seuil — noyau 7.1 requis.',
   // portes
   G0: 'La cible répond aux pings — sans elle, rien n\'est mesurable.',
   G1: 'Le transfert de masse a bien démarré — sans charge, pas de comparaison.',

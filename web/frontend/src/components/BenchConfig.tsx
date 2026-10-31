@@ -5,6 +5,7 @@ import { ArmButton } from './ArmButton'
 import Explain from './Explain'
 import { InlineField } from './InlineField'
 import { PeekPopover } from './PeekPopover'
+import { BenchCapabilities } from './BenchCapabilities'
 import { useBenchStore } from '../store/bench'
 import { useUIStore } from '../store/ui'
 import { live as liveRing } from '../lib/live'
@@ -13,11 +14,10 @@ import { validate } from '../lib/validation'
 import { formatBytesFR, groupDigits } from '../lib/format'
 import { profileShort } from '../lib/profiles'
 import { canalGate, effectiveChannelModel } from '../lib/canal'
-
-const ALL_QDISCS = ['pfifo_fast', 'fq_codel', 'cake'] as const
-const ALL_CC = ['cubic', 'bbr'] as const
+import { useCapabilities } from '../lib/hooks'
 
 export default function BenchConfig() {
+  const caps = useCapabilities()
   const live = useUIStore(s => s.live)
   const pushToast = useUIStore(s => s.pushToast)
   const profiles = useBenchStore(s => s.profiles)
@@ -176,14 +176,7 @@ export default function BenchConfig() {
             ))}
           </div>
         </div>
-        <div className="form-row">
-          <label>Files testées</label>
-          <span className="mono muted">{ALL_QDISCS.map((q, i) => <span key={q}><Explain term={q}>{q}</Explain>{i < ALL_QDISCS.length - 1 ? ' · ' : ''}</span>)}</span>
-        </div>
-        <div className="form-row">
-          <label>Contrôles</label>
-          <span className="mono muted">{ALL_CC.map((c, i) => <span key={c}><Explain term={c}>{c}</Explain>{i < ALL_CC.length - 1 ? ' · ' : ''}</span>)}</span>
-        </div>
+        <BenchCapabilities caps={caps} />
         <div className="form-row">
           <label>Répétitions</label>
           <input className="c-input bench-num" type="number" min={1} max={5} value={reps} onChange={e => setReps(parseInt(e.target.value) || 1)} />

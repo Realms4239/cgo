@@ -1,10 +1,22 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUIStore, type ModeId } from '../store/ui';
+import { loadCapabilities, type Capabilities } from './capabilities';
 
 // Une destination masquée ne doit rien peindre ni rien sonder : seul le
 // service racine (session d'audit, SSE) continue.
 export function useModeActive(mode: ModeId): boolean {
   return useUIStore(s => s.mode === mode);
+}
+
+// Capacités de l'hôte (files, contrôles, noyau) — lecture unique partagée.
+export function useCapabilities(): Capabilities | null {
+  const [caps, setCaps] = useState<Capabilities | null>(null)
+  useEffect(() => {
+    let alive = true
+    loadCapabilities().then(c => { if (alive) setCaps(c) })
+    return () => { alive = false }
+  }, [])
+  return caps
 }
 
 // Hook de boucle rAF générique — port React du paintLoop d'origine.

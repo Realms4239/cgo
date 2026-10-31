@@ -1586,3 +1586,18 @@ end, at a settled decision, and at a handoff.
   No object, no attach: the eBPF row stays BLOCKED.
 - Trace-driven: calibrator refuses <30 baseline samples (already proven);
   ingress × CHR 11/11 (already proven). Nothing else can be finished here.
+
+## 2026-10-31 11:10 UTC · une seule source pour les axes du banc
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit (parent `e53dcf5`).
+- Changed: `campagne.CapabilitiesNow`, `GET /api/capabilities`, API matrix
+  validation on `model.AllQdiscs`/`model.KnownCC`, cached frontend
+  `loadCapabilities`, `BenchCapabilities` in Configurer, capability-driven
+  matrix preview, `bbr3` label in results/palette/explain, Annex E sentence.
+- Proven: `go test ./pkg/campagne ./pkg/api ./pkg/model -count=1` ok; frontend
+  `npm test` 52 files/231 tests; typecheck clean; build 351.0 KB gz; live
+  endpoint on 9092 and captured Configurer; no frozen corpus, CSV schema, or
+  eBPF object touched.
+- Unproven: no 7.1 kernel booted, so no `bbr3` cell exists; the matrix preview
+  still assumes the full matrix (filtered runs keep their own event order);
+  independent verifier pending. The interface redesign itself has not started.

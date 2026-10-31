@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/pkg/figures"
 	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
@@ -393,6 +394,11 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "version": d.Version, "mode": d.Mode, "telemetry": probe.KernelSource()})
 	})
+	// capacités du banc : le client rend les files et contrôles que cet hôte
+	// expose réellement, sans recopier de liste.
+	mux.HandleFunc("GET /api/capabilities", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, campagne.CapabilitiesNow())
+	})
 	mux.HandleFunc("GET /api/doctor", func(w http.ResponseWriter, _ *http.Request) {
 		if d.DoctorFn != nil {
 			writeJSON(w, d.DoctorFn())
@@ -672,18 +678,14 @@ func New(d Deps) Handler {
 				return
 			}
 		}
-		// axes qdisc/CC : validés ici même sans moteur câblé (prévention §6) ;
-		// vides = matrice pleine (comportement historique)
+		// axes qdisc/CC : validés sur les mêmes listes que le moteur
+		// (model.AllQdiscs / model.KnownCC). L'indisponibilité de bbr3 reste
+		// la porte du moteur : refus explicite avec le chemin d'installation,
+		// jamais un repli silencieux. Vides = matrice pleine.
 		if len(opts.Qdiscs) > 0 {
 			validQ := map[string]bool{}
-			for _, p := range schemaParams {
-				if p.Key == "shape_qdisc" {
-					for _, e := range p.Enum {
-						if e != "none" {
-							validQ[e] = true
-						}
-					}
-				}
+			for _, q := range model.AllQdiscs {
+				validQ[string(q)] = true
 			}
 			for _, q := range opts.Qdiscs {
 				if !validQ[q] {
@@ -694,12 +696,8 @@ func New(d Deps) Handler {
 		}
 		if len(opts.CCs) > 0 {
 			validCC := map[string]bool{}
-			for _, p := range schemaParams {
-				if p.Key == "burst_cc" {
-					for _, e := range p.Enum {
-						validCC[e] = true
-					}
-				}
+			for _, c := range model.KnownCC {
+				validCC[string(c)] = true
 			}
 			for _, c := range opts.CCs {
 				if !validCC[c] {
