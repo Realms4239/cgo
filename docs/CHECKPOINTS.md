@@ -1429,3 +1429,18 @@ end, at a settled decision, and at a handoff.
 - Unproven: no screen-reader pass; the announcement wording was not heard.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant, and a
   human scanning pass before further layout cuts.
+
+## 2026-10-31 08:00 UTC · typographie +1 et graphes bornés
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Changed: the type scale moves up one step (micro 11, tag 12, cap 13, body 14,
+  head 22) — measured at 390 px: the headline value renders at 22 px; the walk
+  shows zero horizontal overflow at 390/1024/1366 and intact 44 px targets.
+  ECharts: `devicePixelRatio` capped at 2 in ResultatsView and CompareView
+  (LiveView already had it), and a new source gate pins canvas + dirty-rect +
+  DPR cap + `animation: false` for every chart.
+- Proven: walk 35 steps, 0 failures, 0 console/resource errors, peak 233 ms;
+  48 files / 220 tests; build 350.3 KB gz.
+- Unproven: no human review of the new scale at 1366; ECharts memory win is
+  reasoned from DPR scaling, not profiled (no heap comparison per chart).
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
