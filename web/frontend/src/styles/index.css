@@ -696,6 +696,11 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 /* une commande sans matière à agir se nomme, elle ne se rejoue pas — même
    langage dans la table des rapports et dans la table des runs */
 .data-missing { font-size: var(--fs-micro); color: var(--text-faint); }
+/* le préambule de provenance s'ouvre sur demande : la preuve d'abord */
+.int-sources-details > summary { cursor: pointer; list-style: none; }
+.int-sources-details > summary::-webkit-details-marker { display: none; }
+.int-sources-details > summary::before { content: '▸ '; color: var(--text-faint); }
+.int-sources-details[open] > summary::before { content: '▾ '; }
 .audit-report-back { align-self: flex-start; padding: var(--sp-1) var(--sp-2); }
 .audit-reports-msg { font-size: var(--fs-micro); }
 .evidence-page { max-width: 1180px; }

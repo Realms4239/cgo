@@ -85,7 +85,7 @@ export default function BenchProgress({ active = true }: { active?: boolean }) {
   if (!hasData) {
     return (
       <div className="bench-progress">
-        <EmptyState kind="idle" hint="en attente — démarrez une campagne dans Configurer" />
+        <EmptyState kind="idle" hint="démarrez une campagne dans Configurer" />
         <details className="bench-preview">
           <summary className="mono">APERÇU — MATRICE ET PORTES QUALITÉ</summary>
           <div className="bench-preview-body">

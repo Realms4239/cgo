@@ -111,15 +111,15 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
         <span className="mono int-proof-fact int-proof-updated">mis à jour {data.updated || '—'}</span>
       </div>
       {/* d'où viennent ces chiffres — quoi/où/quand par source, en clair */}
-      <div className="card" data-testid="sources-card">
-        <div className="card-head">D'où viennent ces chiffres</div>
+      <details className="card int-sources-details" data-testid="sources-card">
+        <summary className="card-head">D'où viennent ces chiffres</summary>
         <div className="int-sources">
           <div className="mono int-source-line"><b>Manifestes signés</b> — la liste scellée de chaque run archivé (fichiers + empreinte) · dans le dossier de chaque run · mis à jour {data.updated || '—'}</div>
           <div className="mono int-source-line"><b>Quarantaine</b> — les mesures écartées par les <Explain term="G3">portes de validation</Explain> · dans le registre de quarantaine du serveur · à chaque gel de campagne</div>
           <div className="mono int-source-line"><b>Mesures</b> — le tableur des mesures archivées, une ligne par sondage · dans le fichier de mesures de chaque run · mis à jour {data.updated || '—'}</div>
           <div className="mono int-source-line"><b>Journal</b> — les opérations (campagnes, audits) racontées au fil de l'eau · dans le journal opérateur ci-dessous · en continu</div>
         </div>
-      </div>
+      </details>
       <div className="card">
         <div className="form-row int-actions">
           <button className="btn btn-primary" onClick={verify}>Vérifier manifestes</button>
