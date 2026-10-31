@@ -14,6 +14,7 @@ export function KernelRing({ k }: { k: KernelTelemetry }) {
   const sumDrops = flows.reduce((n, f) => n + f.qdisc_drop_packets, 0)
   const seen = k.flows_seen ?? flows.length
   const total = k.flows_total ?? flows.length
+  const scaleMax = Math.max(1, ...flows.map(f => f.retrans_payload_bytes))
   const slots = flows.slice(0, MAX_SLOTS)
 
   return (
@@ -35,6 +36,9 @@ export function KernelRing({ k }: { k: KernelTelemetry }) {
             style={{ flexGrow: Math.max(1, f.retrans_payload_bytes) }}
           />
         ))}
+      </div>
+      <div className="mono kernel-ring-scale" data-testid="kernel-ring-scale">
+        {`échelle 0 – ${scaleMax} o réémis`}
       </div>
     </div>
   )

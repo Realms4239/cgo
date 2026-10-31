@@ -726,6 +726,7 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
   padding-bottom: 1px;
 }
 .kernel-slot { display: block; height: 6px; background: var(--t-live); flex: 1 1 0; min-width: 4px; }
+.kernel-ring-scale { margin-top: 4px; color: var(--text-faint); }
 /* le préambule de provenance s'ouvre sur demande : la preuve d'abord */
 .int-sources-details > summary { cursor: pointer; list-style: none; }
 .int-sources-details > summary::-webkit-details-marker { display: none; }

@@ -19,6 +19,7 @@ describe('KernelRing', () => {
     expect(html.match(/class="kernel-slot"/g)?.length).toBe(2)
     expect(html).toContain('data-testid="kernel-ring-summary"')
     expect(html).toContain('2/2 flux')
+    expect(html).toContain('échelle 0 – ')
     expect(html).toContain('4096 o réémis')
     expect(html).toContain('3 paquets écartés')
   })
