@@ -6,8 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const MAIN = 'Optimisation du transport réseau et garantie d’échéances temps réel pour la diffusion d’alertes hydrométéorologiques sur des liens d’accès contraints'
-const SUB = 'Régulation du bufferbloat par gestion active de file (AQM), contrôle de congestion BBR et application au système d’information de Météo Madagascar'
+const MAIN = 'Conception et évaluation d’un banc d’essai reproductible pour la comparaison de politiques AQM et BBR sur des liens d’accès contraints'
+const SUB = 'Le cas des liens d’accès du service national de prévision météorologique de Madagascar'
 
 const repo = join(process.cwd(), '..', '..')
 const read = (p: string): string => readFileSync(join(repo, p), 'utf8')
@@ -19,6 +19,7 @@ describe('titre académique adopté', () => {
     const s = read('PRODUCT.md')
     expect(s).toContain(MAIN)
     expect(s).toContain(SUB)
+    expect(s).not.toContain('garantie d’échéances')
   })
 
   it('la page de titre du livre porte le même titre', () => {
@@ -26,6 +27,7 @@ describe('titre académique adopté', () => {
     if (!existsSync(p)) return
     const s = read('book/content/00-front.js')
     expect(s).toContain(MAIN)
+    expect(s).not.toContain('garantie d’échéances')
     expect(s).not.toContain('Architecture d’ordonnancement')
   })
 })
