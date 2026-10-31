@@ -150,10 +150,20 @@ Plateforme   (•) MikroTik RouterOS 7    ( ) Linux tc
   directions, and the toast names what was copied.
 - RouterOS has no IFB. When the ingress script exists, the card and the drawer
   name the LAN interface actually used and add the line “RouterOS façonne la
-  réception sur l'interface locale (LAN ou bridge)”. The interface stays an
-  advanced field, because a layman does not know it by name; when it is empty the
-  card states “interface locale non déclarée — précisez-la pour un script de
-  réception” instead of silently offering one script.
+  réception sur l'interface locale (LAN ou bridge)”.
+- Half-remediation is refused. Today `RouterOSIngress` returns
+  `ErrUnmeasured` when no LAN interface is declared
+  (`pkg/remediate/remediate.go:314`), so an operator who never opened the
+  advanced field copies an upload-only script and believes the link is fixed
+  while the next 200 MB downlink bloats it. New behaviour: when the download
+  window was measured and the LAN interface is undeclared, the generator emits
+  the ingress script against `bridge` and leads it with a warning block —
+  “ATTENTION : remplacez « bridge » par votre interface LAN si différent —
+  vérifiez avec /interface print brief”. The report records
+  `routeros_lan_assumed: true`, the card reads “Réception 17,6 Mbit/s ·
+  interface supposée « bridge » — à vérifier avant de coller”, and the drawer
+  repeats the assumption. An assumed name is visible and checkable; an absent
+  script is neither.
 
 ### 3.4 Proof drawer, two tabs
 
@@ -188,11 +198,16 @@ as well and says plainly when the terminal refused it. Nothing is written to
 the last few seconds. The audit progress gains a full-run, per-second series:
 
 ```json
-"timeline": [{"t": 0, "phase": "baseline", "rtt_p50": 24.1, "rtt_p95": 31.0,
-              "small_p95": null}, …]
+"timeline": [{"t": 0, "phase": "baseline", "n": 5, "rtt_p50": 24.1,
+              "rtt_p95": 31.0, "small_p95": null}, …]
 ```
 
 - One bucket per elapsed second for the whole run, capped at `total_sec + 5`.
+  `n` is the number of probes that answered in that second; a value is `null`
+  when nothing answered. A null is never coerced to 0.
+- The canvas breaks the line at every null bucket and marks the gap, so a VSAT
+  retransmission timeout reads as missing data, not as perfect latency. A
+  single-pixel legend line states “sonde sans réponse”.
 - The Observer canvas is 120px tall, single `<canvas>`, X axis 0 → `total_sec`,
   Y range always covering both 220 ms and the highest observed value, with the
   220 ms objective drawn as a labelled rule. Phase bands shade baseline, load and
@@ -208,16 +223,35 @@ the last few seconds. The audit progress gains a full-run, per-second series:
 ### 3.6 Audit-scoped tariff
 
 - `audit.Params` gains `Tier string`; `POST /api/audit/start` accepts `tier`;
-  `BuildReport` values the economics with that tier and records
-  `economics.tier = {name, ar_per_gb, bundle_bytes, source: "audit"}`. With no
-  tier in the payload it uses the host default and records `source: "hôte"`.
+  `BuildReport` values the economics with it and records a basis snapshot that
+  fits all three models already in the engine (`EconomicsScenario.Model` is
+  `"A"`, `"B"` or `"emergency"`, `pkg/metrics/cost.go:115-121`):
+
+  ```go
+  type EconomicsBasis struct {
+      Model          string  `json:"model"`            // "A" | "B" | "emergency"
+      Name           string  `json:"name"`             // scenario or tier name
+      ArPerGB        float64 `json:"ar_per_gb,omitempty"`        // B, emergency
+      BundleBytes    float64 `json:"bundle_bytes,omitempty"`     // B, emergency
+      MonthlyOpExMGA float64 `json:"monthly_opex_mga,omitempty"` // A
+      CIRMbps        float64 `json:"cir_mbps,omitempty"`         // A
+      Source         string  `json:"source"`           // "audit" | "hôte"
+  }
+  ```
+
+  A dedicated CIR line is never forced through volume arithmetic: model A
+  reports the monthly charge and the CIR, models B and emergency report the
+  per-gigabyte price and the bundle. The reviewer's `cir_depreciation` and
+  `metered_volume` labels are not adopted, because the engine and the book
+  already speak A / B / emergency.
 - The audit form's “Forfait de référence” selector is fed by `/api/cost/tiers`
   and writes only the audit payload. The audit path never calls
   `POST /api/cost/tier`, so one technician cannot reprice another technician's
   view. The settings selector keeps governing the bench default.
-- The hero fact names its basis: “forfait yas-month-4.5gb · scénario primaire”.
-  Labels come from the tier table, not from invented names.
-- When the waste cannot be valued the fact reads “Non chiffré”, never zero.
+- The hero fact names its basis in the operator's terms: “ligne dédiée
+  1 000 000 Ar/mois” for model A, “forfait yas-month-4.5gb” for model B,
+  “hors forfait” for the emergency bound. When the waste cannot be valued the
+  fact reads “Non chiffré”, never zero.
 
 ### 3.7 Duel endpoint
 
@@ -322,6 +356,8 @@ sealed proof is named next to them.
 9. Absent data is a word, never a dash or a zero.
 10. Every number on a surface traces to the report JSON, `/api/results`,
     `/api/duel` or the live stream.
+11. A name the operator did not declare is labelled as assumed, on the card, in
+    the script comment and in the report field.
 
 Each invariant gets a test in section 8.
 
@@ -346,6 +382,13 @@ Go:
   tie-break; `/api/audit/live` timeline length matches `total_sec` and never
   exceeds the cap; `POST /api/audit/start` accepts `tier` and does not change the
   host default.
+- `pkg/remediate` tests: a measured download with an undeclared LAN interface
+  still yields the ingress script, naming `bridge` and carrying the warning line,
+  with `routeros_lan_assumed` true; an unmeasured download yields no ingress
+  script at all, assumed interface or not.
+- Economics basis test: model A records `monthly_opex_mga` and `cir_mbps` with no
+  per-gigabyte field; model B and the emergency bound record the price and the
+  bundle, never a monthly charge.
 - Existing `/api/capabilities` test stays the guard for BBRv3 honesty.
 
 Frontend:
@@ -354,7 +397,8 @@ Frontend:
   direction contributes nothing; rates match the report fields.
 - Drawer: `tablist` semantics, focus trap, restore, independent scroll.
 - Canvas: full-duration axis, phase bands, 220 ms rule, empty timeline renders
-  the idle state, no invented point.
+  the idle state, and a null bucket breaks the polyline with its gap marker — no
+  unanswered probe may be plotted as 0 ms.
 - Duel card renders the endpoint pair verbatim.
 - Lexicon gate: a source test asserting no banned surface term appears in the
   four view components or their labels.
@@ -373,6 +417,19 @@ serif, captures at 1920/1366/390. No live bench run in this work.
   duel endpoint and verdict field documented; the stale “no redesign in this
   wave” line removed; the retail-tier wording made precise (the default mobile
   tier prices at 5 556 Ar/Go while the emergency overage model is separate).
+- Book Chapter III needs content edits, not a terminology bridge. The four
+  destinations are already the ones this console keeps: `book/content/04-pratique.js:10`
+  states “L’interface de supervision expose quatre modes — Tableau de bord,
+  Auditer, Banc d’essai, Preuves & Rapports”, and Tableau 13 (`tbl412`) lists
+  them. What is now wrong is what each row claims: the dashboard row describes
+  three raw metrics instead of the verdict and four facts, the bench row
+  describes the full matrix instead of the preset duel, and no row mentions the
+  two-tab drawer. Those rows and the surrounding prose are rewritten in place.
+- One live contradiction found while checking this: `04-pratique.js:73` says the
+  shaped capacity is set at 90 % of the measured capacity, while the generator
+  uses 95 % (`pkg/remediate/remediate.go:56`). The book text moves to 95 % with
+  the reason, or states both figures with their scope. The code is not changed to
+  match prose.
 - Book Annex E rewritten screen by screen with the new captures; Annex F gains the
   duel eligibility rule and the rejeu wording. Annexes stay uncommitted per
   `AGENTS.md`.
@@ -396,18 +453,25 @@ Accepted: kill the serif in the app; one primary action; surfaces instead of
 borders; verdict in Go; platform toggle; restore the Ariary fact; split the
 drawer; duration toggle; name protocols in the lab; restore a live trace; TUI
 mapping; drop the 50 ms amber gate; per-direction rates; audit-scoped tier; duel
-guardrail; file fallback for TUI copy.
+guardrail; file fallback for TUI copy; no half-remediation on RouterOS; a
+model-aware economics basis instead of a per-gigabyte-only snapshot; gap-break
+rendering for unanswered probes.
 
 Rejected with evidence: the claim that the RouterOS generator hardcodes `bridge`
-(it requires a named LAN interface, `pkg/remediate/remediate.go:27`); the claim
-that the Ariary figure is a fabricated number (six real tiers exist,
-`pkg/metrics/metrics.go:85`, and the operator can already select one). What was
-true is narrower and is accepted: the report did not record which tier it used,
-and the selector mutated a global. The reviewer's duel numbers and CAKE winner
-are rejected because the corpus selects the winner from data. The earlier draft's
-“SLA passes, therefore green, even with no grade” is removed by gate 3. `/tmp`
-is rejected as the TUI export target. The formula `p95 loaded − p50 idle` is
-wrong for this engine, which uses p95 − p95 (`pkg/audit/audit.go:440`).
+(it refuses to generate without a named LAN interface,
+`pkg/remediate/remediate.go:314`); the claim that the Ariary figure is a
+fabricated number (six real tiers exist, `pkg/metrics/metrics.go:85`, and the
+operator can already select one). What was true is narrower and is accepted: the
+report did not record which basis it used, and the selector mutated a global. The
+reviewer's duel numbers and CAKE winner are rejected because the corpus selects
+the winner from data. The earlier draft's “SLA passes, therefore green, even with
+no grade” is removed by gate 3. `/tmp` is rejected as the TUI export target. The
+formula `p95 loaded − p50 idle` is wrong for this engine, which uses p95 − p95
+(`pkg/audit/audit.go:440`). The proposed thesis desynchronization is stale:
+Chapter III and Tableau 13 already name the four modes
+(`book/content/04-pratique.js:10`). The proposed `cir_depreciation` and
+`metered_volume` model labels are not adopted, because the engine and the book
+already speak A, B and emergency.
 
 ## 12. Standing blockers
 
