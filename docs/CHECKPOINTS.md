@@ -1499,3 +1499,29 @@ end, at a settled decision, and at a handoff.
 - Rule adopted: the book is touched in the same pass as any interface or
   measurement change, and rebuilt before the commit that records it.
 - Unproven: no printed page was produced on a real printer/PDF; no human read.
+
+## 2026-10-31 10:05 UTC · nouvelle phase — l'identité de la thèse
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Critical finding: the title claimed three undefendable things — “garantie
+  d’échéances” (corpus: 60.2 % deadlines met under the simple queue),
+  “application au système d’information” (case study BLOCKED, nothing read),
+  and BBR adjacent to a guarantee (corpus holds BBRv1 only). IDEA1–3 and
+  Untitled 37 overclaim further (“sécurisation”, “priorisation”, one-click).
+- Decision (spec `2026-10-31-cgo-thesis-identity-design.md`): main title takes
+  the master prompt’s own wording — « Conception et évaluation d’un banc
+  d’essai reproductible pour la comparaison de politiques AQM et BBR sur des
+  liens d’accès contraints »; subtitle demotes the institution to case — « Le
+  cas des liens d’accès du service national de prévision météorologique de
+  Madagascar ».
+- Applied (working tree): PRODUCT.md, title page, cover XML (2+2 occurrences),
+  abstract numbers corrected from a transcription drift (324,3/210,3) to the
+  corpus-rendered values (328,2/210,5 ms). Rebuild 2,889 Ko; `memoire.docx`
+  SHA-256 unchanged (`bd171227…`); archive, nombres, renvois, sigles, biblio
+  green; the new title is in `word/document.xml` and the old one is absent.
+- Unproven: the introduction's one-sentence project definition was NOT added —
+  placing it needs a careful read of the intro module, and half-placed prose is
+  worse than none; it is named in the spec as the remaining step. No human read
+  of the new title page.
+- Next: add the project-definition sentence, then the human reviews the title
+  page; verifier and merge decisions unchanged.
