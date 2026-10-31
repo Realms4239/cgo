@@ -1534,3 +1534,18 @@ end, at a settled decision, and at a handoff.
 - Proven: rebuild 2 890 Ko; `memoire.docx` SHA-256 unchanged (`bd171227…`); archive, nombres, renvois, sigles, biblio green; note present in `word/document.xml`.
 - Unproven: no external hallucination evaluator was run (the DIS note mentions HEM as an optional gate); the check is rule + scan, not a model audit.
 - Next: the intro project-definition sentence (named in the identity spec), the human read, then the verifier.
+
+## 2026-10-31 10:40 UTC · coquille distillée — le bandeau ne décode plus rien
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this pair of commits.
+- Changed: `StatusRibbon` drops the corpus counts, the seal hash and the
+  telemetry tier (all remain in Preuves and the report), drops the integrity
+  fetch entirely — one health request instead of two — and keeps mode,
+  connection, running audit, last audit and VÉRIFIER. Walk asserts zero
+  corpus/seal nodes in the ribbon.
+- Test realignment: `title.test.ts` asserted the old “garantie” title and failed
+  after the identity decision; it now pins the bench title and forbids the old
+  phrase in both PRODUCT.md and the title page.
+- Proven: walk 37 steps, 0 failures, 0 console/resource errors, peak 235 ms;
+  50 files / 224 tests; build 350.4 KB gz.
+- Unproven: no human read of the simplified chrome.
