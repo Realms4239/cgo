@@ -1569,3 +1569,20 @@ end, at a settled decision, and at a handoff.
   renvois, sigles, biblio green.
 - Unproven: the rhythm check is a heuristic (sentence split on punctuation);
   no human read of the rewritten annex.
+
+## 2026-10-31 11:25 UTC · l'anneau a un producteur testé, et une échelle
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Changed: `audit.KernelSample` + `KernelTelemetryFrom` (neutral input, empty
+  sample stays absent); `api.kernelTelemetryFromSummary` maps `bpf.Summary`
+  including per-flow rows — placed in the composition layer after the first
+  location (pkg/probe) failed with an import cycle, because `pkg/audit` already
+  imports `pkg/probe`. Ring gains a scale line (0 – max bytes retransmitted).
+- Proven: `go test ./pkg/audit ./pkg/api -run TestKernelTelemetry|TestReportTelemetry`
+  ok; KernelRing 3/3; typecheck clean; build 350.4 KB gz.
+- Unproven, named to one line: the loader does not exist, so nothing calls the
+  bridge yet — when `probe.Load()` returns a session, the audit handler calls
+  `kernelTelemetryFromSummary(session.Summary())` and the ring renders live.
+  No object, no attach: the eBPF row stays BLOCKED.
+- Trace-driven: calibrator refuses <30 baseline samples (already proven);
+  ingress × CHR 11/11 (already proven). Nothing else can be finished here.
