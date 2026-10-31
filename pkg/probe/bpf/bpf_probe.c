@@ -3,8 +3,10 @@
 // bpf_probe.c — télémétrie noyau exacte du banc CGO.
 // Objet CO-RE précompilé et embarqué : la VM ne compile jamais de BPF.
 //
-// Réémissions : raw_tp/tcp_retransmit_skb, succès seulement, skb->len est
-//   déjà le payload TCP du skb de file (pas le clone qui porte les en-têtes).
+// Réémissions : raw_tp/tcp_retransmit_skb, succès seulement. Au point de
+//   trace, la copie de file est sans en-têtes (tcp_transmit_skb les pose sur
+//   le clone) : skb->len est déjà le payload TCP, TSO compris, et
+//   transport_header porte encore le sentinelle 0xFFFF. Ne rien soustraire.
 // Échantillon socket : fentry/tcp_rcv_established, repli kprobe.
 // Drops qdisc : raw_tp/kfree_skb filtré sur SKB_DROP_REASON_QDISC_DROP.
 
@@ -48,7 +50,7 @@ struct flow_stat {
 };
 
 struct global_stat {
-    __u64 retrans_payload; /* IPv6/non-IPv4 : global seulement */
+    __u64 retrans_payload; /* IPv6/non-IPv4 et table pleine : global */
     __u64 retrans_events;
     __u64 drop_packets;
     __u64 drop_bytes;
@@ -114,12 +116,12 @@ int on_retransmit(struct bpf_raw_tracepoint_args *ctx)
     if (!sk || !skb)
         return 0;
 
-    __u64 payload = BPF_CORE_READ(skb, len);
+    __u64 payload_len = BPF_CORE_READ(skb, len);
 
     if (BPF_CORE_READ(sk, __sk_common.skc_family) != AF_INET) {
         struct global_stat *g = globals_get();
         if (g) {
-            __sync_fetch_and_add(&g->retrans_payload, payload);
+            __sync_fetch_and_add(&g->retrans_payload, payload_len);
             __sync_fetch_and_add(&g->retrans_events, 1);
         }
         return 0;
@@ -128,10 +130,18 @@ int on_retransmit(struct bpf_raw_tracepoint_args *ctx)
     struct flow_key key = {};
     socket_key(sk, &key);
     struct flow_stat *st = flow_get_or_create(&key);
-    if (!st)
+    if (!st) {
+        /* Table des flux pleine : les octets restent comptés globalement,
+           sinon le total baisse au moment où la pression monte. */
+        struct global_stat *g = globals_get();
+        if (g) {
+            __sync_fetch_and_add(&g->retrans_payload, payload_len);
+            __sync_fetch_and_add(&g->retrans_events, 1);
+        }
         return 0;
+    }
 
-    __sync_fetch_and_add(&st->retrans_payload, payload);
+    __sync_fetch_and_add(&st->retrans_payload, payload_len);
     __sync_fetch_and_add(&st->retrans_events, 1);
     return 0;
 }

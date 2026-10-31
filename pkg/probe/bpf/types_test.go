@@ -31,3 +31,10 @@ func TestErrorsAreTypedAndReadable(t *testing.T) {
 		t.Fatalf("build error lost the reason: %v", err)
 	}
 }
+
+func TestGlobalsCarryGlobalRetrans(t *testing.T) {
+	g := Globals{RetransPayload: 4096, RetransEvents: 3, MapFull: 1}
+	if g.RetransPayload != 4096 || g.RetransEvents != 3 || g.MapFull != 1 {
+		t.Fatalf("global retrans fields not usable: %+v", g)
+	}
+}

@@ -34,8 +34,12 @@ type Summary struct {
 	Flows          []Flow `json:"flows,omitempty"`
 }
 
-// Globals — diagnostics hôte, jamais une affirmation par flux.
+// Globals — diagnostics hôte, jamais une affirmation par flux. Retrans
+// porte le repli global (IPv6/non-IPv4 et table des flux pleine) : sans ces
+// champs, ces octets disparaîtraient au chargement.
 type Globals struct {
+	RetransPayload uint64
+	RetransEvents  uint64
 	DropPackets    uint64
 	DropBytes      uint64
 	MapFull        uint64

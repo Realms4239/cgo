@@ -1,0 +1,476 @@
+{
+  "generated": "2026-10-31",
+  "host": "DESKTOP-B6K9UCM (Windows 10, Git Bash)",
+  "notes": "checks quote commands the slice plans or VERIFY rows name; expected markers are substrings that genuinely appear on success",
+  "runner_contract": "a check passes only when its command exits 0 AND every expect substring is present; a single non-zero exit fails the check regardless of markers",
+  "global_checks": [
+    {
+      "label": "six gates",
+      "group": "verify",
+      "cmd": "cd /c/cgo && python tools/verify.py",
+      "expect": ["6 passed, 0 failed, 0 not run"],
+      "timeout_s": 1200
+    },
+    {
+      "label": "frontend build",
+      "group": "npm",
+      "cmd": "cd /c/cgo/web/frontend && npm run build",
+      "expect": ["TOTAL gz"],
+      "timeout_s": 600
+    }
+  ],
+  "slices": [
+    {
+      "id": "1",
+      "name": "Enterprise economics & audit",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "pkg/metrics/cost.go",
+        "pkg/probe/tcpinfo_linux.go",
+        "pkg/audit/audit.go",
+        "pkg/audit/telemetry.go",
+        "pkg/audit/report.go",
+        "cmd/cgo/"
+      ],
+      "checks": [
+        {
+          "label": "Go engine: economics, probe, audit, CLI",
+          "group": "go",
+          "cmd": "cd /c/cgo && go test ./pkg/metrics ./pkg/probe/... ./pkg/audit ./cmd/cgo -count=1",
+          "expect": ["ok  "],
+          "timeout_s": 900
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Hardened bench & campaign",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "pkg/qdisc/ge.go",
+        "pkg/qdisc/qdisc.go",
+        "pkg/campagne/",
+        "pkg/doctor/",
+        "kit/cgo-bench-dualns.sh",
+        "kit/run-dualns.sh"
+      ],
+      "checks": [
+        {
+          "label": "Bench, campaign, doctor and qdisc engines",
+          "group": "go",
+          "cmd": "cd /c/cgo && go test ./pkg/qdisc ./pkg/campagne ./pkg/doctor ./pkg/metrics ./cmd/cgo -count=1",
+          "expect": ["ok  "],
+          "timeout_s": 900
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "UI/API surface",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "pkg/api/server.go",
+        "pkg/audit/",
+        "web/frontend/src/"
+      ],
+      "checks": [
+        {
+          "label": "API and audit Go surface",
+          "group": "go",
+          "cmd": "cd /c/cgo && go test ./pkg/api ./pkg/audit ./cmd/cgo -count=1",
+          "expect": ["ok  "],
+          "timeout_s": 900
+        },
+        {
+          "label": "Frontend suite",
+          "group": "npm",
+          "cmd": "cd /c/cgo/web/frontend && npm test",
+          "expect": ["Test Files", "passed"],
+          "timeout_s": 600
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "name": "eBPF ground truth",
+      "status": "Blocked",
+      "runnable": "no",
+      "blocked_by": "stable Linux 6.8 host and a prebuilt pkg/probe/bpf/bpf_probe.o; Windows has no clang/bpftool/BTF",
+      "deliverable": [
+        "pkg/probe/bpf/bpf_probe.c",
+        "pkg/probe/bpf/BUILD.md",
+        "pkg/probe/bpf/bpf_probe.o",
+        "pkg/probe/bpf/session_linux.go",
+        "Makefile"
+      ],
+      "checks": []
+    },
+    {
+      "id": "5",
+      "name": "Trace-driven netem .dist",
+      "status": "Windows-green",
+      "runnable": "no",
+      "blocked_by": "real field trace of at least 30 baseline samples plus a Linux 6.8 bench for netem acceptance",
+      "deliverable": [
+        "pkg/audit/telemetry.go",
+        "pkg/qdisc/dist.go",
+        "pkg/qdisc/ge.go",
+        "cmd/cgo/calibrate.go",
+        "pkg/campagne/dualns.go",
+        "docs/methodology.fr.md"
+      ],
+      "checks": []
+    },
+    {
+      "id": "6",
+      "name": "Ingress IFB shaping",
+      "status": "Windows-green",
+      "runnable": "no",
+      "blocked_by": "Linux 6.8 bench for IFB live acceptance (Task 9)",
+      "deliverable": [
+        "pkg/remediate/remediate.go",
+        "pkg/qdisc/ingress.go",
+        "pkg/campagne/campagne.go",
+        "pkg/campagne/dualns.go",
+        "pkg/audit/report.go",
+        "kit/cgo-bench-dualns.sh"
+      ],
+      "checks": []
+    },
+    {
+      "id": "7",
+      "name": "BBRv3 evaluation matrix",
+      "status": "Windows-green",
+      "runnable": "no",
+      "blocked_by": "Linux 7.1 BBRv3 kernel provisioned and booted on the bench VM for Task 8",
+      "deliverable": [
+        "pkg/model/cc.go",
+        "pkg/doctor/doctor.go",
+        "pkg/campagne/",
+        "cmd/cgo/",
+        "kit/install-bbr3.sh"
+      ],
+      "checks": []
+    },
+    {
+      "id": "8",
+      "name": "Audit report surface & thesis citation",
+      "status": "In progress",
+      "runnable": "yes",
+      "deliverable": [
+        "web/frontend/src/lib/citation.ts",
+        "web/frontend/src/components/AuditReportCard.tsx",
+        "web/frontend/src/lib/types.ts",
+        "docs/api.md"
+      ],
+      "checks": [
+        {
+          "label": "Frontend audit card and citation tests",
+          "group": "npm",
+          "cmd": "cd /c/cgo/web/frontend && npm test",
+          "expect": ["Test Files", "passed"],
+          "timeout_s": 600
+        },
+        {
+          "label": "Go API and CLI unchanged",
+          "group": "go",
+          "cmd": "cd /c/cgo && go test ./pkg/api/... ./cmd/cgo/... -count=1",
+          "expect": ["ok  "],
+          "timeout_s": 900
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "name": "Engineering system (AIR x DIS synthesis)",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "AGENTS.md",
+        "docs/VERIFY.md",
+        "docs/CHECKPOINTS.md",
+        "docs/ERRORS.md",
+        "tools/verify.py",
+        "tools/verify_test.py",
+        ".githooks/pre-commit",
+        ".githooks/pre-push",
+        "Makefile"
+      ],
+      "checks": [
+        {
+          "label": "Six gates",
+          "group": "verify",
+          "cmd": "cd /c/cgo && python tools/verify.py",
+          "expect": ["6 passed, 0 failed, 0 not run"],
+          "timeout_s": 900
+        },
+        {
+          "label": "Gate fault proofs (selftest)",
+          "group": "verify",
+          "cmd": "cd /c/cgo && python tools/verify.py --selftest",
+          "expect": ["caught"],
+          "timeout_s": 600
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "name": "Live interface observation",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "pkg/iface/iface.go",
+        "pkg/api/server.go",
+        "cmd/cgo/server.go",
+        "web/frontend/src/views/LiveView.tsx",
+        "web/frontend/src/lib/live.ts",
+        "kit/run-dualns.sh"
+      ],
+      "checks": [
+        {
+          "label": "Interface sampler, hub and env wiring",
+          "group": "go",
+          "cmd": "cd /c/cgo && go test ./pkg/iface ./pkg/api ./cmd/cgo -count=1",
+          "expect": ["ok  "],
+          "timeout_s": 900
+        },
+        {
+          "label": "Frontend live chart tests",
+          "group": "npm",
+          "cmd": "cd /c/cgo/web/frontend && npm test",
+          "expect": ["Test Files", "passed"],
+          "timeout_s": 600
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "name": "Frozen corpus seal anchor",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "docs/frozen-manifests.sha256",
+        "tools/verify.py",
+        "tools/verify_test.py"
+      ],
+      "checks": [
+        {
+          "label": "Frozen gate checks the 159-manifest anchor",
+          "group": "verify",
+          "cmd": "cd /c/cgo && python tools/verify.py --only frozen",
+          "expect": ["PASS", "159 manifests"],
+          "timeout_s": 300
+        },
+        {
+          "label": "Seal and gate unit tests",
+          "group": "verify",
+          "cmd": "cd /c/cgo && python tools/verify_test.py",
+          "expect": ["OK"],
+          "timeout_s": 300
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "name": "Book truth-up & prose restructure",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "book/content/*.js",
+        "book/build-docx.js",
+        "book/memoire-rebuild.docx"
+      ],
+      "checks": [
+        {
+          "label": "Frozen corpus audit (both OK lines)",
+          "group": "book",
+          "cmd": "cd /c/cgo && python book/tools/audit-archive.py",
+          "expect": ["corpus 159 runs"],
+          "timeout_s": 300
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "name": "Production-facing reframing & economic reconciliation",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "PRODUCT.md",
+        "book/content/00-front.js",
+        "book/content/00-couverture.xml",
+        "book/memoire-rebuild.docx"
+      ],
+      "checks": [
+        {
+          "label": "Frozen corpus audit (both OK lines)",
+          "group": "book",
+          "cmd": "cd /c/cgo && python book/tools/audit-archive.py",
+          "expect": ["corpus 159 runs"],
+          "timeout_s": 300
+        },
+        {
+          "label": "Rendered numbers follow the book convention",
+          "group": "book",
+          "cmd": "cd /c/cgo && python book/tools/audit-nombres.py book/memoire-rebuild.docx",
+          "expect": ["paragraphes analyses", "OK"],
+          "timeout_s": 300
+        },
+        {
+          "label": "book rebuild",
+          "group": "book",
+          "cmd": "cd /c/cgo && node book/build-docx.js",
+          "expect": ["memoire-rebuild.docx"],
+          "timeout_s": 600
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "name": "Operator overview & navigation",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "web/frontend/src/lib/synthese.ts",
+        "web/frontend/src/components/NavIcon.tsx",
+        "web/frontend/src/App.tsx",
+        "web/frontend/src/styles/index.css"
+      ],
+      "checks": [
+        {
+          "label": "Frontend suite",
+          "group": "npm",
+          "cmd": "cd /c/cgo/web/frontend && npm test",
+          "expect": ["Test Files", "passed"],
+          "timeout_s": 600
+        },
+        {
+          "label": "Six gates",
+          "group": "verify",
+          "cmd": "cd /c/cgo && python tools/verify.py",
+          "expect": ["6 passed, 0 failed, 0 not run"],
+          "timeout_s": 900
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "name": "Interface v2 + academic title",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "web/frontend/src/App.tsx",
+        "web/frontend/src/lib/auditSummary.ts",
+        "web/frontend/src/lib/dashboard.ts",
+        "web/frontend/src/lib/ribbon.ts",
+        "web/frontend/src/lib/bench.ts",
+        "web/frontend/qa-walk.mjs",
+        "web/frontend/perf-probe.mjs"
+      ],
+      "checks": [
+        {
+          "label": "Frontend typecheck and tests",
+          "group": "npm",
+          "cmd": "cd /c/cgo/web/frontend && npm run typecheck && npm test",
+          "expect": ["Test Files", "passed"],
+          "timeout_s": 900
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "name": "RouterOS v7 compliance via CHR (QEMU)",
+      "status": "In progress",
+      "runnable": "partial",
+      "blocked_by": "CHR boot needs QEMU and the CHR image (human); only the Go replay path runs here",
+      "deliverable": [
+        "pkg/audit/routeros_config.go",
+        "pkg/audit/routeros_compare.go",
+        "pkg/audit/routeros_proof.go",
+        "cmd/cgo-chr/",
+        "kit/chr/"
+      ],
+      "checks": [
+        {
+          "label": "CHR replay path (parser, diff, proof, fake console)",
+          "group": "go",
+          "cmd": "cd /c/cgo && go test ./cmd/cgo-chr/ -count=1",
+          "expect": ["ok  "],
+          "timeout_s": 300
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "name": "Slice-4 Go half + portable host readiness + runbook",
+      "status": "In progress",
+      "runnable": "partial",
+      "blocked_by": "eBPF attach and the Linux 6.8 acceptance runbook need a Linux 6.8 host; Windows proves Go/frontend only",
+      "deliverable": [
+        "pkg/probe/bpf/",
+        "pkg/probe/kernelsource.go",
+        "pkg/audit/report.go",
+        "pkg/api/server.go",
+        "kit/host-readiness.sh",
+        "docs/runbooks/2026-10-30-host-acceptance.md",
+        "web/frontend/src/components/StatusRibbon.tsx"
+      ],
+      "checks": [
+        {
+          "label": "eBPF contract, fallback ladder, report and health source",
+          "group": "go",
+          "cmd": "cd /c/cgo && go test ./pkg/probe/ ./pkg/probe/bpf/ ./pkg/audit/ ./pkg/api/ -count=1",
+          "expect": ["ok  "],
+          "timeout_s": 900
+        },
+        {
+          "label": "Frontend telemetry badge tests",
+          "group": "npm",
+          "cmd": "cd /c/cgo/web/frontend && npm test",
+          "expect": ["Test Files", "passed"],
+          "timeout_s": 600
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "name": "Verifier packets + methodology chapter",
+      "status": "Done",
+      "runnable": "yes",
+      "deliverable": [
+        "docs/verification/2026-10-30-slices-8-14-15.md",
+        "docs/thesis_trace_driven_methodology.md"
+      ],
+      "checks": [
+        {
+          "label": "Links gate over the packet and chapter",
+          "group": "verify",
+          "cmd": "cd /c/cgo && python tools/verify.py --only links",
+          "expect": ["1 passed"],
+          "timeout_s": 300
+        },
+        {
+          "label": "Packet and chapter files present and non-empty",
+          "group": "docs",
+          "cmd": "cd /c/cgo && test -s docs/verification/2026-10-30-slices-8-14-15.md && test -s docs/thesis_trace_driven_methodology.md && echo docs-present",
+          "expect": ["docs-present"],
+          "timeout_s": 60
+        }
+      ]
+    },
+    {
+      "id": "19",
+      "name": "sadcnwp read-only case study",
+      "status": "Blocked",
+      "runnable": "no",
+      "blocked_by": "operator grant covering contract section 6(a)-(d): non-sensitive dump, service list, naming or pseudonym, public sign-off",
+      "deliverable": [
+        "docs/superpowers/specs/2026-10-30-cgo-case-study-contract.md"
+      ],
+      "checks": []
+    }
+  ]
+}
