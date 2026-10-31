@@ -125,7 +125,7 @@ export default function App() {
           </div>
           <div className="hd-right">
             <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
-            <span id="hd-state" className="mono">{live?.phase ?? 'idle'}</span>
+            <span id="hd-state" className="mono">{live?.phase ?? 'au repos'}</span>
           </div>
         </header>
 
@@ -155,7 +155,7 @@ export default function App() {
         <footer className="foot-ticker">
           <span id="ft-prov">source : {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
           <span aria-hidden="true" className="foot-sep">|</span>
-          <span id="ft-run" className="mono">événement #{live?.event_id ?? '—'} · {live?.phase ?? 'idle'}</span>
+          <span id="ft-run" className="mono">événement #{live?.event_id ?? '—'} · {live?.phase ?? 'au repos'}</span>
           <span className="fill" />
           <span className="mono">Meteolink</span>
         </footer>

@@ -225,9 +225,9 @@ export default function LiveView({ active = true }: { active?: boolean }) {
     : !liveSnap ? 'Hors ligne — en attente du flux'
     : liveSnap.load_status === 'bulk-on' ? 'Charge — bulk actif'
     : liveSnap.phase === 'surveil' ? 'Surveillance — sondes légères'
-    : liveSnap.phase === 'baseline' ? 'Baseline'
+    : liveSnap.phase === 'baseline' ? 'Repos (référence)'
     : liveSnap.phase === 'recup' ? 'Récupération'
-    : 'Idle'
+    : 'Au repos'
 
   // p95 partiel honnête — le nombre est vrai (fenêtre courante), seulement
   // la complétude est indiquée : "en cours 42 s/120 s" si la phase tourne.
@@ -242,7 +242,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
     : !liveSnap ? 'var(--text-muted)'
     : banner.startsWith('Charge') ? 'var(--t-threshold)'
     : banner.startsWith('Surveillance') ? 'var(--t-live)'
-    : banner === 'Baseline' ? 'var(--t-live)'
+    : banner === 'Repos (référence)' ? 'var(--t-live)'
     : banner === 'Récupération' ? 'var(--t-ok)'
     : 'var(--text-faint)'
 

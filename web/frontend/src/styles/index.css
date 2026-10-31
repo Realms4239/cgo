@@ -56,6 +56,14 @@ header { grid-area: hd; position: relative; z-index: 10; display: flex; align-it
 
 /* bandeau d'état — trois lectures ponctuelles */
 .app-header-center { justify-content: flex-start; }
+/* contrôles natifs au monde : la case cochée prend la teinte vivante,
+   pas le bleu du navigateur */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--t-live); }
+
+/* le formulaire tient sa mesure : deux colonnes, 760 px, jamais une rail
+   de 1 050 px pour un nom de site et un select à trois valeurs */
+.audit-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); max-width: 760px; align-items: start; }
+
 .status-ribbon { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; font: 400 var(--fs-micro) var(--font-mono); color: var(--text-muted); min-width: 0; }
 .ribbon-item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ribbon-item.live { color: var(--t-live); }
@@ -202,6 +210,7 @@ footer .fill { margin-left: auto; }
   .mode-rail { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; z-index: 60; border-top: 1px solid var(--hairline); justify-content: space-around; background: var(--surface-soft); }
   .mode-btn { flex: 1 1 0; flex-direction: column; gap: 2px; justify-content: center; padding: 4px; height: 100%; min-height: 48px; }
   .mode-lbl { font-size: var(--fs-micro); letter-spacing: 0; }
+  .audit-form { grid-template-columns: 1fr; }
   /* 390 px : les comptes du corpus et le sceau vivent dans Preuves ; le
      bandeau garde l'état, la connexion, l'audit en cours et l'action */
   .ribbon-corpus, .ribbon-seal, .ribbon-sep { display: none; }
@@ -656,7 +665,6 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .audit-presets { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .audit-preset { cursor: pointer; }
 .audit-preset-note { font-size: var(--fs-micro); }
-.audit-form { display: flex; flex-direction: column; gap: var(--sp-2); }
 .audit-pills { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
 .audit-advanced-toggle { align-self: flex-start; padding: var(--sp-1) var(--sp-2); }
 .audit-launch { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }
