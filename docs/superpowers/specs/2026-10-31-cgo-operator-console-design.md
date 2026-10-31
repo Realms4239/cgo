@@ -31,7 +31,7 @@ mode, not by the default surface.
 
 In scope: shell, typography, surfaces, dashboard, audit, bench, evidence, the
 verdict engine, the report fields the UI needs, the live timeline, the duel
-endpoint, the audit-scoped tariff, the TUI mapping, DESIGN.md, PRODUCT.md, book
+endpoint, the campaign-frozen tier, the TUI mapping, DESIGN.md, PRODUCT.md, book
 Annex E and F.
 
 Out of scope:
@@ -90,11 +90,15 @@ a load window:
 |---|---|---|---|
 | 1 | load not attempted | neutral | Pas encore mesuré |
 | 2 | load attempted, bulk never established | neutral | Charge non établie |
-| 3 | load established, grade empty or delta not finite | neutral | Note indisponible |
-| 4 | `cap_sla.measured && cap_sla.breach` | red | Alertes en retard |
+| 3 | `cap_sla.measured && cap_sla.breach` | red | Alertes en retard |
+| 4 | load established, grade empty or delta not finite | neutral | Note indisponible |
 | 5 | grade D or F | red | Saturation critique |
 | 6 | grade C | amber | Lien fragile |
 | 7 | grade A+, A or B | green | Lien sain |
+
+A measured mission failure outranks a missing grade: gate 3 precedes gate 4, so
+an audit that proves the alert target was missed is never softened to
+“indisponible”.
 
 Rules that make this safe:
 - Gate 6 and 7 read the same `bloat_grade` the “Qualité du lien” fact displays, so
@@ -103,7 +107,7 @@ Rules that make this safe:
 - No gate may return green without a grade. The reviewer's hazard was reachable:
   `capSamples` pools the load-window small probes (`pkg/audit/audit.go:580`), so a
   bulk that transfers zero bytes while probes succeed yields a passing SLA with no
-  grade. Gate 3 catches it.
+  grade. Gate 4 catches it.
 - Thresholds are the existing ones only: the Waveform bands
   (`pkg/metrics/bufferbloat.go:11`) and `CAPDeadlineMs`/`CAPBreachThresholdPct`
   (`pkg/metrics/cost.go:81-82`). The verdict reads `cap_sla.breach`, never a
@@ -220,38 +224,51 @@ the last few seconds. The audit progress gains a full-run, per-second series:
   The alert percentage appears only after the freeze, because the engine computes
   it at the freeze.
 
-### 3.6 Audit-scoped tariff
+### 3.6 Economic basis, and the tier where it actually lives
 
-- `audit.Params` gains `Tier string`; `POST /api/audit/start` accepts `tier`;
-  `BuildReport` values the economics with it and records a basis snapshot that
-  fits all three models already in the engine (`EconomicsScenario.Model` is
-  `"A"`, `"B"` or `"emergency"`, `pkg/metrics/cost.go:115-121`):
+Correction of record, made after checking the consumers: the audit's Ariary
+figure never reads a price tier. `BuildEconomics` composes model A from the two
+enterprise plans, model B from the two B2B tariffs, and the emergency bound from
+`RetailEmergencyARPerGB`, then marks the primary by declared link type
+(`pkg/metrics/cost.go:138-196`). `DefaultTier` is read only by the campaign
+(`pkg/campagne/campagne.go:429` and `:631`). An audit-scoped tier selector would
+therefore control a number the audit does not use, so it is dropped.
 
-  ```go
-  type EconomicsBasis struct {
-      Model          string  `json:"model"`            // "A" | "B" | "emergency"
-      Name           string  `json:"name"`             // scenario or tier name
-      ArPerGB        float64 `json:"ar_per_gb,omitempty"`        // B, emergency
-      BundleBytes    float64 `json:"bundle_bytes,omitempty"`     // B, emergency
-      MonthlyOpExMGA float64 `json:"monthly_opex_mga,omitempty"` // A
-      CIRMbps        float64 `json:"cir_mbps,omitempty"`         // A
-      Source         string  `json:"source"`           // "audit" | "hôte"
-  }
-  ```
+What the audit needs is a numeric basis, so the UI never parses a French sentence
+to explain a figure. Added to `EconomicsScenario`:
 
-  A dedicated CIR line is never forced through volume arithmetic: model A
-  reports the monthly charge and the CIR, models B and emergency report the
-  per-gigabyte price and the bundle. The reviewer's `cir_depreciation` and
-  `metered_volume` labels are not adopted, because the engine and the book
-  already speak A / B / emergency.
-- The audit form's “Forfait de référence” selector is fed by `/api/cost/tiers`
-  and writes only the audit payload. The audit path never calls
-  `POST /api/cost/tier`, so one technician cannot reprice another technician's
-  view. The settings selector keeps governing the bench default.
-- The hero fact names its basis in the operator's terms: “ligne dédiée
-  1 000 000 Ar/mois” for model A, “forfait yas-month-4.5gb” for model B,
-  “hors forfait” for the emergency bound. When the waste cannot be valued the
-  fact reads “Non chiffré”, never zero.
+```go
+type EconomicsNumbers struct {
+    MonthlyOpExMGA float64 `json:"monthly_opex_mga,omitempty"` // model A
+    CIRMbps        float64 `json:"cir_mbps,omitempty"`         // model A
+    ARPerGB        float64 `json:"ar_per_gb,omitempty"`        // model B, emergency
+    RetransRatio   float64 `json:"retrans_ratio"`
+    WastedBytes    float64 `json:"wasted_bytes"`
+    LoadSeconds    float64 `json:"load_seconds"`
+}
+// EconomicsScenario gains: Numbers EconomicsNumbers `json:"numbers"`
+```
+
+- Model A is never forced through volume arithmetic: it reports the monthly
+  charge and the CIR. Models B and emergency report the per-gigabyte price. The
+  reviewer's `cir_depreciation` / `metered_volume` labels are not adopted, because
+  the engine and the book already speak A, B and emergency.
+- The operator's real lever is the declared link type, already a primary field of
+  the audit form and already the input to `primaryName`. The card states it:
+  “scénario retenu pour un lien 4G : APN entreprise”. The drawer lists every
+  scenario with its numbers, as it does today.
+- When the waste cannot be valued the fact reads “Non chiffré”, never zero.
+
+The mutation hazard is real, but it lives in the campaign. `POST /api/cost/tier`
+changes the global `DefaultTier`, and the campaign reads it per event at the
+freeze, so one run can carry two cost bases. Fix:
+
+- `buildMatrixConfig` freezes the active tier into the run config, next to
+  profiles, qdiscs, ccs, reps, kernel and bench.
+- The campaign cost reads the tier from its own run config, not from the global.
+- `POST /api/cost/tier` returns 409 while a campaign runs, naming the run.
+- The results proof and the duel proof name the tier frozen with the run, so a
+  cost column is traceable to one tariff.
 
 ### 3.7 Duel endpoint
 
@@ -327,7 +344,7 @@ Framed as a lab, never as the operator's link.
 | Alertes à l’heure | complétions 16 Kio sous 220 ms | `cap_sla.ok_pct` |
 | Réponse sous charge | petit p95 chargé | `http_small_p95_ms` |
 | Qualité du lien | note bufferbloat Waveform | `bloat_grade` |
-| Capacité gaspillée | Ar/h, scénario et forfait | `economics.primary` |
+| Capacité gaspillée | Ar/h, scénario et base numérique | `economics.primary` |
 | Protéger ce lien | script exact par plateforme | `remediation` |
 | Envoi / Réception | egress / ingress IFB | `direction` |
 | Régulation active | CAKE, fq_codel, pfifo_fast | `qdisc` |
@@ -347,7 +364,8 @@ sealed proof is named next to them.
 2. No command without measured capacity and idle RTT; no ingress script without
    a named LAN interface or a measured down window.
 3. Every displayed rate shows measured and shaped values.
-4. Every Ariary figure names its tier and its source.
+4. Every Ariary figure names its model, its scenario and its numbers. A bench
+   cost column names the tier frozen with its run.
 5. The duel winner is valid-only with `n ≥ 3` and cites run IDs.
 6. BBRv3 appears only when `/api/capabilities` reports it.
 7. The bench never describes the audited link; the simulation offers no
@@ -377,18 +395,21 @@ Go:
 - `pkg/metrics` table test for all seven gates, including bulk-failed-with-passing-probes
   and grade-absent-with-SLA, asserting no green without a grade.
 - `pkg/audit` report test: `verdict` present in JSON and Markdown; per-direction
-  rate and interface fields; tier snapshot with `source: audit` and `source: hôte`.
+  rate and interface fields; `economics.primary.numbers` carrying the model's own
+  basis.
 - `pkg/api` tests: `/api/duel` rejects `n < 3` and degraded cells, deterministic
   tie-break; `/api/audit/live` timeline length matches `total_sec` and never
-  exceeds the cap; `POST /api/audit/start` accepts `tier` and does not change the
-  host default.
+  exceeds the cap; `POST /api/cost/tier` returns 409 while a campaign runs and
+  names the run.
+- `pkg/campagne` test: the run config freezes the active tier, and a row's cost
+  derives from the frozen tier rather than the global one.
 - `pkg/remediate` tests: a measured download with an undeclared LAN interface
   still yields the ingress script, naming `bridge` and carrying the warning line,
   with `routeros_lan_assumed` true; an unmeasured download yields no ingress
   script at all, assumed interface or not.
-- Economics basis test: model A records `monthly_opex_mga` and `cir_mbps` with no
-  per-gigabyte field; model B and the emergency bound record the price and the
-  bundle, never a monthly charge.
+- Economics numbers test: model A records `monthly_opex_mga` and `cir_mbps` with
+  no `ar_per_gb`; model B and the emergency bound record `ar_per_gb` with no
+  monthly charge.
 - Existing `/api/capabilities` test stays the guard for BBRv3 honesty.
 
 Frontend:
@@ -413,10 +434,11 @@ serif, captures at 1920/1366/390. No live bench run in this work.
 
 - `DESIGN.md` rewritten for the console: type scale, surfaces, navigation,
   verdict, drawer, lexicon, honesty rules.
-- `PRODUCT.md`: persona order corrected to layman operator first; tier snapshot,
-  duel endpoint and verdict field documented; the stale “no redesign in this
-  wave” line removed; the retail-tier wording made precise (the default mobile
-  tier prices at 5 556 Ar/Go while the emergency overage model is separate).
+- `PRODUCT.md`: persona order corrected to layman operator first; the verdict
+  field, the duel endpoint, the economic numbers on the primary scenario and the
+  campaign-frozen tier documented; the stale “no redesign in this wave” line
+  removed; the economics paragraph made precise about which figure comes from a
+  contract scenario and which from a mobile tier.
 - Book Chapter III needs content edits, not a terminology bridge. The four
   destinations are already the ones this console keeps: `book/content/04-pratique.js:10`
   states “L’interface de supervision expose quatre modes — Tableau de bord,
@@ -433,16 +455,16 @@ serif, captures at 1920/1366/390. No live bench run in this work.
 - Book Annex E rewritten screen by screen with the new captures; Annex F gains the
   duel eligibility rule and the rejeu wording. Annexes stay uncommitted per
   `AGENTS.md`.
-- Ledgers: `VERIFY.md` rows for the verdict, duel, timeline and tier snapshot as
-  builder-pass with verifier pending; `CHECKPOINTS.md` entry; `ERRORS.md` entry
-  for the false-green hazard (a passing alert probe with no grade) and for the
-  hardcoded bench axes fixed in 49b5f15.
+- Ledgers: `VERIFY.md` rows for the verdict, duel, live timeline, economic
+  numbers and the campaign-frozen tier as builder-pass with verifier pending;
+  `CHECKPOINTS.md` entry; `ERRORS.md` entry for the false-green hazard (a passing
+  alert probe with no grade) and for the hardcoded bench axes fixed in 49b5f15.
 
 ## 10. Phasing
 
 Two slices, one dependency.
-- Slice 20A, engine truth: verdict, report fields, tier snapshot, live timeline,
-  duel endpoint, Go tests, ledger rows.
+- Slice 20A, engine truth: verdict, report fields, economic numbers, live
+  timeline, duel endpoint, campaign-frozen tier, Go tests, ledger rows.
 - Slice 20B, operator console: shell, typography, surfaces, four destinations,
   recommendation card, drawer tabs, canvas, bench preset, evidence, lexicon gate,
   QA walk, DESIGN/PRODUCT and book rewrites. Depends on 20A.
@@ -452,25 +474,30 @@ Two slices, one dependency.
 Accepted: kill the serif in the app; one primary action; surfaces instead of
 borders; verdict in Go; platform toggle; restore the Ariary fact; split the
 drawer; duration toggle; name protocols in the lab; restore a live trace; TUI
-mapping; drop the 50 ms amber gate; per-direction rates; audit-scoped tier; duel
-guardrail; file fallback for TUI copy; no half-remediation on RouterOS; a
-model-aware economics basis instead of a per-gigabyte-only snapshot; gap-break
-rendering for unanswered probes.
+mapping; drop the 50 ms amber gate; per-direction rates; duel guardrail; file
+fallback for TUI copy; no half-remediation on RouterOS; numeric economics fields
+instead of a prose-only basis; gap-break rendering for unanswered probes.
 
 Rejected with evidence: the claim that the RouterOS generator hardcodes `bridge`
 (it refuses to generate without a named LAN interface,
-`pkg/remediate/remediate.go:314`); the claim that the Ariary figure is a
-fabricated number (six real tiers exist, `pkg/metrics/metrics.go:85`, and the
-operator can already select one). What was true is narrower and is accepted: the
-report did not record which basis it used, and the selector mutated a global. The
-reviewer's duel numbers and CAKE winner are rejected because the corpus selects
-the winner from data. The earlier draft's “SLA passes, therefore green, even with
-no grade” is removed by gate 3. `/tmp` is rejected as the TUI export target. The
-formula `p95 loaded − p50 idle` is wrong for this engine, which uses p95 − p95
-(`pkg/audit/audit.go:440`). The proposed thesis desynchronization is stale:
-Chapter III and Tableau 13 already name the four modes
-(`book/content/04-pratique.js:10`). The proposed `cir_depreciation` and
-`metered_volume` model labels are not adopted, because the engine and the book
+`pkg/remediate/remediate.go:314`); the proposed audit-scoped tier selector,
+because the audit never reads a tier at all — `BuildEconomics` works from
+contractual scenarios keyed to the declared link type
+(`pkg/metrics/cost.go:138-196`), and `DefaultTier` is consumed only by the
+campaign (`pkg/campagne/campagne.go:429`, `:631`). The mutation hazard is real but
+belongs to the campaign, and §3.6 fixes it there. The claim that the Ariary
+figure was fabricated is also rejected: six real tiers exist
+(`pkg/metrics/metrics.go:85`) and the scenarios are named in the report. What was
+true and is accepted is narrower — the numbers behind a scenario were only
+readable from a prose string. The reviewer's duel numbers and CAKE winner are
+rejected because the corpus selects the winner from data. The earlier draft's
+“SLA passes, therefore green, even with no grade” is removed by gate 4. `/tmp`
+is rejected as the TUI export target. The formula `p95 loaded − p50 idle` is
+wrong for this engine, which uses p95 − p95 (`pkg/audit/audit.go:440`). The
+proposed thesis desynchronization is stale: Chapter III and Tableau 13 already
+name the four modes (`book/content/04-pratique.js:10`). The proposed
+`cir_depreciation` and `metered_volume` model labels are not adopted, because the
+engine and the book
 already speak A, B and emergency.
 
 ## 12. Standing blockers
