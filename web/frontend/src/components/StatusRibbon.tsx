@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAuditStore } from '../store/audit'
 import { useUIStore } from '../store/ui'
 import { remainingSeconds } from '../lib/auditFlow'
-import { auditFacts, corpusFacts, ribbonMode, sealFacts, telemetryLabel, type IntegrityFacts } from '../lib/ribbon'
+import { auditFacts, ribbonMode } from '../lib/ribbon'
 
 export default function StatusRibbon() {
   const connected = useUIStore(s => s.connected)
@@ -14,24 +14,16 @@ export default function StatusRibbon() {
   const stage = useAuditStore(s => s.stage)
   const auditLive = useAuditStore(s => s.live)
   const [mode, setModeName] = useState('')
-  const [integrity, setIntegrity] = useState<IntegrityFacts | null>(null)
-  const [telemetry, setTelemetry] = useState<{ source?: string; reason?: string }>({})
   const [failed, setFailed] = useState(false)
 
+  // Le bandeau ne porte que l'état et le dernier audit. Les comptes du corpus,
+  // le sceau et le palier de télémétrie vivent dans Preuves et le rapport : un
+  // technicien n'a pas à les décoder avant d'agir. Une lecture, une requête.
   const load = () => {
-    Promise.allSettled([
-      fetch('/api/health').then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))),
-      fetch('/api/integrity').then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))),
-    ]).then(([h, i]) => {
-      const hOk = h.status === 'fulfilled'
-      const iOk = i.status === 'fulfilled'
-      if (hOk) {
-        setModeName((h.value as any)?.mode ?? '')
-        setTelemetry((h.value as any)?.telemetry ?? {})
-      }
-      if (iOk) setIntegrity(i.value as IntegrityFacts)
-      setFailed(!hOk || !iOk)
-    })
+    fetch('/api/health')
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(j => { setModeName((j as any)?.mode ?? ''); setFailed(false) })
+      .catch(() => setFailed(true))
   }
 
   useEffect(() => {
@@ -48,9 +40,6 @@ export default function StatusRibbon() {
       <span className={'ribbon-item' + (connected ? ' ok' : ' off')}>
         SSE {sseStatus}
       </span>
-      <span className="ribbon-item" data-testid="ribbon-telemetry" title={telemetry.reason || undefined}>
-        Télémétrie : {telemetryLabel(telemetry.source)}
-      </span>
       {auditing ? (
         // Seul fait réellement temporel du bandeau : l'audit en cours.
         // L'annoncer seul évite de relire les comptes du corpus à chaque
@@ -61,8 +50,6 @@ export default function StatusRibbon() {
         </span>
       ) : null}
       <span className="ribbon-item">{auditFacts(report)}</span>
-      <span className="ribbon-item ribbon-corpus">{corpusFacts(integrity)}</span>
-      <span className="ribbon-item ribbon-seal">{sealFacts(integrity?.hash8)}</span>
       {failed ? (
         <button type="button" className="btn ribbon-retry" onClick={load} title="relire l'état du serveur">
           RÉESSAYER

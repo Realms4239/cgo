@@ -45,6 +45,7 @@ await mark('ouverture')
 await page.waitForTimeout(6000)
 
 // 1 — tableau de bord : les deux mondes sont séparés et nommés
+ok('le bandeau ne porte plus les comptes ni le sceau', await page.locator('.ribbon-corpus, .ribbon-seal').count() === 0)
 const realTag = await page.locator('.dash-tag.real').first().textContent().catch(() => null)
 const simTag = await page.locator('.dash-tag.sim').first().textContent().catch(() => null)
 ok('dashboard sépare réel et simulé', !!realTag && !!simTag, `${realTag} | ${simTag}`)
