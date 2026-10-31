@@ -1525,3 +1525,12 @@ end, at a settled decision, and at a handoff.
   of the new title page.
 - Next: add the project-definition sentence, then the human reviews the title
   page; verifier and merge decisions unchanged.
+
+## 2026-10-31 10:20 UTC · « no AI » au sens AIR/DIS — la traçabilité écrite dans le mémoire
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit (book working tree).
+- Rule applied, from the DIS guidance (`C:/DISanalyzer-logs/research/ai-assisted-log-analysis.md`): every AI claim traces to a line of evidence or it is labelled unverified. The project already enforces it in the ledgers; the thesis now states it: a “Traçabilité” paragraph in the annexes says each number carries a VERIFY row or « non mesuré », no assisted phrase introduced a figure, an unopenable source is called inaccessible rather than paraphrased, and blocked passages name their unblock condition.
+- Lexicon scan (révolutionnaire, sans effort, en un clic, puissant, robuste, seamless, powered by, intelligent, unlock, solution miracle) over `book/content`, `PRODUCT.md`, frontend sources: 5 hits, all legitimate technical uses (“robustesse” in a requirements sentence; three code comments). No marketing or AI-tic pattern to remove.
+- Proven: rebuild 2 890 Ko; `memoire.docx` SHA-256 unchanged (`bd171227…`); archive, nombres, renvois, sigles, biblio green; note present in `word/document.xml`.
+- Unproven: no external hallucination evaluator was run (the DIS note mentions HEM as an optional gate); the check is rule + scan, not a model audit.
+- Next: the intro project-definition sentence (named in the identity spec), the human read, then the verifier.
