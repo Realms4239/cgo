@@ -225,6 +225,19 @@ footer .fill { margin-left: auto; }
   main { padding-bottom: 68px; }
 }
 
+/* Fiche terrain — sur papier, seule la destination visible reste : ni rail,
+   ni bandeau, ni boutons ; encre noire, cartes qui ne se coupent pas. */
+@media print {
+  @page { margin: 14mm; }
+  .mode-rail, header, .foot-ticker, .status-ribbon, .toasts, .btn,
+  .syn-actions, .quick-prompt { display: none !important; }
+  body { background: #fff; color: #111; }
+  main { height: auto; overflow: visible; }
+  .view { padding: 0; animation: none; }
+  .card { border-color: #bbb; background: #fff; break-inside: avoid; }
+  .mono, .data-table, .audit-verdict, .syn-read { color: #111; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wordmark-text { letter-spacing: 0.04em !important; }
   .arm-progress { animation: none !important; transform: scaleX(1) !important; }
