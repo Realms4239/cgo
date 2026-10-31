@@ -1368,3 +1368,17 @@ end, at a settled decision, and at a handoff.
 - Unproven: no human visual review of the configurer after the change; the
   long-task variance remains unexplained beyond host load.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-31 05:48 UTC · coupe plus dure — la preuve d'abord, l'attente sans écho
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Changed: the provenance preamble on the evidence destination is now a
+  collapsed `<details>` (summary keeps the heading, ▸/▾ marker), so the page
+  opens on the proof band — measured in the served DOM: card closed, proof
+  band at the top. The bench idle state said “EN ATTENTE — en attente — …”;
+  the hint now names only the gesture (“démarrez une campagne dans Configurer”).
+- Proven: walk 35 steps, 0 failures, 0 console/resource errors, peak 217 ms;
+  suite 47 files / 218 tests; build 350.5 KB gz.
+- Unproven: the collapsed summary's discoverability was not tested with a
+  human; no screen-reader pass.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
