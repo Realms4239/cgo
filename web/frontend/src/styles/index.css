@@ -269,8 +269,8 @@ footer .fill { margin-left: auto; }
 .bench-config-card { max-width: 760px; }
 .bench-profiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-4); flex: 1; }
 .bench-profile { display: inline-flex; align-items: flex-start; gap: 6px; min-width: 0; }
-.bench-profile span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.bench-profile small { font: var(--fs-micro) var(--font-mono); color: var(--text-faint); }
+.bench-profile span { display: flex; flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; }
+.bench-profile small { font: var(--fs-micro) var(--font-mono); color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bench-num { width: 84px; }
 .bench-hint { font-size: var(--fs-micro); }
 .bench-pills { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
@@ -682,6 +682,8 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 /* Une absence ne pèse pas comme une mesure : cellule compacte, chiffre discret */
 .audit-summary-cell[data-empty] { padding: var(--sp-2) var(--sp-3); }
 .audit-summary-cell[data-empty] b { font-size: var(--fs-body); color: var(--text-faint); }
+/* mesure de lecture : 65–75 signes même sur une carte large (NN/g) */
+.syn-read, .dash-disclaimer, .audit-verdict, .dash-steps span { max-width: 68ch; }
 .audit-verdict { font-size: var(--fs-body); line-height: 1.6; color: var(--text-body-strong); max-width: 78ch; }
 .audit-remedy { display: flex; flex-direction: column; gap: var(--sp-1); border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
 .audit-remedy-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
