@@ -1444,3 +1444,20 @@ end, at a settled decision, and at a handoff.
 - Unproven: no human review of the new scale at 1366; ECharts memory win is
   reasoned from DPR scaling, not profiled (no heap comparison per chart).
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-31 08:25 UTC · phase propre — l'ancre atterrit et emmène le focus
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- New stance, first increment: navigation must land. Anchor jumps put section
+  headings under the ~71 px top bar (only `.bench-section` had a 56 px margin)
+  and left keyboard focus in the rail. Targets now carry `scroll-margin-top:
+  72px`; `scrollToId` gives the target `tabindex="-1"` once and focuses it
+  without a second scroll.
+- Proven: walk 36 steps (new gate: focus inside `#bench-results` after the
+  anchor click), 0 failures, 0 console/resource errors, peak 220 ms; 48 files
+  pass in the suite (run before the commit, unchanged files); build 350.4 KB gz.
+- Unproven: focus ring on the section container was not visually reviewed; no
+  screen reader.
+- Next: continue the clean phase on the two remaining structural candidates —
+  the spec-pinned shortcut row (human scope) and chart disclosures (mount-aware
+  work) — otherwise unchanged blockers.
