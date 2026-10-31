@@ -1382,3 +1382,21 @@ end, at a settled decision, and at a handoff.
 - Unproven: the collapsed summary's discoverability was not tested with a
   human; no screen-reader pass.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-31 06:05 UTC · coupe plus dure — quatre raccourcis, quatre mots
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Changed: the dashboard shortcut cards drop their sub-lines (“sans droits
+  admin, rapport scellé”, “matrice P1–P4, 4 flux”, …), which restated what the
+  destination already says; icon + title remain, the four shortcuts of slice 14
+  are intact, and the row halves in height. The `sub` field left the data type
+  so no dead string survives.
+- Proven: walk 35 steps, 0 failures, 0 console/resource errors, peak 277 ms;
+  47 files / 218 tests; 350.4 KB gz.
+- Hard stops recorded for the next harsh pass: the shortcut row itself is
+  spec-pinned (removing it needs the human), and the archived-comparison card
+  cannot go inside a closed `<details>` — a canvas mounted at zero size does
+  not resize when the disclosure opens (known ECharts failure), so that cut
+  needs a mount-aware fix first, not a CSS trick.
+- Unproven: no human read of the shortened dashboard.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
