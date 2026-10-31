@@ -1549,3 +1549,23 @@ end, at a settled decision, and at a handoff.
 - Proven: walk 37 steps, 0 failures, 0 console/resource errors, peak 235 ms;
   50 files / 224 tests; build 350.4 KB gz.
 - Unproven: no human read of the simplified chrome.
+
+## 2026-10-31 11:00 UTC · anti-slop selon AIR — trois paragraphes remis en rythme
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit (book working tree).
+- Standard read: `C:/AIR/40 - Workflow/Agent Guidelines.md` §2 and §4 — corrective
+  framing (“not X but Y”, “rather than”) runs 100× the human rate; a paragraph
+  with no short sentence is a defect; the banned decoration list; the “only the
+  writer could know” test. Skill `no-ai-slop` applied as detect-then-edit.
+- Detect: French corrective framing absent (0 hits of plutôt que / non pas /
+  au lieu de across book and docs); one English “rather than”; 2 em-dashes in
+  the front module. Rhythm: 6 paragraphs over 55 words with no short sentence in
+  the annexes, worst 173 words (mine, on ingress and the ring).
+- Edit: the three paragraphs I authored (ingress/ring, type scale, traçabilité)
+  are split into short sentences with at least one line under eight words, every
+  figure and every non-claim kept verbatim. Three long paragraphs from earlier
+  authorship remain and are recorded rather than rewritten blind.
+- Proven: rebuild 2 889 Ko; `memoire.docx` SHA-256 unchanged; archive, nombres,
+  renvois, sigles, biblio green.
+- Unproven: the rhythm check is a heuristic (sentence split on punctuation);
+  no human read of the rewritten annex.
