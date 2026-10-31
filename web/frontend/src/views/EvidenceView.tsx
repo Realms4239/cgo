@@ -11,7 +11,7 @@ export default function EvidenceView() {
     <div className="panel-stack evidence-page">
       <ModeHead
         title="Preuves & Rapports"
-        sub="Ce qui est archivé et vérifiable : manifestes scellés, quarantaine, empreintes, et les rapports d'audit citables."
+        sub="Manifestes, quarantaine, empreintes — et les rapports citables."
       />
       <nav className="bench-anchors evidence-anchors" aria-label="Sections des preuves">
         <button className="btn" onClick={() => scrollToId('evidence-corpus')}>CORPUS &amp; PREUVES</button>

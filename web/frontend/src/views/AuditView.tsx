@@ -38,7 +38,7 @@ export default function AuditView() {
     <div className="panel-stack audit-page">
       <ModeHead
         title="Auditer le lien réel"
-        sub="Mesuré sur le lien réel, sans modification — aucun droit administrateur, aucun CSV partiel."
+        sub="Sans droits administrateur · aucun CSV partiel."
         actions={(
           <>
             <button className="btn" onClick={() => setHistoryOpen(true)} title="audits archivés : rapprochement au référentiel, import par ligne">

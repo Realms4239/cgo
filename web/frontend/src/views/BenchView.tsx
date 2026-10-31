@@ -40,7 +40,7 @@ export default function BenchView() {
     <div className="panel-stack bench-page" data-stage={stage}>
       <ModeHead
         title="Banc d'essai"
-        sub="Configurer la campagne, observer la charge, lire le classement — une seule page linéaire."
+        sub="Une page : configurer, observer, lire."
       />
 
       <nav className="bench-anchors" aria-label="Sections du banc">
