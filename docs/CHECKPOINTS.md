@@ -1480,3 +1480,22 @@ end, at a settled decision, and at a handoff.
   suite 3/3; typecheck clean; build 350.7 KB gz.
 - Unproven: no producer for flows; no CHR boot; no eBPF attach — live rows stay
   BLOCKED. `make bpf` remains the first Linux step.
+
+## 2026-10-31 09:25 UTC · fiche terrain, et le livre remis à jour
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Field sheet: `@media print` hides the shell (rail, ribbon, footer, buttons,
+  quick actions), forces black on white, keeps cards unbroken, sets a page
+  margin — the operator carries the report to the antenna. Source gate
+  `src/lib/print.test.ts` because no screenshot shows print output.
+- Book (working tree, never committed): Annexe E gained the type scale,
+  absent-fact band, anchor-focus and field-sheet paragraphs; Annexe F gained
+  the ingress-through-CHR result (11/11, faulty parent named), the kernel ring
+  with its honest no-producer gap, and the two probe corrections (map-full
+  accounting; the refuted TCP-header subtraction). Rebuild 2,889 Ko;
+  `memoire.docx` hash unchanged; archive, nombres, renvois, sigles, biblio all
+  green. The number audit refused “1024/1366” and demanded “1 024 / 1 366” —
+  fixed at the source, not waived.
+- Rule adopted: the book is touched in the same pass as any interface or
+  measurement change, and rebuilt before the commit that records it.
+- Unproven: no printed page was produced on a real printer/PDF; no human read.
