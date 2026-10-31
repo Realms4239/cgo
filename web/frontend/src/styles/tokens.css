@@ -65,11 +65,11 @@
   --font-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --fs-micro: 10px;
-  --fs-tag: 11px;
-  --fs-cap: 12px;
-  --fs-body: 13px;
-  --fs-head: 20px;
+  --fs-micro: 11px;
+  --fs-tag: 12px;
+  --fs-cap: 13px;
+  --fs-body: 14px;
+  --fs-head: 22px;
 
   /* tracking — noms canoniques ; les --tt-* restent des alias CSS */
   --tracking-tight: -0.02em;

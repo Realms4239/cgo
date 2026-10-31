@@ -305,7 +305,7 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
     // labels = nœuds de l'enveloppe seuls (nom court profil·file : la
     // couleur encode déjà la famille) — fini le top-3 qui se recouvrait.
     // Un point sans label n'est pas muet : tooltip + rail le nomment.
-    const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
+    const c = echarts.init(scatterRef.current, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
     const ro = new ResizeObserver(() => c.resize())
     ro.observe(scatterRef.current)
     const base = baseOption('', '')

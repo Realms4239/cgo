@@ -117,7 +117,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
 
   useEffect(() => {
     if (!rows || !chartRef.current) return
-    const c = echarts.init(chartRef.current, undefined, { renderer: 'canvas', useDirtyRect: true } as any)
+    const c = echarts.init(chartRef.current, undefined, { renderer: 'canvas', useDirtyRect: true, devicePixelRatio: Math.min(window.devicePixelRatio, 2) } as any)
     const ro = new ResizeObserver(() => { try { c.resize() } catch { } })
     ro.observe(chartRef.current)
     const mk = (rs: Row[]): [number, number][] => rs.map((r, i) => [i, num(r, 'small_p95_ms')])
