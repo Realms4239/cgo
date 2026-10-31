@@ -145,6 +145,21 @@ ok('le TradeSpace est réellement peint', !!canvasBox && canvasBox.width > 100 &
 const reset = page.locator('button:has-text("RÉINITIALISER")')
 ok('réinitialiser apparaît après filtre', await reset.count() === 0 || await reset.isVisible())
 
+// un run choisi ne laisse jamais une zone muette : soit des lignes, soit un
+// état vide explicite (23 runs archivés n'ont aucune ligne — le cas est réel)
+const runSelect = page.locator('#bench-results select').first()
+const runValues = await runSelect.locator('option').evaluateAll(os => os.map(o => o.value)).catch(() => [])
+const pick = runValues.find(v => v && v !== '__all__')
+if (pick) {
+  await runSelect.selectOption(pick).catch(() => {})
+  await page.waitForTimeout(1200)
+  const shown = await page.locator('#bench-results .lb-card').count() + await page.locator('#bench-results .c-empty').count()
+  ok('un run choisi montre des lignes ou un état vide', shown > 0, `${pick}: ${shown}`)
+  const resetNow = page.locator('#bench-results button:has-text("RÉINITIALISER")')
+  if (await resetNow.count() > 0) await resetNow.first().click().catch(() => {})
+  await page.waitForTimeout(400)
+}
+
 // 5 — preuves : le premier clic ouvre un rapport, aucune impasse à jouer
 await mark('preuves')
 await page.keyboard.press('4')
