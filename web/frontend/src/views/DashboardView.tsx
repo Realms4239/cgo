@@ -72,11 +72,11 @@ export default function DashboardView() {
   const currentSummary = report ? summaryOf(report) : null
   const change = compareAudits(previous, currentSummary)
 
-  const actions: { mode: ModeId; stage?: 'results'; icon: string; title: string; sub: string }[] = [
-    { mode: 'audit', icon: 'audit', title: 'Auditer un lien', sub: 'sans droits admin, rapport scellé' },
-    { mode: 'bench', icon: 'bench', title: 'Lancer une campagne', sub: 'matrice P1–P4, 4 flux' },
-    { mode: 'bench', stage: 'results', icon: 'dashboard', title: 'Lire le classement', sub: 'cellules archivées, IQR, coût' },
-    { mode: 'evidence', icon: 'evidence', title: 'Vérifier la preuve', sub: 'SHA-256, runs, quarantaine' },
+  const actions: { mode: ModeId; stage?: 'results'; icon: string; title: string }[] = [
+    { mode: 'audit', icon: 'audit', title: 'Auditer un lien' },
+    { mode: 'bench', icon: 'bench', title: 'Lancer une campagne' },
+    { mode: 'bench', stage: 'results', icon: 'dashboard', title: 'Lire le classement' },
+    { mode: 'evidence', icon: 'evidence', title: 'Vérifier la preuve' },
   ]
 
   return (
@@ -302,7 +302,7 @@ export default function DashboardView() {
         {actions.map(a => (
           <button key={`${a.mode}-${a.title}`} className="syn-action" onClick={() => { if (a.stage) setBenchStage(a.stage); setMode(a.mode) }}>
             <NavIcon id={a.icon} size={20} />
-            <span><b>{a.title}</b><small>{a.sub}</small></span>
+            <span><b>{a.title}</b></span>
           </button>
         ))}
       </nav>
