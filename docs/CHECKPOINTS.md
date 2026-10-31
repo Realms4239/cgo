@@ -1461,3 +1461,22 @@ end, at a settled decision, and at a handoff.
 - Next: continue the clean phase on the two remaining structural candidates —
   the spec-pinned shortcut row (human scope) and chart disclosures (mount-aware
   work) — otherwise unchanged blockers.
+
+## 2026-10-31 09:05 UTC · deepwork — anneau eBPF et ingress × CHR
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Lane A: `KernelTelemetry` gains additive flows fields; `KernelRing` renders
+  ≤12 proportional slots with an aria label, only for `source=ebpf` with flows;
+  mounted in the report card. Review found the blocking **producer gap**: no
+  code populates Flows until slice 4's loader lands — the ring is
+  fixture-testable only, and this is recorded rather than papered over. Fixed
+  from review: slot overflow (flex-grow, not percentage widths) and the missing
+  role/label.
+- Lane B: ingress export fixture + replay tests — 11/11 checks including the
+  LAN parent; the mutated parent fails with the faulty property named in the
+  proof (assertion moved to the right test after a mis-anchor was caught by the
+  package run).
+- Proven: `go test ./cmd/cgo-chr` ok, `go vet` clean, gofmt clean; KernelRing
+  suite 3/3; typecheck clean; build 350.7 KB gz.
+- Unproven: no producer for flows; no CHR boot; no eBPF attach — live rows stay
+  BLOCKED. `make bpf` remains the first Linux step.
