@@ -552,7 +552,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
               {locked && <Pill label="avant" value={`${locked.ms} ms @ ${locked.at}`} on title="avant figé — cliquer pour libérer" onClick={() => { setLocked(null); try { localStorage.removeItem('wall-baseline') } catch { } }} />}
               <button className="btn btn-primary edge-btn edge-btn-end" onClick={exportConstat} disabled={locked == null || liveSmallMedian == null}>TÉLÉCHARGER LE CONSTAT</button>
             </div>
-            {shapeMsg && <div className="mono edge-msg" style={{ color: shapeMsg.includes('erreur') || shapeMsg.includes('échec') ? 'var(--t-danger-text)' : 'var(--t-ok)' }}>{shapeMsg}</div>}
+            {shapeMsg && <div className="mono edge-msg" role="status" aria-live="polite" style={{ color: shapeMsg.includes('erreur') || shapeMsg.includes('échec') ? 'var(--t-danger-text)' : 'var(--t-ok)' }}>{shapeMsg}</div>}
             {locked && showLiveSrc && liveSmallMedian != null && (
               <div className="edge-ab">
                 <div className="mono edge-ab-head">

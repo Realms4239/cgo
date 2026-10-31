@@ -132,7 +132,7 @@ export function AuditDeclare() {
 
       <div className="audit-launch">
         <ArmButton label="LANCER L'AUDIT" confirmLabel="CONFIRMER L'AUDIT" onConfirm={launch} disabled={!validation.valid} />
-        <span className="mono muted">{s.msg}</span>
+        <span className="mono muted" role="status" aria-live="polite">{s.msg}</span>
       </div>
     </div>
   )
