@@ -1349,3 +1349,22 @@ end, at a settled decision, and at a handoff.
   branch and the restored payload line are reviewed, not compiled.
 - Next: run `make bpf` on the host when it exists; P4 ledger update lives in
   the slice audit's own record above.
+
+## 2026-10-31 02:40 UTC · interface distillée — profils sur une ligne, lecture bornée
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Research input: NN/g on minimizing cognitive load and form clarity
+  (structure, transparency, clarity, support) — applied as cuts, not a
+  redesign.
+- Changed: `.bench-profile` renders id and description on one baseline row
+  (small 13 px per line, list 50 px tall — it stacked three lines before in a
+  narrow column); prose in cards (`.syn-read`, `.dash-disclaimer`,
+  `.audit-verdict`, `.dash-steps span`) is clamped to 68ch (550 px at 1920),
+  matching the craft floor's 65–75ch and NN/g's clutter guidance.
+- Proven: measurements in the served DOM; `npm test` 47 files / 218 tests;
+  build 350.4 KB gz; walk 35 steps — 4 runs: 175 and 222 ms clean, 495 and
+  529 ms breaching with no step attribution; the 400 ms gate stays and the
+  breaches are recorded as host variance, not waived.
+- Unproven: no human visual review of the configurer after the change; the
+  long-task variance remains unexplained beyond host load.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
