@@ -1290,3 +1290,30 @@ end, at a settled decision, and at a handoff.
 - Unproven: the invariant walk happened to pick a run with data; the empty
   branch is proven by the corrected probe today, not continuously.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-31 00:57 UTC · interface entière relue — mesure du formulaire, copie des phases, et la sonde de bruit
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Read of every destination (screenshots at 1920 and 390 plus source): the
+  audit form rendered a short site name and a three-value select across
+  ~1,050 px while duration and direction stayed compact. It is now a 760 px
+  grid of two 374 px columns (one 332 px column at 390, measured in the DOM).
+  First attempt silently failed because a duplicate `.audit-form { display:
+  flex }` sat later in the stylesheet — the stale rule was removed, not
+  overridden with `!important`; the tokens test then caught that the new
+  media query had been inserted before the phone block and was folded into it.
+- Native checkboxes took the browser blue in a monochrome world: one
+  `accent-color` rule pins them to the living cyan token.
+- The live banner said “Idle” and “Baseline” in an otherwise French operator
+  surface: now “Au repos” and “Repos (référence)”, and the header/footer phase
+  fallbacks say “au repos”. The colour comparison follows the new string.
+- Proven: suite 47 files / 218 tests; build 350.4 KB gz; walk 35 steps, 0
+  failures in the settled runs (211/221/230 ms), 0 console/resource errors.
+- Long-task flake, measured rather than excused: two walks right after the
+  90 s suite breached at 509 and 489 ms (same step “ancre résultats”), then
+  five runs measured 215/211/221/230 ms with no breach. The 400 ms gate is
+  kept because it is what caught the 463 ms results-mount regression; the
+  recorded rule stands — re-run a single breach before believing it.
+- Unproven: no human review of the new form grid at 1366; no screen reader;
+  the Fyne view still cannot be compiled here.
+- Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
