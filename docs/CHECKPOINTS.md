@@ -1317,3 +1317,35 @@ end, at a settled decision, and at a handoff.
 - Unproven: no human review of the new form grid at 1366; no screen reader;
   the Fyne view still cannot be compiled here.
 - Next: unchanged — QEMU/Linux host, verifier signature, operator grant.
+
+## 2026-10-31 02:20 UTC · deepwork — stress des 19 slices, et une correction réfutée
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit.
+- Inventory: `tools/slice_matrix.json` (19 slices; 4–7 and 19 unrunnable with the
+  ledger's blocker text; 16/17 partial). Review 1 blocked the first version:
+  marker-only checks could pass a failing package, and slice 1 was narrower
+  than its plan. Remediation added the runner contract (exit 0 AND every
+  marker), widened slice 1 to `./pkg/probe/...`, removed `audit-biblio` (prints
+  OK before errors) and moved verify/build to `global_checks`.
+- Stress run (`tools/slice_audit.py`, sequential, per-check timeout):
+  **26 passed, 0 failed, 5 skipped, 1644 s**. A first background dispatch lost
+  its output to a dead pipe and was killed; the harness later reported exit 0
+  after its buffered log flushed, which the runner reconciled before trusting.
+- Probe defects, found by reading, not by tests (no compiler here):
+  1. Map full: retransmitted bytes vanished from every total. Fixed — the
+     branch now adds payload/1 to the per-CPU globals; the exactly-once
+     accounting was reviewed clean; `Globals` gained the retrans fields so
+     those bytes can land in Go.
+  2. A “fix” subtracting the TCP header from `skb->len` was **refuted by the
+     oracle with kernel-source evidence**: at the tracepoint the queued skb is
+     headerless and `skb->len` is already payload (`tp->bytes_retrans +=
+     skb->len`), while `transport_header` still holds the 0xFFFF sentinel — the
+     subtraction would read out of bounds. Reverted; the comment now carries
+     the evidence; the vacuous source-contract test was deleted rather than
+     kept as false comfort.
+- Proven: `go test ./pkg/probe/...` ok; six gates green in the audit run
+  (global check) and at this commit's hook.
+- Unproven: no `make bpf` — the object still requires Linux 6.8; the map-full
+  branch and the restored payload line are reviewed, not compiled.
+- Next: run `make bpf` on the host when it exists; P4 ledger update lives in
+  the slice audit's own record above.
