@@ -594,8 +594,6 @@ In the remediation block of `BuildReport` (lines 337-400), after `rem := &Remedi
 ```go
 		rem.LinuxIface = link.Interface
 		rem.RouterOSWanIface = link.RouterOSInterface
-		lanIface, lanAssumed := link.RouterOSLan()
-		rem.RouterOSLanIface, rem.RouterOSLanAssumed = lanIface, lanAssumed
 		if upCap > 0 {
 			rem.UpMeasuredMbps = upCap
 			rem.UpShapedMbps = remediate.ShapedRate(upCap)
@@ -606,7 +604,23 @@ In the remediation block of `BuildReport` (lines 337-400), after `rem := &Remedi
 		}
 ```
 
-The ingress script is now generated whenever `downCap > 0`, because `RouterOSIngress` no longer refuses an undeclared LAN interface. Keep the existing `else if res.Direction == "both"` unavailability records for a direction that never measured.
+The ingress script is now generated whenever `downCap > 0` **and** the report
+carries a RouterOS side (`link.RouterOSInterface != "" ||
+link.RouterOSLanInterface != ""`), because `RouterOSIngress` no longer refuses an
+undeclared LAN interface. A Linux-only audit gets complete Linux remediation and
+no MikroTik script — assuming a *device* is not licensed by invariant 11, only a
+*name* is. Inside that emission, set the assumed-interface pair:
+
+```go
+		lanIface, lanAssumed := link.RouterOSLan()
+		rem.RouterOSLanIface, rem.RouterOSLanAssumed = lanIface, lanAssumed
+```
+
+Never set `RouterOSLanIface`/`RouterOSLanAssumed` when no RouterOS ingress script
+was emitted: the report must not assert an assumption about a remediation it does
+not carry. Add a report test asserting the pair is absent for a Linux-only link
+with a measured down window, alongside `linux_tc_ingress` non-empty and
+`routeros_ingress` empty.
 
 - [ ] **Step 8: Run tests and commit**
 
@@ -1426,7 +1440,18 @@ Append to `docs/ERRORS.md` following the file's format, numbered after the last 
 
 - [ ] **Step 4: Checkpoint and plan index**
 
-Append a `docs/CHECKPOINTS.md` entry with branch, HEAD, changed files, commands with results, and the unproven list. Add the slice 20A row to `docs/superpowers/plans/README.md` pointing at this plan and the spec, status `In progress` until the verifier pass.
+Append a `docs/CHECKPOINTS.md` entry with branch, HEAD, changed files, commands with results, and the unproven list. Three items the task reviews deferred land here, not in a code task:
+
+- The CHR proof line must read as "valide le bridge du laboratoire, pas
+  l'interface LAN de l'opérateur" — `cmd/cgo-chr/run.go:41` concatenates the
+  assumed-`bridge` ingress script, so a green proof cannot attest an operator
+  name it never saw.
+- `pkg/audit/audit.go:111-113` carries a comment block titled "LoadMeasured"
+  above a field named `LoadAttempted`; that drift is what made two earlier brief
+  fixtures uncompilable. Fix the comment, not the field.
+- The spec's §3.3 pointer to `pkg/remediate/remediate.go:56` now resolves to
+  `DefaultRouterOSLan`; `shaperHeadroom` moved to `:74`. Refresh the pointer in
+  `docs/superpowers/specs/2026-10-31-cgo-operator-console-design.md`. Add the slice 20A row to `docs/superpowers/plans/README.md` pointing at this plan and the spec, status `In progress` until the verifier pass.
 
 - [ ] **Step 5: Commit**
 
