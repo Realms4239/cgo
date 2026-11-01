@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/Realms4239/cgo/pkg/metrics"
 )
 
 // TestCostTierSelect — le palier actif se choisit et s'applique : inconnu =
@@ -43,5 +45,31 @@ func TestCostTierSelect(t *testing.T) {
 	// restaurer le défaut du contexte DSI pour les autres tests
 	if code, _ := post(`{"tier":"yas-month-4.5gb"}`); code != http.StatusOK {
 		t.Fatal("restauration défaut")
+	}
+}
+
+// TestCostTierRefusedWhileCampaignRuns — le palier est gelé avec le run :
+// le changer en cours de campagne donnerait deux bases de coût dans le même gel.
+func TestCostTierRefusedWhileCampaignRuns(t *testing.T) {
+	before := metrics.ActiveTierName()
+	h := New(Deps{RunningFn: func() bool { return true }})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/api/cost/tier", "application/json",
+		bytes.NewBufferString(`{"tier":"yas-day-1gb"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("status = %d, voulu 409 (%s)", resp.StatusCode, body)
+	}
+	if !strings.Contains(string(body), "gelé") {
+		t.Fatalf("le refus ne dit pas que le palier est gelé : %s", body)
+	}
+	if after := metrics.ActiveTierName(); after != before {
+		t.Fatalf("palier global modifié malgré le refus : %s → %s", before, after)
 	}
 }

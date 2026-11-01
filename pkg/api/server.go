@@ -457,6 +457,12 @@ func New(d Deps) Handler {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
+		// Le palier est gelé avec le run : le changer en cours de campagne
+		// donnerait deux bases de coût dans le même gel.
+		if d.RunningFn != nil && d.RunningFn() {
+			writeErr(w, r, "campagne en cours — le palier est gelé avec le run, changez-le après le gel", http.StatusConflict)
+			return
+		}
 		if err := metrics.SetDefaultTier(body.Tier); err != nil {
 			writeErr(w, r, err.Error(), http.StatusBadRequest)
 			return

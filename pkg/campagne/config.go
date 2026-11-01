@@ -3,6 +3,7 @@ package campagne
 import (
 	"encoding/json"
 
+	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
@@ -27,6 +28,9 @@ type matrixConfig struct {
 	ChannelModel string `json:"channel_model"`
 	Bench        string `json:"bench"`
 	Kernel       string `json:"kernel,omitempty"`
+	// Tier — le palier tarifaire gelé avec le run : chaque ligne du manifeste
+	// se valorise sur cette base, même si le palier global change ensuite.
+	Tier string `json:"tier"`
 }
 
 func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]byte, error) {
@@ -68,11 +72,15 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 	if charge == 0 {
 		charge = model.ChargeSec
 	}
+	tier := deps.Tier
+	if tier == "" {
+		tier = metrics.ActiveTierName()
+	}
 	return json.Marshal(matrixConfig{
 		Profiles: resolved, Qdiscs: qdiscs, CCs: ccs, Reps: reps,
 		Direction: dir, Target: deps.Target, BulkAddr: deps.BulkAddr,
 		SmallURL: deps.SmallURL, Flows: flows, BaselineSec: baseline,
 		ChargeSec: charge, DeadlineMs: deps.DeadlineMs,
-		ChannelModel: cm, Bench: bench, Kernel: readKernelRelease(),
+		ChannelModel: cm, Bench: bench, Kernel: readKernelRelease(), Tier: tier,
 	})
 }

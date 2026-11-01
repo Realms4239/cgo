@@ -62,6 +62,10 @@ type Deps struct {
 	// Bench — étiquette de provenance : "legacy" (testbed.sh, reproduction
 	// du corpus gelé) | "dualns" (banc durci, chemin de production).
 	Bench string
+	// Tier — le palier tarifaire gelé avec le run. Vide ⇒ le palier actif est
+	// lu UNE fois à l'entrée de la cellule, jamais événement par événement :
+	// un palier changé en cours de route donnerait deux bases dans un même run.
+	Tier string
 	// DelayModel — "scalar" (défaut : delay/jitter déclarés) | "dist"
 	// (table empirique par profil, chargée fail-closed AVANT toute mutation).
 	DelayModel string
@@ -257,6 +261,9 @@ func defaults(d *Deps) {
 	if d.Bench == "" {
 		d.Bench = "legacy"
 	}
+	if d.Tier == "" {
+		d.Tier = metrics.ActiveTierName()
+	}
 	if d.DelayModel == "" {
 		d.DelayModel = "scalar"
 	}
@@ -426,7 +433,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		}
 		live.Bytes = liveTransported
 		live.WastedBytes = live.Drops * 1448
-		live.CostARPerH = round1(metrics.CostARPerH(live.WastedBytes))
+		live.CostARPerH = round1(costARPerH(d.Tier, live.WastedBytes))
 		d.OnSnap(d.Snapshot(phase, loadFor(phase), live, nil, nil, 0, prof, gates))
 	}
 	collect := func(secs int, phase string) (rtt, small []float64) {
@@ -628,7 +635,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	}
 	// octets gaspillés : segments retransmis × MSS (environ 1448 pour veth MTU 1500)
 	ev.WastedBytes = ev.Drops * 1448
-	ev.CostARPerH = round1(metrics.CostARPerH(ev.WastedBytes))
+	ev.CostARPerH = round1(costARPerH(d.Tier, ev.WastedBytes))
 	set(model.G3LatencyPlausible, ev.RTTp95Ms < prof.DelayMs*10+200)
 	// G4 juge le goodput du SENS MESURÉ : montant → CapUp, descendant →
 	// CapDown (l'asymétrie est la règle, pas l'exception).
@@ -693,6 +700,15 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	}
 	ev.GateStatus = status
 	return ev, nil
+}
+
+// costARPerH — le coût d'une ligne se calcule au palier gelé avec son run.
+// Lire le global à chaque événement donnerait deux bases dans un même run.
+func costARPerH(tierName string, wastedBytes uint64) float64 {
+	if tr, ok := metrics.TierByName(tierName); ok {
+		return metrics.CostARPerHTier(wastedBytes, tr)
+	}
+	return metrics.CostARPerH(wastedBytes)
 }
 
 func round1(v float64) float64 { return float64(int(v*10+0.5)) / 10 }

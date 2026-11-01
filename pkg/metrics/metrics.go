@@ -128,6 +128,18 @@ func ActiveTier() PriceTier {
 	return DefaultTier
 }
 
+// TierByName rend un palier à son nom exact, sans toucher au global.
+func TierByName(name string) (PriceTier, bool) {
+	tierMu.RLock()
+	defer tierMu.RUnlock()
+	for _, tr := range Tiers {
+		if tr.Name == name {
+			return tr, true
+		}
+	}
+	return PriceTier{}, false
+}
+
 // CostARPerH — coût horaire du gaspillage au palier courant.
 // wasted × (Ar/Go) / Go = Ar, l'heure vient de la fenêtre d'événement (3 min
 // extrapolée ×20 — documentée dans la méthodologie, pas une facturation).

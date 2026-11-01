@@ -6,6 +6,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
@@ -138,6 +139,12 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 		if c == string(model.BBRv3) && !ccPresent(c) {
 			return nil, fmt.Errorf("cc bbr3 indisponible sur cet hôte : le noyau n'expose pas bbr3 (kit/install-bbr3.sh) — refus plutôt qu'exécuter un autre contrôle sous cette étiquette")
 		}
+	}
+
+	// Le palier est gelé AVANT le manifeste : le JSON et chaque cellule du run
+	// lisent le même nom, même si l'opérateur change le palier entre deux cellules.
+	if deps.Tier == "" {
+		deps.Tier = metrics.ActiveTierName()
 	}
 
 	cfgJSON, err := buildMatrixConfig(profiles, qdiscs, ccs, reps, deps)
