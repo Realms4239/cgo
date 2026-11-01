@@ -10,6 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-31-cgo-operator-console-design.md` §3.1, §3.3–§3.10, §4–§7, §8 (frontend), §9.
 **Depends on:** slice 20A merged — `operator_verdict`, `load_attempted`, `up_shaped_mbps`, `routeros_lan_assumed`, `economics.*.numbers`, `timeline`, `/api/duel`.
+**Dependency status, decided 2026-11-01:** 20A is *not* merged and cannot be — a merge to `main` is the human's decision, and its seven `VERIFY` rows stay `PENDING` for an independent verifier. All six engine fields above are committed on this branch (`5d58116`, `f478ef6`, `49f76d0`, `eb11ca9`, `2183492`, `23ffdb1`, `df89c82`), and 20C already built on that tree the same way. 20B therefore proceeds here, with two consequences the operator must know: every frontend assertion about an engine field is written against the committed field name, and the `VERIFY` rows this slice adds stay `PENDING` too — 20B cannot promote a row 20A has not earned. If a verifier later renames a 20A field, 20B's fixtures break loudly rather than silently.
 
 ## Global Constraints
 
@@ -46,7 +47,7 @@ Append to `web/frontend/src/lib/tokens.test.ts`:
 
 ```ts
 describe('échelle opérateur', () => {
-  const sheet = readCss('tokens.css')
+  const sheet = read('web/frontend/src/styles/tokens.css')
   it('porte l’échelle-body et bannit la serif d’interface', () => {
     for (const [tok, px] of [['--fs-hero', '40px'], ['--fs-metric', '32px'], ['--fs-title', '28px'], ['--fs-body', '16px'], ['--fs-label', '14px'], ['--fs-fine', '13px']]) {
       expect(sheet, tok).toContain(`${tok}: ${px}`)
@@ -62,7 +63,27 @@ describe('échelle opérateur', () => {
 })
 ```
 
-`readCss` already exists in that file; reuse it.
+The helper is `read(path)`, already defined at the top of that file — it takes a
+repo-relative path (`read('web/frontend/src/styles/tokens.css')`), not a bare
+filename. There is no `readCss`; the earlier draft of this step invented it.
+
+- [ ] **Step 1b: Reconcile the assertions this task invalidates**
+
+The same file already pins the old skin. Read the whole file before changing
+anything, then update each of these in place — do not delete an assertion to make
+the suite green, and do not leave a rule asserting a gradient this task removes:
+
+- the `radial-gradient` assertion on `tokens.css`: Step 3 flattens `--canvas`, so
+  this passes only if another rule still legitimately uses a radial tint. Check
+  with `grep -n "radial-gradient" src/styles/tokens.css`. If none remains, replace
+  the assertion with the flat-canvas contract (`--canvas` contains no `gradient`)
+  and say which you chose in the report;
+- the `linear-gradient` and `box-shadow: inset` and `.card:hover` assertions:
+  these read `index.css`/`components.css`, which Task 2 owns. Leave them green —
+  Task 1 must not break them, so verify with `npx vitest run src/lib/tokens.test.ts`
+  after Step 3, not only after Step 6;
+- the two `.mode-rail` media assertions: they survive Task 1 and break in Task 2,
+  which handles them. Do not touch them here.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -73,8 +94,14 @@ Expected: FAIL on `--fs-hero` and on the Cormorant assertion.
 
 In `web/frontend/src/styles/tokens.css`:
 - delete the two `@font-face` rules for `'Cormorant Garamond'` (lines 8-9);
-- delete `--font-display` (line 64) and add `--font-ui: 'Inter', -apple-system, 'Segoe UI', sans-serif;`;
-- replace the five `--fs-*` declarations with the six listed in Step 1, keeping `--fs-micro` and `--fs-tag` as aliases of `--fs-fine` and `--fs-label` so untouched rules still resolve:
+- delete `--font-display` (line 65, not 64 — measured) and add `--font-ui` as an alias, per the bullet at the end of this step; do not re-declare the Inter stack a second time.
+- replace the five `--fs-*` declarations with the six listed in Step 1, keeping
+  all four retired names as aliases so no rule loses its `font-size`. The earlier
+  draft aliased only `--fs-micro` and `--fs-tag` and dropped `--fs-cap` and
+  `--fs-head` — measured against the tree, those two are still live at 32 and 15
+  `var()` sites (`index.css`, `components.css`, `CompareView.tsx`, `Explain.tsx`,
+  `ResultatsView.tsx`), so deleting them would leave 47 rules with an unresolvable
+  size. `--fs-base` has zero uses and can go:
 
 ```css
   --fs-fine: 13px;
@@ -85,7 +112,18 @@ In `web/frontend/src/styles/tokens.css`:
   --fs-hero: 40px;
   --fs-micro: var(--fs-fine); /* alias de transition, supprimé en fin de slice */
   --fs-tag: var(--fs-label);
+  --fs-cap: var(--fs-fine);   /* 13px : même rendu qu'avant, aucun changement visuel */
+  --fs-head: var(--fs-title); /* 22px → 28px : la promotion du titre est voulue */
 ```
+
+  After Step 3, run `npx vitest run src/lib/tokens.test.ts` and `npm run
+  typecheck` before touching any other file — a broken alias shows up here, not at
+  Step 6.
+- `--font-ui` duplicates `--font-body`: both are Inter with the same fallback
+  stack, and `--font-body` is the one already referenced across the sheets. Make
+  `--font-body` the canonical name, add `--font-ui` as its alias (not the other
+  way round), so this task renames nothing it does not have to:
+  `--font-ui: var(--font-body);`
 
 - set `--canvas-solid: #0a0b0e;`, `--surface-soft: #0e1015;`, `--surface-card: #12141a;`, `--surface-elevated: #181b22;` and keep `--canvas` as the same flat colour without the radial tints;
 - keep `--hairline` and friends; borders stop being the main separator in Task 2, not here.
@@ -98,6 +136,21 @@ In `web/frontend/src/lib/palette.ts`, update `FALLBACK` values for the four surf
 
 Run: `grep -rn "font-display" web/frontend/src`
 Replace each hit's `var(--font-display)` with `var(--font-ui)`, and where the rule also set `text-transform: uppercase` on French text, drop the transform. Then:
+
+Measured against the tree: the `--font-display` call sites are 14 (`index.css` ×11,
+`components.css` ×1 in `.viz-empty`, `MeteolinkWordmark.tsx` ×1, plus the token
+declaration itself). Three of them also carry `text-transform: uppercase` on
+French text (`.view-title`, `.mode-head h1`, `.syn-hero h1`) — drop those three
+transforms here, because a serif-free title in caps is still an uppercase French
+sentence.
+
+The wordmark is the one hit that needs a decision, not a substitution:
+`MeteolinkWordmark.tsx:38` reads `fontFamily: 'var(--font-display, "Cormorant Garamond")'`.
+Replacing only the token leaves the literal `"Cormorant Garamond"` fallback, which
+still renders a serif on any machine that has one installed locally — the app would
+claim one face and ship another. Delete the fallback string too, so the wordmark
+resolves to `var(--font-ui)`. Finish with `grep -rn "Cormorant" web/frontend/src`
+empty; if it is not, the serif is still in the app.
 
 ```bash
 git rm web/frontend/public/fonts/cormorant-garamond-500.woff2 web/frontend/public/fonts/cormorant-garamond-600.woff2
@@ -210,7 +263,23 @@ In `web/frontend/src/styles/index.css`:
 
 - [ ] **Step 5: Fix the source-reading tests**
 
-In `web/frontend/src/lib/benchLayout.test.ts`, replace the `ModeRail.tsx` reads with `TopNav.tsx` and the assertion `rail.toContain('preloadMode(m.id)')` with the same call in the new file. Run `npx vitest run` and fix only assertions that named the deleted rail.
+In `web/frontend/src/lib/benchLayout.test.ts`, replace the `ModeRail.tsx` reads with `TopNav.tsx` and the assertion `rail.toContain('preloadMode(m.id)')` with the same call in the new file.
+
+`src/lib/tokens.test.ts` has the same problem and the earlier draft missed it: two
+of its media-query cases assert that `.mode-rail` rules exist — one that
+`.mode-rail { … flex-direction: row` appears under `max-width: 899px`, one that
+`.mode-rail { … position: fixed` appears under `max-width: 700px`. Step 4 deletes
+both rules, so rewrite those two cases against `.topnav` and the new breakpoint,
+keeping them as media-query existence assertions rather than dropping them.
+
+Then run `npx vitest run` and fix only assertions that named the deleted rail.
+Before committing, check the Playwright walk is not silently broken: `qa-walk.mjs`
+clicks by text (`button:has-text("RÉSULTATS")`, `.bench-anchors`,
+`.evidence-anchors`), not by `data-mode`, and Playwright's `:has-text()` is
+case-insensitive substring, so the sentence-case labels survive — but the
+`.bench-anchors` / `.evidence-anchors` clusters must still exist after this task.
+If Step 4 removes either, that is a Task 7 decision, not a Task 2 one; leave them
+and say so in the report.
 
 - [ ] **Step 6: Verify and commit**
 
