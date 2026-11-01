@@ -250,7 +250,7 @@ import type { AuditReport } from '../lib/types'
 const base: AuditReport = {
   audit_id: 'a1', site: 'Département X', link_type: '4g',
   measured: { load_attempted: true, load_measured: true, http_small_p95_ms: 209, small_measured: true },
-  operator_verdict: { level: 'green', word: 'Lien sain', sentence: 'Sous charge, la latence reste sous l’objectif.' },
+  operator_verdict: { level: 'green', word: 'Lien sain', sentence: "Sous charge, la latence reste sous l'objectif." },
   cap_sla: { measured: true, ok_pct: 96.7, breach: false },
   bloat_grade: 'A',
 }

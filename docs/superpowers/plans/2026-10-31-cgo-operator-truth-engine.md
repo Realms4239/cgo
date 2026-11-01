@@ -302,6 +302,18 @@ func TestReportVerdictRedOnSlaBreach(t *testing.T) {
 }
 ```
 
+Two carry-overs from Task 1's review belong in this task's diff:
+
+- Add one more case to `pkg/metrics/verdict_test.go`'s table —
+  `{"note hors vocab avec sonde", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "b", SLA: sla(99.9, true)}, VerdictNeutral, "Note indisponible"}`.
+  The existing out-of-vocabulary case uses an unmeasured `CAPSLA`, so it pins
+  only one of the two former green arms.
+- `Grade` must be fed to `AssessVerdict` from `res.BloatGrade` and nowhere else.
+  Spec gate 4 says "grade empty or delta not finite"; the engine realizes the
+  second half because `BufferbloatGrade` returns `""` for a NaN delta
+  (`pkg/metrics/bufferbloat.go:12`). A persisted or frontend-sourced grade string
+  would reopen the fall-through Task 1 just closed.
+
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `go test ./pkg/audit -run TestReportCarriesOperatorVerdict -v`
