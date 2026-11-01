@@ -326,7 +326,8 @@ In `web/frontend/src/lib/types.ts`, add to `AuditReport`:
   operator_verdict?: { level: 'neutral' | 'red' | 'amber' | 'green'; word: string; sentence: string }
 ```
 
-and to `AuditMeasured`: `load_attempted?: boolean`. Add to `AuditEconomicsScenario`: `numbers?: { model: string; monthly_opex_mga?: number; cir_mbps?: number; ar_per_gb?: number; retrans_ratio?: number }`.
+and to `AuditMeasured`: `load_attempted?: boolean`. Add to `AuditEconomicsScenario`:
+`numbers?: { model: string; monthly_opex_mga?: number; cir_mbps?: number; ar_per_gb?: number; retrans_ratio?: number; wasted_bytes?: number; transport_bytes?: number; load_seconds?: number }`. The Go side emits a superset (slice 20A Task 4 review); the UI declares the keys it reads and ignores the rest, and `model` is the key the fact's wording branches on.
 
 In `web/frontend/src/lib/dashboard.ts`, append:
 
