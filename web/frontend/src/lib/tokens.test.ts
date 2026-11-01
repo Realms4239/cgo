@@ -87,6 +87,14 @@ describe('échelle opérateur', () => {
     expect(sheet).toContain('--surface-card: #12141a')
     expect(sheet).toContain('--surface-elevated: #181b22')
   })
+  it('une seule face : --font-ui existe et retombe sur Inter via --font-body', () => {
+    // Le contrat positif de la face. Sans lui, une coquille sur la déclaration
+    // --font-ui renverrait les 12 règles d’interface vers la police du navigateur
+    // avec la suite entière au vert : rien ne vérifiait jusqu’ici que le nom
+    // résout bien, et vers Inter.
+    expect(sheet).toMatch(/--font-ui:\s*var\(--font-body\)/)
+    expect(sheet).toMatch(/--font-body:\s*'Inter'/)
+  })
 })
 
 // Un gris « faible » n'a jamais été mesuré : il valait 4,52:1 sur la surface la

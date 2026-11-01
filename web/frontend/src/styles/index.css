@@ -34,7 +34,6 @@ header { grid-area: hd; position: relative; z-index: 10; display: flex; align-it
 .stripe i:nth-child(1) { background: var(--brand-1); }
 .stripe i:nth-child(2) { background: var(--brand-2); }
 .stripe i:nth-child(3) { background: var(--brand-3); }
-.wordmark { font: 700 var(--fs-head) var(--font-ui); letter-spacing: 0.04em; color: var(--text-primary); text-transform: uppercase; }
 .wordmark-lockup { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; min-width: 0; }
 .wordmark-text { white-space: nowrap; font: 600 20px var(--font-ui); letter-spacing: 0.04em; text-transform: uppercase; background: linear-gradient(90deg, var(--text-primary), var(--text-body)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: var(--text-primary); filter: drop-shadow(0 0 8px rgba(90,211,227,0.35)); line-height: 1; } /* impeccable-disable-line gradient-text: identity wordmark pinned by DESIGN.md */
 .ml-icon { width: 16px; height: 16px; flex: none; color: var(--t-live); display: inline-flex; }

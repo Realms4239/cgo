@@ -24,6 +24,9 @@ function lines(src: string, re: RegExp): string[] {
 
 const TSX = walk(SRC).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))
 const CSS = walk(SRC).filter((f) => f.endsWith('.css'))
+// Tout le code source, hors tests : les gardes d’arbre marchent src/ en entier
+// (css, ts, tsx) pour qu’aucune feuille ou composant isolé ne serve d’angle mort.
+const SRC_FILES = walk(SRC).filter((f) => /\.(tsx?|css|jsx?|mjs)$/.test(f) && !/\.test\./.test(f))
 
 describe('design floor — portes source', () => {
   it('aucun hex dans les .tsx (3, 6 ou 8 chiffres)', () => {
@@ -31,9 +34,9 @@ describe('design floor — portes source', () => {
     expect(bad, 'les couleurs passent par var(--token) ou palette.ts').toEqual([])
   })
 
-  it('aucune taille de police numérique — les 5 jetons seulement', () => {
+  it('aucune taille de police numérique — les six étages seulement', () => {
     const bad = offending(TSX, (s, f) => lines(s, /fontSize:\s*\d/).map((l) => `${f}:${l}`))
-    expect(bad, 'utiliser var(--fs-micro|tag|cap|body|head)').toEqual([])
+    expect(bad, 'utiliser var(--fs-hero|metric|title|body|label|fine)').toEqual([])
   })
 
   it('aucun letterSpacing littéral en em', () => {
@@ -47,7 +50,35 @@ describe('design floor — portes source', () => {
       const b = lines(s, /fontSize:\s*['"]?[0-9](?:px)?['"]?[,\s}]/)
       return [...a, ...b].map((l) => `${f}:${l}`)
     })
-    expect(bad, 'espacement = var(--sp-*), rien sous --fs-micro').toEqual([])
+    expect(bad, 'espacement = var(--sp-*), tailles = var(--fs-hero|metric|title|body|label|fine), rien sous --fs-fine').toEqual([])
+  })
+
+  it('la serif d’interface est sortie de tout l’arbre src/ (hors tests)', () => {
+    // Complète le garde de tokens.test.ts, qui ne lit que tokens.css : ici on
+    // marche src/ comme les portes ci-dessus, donc un var(--font-display)
+    // réintroduit dans index.css ou un littéral serif dans un .tsx rougit. Le
+    // descripteur font-display: swap des @font-face n’est PAS le jeton retiré et
+    // ne doit pas être signalé — le confondre rendrait cette garde inutile.
+    const bad = offending(SRC_FILES, (s, f) =>
+      lines(s, /Cormorant|var\(--font-display\)/).map((l) => `${f}:${l}`))
+    expect(bad, 'Inter est la seule face ; --font-display et la serif sont retirés').toEqual([])
+  })
+
+  it('tout var(--fs-*) consommé sous src/ est déclaré dans tokens.css', () => {
+    // Les alias de transition empêchent 47 règles de perdre leur font-size ; cette
+    // protection ne peut pas tenir à un seul grep ponctuel. Si une déclaration
+    // change de nom ou disparaît, la règle remonte la cascade et retombe sur la
+    // taille héritée — le garde doit alors rougir.
+    const sheet = read(join(SRC, 'styles', 'tokens.css'))
+    const declared = new Set(
+      [...sheet.matchAll(/(^|[\s;])(--fs-[a-z]+)\s*:/gm)].map((m) => m[2]),
+    )
+    const used = new Set(
+      SRC_FILES.flatMap((f) =>
+        [...read(f).matchAll(/var\(\s*(--fs-[a-z]+)\s*\)/g)].map((m) => m[1])),
+    )
+    const missing = [...used].filter((n) => !declared.has(n)).sort()
+    expect(missing, 'taille utilisée sans déclaration dans tokens.css').toEqual([])
   })
 
   it('aucun alias de compatibilité consommé dans les .tsx', () => {

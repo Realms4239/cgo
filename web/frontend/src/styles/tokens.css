@@ -18,7 +18,10 @@
   --hairline-strong: #3a3a40;
   --hairline-faint: #141416;
 
-  /* text — faint bumped #767b84→#7e838c: 4.47/4.25→4.99/4.74 on card/elevated (WCAG 4.5) */
+  /* text — --text-faint #8a8a92 : contraste mesuré 5,75 (canvas) / 5,37 (card) /
+     5,03 (elevated), plancher AA 4,5. Ces ratios ne sont plus recopiés à la main :
+     le garde WCAG de tokens.test.ts (« contraste des surfaces de console ») les
+     recalcule à partir des hex de la feuille à chaque suite. */
   --text-primary: #f2f2f4;
   --text-body-strong: #d6d8dd;
   --text-body: #a9aeb6;
@@ -70,10 +73,6 @@
   --fs-title: 28px;
   --fs-metric: 32px;
   --fs-hero: 40px;
-  --fs-micro: var(--fs-fine); /* alias de transition, supprimé en fin de slice */
-  --fs-tag: var(--fs-label);
-  --fs-cap: var(--fs-fine);   /* 13px : même rendu qu'avant, aucun changement visuel */
-  --fs-head: var(--fs-title); /* 22px → 28px : la promotion du titre est voulue */
 
   /* tracking — noms canoniques ; les --tt-* restent des alias CSS */
   --tracking-tight: -0.02em;
@@ -153,6 +152,13 @@ body::before {
   /* type aliases */
   --fs-base: var(--fs-body);
   --fs-num: var(--fs-head);
+  /* alias de transition — un seul endroit où les chercher pour la suppression de
+     fin de slice (Tâche 7) ; les six étages canoniques hero|metric|title|body|
+     label|fine restent les seuls nommés dans le bloc type ci-dessus */
+  --fs-micro: var(--fs-fine);
+  --fs-tag: var(--fs-label);
+  --fs-cap: var(--fs-fine);   /* 13px : même rendu qu'avant, aucun changement visuel */
+  --fs-head: 22px;            /* tiers mêlés : titres, valeurs et une phrase — réparti en Tâches 2-4 */
   /* surfaces */
   --surface-raised: var(--surface-elevated);
   /* state tokens (faint backgrounds) */
