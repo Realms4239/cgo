@@ -25,6 +25,8 @@ func TestAssessVerdictCascade(t *testing.T) {
 		{"fragile", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "C"}, VerdictAmber, "Lien fragile"},
 		{"sain", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "A", SLA: sla(97.5, true)}, VerdictGreen, "Lien sain"},
 		{"sain sans sonde alerte", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "B"}, VerdictGreen, "Lien sain"},
+		{"note hors référentiel", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "b"}, VerdictNeutral, "Note indisponible"},
+		{"charge tentée prime sur manquement", VerdictInput{LoadAttempted: true, LoadEstablished: false, SLA: sla(60.2, true)}, VerdictNeutral, "Charge non établie"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

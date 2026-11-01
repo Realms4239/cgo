@@ -53,11 +53,16 @@ func AssessVerdict(in VerdictInput) Verdict {
 	case in.Grade == "C":
 		return Verdict{VerdictAmber, "Lien fragile",
 			"La latence monte nettement sous charge ; les alertes peuvent partir en retard."}
-	case in.SLA.Measured:
+	case (in.Grade == "A+" || in.Grade == "A" || in.Grade == "B") && in.SLA.Measured:
 		return Verdict{VerdictGreen, "Lien sain",
 			fmt.Sprintf("Sous charge, la latence reste sous l'objectif et %.1f %% des alertes passent à l'heure.", in.SLA.OKPct)}
-	default:
+	case in.Grade == "A+" || in.Grade == "A" || in.Grade == "B":
 		return Verdict{VerdictGreen, "Lien sain",
 			"Sous charge, la latence reste sous l'objectif."}
+	default:
+		// Vocabulaire de note inconnu : rien à classer. Jamais un vert par
+		// défaut — la porte 7 de la cascade n'accepte que A+, A et B.
+		return Verdict{VerdictNeutral, "Note indisponible",
+			"La charge a tourné mais l'écart de latence n'a pas pu être calculé."}
 	}
 }
