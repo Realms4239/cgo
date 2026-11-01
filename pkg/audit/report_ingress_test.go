@@ -80,6 +80,35 @@ func TestReportDownWithoutLANAssumesBridgeAndSaysSo(t *testing.T) {
 	}
 }
 
+// Le cas que la garde de présence MikroTik distingue : un lien qui ne nomme
+// aucun routeur MikroTik, avec une fenêtre descendante mesurée, reçoit la
+// remédiation descendante Linux complète et AUCUN script RouterOS. Sans ce
+// test, la garde est indiscernable d'un accident et n'importe quelle
+// « simplification » de la condition publierait un script MikroTik sur un
+// poste Linux.
+func TestReportLinuxOnlyDownEmitsLinuxIngressAndNoRouterOS(t *testing.T) {
+	res := loadedResult()
+	res.Direction = "down"
+	rep, err := BuildReport(res, remediate.Link{Interface: "eth0"}, "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Remediation == nil {
+		t.Fatal("aucune remédiation pour un lien Linux descendant mesuré")
+	}
+	if len(rep.Remediation.LinuxTCIngress) == 0 {
+		t.Fatal("linux_tc_ingress est vide alors que la fenêtre descendante est mesurée")
+	}
+	if rep.Remediation.RouterOSIngress != "" {
+		t.Fatalf("script RouterOS émis sans routeur nommé :\n%s", rep.Remediation.RouterOSIngress)
+	}
+	// Et l'hypothèse d'interface suit le script, elle ne le précède pas.
+	if rep.Remediation.RouterOSLanIface != "" || rep.Remediation.RouterOSLanAssumed {
+		t.Fatalf("interface supposée déclarée sans script descendant : %q assumée=%v",
+			rep.Remediation.RouterOSLanIface, rep.Remediation.RouterOSLanAssumed)
+	}
+}
+
 func TestReportDownHasEmptyLinuxTCArray(t *testing.T) {
 	res := loadedResult()
 	res.Direction = "down"

@@ -205,12 +205,16 @@ type Remediation struct {
 	// RouterOSIngress is the LAN queue-tree script for the download direction.
 	// It is emitted for any measured down window on a link that names a
 	// RouterOS interface; an undeclared LAN interface is assumed and said so in
-	// the script, and routeros_lan_assumed records the assumption.
+	// the script, and routeros_lan_iface/routeros_lan_assumed record that
+	// assumption — only here, when this script exists. A report that carries no
+	// download RouterOS script carries no labelled assumption about one.
 	RouterOSIngress string `json:"routeros_ingress,omitempty"`
 
 	// Rates and interfaces named by the measurement that produced them. The
 	// UI reads these instead of parsing a command string — un taux recopié
-	// depuis le texte d'un script dérive dès qu'on change la formule.
+	// depuis le texte d'un script dérive dès qu'on change la formule. Le nom
+	// d'interface LAN et son drapeau « supposé » ne sont posés que quand le
+	// script qui les justifie existe : pas de script, pas d'hypothèse étiquetée.
 	UpMeasuredMbps     float64 `json:"up_measured_mbps,omitempty"`
 	UpShapedMbps       float64 `json:"up_shaped_mbps,omitempty"`
 	DownMeasuredMbps   float64 `json:"down_measured_mbps,omitempty"`
@@ -394,8 +398,6 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		rem := &Remediation{Qdisc: useQdisc, Reason: rec.Reason, LinuxTC: []string{}}
 		rem.LinuxIface = link.Interface
 		rem.RouterOSWanIface = link.RouterOSInterface
-		lanIface, lanAssumed := link.RouterOSLan()
-		rem.RouterOSLanIface, rem.RouterOSLanAssumed = lanIface, lanAssumed
 		if upCap > 0 {
 			rem.UpMeasuredMbps = upCap
 			rem.UpShapedMbps = remediate.ShapedRate(upCap)
@@ -429,6 +431,13 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 			if link.RouterOSInterface != "" || link.RouterOSLanInterface != "" {
 				if script, err := remediate.RouterOSIngress(link, useQdisc); err == nil {
 					rem.RouterOSIngress = script
+					// La paire d'interface supposée n'est déclarée que là où le
+					// script existe : un rapport sans script descendant ne doit
+					// rien affirmer sur une remédiation qu'il ne porte pas, faute
+					// de quoi l'UI rendrait « interface supposée » sur une carte
+					// sans routeur.
+					lanIface, lanAssumed := link.RouterOSLan()
+					rem.RouterOSLanIface, rem.RouterOSLanAssumed = lanIface, lanAssumed
 				}
 			}
 		} else if res.Direction == "both" {

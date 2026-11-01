@@ -56,4 +56,15 @@ func TestReportRemediationOmitsUnmeasuredDirection(t *testing.T) {
 	if rep.Remediation.DownMeasuredMbps != 0 || len(rep.Remediation.LinuxTCIngress) != 0 {
 		t.Fatalf("script descendant inventé : %+v", rep.Remediation)
 	}
+	// Pas de script descendant, donc aucune hypothèse d'interface à étiqueter :
+	// le rapport ne doit rien affirmer sur une remédiation qu'il ne porte pas.
+	// Le contraire afficherait, dans la carte 20B, une « interface supposée »
+	// sur un poste qui n'a jamais nommé de routeur.
+	if rep.Remediation.RouterOSIngress != "" {
+		t.Fatalf("script RouterOS descendant inventé : %q", rep.Remediation.RouterOSIngress)
+	}
+	if rep.Remediation.RouterOSLanIface != "" || rep.Remediation.RouterOSLanAssumed {
+		t.Fatalf("interface LAN déclarée sans script descendant : %q assumée=%v",
+			rep.Remediation.RouterOSLanIface, rep.Remediation.RouterOSLanAssumed)
+	}
 }
