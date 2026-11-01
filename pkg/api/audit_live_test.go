@@ -26,6 +26,7 @@ type auditLiveResp struct {
 		RTT   []float64 `json:"rtt_ms"`
 		Small []float64 `json:"small_ms"`
 	} `json:"samples"`
+	Timeline []audit.TimelinePoint `json:"timeline"`
 }
 
 func getJSON(t *testing.T, url string, out any) {
@@ -108,6 +109,22 @@ func TestAuditLiveAndStop(t *testing.T) {
 	}
 	if live.LastSmallMs != 12.5 {
 		t.Fatalf("last_small_ms = %v, want 12.5", live.LastSmallMs)
+	}
+	// La timeline couvre tout le run (une entrée par seconde écoulée), pas la
+	// fenêtre de 32 sondes : sans ça, la marche repos → charge disparaît.
+	if len(live.Timeline) == 0 {
+		t.Fatal("timeline live vide alors que des sondes ont répondu")
+	}
+	if len(live.Timeline) > live.TotalSec+5 {
+		t.Fatalf("timeline = %d points pour %d s (plafond total_sec+5)", len(live.Timeline), live.TotalSec)
+	}
+	for i, pt := range live.Timeline {
+		if pt.T != i {
+			t.Fatalf("timeline non contiguë : index %d porte t=%d", i, pt.T)
+		}
+		if pt.RTTP50 != nil && *pt.RTTP50 == 0 {
+			t.Fatalf("une sonde muette est tracée comme 0 ms : %+v", pt)
+		}
 	}
 
 	stopResp, err := http.Post(srv.URL+"/api/audit/stop", "application/json", nil)

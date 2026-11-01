@@ -257,6 +257,7 @@ func handleAuditLive() http.HandlerFunc {
 			"last_rtt_ms":      pr.LastRTTms,
 			"last_small_ms":    pr.LastSmallMs,
 			"samples":          map[string]any{"rtt_ms": rttSamples, "small_ms": smallSamples},
+			"timeline":         pr.Timeline,
 		})
 	}
 }

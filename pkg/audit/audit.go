@@ -148,6 +148,10 @@ type Progress struct {
 	LastSmallMs    float64   `json:"last_small_ms"`
 	SamplesRTT     []float64 `json:"samples_rtt_ms"`
 	SamplesSmall   []float64 `json:"samples_small_ms"`
+	// Timeline — une seconde par point sur toute la fenêtre, pour que
+	// l'observateur voie la marche du repos vers la charge au lieu des 32
+	// dernières sondes. Une seconde muette reste un point (n=0, valeurs nil).
+	Timeline []TimelinePoint `json:"timeline"`
 }
 
 // LoadOutcome — le résultat d'une fenêtre de charge : total, par flux (JFI),
@@ -271,6 +275,10 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	// telemetry — la série brute (une ligne par sonde réellement reçue).
 	var telemetry []TelemetryRow
 
+	// timeline — la série par seconde de tout le run : le plafond suit la
+	// durée demandée, pas le run par défaut de 60 s.
+	tl := newTimelineFor(p.Duration)
+
 	// emitProgress — publie l'état vivant sans allouer les fenêtres : les
 	// tranches pointent les ≤32 dernières valeurs déjà écrites (les appends
 	// ultérieurs ne les mutent pas). Nil-guarded : le CLI ne paie rien.
@@ -290,6 +298,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 			LastSmallMs:    lastNonZero(small),
 			SamplesRTT:     tailFloats(rtt, 32),
 			SamplesSmall:   tailFloats(small, 32),
+			Timeline:       tl.points(),
 		})
 	}
 
@@ -307,12 +316,14 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 			offset := time.Since(start).Milliseconds()
 			for _, s := range d.Ping(ctx, p.Target, pingPerCall) {
 				*dstRTT = append(*dstRTT, s)
+				tl.add(int(time.Since(start).Seconds()), phase, s, 0, false)
 				if s != 0 {
 					telemetry = append(telemetry, TelemetryRow{Phase: phase, OffsetMs: offset, RTTms: s})
 				}
 			}
 			if v, err := d.Small(ctx); err == nil {
 				*dstSmall = append(*dstSmall, v)
+				tl.add(int(time.Since(start).Seconds()), phase, 0, v, v != 0)
 				if v != 0 {
 					telemetry = append(telemetry, TelemetryRow{Phase: phase, OffsetMs: offset, SmallMs: v})
 				}
