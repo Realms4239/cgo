@@ -202,3 +202,32 @@ A fixed defect stays because it is the evidence that it was understood.
   before any green, and the report freezes `load_attempted`.
 - Proof: `TestVerdictNeverGreenWithoutGrade`, `TestReportVerdictRefusesGreenWithoutLoad`.
 - Lesson: a metric measured in the absence of its own stress is not a pass.
+
+## E11. A client-supplied `run_id` could write outside `data/runs` (observed 2026-11-01)
+
+- Symptom: `POST /api/run/start` accepted `run_id: "../evade"`, forwarded it to
+  the engine, and `OpenRun` created a run directory above `data/runs`, writing
+  `aqm_eval.csv` there. The same string later reaches `storedTier` as a path.
+- Cause: the handler validated every field except `run_id`; every other route
+  that reads a run already used `validRunID` (no `/`, `\`, `.`).
+- Fix: the handler refuses a non-empty `run_id` that fails `validRunID` with 400
+  before the engine gate; `TestRunStartRefusesEscapingRunID` covers `../`,
+  `..\`, `a/b`, `run.1` and `.`, and asserts the engine is never called.
+- Proof: `go test ./pkg/api -run "RunStartRefusesEscaping|RunStartSubmatrix|RunOptsReach|RunStartProvenance" -v` → PASS.
+- Lesson: an identifier that becomes a filesystem path is validated at the
+  boundary, not at the third consumer that happens to notice.
+
+## E12. A resumed campaign rewrote its cost basis (observed 2026-11-01)
+
+- Symptom: stop a run, change the price tier, resume it with the same `run_id`:
+  new rows were valued at the new tier while rows already written kept the old
+  one, and `manifest.json` was rewritten with the new config.
+- Cause: `OpenRun` rebuilds resume state from the CSV only, and `startMatrix`
+  built `matrixConfig` from `metrics.ActiveTierName()`; `Freeze` stores the
+  config but nothing read it back.
+- Fix: `storedTier` reads `manifest.json`'s `config.tier`, and `tierForRun`
+  prefers it over the global; a fresh run still takes the current tier.
+- Proof: `TestResumeKeepsTheFrozenTier` (frozen `yas-day-1gb` wins over a global
+  changed to `yas-ftth-100gb`; a new run takes the global).
+- Lesson: "frozen with the run" needs the resume path to read the freeze, not
+  just the write path to produce it.

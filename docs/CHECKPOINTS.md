@@ -1637,3 +1637,33 @@ end, at a settled decision, and at a handoff.
   stop and resume re-freezes a new basis while the CSV rows already written keep
   the old cost. `manifest.json` stores the old config, but resume does not read
   it; the fix is a follow-up (read `config.tier` before `buildMatrixConfig`).
+
+## 2026-11-01 15:19 UTC · trois causes racines sous 20A — la reprise, la provenance, l'identifiant
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit (parent `7876e3e`).
+- Method: systematic debugging — reproduce, root cause, one fix, test first.
+  Each defect was red before its fix.
+- E12, resumed cost basis (`027bc4b`): `OpenRun` rebuilt resume state from the
+  CSV only and `startMatrix` took `metrics.ActiveTierName()`; `Freeze` wrote the
+  config but nothing read it back. `storedTier`/`tierForRun` now prefer the run's
+  `manifest.json` `config.tier`; a fresh run takes the current tier.
+  `TestResumeKeepsTheFrozenTier`.
+- Provenance (`0881c92`): `Scan` recorded a run in `Group.Runs` before the
+  `invalid` filter, so a run whose every row was quarantined was cited as
+  provenance of a median it never fed. It is recorded after the filter now;
+  degraded rows still count because they feed the all-rows medians.
+  `TestGroupRunsExcludeInvalidOnlyRuns`.
+- E11, escaping run identifier (`7876e3e`): `/api/run/start` validated every
+  field except `run_id`, which becomes a path under `data/runs`; `../evade`
+  returned 200 and reached the engine. `validRunID` now runs before the engine
+  gate. `TestRunStartRefusesEscapingRunID`.
+- Proven: red→green focused for each; `go test ./pkg/campagne ./pkg/results
+  ./pkg/api -count=1` → ok (10.0 / 2.1 / 65.2 s); `go build ./...` clean;
+  `gofmt -l` empty. `python tools/verify.py` → `6 passed, 0 failed, 0 not run`
+  (tests gate 10.6 s, cached) at this commit.
+- Gate lesson: the first full run failed `links` on the new E11 text, which the
+  gate read as a document path; the prose was reworded, not the gate.
+- Unproven: no live campaign or audit; the 20A rows and the new run-start row
+  stay PENDING until an independent verifier re-runs them. Residual on E12: a
+  hard kill before `Freeze` leaves no manifest, and that resume still takes the
+  global tier.
