@@ -387,6 +387,12 @@ function scenarioWord(model: string | undefined, name: string): string {
 
 `formatCostAR` is already imported there from `./format`.
 
+Acceptance requirement carried from slice 20A's review: reports archived before
+the verdict landed reload with `operator_verdict: {level: "", word: "",
+sentence: ""}` — `omitempty` cannot suppress a struct value. An empty level must
+render the absence motif ("Pas encore mesuré" with the neutral dot), never a
+coloured badge, and never the engine's French sentence.
+
 - [ ] **Step 5: Implement the hero**
 
 Create `web/frontend/src/components/VerdictHero.tsx`:
