@@ -68,7 +68,7 @@ export const FALLBACK = {
   '--text-body-strong': '#d6d8dd',
   '--text-body': '#a9aeb6',
   '--text-muted': '#8b9099',
-  '--text-faint': '#7e838c',
+  '--text-faint': '#8a8a92',
   '--t-live': '#5ad3e3',
   '--t-threshold': '#f4b400',
   '--t-danger': '#e22718',

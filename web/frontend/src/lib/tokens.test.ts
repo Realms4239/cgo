@@ -88,3 +88,45 @@ describe('échelle opérateur', () => {
     expect(sheet).toContain('--surface-elevated: #181b22')
   })
 })
+
+// Un gris « faible » n'a jamais été mesuré : il valait 4,52:1 sur la surface la
+// plus claire de la console, soit la marge d'un cheveu au-dessus du seuil AA. La
+// feuille de style calcule maintenant le contraste qu'elle rend, sinon
+// l'éclaircissement d'une surface le ferait passer sous le seuil sans qu'aucun
+// test ne s'en aperçoive.
+describe('contraste des surfaces de console', () => {
+  const sheet = read('web/frontend/src/styles/tokens.css')
+  const hexToken = (name: string): string => {
+    const m = sheet.match(new RegExp(`^\\s*${name}:\\s*(#[0-9a-fA-F]{6});`, 'm'))
+    expect(m, `${name} absent de tokens.css ou non littéral`).not.toBeNull()
+    return m![1]
+  }
+  const luminance = (hex: string): number =>
+    hex
+      .replace('#', '')
+      .match(/../g)!
+      .map(x => parseInt(x, 16) / 255)
+      .map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)))
+      .reduce((sum, c, i) => sum + [0.2126, 0.7152, 0.0722][i] * c, 0)
+  const ratio = (a: string, b: string): number => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const surfaces = ['--canvas-solid', '--surface-card', '--surface-elevated']
+  const faint = hexToken('--text-faint')
+  const body = hexToken('--text-body')
+
+  for (const surface of surfaces) {
+    it(`le gris faible passe AA sur ${surface}`, () => {
+      // 13 px / 400 est du texte courant : le seuil est 4,5:1, et la marge est la
+      // seule protection contre un éclaircissement futur de la surface.
+      expect(ratio(faint, hexToken(surface)), surface).toBeGreaterThanOrEqual(4.5)
+    })
+  }
+  it('la hiérarchie faint < body reste visible sur chaque surface', () => {
+    for (const surface of surfaces) {
+      const bg = hexToken(surface)
+      expect(ratio(faint, bg), surface).toBeLessThan(ratio(body, bg))
+    }
+  })
+})
