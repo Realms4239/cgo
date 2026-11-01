@@ -1704,3 +1704,13 @@ end, at a settled decision, and at a handoff.
   only; OSC 52 delivery is untested by design; the row is `PENDING` until an
   independent verifier re-runs it. Slice 20C does not touch 20B (web console)
   and does not move any 20A row.
+
+### Addendum to 20C — the render check (`d1d56d1`)
+
+The tests proved the structure, not the look. Rendering the two tabs and the two
+panes as text once found two defects the tests had missed: the status line ran
+to 100 columns and the tab-bar hint I had added pushed that bar to 85. Both are
+fixed by giving the wrapper a width (`wrapWidth`) and folding the status and the
+hint at `paneWidth-2`; `TestRenderedViewsStayWithinEightyColumns` now renders
+the whole view and fails on any line over 80. The scratch renderer used to find
+this was deleted, not committed. Full gates re-run at `d1d56d1`.
