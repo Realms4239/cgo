@@ -1714,3 +1714,12 @@ fixed by giving the wrapper a width (`wrapWidth`) and folding the status and the
 hint at `paneWidth-2`; `TestRenderedViewsStayWithinEightyColumns` now renders
 the whole view and fails on any line over 80. The scratch renderer used to find
 this was deleted, not committed. Full gates re-run at `d1d56d1`.
+
+A second finding came from writing the verifier packet (`9e81924`): the
+mutation I had written as the width fault proof — widening the *hint* fold —
+stayed green, because the hint is ~76 runes by construction. The proof now
+mutates the *status* fold, which does produce a 97-column line and does fail.
+The packet records both, so a verifier who mutates the hint and sees green does
+not go looking for a defect that is not there. A fault proof that cannot fail is
+not a proof, and this one only revealed itself when replayed instead of
+asserted.
