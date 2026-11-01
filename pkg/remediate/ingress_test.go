@@ -98,11 +98,24 @@ func TestRouterOSIngressCake(t *testing.T) {
 	}
 }
 
-func TestRouterOSIngressNeedsLANInterface(t *testing.T) {
+// L'assertion remplacée : ce test refusait tout script ingress quand aucune
+// interface LAN n'était déclarée. Cette interdiction ne tient plus —
+// l'interface peut être supposée (« bridge »), et le script doit le dire (voir
+// TestRouterOSIngressAssumesBridgeAndSaysSo). Ce qui reste interdit, c'est
+// d'inventer la mesure : une hypothèse porte sur un nom, jamais sur un débit
+// ou un RTT.
+func TestRouterOSIngressAssumesInterfaceNeverMeasurement(t *testing.T) {
 	l := ingressLink()
 	l.RouterOSLanInterface = ""
+	l.CapacityMbps = 0
 	if _, err := RouterOSIngress(l, QdiscCake); err == nil {
-		t.Fatal("emitted RouterOS ingress config with no LAN interface")
+		t.Fatal("émis un script ingress pour un débit non mesuré")
+	}
+	l = ingressLink()
+	l.RouterOSLanInterface = ""
+	l.RTTms = 0
+	if _, err := RouterOSIngress(l, QdiscCake); err == nil {
+		t.Fatal("émis un script ingress pour un RTT non mesuré")
 	}
 }
 

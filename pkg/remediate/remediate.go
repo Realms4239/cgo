@@ -49,6 +49,24 @@ const (
 // redirected WAN ingress. The remediation creates it when absent.
 const IngressIFB = "ifb0"
 
+// DefaultRouterOSLan — l'interface LAN que RouterOS crée sur la plupart des
+// postes RB. Nommée explicitement comme hypothèse dans le script, jamais
+// présentée comme une mesure : une remédiation absente est muette, une
+// remédiation incomplète est dangereuse.
+const DefaultRouterOSLan = "bridge"
+
+// RouterOSLan rend l'interface LAN à cibler et dit si elle est supposée.
+func (l Link) RouterOSLan() (string, bool) {
+	if l.RouterOSLanInterface != "" {
+		return l.RouterOSLanInterface, false
+	}
+	return DefaultRouterOSLan, true
+}
+
+// ShapedRate expose le calibrage du shaper (95 % du goulot mesuré) à
+// l'UI et au rapport, pour qu'aucun client ne recopie la constante.
+func ShapedRate(measuredMbps float64) float64 { return measuredMbps * shaperHeadroom }
+
 // shaperHeadroom is the fraction of the measured bottleneck the shaper is set
 // to. A shaper configured at exactly the achieved rate contends with the real
 // bottleneck and under-delivers; 95% keeps the queue on our side of the link
@@ -307,18 +325,22 @@ func RouterOS(l Link, qdisc string) (string, error) {
 // download is shaped as an egress queue on the LAN/private interface, which
 // is where the traffic leaves toward clients. The object names and comment
 // are disjoint from the upload cleanup, so either script can be pasted alone.
+// Une interface LAN non déclarée est supposée (« bridge ») et le script le
+// dit : l'hypothèse porte sur un nom d'interface, jamais sur une mesure.
 func RouterOSIngress(l Link, qdisc string) (string, error) {
 	if err := l.Validate(); err != nil {
 		return "", err
 	}
-	if l.RouterOSLanInterface == "" {
-		return "", ErrUnmeasured{"routeros_lan_interface", "RouterOS ingress generation needs RouterOSLanInterface"}
-	}
-	iface := l.RouterOSLanInterface
+	iface, assumed := l.RouterOSLan()
 	bits := int64(math.Round(l.shapedRate() * 1000000))
 
 	var b strings.Builder
 	b.WriteString("# CGO download remediation - RouterOS v7+\n")
+	if assumed {
+		b.WriteString("# ATTENTION : interface LAN supposée (« " + iface + " »).\n")
+		b.WriteString("# Vérifiez avec /interface print brief et remplacez si nécessaire.\n")
+		b.WriteString("# Sans cette étape, la réception n'est pas façonnée.\n")
+	}
 	b.WriteString("# RouterOS has no IFB. This is a queue tree on the LAN/private\n")
 	b.WriteString("# interface, which is where download traffic egresses toward clients.\n")
 	b.WriteString("# It shapes the same direction at a different point than the Linux IFB.\n")

@@ -1,6 +1,7 @@
 package remediate
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -207,5 +208,39 @@ func TestRecommendAlwaysJustified(t *testing.T) {
 		if r := Recommend(goodLink(), tc.asym, tc.cpu); r.Reason == "" {
 			t.Fatalf("recommendation without a reason: %+v", r)
 		}
+	}
+}
+
+func TestRouterOSIngressAssumesBridgeAndSaysSo(t *testing.T) {
+	l := Link{RouterOSInterface: "ether1-wan", CapacityMbps: 18.5, RTTms: 100}
+	script, err := RouterOSIngress(l, QdiscCake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(script, "parent=bridge") {
+		t.Fatalf("script sans interface par défaut :\n%s", script)
+	}
+	if !strings.Contains(script, "ATTENTION") {
+		t.Fatalf("l'avertissement d'interface supposée est absent :\n%s", script)
+	}
+}
+
+func TestRouterOSIngressUsesDeclaredLanInterface(t *testing.T) {
+	l := Link{RouterOSInterface: "ether1-wan", RouterOSLanInterface: "lan-bridge", CapacityMbps: 18.5, RTTms: 100}
+	script, err := RouterOSIngress(l, QdiscCake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(script, "parent=lan-bridge") {
+		t.Fatalf("interface déclarée ignorée :\n%s", script)
+	}
+	if strings.Contains(script, "ATTENTION") {
+		t.Fatal("aucune hypothèse à signaler quand l'interface est déclarée")
+	}
+}
+
+func TestShapedRateMatchesHeadroom(t *testing.T) {
+	if got := ShapedRate(18.5); math.Abs(got-17.575) > 1e-9 {
+		t.Fatalf("ShapedRate(18.5) = %v, voulu 17.575", got)
 	}
 }

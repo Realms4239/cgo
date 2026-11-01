@@ -50,7 +50,11 @@ func TestReportDownEmitsOnlyIngress(t *testing.T) {
 	}
 }
 
-func TestReportDownWithoutLANStillEmitsLinuxIngress(t *testing.T) {
+// L'assertion remplacée : ce test exigeait « pas de LAN déclaré, pas de script
+// RouterOS descendant ». C'est désormais l'inverse pour une fenêtre descendante
+// mesurée : l'interface est supposée (« bridge ») et le script doit le dire,
+// sinon l'opérateur colle une remédiation à moitié vide sans le savoir.
+func TestReportDownWithoutLANAssumesBridgeAndSaysSo(t *testing.T) {
 	res := loadedResult()
 	res.Direction = "down"
 	rep, err := BuildReport(res, testLink(), "", true, false)
@@ -60,8 +64,19 @@ func TestReportDownWithoutLANStillEmitsLinuxIngress(t *testing.T) {
 	if rep.Remediation == nil || len(rep.Remediation.LinuxTCIngress) == 0 {
 		t.Fatal("down report lost Linux ingress when no LAN interface was named")
 	}
-	if rep.Remediation.RouterOSIngress != "" {
-		t.Fatal("emitted RouterOS ingress without a LAN interface")
+	if !strings.Contains(rep.Remediation.RouterOSIngress, "parent="+remediate.DefaultRouterOSLan) {
+		t.Fatalf("aucun script descendant sur l'interface supposée :\n%s", rep.Remediation.RouterOSIngress)
+	}
+	if !strings.Contains(rep.Remediation.RouterOSIngress, "ATTENTION") {
+		t.Fatalf("l'hypothèse d'interface n'est pas dite dans le script :\n%s", rep.Remediation.RouterOSIngress)
+	}
+	if !rep.Remediation.RouterOSLanAssumed || rep.Remediation.RouterOSLanIface != remediate.DefaultRouterOSLan {
+		t.Fatalf("hypothèse non gelée dans le rapport : %q assumée=%v",
+			rep.Remediation.RouterOSLanIface, rep.Remediation.RouterOSLanAssumed)
+	}
+	if rep.Remediation.DownShapedMbps != remediate.ShapedRate(rep.Remediation.DownMeasuredMbps) {
+		t.Fatalf("débit façonné descendant %v ≠ 95 %% de %v",
+			rep.Remediation.DownShapedMbps, rep.Remediation.DownMeasuredMbps)
 	}
 }
 
@@ -130,6 +145,16 @@ func TestReportBothMissingDownCapacityIsNamed(t *testing.T) {
 	}
 	if len(rep.Remediation.LinuxTCIngress) != 0 {
 		t.Fatal("a download config was sized from the upload number")
+	}
+	// L'hypothèse ne porte que sur un nom d'interface : une fenêtre descendante
+	// jamais mesurée ne produit aucun script descendant, avec ou sans passerelle
+	// MikroTik nommée, et aucun chiffre descendant.
+	if rep.Remediation.RouterOSIngress != "" {
+		t.Fatal("un script descendant a été émis pour une fenêtre jamais mesurée")
+	}
+	if rep.Remediation.DownMeasuredMbps != 0 || rep.Remediation.DownShapedMbps != 0 {
+		t.Fatalf("chiffres descendants inventés : %v / %v",
+			rep.Remediation.DownMeasuredMbps, rep.Remediation.DownShapedMbps)
 	}
 	found := false
 	for _, u := range rep.Unavailable {
