@@ -2,6 +2,8 @@ package campagne
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 
 	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
@@ -31,6 +33,39 @@ type matrixConfig struct {
 	// Tier — le palier tarifaire gelé avec le run : chaque ligne du manifeste
 	// se valorise sur cette base, même si le palier global change ensuite.
 	Tier string `json:"tier"`
+}
+
+// storedTier — le palier gél dans le manifeste d'un run arrêté, s'il existe.
+// Freeze écrit la config complète à côté du CSV ; une reprise doit la relire
+// avant de reconstruire un manifeste, sinon elle mélange deux bases de coût.
+func storedTier(dataDir, runID string) (string, bool) {
+	raw, err := os.ReadFile(filepath.Join(dataDir, runID, "manifest.json"))
+	if err != nil {
+		return "", false
+	}
+	var doc struct {
+		Config string `json:"config"`
+	}
+	if json.Unmarshal(raw, &doc) != nil || doc.Config == "" {
+		return "", false
+	}
+	var cfg struct {
+		Tier string `json:"tier"`
+	}
+	if json.Unmarshal([]byte(doc.Config), &cfg) != nil || cfg.Tier == "" {
+		return "", false
+	}
+	return cfg.Tier, true
+}
+
+// tierForRun — le palier d'un run : celui gelé dans son manifeste s'il existe,
+// sinon le global au moment du démarrage. Un run neuf prend le palier courant ;
+// une reprise garde sa base de coût.
+func tierForRun(dataDir, runID string) string {
+	if tier, ok := storedTier(dataDir, runID); ok {
+		return tier
+	}
+	return metrics.ActiveTierName()
 }
 
 func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]byte, error) {

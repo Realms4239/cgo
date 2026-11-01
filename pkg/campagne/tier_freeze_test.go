@@ -2,7 +2,11 @@ package campagne
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Realms4239/cgo/pkg/metrics"
@@ -74,5 +78,41 @@ func TestRunEventCostUsesFrozenTier(t *testing.T) {
 	if got.CostARPerH != want {
 		t.Fatalf("coût = %v, voulu %v au palier gelé (1000 Ar/Go) — le global 5556 donnerait %v",
 			got.CostARPerH, want, round1(float64(10*1448)/metrics.GB*5556*20))
+	}
+}
+
+// Une reprise garde la base de coût du run, pas le palier global du jour :
+// Freeze a écrit la config dans manifest.json, OpenRun ne relit que le CSV.
+func TestResumeKeepsTheFrozenTier(t *testing.T) {
+	dir := t.TempDir()
+	run := "run-interrompu"
+	cfg := []byte(`{"profiles":["P2"],"qdiscs":["cake"],"ccs":["bbr"],"reps":3,"tier":"yas-day-1gb"}`)
+	sum := sha256.Sum256(cfg)
+	doc, err := json.Marshal(map[string]any{
+		"config_sha256": hex.EncodeToString(sum[:]),
+		"config":        string(cfg),
+		"files":         []any{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, run), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, run, "manifest.json"), doc, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	before := metrics.ActiveTierName()
+	if err := metrics.SetDefaultTier("yas-ftth-100gb"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = metrics.SetDefaultTier(before) })
+
+	if got := tierForRun(dir, run); got != "yas-day-1gb" {
+		t.Fatalf("reprise = %q, voulu le palier gelé yas-day-1gb (global %q)", got, metrics.ActiveTierName())
+	}
+	if got := tierForRun(dir, "run-neuf"); got != "yas-ftth-100gb" {
+		t.Fatalf("run neuf = %q, voulu le global yas-ftth-100gb", got)
 	}
 }

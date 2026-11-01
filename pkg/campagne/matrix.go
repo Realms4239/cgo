@@ -6,7 +6,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
 )
 
@@ -143,8 +142,9 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 
 	// Le palier est gelé AVANT le manifeste : le JSON et chaque cellule du run
 	// lisent le même nom, même si l'opérateur change le palier entre deux cellules.
+	// Une reprise relit celui du manifeste précédent, pas le global du jour.
 	if deps.Tier == "" {
-		deps.Tier = metrics.ActiveTierName()
+		deps.Tier = tierForRun(dataDir, runID)
 	}
 
 	cfgJSON, err := buildMatrixConfig(profiles, qdiscs, ccs, reps, deps)
