@@ -114,10 +114,36 @@ type RetransRatio struct {
 
 // EconomicsScenario — une valorisation horaire du gaspillage mesuré.
 type EconomicsScenario struct {
-	Model     string  `json:"model"` // "A" (CIR) | "B" (au volume) | "emergency"
-	Name      string  `json:"name"`
-	ARPerHour float64 `json:"ar_per_hour"`
-	Basis     string  `json:"basis"`
+	Model     string           `json:"model"` // "A" (CIR) | "B" (au volume) | "emergency"
+	Name      string           `json:"name"`
+	ARPerHour float64          `json:"ar_per_hour"`
+	Basis     string           `json:"basis"`
+	Numbers   EconomicsNumbers `json:"numbers"`
+}
+
+// EconomicsNumbers — la base chiffrée d'un scénario, dans son propre modèle.
+// Le texte `Basis` reste lisible par un humain ; l'interface ne parse plus une
+// phrase française pour afficher un nombre.
+type EconomicsNumbers struct {
+	Model          string  `json:"model"`                      // "A" | "B" | "emergency"
+	MonthlyOpExMGA float64 `json:"monthly_opex_mga,omitempty"` // A
+	CIRMbps        float64 `json:"cir_mbps,omitempty"`         // A
+	ARPerGB        float64 `json:"ar_per_gb,omitempty"`        // B et emergency
+	RetransRatio   float64 `json:"retrans_ratio"`
+	WastedBytes    float64 `json:"wasted_bytes"`
+	TransportBytes float64 `json:"transport_bytes"`
+	LoadSeconds    float64 `json:"load_seconds"`
+}
+
+// numbers — les entrées du scénario telles qu'elles ont été calculées. Aucun
+// nombre n'est inventé : un modèle qui ne consomme pas une entrée la laisse à
+// zéro, et `omitempty` la retire du JSON plutôt que de la montrer mesurée.
+func numbers(model string, opex, cir, arPerGB, ratio float64, transported, wasted, loadSeconds float64) EconomicsNumbers {
+	return EconomicsNumbers{
+		Model: model, MonthlyOpExMGA: opex, CIRMbps: cir, ARPerGB: arPerGB,
+		RetransRatio: ratio, WastedBytes: wasted, TransportBytes: transported,
+		LoadSeconds: loadSeconds,
+	}
 }
 
 // Economics — valorisation complète d'un audit : tous les scénarios, le
@@ -174,6 +200,7 @@ func BuildEconomics(linkType string, ratio RetransRatio, transportedBytes, waste
 			Model: "A", Name: p.Name,
 			ARPerHour: CapacityWasteARPerHour(p.MonthlyOpExMGA, wastedBytes, transportedBytes),
 			Basis:     fmt.Sprintf("(part réémise %.4f) × %s Ar/720 h", ratio.Ratio, humanMGA(p.MonthlyOpExMGA)),
+			Numbers:   numbers("A", p.MonthlyOpExMGA, p.CIRMbps, 0, ratio.Ratio, transportedBytes, wastedBytes, loadSeconds),
 		})
 	}
 	// Modèle B : gaspillage facturé au volume, deux tarifs B2B.
@@ -182,6 +209,7 @@ func BuildEconomics(linkType string, ratio RetransRatio, transportedBytes, waste
 			Model: "B", Name: tr.Name,
 			ARPerHour: MeteredWasteARPerHour(wastedBytes, tr.ARPerGB, loadSeconds),
 			Basis:     fmt.Sprintf("%.2f Mo gaspillés / fenêtre %.0f s × %.2f Ar/Go", wastedBytes/1e6, loadSeconds, tr.ARPerGB),
+			Numbers:   numbers("B", 0, 0, tr.ARPerGB, ratio.Ratio, transportedBytes, wastedBytes, loadSeconds),
 		})
 	}
 	// Pénalité de secours détail — visible, jamais primaire.
@@ -189,6 +217,7 @@ func BuildEconomics(linkType string, ratio RetransRatio, transportedBytes, waste
 		Model: "emergency", Name: "retail-outofbundle",
 		ARPerHour: MeteredWasteARPerHour(wastedBytes, RetailEmergencyARPerGB, loadSeconds),
 		Basis:     "hors-forfait d'urgence (Net Month 4,5 Go) — pénalité, pas un modèle d'infrastructure",
+		Numbers:   numbers("emergency", 0, 0, RetailEmergencyARPerGB, ratio.Ratio, transportedBytes, wastedBytes, loadSeconds),
 	})
 	want := primaryName(linkType)
 	for i := range e.Scenarios {
