@@ -1723,3 +1723,38 @@ The packet records both, so a verifier who mutates the hint and sees green does
 not go looking for a defect that is not there. A fault proof that cannot fail is
 not a proof, and this one only revealed itself when replayed instead of
 asserted.
+
+## 2026-11-01 — les six portes rejouees a `bd42272` (hote DESKTOP-B6K9UCM)
+
+Commande : `python tools/verify.py` (sans drapeau, les six portes), lancee a
+`bd42272`, caches Go rediriges sur `D:\gocache-cgo` et `D:\gotmp-cgo`.
+Resultat : `6 passed, 0 failed, 0 not run` — frozen (159 runs, 528 lignes, 208
+valides), provenance (179 en-tetes), tests (`go vet` + `go test` en 442,7 s),
+exit (5 appels sur, contrat du verdict ok), hygiene (597 fichiers suivis), links
+(5 documents).
+
+**Ce que cela prouve.** Le packet de verification 20A et 20C ouvrait son
+dernier blanc en ecrivant « non rejoue a `bd42272` : les six portes completes ».
+Cette ligne est maintenant fermee. Le delta `d1d56d1..bd42272` ne touche que
+quatre fichiers sous `docs/` (`git diff --name-only` ne remonte aucun chemin
+hors `docs/`) : le code sous test est donc identique a celui de `d1d56d1`, dont
+les portes etaient vertes. Le commit `6ceeb34` (corrections du plan 20B) est
+entre pendant l'execution ; son hook a rejoue `hygiene` et `links` sur le contenu
+final, les deux PASS.
+
+**Pourquoi les caches etaient sur D:.** `C:` etait a 100 % occupe, 548 Mo libres,
+et la porte `tests` partait d'un `GOCACHE` vide que je venais de nettoyer pour
+rendre la place. La premiere tentative a ete arrachee a 300 Mo restants : un
+agent qui echoue sur un disque plein n'est pas un agent qui a trouve un defaut.
+`D:` a 59 Go libres ; `GOCACHE`/`GOTMPDIR` pointedessus ont suffi, sans rien
+supprimer d'autre que des caches reproductibles. Un hote sans `D:` doit liberer
+avant de rejouer, et doit le dire plutot que de rendre un `exit 2` pour vert.
+
+**Ce qui reste non prouve.** Rien de nouveau : les sept lignes `VERIFY` de 20A et
+celles de 20C attendent toujours un verificateur independant (le constructeur ne
+certifie pas son propre nombre), ni audit live, ni banc. Et une contrainte trouvee
+au passage, a ne pas redécouvrir en tache 9 de 20B : `tools/verify.py` fait 527
+lignes pour un plafond cumule de 650 sur les quatre fichiers d'outillage, et le
+total courant est a 649. Une porte de plus dans `verify.py` depasse le plafond
+immediatement ; le garde-fou lexical de 20B doit donc vivre cote `web/frontend/`
+et non dans l'outillage, ou le plafond est revu par une decision explicite.
