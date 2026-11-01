@@ -191,3 +191,14 @@ A fixed defect stays because it is the evidence that it was understood.
   Configurer names the missing kernel and the installer. No 7.1 kernel booted.
 - Lesson: a whitelist copied from a settings enum is not a capability; one
   payload from the host is the seam.
+
+## E10. A passing alert probe could have produced a green verdict (observed 2026-10-31)
+
+- Symptom: with the bulk sink unreachable, `capSamples` still collects load-window
+  completions, so `cap_sla` can read 100 % while no load was ever established.
+- Cause: a verdict derived from the alert percentage alone would treat that as a
+  pass. `load_measured` is the fact that says whether congestion existed.
+- Fix: `metrics.AssessVerdict` gates on `LoadAttempted` and `LoadEstablished`
+  before any green, and the report freezes `load_attempted`.
+- Proof: `TestVerdictNeverGreenWithoutGrade`, `TestReportVerdictRefusesGreenWithoutLoad`.
+- Lesson: a metric measured in the absence of its own stress is not a pass.

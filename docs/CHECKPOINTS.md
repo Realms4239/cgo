@@ -1601,3 +1601,39 @@ end, at a settled decision, and at a handoff.
 - Unproven: no 7.1 kernel booted, so no `bbr3` cell exists; the matrix preview
   still assumes the full matrix (filtered runs keep their own event order);
   independent verifier pending. The interface redesign itself has not started.
+
+## 2026-11-01 15:04 UTC · 20A est tracé — le moteur dit vrai, le vérificateur n'a pas signé
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / this commit (parent `df89c82`).
+- Changed: slice 20A, Tasks 1–6, resumed from the Qoder session that stopped at
+  Task 4b (its subagent hit a credit limit before writing a line). Verdict
+  cascade and report fields (`2526d73`..`f478ef6`); remediation rates and the
+  assumed LAN pair (`49f76d0`..`221768d`); economics numbers (`eb11ca9`);
+  campaign-frozen tier and the 409 guard (`2183492`); per-second live timeline
+  (`23ffdb1`); duel endpoint (`df89c82`). Docs: six `VERIFY` rows (PENDING),
+  `ERRORS` E10, spec §3.3 pointers refreshed, plan index 20A → In progress.
+- Proven: `python tools/verify.py` at `df89c82` → `6 passed, 0 failed, 0 not
+  run` (tests gate `go vet + go test` 198.8 s); focused commands at the same
+  tree: `go test ./pkg/metrics ./pkg/audit ./pkg/remediate -count=1` ok
+  (1.2 / 179.1 / 0.8 s), `go test ./pkg/campagne ./pkg/api -count=1` ok
+  (8.8 / 64.0 s), `go test ./pkg/api -run Duel -v` PASS; `go build ./...`
+  clean; no frozen corpus, CSV schema, frontend or eBPF object touched.
+- Unproven: no live audit and no campaign run — the verdict, timeline and duel
+  are proven by unit fixtures only; no CHR booted, so no RouterOS acceptance;
+  the six 20A rows stay PENDING until an independent verifier re-runs each
+  command and owns them.
+- Deferred items landed here, not in a code task:
+  - The CHR proof line must read “valide le bridge du laboratoire, pas
+    l'interface LAN de l'opérateur”: `cmd/cgo-chr/run.go` concatenates the
+    assumed-`bridge` ingress script, so a green proof cannot attest an operator
+    name it never saw.
+  - `pkg/audit/audit.go` named a `LoadMeasured` symbol that does not exist above
+    `LoadAttempted`; the comment now names `LoadEstablished`.
+  - Spec §3.3 refreshed: the 0.95 factor points at
+    `pkg/remediate/remediate.go:74`, and the removed `ErrUnmeasured` refusal is
+    no longer described in the present tense.
+- Named limitation carried out of Task 4b: a resumed run (`StartMatrixWithID`)
+  rebuilds `matrixConfig` from the current global, so a tier changed between
+  stop and resume re-freezes a new basis while the CSV rows already written keep
+  the old cost. `manifest.json` stores the old config, but resume does not read
+  it; the fix is a follow-up (read `config.tier` before `buildMatrixConfig`).

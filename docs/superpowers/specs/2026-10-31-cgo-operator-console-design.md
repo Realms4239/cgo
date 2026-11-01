@@ -148,20 +148,16 @@ Plateforme   (•) MikroTik RouterOS 7    ( ) Linux tc
 - New report fields so the UI never parses a command string:
   `up_measured_mbps`, `up_shaped_mbps`, `down_measured_mbps`, `down_shaped_mbps`,
   `linux_iface`, `routeros_wan_iface`, `routeros_lan_iface`. Shaped rate is
-  `0.95 × measured` (`pkg/remediate/remediate.go:56`), stated on screen.
+  `0.95 × measured` (`pkg/remediate/remediate.go:74`), stated on screen.
 - The platform toggle lists only platforms the report carries, persists the last
   choice, and is a `radiogroup`. Copy reads the active platform and the measured
   directions, and the toast names what was copied.
 - RouterOS has no IFB. When the ingress script exists, the card and the drawer
   name the LAN interface actually used and add the line “RouterOS façonne la
   réception sur l'interface locale (LAN ou bridge)”.
-- Half-remediation is refused. Today `RouterOSIngress` returns
-  `ErrUnmeasured` when no LAN interface is declared
-  (`pkg/remediate/remediate.go:314`), so an operator who never opened the
-  advanced field copies an upload-only script and believes the link is fixed
-  while the next 200 MB downlink bloats it. New behaviour: when the download
-  window was measured and the LAN interface is undeclared, the generator emits
-  the ingress script against `bridge` and leads it with a warning block —
+- Half-remediation is refused by construction. When the download window was
+  measured and the LAN interface is undeclared, the generator emits the ingress
+  script against `bridge` and leads it with a warning block —
   “ATTENTION : remplacez « bridge » par votre interface LAN si différent —
   vérifiez avec /interface print brief”. The report records
   `routeros_lan_assumed: true`, the card reads “Réception 17,6 Mbit/s ·
@@ -449,7 +445,7 @@ serif, captures at 1920/1366/390. No live bench run in this work.
   two-tab drawer. Those rows and the surrounding prose are rewritten in place.
 - One live contradiction found while checking this: `04-pratique.js:73` says the
   shaped capacity is set at 90 % of the measured capacity, while the generator
-  uses 95 % (`pkg/remediate/remediate.go:56`). The book text moves to 95 % with
+  uses 95 % (`pkg/remediate/remediate.go:74`). The book text moves to 95 % with
   the reason, or states both figures with their scope. The code is not changed to
   match prose.
 - Book Annex E rewritten screen by screen with the new captures; Annex F gains the
@@ -479,8 +475,9 @@ fallback for TUI copy; no half-remediation on RouterOS; numeric economics fields
 instead of a prose-only basis; gap-break rendering for unanswered probes.
 
 Rejected with evidence: the claim that the RouterOS generator hardcodes `bridge`
-(it refuses to generate without a named LAN interface,
-`pkg/remediate/remediate.go:314`); the proposed audit-scoped tier selector,
+without saying so (an undeclared LAN is assumed, warned and recorded as
+`routeros_lan_assumed`; no download script exists at all when that window was
+not measured); the proposed audit-scoped tier selector,
 because the audit never reads a tier at all — `BuildEconomics` works from
 contractual scenarios keyed to the declared link type
 (`pkg/metrics/cost.go:138-196`), and `DefaultTier` is consumed only by the
