@@ -862,6 +862,9 @@ func New(d Deps) Handler {
 			"delta": map[string]any{"small_p95_pct": pct(pv.SmallP95, cv.SmallP95), "rtt_p95_pct": pct(pv.RTTp95, cv.RTTp95), "goodput_pct": pct(pv.Goodput, cv.Goodput)},
 		})
 	})
+	// duel — la comparaison de référence : le meilleur AQM éligible et la
+	// ligne pfifo_fast, choisis par le moteur, jamais par l'interface.
+	mux.HandleFunc("GET /api/duel", handleDuel())
 	// compare — preuve pilote : Mann-Whitney bilatéral + Cliff sur deux
 	// cellules valid-only. Ex: GET /api/results/compare?a=P2|pfifo_fast|bbr&b=P2|cake|bbr&metric=small_p95_ms
 	// metric ∈ {small_p95_ms, deadline_ok_pct}. deadline agrégée mélange des

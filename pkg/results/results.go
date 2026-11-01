@@ -40,10 +40,27 @@ type Group struct {
 	DeadlineValidCI95      [2]float64 `json:"deadline_valid_ci95"`
 	Best                   bool       `json:"best,omitempty"`
 	HardwareRecommendation string     `json:"hardware_recommendation"`
+	// Runs — les identifiants qui ont alimenté la cellule, triés. Une médiane
+	// sans provenance n'est pas une preuve.
+	Runs []string `json:"runs,omitempty"`
 }
 
 // Scan agrège tous les aqm_eval.csv sous dataDir (dernier run, sinon tous).
 // Parcourt les gelés, groupe, médianes. Vide -> nil, nil.
+// runIDs — les runs d'une cellule, triés : le client peut les citer sans
+// hériter de l'ordre d'itération d'une map.
+func runIDs(set map[string]bool) []string {
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func Scan(dataDir, runFilter string) ([]Group, error) {
 	pattern := filepath.Join(dataDir, "*", "aqm_eval.csv")
 	if runFilter != "" {
@@ -60,6 +77,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		degraded                                          int
 		count                                             int
 		profile, qdisc, cc, direction                     string
+		runs                                              map[string]bool
 	}
 	buckets := map[string]*bucket{}
 	for _, f := range files {
@@ -112,9 +130,10 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			key := profile + "|" + qdisc + "|" + cc + "|" + direction
 			b := buckets[key]
 			if b == nil {
-				b = &bucket{profile: profile, qdisc: qdisc, cc: cc, direction: direction}
+				b = &bucket{profile: profile, qdisc: qdisc, cc: cc, direction: direction, runs: map[string]bool{}}
 				buckets[key] = b
 			}
+			b.runs[filepath.Base(filepath.Dir(f))] = true
 			b.count++
 			// Quarantaine seulement pour invalid — pas dégradé; 7 portes honnêtes.
 			// Les médianes portent les lignes exploitables (non invalid), comme
@@ -160,6 +179,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			Smallp95ValidIQR: [2]float64{vq1, vq3}, Smallp95ValidCI95: [2]float64{vlo, vhi},
 			DeadlineValidN: len(b.vDeadlines), DeadlineValidMedian: metrics.Median(b.vDeadlines),
 			DeadlineValidCI95: [2]float64{dlo, dhi},
+			Runs:              runIDs(b.runs),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
