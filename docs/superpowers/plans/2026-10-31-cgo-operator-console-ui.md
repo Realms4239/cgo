@@ -479,7 +479,16 @@ function scenarioWord(model: string | undefined, name: string): string {
 }
 ```
 
-`formatCostAR` is already imported there from `./format`.
+`formatCostAR` is **not** already imported there — measured at `8c92764`,
+`dashboard.ts` imports only `./types` and `./synthese`. Add
+`import { formatCostAR, numFr } from './format'`; both live in `src/lib/format.ts`
+(`formatCostAR` at line 37, `numFr` created by Step 3 of this task). The other
+premises of Step 4 do hold: `operatorSummary(report, warnMs, critMs)` exists at
+`dashboard.ts:58` and returns `{delayMs, delay, alertsPct, alerts, grade, quality}`,
+`PlainLevel` and `Band` are declared at `dashboard.ts:6-7`, `qualityWord` always
+returns a string (`non noté` when the grade is empty, so the fact builder must keep
+gating it on `s.grade`), and `types.ts` already carries `cap_sla`, `primary` and
+`ar_per_hour` — only `operator_verdict`, `load_attempted` and `numbers` are new.
 
 Acceptance requirement carried from slice 20A's review: reports archived before
 the verdict landed reload with `operator_verdict: {level: "", word: "",
