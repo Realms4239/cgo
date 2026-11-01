@@ -39,6 +39,10 @@ type Report struct {
 	Grade   string `json:"bloat_grade"`
 	Verdict string `json:"bloat_verdict"`
 
+	// OperatorVerdict — le mot que lit un opérateur qui ne connaît pas la
+	// méthode. Dérivé des faits déjà gelés, jamais d'une moyenne inventée.
+	OperatorVerdict metrics.Verdict `json:"operator_verdict"`
+
 	// Provenance seals the raw telemetry this report was built from.
 	Provenance Provenance `json:"provenance"`
 
@@ -126,6 +130,9 @@ type Measured struct {
 	// load stopped. 0 with DrainMeasured=false means "not measured".
 	DrainMs       float64 `json:"drain_ms"`
 	DrainMeasured bool    `json:"drain_measured"`
+	// LoadAttempted — la fenêtre de charge était-elle prévue ? Sans ce fait,
+	// un audit sans puits se lirait « jamais testé ».
+	LoadAttempted bool `json:"load_attempted"`
 	// LoadMeasured is false when no bulk transfer ran, in which case
 	// BloatDeltaMs and Grade carry no meaning.
 	LoadMeasured bool `json:"load_measured"`
@@ -234,6 +241,7 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		BloatDeltaMs:       res.BloatDeltaMs,
 		DrainMs:            res.DrainMs,
 		DrainMeasured:      res.DrainMeasured,
+		LoadAttempted:      res.LoadAttempted,
 		LoadMeasured:       loadMeasured,
 		ThroughputMbps:     res.ThroughputMbps,
 		LossPct:            res.LossPct,
@@ -289,6 +297,17 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 	// SLA CAP (modèle C) : l'objectif opérateur DGM 220 ms, cadre WIS 2.0 —
 	// jamais présenté comme un seuil imposé par l'OMM.
 	rep.CAPSLA = metrics.CAPSLA{Measured: res.CAPSLAMeasured, OKPct: res.CAPDeadlineOKPct, Breach: res.CAPSLABreach, Label: res.CAPSLALabel}
+
+	// Verdict opérateur : uniquement des faits déjà gelés dans ce rapport.
+	// La note vient de rep.Grade (donc res.BloatGrade), jamais d'une chaîne
+	// reparsée ni d'un défaut inventé ; LoadEstablished relit LoadMeasured,
+	// dérivé plus haut, pour que le mot et le fait ne se contredisent pas.
+	rep.OperatorVerdict = metrics.AssessVerdict(metrics.VerdictInput{
+		LoadAttempted:   res.LoadAttempted,
+		LoadEstablished: rep.Measured.LoadMeasured,
+		Grade:           rep.Grade,
+		SLA:             rep.CAPSLA,
+	})
 
 	// Say plainly what is missing. These are the metrics a jury or an operator
 	// will ask for, so each absence is named rather than silently zeroed.
@@ -509,6 +528,15 @@ func (r *Report) RenderMarkdown() string {
 		fmt.Fprintf(&b, "**Bufferbloat grade: %s** — %s\n\n", r.Grade, r.Verdict)
 	} else {
 		fmt.Fprintf(&b, "**Bufferbloat grade: not measured.** %s\n\n", r.Verdict)
+	}
+
+	// Le mot opérateur suit la note, jamais l'inverse. Un rapport scellé avant
+	// cette tranche ne porte pas d'operator_verdict : l'absence se dit, au lieu
+	// d'imprimer une ligne au verdict vide qui se lirait « rien à signaler ».
+	if r.OperatorVerdict.Word != "" {
+		b.WriteString("**Verdict opérateur : " + r.OperatorVerdict.Word + "** — " + r.OperatorVerdict.Sentence + "\n\n")
+	} else {
+		b.WriteString("**Verdict opérateur : non calculé** — le rapport ne porte pas d'`operator_verdict` : aucune cascade n'a été évaluée sur ses faits, et une absence n'est pas un feu vert.\n\n")
 	}
 
 	// SLA CAP — l'objectif opérateur DGM 220 ms dans le cadre WIS 2.0 :

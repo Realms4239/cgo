@@ -107,6 +107,11 @@ type Result struct {
 	CAPSLABreach     bool    `json:"cap_sla_breach"`
 	CAPSLALabel      string  `json:"cap_sla_label,omitempty"`
 
+	// LoadAttempted — une fenêtre de charge était programmée. Distinct de
+	// LoadMeasured : un puits injoignable tente la charge et ne la mesure pas.
+	// Gelé depuis le withLoad local de Run, jamais redérivé du débit.
+	LoadAttempted bool `json:"load_attempted"`
+
 	// LoadSeconds is the measured duration of the bulk transfer, in seconds.
 	// The financial projection extrapolates from this rather than from a
 	// hardcoded window, so the hourly figure is traceable to a real interval.
@@ -642,6 +647,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		CAPSLALabel:        sla.Label,
 		DrainMs:            drainMs,
 		DrainMeasured:      drainMeasured,
+		LoadAttempted:      withLoad,
 		LoadSeconds:        loadSeconds,
 		BaselineSeconds:    float64(idleSecs),
 		RecoverySeconds:    float64(recSecs),

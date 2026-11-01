@@ -26,6 +26,7 @@ func TestAssessVerdictCascade(t *testing.T) {
 		{"sain", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "A", SLA: sla(97.5, true)}, VerdictGreen, "Lien sain"},
 		{"sain sans sonde alerte", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "B"}, VerdictGreen, "Lien sain"},
 		{"note hors référentiel", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "b"}, VerdictNeutral, "Note indisponible"},
+		{"note hors vocab avec sonde", VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "b", SLA: sla(99.9, true)}, VerdictNeutral, "Note indisponible"},
 		{"charge tentée prime sur manquement", VerdictInput{LoadAttempted: true, LoadEstablished: false, SLA: sla(60.2, true)}, VerdictNeutral, "Charge non établie"},
 	}
 	for _, c := range cases {
