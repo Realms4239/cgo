@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -144,6 +145,35 @@ func TestRunStartProvenanceValidation(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("bursty+P2 sans moteur: %d, want 503 (gate order)", resp.StatusCode)
+	}
+}
+
+// TestRunStartRefusesEscapingRunID — le run_id est un chemin sous data/runs :
+// un identifiant qui en sort (../, /, \\) ferait écrire OpenRun hors du dossier.
+// Le reste de l'API valide déjà chaque identifiant via validRunID.
+func TestRunStartRefusesEscapingRunID(t *testing.T) {
+	called := false
+	h := New(Deps{StartFn: func(o RunOpts) error { called = true; return nil }})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	for _, id := range []string{"../evade", `..\evade`, "a/b", "run.1", "."} {
+		body, err := json.Marshal(map[string]any{"profiles": []string{"P2"}, "reps": 1, "run_id": id})
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("run_id %q: %d, want 400", id, resp.StatusCode)
+		}
+	}
+	if called {
+		t.Fatal("un run_id invalide a atteint le moteur")
 	}
 }
 

@@ -617,6 +617,13 @@ func New(d Deps) Handler {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
+		// run_id est un chemin sous data/runs : un identifiant qui en sort
+		// (../, /, \) ferait écrire OpenRun, et lire son manifeste, hors du
+		// dossier. Même garde que les routes qui lisent un run.
+		if opts.RunID != "" && !validRunID(opts.RunID) {
+			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
+			return
+		}
 		// prévention — le client est une indication, jamais le contrat (§6) ; l'entrée
 		// est validée même sur les hôtes sans moteur câblé — bornes issues du
 		// même registre que sert GET /api/schema
