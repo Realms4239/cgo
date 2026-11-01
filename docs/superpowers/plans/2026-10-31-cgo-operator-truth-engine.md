@@ -91,26 +91,17 @@ func TestVerdictNeverGreenWithoutGrade(t *testing.T) {
 
 func TestVerdictSentencesCarryTheirNumbers(t *testing.T) {
 	red := AssessVerdict(VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "D", SLA: sla(60.2, true)})
-	if want := "60.2 %"; !contains(red.Sentence, want) {
-		t.Fatalf("phrase rouge %q doit contenir %q", red.Sentence, want)
+	if !strings.Contains(red.Sentence, "60.2 %") {
+		t.Fatalf("phrase rouge %q doit citer le pourcentage mesuré", red.Sentence)
 	}
 	crit := AssessVerdict(VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "F"})
-	if !contains(crit.Sentence, "note F") {
+	if !strings.Contains(crit.Sentence, "note F") {
 		t.Fatalf("phrase saturation %q doit nommer la note", crit.Sentence)
 	}
 }
-
-func contains(s, sub string) bool { return len(s) >= len(sub) && indexOf(s, sub) >= 0 }
-
-func indexOf(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
-}
 ```
+
+Add `"strings"` to the test file's imports.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -228,13 +219,16 @@ import (
 	"github.com/Realms4239/cgo/pkg/remediate"
 )
 
+// BuildReport dérive Measured.LoadMeasured de
+// « res.ThroughputMbps > 0 && res.BloatGrade != "" » (pkg/audit/report.go:225).
+// Les cas ci-dessous jouent donc sur ces deux champs, jamais sur un booléen
+// LoadMeasured qui n'existe pas sur Result.
 func resultForVerdict(mut func(*Result)) *Result {
 	res := &Result{
 		AuditID: "audit-verdict", Site: "Siège", LinkType: "4g",
 		RTTIdleP50: 24, RTTIdleP95: 31,
-		LoadAttempted: true, LoadMeasured: true,
+		LoadAttempted: true, ThroughputMbps: 18.2, LoadSeconds: 40,
 		BloatDeltaMs: 12, BloatGrade: "A", BloatVerdict: "ok",
-		ThroughputMbps: 18.2, LoadSeconds: 40,
 	}
 	if mut != nil {
 		mut(res)
@@ -250,7 +244,11 @@ func reportOf(t *testing.T, res *Result) Report {
 	}
 	return *rep
 }
+```
 
+The three tests then read:
+
+```go
 func TestReportCarriesOperatorVerdict(t *testing.T) {
 	rep := reportOf(t, resultForVerdict(nil))
 	if rep.OperatorVerdict.Level != metrics.VerdictGreen || rep.OperatorVerdict.Word != "Lien sain" {
@@ -271,7 +269,7 @@ func TestReportCarriesOperatorVerdict(t *testing.T) {
 // Le cas de la revue : sonde d'alerte réussie, charge jamais établie.
 func TestReportVerdictRefusesGreenWithoutLoad(t *testing.T) {
 	rep := reportOf(t, resultForVerdict(func(r *Result) {
-		r.LoadMeasured = false
+		r.ThroughputMbps = 0
 		r.BloatGrade = ""
 		r.BloatDeltaMs = 0
 		r.CAPSLAMeasured = true
@@ -296,8 +294,6 @@ func TestReportVerdictRedOnSlaBreach(t *testing.T) {
 	}
 }
 ```
-
-Note: `Result` already carries `LoadMeasured` and the CAP fields (`pkg/audit/audit.go:105-108`). If the field names differ from the above, read `pkg/audit/audit.go:34-135` and use the real names — do not rename existing fields.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -343,7 +339,7 @@ In `BuildReport`, immediately after the block that sets `rep.CAPSLA` (line ~291)
 ```go
 	rep.OperatorVerdict = metrics.AssessVerdict(metrics.VerdictInput{
 		LoadAttempted:   res.LoadAttempted,
-		LoadEstablished: res.LoadMeasured,
+		LoadEstablished: rep.Measured.LoadMeasured,
 		Grade:           rep.Grade,
 		SLA:             rep.CAPSLA,
 	})
@@ -1151,8 +1147,8 @@ func writeDuelRun(t *testing.T, dir, run, qdisc, cc string, reps int, small, dea
 	}
 }
 
-func itoa(i int) string   { return strconvItoa(i) }
-func ftoa(f float64) string { return strconvFtoa(f) }
+func itoa(i int) string     { return strconv.Itoa(i) }
+func ftoa(f float64) string { return strconv.FormatFloat(f, 'f', 1, 64) }
 
 func TestDuelPicksBestAndBaseWithGuardrail(t *testing.T) {
 	dir := t.TempDir()
@@ -1203,7 +1199,7 @@ func TestDuelRefusesUnknownProfile(t *testing.T) {
 }
 ```
 
-`strconvItoa` / `strconvFtoa` are thin local helpers you add in this file wrapping `strconv.Itoa` and `strconv.FormatFloat(f, 'f', 1, 64)` — the repository already imports `strconv` in `pkg/api/server.go`, so no new dependency.
+Add `"strconv"` to the test file's imports.
 
 - [ ] **Step 3: Run to verify failure**
 
@@ -1218,9 +1214,11 @@ Create `pkg/api/duel.go`:
 package api
 
 import (
+	"math"
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Realms4239/cgo/pkg/metrics"
@@ -1298,7 +1296,7 @@ func handleDuel() http.HandlerFunc {
 		}
 		resp := duelResponse{Profile: profile, DeadlineMs: metrics.CAPDeadlineMs, MinReps: duelMinReps}
 		if len(cells) == 0 {
-			resp.Reason = "aucune cellule valide avec au moins " + itoaLocal(duelMinReps) + " répétitions — relancez une campagne"
+			resp.Reason = "aucune cellule valide avec au moins " + strconv.Itoa(duelMinReps) + " répétitions — relancez une campagne"
 			writeJSON(w, resp)
 			return
 		}
@@ -1346,17 +1344,10 @@ func cellOf(g results.Group) duelCell {
 
 func ptr[T any](v T) *T { return &v }
 
-func round1(v float64) float64 { return float64(int64(v*10+sign(v))) / 10 }
-
-func sign(v float64) float64 {
-	if v < 0 {
-		return -0.5
-	}
-	return 0.5
-}
+// round1 — une décimale, arrondi arithmétique. `pkg/api` n'a pas d'arrondi
+// réutilisable (vérifié avant d'écrire cette tâche).
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
 ```
-
-`itoaLocal` wraps `strconv.Itoa`. If `pkg/api` already defines `round1`, reuse it and delete the local copy.
 
 Register it in `pkg/api/server.go` beside the other results routes:
 
