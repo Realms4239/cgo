@@ -28,6 +28,12 @@ type Params struct {
 	Direction string
 	// Flows — flux de charge concurrents (défaut 4, régime du banc durci).
 	Flows int
+	// SinkMode et Origin — d'où viennent les réglages non demandés. Le CLI et
+	// l'API résolvent le banc avant d'appeler Run ; le rapport scellé doit dire
+	// lequel a détecté target/small/bulk, sinon une reproduction sur un autre hôte
+	// se lit comme la même mesure alors que le puits a changé.
+	SinkMode string
+	Origin   string // "cli" | "http"
 }
 
 // Ligne de résultat d'audit.
@@ -55,6 +61,10 @@ type Result struct {
 	Direction string `json:"direction"`
 	// FlowCount — flux de charge concurrents effectivement utilisés.
 	FlowCount int `json:"flow_count"`
+
+	// Invocation — les réglages effectifs de cet audit, scellés avec lui, pour
+	// que la donnée normalisée reste bornée par la commande qui l'a produite.
+	Invocation Invocation `json:"invocation"`
 
 	// Note bufferbloat (méthode Waveform, bandes verbatim citées) : écart
 	// p95 idle → chargé. Le sens de la fenêtre headline est dans Direction.
@@ -625,6 +635,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		Site:           p.Site,
 		LinkType:       p.LinkType,
 		Provider:       p.Provider,
+		Invocation:     invocationFrom(p),
 		RTTIdleP50:     idleSummary.Median,
 		RTTIdleP95:     idleSummary.P95,
 		RTTLoadedP50:   loadedSummary.Median,

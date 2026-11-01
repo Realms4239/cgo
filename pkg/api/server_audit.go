@@ -156,6 +156,9 @@ func handleAuditStart(d Deps) http.HandlerFunc {
 				"duration": float64(body.Duration), "target": body.Target,
 				"direction": body.Direction, "flows": float64(body.Flows),
 				"small_url": body.SmallURL, "bulk_addr": body.BulkAddr,
+				// Le mode du banc vient de la détection du handler, l'origine de
+				// la surface : le rapport scellé doit pouvoir les dire.
+				"sink_mode": sinks.Mode, "origin": "http",
 			})
 			deps := audit.Deps{}
 			if d.AuditDepsFn != nil {

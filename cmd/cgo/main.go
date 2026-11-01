@@ -187,6 +187,9 @@ WantedBy=multi-user.target
 			Site:    *site, LinkType: *linkType, Provider: *provider,
 			Duration: *duration, Target: *target, Direction: *direction, Flows: *flows,
 			SmallURL: *small, BulkAddr: *bulk,
+			// Le mode de banc est un fait de détection, consigné pour que la
+			// reproduction ne se lise pas comme un réglage choisi.
+			SinkMode: sinks.Mode, Origin: "cli",
 		}
 		fmt.Printf("audit %s — %s %s %ds sens %s flux %d (banc %s) → %s (bulk %s)\n",
 			p.AuditID, p.LinkType, p.Site, p.Duration, p.Direction, p.Flows, sinks.Mode, p.Target, p.BulkAddr)

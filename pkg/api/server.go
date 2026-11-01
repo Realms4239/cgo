@@ -1514,5 +1514,8 @@ func auditParamsFromRequest(body map[string]any) audit.Params {
 		Duration: num("duration", 60), Target: get("target"),
 		Direction: dir, Flows: num("flows", 4),
 		SmallURL: get("small_url"), BulkAddr: get("bulk_addr"),
+		// Consignés pour la reproduction scellée : le handler connaît le banc
+		// qu'il a détecté, cette fonction ne le devine pas.
+		SinkMode: get("sink_mode"), Origin: get("origin"),
 	}
 }

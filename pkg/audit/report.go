@@ -46,6 +46,12 @@ type Report struct {
 	// Provenance seals the raw telemetry this report was built from.
 	Provenance Provenance `json:"provenance"`
 
+	// Invocation — les réglages effectifs et la commande CLI équivalente. Absent
+	// pour un rapport scellé avant ce champ : rendu avec des zéros, un
+	// « flows: 0 » se lirait comme « un flux demandé ». La console affiche alors
+	// une absence, jamais une reproduction inventée.
+	Invocation *Invocation `json:"invocation,omitempty"`
+
 	// Remediation is present only when capacity and RTT were both measured.
 	Remediation *Remediation `json:"remediation,omitempty"`
 
@@ -247,6 +253,14 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 			LoadSeconds:     res.LoadSeconds,
 			RecoverySeconds: res.RecoverySeconds,
 		},
+	}
+	// -ros-lan ne prend que l'interface NOMMÉE : link.RouterOSLan() rend le
+	// "bridge" supposé, et l'installer dans la commande écrirait un réglage que
+	// personne n'a demandé. Une invocation sans commande (résultat scellé avant
+	// le champ) reste absente du rapport, plutôt que zérotée.
+	if in := res.Invocation.avecRemediation(qdisc, link.Interface,
+		link.RouterOSInterface, link.RouterOSLanInterface, asymmetric, cpuConstrained); in.Command != "" {
+		rep.Invocation = &in
 	}
 
 	loadMeasured := res.ThroughputMbps > 0 && res.BloatGrade != ""
@@ -510,6 +524,17 @@ func (r *Report) RenderJSON() ([]byte, error) {
 
 // RenderMarkdown returns the operator-facing report.
 //
+// codeSpan — délimiteur Markdown qui s'élargit si le contenu porte un accent
+// grave. Le nom du site est une saisie libre : une commande qui casse son span
+// se colle mal dans un ticket ou une annexe du mémoire.
+func codeSpan(s string) string {
+	tick := "`"
+	for strings.Contains(s, tick) {
+		tick += "`"
+	}
+	return tick + " " + s + " " + tick
+}
+
 // It is written to be pasted into a ticket or a thesis appendix without
 // editing: measured values first, absences stated, remediation last.
 func (r *Report) RenderMarkdown() string {
@@ -517,8 +542,17 @@ func (r *Report) RenderMarkdown() string {
 	fmt.Fprintf(&b, "# Link audit — %s\n\n", r.AuditID)
 	fmt.Fprintf(&b, "- Site: %s\n- Link: %s (%s)\n- Measured: %s\n", r.Site, r.LinkType, r.Provider, r.Timestamp)
 	fmt.Fprintf(&b, "- Sens: %s (charge: %d flux)\n", sensLabel(r.Measured.Direction), r.Measured.FlowCount)
-	fmt.Fprintf(&b, "- Phases: %.0f s baseline / %.0f s load / %.0f s drain\n\n",
+	fmt.Fprintf(&b, "- Phases: %.0f s baseline / %.0f s load / %.0f s drain\n",
 		r.Phases.BaselineSeconds, r.Phases.LoadSeconds, r.Phases.RecoverySeconds)
+	// Reproduction — la commande qui rejoue cet audit avec ses réglages effectifs.
+	// Un archive scellé avant ce champ le dit absent : jamais de commande inventée
+	// pour remplir la ligne.
+	if r.Invocation == nil || r.Invocation.Command == "" {
+		b.WriteString("- Reproduction: non enregistrée (rapport scellé avant ce champ)\n")
+	} else {
+		fmt.Fprintf(&b, "- Reproduction: %s\n", codeSpan(r.Invocation.Command))
+	}
+	b.WriteString("\n")
 
 	b.WriteString("## Measured\n\n")
 	b.WriteString("| Metric | Value |\n|---|---|\n")
