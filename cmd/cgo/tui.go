@@ -77,6 +77,13 @@ type modelTUI struct {
 	err       string
 	quitting  bool
 	lastTUI   time.Time
+
+	// audit — le dernier audit scellé, miroir des onglets 4 et 5 (slice 20C).
+	// Cinq onglets restent : le miroir s'affiche au-dessus de la campagne.
+	audit    auditView
+	pane     int
+	platform string
+	status   string
 }
 
 func initialModelTUI() modelTUI {
@@ -166,7 +173,9 @@ type kitDoneMsg struct {
 
 // ---- Update ----
 
-func (m modelTUI) Init() tea.Cmd { return tea.Batch(pollFrames(m.apiURL)) }
+func (m modelTUI) Init() tea.Cmd {
+	return tea.Batch(pollFrames(m.apiURL), pollAudit(m.apiURL))
+}
 
 func (m modelTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -175,6 +184,24 @@ func (m modelTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
+		case "esc":
+			m.pane = paneNone
+		case "d":
+			if m.tab >= 3 {
+				m.pane = paneDeployment
+			}
+		case "p":
+			if m.tab >= 3 {
+				m.pane = paneProof
+			}
+		case "c":
+			if m.tab >= 3 {
+				return m.copyScript()
+			}
+		case "tab":
+			if m.tab >= 3 {
+				m.platform = otherPlatform(platformFor(m.audit, m.platform))
+			}
 		case "1", "2", "3", "4", "5":
 			m.tab = int(msg.String()[0] - '1')
 		case "h", "left":
@@ -220,6 +247,9 @@ func (m modelTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rows = msg
 		m.resultsOK = msg != nil
 		return m, tea.Tick(5*time.Second, func(t time.Time) tea.Msg { return pollResults(m.apiURL)() })
+	case auditMsg:
+		m.audit = msg.v
+		return m, tea.Tick(10*time.Second, func(time.Time) tea.Msg { return pollAudit(m.apiURL)() })
 	case kitDoneMsg:
 		m.kitDone = strings.TrimSpace(msg.out)
 		return m, nil
@@ -253,6 +283,13 @@ func (m modelTUI) View() string {
 	if m.quitting {
 		return ""
 	}
+	// Pane plein écran : la barre d'onglets disparaît, esc ramène.
+	if m.pane != paneNone {
+		if m.pane == paneDeployment {
+			return strings.Join(deploymentLines(m.audit, platformFor(m.audit, m.platform)), "\n") + "\n"
+		}
+		return strings.Join(proofLines(m.audit), "\n") + "\n"
+	}
 	var b strings.Builder
 
 	// barre d'onglets
@@ -263,7 +300,7 @@ func (m modelTUI) View() string {
 			b.WriteString(stTab.Render(name))
 		}
 	}
-	b.WriteString("  " + stMuted.Render("h/l · q quitter") + "\n\n")
+	b.WriteString("  " + stMuted.Render("h/l · q quitter · d/p/c sur 4-5") + "\n\n")
 
 	switch m.tab {
 	case 0: // Setup
@@ -304,6 +341,7 @@ func (m modelTUI) View() string {
 		}
 	case 3: // Live
 		b.WriteString(stTitle.Render("Tableau live — "+m.frame.Phase) + "\n\n")
+		b.WriteString(m.auditMirror())
 		cards := []struct {
 			label string
 			val   string
@@ -328,6 +366,7 @@ func (m modelTUI) View() string {
 		}
 	case 4: // Résultats
 		b.WriteString(stTitle.Render("Résultats — classement complet") + "\n\n")
+		b.WriteString(m.auditMirror())
 		if !m.resultsOK || len(m.rows) == 0 {
 			b.WriteString("  " + stMuted.Render("aucun résultat gelé — lancez une campagne"))
 			return b.String() + "\n"
