@@ -201,8 +201,13 @@ func firstSet(vals ...string) string {
 // wrap78 — replie un texte à 78 colonnes sans jamais les dépasser. Un mot plus
 // long que la colonne (une commande `tc` l'est souvent) est coupé dur : c'est
 // préférable à un défilement horizontal, que le spec interdit.
-func wrap78(s string) []string {
+func wrap78(s string) []string { return wrapWidth(s, paneWidth) }
+
+func wrapWidth(s string, width int) []string {
 	s = strings.ReplaceAll(s, "\t", "    ")
+	if width < 1 {
+		width = 1
+	}
 	if strings.TrimSpace(s) == "" {
 		return []string{""}
 	}
@@ -217,12 +222,12 @@ func wrap78(s string) []string {
 		if len(w) == 0 {
 			continue
 		}
-		for len(w) > paneWidth {
+		for len(w) > width {
 			if len(cur) > 0 {
 				flush()
 			}
-			out = append(out, string(w[:paneWidth]))
-			w = w[paneWidth:]
+			out = append(out, string(w[:width]))
+			w = w[width:]
 		}
 		if len(w) == 0 {
 			continue
@@ -231,7 +236,7 @@ func wrap78(s string) []string {
 			cur = append(cur, w...)
 			continue
 		}
-		if len(cur)+1+len(w) > paneWidth {
+		if len(cur)+1+len(w) > width {
 			flush()
 		}
 		cur = append(cur, ' ')
@@ -522,9 +527,16 @@ func (m modelTUI) auditMirror() string {
 	if pf := platformFor(m.audit, m.platform); pf != "" {
 		hint += " · c écrit " + scriptName(pf)
 	}
-	b.WriteString(stMuted.Render("  "+hint) + "\n")
+	// Le statut et l'aide vivent hors des panes mais dans le même terminal :
+	// ils sont repliés à la même largeur, décalage de deux espaces compris,
+	// pour qu'aucune ligne ne pousse la vue au-delà de la colonne 80.
+	for _, l := range wrapWidth(hint, paneWidth-2) {
+		b.WriteString(stMuted.Render("  "+l) + "\n")
+	}
 	if m.status != "" {
-		b.WriteString(stMuted.Render("  "+m.status) + "\n")
+		for _, l := range wrapWidth(m.status, paneWidth-2) {
+			b.WriteString(stMuted.Render("  "+l) + "\n")
+		}
 	}
 	b.WriteString("\n")
 	return b.String()
@@ -554,7 +566,7 @@ func (m modelTUI) copyScript() (tea.Model, tea.Cmd) {
 		m.status = path + " · copie OSC 52 impossible — " + err.Error()
 		return m, nil
 	}
-	m.status = path + " · copie OSC 52 tentée (le terminal peut l'ignorer)"
+	m.status = path + " · copie OSC 52 tentée, le terminal peut l'ignorer"
 	return m, tea.Printf("%s", osc52(text))
 }
 

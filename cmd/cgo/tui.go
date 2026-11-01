@@ -300,7 +300,7 @@ func (m modelTUI) View() string {
 			b.WriteString(stTab.Render(name))
 		}
 	}
-	b.WriteString("  " + stMuted.Render("h/l · q quitter · d/p/c sur 4-5") + "\n\n")
+	b.WriteString("  " + stMuted.Render("h/l · q · d/p/c 4-5") + "\n\n")
 
 	switch m.tab {
 	case 0: // Setup

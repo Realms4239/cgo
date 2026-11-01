@@ -245,6 +245,33 @@ func TestViewShowsAuditMirrorOnTabs4And5(t *testing.T) {
 	}
 }
 
+// Découvert en rendant la vue pour de vrai : le statut et l'aide poussaient des
+// lignes à 100 colonnes. La vue entière tient maintenant dans 80.
+func TestRenderedViewsStayWithinEightyColumns(t *testing.T) {
+	var v auditView
+	if err := json.Unmarshal([]byte(auditFixture), &v); err != nil {
+		t.Fatal(err)
+	}
+	v.OK = true
+	v.Kernel = &kernelView{Source: "tcpinfo", Reason: "objet eBPF absent"}
+	m := modelTUI{audit: v, status: "data/audits/audit-ok/remediation.routeros.rsc · copie OSC 52 tentée, le terminal peut l'ignorer"}
+	check := func(label, out string) {
+		for _, l := range strings.Split(out, "\n") {
+			if n := len([]rune(l)); n > 80 {
+				t.Fatalf("%s : ligne de %d colonnes : %q", label, n, l)
+			}
+		}
+	}
+	for _, tab := range []int{3, 4} {
+		m.tab = tab
+		check("onglet", m.View())
+	}
+	m.pane = paneDeployment
+	check("pane déploiement", m.View())
+	m.pane = paneProof
+	check("pane preuves", m.View())
+}
+
 func TestWriteRemediationRefusesTraversal(t *testing.T) {
 	root := t.TempDir()
 	for _, id := range []string{"../evade", "..", "", "a/b", `a\b`, "run.1/.."} {
