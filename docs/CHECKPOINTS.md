@@ -1667,3 +1667,40 @@ end, at a settled decision, and at a handoff.
   stay PENDING until an independent verifier re-runs them. Residual on E12: a
   hard kill before `Freeze` leaves no manifest, and that resume still takes the
   global tier.
+
+## 2026-11-01 — slice 20C, the TUI mirrors the last sealed audit
+
+- Branch `rebuild/plan1-economics-audit`, HEAD `33ef0c6`, host DESKTOP-B6K9UCM
+  (Windows 10, MINGW64).
+- Decision: the spec's §3.4 “TUI mapping” paragraph had two incompatible
+  readings, because tabs 4 and 5 are the campaign live frame and the results
+  matrix, not an audit. The human chose the mirror: five tabs stay, no sixth
+  tab. Recorded in `docs/superpowers/plans/2026-11-01-cgo-tui-truth-panes.md`.
+- Changed: `cmd/cgo/tui_audit.go` (poll `/api/audit/status`, verdict line, four
+  facts, two panes, 78-column wrap, script writing, OSC 52),
+  `cmd/cgo/tui_audit_test.go` (15 tests), `cmd/cgo/tui.go` (model fields, keys
+  `esc`/`d`/`p`/`c`/`tab`, mirror on tabs 4–5, full-screen panes).
+- The four facts are defined in the plan because the spec names them without a
+  list: repos (idle p50/p95), sous charge (loaded p95 against the 220 ms
+  objective and the worst delta), débit, perte.
+- Honesty choices, each pinned by a test: a missing report, an unreachable API
+  and an unreadable report give three different lines; a physically impossible
+  zero is not printed as a measurement and a real 0 % loss is; a transport
+  failure never reads as “aucun audit”; the server-supplied `audit_id` is
+  validated before it becomes a path (same rule as E11); `c` never writes
+  outside the audit directory and never to `/tmp`.
+- Deviation, recorded rather than faked: the spec asks the TUI to “say plainly
+  when the terminal refused” an OSC 52 copy. No terminal returns a refusal
+  signal, so the status line says the copy was *attempted* and that the
+  terminal may ignore it. No success is claimed.
+- Proven: `go test ./cmd/cgo -run "TestAudit|TestVerdictHeader|TestWrap78|TestDeployment|TestProofPane|TestWriteRemediation|TestScriptFor|TestViewShows" -count=1`
+  → `ok`, 15 tests, including a wiring test that the mirror appears on tabs 4
+  and 5 and not on a campaign tab, and that a pane replaces the tab bar.
+  `go vet ./cmd/cgo` clean, `gofmt -l cmd/cgo` empty, `go build ./...` clean,
+  `python tools/verify.py` → `6 passed, 0 failed, 0 not run` on the tree that
+  became `33ef0c6`; the commit hook re-ran `provenance`, `exit`, `hygiene` and
+  `links` green (4 passed).
+- Unproven: no live audit was observed — the mirror was rendered from fixtures
+  only; OSC 52 delivery is untested by design; the row is `PENDING` until an
+  independent verifier re-runs it. Slice 20C does not touch 20B (web console)
+  and does not move any 20A row.
