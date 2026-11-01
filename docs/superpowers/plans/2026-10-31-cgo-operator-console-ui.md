@@ -73,11 +73,14 @@ The same file already pins the old skin. Read the whole file before changing
 anything, then update each of these in place — do not delete an assertion to make
 the suite green, and do not leave a rule asserting a gradient this task removes:
 
-- the `radial-gradient` assertion on `tokens.css`: Step 3 flattens `--canvas`, so
-  this passes only if another rule still legitimately uses a radial tint. Check
-  with `grep -n "radial-gradient" src/styles/tokens.css`. If none remains, replace
-  the assertion with the flat-canvas contract (`--canvas` contains no `gradient`)
-  and say which you chose in the report;
+- the `radial-gradient` assertion on `tokens.css`: Step 3 flattens `--canvas`. The
+  assertion was rewritten at `d7002a1` to parse the **`--canvas` declaration** and
+  fail if that declaration carries any gradient — which is the actual contract, and
+  is strictly better than banning the word `gradient` from the sheet, because
+  `--hairline-fade` (tokens.css:17) and the noise/repeating-linear overlay at
+  tokens.css:108 legitimately keep using gradients. Verified falsifiable: restoring
+  a radial tint on `--canvas` turns that case red. Leave it alone, and do **not**
+  "simplify" it back to `not.toContain('radial-gradient')`;
 - the `linear-gradient` and `box-shadow: inset` and `.card:hover` assertions:
   these read `index.css`/`components.css`, which Task 2 owns. Leave them green —
   Task 1 must not break them, so verify with `npx vitest run src/lib/tokens.test.ts`
@@ -137,20 +140,33 @@ In `web/frontend/src/lib/palette.ts`, update `FALLBACK` values for the four surf
 Run: `grep -rn "font-display" web/frontend/src`
 Replace each hit's `var(--font-display)` with `var(--font-ui)`, and where the rule also set `text-transform: uppercase` on French text, drop the transform. Then:
 
-Measured against the tree: the `--font-display` call sites are 14 (`index.css` ×11,
-`components.css` ×1 in `.viz-empty`, `MeteolinkWordmark.tsx` ×1, plus the token
-declaration itself). Three of them also carry `text-transform: uppercase` on
+Measured against the tree, corrected twice since the first draft: the
+`var(--font-display)` call sites are **12** — `index.css` ×10 (`:37, :39, :108,
+:665, :750, :769, :773, :798, :810, :814`), `components.css:20` ×1,
+`MeteolinkWordmark.tsx:38` ×1. The earlier "14 (index.css ×11)" counted the
+declaration and was fooled by `grep "font-display"`, which also matches the
+`font-display: swap` descriptor on the `@font-face` rules — a different property,
+not a token use. Three of the twelve also carry `text-transform: uppercase` on
 French text (`.view-title`, `.mode-head h1`, `.syn-hero h1`) — drop those three
-transforms here, because a serif-free title in caps is still an uppercase French
-sentence.
+transforms here, because a sans title in caps is still an uppercase French
+sentence. (`index.css:37` `.wordmark` turns out to have no consumer in any `.tsx`:
+a dead rule. Delete it with the token rather than re-pointing it.)
 
 The wordmark is the one hit that needs a decision, not a substitution:
 `MeteolinkWordmark.tsx:38` reads `fontFamily: 'var(--font-display, "Cormorant Garamond")'`.
 Replacing only the token leaves the literal `"Cormorant Garamond"` fallback, which
 still renders a serif on any machine that has one installed locally — the app would
 claim one face and ship another. Delete the fallback string too, so the wordmark
-resolves to `var(--font-ui)`. Finish with `grep -rn "Cormorant" web/frontend/src`
-empty; if it is not, the serif is still in the app.
+resolves to `var(--font-ui)`. Finish with a tree-wide check, not a grep of one file: the mandated
+`expect(sheet).not.toContain('Cormorant')` quotes the word it forbids, so
+`grep -rn "Cormorant" web/frontend/src` can never be empty while that guard exists,
+and a grep is also the wrong shape — it reads only `tokens.css`, so a
+`var(--font-display)` reintroduced in `index.css` or a new serif literal in a
+`.tsx` passes it. `src/lib/designFloor.test.ts:10-26` already ships the right
+idiom: walk `src/**`, skip `*.test.*`, assert the offender list is empty. Add the
+same-shaped case there for the two retired names, and drop the literal grep from
+this step's acceptance. Then `grep -rn "font-display: swap"` remains legitimate —
+that descriptor belongs to the `@font-face` rules and is not a token use.
 
 ```bash
 git rm web/frontend/public/fonts/cormorant-garamond-500.woff2 web/frontend/public/fonts/cormorant-garamond-600.woff2
@@ -160,8 +176,50 @@ Only if `git ls-files` lists them; otherwise delete the untracked copies and say
 
 - [ ] **Step 6: Verify, measure, commit**
 
-Run: `npm run typecheck && npx vitest run src/lib/tokens.test.ts src/lib/palette.test.ts && npm run build`
-Expected: tests pass; the bundle check prints a `TOTAL gz` lower than the 351.0 KB baseline — record the new number, do not estimate it.
+**Debt this task cannot close, named at `d7002a1` so nobody rediscovers it.** The
+six scale tokens are declared but almost unused directly — measured `var()` sites:
+`--fs-hero` 0, `--fs-metric` 0, `--fs-title` 1, `--fs-label` 1, `--fs-fine` 2,
+`--fs-body` 34. The console's real typography runs through the four transition
+aliases. Corrected arithmetic from the review: **136** `var(--fs-micro)` sites moved
+from 11px to 13px; `var(--fs-cap)`'s 32 were already 13px and did not move. So 168
+default-surface rules now render at 13px, where the scale bullet reserves 13px for
+the drawer — and the sharper fact is that `--fs-fine` currently appears **only**
+where the bullet forbids it and **never** where it permits it, because the drawer
+is Task 5 and does not exist yet. The bullet is not satisfiable by any token-only
+task; two consequences bind later work:
+
+- **Task 7 owns the alias migration**, not a colour pass: re-point alias sites at
+  scale roles (`hd-sub`, `c-pip-lbl`, `dash-tag`, `card-head` → `--fs-label`; prose
+  like `c-empty-hint` → `--fs-body`; `--fs-fine` only inside `.drawer*` rules once
+  Task 5 lands) and delete each alias once its last site is gone. Acceptance is a
+  count, not an impression: report `var(--fs-micro)` and `var(--fs-cap)`
+  occurrences per stylesheet before and after, and the drawer-only status of the
+  13px remainder.
+- **Task 9's gate enforces it**, because that is the first task that can: a
+  default surface must carry no 13px rule. Until then the bullet is aspirational
+  and a reviewer should not re-litigate it against Task 1 or Task 2.
+
+**`--fs-head` must not ride to 28px.** The first draft aliased `--fs-head` to
+`--fs-title`; measured, `var(--fs-head)` has 14 live call sites plus
+`--fs-num`, and only three of them are titles. Aliasing to 28px would silently
+re-size a *sentence* (`.interp-verdict`, index.css:520), nine numeric displays
+(`.mc-value` :489, `.interp-metric-value` :525, `.jfi-value` :650,
+`.audit-summary-cell b` :693, `.dash-sim-pair b` :769, `ResultatsView.tsx:658,668`,
+`.c-kpi-val` via `--fs-num`), and the 390px mobile wordmark (index.css:192, with
+`!important`, inside the header row `capture-fresh.mjs` screenshots). Metric values
+at 28px are also off the documented scale, which puts them at 32px. So Task 1 keeps
+`--fs-head` at its current 22px as a fifth transition alias and changes nothing:
+
+```css
+  --fs-head: 22px; /* tiers mêlés : titres, valeurs et une phrase — réparti en Tâches 2-4 */
+```
+
+The split, by site, is the named follow-up: titles → `--fs-title` (3 sites:
+`.view-title`, `.mode-head h1`, `.syn-hero h1`; `.wordmark` at index.css:37 is a
+dead rule, no consumer in any `.tsx`, so delete it rather than re-point it),
+numeric displays → `--fs-metric` (9 sites above), the sentence → `--fs-body`,
+`.c-empty-mark`/`.es-dash` and `.wordmark-text` → their own decision in Tasks 2-4.
+Task 7 deletes `--fs-head` and `--fs-num` when the last site is gone.
 
 ```bash
 git add web/frontend/src/styles/tokens.css web/frontend/src/lib/palette.ts web/frontend/src/lib/tokens.test.ts web/frontend/src web/frontend/dist/index.html
