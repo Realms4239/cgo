@@ -261,6 +261,30 @@ In `web/frontend/src/styles/index.css`:
 - delete the `.mode-rail`, `.mode-btn`, `.mode-pin`, `.syn-actions` and `.syn-action` rules and their media overrides;
 - give `#shell` a grid without the sidebar column and reserve `padding-bottom:72px` under 700px so the bottom bar never covers content.
 
+Two things the draft of this step left unstated, both checked against the tree:
+
+**`.syn-actions` is live content, not dead CSS.** `src/views/DashboardView.tsx:301`
+renders `<nav className="syn-actions" aria-label="Actions rapides">` with one button
+per quick action, right below the “Prochaine action” card. Deleting only the CSS
+rules (lines 816-820 and the `max-width` override at 233) would leave that nav
+rendered and unstyled — five lines of buttons with no layout, and a *second*
+navigation sitting under a card that already offers the primary action. This task
+owns the duplication rule, so delete the `syn-actions` nav block from
+`DashboardView.tsx` in the same commit, along with the now-unused `actions` array
+feeding it if nothing else reads it. Keep the “Prochaine action” section and its
+primary button: one primary action per screen is the constraint this satisfies.
+
+**The `.topnav-status` cluster named in Interfaces has no code in Step 3.** Put it
+in `App.tsx`, not inside `TopNav.tsx`: the header row becomes wordmark + `<TopNav
+/>` + `<div className="topnav-status">` holding `<StatusRibbon />`, the `#hd-state`
+phase span and the existing `⚙` Réglages button, replacing the
+`.app-header-center` and `.hd-right` wrappers. `#hd-state` (App.tsx:128) is
+referenced nowhere else — no CSS rule, no test, no script — but it is the only
+place the live SSE phase is visible when the ribbon is showing the observation
+mode, so move it, do not delete it. Under `@media (max-width: 700px)` only the
+destination buttons go to the fixed bottom bar; `.topnav-status` stays in the
+header, because a phone operator must still see the state without lifting the bar.
+
 - [ ] **Step 5: Fix the source-reading tests**
 
 In `web/frontend/src/lib/benchLayout.test.ts`, replace the `ModeRail.tsx` reads with `TopNav.tsx` and the assertion `rail.toContain('preloadMode(m.id)')` with the same call in the new file.
