@@ -3,6 +3,7 @@ package results
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -23,6 +24,32 @@ func writeRun(t *testing.T, dir, run, header string, rows ...string) {
 	}
 	if err := os.WriteFile(filepath.Join(runDir, "aqm_eval.csv"), []byte(out), 0644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Une cellule cite les runs qui ont nourri ses mesures, pas ceux dont toutes
+// les lignes sont en quarantaine : un run invalid ne peut pas revendiquer une
+// médiane qu'il n'a pas fournie (le duel cite ces identifiants).
+func TestGroupRunsExcludeInvalidOnlyRuns(t *testing.T) {
+	dir := t.TempDir()
+	row := func(run, gate string) string {
+		return run + ",1,P2,cake,bbr,1,20,25,3,120,96,18,0,0,1000,10,30," + gate
+	}
+	writeRun(t, dir, "run-valid", header18, row("run-valid", "valid"))
+	writeRun(t, dir, "run-degraded", header18, row("run-degraded", "degraded"))
+	writeRun(t, dir, "run-invalid", header18, row("run-invalid", "invalid"))
+
+	groups, err := Scan(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := findGroup(groups, "P2", "cake", "bbr")
+	if g == nil {
+		t.Fatal("cellule absente")
+	}
+	// degraded nourrit les médianes toutes-lignes : il reste cité.
+	if got := strings.Join(g.Runs, ","); got != "run-degraded,run-valid" {
+		t.Fatalf("runs = %q, voulu run-degraded,run-valid (invalid exclu)", got)
 	}
 }
 

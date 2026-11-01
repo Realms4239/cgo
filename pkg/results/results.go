@@ -40,8 +40,9 @@ type Group struct {
 	DeadlineValidCI95      [2]float64 `json:"deadline_valid_ci95"`
 	Best                   bool       `json:"best,omitempty"`
 	HardwareRecommendation string     `json:"hardware_recommendation"`
-	// Runs — les identifiants qui ont alimenté la cellule, triés. Une médiane
-	// sans provenance n'est pas une preuve.
+	// Runs — les identifiants des runs qui ont nourri les mesures de la cellule
+	// (au moins une ligne non invalid), triés. Une médiane sans provenance n'est
+	// pas une preuve ; un run entièrement en quarantaine n'en est pas une.
 	Runs []string `json:"runs,omitempty"`
 }
 
@@ -133,7 +134,6 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 				b = &bucket{profile: profile, qdisc: qdisc, cc: cc, direction: direction, runs: map[string]bool{}}
 				buckets[key] = b
 			}
-			b.runs[filepath.Base(filepath.Dir(f))] = true
 			b.count++
 			// Quarantaine seulement pour invalid — pas dégradé; 7 portes honnêtes.
 			// Les médianes portent les lignes exploitables (non invalid), comme
@@ -143,6 +143,9 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 				b.quarantined++
 				continue
 			}
+			// Après le filtre : un run dont toutes les lignes sont en quarantaine
+			// n'a nourri aucune mesure et ne peut pas figurer dans la provenance.
+			b.runs[filepath.Base(filepath.Dir(f))] = true
 			if get(r, iGate) == "degraded" {
 				b.degraded++
 			}
