@@ -17,7 +17,7 @@
 .c-empty.offline .c-empty-mark, .c-empty.error .c-empty-mark, .empty.offline .es-dash, .empty-state.error .es-dash { color: var(--danger-text); }
 .c-empty.stale .c-empty-mark, .empty.stale .es-dash { color: var(--warning); }
 .c-empty.sm, .empty.sm { min-height: 64px; padding: 12px; }
-.viz-empty { min-height: 96px; font-family: var(--font-display); font-weight: var(--tw-700); text-transform: none; letter-spacing: 0.02em; color: var(--text-muted); }
+.viz-empty { min-height: 96px; font-family: var(--font-ui); font-weight: var(--tw-700); text-transform: none; letter-spacing: 0.02em; color: var(--text-muted); }
 
 /* StatusPip — pip 50 % + label mono 10 caps (S5-S6), Chip/Badge steel */
 .c-pip { display: inline-flex; align-items: center; gap: 6px; }

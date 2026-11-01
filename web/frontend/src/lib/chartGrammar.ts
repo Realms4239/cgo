@@ -13,7 +13,9 @@ export function baseOption(title: string, unit: string, opts?: { idle?: boolean 
     animation: false,
     animationDuration: 0,
     animationDurationUpdate: 0,
-    title: { text: title, left: 8, top: 4, textStyle: { color: p.textPrimary, fontFamily: 'Cormorant Garamond', fontSize: 13, fontWeight: 600 } },
+    // Le canvas n'accepte pas var() : nom de face littéral. La face d'interface
+    // est unique (slice 20B) et la serif de titre est sortie de l'application.
+    title: { text: title, left: 8, top: 4, textStyle: { color: p.textPrimary, fontFamily: 'Inter', fontSize: 13, fontWeight: 600 } },
     tooltip: {
       trigger: 'axis',
       backgroundColor: alpha(p.surfaceElevated, 0.92),
@@ -50,7 +52,7 @@ export function baseOption(title: string, unit: string, opts?: { idle?: boolean 
     // (its gradient pipeline crashed LineView/getVisualGradient mid-run)
     // filigrane seulement hors idle — il éclat dans le vide sur un graphe vide
     graphic: opts?.idle ? [] : [
-      { type: 'text', left: 'center', top: 10, style: { text: 'METEOLINK \u00B7 LIEN', fill: alpha(p.textPrimary, 0.03), font: '600 28px Cormorant Garamond', textAlign: 'center' }, silent: true },
+      { type: 'text', left: 'center', top: 10, style: { text: 'METEOLINK \u00B7 LIEN', fill: alpha(p.textPrimary, 0.03), font: '600 28px Inter', textAlign: 'center' }, silent: true },
       { type: 'image', left: 'center', top: 'center', style: { image: 'data:image/svg+xml;base64,PHN2Zz4=', width: 300, height: 300, opacity: 0.015 }, silent: true },
     ] as unknown as EChartsOption['graphic'],
   } as unknown as EChartsOption

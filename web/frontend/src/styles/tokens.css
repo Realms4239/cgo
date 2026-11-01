@@ -5,16 +5,14 @@
 @font-face { font-family: 'JetBrains Mono'; src: url('/fonts/jetbrains-mono-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'JetBrains Mono'; src: url('/fonts/jetbrains-mono-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
 @font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/inter-var.woff2') format('woff2-variations'); } /* impeccable-disable-line overused-font: Inter pinned by DESIGN.md, self-hosted variable face */
-@font-face { font-family: 'Cormorant Garamond'; src: url('/fonts/cormorant-garamond-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
-@font-face { font-family: 'Cormorant Garamond'; src: url('/fonts/cormorant-garamond-600.woff2') format('woff2'); font-weight: 600; font-display: swap; }
 
 :root {
-  /* surfaces — high-fidelity */
-  --canvas: radial-gradient(ellipse at 50% -10%, rgba(90,211,227,0.04) 0%, transparent 50%), radial-gradient(ellipse at 100% 100%, rgba(180,138,224,0.03) 0%, transparent 40%), #070707;
-  --canvas-solid: #070707;
-  --surface-soft: #0b0b0c;
-  --surface-card: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%), #101012;
-  --surface-elevated: #161618;
+  /* surfaces — console plate : fond et cartes en gris plats, aucun dégradé, aucune ombre */
+  --canvas: var(--canvas-solid);
+  --canvas-solid: #0a0b0e;
+  --surface-soft: #0e1015;
+  --surface-card: #12141a;
+  --surface-elevated: #181b22;
   --hairline: #26262a;
   --hairline-fade: linear-gradient(90deg, transparent, #26262a 20%, #26262a 80%, transparent);
   --hairline-strong: #3a3a40;
@@ -61,16 +59,21 @@
   --ok-dim: rgba(31, 163, 72, 0.10);
   --danger-dim: rgba(226, 39, 24, 0.10);
 
-  /* type */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
+  /* type — une seule face d'interface (Inter) ; la serif est sortie de l'app */
   --font-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-ui: var(--font-body); /* alias de nom : --font-body reste le nom canonique */
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  --fs-micro: 11px;
-  --fs-tag: 12px;
-  --fs-cap: 13px;
-  --fs-body: 14px;
-  --fs-head: 22px;
+  --fs-fine: 13px;
+  --fs-label: 14px;
+  --fs-body: 16px;
+  --fs-title: 28px;
+  --fs-metric: 32px;
+  --fs-hero: 40px;
+  --fs-micro: var(--fs-fine); /* alias de transition, supprimé en fin de slice */
+  --fs-tag: var(--fs-label);
+  --fs-cap: var(--fs-fine);   /* 13px : même rendu qu'avant, aucun changement visuel */
+  --fs-head: var(--fs-title); /* 22px → 28px : la promotion du titre est voulue */
 
   /* tracking — noms canoniques ; les --tt-* restent des alias CSS */
   --tracking-tight: -0.02em;

@@ -35,7 +35,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
       <span
         className="wordmark-text"
         style={{
-          fontFamily: 'var(--font-display, "Cormorant Garamond")',
+          fontFamily: 'var(--font-ui)',
           fontWeight: 600,
           fontSize: compact ? 14 : 20,
           letterSpacing: 'var(--tracking-caps)',

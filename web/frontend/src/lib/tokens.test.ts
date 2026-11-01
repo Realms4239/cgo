@@ -23,9 +23,12 @@ describe('tokens', () => {
     expect(s).toMatch(/drop-shadow.*var\(--t-live\)/)
     expect(s).toContain('linear-gradient')
   })
-  it('tokens.css has radial glow', () => {
+  it('tokens.css — canevas plat : plus de halo radial sous la page', () => {
     const css = read('web/frontend/src/styles/tokens.css')
-    expect(css).toContain('radial-gradient')
+    const m = css.match(/^\s*--canvas:\s*([^;]+);/m)
+    expect(m, '--canvas déclaré dans la feuille').not.toBeNull()
+    // contrat 20B : une surface unie, aucune couche de dégradé dans le fond
+    expect(m![1]).not.toContain('gradient')
   })
   it('tokens.css has noise overlay', () => {
     const css = read('web/frontend/src/styles/tokens.css')
@@ -66,5 +69,22 @@ describe('mobile 390 — navigation', () => {
     const m = css.match(/@media \(max-width: 700px\) \{[\s\S]*?\n\}/)
     expect(m, 'bloc media max-width:700px présent').not.toBeNull()
     expect(m![0]).toMatch(/\.mode-rail \{[^}]*position: fixed/)
+  })
+})
+
+// Slice 20B — l'échelle se lit à bout de bras, une seule face sans serif.
+describe('échelle opérateur', () => {
+  const sheet = read('web/frontend/src/styles/tokens.css')
+  it('porte l’échelle-body et bannit la serif d’interface', () => {
+    for (const [tok, px] of [['--fs-hero', '40px'], ['--fs-metric', '32px'], ['--fs-title', '28px'], ['--fs-body', '16px'], ['--fs-label', '14px'], ['--fs-fine', '13px']]) {
+      expect(sheet, tok).toContain(`${tok}: ${px}`)
+    }
+    expect(sheet).not.toContain('Cormorant')
+    expect(sheet).not.toContain('--font-display')
+  })
+  it('les surfaces de console sont figées', () => {
+    expect(sheet).toContain('--canvas-solid: #0a0b0e')
+    expect(sheet).toContain('--surface-card: #12141a')
+    expect(sheet).toContain('--surface-elevated: #181b22')
   })
 })

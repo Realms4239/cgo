@@ -57,9 +57,10 @@ export const OFF_TOKEN_GRAYS: Record<string, TokenName> = {
 
 // Repli hors DOM — doit égaler tokens.css (assertion de test).
 export const FALLBACK = {
-  '--canvas-solid': '#070707',
-  '--surface-soft': '#0b0b0c',
-  '--surface-elevated': '#161618',
+  '--canvas-solid': '#0a0b0e',
+  '--surface-soft': '#0e1015',
+  '--surface-card': '#12141a',
+  '--surface-elevated': '#181b22',
   '--hairline': '#26262a',
   '--hairline-strong': '#3a3a40',
   '--hairline-faint': '#141416',
