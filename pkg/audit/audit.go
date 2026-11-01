@@ -108,7 +108,7 @@ type Result struct {
 	CAPSLALabel      string  `json:"cap_sla_label,omitempty"`
 
 	// LoadAttempted — une fenêtre de charge était programmée. Distinct de
-	// LoadMeasured : un puits injoignable tente la charge et ne la mesure pas.
+	// LoadEstablished : un puits injoignable tente la charge sans l'établir.
 	// Gelé depuis le withLoad local de Run, jamais redérivé du débit.
 	LoadAttempted bool `json:"load_attempted"`
 
