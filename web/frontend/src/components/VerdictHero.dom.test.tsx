@@ -24,7 +24,7 @@ const base: AuditReport = {
   audit_id: 'a1', site: 'Département X', link_type: '4g',
   measured: { load_attempted: true, load_measured: true, http_small_p95_ms: 209, small_measured: true },
   operator_verdict: { level: 'green', word: 'Lien sain', sentence: "Sous charge, la latence reste sous l'objectif." },
-  cap_sla: { measured: true, ok_pct: 96.7, breach: false },
+  cap_sla: { measured: true, ok_pct: 96.7, breach: false, target_pct: 95, deadline_ms: 220 },
   bloat_grade: 'A',
 }
 
@@ -162,6 +162,22 @@ describe('VerdictHero', () => {
       expect(out, c.word).toContain(c.dot)
       expect(sentenceText(r), c.word).toBe(`Phrase du moteur pour ${c.word}.`)
     }
+  })
+
+  it('les objectifs viennent du rapport scellé, pas d’une constante retapée', () => {
+    // 90 et 300 ne sont pas les constantes Go (95, 220) : une valeur figée dans
+    // l'interface échouerait ici.
+    const measured = { ...base, cap_sla: { measured: true, ok_pct: 90, breach: false, target_pct: 90, deadline_ms: 300 } }
+    const out = text(measured)
+    expect(out).toContain('objectif 90 %')
+    expect(out).toContain('objectif 300 ms')
+    expect(out).not.toContain('objectif 95 %')
+    expect(out).not.toContain('objectif 220 ms')
+  })
+
+  it('un rapport antérieur aux objectifs n’écrit pas de ligne vide', () => {
+    expect(markup(null)).not.toContain('<em></em>')
+    expect(text(null)).not.toContain('objectif')
   })
 
   it('sans rapport, le hero parle encore', () => {

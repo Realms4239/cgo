@@ -83,11 +83,15 @@ const (
 )
 
 // CAPSLA — conformité des transactions CAP sous charge (modèle C).
+// Les deux objectifs voyagent avec le verdict : l'interface les affiche sans
+// les retaper, et un rapport scellé dit contre quoi il a été jugé.
 type CAPSLA struct {
-	Measured bool    `json:"measured"`
-	OKPct    float64 `json:"ok_pct"`
-	Breach   bool    `json:"breach"`
-	Label    string  `json:"label,omitempty"`
+	Measured   bool    `json:"measured"`
+	OKPct      float64 `json:"ok_pct"`
+	Breach     bool    `json:"breach"`
+	Label      string  `json:"label,omitempty"`
+	TargetPct  float64 `json:"target_pct"`
+	DeadlineMs int     `json:"deadline_ms"`
 }
 
 // AssessCAPSLA évalue les complétions 16 KiB CHARGÉES contre l'objectif DGM.
@@ -97,7 +101,10 @@ func AssessCAPSLA(loadedSmallCompletionsMs []float64) CAPSLA {
 		return CAPSLA{}
 	}
 	pct := DeadlineOKPct(loadedSmallCompletionsMs, CAPDeadlineMs)
-	s := CAPSLA{Measured: true, OKPct: pct, Breach: pct < CAPBreachThresholdPct}
+	s := CAPSLA{
+		Measured: true, OKPct: pct, Breach: pct < CAPBreachThresholdPct,
+		TargetPct: CAPBreachThresholdPct, DeadlineMs: CAPDeadlineMs,
+	}
 	if s.Breach {
 		s.Label = fmt.Sprintf("ALERTE OPÉRATIONNELLE — MANQUEMENT SLA (objectif DGM %d ms, cadre WIS 2.0)", CAPDeadlineMs)
 	}

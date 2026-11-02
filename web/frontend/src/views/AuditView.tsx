@@ -7,6 +7,7 @@ import { AuditReportCard, gradeTone } from '../components/AuditReportCard'
 import AuditHistoryModal from '../components/AuditHistoryModal'
 import { ModeHead } from '../components/ModeHead'
 import { OperatorStats } from '../components/OperatorStats'
+import { VerdictHero } from '../components/VerdictHero'
 import { ScienceDetails } from '../components/ScienceDetails'
 import { Badge } from '../components/ui/StatusPip'
 import { CardHead } from '../components/ui/CardHead'
@@ -101,6 +102,7 @@ export default function AuditView() {
             sub={`${report.site || 'site —'} · ${report.link_type || 'lien —'}${report.timestamp ? ` · ${report.timestamp}` : ''}`}
             right={<Badge tone={gradeTone(report.bloat_grade)}>{report.bloat_grade || 'non noté'}</Badge>}
           />
+          <VerdictHero report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
           <OperatorStats report={report} warnMs={settings.warnMs} critMs={settings.critMs} includeCost />
           {report.bloat_verdict ? <p className="audit-verdict">{report.bloat_verdict}</p> : null}
 

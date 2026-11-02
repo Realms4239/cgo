@@ -772,7 +772,8 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 
 /* ---- Synthèse : accueil opérateur, une lecture, une action ---- */
 .syn { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
-.syn-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--sp-4); border-bottom: 1px solid var(--hairline); padding-bottom: var(--sp-3); }
+.syn-hero { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-4); border-bottom: 1px solid var(--hairline); padding-bottom: var(--sp-3); }
+.syn-hero > .verdict { flex: 1 1 auto; min-width: 0; padding: var(--sp-2) 0 var(--sp-3); }
 .syn-hero h1 { font: 600 var(--fs-head) var(--font-ui); letter-spacing: 0.06em; margin: 0; color: var(--text-primary); }
 .syn-hero p { color: var(--text-muted); font-size: var(--fs-body); margin: var(--sp-1) 0 0; max-width: 62ch; }
 .syn-hero-meta { display: flex; align-items: center; gap: var(--sp-2); color: var(--text-muted); font-size: var(--fs-tag); white-space: nowrap; }

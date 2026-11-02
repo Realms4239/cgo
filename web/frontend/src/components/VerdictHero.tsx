@@ -51,16 +51,20 @@ export function VerdictHero({ report, warnMs = 40, critMs = 100 }: {
         {verdict ? verdict.sentence : (report == null ? NO_REPORT_SENTENCE : NO_VERDICT_SENTENCE)}
       </p>
       <dl className="verdict-facts">
-        {facts.map(f => (
-          <div className="verdict-fact" key={f.key} data-empty={IS_ABSENT_VALUE.test(f.value) || undefined}>
-            <dt>{f.label}</dt>
-            <dd>
-              <b>{f.value}</b>
-              {f.unit ? <small> {f.unit}</small> : null}
-            </dd>
-            <em>{f.target}{f.band ? ` · ${f.band.word}` : ''}</em>
-          </div>
-        ))}
+        {facts.map(f => {
+          // Un rapport ancien ne porte pas d'objectif : pas de ligne vide.
+          const detail = [f.target, f.band?.word].filter(Boolean).join(' · ')
+          return (
+            <div className="verdict-fact" key={f.key} data-empty={IS_ABSENT_VALUE.test(f.value) || undefined}>
+              <dt>{f.label}</dt>
+              <dd>
+                <b>{f.value}</b>
+                {f.unit ? <small> {f.unit}</small> : null}
+              </dd>
+              {detail ? <em>{detail}</em> : null}
+            </div>
+          )
+        })}
       </dl>
     </section>
   )

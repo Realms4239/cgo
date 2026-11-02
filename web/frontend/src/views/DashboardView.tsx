@@ -11,6 +11,7 @@ import { NavIcon } from '../components/NavIcon'
 import { ScienceDetails } from '../components/ScienceDetails'
 import { gradeTone } from '../components/AuditReportCard'
 import { OperatorStats } from '../components/OperatorStats'
+import { VerdictHero } from '../components/VerdictHero'
 import { nextStep, pickHeadline, type SynGroup } from '../lib/synthese'
 import { bothAbsent, remediationView, retailBound } from '../lib/dashboard'
 import { compareAudits, summaryOf } from '../lib/auditSummary'
@@ -82,10 +83,7 @@ export default function DashboardView() {
   return (
     <div className="syn dash">
       <header className="syn-hero">
-        <div>
-          <h1>Tableau de bord</h1>
-          <p>Le lien réel, la remédiation simulée et ce que ça coûte — Météo Madagascar.</p>
-        </div>
+        <VerdictHero report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
         <div className="syn-hero-meta">
           <Badge tone={failed ? 'danger' : integrity ? 'success' : 'steel'}>
             {failed ? 'preuve indisponible' : integrity ? 'preuve vérifiable' : 'chargement…'}

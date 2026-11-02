@@ -121,16 +121,21 @@ export function operatorFacts(
   const rawAr = cost?.ar_per_hour
   const arPerHour = finite(rawAr) ? rawAr : undefined
   const costFigure = arPerHour != null ? formatCostAR(arPerHour) : null
+  // Les deux objectifs viennent du rapport scellé, jamais d'une constante
+  // retapée ici : un rapport ancien n'en porte pas et n'affiche rien.
+  const sla = report?.cap_sla
+  const targetPct = sla?.target_pct && sla.target_pct > 0 ? `objectif ${numFr(sla.target_pct, 0)} %` : ''
+  const deadlineMs = sla?.deadline_ms && sla.deadline_ms > 0 ? `objectif ${numFr(sla.deadline_ms, 0)} ms` : ''
   return [
     {
       key: 'alerts', label: 'Alertes à l’heure',
       value: alertsPct != null ? numFr(alertsPct, 1) : 'Pas encore mesuré',
-      unit: alertsPct != null ? '%' : '', target: 'objectif 95 %', band: s.alerts,
+      unit: alertsPct != null ? '%' : '', target: targetPct, band: s.alerts,
     },
     {
       key: 'delay', label: 'Réponse sous charge',
       value: delayMs != null ? numFr(delayMs, 0) : 'Pas encore mesuré',
-      unit: delayMs != null ? 'ms' : '', target: 'objectif 220 ms', band: s.delay,
+      unit: delayMs != null ? 'ms' : '', target: deadlineMs, band: s.delay,
     },
     {
       key: 'quality', label: 'Qualité du lien',

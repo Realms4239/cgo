@@ -117,7 +117,7 @@ describe('operatorFacts', () => {
   const report = (patch: Partial<AuditReport> = {}): AuditReport => ({
     audit_id: 't3',
     measured: { load_attempted: true, load_measured: true, small_measured: true, http_small_p95_ms: 209 },
-    cap_sla: { measured: true, ok_pct: 96.7, breach: false },
+    cap_sla: { measured: true, ok_pct: 96.7, breach: false, target_pct: 90, deadline_ms: 300 },
     bloat_grade: 'A',
     ...patch,
   })
@@ -131,9 +131,9 @@ describe('operatorFacts', () => {
     expect(facts.map(f => f.value)).toEqual(['96,7', '209', 'A', 'Non chiffré'])
     expect(facts[0].unit).toBe('%')
     expect(facts[1].unit).toBe('ms')
-    expect(facts[0].target).toBe('objectif 95 %')
+    expect(facts[0].target).toBe('objectif 90 %')
     expect(facts[0].band).toEqual({ word: "à l'heure", level: 'ok' })
-    expect(facts[1].target).toBe('objectif 220 ms')
+    expect(facts[1].target).toBe('objectif 300 ms')
     expect(facts[1].band).toEqual({ word: 'élevé', level: 'warn' })
     expect(facts[2].target).toBe('note A')
     expect(facts[2].band).toEqual({ word: 'excellent', level: 'ok' })
@@ -187,5 +187,8 @@ describe('operatorFacts', () => {
     const facts = operatorFacts(null, 40, 100)
     expect(facts.map(f => f.value)).toEqual(['Pas encore mesuré', 'Pas encore mesuré', 'Pas encore mesuré', 'Non chiffré'])
     expect(facts.every(f => f.band === null)).toBe(true)
+    // Un rapport antérieur aux deux objectifs scellés n'en invente pas.
+    expect(facts[0].target).toBe('')
+    expect(facts[1].target).toBe('')
   })
 })

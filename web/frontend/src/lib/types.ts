@@ -154,6 +154,8 @@ export interface AuditCapsla {
   ok_pct?: number
   breach?: boolean
   label?: string
+  target_pct?: number
+  deadline_ms?: number
 }
 
 export interface RouterOSCheck {

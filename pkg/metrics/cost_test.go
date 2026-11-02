@@ -61,13 +61,17 @@ func TestB2BTariffs(t *testing.T) {
 
 func TestAssessCAPSLA(t *testing.T) {
 	// Aucun échantillon chargé : non mesuré, jamais un succès de complaisance.
-	if s := AssessCAPSLA(nil); s.Measured || s.Breach {
+	if s := AssessCAPSLA(nil); s.Measured || s.Breach || s.TargetPct != 0 || s.DeadlineMs != 0 {
 		t.Fatalf("sans échantillons : %+v", s)
 	}
 	// 3/5 sous 220 ms = 60 % < 95 % : manquement (100,150,210 passent ; 700,300 échouent).
 	s := AssessCAPSLA([]float64{100, 150, 210, 700, 300})
 	if !s.Measured || !s.Breach || s.OKPct != 60 {
 		t.Fatalf("60%% attendu en échec : %+v", s)
+	}
+	// Les deux objectifs voyagent avec le verdict : sans eux l'interface les retape.
+	if s.TargetPct != CAPBreachThresholdPct || s.DeadlineMs != CAPDeadlineMs {
+		t.Fatalf("objectifs non scellés : %+v", s)
 	}
 	if s.Label == "" {
 		t.Fatal("un manquement doit porter son étiquette opérationnelle")

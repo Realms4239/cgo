@@ -342,7 +342,10 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 	}
 	// SLA CAP (modèle C) : l'objectif opérateur DGM 220 ms, cadre WIS 2.0 —
 	// jamais présenté comme un seuil imposé par l'OMM.
-	rep.CAPSLA = metrics.CAPSLA{Measured: res.CAPSLAMeasured, OKPct: res.CAPDeadlineOKPct, Breach: res.CAPSLABreach, Label: res.CAPSLALabel}
+	rep.CAPSLA = metrics.CAPSLA{
+		Measured: res.CAPSLAMeasured, OKPct: res.CAPDeadlineOKPct, Breach: res.CAPSLABreach, Label: res.CAPSLALabel,
+		TargetPct: metrics.CAPBreachThresholdPct, DeadlineMs: metrics.CAPDeadlineMs,
+	}
 
 	// Verdict opérateur : uniquement des faits déjà gelés dans ce rapport.
 	// La note vient de rep.Grade (donc res.BloatGrade), jamais d'une chaîne
