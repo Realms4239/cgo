@@ -298,12 +298,12 @@ func handleAuditReport() http.HandlerFunc {
 		}
 		auditMu.Unlock()
 		if rep == nil {
-			var err error
-			rep, err = readAuditReport(id)
-			if err != nil {
+			archived, ok := resolveArchivedReport(id)
+			if !ok {
 				writeErr(w, r, "rapport introuvable : "+id, http.StatusNotFound)
 				return
 			}
+			rep = archived
 		}
 		if r.URL.Query().Get("format") == "md" || r.URL.Query().Get("format") == "markdown" {
 			w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
@@ -367,6 +367,24 @@ func handleAuditPresets() http.HandlerFunc {
 	}
 }
 
+// resolveArchivedReport — LA résolution d'un rapport archivé par identifiant :
+// l'audit en mémoire s'il s'agit de celui-là, sinon la copie disque. Le listeur
+// et le détail partagent ce chemin, sinon la liste afficherait un verdict que le
+// rapport du même audit_id ne confirme pas.
+func resolveArchivedReport(id string) (*audit.Report, bool) {
+	auditMu.Lock()
+	last := lastAuditReport
+	auditMu.Unlock()
+	if last != nil && id != "" && last.AuditID == id {
+		return last, true
+	}
+	rep, err := readAuditReport(id)
+	if err != nil {
+		return nil, false
+	}
+	return rep, true
+}
+
 func handleAuditList() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		// read link_audit.csv
@@ -392,6 +410,16 @@ func handleAuditList() http.HandlerFunc {
 				}
 			}
 			m["has_report"] = strconv.FormatBool(auditReportExists(m["audit_id"]))
+			// Le mot vient de l'artefact scellé, jamais du CSV : la note seule ne
+			// dit pas si la charge a été tentée, et c'est exactement le faux vert
+			// que la tache 1 de 20A a fermé. Pas d'artefact, pas de verdict — une
+			// absence, jamais « neutre » inventé par le listeur.
+			if m["has_report"] == "true" {
+				if rep, ok := resolveArchivedReport(m["audit_id"]); ok && rep.OperatorVerdict.Level != "" {
+					m["verdict_level"] = string(rep.OperatorVerdict.Level)
+					m["verdict_word"] = rep.OperatorVerdict.Word
+				}
+			}
 			out = append(out, m)
 		}
 		writeJSON(w, map[string]any{"audits": out})
