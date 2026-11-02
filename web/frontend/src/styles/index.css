@@ -680,8 +680,6 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 /* mesure de lecture : 65–75 signes même sur une carte large (NN/g) */
 .syn-read, .dash-disclaimer, .audit-verdict, .dash-steps span { max-width: 68ch; }
 .audit-verdict { font-size: var(--fs-body); line-height: 1.6; color: var(--text-body-strong); max-width: 78ch; }
-.audit-remedy { display: flex; flex-direction: column; gap: var(--sp-1); border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
-.audit-remedy-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 .audit-reports { display: flex; flex-direction: column; gap: var(--sp-2); }
 .audit-reports-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: var(--fs-tag); }
 .audit-reports-table thead tr { color: var(--text-body-strong); text-align: left; border-bottom: 1px solid var(--hairline); }

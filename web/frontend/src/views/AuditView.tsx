@@ -7,6 +7,7 @@ import { AuditReportCard, gradeTone } from '../components/AuditReportCard'
 import AuditHistoryModal from '../components/AuditHistoryModal'
 import { ModeHead } from '../components/ModeHead'
 import { OperatorStats } from '../components/OperatorStats'
+import { RemediationCard } from '../components/RemediationCard'
 import { VerdictHero } from '../components/VerdictHero'
 import { ScienceDetails } from '../components/ScienceDetails'
 import { Badge } from '../components/ui/StatusPip'
@@ -107,21 +108,7 @@ export default function AuditView() {
           {report.bloat_verdict ? <p className="audit-verdict">{report.bloat_verdict}</p> : null}
 
           {remediation ? (
-            <div className="audit-remedy">
-              <span className="mono muted">Configuration à appliquer au bord — copiée du rapport scellé</span>
-              <div className="audit-remedy-actions">
-                {remediation.routeros ? (
-                  <button className="btn btn-primary" onClick={() => copyText(remediation.routeros ?? '', 'Configuration MikroTik')}>
-                    COPIER LA CONFIGURATION MIKROTIK
-                  </button>
-                ) : null}
-                {remediation.linux_tc?.length ? (
-                  <button className="btn" onClick={() => copyText((remediation.linux_tc ?? []).join('\n'), 'Configuration Linux')}>
-                    COPIER LA CONFIGURATION LINUX
-                  </button>
-                ) : null}
-              </div>
-            </div>
+            <RemediationCard remediation={remediation} />
           ) : (
             <p className="mono muted">Aucune remédiation émise — capacité ou RTT repos non mesurés.</p>
           )}

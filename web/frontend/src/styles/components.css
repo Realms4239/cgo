@@ -82,4 +82,22 @@
 @media (max-width: 1366px) { .verdict-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .verdict-facts { grid-template-columns: minmax(0, 1fr); } }
 
+/* ── RemediationCard — deux directions mesurées, une plateforme, un bouton ── */
+.remediation { display: flex; flex-direction: column; gap: var(--sp-3); border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-4); }
+.remediation h2 { font: 600 var(--fs-title) var(--font-ui); margin: 0; }
+.remediation-sub { color: var(--text-muted); font-size: var(--fs-label); margin: 0; max-width: 68ch; }
+.remediation-rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); margin: 0; }
+.remediation-rate dt { font-size: var(--fs-label); color: var(--text-muted); }
+.remediation-rate dd { margin: var(--sp-1) 0 0; }
+.remediation-rate dd b { font: 600 var(--fs-metric)/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.remediation-rate dd small { font: 400 var(--fs-label) var(--font-mono); color: var(--text-faint); }
+.remediation-basis { display: block; font-size: var(--fs-label); color: var(--text-faint); }
+.remediation-rate[data-empty] dd { font-size: var(--fs-label); color: var(--text-muted); }
+.remediation-assumed { color: var(--t-threshold); font-size: var(--fs-label); margin: 0; }
+.remediation-platform { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.remediation-choice { min-height: 44px; padding: 0 var(--sp-3); border: 1px solid var(--hairline); color: var(--text-muted); font-size: var(--fs-label); }
+.remediation-choice[aria-checked="true"] { border-color: var(--t-live); color: var(--t-live); }
+.remediation-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+@media (max-width: 700px) { .remediation-rates { grid-template-columns: minmax(0, 1fr); } }
+
 

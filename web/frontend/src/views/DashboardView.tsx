@@ -11,6 +11,7 @@ import { NavIcon } from '../components/NavIcon'
 import { ScienceDetails } from '../components/ScienceDetails'
 import { gradeTone } from '../components/AuditReportCard'
 import { OperatorStats } from '../components/OperatorStats'
+import { RemediationCard } from '../components/RemediationCard'
 import { VerdictHero } from '../components/VerdictHero'
 import { nextStep, pickHeadline, type SynGroup } from '../lib/synthese'
 import { bothAbsent, remediationView, retailBound } from '../lib/dashboard'
@@ -90,6 +91,8 @@ export default function DashboardView() {
           </Badge>
         </div>
       </header>
+
+      <RemediationCard remediation={report?.remediation} />
 
       <div className="dash-grid">
         <section className="card dash-card" data-testid="dash-real" aria-labelledby="dash-real-title">

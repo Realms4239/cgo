@@ -114,6 +114,14 @@ export interface AuditRemediation {
   routeros?: string
   linux_tc_ingress?: string[]
   routeros_ingress?: string
+  up_measured_mbps?: number
+  up_shaped_mbps?: number
+  down_measured_mbps?: number
+  down_shaped_mbps?: number
+  linux_iface?: string
+  routeros_wan_iface?: string
+  routeros_lan_iface?: string
+  routeros_lan_assumed?: boolean
 }
 
 // Les clés lues par la console ; le moteur en émet un superset (tranche 20A).
