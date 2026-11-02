@@ -53,6 +53,18 @@ describe('design floor — portes source', () => {
     expect(bad, 'espacement = var(--sp-*), tailles = var(--fs-hero|metric|title|body|label|fine), rien sous --fs-fine').toEqual([])
   })
 
+  it('les marches lisent un corpus réel — une garde qui ne lit rien ne peut pas échouer', () => {
+    // Les quatre portes ci-dessus passent aussi longtemps que leur liste de
+    // fichiers est vide : un dossier renommé, un cwd changé ou un regex de
+    // filtre cassé rendrait toute la suite verte sans lire une seule ligne.
+    // Planchers mesurés à l’écriture : 95 fichiers source hors tests, 55 .tsx
+    // montés, 3 feuilles — les chiffres réels sont plus hauts et monter ne doit
+    // jamais rougir ; c’est la chute vers zéro qui est le défaut.
+    expect(SRC_FILES.length, 'fichiers source parcourus par les gardes d’arbre').toBeGreaterThanOrEqual(60)
+    expect(TSX.length, 'composants .tsx parcourus').toBeGreaterThanOrEqual(30)
+    expect(CSS.length, 'feuilles CSS parcourues').toBeGreaterThanOrEqual(3)
+  })
+
   it('la serif d’interface est sortie de tout l’arbre src/ (hors tests)', () => {
     // Complète le garde de tokens.test.ts, qui ne lit que tokens.css : ici on
     // marche src/ comme les portes ci-dessus, donc un var(--font-display)
@@ -60,7 +72,7 @@ describe('design floor — portes source', () => {
     // descripteur font-display: swap des @font-face n’est PAS le jeton retiré et
     // ne doit pas être signalé — le confondre rendrait cette garde inutile.
     const bad = offending(SRC_FILES, (s, f) =>
-      lines(s, /Cormorant|var\(--font-display\)/).map((l) => `${f}:${l}`))
+      lines(s, /Cormorant|var\(\s*--font-display[\s),]/).map((l) => `${f}:${l}`))
     expect(bad, 'Inter est la seule face ; --font-display et la serif sont retirés').toEqual([])
   })
 
