@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/probe"
@@ -87,6 +88,9 @@ type Result struct {
 	// JFIPct — équité inter-flux de la fenêtre headline (Jain fairness
 	// index, 0–100). 0 = un seul flux ou charge non mesurée.
 	JFIPct float64 `json:"jfi_pct"`
+	// JFIMeasured — l'index avait-il de quoi comparer (≥2 contributions non
+	// nulles). Sans ce fait, un JFI indéterminé se lit « 0 % d'équité ».
+	JFIMeasured bool `json:"jfi_measured"`
 	// RetransRatio — part des octets réémis sur la charge, base explicite :
 	// "measured" (TCP_INFO sur nos sockets), "estimated" (proxy documenté
 	// perte sonde × volume), "" (rien à chiffrer). Pour "both", une seule
@@ -177,12 +181,37 @@ type LoadOutcome struct {
 	Elapsed         time.Duration
 }
 
+// jfiComputable — l'index de Jain a-t-il de quoi comparer ? Moins de deux
+// contributions par flux, ou des contributions toutes nulles, rendent l'index
+// indéterminé ; metrics.JFI répond alors 0, et un 0 affiché est une accusation.
+func jfiComputable(perFlow []uint64) bool {
+	if len(perFlow) < 2 {
+		return false
+	}
+	for _, x := range perFlow {
+		if x > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // Run exécute un audit de Duration secondes, en collectant des échantillons ping/small.
 // Découpe B : 0–12 s idle, 12–22 s bulk flood, 22–30 s chargé distinct selon Q26, plus repli iperf3 par BulkAddr.
 // Si Duration <30, fenêtre unique avec idle==loaded copie honnête ; si >=30, trois fenêtres produisent des RTT idle vs chargé distincts.
 // Direction "down" exerce la fenêtre descendante (champs miroir + headline),
 // "both" enchaîne fenêtre up puis fenêtre down sur une seule baseline partagée.
 func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
+	// Porte d'encodage, avant toute sonde : un champ libre non décodable part
+	// directement dans link_audit.csv et dans le rapport scellé, et il y est déjà
+	// (« D\uFFFDpartement X » vit dans les archives et s'affiche tel quel). Le
+	// moteur ne sait pas qui l'a mal encodé ; il sait refuser d'archiver ce qu'il
+	// ne peut pas relire. Mesurer pour jeter ensuite n'est pas un refus.
+	for _, f := range []struct{ name, value string }{{"site", p.Site}, {"provider", p.Provider}} {
+		if !utf8.ValidString(f.value) || strings.ContainsRune(f.value, utf8.RuneError) {
+			return nil, fmt.Errorf("audit %s : champ %q non décodable en UTF-8 — corrigez la source avant de relancer", p.AuditID, f.name)
+		}
+	}
 	if d.Ping == nil {
 		d.Ping = func(ctx context.Context, t string, n int) []float64 {
 			ss, _ := probe.Ping(ctx, t, n, 200)
@@ -596,9 +625,16 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 
 	jfiPct := metrics.JFI(upOc.PerFlow) * 100
 	jfiDownPct := metrics.JFI(downOc.PerFlow) * 100
+	headlinePerFlow := upOc.PerFlow
 	if headlineIsDown {
 		jfiPct = jfiDownPct
+		headlinePerFlow = downOc.PerFlow
 	}
+	// JFIMeasured — l'index de Jain vaut 0 quand il n'a rien à comparer (moins de
+	// deux contributions, ou somme nulle). Publier ce 0 comme « 0 % d'équité »
+	// ferait lire une injustice totale là où aucune équité n'a été mesurée : le
+	// fait « calculable ou non » est scellé à côté du nombre.
+	jfiMeasured := jfiComputable(headlinePerFlow)
 
 	// SLA CAP — les complétions 16 KiB SOUS CHARGE : la fenêtre up pour un
 	// audit up, la fenêtre down pour un audit down, les deux fenêtres
@@ -662,6 +698,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		DrainDownMs:        drainDownMs,
 		DrainDownMeasured:  drainDownMeasured,
 		JFIPct:             jfiPct,
+		JFIMeasured:        jfiMeasured,
 		RetransRatio:       ratio,
 		CAPSLAMeasured:     sla.Measured,
 		CAPDeadlineOKPct:   sla.OKPct,

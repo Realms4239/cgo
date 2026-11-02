@@ -165,6 +165,9 @@ type Measured struct {
 	Direction string  `json:"direction"`
 	FlowCount int     `json:"flow_count"`
 	JFIPct    float64 `json:"jfi_pct"`
+	// JFIMeasured — faux quand l'index de Jain n'avait pas de contributions par
+	// flux à comparer. Sans ce fait, jfi_pct = 0 se lit « 0 % d'équité ».
+	JFIMeasured bool `json:"jfi_measured"`
 	// Miroirs descendants — zéro tant que la fenêtre down n'a pas tourné.
 	RTTLoadedDownP95Ms float64 `json:"rtt_loaded_down_p95_ms"`
 	ThroughputDownMbps float64 `json:"throughput_down_mbps"`
@@ -293,6 +296,7 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		Direction:          res.Direction,
 		FlowCount:          res.FlowCount,
 		JFIPct:             res.JFIPct,
+		JFIMeasured:        res.JFIMeasured,
 		RTTLoadedDownP95Ms: res.RTTLoadedDownP95,
 		ThroughputDownMbps: res.ThroughputDownMbps,
 		BloatDeltaDownMs:   res.BloatDeltaDownMs,
@@ -584,7 +588,13 @@ func (r *Report) RenderMarkdown() string {
 		fmt.Fprintf(&b, "| Throughput | %.2f Mbit/s |\n", r.Measured.ThroughputMbps)
 		fmt.Fprintf(&b, "| VoIP R-score | %.1f |\n", r.Measured.VoIPR)
 		if r.Measured.FlowCount > 1 {
-			fmt.Fprintf(&b, "| Équité inter-flux (JFI) | %.1f %% |\n", r.Measured.JFIPct)
+			if r.Measured.JFIMeasured {
+				fmt.Fprintf(&b, "| Équité inter-flux (JFI) | %.1f %% |\n", r.Measured.JFIPct)
+			} else {
+				// L'index n'avait rien à comparer. Un « 0,0 % » se lit comme une
+				// injustice totale : une absence nommée est le seul rendu honnête.
+				b.WriteString("| Équité inter-flux (JFI) | non mesuré (aucune contribution par flux) |\n")
+			}
 		}
 	}
 	// Miroirs descendants — sous leur propre condition : un « both » avec

@@ -302,7 +302,7 @@ func TestBuildReportEconomicsAllScenarios(t *testing.T) {
 		DataUsedMB: 50, LossPct: 4,
 		RTTIdleP50: 20, RTTIdleP95: 25, RTTLoadedP50: 25, RTTLoadedP95: 30,
 		RetransRatio: metrics.RetransRatio{Ratio: 0.04, Basis: "measured"},
-		Direction:    "up", FlowCount: 4, JFIPct: 97.5,
+		Direction:    "up", FlowCount: 4, JFIPct: 97.5, JFIMeasured: true,
 		CAPSLAMeasured: true, CAPDeadlineOKPct: 97, CAPSLABreach: false,
 	}
 	rep, err := BuildReport(res, remediate.Link{}, "", true, false)
