@@ -87,10 +87,6 @@
   --disabled-opacity: 0.5;
 
   /* layout */
-  --sidebar-w: 232px;
-  --sidebar-min: 56px;
-  --rail-w: 56px;
-  --rail-w-pinned: 232px;
   --gap: 24px;
 
   /* motion */

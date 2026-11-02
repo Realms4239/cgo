@@ -1,7 +1,7 @@
 // Portes mesurables de la passe système (T9). Elles lisent les sources réelles,
 // pas un composant monté : une dérive de style doit rougir sans navigateur.
 // @ts-ignore — types node:fs inutiles sous jsdom.
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { describe, it, expect } from 'vitest'
 
@@ -138,13 +138,20 @@ describe('design floor — portes source', () => {
     expect(src, 'les puces de rang/filtre sont des bascules').toContain('aria-pressed={active}')
   })
 
-  it('le rail dérive de MODES et chaque destination est une bascule accessible', () => {
-    const rail = read(join(SRC, 'components', 'ModeRail.tsx'))
-    expect(rail, 'importe MODES').toContain("from '../store/ui'")
-    expect(rail, 'importe MODES').toContain('MODES')
-    expect(rail, 'boucle sur MODES').toContain('MODES.map')
-    expect(rail, 'expose aria-pressed').toContain('aria-pressed={mode === m.id}')
+  it('la navigation dérive de MODES et chaque destination est un lien courant accessible', () => {
+    const nav = read(join(SRC, 'components', 'TopNav.tsx'))
+    expect(nav, 'importe MODES').toContain("from '../store/ui'")
+    expect(nav, 'importe MODES').toContain('MODES')
+    expect(nav, 'boucle sur MODES').toContain('MODES.map')
+    expect(nav, 'expose aria-current').toContain('aria-current={mode === m.id')
+    expect(nav, 'préchauffe la destination').toContain('preloadMode(m.id)')
     const app = read(join(SRC, 'App.tsx'))
     expect(app, 'raccourcis 1–4 depuis MODES').toContain('MODES.find(m => m.key === e.key)')
+  })
+
+  it('le rail et le bandeau ont disparu, pas seulement démontés', () => {
+    expect(existsSync(join(SRC, 'components', 'TopNav.tsx')), 'TopNav existe').toBe(true)
+    expect(existsSync(join(SRC, 'components', 'ModeRail.tsx')), 'ModeRail supprimé').toBe(false)
+    expect(existsSync(join(SRC, 'components', 'StatusRibbon.tsx')), 'StatusRibbon supprimé').toBe(false)
   })
 })

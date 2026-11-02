@@ -73,8 +73,6 @@ export function animateLiveEnter() {
   tl.add('.card', { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'], duration: 700, delay: stagger(50, { start: 80 }), ease: EASE } as any, 0)
 }
 
-// largeur animée par la transition CSS var(--rail-w) — anime écrirait la var
-
 export function animatePromptEnter(el: Element) {
   if (prefersReducedMotion()) return
   const tl = createTimeline({ defaults: { duration: 500, ease: EASE } } as any)

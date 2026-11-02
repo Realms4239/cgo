@@ -12,9 +12,9 @@ describe('meteolink', () => {
     expect(s).toContain('METEOLINK')
     expect(s).toContain('createDrawable')
   })
-  it('mode rail exists', () => {
-    const s=read('web/frontend/src/components/ModeRail.tsx')
+  it('top nav exists', () => {
+    const s=read('web/frontend/src/components/TopNav.tsx')
     expect(s).toContain('MODES.map')
-    expect(s).toContain('aria-pressed=')
+    expect(s).toContain('aria-current=')
   })
 })

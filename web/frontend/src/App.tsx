@@ -5,13 +5,13 @@ import { connectSSE, disconnectSSE } from './lib/sse'
 import { clearLive } from './lib/live'
 import { animateViewEnter } from './lib/anime'
 import { stageAfterCampaign, stageAfterReplay } from './lib/bench'
+import { relativeTime } from './lib/format'
 import DashboardView from './views/DashboardView'
 import Toasts from './components/Toasts'
 import FlashBanner from './components/FlashBanner'
 import SettingsDrawer from './components/SettingsDrawer'
 import ErrorBoundary from './components/ErrorBoundary'
-import ModeRail from './components/ModeRail'
-import StatusRibbon from './components/StatusRibbon'
+import TopNav from './components/TopNav'
 import QuickActionsPrompt from './components/QuickActionsPrompt'
 import CommandPalette from './components/CommandPalette'
 import MeteolinkWordmark from './components/MeteolinkWordmark'
@@ -34,8 +34,9 @@ export default function App() {
   const mode = useUIStore(s => s.mode)
   const setMode = useUIStore(s => s.setMode)
   const live = useUIStore(s => s.live)
+  const connected = useUIStore(s => s.connected)
   const replayRunning = useUIStore(s => s.replayRunning)
-  const railPinned = useUIStore(s => s.railPinned)
+  const report = useAuditStore(s => s.report)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   // une destination lourde ne se monte qu'à la première visite, puis reste.
@@ -116,20 +117,24 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div id="shell" className={railPinned ? '' : 'rail-min'}>
+      <div id="shell">
         <a className="skip-link" href="#main">Aller au contenu</a>
         <header className="app-header">
           <MeteolinkWordmark />
-          <div className="app-header-center">
-            <StatusRibbon />
-          </div>
+          <TopNav />
           <div className="hd-right">
+            <span
+              className="hd-conn"
+              data-on={connected ? '1' : '0'}
+              role="img"
+              aria-label={connected ? 'Connexion établie' : 'Hors ligne'}
+            />
+            <span id="hd-state" className="mono">{live?.phase || 'au repos'}</span>
+            <span className="hd-audit">dernier audit {relativeTime(report?.timestamp) || '—'}</span>
             <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
-            <span id="hd-state" className="mono">{live?.phase ?? 'au repos'}</span>
           </div>
         </header>
 
-        <ModeRail />
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         {live?.running && mode === 'bench' ? <QuickActionsPrompt /> : null}
 
@@ -154,10 +159,7 @@ export default function App() {
 
         <footer className="foot-ticker">
           <span id="ft-prov">source : {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
-          <span aria-hidden="true" className="foot-sep">|</span>
-          <span id="ft-run" className="mono">événement #{live?.event_id ?? '—'} · {live?.phase ?? 'au repos'}</span>
-          <span className="fill" />
-          <span className="mono">Meteolink</span>
+          <span className="ft-brand mono">Meteolink</span>
         </footer>
 
         {settingsOpen ? <SettingsDrawer onClose={() => setSettingsOpen(false)} /> : null}

@@ -45,7 +45,7 @@ await mark('ouverture')
 await page.waitForTimeout(6000)
 
 // 1 — tableau de bord : les deux mondes sont séparés et nommés
-ok('le bandeau ne porte plus les comptes ni le sceau', await page.locator('.ribbon-corpus, .ribbon-seal').count() === 0)
+ok('le bandeau a disparu, pas seulement vidé', await page.locator('.status-ribbon, .ribbon-corpus, .ribbon-seal').count() === 0)
 const realTag = await page.locator('.dash-tag.real').first().textContent().catch(() => null)
 const simTag = await page.locator('.dash-tag.sim').first().textContent().catch(() => null)
 ok('dashboard sépare réel et simulé', !!realTag && !!simTag, `${realTag} | ${simTag}`)
@@ -213,18 +213,22 @@ const worst = longTasks.reduce((m, e) => Math.max(m, e.dur), 0)
 const worstStep = longTasks.length ? afterMark(longTasks.reduce((a, b) => (b.dur > a.dur ? b : a)).t) : '—'
 ok('aucune longue tâche > 400 ms', worst <= 400, `${worst} ms après « ${worstStep} »`)
 
-// 6 — téléphone : le bandeau se comprime, les cibles tactiles tiennent 44 px.
+// 6 — téléphone : quatre destinations en barre basse, cibles tactiles à 48 px.
 // Après la collecte : le rechargement remet __LT à zéro, les chiffres mesurés
 // restent ceux du parcours desktop.
 await page.setViewportSize({ width: 390, height: 844 })
 await page.reload({ waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(2500)
-const corpusShown = await page.locator('.ribbon-corpus').isVisible().catch(() => false)
-const sealShown = await page.locator('.ribbon-seal').isVisible().catch(() => false)
-ok('390 px : le corpus et le sceau restent dans Preuves', !corpusShown && !sealShown,
-  `corpus ${corpusShown ? 'visible' : 'masqué'}, sceau ${sealShown ? 'visible' : 'masqué'}`)
-const btnBox = await page.locator('.status-ribbon .btn').first().boundingBox().catch(() => null)
-ok('390 px : cible tactile au moins 44 px', !!btnBox && btnBox.height >= 44, btnBox ? `${Math.round(btnBox.height)} px` : 'aucune cible')
+const navBtns = page.locator('.topnav button[data-mode]')
+const navCount = await navBtns.count()
+const heights = []
+for (let i = 0; i < navCount; i++) {
+  const b = await navBtns.nth(i).boundingBox().catch(() => null)
+  heights.push(b ? Math.round(b.height) : 0)
+}
+const shortest = heights.length ? Math.min(...heights) : 0
+ok('390 px : quatre destinations dans une seule barre basse', navCount === 4 && shortest >= 48,
+  `${navCount} destinations, cible la plus basse ${shortest} px`)
 
 console.log(JSON.stringify({
   steps,

@@ -10,7 +10,7 @@ const printBlock = css.slice(css.indexOf('@media print'), css.indexOf('@media pr
 
 describe('fiche terrain (impression)', () => {
   it('masque la coquille et garde le contenu lisible', () => {
-    for (const sel of ['.mode-rail', 'header', '.status-ribbon', '.foot-ticker', '.btn']) {
+    for (const sel of ['.topnav', 'header', '.foot-ticker', '.btn']) {
       expect(printBlock, sel).toContain(sel)
     }
     expect(printBlock).toContain('background: #fff')

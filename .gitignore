@@ -39,7 +39,7 @@ web/frontend/playwright-report/
 kit/cgo-vm.yaml
 kit/logs/
 shots/
-
+!docs/img/shots/
 web/frontend/*.log
 
 # deepwork session state

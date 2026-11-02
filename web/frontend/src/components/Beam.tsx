@@ -13,8 +13,8 @@ export function Beam({ hovered = false }: { hovered?: boolean }) {
       style={{
         position: 'fixed',
         top: 120,
-        left: 'calc(var(--rail-w, 56px) + 24px)',
-        width: 'calc(100% - var(--rail-w, 56px) - 48px)',
+        left: 24,
+        width: 'calc(100% - 48px)',
         height: 2,
         pointerEvents: 'none',
         zIndex: 5,

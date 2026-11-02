@@ -29,11 +29,6 @@ interface UIState {
   toasts: ToastItem[]; pushToast: (msg: string, cls?: ToastKind) => void; dropToast: (id: number) => void
   flash: FlashItem | null; setFlash: (f: FlashItem | null) => void
   replayRunning: boolean; replayRunId: string | null; setReplay: (running: boolean, id: string | null) => void
-  railPinned: boolean; setRailPinned: (v: boolean) => void
-}
-
-const railPinned = () => {
-  try { return localStorage.getItem('mode-rail-pinned') !== '0' } catch { return true }
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -53,6 +48,4 @@ export const useUIStore = create<UIState>((set) => ({
   dropToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   flash: null, setFlash: (flash) => set({ flash }),
   replayRunning: false, replayRunId: null, setReplay: (replayRunning, replayRunId) => set({ replayRunning, replayRunId }),
-  railPinned: railPinned(),
-  setRailPinned: (v) => { try { localStorage.setItem('mode-rail-pinned', v ? '1' : '0') } catch {} ; set({ railPinned: v }) },
 }));

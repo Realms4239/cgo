@@ -57,18 +57,19 @@ describe('tokens', () => {
 })
 
 describe('mobile 390 — navigation', () => {
-  it('le rail des modes devient horizontal sous 899px', () => {
+  it('sous 899px, la navigation reste dans l’en-tête sans indices clavier', () => {
     const css = read('web/frontend/src/styles/index.css')
     const m = css.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)
     expect(m, 'bloc media max-width:899px présent').not.toBeNull()
-    expect(m![0]).toMatch(/\.mode-rail \{[^}]*flex-direction: row/)
+    expect(m![0]).toMatch(/\.topnav-key \{[^}]*display: none/)
   })
 
   it('sous 700px, les quatre destinations passent en barre basse', () => {
     const css = read('web/frontend/src/styles/index.css')
     const m = css.match(/@media \(max-width: 700px\) \{[\s\S]*?\n\}/)
     expect(m, 'bloc media max-width:700px présent').not.toBeNull()
-    expect(m![0]).toMatch(/\.mode-rail \{[^}]*position: fixed/)
+    expect(m![0]).toMatch(/\.topnav \{[^}]*position: fixed/)
+    expect(m![0]).toMatch(/\.topnav-btn \{[^}]*min-height: 48px/)
   })
 })
 

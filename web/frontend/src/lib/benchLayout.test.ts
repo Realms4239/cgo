@@ -64,8 +64,8 @@ describe('banc d’essai linéaire', () => {
       expect(app, `${view} hors du premier rendu`).not.toContain(`import ${view} from './views/${view}'`)
     }
     expect(app).toContain('<Suspense')
-    const rail = read('components/ModeRail.tsx')
-    expect(rail).toContain('preloadMode(m.id)')
+    const nav = read('components/TopNav.tsx')
+    expect(nav).toContain('preloadMode(m.id)')
     const store = read('store/ui.ts')
     expect(store, 'le clavier préchauffe aussi').toContain('preloadMode(mode)')
   })
