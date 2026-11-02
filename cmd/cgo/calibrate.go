@@ -60,7 +60,14 @@ func runCalibrate(args []string) int {
 	}
 
 	// provenance : la trace et son rapport d'audit, scellés s'ils existent.
-	telPath := filepath.Join(*dataDir, "audits", *auditID, "telemetry.csv")
+	// L'identifiant vient de la ligne de commande : il passe par la même porte
+	// ArtifactID que les écritures, sinon un -audit ../../chemin lit hors de la
+	// zone d'audits et scelle un empreinte qui n'appartient à personne.
+	telPath, err := audit.ArtifactFile(*dataDir, *auditID, audit.TelemetryArtifactName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "calibrate:", err)
+		return 1
+	}
 	sum, err := fileSHA256(telPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "calibrate:", err)
@@ -68,7 +75,11 @@ func runCalibrate(args []string) int {
 	}
 	cal.SourceTelemetrySHA256 = sum
 
-	repPath := filepath.Join(*dataDir, "audits", *auditID, "audit_report.json")
+	repPath, err := audit.ArtifactFile(*dataDir, *auditID, audit.ReportArtifactName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "calibrate:", err)
+		return 1
+	}
 	if raw, err := os.ReadFile(repPath); err == nil {
 		reportSum := sha256.Sum256(raw)
 		cal.SourceReportSHA256 = hex.EncodeToString(reportSum[:])

@@ -52,6 +52,12 @@ type Report struct {
 	// une absence, jamais une reproduction inventée.
 	Invocation *Invocation `json:"invocation,omitempty"`
 
+	// Artifact — où vivre la preuve brute de ce rapport, en chemin relatif au
+	// répertoire de travail. Scellé par le moteur pour que la console n'ait pas à
+	// reconstruire un chemin depuis un identifiant : une console qui devine un
+	// dossier montre un jour le mauvais.
+	Artifact string `json:"artifact,omitempty"`
+
 	// Remediation is present only when capacity and RTT were both measured.
 	Remediation *Remediation `json:"remediation,omitempty"`
 
@@ -262,6 +268,9 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		link.RouterOSInterface, link.RouterOSLanInterface, asymmetric, cpuConstrained); in.Command != "" {
 		rep.Invocation = &in
 	}
+	// Un identifiant refusé par ArtifactID laisse le pointeur vide : le rapport
+	// ne publie pas un chemin approximatif.
+	rep.Artifact = ArtifactPointer(res.AuditID)
 
 	loadMeasured := res.ThroughputMbps > 0 && res.BloatGrade != ""
 	loadMeasuredDown := res.ThroughputDownMbps > 0
@@ -552,6 +561,12 @@ func (r *Report) RenderMarkdown() string {
 	} else {
 		fmt.Fprintf(&b, "- Reproduction: %s\n", codeSpan(r.Invocation.Command))
 	}
+	// Preuve — l'endroit où la donnée brute est archivée, scellé avec le rapport.
+	if r.Artifact != "" {
+		fmt.Fprintf(&b, "- Preuve: %s\n", codeSpan(r.Artifact))
+	} else {
+		b.WriteString("- Preuve: non enregistrée (aucun chemin d'artefact scellé)\n")
+	}
 	b.WriteString("\n")
 
 	b.WriteString("## Measured\n\n")
@@ -760,11 +775,10 @@ func WriteArtifacts(rep *Report, baseDir string) (jsonPath, mdPath string, err e
 	if baseDir == "" {
 		baseDir = "data"
 	}
-	id, err := ArtifactID(rep.AuditID)
+	dir, err := ArtifactDir(baseDir, rep.AuditID)
 	if err != nil {
 		return "", "", err
 	}
-	dir := filepath.Join(baseDir, "audits", id)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", "", err
 	}
@@ -773,8 +787,8 @@ func WriteArtifacts(rep *Report, baseDir string) (jsonPath, mdPath string, err e
 		return "", "", err
 	}
 	md := []byte(rep.RenderMarkdown())
-	jsonPath = filepath.Join(dir, "audit_report.json")
-	mdPath = filepath.Join(dir, "audit_report.md")
+	jsonPath = filepath.Join(dir, ReportArtifactName)
+	mdPath = filepath.Join(dir, ReportMarkdownName)
 	if err := os.WriteFile(jsonPath, js, 0644); err != nil {
 		return "", "", err
 	}

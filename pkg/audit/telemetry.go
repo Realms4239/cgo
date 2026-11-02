@@ -43,15 +43,14 @@ func ArtifactID(id string) (string, error) {
 // que l'appelant puisse sceller ce qu'il vient d'écrire. Un id vide ou
 // traversant est refusé : jamais d'écriture hors de la zone d'audits.
 func WriteTelemetry(baseDir string, res *Result) (string, error) {
-	id, err := ArtifactID(res.AuditID)
+	dir, err := ArtifactDir(baseDir, res.AuditID)
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(baseDir, "audits", id)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", err
 	}
-	path := filepath.Join(dir, "telemetry.csv")
+	path := filepath.Join(dir, TelemetryArtifactName)
 	f, err := os.Create(path)
 	if err != nil {
 		return "", err
@@ -79,11 +78,10 @@ func WriteTelemetry(baseDir string, res *Result) (string, error) {
 // changerait le sens des nombres. Une sonde absente reste absente (0) ;
 // elle n'est jamais réinventée en mesure.
 func ReadTelemetry(baseDir, id string) ([]TelemetryRow, error) {
-	safe, err := ArtifactID(id)
+	path, err := ArtifactFile(baseDir, id, TelemetryArtifactName)
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(baseDir, "audits", safe, "telemetry.csv")
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("audit: lecture télémétrie %s: %w", path, err)
