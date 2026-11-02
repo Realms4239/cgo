@@ -325,6 +325,29 @@ In `web/frontend/src/styles/index.css`:
 
 Two things the draft of this step left unstated, both checked against the tree:
 
+**`.btn` is owned by no task and violates two constraints on its face.**
+`index.css:127` reads `font: 700 11px var(--font-mono); min-height: 32px;
+text-transform: uppercase` — 11px, 32px targets and an uppercase transform, where
+the scale bullet says buttons 16px on 48px targets and no uppercase French sentence
+may appear on a surface. This task owns the shell's controls, so it owns `.btn`:
+`font-size: var(--fs-body)`, `min-height: 48px`, `text-transform: none`. The
+uppercase *literals* in component strings (`FERMER` at `CompareView.tsx:214`, the
+`.bench-anchors` and `.evidence-anchors` labels `qa-walk.mjs` clicks by text) are
+Task 9's sweep behind its lexicon gate — rewriting them here would break the walk
+before Task 9 exists to repair it. Note the consequence for the reviewer: after
+this task a button labelled `FERMER` renders as “FERMER” at 16px instead of being
+forced to upper-case 11px, which is the intended intermediate state, not a miss.
+
+**`chartGrammar.ts` is now a frontend file this slice has opened but no task
+names.** Task 1 changed two literal `'Cormorant Garamond'` canvas strings there
+because the brief's own acceptance grep required it. It stays a Task 2-adjacent
+no-touch file: this task must not edit it, and the pre-existing defect in it — the
+canvas cannot resolve `var()`, and `CompareView.tsx:130-134` plus `LiveView.tsx:54`
+still pass `fontSize: 'var(--fs-micro)'` and `fontFamily: 'var(--font-mono)'` into
+ECharts options, which silently render neither — belongs to Task 7, which owns the
+screens and will route those values through `palette.ts` like the colours already
+do. Say so in the report rather than fixing it here.
+
 **`.syn-actions` is live content, not dead CSS.** `src/views/DashboardView.tsx:301`
 renders `<nav className="syn-actions" aria-label="Actions rapides">` with one button
 per quick action, right below the “Prochaine action” card. Deleting only the CSS
