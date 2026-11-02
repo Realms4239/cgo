@@ -106,7 +106,7 @@ touched.
 | # | Task | What appears on screen |
 |---|---|---|
 | **T0** | Ledger: the plan lands, the index re-dispositions fifteen rows so exactly one reads active, and the spec absorbs T0, the corrected ribbon cut, the screenshot path and the narrowed T9 | Nothing; the work order changes |
-| **T1** | Shell: `TopNav` replaces `ModeRail`; the ribbon is deleted, the header keeps one state word and the last-audit age; `.btn` becomes 16 px on a 48 px target; `.syn-actions` deleted; bottom bar under 700 px | The 232 px rail is gone; one header |
+| **T1** | Shell: `TopNav` replaces `ModeRail`; the ribbon is deleted, the header keeps one state word and the last-audit age; `.btn` becomes 16 px on a 48 px target; bottom bar under 700 px | The 232 px rail is gone; one header |
 | **T2** | Verdict hero **and** its four facts, mounted on the dashboard and the audit read state, fed by the sealed report; `cap_sla` gains `target_pct` and `deadline_ms` so the two objective lines are sealed with the measurement instead of retyped in the browser (`lib/dashboard.ts:128,136`) | The 40 px word, its sentence, four facts |
 | **T3** | Remediation card: platform radio, measured and shaped rate per direction, “interface supposée” only where the script exists | “Protéger ce lien” |
 | **T4** | Proof drawer: two tabs, platform-aware copy, seals and raw telemetry in tab 2 | “Voir la commande exacte” |

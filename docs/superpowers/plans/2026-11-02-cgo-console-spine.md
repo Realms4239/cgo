@@ -146,10 +146,9 @@ bench density is re-checked in T7.
 - Mount `<VerdictHero report={report} warnMs={settings.warnMs}
   critMs={settings.critMs} />` on the dashboard (it replaces the `syn-hero`
   heading) and at the top of `audit-read` (`AuditView.tsx:96`). This is the task
-  that ends `VerdictHero.tsx` having no importer. Remove the `<OperatorStats>`
-  call from both surfaces (`DashboardView.tsx:109`, `AuditView.tsx:104`): the
-  hero's four facts replace it, and its RTT/QDI detail returns in T4's drawer
-  tab 2 rather than sitting beside the verdict twice.
+  that ends `VerdictHero.tsx` having no importer. `<OperatorStats>` stays on both
+  surfaces for now: T4 removes it once the drawer's tab 2 carries the same
+  detail, so no commit ships the numbers absent.
 
 **Failing assertion.** A fixture whose `cap_sla.target_pct` is `90` must render
 `objectif 90 %`. Asserting `95 %` would pass with the literal still in place, so
@@ -238,10 +237,13 @@ not; `routeros_validation` wording stays `non validée` / `aucune preuve`.
 - Tab `Déploiement & scripts`: the selected platform's commands in `<pre>`, one
   copy button per block, sizing basis (measured rate, `× 0,95`, idle RTT, qdisc),
   rollout and verification commands. Tab `Preuves & télémétrie brute`: the
-  `operatorFacts` figures, the `OperatorStats` detail removed in T2 (RTT p50/p95
-  idle and loaded, worst delta, QDI, loss, throughput, `n`, direction), sensor
-  tier and reason, source and telemetry SHA-256, link to
+  `operatorFacts` figures, the `OperatorStats` detail (RTT p50/p95 idle and
+  loaded, worst delta, QDI, loss, throughput, `n`, direction), sensor tier and
+  reason, source and telemetry SHA-256, link to
   `/api/audit/report?audit_id=…`.
+- Once tab 2 renders that detail, remove the `<OperatorStats>` calls from
+  `DashboardView.tsx:109` and `AuditView.tsx:104`; this is the commit where the
+  numbers stop appearing twice.
 - The border router's rejeu line reads `validée par rejeu`, `non validée` or
   `aucune preuve`. Never `appliquée`.
 
