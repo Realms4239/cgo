@@ -70,6 +70,10 @@ export interface AuditMeasured {
   bloat_delta_ms?: number
   drain_ms?: number
   drain_measured?: boolean
+  // Une fenêtre de charge était programmée (load_attempted), pas forcément
+  // établie (load_measured). Le moteur seul en tire un mot ; la console lit les
+  // deux champs tels quels.
+  load_attempted?: boolean
   load_measured?: boolean
   throughput_mbps?: number
   loss_pct?: number
@@ -112,11 +116,26 @@ export interface AuditRemediation {
   routeros_ingress?: string
 }
 
+// Les clés lues par la console ; le moteur en émet un superset (tranche 20A).
+// Un modèle ne consomme qu'une partie des entrées : les autres sont omises du
+// JSON plutôt que montrées mesurées.
+export interface AuditEconomicsNumbers {
+  model: string
+  monthly_opex_mga?: number
+  cir_mbps?: number
+  ar_per_gb?: number
+  retrans_ratio?: number
+  wasted_bytes?: number
+  transport_bytes?: number
+  load_seconds?: number
+}
+
 export interface AuditEconomicsScenario {
   model: string
   name: string
   ar_per_hour: number
   basis: string
+  numbers?: AuditEconomicsNumbers
 }
 
 export interface AuditEconomics {
@@ -175,6 +194,17 @@ export interface KernelTelemetry {
   flows?: KernelFlow[]
 }
 
+export type AuditVerdictLevel = 'neutral' | 'red' | 'amber' | 'green'
+
+// Verdict opérateur calculé par le moteur (pkg/metrics.Verdict) : un mot et une
+// phrase, affichés tels quels. Un rapport scellé avant la cascade rend les trois
+// champs vides — omitempty ne supprime pas une structure —, d'où '' dans level.
+export interface AuditVerdict {
+  level: '' | AuditVerdictLevel
+  word: string
+  sentence: string
+}
+
 export interface AuditReport {
   audit_id: string
   timestamp?: string
@@ -186,6 +216,7 @@ export interface AuditReport {
   unavailable?: AuditUnavailable[]
   bloat_grade?: string
   bloat_verdict?: string
+  operator_verdict?: AuditVerdict
   provenance?: AuditProvenance
   remediation?: AuditRemediation
   economics?: AuditEconomics

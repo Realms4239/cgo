@@ -62,4 +62,24 @@
 .c-input--disabled, .c-input:disabled { opacity: var(--state-disabled-opacity); cursor: not-allowed; background: var(--state-disabled-bg); color: var(--state-disabled-text); }
 @media (prefers-reduced-motion: reduce) { .c-input { transition: none; } }
 
+/* ── VerdictHero — le mot du moteur à l'étage hero (40 px), quatre faits dessous ──
+   Les règles vivent ici, pas dans index.css : la feuille de l'app shell est en
+   cours de réécriture et une règle posée là-bas serait perdue ou dupliquée. */
+.verdict { padding: var(--sp-5) 0; }
+.verdict-word { font-size: var(--fs-hero); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+.verdict-dot { width: 12px; height: 12px; display: inline-block; margin-right: var(--sp-3); }
+.verdict-sentence { font-size: var(--fs-body); color: var(--text-body); max-width: 68ch; margin: var(--sp-3) 0 var(--sp-5); }
+.verdict-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-5); margin: 0; }
+.verdict-fact dt { font-size: var(--fs-label); color: var(--text-muted); }
+.verdict-fact dd { margin: var(--sp-1) 0 0; }
+.verdict-fact dd b { font-family: var(--font-mono); font-size: var(--fs-metric); font-variant-numeric: tabular-nums; }
+.verdict-fact dd small { font-family: var(--font-mono); font-size: var(--fs-label); color: var(--text-faint); }
+/* Ligne de détail d'un fait : 14 px — l'étage 13 px est réservé au tiroir. */
+.verdict-fact em { font-style: normal; font-size: var(--fs-label); color: var(--text-faint); }
+/* Une absence ne pèse pas comme une mesure : le mot d'absence prend le texte
+   cours, le chiffre mesuré garde l'étage metric. */
+.verdict-fact[data-empty] dd b { font-size: var(--fs-body); font-family: var(--font-ui); color: var(--text-muted); }
+@media (max-width: 1366px) { .verdict-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .verdict-facts { grid-template-columns: minmax(0, 1fr); } }
+
 

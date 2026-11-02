@@ -1,6 +1,7 @@
 // Langage opérateur du tableau de bord : les chiffres deviennent des mots,
 // les seuils restent ceux des Réglages. Aucun zéro ne se lit comme mesuré.
 import type { AuditReport } from './types'
+import { formatCostAR, numFr } from './format'
 import { pickHeadline, type SynGroup } from './synthese'
 
 export type PlainLevel = 'ok' | 'warn' | 'crit'
@@ -100,6 +101,66 @@ export function remediationView(groups: SynGroup[] | null | undefined): Remediat
   const h = pickHeadline(Array.isArray(groups) ? groups : [])
   if (!h.simple || !h.best) return null
   return { simple: cellOf(h.simple), best: cellOf(h.best) }
+}
+
+export interface Fact { key: string; label: string; value: string; unit: string; target: string; band: Band | null }
+
+// Les quatre faits de la console. Un seul calcul, partagé par le tableau de
+// bord et l'audit : le verdict et les faits lisent les mêmes champs.
+// Une valeur absente OU illisible devient un mot : une cellule vide, comme un
+// zéro, se lirait comme une mesure. Rien ici ne dépasse la lecture d'un champ.
+export function operatorFacts(
+  report: AuditReport | null | undefined,
+  warnMs: number,
+  critMs: number,
+): Fact[] {
+  const s = operatorSummary(report, warnMs, critMs)
+  const cost = report?.economics?.primary
+  const alertsPct = finite(s.alertsPct) ? s.alertsPct : undefined
+  const delayMs = finite(s.delayMs) ? s.delayMs : undefined
+  const rawAr = cost?.ar_per_hour
+  const arPerHour = finite(rawAr) ? rawAr : undefined
+  const costFigure = arPerHour != null ? formatCostAR(arPerHour) : null
+  return [
+    {
+      key: 'alerts', label: 'Alertes à l’heure',
+      value: alertsPct != null ? numFr(alertsPct, 1) : 'Pas encore mesuré',
+      unit: alertsPct != null ? '%' : '', target: 'objectif 95 %', band: s.alerts,
+    },
+    {
+      key: 'delay', label: 'Réponse sous charge',
+      value: delayMs != null ? numFr(delayMs, 0) : 'Pas encore mesuré',
+      unit: delayMs != null ? 'ms' : '', target: 'objectif 220 ms', band: s.delay,
+    },
+    {
+      key: 'quality', label: 'Qualité du lien',
+      value: s.grade || 'Pas encore mesuré', unit: '',
+      target: s.grade ? `note ${s.grade}` : 'aucune note', band: s.grade ? { word: s.quality, level: qualityLevel(s.grade) } : null,
+    },
+    {
+      key: 'cost', label: 'Capacité gaspillée',
+      value: costFigure ? costFigure.num : 'Non chiffré',
+      unit: costFigure ? costFigure.unit : '',
+      target: cost?.name ? `scénario ${scenarioWord(cost.model, cost.name)}` : 'aucun scénario retenu',
+      band: costFigure ? { word: 'estimation contractuelle', level: 'warn' as PlainLevel } : null,
+    },
+  ]
+}
+
+// La lettre du moteur devient un mot, au même palier que la note affichée.
+function qualityLevel(grade: string): PlainLevel {
+  const g = grade.charAt(0).toUpperCase()
+  if (g === 'A' || g === 'B') return 'ok'
+  if (g === 'C') return 'warn'
+  return 'crit'
+}
+
+// Le nom du scénario reste technique dans le tiroir ; ici il devient lisible.
+function scenarioWord(model: string | undefined, name: string): string {
+  if (model === 'A') return 'ligne dédiée'
+  if (model === 'B') return 'forfait entreprise'
+  if (model === 'emergency') return 'hors forfait'
+  return name
 }
 
 // Borne de secours détail — visible, jamais présentée comme un modèle d'infra.

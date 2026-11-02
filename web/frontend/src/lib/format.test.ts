@@ -1,4 +1,4 @@
-import { fmtIQR, improve, fmtCount, verdictHeadline, shouldLogScale, relativeTime } from './format'
+import { fmtIQR, improve, fmtCount, numFr, verdictHeadline, shouldLogScale, relativeTime } from './format'
 import { describe, expect, it } from 'vitest'
 
 describe('fmtIQR', () => {
@@ -58,6 +58,20 @@ describe('shouldLogScale', () => {
   })
 })
 
+
+describe('numFr', () => {
+  it('écrit les décimales à la française et ne fabrique rien', () => {
+    expect(numFr(96.73, 1)).toBe('96,7')
+    expect(numFr(209.4, 0)).toBe('209')
+    expect(numFr(null)).toBe('')
+    expect(numFr(Number.NaN)).toBe('')
+  })
+  it('un zéro mesuré reste un zéro, un nombre inexistant reste vide', () => {
+    expect(numFr(0)).toBe('0,0')
+    expect(numFr(Infinity)).toBe('')
+    expect(numFr(undefined)).toBe('')
+  })
+})
 
 describe('relativeTime', () => {
   const now = Date.parse('2026-10-30T12:00:00Z')

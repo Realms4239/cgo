@@ -25,6 +25,13 @@ export function groupDigits(n: number, decimals = 0): string {
   return dec != null ? `${grouped},${dec}` : grouped
 }
 
+// numFr — une seule virgule décimale pour la console. Les nombres techniques
+// du tiroir gardent leur format d'origine, celui du moteur. Rien n'arrive au
+// lecteur si le nombre n'existe pas : la chaîne vide se traduit par un mot
+// (« Pas encore mesuré », « Non chiffré ») là où elle est affichée.
+export const numFr = (v: number | null | undefined, digits = 1): string =>
+  v == null || !Number.isFinite(v) ? '' : v.toFixed(digits).replace('.', ',')
+
 // formatBytesFR — octets français (o, Kio, Mio), jamais `bytes`/`MiB`
 export function formatBytesFR(bytes: number | null | undefined): { num: string; unit: string } {
   if (bytes == null || !Number.isFinite(bytes)) return { num: '—', unit: '' }
