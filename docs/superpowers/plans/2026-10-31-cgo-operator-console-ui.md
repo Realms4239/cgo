@@ -116,8 +116,12 @@ In `web/frontend/src/styles/tokens.css`:
   --fs-micro: var(--fs-fine); /* alias de transition, supprimé en fin de slice */
   --fs-tag: var(--fs-label);
   --fs-cap: var(--fs-fine);   /* 13px : même rendu qu'avant, aucun changement visuel */
-  --fs-head: var(--fs-title); /* 22px → 28px : la promotion du titre est voulue */
+  --fs-head: 22px;            /* tiers mêlés : titres, valeurs et une phrase — réparti en Tâches 2-4 */
 ```
+
+  (The first draft aliased `--fs-head` to `--fs-title`; that promotion was wrong and
+  is corrected below under “`--fs-head` must not ride to 28px”. Keep the literal
+  22px here — this step changes no size that rule renders today.)
 
   After Step 3, run `npx vitest run src/lib/tokens.test.ts` and `npm run
   typecheck` before touching any other file — a broken alias shows up here, not at
