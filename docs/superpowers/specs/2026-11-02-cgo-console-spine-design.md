@@ -66,7 +66,8 @@ plan reached 9 480 words for nine tasks.
 
 **R3 — The screenshot is an acceptance artifact.** Every task that changes a
 surface ends with `node capture-fresh.mjs` over the destination it touched at
-1920×1080 and 390×844, saved under `docs/shots/<date>/`, plus four measured
+1920×1080 and 390×844, saved under `docs/img/shots/<date>/` (the `hygiene` gate
+rejects a tracked file above 384 KB outside `docs/img/`), plus four measured
 gates in `qa-walk.mjs`:
 
 1. the primary action of each destination is inside the first viewport;
@@ -86,9 +87,11 @@ the output quoted.
 All three are visible on the 1920 capture.
 
 1. **The status ribbon dies.** `OBSERVATION · SSE connecté · dernier audit ·
-   VÉRIFIER` is developer telemetry on an operator screen. It becomes one state
-   word in the header; connection detail, last audit and the proof entry move
-   into the drawer. The component is deleted, not restyled.
+   VÉRIFIER` is developer telemetry on an operator screen. The header keeps the
+   connection dot, one state word and the last-audit age (design §3.1); the
+   ribbon's per-mode counters, seal and proof entry are deleted, not moved — the
+   last audit is already on the dashboard and the proof entry is destination 4.
+   The component is deleted, not restyled.
 2. **Two navigations become one.** The 232 px rail, the footer shortcut strip
    and the dashboard's quick-action strip all point at the same destinations.
    One 64 px header, four destinations, keys `1–4`, a bottom bar under 700 px.
@@ -102,15 +105,16 @@ touched.
 
 | # | Task | What appears on screen |
 |---|---|---|
-| **T1** | Shell: `TopNav` replaces `ModeRail`; the ribbon is deleted and its content moves to the drawer; `.btn` becomes 16 px on a 48 px target; `.syn-actions` deleted; bottom bar under 700 px | The 232 px rail is gone; one header |
+| **T0** | Ledger: the plan lands, the index re-dispositions fifteen rows so exactly one reads active, and the spec absorbs T0, the corrected ribbon cut, the screenshot path and the narrowed T9 | Nothing; the work order changes |
+| **T1** | Shell: `TopNav` replaces `ModeRail`; the ribbon is deleted, the header keeps one state word and the last-audit age; `.btn` becomes 16 px on a 48 px target; `.syn-actions` deleted; bottom bar under 700 px | The 232 px rail is gone; one header |
 | **T2** | Verdict hero **and** its four facts, mounted on the dashboard and the audit read state, fed by the sealed report; `cap_sla` gains `target_pct` and `deadline_ms` so the two objective lines are sealed with the measurement instead of retyped in the browser (`lib/dashboard.ts:128,136`) | The 40 px word, its sentence, four facts |
 | **T3** | Remediation card: platform radio, measured and shaped rate per direction, “interface supposée” only where the script exists | “Protéger ce lien” |
 | **T4** | Proof drawer: two tabs, platform-aware copy, seals and raw telemetry in tab 2 | “Voir la commande exacte” |
 | **T5** | Dashboard, audit and evidence rewired; `dash-grid`, `syn-proof`, `syn-next`, `dash-onboarding` and the inline `ScienceDetails` deleted | Three destinations change at once |
 | **T6** | Live trace on the observer: canvas, gap breaks, objective line | A running audit draws itself |
-| **T7** | Bench operator surface: preset duel and research mode; the matrix axes leave the default screen | The bench reads as one decision |
+| **T7** | Bench operator surface: preset duel and research mode; the matrix axes and the leaderboard leave the default screen | The bench reads as one decision |
 | **T8** | Lexicon gate: the banned-word list becomes a test over rendered surfaces; `DESIGN.md`, `PRODUCT.md` reconciled | No jargon on any default surface |
-| **T9** | Evidence tail: verifier packet, the figures and annex that cite the console, and a disposition for all 12 `PENDING` rows | The thesis cites the console |
+| **T9** | Evidence tail: verifier packet, the twelve `PENDING` dispositions, and one book-annex paragraph left in the working tree; no `pkg/figures` change | The thesis cites the console |
 
 T5 is deliberately one task although it touches three destinations. Split, it
 leaves half-updated screens, which is the exact failure this slice exists to
@@ -122,9 +126,10 @@ the files it owns, the destination rendered in a DOM test, the screenshot, and
 
 ## 6. Evidence artifacts
 
-- Screenshots: `docs/shots/2026-11-02/<destination>-<width>.png`, produced by
-  `node web/frontend/capture-fresh.mjs http://127.0.0.1:9091 docs/shots/2026-11-02`
-  against a served fresh bundle — never against `vite dev`.
+- Screenshots: `docs/img/shots/2026-11-02/<destination>-<width>.png`, produced by
+  `node web/frontend/capture-fresh.mjs http://127.0.0.1:9091 docs/img/shots/2026-11-02`
+  against a served fresh bundle — never against `vite dev`. The `docs/img/`
+  prefix is the one place the `hygiene` gate does not apply its 384 KB ceiling.
 - Runtime gates: `node web/frontend/qa-walk.mjs http://127.0.0.1:9091`, extended
   with the three checks in R3.
 - Each task's checkpoint quotes the command, the date, the host and the result,
@@ -188,15 +193,20 @@ Stated here so no reader has to infer it from a green suite.
    shows `verdict`; the report carries `operator_verdict`
    (`pkg/audit/report.go:44`). The report wins; this spec is the corrected
    name, so a verifier does not chase a field that does not exist.
-2. **The status cluster keeps three things, not four.** Connection, mode and
-   settings stay in the header; the last-audit line and the proof entry move to
-   the drawer. §3.1 lists four and does not say where “last audit” lives.
+2. **The status cluster keeps four things, and the fourth is the audit age.**
+   Connection, mode word, last-audit age and settings stay in the header; the
+   ribbon's corpus counts, seal and proof button do not, because the dashboard
+   already shows the audit and destination 4 is the proof entry. §3.1 lists four
+   and leaves “last audit” unplaced; this is the placement.
 3. **Hero and facts are one task.** §3.2 defines them as one visual unit; the
    previous plan split them across two tasks, which is how the hero shipped
    unmounted.
-4. **13 px is drawer-only.** The scale bullet in the previous plan reserved
-   13 px for the drawer and then had 168 default-surface rules at that size.
-   T8's gate enforces the bullet; until T8 it stays aspirational.
+4. **13 px stays a drawer rule, not yet a gate.** The scale bullet reserves 13 px
+   for the drawer and then had 168 default-surface rules at that size. T8 gates
+   the lexicon only; the type-scale gate is named as unproven in T8's report
+   rather than promised. `designFloor.test.ts` already rejects numeric font
+   sizes in `.tsx`; a CSS-level 13 px gate needs its own allowlist and is not in
+   this slice.
 5. **`qa-walk.mjs` references three ribbon selectors** (`.ribbon-corpus`,
    `.ribbon-seal`, `.status-ribbon .btn`, lines 48 and 222–226). T1 rewrites
    them against the new header; deleting the ribbon without that edit breaks
@@ -208,12 +218,21 @@ Stated here so no reader has to infer it from a green suite.
    constant would leave the UI quoting a target nobody applies. A report
    archived before this change renders its fact with no objective line rather
    than a remembered one.
+7. **Screenshots live under `docs/img/shots/`.** The `hygiene` gate rejects a
+   tracked file above 384 KB outside `docs/img/`, and a 1920×1080 PNG crosses
+   that. Putting the evidence where the gate already allows it avoids both a
+   gate edit and an uncommitted artifact that the `links` gate could not check.
+8. **The live trace shows two facts, not three.** §3.5 lists débit among the
+   running facts, but `audit.Progress` carries no byte counter: the bulk outcome
+   exists only at the end of the window. T6 renders temps de réponse and réponse
+   sous charge; débit appears in the frozen report and the drawer. Reporting a
+   throughput during the run would mean inventing one.
 
 ## 10. Decision log
 
 | Date | Decision |
 |---|---|
-| 2026-11-02 | One active slice; 23 other rows re-dispositioned, none deleted |
+| 2026-11-02 | One active slice; fifteen rows change status, nine closed rows stay untouched, none deleted |
 | 2026-11-02 | No live audit; absence renders as a word, not a zero |
 | 2026-11-02 | The screenshot becomes an acceptance artifact (R3) |
 | 2026-11-02 | The builder cannot promote a `VERIFY` row; T9 prepares, a verifier signs |
