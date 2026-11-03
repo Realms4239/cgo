@@ -13,7 +13,7 @@ const shots = [
   ['evidence', 'preuves', null],
 ];
 const browser = await chromium.launch({ args: ['--no-sandbox'], channel: process.env.PW_CHANNEL || 'msedge' }).catch(() => chromium.launch({ args: ['--no-sandbox'], channel: 'chrome' }));
-for (const [width, height] of [[1920, 1080], [1366, 1080], [390, 844]]) {
+for (const [width, height] of [[1920, 1080], [1366, 1080], [1024, 768]]) {
   const ctx = await browser.newContext({ viewport: { width, height } });
   const page = await ctx.newPage();
   await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -33,6 +33,7 @@ for (const [width, height] of [[1920, 1080], [1366, 1080], [390, 844]]) {
       await page.waitForTimeout(800);
     }
     if (anchor === 'results') {
+      await page.click('button[data-research]', { timeout: 5000 });
       await page.click('.bench-anchors button:has-text("RÉSULTATS")', { timeout: 5000 }).catch(() => {});
       await page.waitForSelector('#bench-results .lb-card', { timeout: 20000 }).catch(() => {});
       await page.evaluate(() => document.getElementById('bench-results')?.scrollIntoView({ block: 'start' }));

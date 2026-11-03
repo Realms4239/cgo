@@ -6,9 +6,11 @@ import Explain from './Explain'
 import { InlineField } from './InlineField'
 import { PeekPopover } from './PeekPopover'
 import { BenchCapabilities } from './BenchCapabilities'
+import { DuelCard } from './DuelCard'
 import { useBenchStore } from '../store/bench'
 import { useUIStore } from '../store/ui'
 import { live as liveRing } from '../lib/live'
+import { CampaignStartError, loadDuel, startCampaign, type DuelPair } from '../lib/bench'
 import { loadSettings } from '../lib/settings'
 import { validate } from '../lib/validation'
 import { formatBytesFR, groupDigits } from '../lib/format'
@@ -30,6 +32,10 @@ export default function BenchConfig() {
   const setChannelModel = useBenchStore(s => s.setChannelModel)
   const deadlineMs = useBenchStore(s => s.deadlineMs)
   const setDeadlineMs = useBenchStore(s => s.setDeadlineMs)
+  const research = useBenchStore(s => s.research)
+  const setResearch = useBenchStore(s => s.setResearch)
+
+  const [duel, setDuel] = useState<DuelPair | null>(null)
 
   const [allProfiles, setAllProfiles] = useState<{ id: string; imported: boolean }[]>([
     { id: 'P1', imported: false },
@@ -53,6 +59,14 @@ export default function BenchConfig() {
         if (j?.profiles?.length) setAllProfiles(j.profiles.map((x: any) => ({ id: x.id, imported: !!x.imported })))
       })
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    loadDuel('P2')
+      .then(pair => { if (alive) setDuel(pair) })
+      .catch(() => { if (alive) setDuel(null) })
+    return () => { alive = false }
   }, [])
 
   // la deadline suit les Réglages tant que l'opérateur n'a pas lancé.
@@ -91,35 +105,46 @@ export default function BenchConfig() {
       })
   }
 
-  const start = async () => {
+  const launch = async (opts: {
+    profiles: string[]
+    reps: number
+    flows: number
+    channel_model: typeof effectiveModel
+    deadline_ms: number
+    target: string
+  }) => {
     setMsg('démarrage…')
     try {
-      const r = await fetch('/api/run/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profiles,
-          reps,
-          flows,
-          channel_model: effectiveModel,
-          deadline_ms: deadlineMs,
-          target: loadSettings().target,
-        }),
-      })
-      if (!r.ok) {
-        const txt = await r.text().catch(() => String(r.status))
-        setMsg('échec : ' + txt.slice(0, 120))
-        pushToast(txt.includes('déjà') || r.status === 409 ? "Campagne déjà en cours — arrêter d'abord" : 'Échec démarrage : ' + r.status, 'err')
-        return
-      }
+      await startCampaign(opts)
       setMsg('campagne lancée')
       pushToast('Campagne lancée', 'ok')
       useUIStore.getState().setBenchStage('observe')
-    } catch (e: any) {
-      setMsg('échec : ' + (e?.message ?? 'réseau'))
-      pushToast('Échec démarrage', 'err')
+    } catch (e) {
+      const err = e as Partial<CampaignStartError>
+      const txt = typeof err?.message === 'string' ? err.message : 'réseau'
+      const status = typeof err?.status === 'number' ? err.status : undefined
+      setMsg('échec : ' + txt.slice(0, 120))
+      pushToast(txt.includes('déjà') || status === 409 ? "Campagne déjà en cours — arrêter d'abord" : `Échec démarrage : ${status ?? txt.slice(0, 60)}`, 'err')
     }
   }
+
+  const start = () => launch({
+    profiles,
+    reps,
+    flows,
+    channel_model: effectiveModel,
+    deadline_ms: deadlineMs,
+    target: loadSettings().target,
+  })
+
+  const launchDuel = () => launch({
+    profiles: ['P2'],
+    reps: 3,
+    flows: 4,
+    channel_model: 'clean',
+    deadline_ms: duel?.deadline_ms ?? 220,
+    target: loadSettings().target,
+  })
 
   const stop = async () => {
     await fetch('/api/run/stop', { method: 'POST' })
@@ -138,9 +163,12 @@ export default function BenchConfig() {
     }
   }
 
-  const peekCost = live?.wasted_bytes != null && live.cost_ar_per_h != null
-    ? `${formatBytesFR(live.wasted_bytes).num} ${formatBytesFR(live.wasted_bytes).unit} gâchés · ${groupDigits(live.cost_ar_per_h, 2)} Ar/h`
-    : '—'
+  const wasted = live?.running ? live?.wasted_bytes : undefined
+  const liveCostAr = live?.running ? live?.cost_ar_per_h : undefined
+  const liveCost = wasted != null && liveCostAr != null
+  const peekCost = liveCost
+    ? `${formatBytesFR(wasted).num} ${formatBytesFR(wasted).unit} gâchés · ${groupDigits(liveCostAr, 2)} Ar/h`
+    : 'sans campagne en cours'
 
   return (
     <div className="bench-config">
@@ -156,87 +184,108 @@ export default function BenchConfig() {
         </PeekPopover>
       ) : null}
 
+      <DuelCard pair={duel} onLaunch={launchDuel} disabled={!!live?.running} />
+
       <div className="card bench-config-card">
-        <div className="card-head">Campagne — ce qui change le résultat</div>
-        <div className="form-row">
-          <label>Profils</label>
-          <div className="check-row bench-profiles">
-            {refProfiles.map(p => (
-              <label key={p.id} className="bench-profile">
-                <input
-                  type="checkbox"
-                  checked={profiles.includes(p.id)}
-                  onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))}
-                />
-                <span>
-                  <Explain term={p.id}>{p.id}</Explain>
-                  <small>{profileShort(p.id)}</small>
-                </span>
-              </label>
-            ))}
-          </div>
+        <div className="card-head bench-config-head">
+          <span>Campagne — ce qui change le résultat</span>
+          <button
+            type="button"
+            className="btn bench-research"
+            data-research
+            aria-pressed={research}
+            onClick={() => setResearch(!research)}
+          >
+            Mode recherche
+          </button>
         </div>
-        <BenchCapabilities caps={caps} />
-        <div className="form-row">
-          <label>Répétitions</label>
-          <input className="c-input bench-num" type="number" min={1} max={5} value={reps} onChange={e => setReps(parseInt(e.target.value) || 1)} />
-        </div>
-        <div className="form-row">
-          <label title=">1 sature un lien avec perte où un CUBIC mono-flux s'effondre">Flux de charge</label>
-          <input className="c-input bench-num" type="number" min={1} max={8} value={flows} onChange={e => setFlows(Math.min(8, Math.max(1, parseInt(e.target.value) || 4)))} />
-          <span className="mono muted bench-hint">1–8 · défaut 4</span>
-        </div>
-        <div className="form-row">
-          <label><Explain term="canal">Canal</Explain></label>
-          <div role="group" aria-label="Modèle de canal" className="bench-pills">
-            {(['clean', 'bursty'] as const).map(m => {
-              const blocked = m === 'bursty' && !canal.allowed
-              const active = effectiveModel === m
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  className="btn"
-                  aria-pressed={active}
-                  disabled={blocked}
-                  title={blocked ? canal.reason : m === 'bursty' ? 'rafales — canal propre P2/P3' : 'canal propre, sans rafales'}
-                  onClick={() => setChannelModel(m)}
-                  style={{
-                    padding: 'var(--sp-1) var(--sp-2)',
-                    borderColor: active ? 'var(--t-live)' : 'var(--hairline)',
-                    color: active ? 'var(--t-live)' : 'var(--text-muted)',
-                    background: active ? 'var(--live-dim)' : 'transparent',
-                    opacity: blocked ? 'var(--disabled-opacity, 0.5)' : 1,
-                    cursor: blocked ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {m}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        {!canal.allowed ? <div className="mono muted bench-hint" data-testid="canal-reason">{canal.reason}</div> : null}
-        <div className="form-row">
-          <label><Explain term="deadline">Deadline</Explain></label>
-          <input className="c-input bench-num" type="number" min={200} max={5000} step={100} value={deadlineMs} onChange={e => setDeadlineMs(parseInt(e.target.value) || 1000)} title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" />
-          <span className="mono muted bench-hint">ms</span>
-        </div>
+        {research ? (
+          <>
+            <div className="form-row">
+              <label>Profils</label>
+              <div className="check-row bench-profiles">
+                {refProfiles.map(p => (
+                  <label key={p.id} className="bench-profile">
+                    <input
+                      type="checkbox"
+                      checked={profiles.includes(p.id)}
+                      onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))}
+                    />
+                    <span>
+                      <Explain term={p.id}>{p.id}</Explain>
+                      <small>{profileShort(p.id)}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <BenchCapabilities caps={caps} />
+            <div className="form-row">
+              <label>Répétitions</label>
+              <input className="c-input bench-num" type="number" min={1} max={5} value={reps} onChange={e => setReps(parseInt(e.target.value) || 1)} />
+            </div>
+            <div className="form-row">
+              <label title=">1 sature un lien avec perte où un CUBIC mono-flux s'effondre">Flux de charge</label>
+              <input className="c-input bench-num" type="number" min={1} max={8} value={flows} onChange={e => setFlows(Math.min(8, Math.max(1, parseInt(e.target.value) || 4)))} />
+              <span className="mono muted bench-hint">1–8 · défaut 4</span>
+            </div>
+            <div className="form-row">
+              <label><Explain term="canal">Canal</Explain></label>
+              <div role="group" aria-label="Modèle de canal" className="bench-pills">
+                {(['clean', 'bursty'] as const).map(m => {
+                  const blocked = m === 'bursty' && !canal.allowed
+                  const active = effectiveModel === m
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      className="btn"
+                      aria-pressed={active}
+                      disabled={blocked}
+                      title={blocked ? canal.reason : m === 'bursty' ? 'rafales — canal propre P2/P3' : 'canal propre, sans rafales'}
+                      onClick={() => setChannelModel(m)}
+                      style={{
+                        padding: 'var(--sp-1) var(--sp-2)',
+                        borderColor: active ? 'var(--t-live)' : 'var(--hairline)',
+                        color: active ? 'var(--t-live)' : 'var(--text-muted)',
+                        background: active ? 'var(--live-dim)' : 'transparent',
+                        opacity: blocked ? 'var(--disabled-opacity, 0.5)' : 1,
+                        cursor: blocked ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {m}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            {!canal.allowed ? <div className="mono muted bench-hint" data-testid="canal-reason">{canal.reason}</div> : null}
+            <div className="form-row">
+              <label><Explain term="deadline">Deadline</Explain></label>
+              <input className="c-input bench-num" type="number" min={200} max={5000} step={100} value={deadlineMs} onChange={e => setDeadlineMs(parseInt(e.target.value) || 1000)} title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" />
+              <span className="mono muted bench-hint">ms</span>
+            </div>
+          </>
+        ) : null}
         <div
           className="form-row bench-cost"
           onMouseEnter={e => setPeek({ rect: e.currentTarget.getBoundingClientRect(), data: liveRing.small.slice(-20).map(([, v]: [number, number]) => v) })}
           onMouseLeave={() => setPeek(null)}
         >
           <span className="mono bench-cost-label">coût en cours</span>
-          <span className="mono bench-cost-val" data-measured={live?.wasted_bytes != null ? '1' : '0'}>{peekCost}</span>
+          <span className="mono bench-cost-val" data-measured={liveCost ? '1' : '0'}>{peekCost}</span>
           <span className="mono muted bench-hint bench-cost-note">octets gâchés × tarif unique</span>
         </div>
         <div className="form-row bench-launch">
-          <span title={live?.running ? "campagne en cours — arrêter d'abord" : profiles.length === 0 ? 'choisir au moins un profil' : undefined}>
-            <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running || profiles.length === 0} />
-          </span>
-          <ArmButton label="ARRÊTER" confirmLabel="CONFIRMER L'ARRÊT" onConfirm={stop} disabled={!live?.running} />
-          <span className="mono muted">{profiles.length === 0 ? 'aucun profil sélectionné' : msg}</span>
+          {research ? (
+            <span title={live?.running ? "campagne en cours — arrêter d'abord" : profiles.length === 0 ? 'choisir au moins un profil' : undefined}>
+              <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running || profiles.length === 0} />
+            </span>
+          ) : null}
+          {research || live?.running ? (
+            <ArmButton label="ARRÊTER" confirmLabel="CONFIRMER L'ARRÊT" onConfirm={stop} disabled={!live?.running} />
+          ) : null}
+          <span className="mono muted">{research && profiles.length === 0 ? 'aucun profil sélectionné' : msg}</span>
         </div>
       </div>
 

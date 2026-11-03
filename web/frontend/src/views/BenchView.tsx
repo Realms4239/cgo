@@ -7,6 +7,7 @@ import { ModeHead } from '../components/ModeHead'
 import LiveView from './LiveView'
 import ResultatsView from './ResultatsView'
 import { useUIStore } from '../store/ui'
+import { useBenchStore } from '../store/bench'
 import { useModeActive } from '../lib/hooks'
 import { scrollToId as goTo } from '../lib/scroll'
 
@@ -16,7 +17,9 @@ export default function BenchView() {
   const active = useModeActive('bench')
   const running = useUIStore(s => !!s.live?.running)
   const replay = useUIStore(s => s.replayRunning)
-  const [resultsOpen, setResultsOpen] = useState(stage === 'results')
+  const research = useBenchStore(s => s.research)
+  const setResearch = useBenchStore(s => s.setResearch)
+  const [resultsOpen, setResultsOpen] = useState(research || stage === 'results')
 
   useEffect(() => {
     if (!running && !replay) return
@@ -25,13 +28,17 @@ export default function BenchView() {
   }, [running, replay, setStage])
 
   useEffect(() => {
-    if (stage === 'results') setResultsOpen(true)
-  }, [stage])
+    if (stage === 'results') {
+      setResearch(true)
+      setResultsOpen(true)
+    }
+  }, [stage, setResearch])
 
   // Le montage des résultats (matrice + TradeSpace) coûte ~250 ms : hors du
   // geste, en transition non urgente — le clic reste vif et le saut vers la
   // section se fait avant que le corps n'enfle.
   const openResults = () => {
+    setResearch(true)
     startTransition(() => { setStage('results'); setResultsOpen(true) })
     goTo('bench-results')
   }
@@ -65,7 +72,7 @@ export default function BenchView() {
 
       <section id="bench-results" className="bench-section" aria-labelledby="bench-results-title">
         <h2 id="bench-results-title" className="bench-section-title">3 — Résultats</h2>
-        {resultsOpen ? (
+        {research && resultsOpen ? (
           <ResultatsView embedded active={active} />
         ) : (
           <div className="card bench-held">

@@ -88,7 +88,7 @@ describe('banc d’essai linéaire', () => {
     // page : il ne doit plus se payer dans le task du clic.
     expect(b).toContain('import { startTransition')
     expect(b).toContain("startTransition(() => { setStage('results'); setResultsOpen(true) })")
-    expect(b, 'le saut reste urgent, le montage non').toMatch(/const openResults = \(\) => \{\s*startTransition/g)
+    expect(b, 'le clic d’abord active la recherche, puis monte hors du geste').toMatch(/const openResults = \(\) => \{\s*setResearch\(true\)\s*startTransition/g)
     expect(b).toContain('<button className="btn" onClick={openResults}>RÉSULTATS</button>')
     expect(b).toContain('<button className="btn btn-primary" onClick={openResults}>OUVRIR LES RÉSULTATS</button>')
   })
