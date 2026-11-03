@@ -1,14 +1,18 @@
-// AuditLive — l'étape « Observer » : phases, restant, p50/p95 de la fenêtre
-// courante et ANNULER. Aucun zéro n'est affiché comme une mesure : une sonde
-// perdue (0) est ignorée par le calcul des percentiles.
+// AuditLive — l'étape « Observer » : phases, restant, la trace des sondes et
+// deux faits face à l'objectif. Une sonde perdue brise le tracé ; elle n'est
+// jamais affichée comme 0 ms.
 import { ArmButton } from './ArmButton'
 import { Badge, StatusPip } from './ui/StatusPip'
-import { Stat } from './ui/Stat'
-import { auditPhases, liveStats, phaseLabel, remainingSeconds } from '../lib/auditFlow'
+import { TraceCanvas } from './TraceCanvas'
+import { auditPhases, phaseLabel, remainingSeconds } from '../lib/auditFlow'
 import type { AuditDirection, AuditLive as AuditLiveState } from '../lib/types'
 
-function fmtMs(v: number | null): string {
-  return v == null ? '—' : v.toFixed(1)
+function fmtMs(v: number | null | undefined): string {
+  return v != null && Number.isFinite(v) && v > 0 ? v.toFixed(1) : '—'
+}
+
+function finiteDeadline(v: number | null | undefined): number | null {
+  return v != null && Number.isFinite(v) && v > 0 ? v : null
 }
 
 export function AuditLive({ live, direction, onStop }: {
@@ -17,9 +21,9 @@ export function AuditLive({ live, direction, onStop }: {
   onStop: () => void
 }) {
   const phases = auditPhases(direction)
-  const stats = liveStats(live?.samples?.rtt_ms, live?.samples?.small_ms)
   const remain = remainingSeconds(live)
   const running = !!live?.running
+  const deadline = finiteDeadline(live?.deadline_ms)
   return (
     <div data-testid="audit-live" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
@@ -42,16 +46,33 @@ export function AuditLive({ live, direction, onStop }: {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'var(--sp-2)' }}>
-        <div className="c-kpi"><Stat label="RTT p50" value={fmtMs(stats.rttP50)} unit="ms" /></div>
-        <div className="c-kpi"><Stat label="RTT p95" value={fmtMs(stats.rttP95)} unit="ms" /></div>
-        <div className="c-kpi"><Stat label="petit p50" value={fmtMs(stats.smallP50)} unit="ms" /></div>
-        <div className="c-kpi"><Stat label="petit p95" value={fmtMs(stats.smallP95)} unit="ms" /></div>
+      {deadline != null ? (
+        <TraceCanvas
+          points={live?.timeline ?? []}
+          totalSec={live?.total_sec}
+          deadlineMs={deadline}
+          responseMs={live?.last_rtt_ms}
+          loadResponseMs={live?.last_small_ms}
+        />
+      ) : (
+        <p className="mono muted">Trace indisponible — objectif non scellé par la réponse.</p>
+      )}
+
+      <div className="live-brief">
+        <div className="live-fact">
+          <span>temps de réponse</span>
+          <b>{fmtMs(live?.last_rtt_ms)}<small> ms</small></b>
+        </div>
+        <div className="live-fact">
+          <span>réponse sous charge</span>
+          <b>{fmtMs(live?.last_small_ms)}<small> ms</small></b>
+          <em>{deadline != null ? `objectif ${Math.round(deadline)} ms` : 'objectif non disponible'}</em>
+        </div>
       </div>
 
       <div className="mono" style={{ fontSize: 'var(--fs-micro)', lineHeight: 1.5, color: 'var(--text-faint)' }}>
         {live?.phase_remain_sec != null ? `cette phase : ${live.phase_remain_sec} s restantes · ` : ''}
-        échantillons de la fenêtre courante (≤ 32) — une sonde perdue n'entre pas dans les percentiles
+        une sonde perdue brise la ligne — elle ne vaut jamais 0 ms
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>

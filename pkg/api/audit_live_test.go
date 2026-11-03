@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/pkg/metrics"
 )
 
 type auditLiveResp struct {
@@ -27,6 +28,7 @@ type auditLiveResp struct {
 		Small []float64 `json:"small_ms"`
 	} `json:"samples"`
 	Timeline []audit.TimelinePoint `json:"timeline"`
+	DeadlineMs int                `json:"deadline_ms"`
 }
 
 func getJSON(t *testing.T, url string, out any) {
@@ -109,6 +111,9 @@ func TestAuditLiveAndStop(t *testing.T) {
 	}
 	if live.LastSmallMs != 12.5 {
 		t.Fatalf("last_small_ms = %v, want 12.5", live.LastSmallMs)
+	}
+	if live.DeadlineMs != metrics.CAPDeadlineMs {
+		t.Fatalf("deadline_ms = %d, want %d", live.DeadlineMs, metrics.CAPDeadlineMs)
 	}
 	// La timeline couvre tout le run (une entrée par seconde écoulée), pas la
 	// fenêtre de 32 sondes : sans ça, la marche repos → charge disparaît.

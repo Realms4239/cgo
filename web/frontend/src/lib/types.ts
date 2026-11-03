@@ -47,6 +47,17 @@ export type GateIdx = 0|1|2|3|4|5|6|7
 // ── Audit vivant (GET /api/audit/live) — running:false seul quand rien ne tourne
 export type AuditDirection = 'up' | 'down' | 'both'
 
+// Une seconde muette porte n=0 et des valeurs null : elle ne se lit jamais
+// comme un 0 ms.
+export interface AuditTimelinePoint {
+  t: number
+  phase: string
+  n: number
+  rtt_p50: number | null
+  rtt_p95: number | null
+  small_p95: number | null
+}
+
 export interface AuditLive {
   running: boolean
   phase?: string
@@ -55,7 +66,12 @@ export interface AuditLive {
   phase_remain_sec?: number
   last_rtt_ms?: number
   last_small_ms?: number
-  samples?: { rtt_ms?: number[]; small_ms?: number[] }
+  samples?: {
+    rtt_ms?: number[]
+    small_ms?: number[]
+  }
+  timeline?: AuditTimelinePoint[]
+  deadline_ms?: number
 }
 
 // ── Rapport d'audit (GET /api/audit/status, /api/audit/report) — miroir des tags Go.

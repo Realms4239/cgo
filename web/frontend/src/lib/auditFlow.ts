@@ -159,35 +159,6 @@ export function phaseLabel(phase: string | undefined): string {
   }
 }
 
-// Percentiles client : même interpolation linéaire que metrics.Percentile.
-// Un 0 est une sonde perdue, pas une mesure nulle — il ne tire pas le p95 vers
-// le bas (même convention que lastNonZero côté Go).
-export function percentile(samples: number[], p: number): number | null {
-  const xs = samples.filter(v => Number.isFinite(v) && v > 0).sort((a, b) => a - b)
-  if (xs.length === 0) return null
-  if (xs.length === 1) return xs[0]
-  const rank = (p / 100) * (xs.length - 1)
-  const lo = Math.floor(rank)
-  const hi = Math.ceil(rank)
-  return xs[lo] * (1 - (rank - lo)) + xs[hi] * (rank - lo)
-}
-
-export interface LiveStats {
-  rttP50: number | null
-  rttP95: number | null
-  smallP50: number | null
-  smallP95: number | null
-}
-
-export function liveStats(rtt: number[] | undefined, small: number[] | undefined): LiveStats {
-  return {
-    rttP50: percentile(rtt ?? [], 50),
-    rttP95: percentile(rtt ?? [], 95),
-    smallP50: percentile(small ?? [], 50),
-    smallP95: percentile(small ?? [], 95),
-  }
-}
-
 export function remainingSeconds(live: AuditLive | null): number | null {
   if (!live?.running || live.total_sec == null || live.elapsed_sec == null) return null
   return Math.max(0, Math.round(live.total_sec - live.elapsed_sec))

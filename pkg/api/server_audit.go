@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/profile"
 	"github.com/Realms4239/cgo/pkg/remediate"
@@ -261,6 +262,7 @@ func handleAuditLive() http.HandlerFunc {
 			"last_small_ms":    pr.LastSmallMs,
 			"samples":          map[string]any{"rtt_ms": rttSamples, "small_ms": smallSamples},
 			"timeline":         pr.Timeline,
+			"deadline_ms":      metrics.CAPDeadlineMs,
 		})
 	}
 }

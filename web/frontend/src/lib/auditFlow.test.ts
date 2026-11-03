@@ -8,7 +8,6 @@ import {
   directionLabel,
   durationChoice,
   durationFor,
-  liveStats,
   nextAuditStage,
   normalizeDirection,
   normalizeDuration,
@@ -97,20 +96,7 @@ describe('validation de la déclaration', () => {
   })
 })
 
-describe('maths live', () => {
-  it('p50/p95 par interpolation linéaire (même formule que metrics)', () => {
-    const s = liveStats([10, 0, 20, 30, 40], [])
-    expect(s.rttP50).toBeCloseTo(25, 6)
-    expect(s.rttP95).toBeCloseTo(38.5, 6)
-    expect(s.smallP50).toBeNull()
-    expect(s.smallP95).toBeNull()
-  })
-
-  it('vide ou zéros seuls ⇒ null, jamais 0 ms mesuré', () => {
-    expect(liveStats([], [])).toEqual({ rttP50: null, rttP95: null, smallP50: null, smallP95: null })
-    expect(liveStats([0, 0], [0]).rttP50).toBeNull()
-  })
-
+describe('temps restant', () => {
   it('reste la durée totale sans passer sous zéro', () => {
     expect(remainingSeconds({ running: true, total_sec: 60, elapsed_sec: 23 })).toBe(37)
     expect(remainingSeconds({ running: true, total_sec: 60, elapsed_sec: 61 })).toBe(0)
