@@ -10,7 +10,6 @@ import { Provenance } from '../components/ui/Provenance'
 import { NavIcon } from '../components/NavIcon'
 import { ScienceDetails } from '../components/ScienceDetails'
 import { gradeTone } from '../components/AuditReportCard'
-import { OperatorStats } from '../components/OperatorStats'
 import { RemediationCard } from '../components/RemediationCard'
 import { VerdictHero } from '../components/VerdictHero'
 import { nextStep, pickHeadline, type SynGroup } from '../lib/synthese'
@@ -107,7 +106,6 @@ export default function DashboardView() {
                 {report.timestamp ? <span className="dash-ago">{relativeTime(report.timestamp)}</span> : null}
                 <Badge tone={gradeTone(report.bloat_grade)}>{report.bloat_grade || 'non noté'}</Badge>
               </div>
-              <OperatorStats report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
               {report.bloat_verdict ? <p className="syn-read">{report.bloat_verdict}</p> : null}
               <div className="dash-actions">
                 <button className="btn btn-primary" onClick={() => { showReport(); setMode('audit') }}>Ouvrir le rapport</button>

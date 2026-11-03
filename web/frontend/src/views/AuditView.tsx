@@ -6,7 +6,6 @@ import { AuditLive } from '../components/AuditLive'
 import { AuditReportCard, gradeTone } from '../components/AuditReportCard'
 import AuditHistoryModal from '../components/AuditHistoryModal'
 import { ModeHead } from '../components/ModeHead'
-import { OperatorStats } from '../components/OperatorStats'
 import { RemediationCard } from '../components/RemediationCard'
 import { VerdictHero } from '../components/VerdictHero'
 import { ScienceDetails } from '../components/ScienceDetails'
@@ -104,7 +103,6 @@ export default function AuditView() {
             right={<Badge tone={gradeTone(report.bloat_grade)}>{report.bloat_grade || 'non noté'}</Badge>}
           />
           <VerdictHero report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
-          <OperatorStats report={report} warnMs={settings.warnMs} critMs={settings.critMs} includeCost />
           {report.bloat_verdict ? <p className="audit-verdict">{report.bloat_verdict}</p> : null}
 
           {remediation ? (
@@ -119,6 +117,7 @@ export default function AuditView() {
 
           <div className="audit-launch">
             <button className="btn" onClick={s.restart}>NOUVEL AUDIT</button>
+            <button className="btn" onClick={() => useUIStore.getState().openProof('proof')}>VOIR LES PREUVES</button>
             <span className="mono muted">{s.msg}</span>
           </div>
         </section>

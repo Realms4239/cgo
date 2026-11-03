@@ -126,6 +126,31 @@ await page.waitForTimeout(200)
 ok('avancé se déplie', await page.locator('input[name="audit-provider"]').isVisible())
 await attempt('avancé (repli)', async () => { await page.locator('button:has-text("MASQUER LES CHAMPS AVANCÉS")').click({ timeout: 5000 }) })
 
+// 3b — tiroir de preuve : même contrat modal que les réglages — le focus
+// entre, y reste, Échap ferme, le focus revient au déclencheur.
+await attempt('rapport (ouverture)', async () => { await page.locator('button:has-text("VOIR LE DERNIER RAPPORT")').first().click({ timeout: 5000 }) })
+await page.waitForTimeout(500)
+await attempt('preuves (ouverture)', async () => { await page.locator('button:has-text("VOIR LES PREUVES")').first().click({ timeout: 5000 }) })
+await page.waitForTimeout(350)
+ok('le tiroir de preuve s’ouvre', await page.locator('.proof-drawer').count() > 0)
+const proofFocus = await page.evaluate(() => document.activeElement?.closest('.proof-drawer') !== null)
+ok('le tiroir de preuve prend le focus', proofFocus, await page.evaluate(() => document.activeElement?.tagName ?? 'none'))
+let proofTrapped = true
+for (let i = 0; i < 12; i++) {
+  await page.keyboard.press('Tab')
+  const inside = await page.evaluate(() => document.activeElement?.closest('.proof-drawer') !== null)
+  if (!inside) { proofTrapped = false; break }
+}
+ok('le focus reste dans le tiroir de preuve', proofTrapped)
+await page.locator('#proof-tab-commands').focus()
+await page.keyboard.press('ArrowRight')
+await page.waitForTimeout(200)
+ok('les flèches parcourent les onglets du tiroir', await page.evaluate(() => document.querySelector('#proof-tab-proof')?.getAttribute('aria-selected')) === 'true')
+await page.keyboard.press('Escape')
+await page.waitForTimeout(300)
+ok('le tiroir de preuve se ferme', await page.locator('.proof-drawer').count() === 0)
+ok('le focus revient au déclencheur des preuves', await page.evaluate(() => (document.activeElement?.textContent || '').includes('VOIR LES PREUVES')))
+
 // 4 — banc : les trois sections, l’aperçu replié, l’affichage
 await mark('banc (chunk différé)')
 await page.keyboard.press('3')

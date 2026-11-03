@@ -458,6 +458,50 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .settings-desc { font-size: var(--fs-micro); color: var(--text-body); }
 .settings-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); }
 
+/* tiroir de preuve — feuille centrée, 85 % de la hauteur, 720 px au plus */
+.proof-drawer { position: fixed; inset: 0; z-index: 660; background: rgba(0,0,0,0.62); display: flex; align-items: center; justify-content: center; padding: var(--sp-4); }
+.proof-drawer-panel { width: 100%; max-width: 720px; height: 85vh; background: var(--surface-soft); border: 1px solid var(--hairline); padding: var(--sp-4); overflow: hidden; display: flex; flex-direction: column; gap: var(--sp-3); }
+.proof-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+.proof-title { font: 600 var(--fs-body) var(--font-ui); margin: 0; color: var(--text-primary); }
+.proof-id { display: block; margin-top: 2px; font-size: var(--fs-micro); color: var(--text-faint); }
+.proof-close { color: var(--text-muted); font-size: var(--fs-body); min-width: 48px; min-height: 48px; }
+.proof-tabs { display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--hairline); flex-wrap: wrap; }
+.proof-tab { min-height: 48px; padding: 0 var(--sp-3); color: var(--text-muted); border-bottom: 2px solid transparent; }
+.proof-tab[aria-selected="true"] { color: var(--t-live); border-bottom-color: var(--t-live); }
+.proof-panel { flex: 1; min-height: 0; overflow-y: auto; padding-right: var(--sp-1); display: flex; flex-direction: column; gap: var(--sp-3); font-size: var(--fs-cap); }
+.proof-basis { font-size: var(--fs-label); color: var(--text-body); }
+.proof-platform, .proof-replay, .proof-sensor { font-size: var(--fs-label); color: var(--text-muted); }
+.proof-replay-dot { display: inline-block; width: 8px; height: 8px; margin-right: var(--sp-2); background: var(--text-faint); }
+.proof-replay[data-level="amber"] .proof-replay-dot { background: var(--t-threshold); }
+.proof-replay[data-level="red"] .proof-replay-dot { background: var(--t-danger-text); }
+.proof-replay[data-level="green"] .proof-replay-dot { background: var(--t-ok); }
+.proof-block { display: flex; flex-direction: column; gap: var(--sp-1); }
+.proof-block-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.proof-block-label { font-size: var(--fs-label); color: var(--text-body); }
+.proof-copy { min-height: 44px; padding: 0 var(--sp-3); }
+.proof-pre { background: var(--surface-card); border: 1px solid var(--hairline); padding: var(--sp-2); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-label); line-height: 1.5; }
+.proof-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+.proof-fact { border: 1px solid var(--hairline); background: var(--surface-card); padding: var(--sp-2); display: flex; flex-direction: column; gap: 2px; }
+.proof-fact dt { font: 700 var(--fs-micro) var(--font-mono); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+.proof-fact dd { margin: 0; }
+.proof-fact b { font: 600 var(--fs-head) var(--font-mono); font-variant-numeric: tabular-nums; }
+.proof-fact[data-empty] dd b { font: 400 var(--fs-body) var(--font-ui); color: var(--text-muted); }
+.proof-fact small { font: 400 var(--fs-label) var(--font-mono); color: var(--text-faint); }
+.proof-fact em { display: block; font-style: normal; font-size: var(--fs-micro); color: var(--text-faint); }
+.proof-rows, .proof-hashes { display: flex; flex-direction: column; }
+.proof-row { display: flex; gap: var(--sp-3); padding: 6px 0; border-top: 1px solid var(--hairline-faint); }
+.proof-row dt { min-width: 160px; color: var(--text-muted); }
+.proof-row dd { margin: 0; color: var(--text-body); word-break: break-word; }
+.proof-hashes code { font-family: var(--font-mono); word-break: break-all; }
+.proof-link { align-self: flex-start; color: var(--t-live); }
+@media (max-width: 700px) {
+  .proof-drawer { padding: 0; }
+  .proof-drawer-panel { height: 100%; max-width: none; border: 0; padding: var(--sp-3); }
+  .proof-facts { grid-template-columns: minmax(0, 1fr); }
+  .proof-row { flex-direction: column; gap: 2px; }
+  .proof-row dt { min-width: 0; }
+}
+
 /* carte métrique — coquille statique, la valeur/verdict reste dynamique */
 .mc-card { padding: 12px; border: 1px solid var(--hairline); background: var(--surface-card); min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .mc-head { display: flex; justify-content: space-between; align-items: center; }

@@ -8,30 +8,50 @@ import { useUIStore } from '../store/ui'
 
 const PLATFORM_KEY = 'meteolink-remediation-platform'
 
-type Platform = 'routeros' | 'linux'
+export type Platform = 'routeros' | 'linux'
 
-const PLATFORM_LABEL: Record<Platform, string> = {
+export const PLATFORM_LABEL: Record<Platform, string> = {
   routeros: 'MikroTik RouterOS 7',
   linux: 'Linux tc',
 }
 
-// Le texte copié est celui du rapport : sortie et entrée, jamais recousues.
+// Le tiroir de preuve montre les mêmes blocs, chacun avec sa copie : le texte
+// d'un bloc est celui du rapport, jamais recousu à partir de l'autre.
+export function blocksOf(r: AuditRemediation, p: Platform): { label: string; text: string }[] {
+  const blocks = p === 'routeros'
+    ? [
+        { label: 'Déploiement — envoi', text: r.routeros },
+        { label: 'Déploiement — réception (LAN)', text: r.routeros_ingress },
+      ]
+    : [
+        { label: 'Déploiement — envoi', text: r.linux_tc?.join('\n') },
+        { label: 'Déploiement — réception (IFB)', text: r.linux_tc_ingress?.join('\n') },
+      ]
+  return blocks.filter((b): b is { label: string; text: string } => !!b.text)
+}
+
 export function scriptOf(r: AuditRemediation, p: Platform): string {
-  const parts = p === 'routeros'
-    ? [r.routeros, r.routeros_ingress]
-    : [r.linux_tc?.join('\n'), r.linux_tc_ingress?.join('\n')]
-  return parts.filter(Boolean).join('\n\n')
+  return blocksOf(r, p).map(b => b.text).join('\n\n')
 }
 
 function platformCarried(r: AuditRemediation, p: Platform): boolean {
   return p === 'routeros' ? !!(r.routeros || r.routeros_ingress) : !!(r.linux_tc?.length || r.linux_tc_ingress?.length)
 }
 
-function readChoice(): Platform | null {
+export function carriedPlatforms(r: AuditRemediation | null | undefined): Platform[] {
+  return r ? (['routeros', 'linux'] as const).filter(p => platformCarried(r, p)) : []
+}
+
+export function readPlatform(): Platform | null {
   try {
     const v = localStorage.getItem(PLATFORM_KEY)
     return v === 'routeros' || v === 'linux' ? v : null
   } catch { return null }
+}
+
+// Le choix partagé entre la carte et le tiroir : une seule plateforme active.
+export function savePlatform(p: Platform) {
+  try { localStorage.setItem(PLATFORM_KEY, p) } catch { /* mode privé : le choix vaut pour la session */ }
 }
 
 function RateLine({ dir, measured, shaped }: { dir: 'up' | 'down'; measured?: number; shaped?: number }) {
@@ -57,8 +77,8 @@ function RateLine({ dir, measured, shaped }: { dir: 'up' | 'down'; measured?: nu
 }
 
 export function RemediationCard({ remediation }: { remediation: AuditRemediation | null | undefined }) {
-  const carried = (['routeros', 'linux'] as const).filter(p => remediation && platformCarried(remediation, p))
-  const [chosen, setChosen] = useState<Platform | null>(() => readChoice())
+  const carried = carriedPlatforms(remediation)
+  const [chosen, setChosen] = useState<Platform | null>(() => readPlatform())
   if (!remediation || carried.length === 0) return null
   const platform: Platform = chosen && carried.includes(chosen) ? chosen : carried[0]
   const assumed = platform === 'routeros' && !!remediation.routeros_ingress && !!remediation.routeros_lan_assumed
@@ -66,7 +86,7 @@ export function RemediationCard({ remediation }: { remediation: AuditRemediation
 
   const pick = (p: Platform) => {
     setChosen(p)
-    try { localStorage.setItem(PLATFORM_KEY, p) } catch { /* mode privé : le choix vaut pour la session */ }
+    savePlatform(p)
   }
 
   const copy = () => {
@@ -108,6 +128,9 @@ export function RemediationCard({ remediation }: { remediation: AuditRemediation
       <div className="remediation-actions">
         <button type="button" className="btn btn-primary" onClick={copy} disabled={!script}>
           Copier la configuration
+        </button>
+        <button type="button" className="btn" onClick={() => useUIStore.getState().openProof('commands')}>
+          Voir la commande exacte
         </button>
       </div>
     </section>

@@ -10,6 +10,7 @@ import DashboardView from './views/DashboardView'
 import Toasts from './components/Toasts'
 import FlashBanner from './components/FlashBanner'
 import SettingsDrawer from './components/SettingsDrawer'
+import ProofDrawer from './components/ProofDrawer'
 import ErrorBoundary from './components/ErrorBoundary'
 import TopNav from './components/TopNav'
 import QuickActionsPrompt from './components/QuickActionsPrompt'
@@ -163,6 +164,7 @@ export default function App() {
         </footer>
 
         {settingsOpen ? <SettingsDrawer onClose={() => setSettingsOpen(false)} /> : null}
+        <ProofDrawer />
         <FlashBanner />
         <Toasts />
       </div>

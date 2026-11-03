@@ -20,6 +20,9 @@ let toastSeq = 1
 export type FlashType = 'success' | 'danger' | 'info'
 export interface FlashItem { type: FlashType; msg: string }
 
+// Le tiroir de preuve : deux lectures du même rapport scellé.
+export type ProofTab = 'commands' | 'proof'
+
 interface UIState {
   mode: ModeId; setMode: (m: ModeId) => void
   benchStage: BenchStage; setBenchStage: (s: BenchStage) => void
@@ -29,6 +32,7 @@ interface UIState {
   toasts: ToastItem[]; pushToast: (msg: string, cls?: ToastKind) => void; dropToast: (id: number) => void
   flash: FlashItem | null; setFlash: (f: FlashItem | null) => void
   replayRunning: boolean; replayRunId: string | null; setReplay: (running: boolean, id: string | null) => void
+  proof: { tab: ProofTab } | null; openProof: (tab: ProofTab) => void; closeProof: () => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -48,4 +52,5 @@ export const useUIStore = create<UIState>((set) => ({
   dropToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   flash: null, setFlash: (flash) => set({ flash }),
   replayRunning: false, replayRunId: null, setReplay: (replayRunning, replayRunId) => set({ replayRunning, replayRunId }),
+  proof: null, openProof: (tab) => set({ proof: { tab } }), closeProof: () => set({ proof: null }),
 }));
