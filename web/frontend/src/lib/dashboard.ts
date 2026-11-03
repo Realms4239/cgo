@@ -2,7 +2,6 @@
 // les seuils restent ceux des Réglages. Aucun zéro ne se lit comme mesuré.
 import type { AuditReport } from './types'
 import { formatCostAR, numFr } from './format'
-import { pickHeadline, type SynGroup } from './synthese'
 
 export type PlainLevel = 'ok' | 'warn' | 'crit'
 export interface Band { word: string; level: PlainLevel }
@@ -73,34 +72,6 @@ export function operatorSummary(
     grade: report?.bloat_grade,
     quality: qualityWord(report?.bloat_grade),
   }
-}
-
-export interface RemediationCell {
-  qdisc: string
-  cc: string
-  deadlinePct?: number
-  smallP95Ms?: number
-  n: number
-}
-
-export interface RemediationView {
-  simple: RemediationCell
-  best: RemediationCell
-}
-
-const cellOf = (g: SynGroup): RemediationCell => ({
-  qdisc: g.qdisc,
-  cc: g.cc,
-  deadlinePct: finite(g.deadline_median) ? g.deadline_median : undefined,
-  smallP95Ms: finite(g.small_p95_median) && g.small_p95_median > 0 ? g.small_p95_median : undefined,
-  n: g.deadline_valid_n ?? 0,
-})
-
-// Seules les cellules P2 avec échantillon valide entrent dans la projection.
-export function remediationView(groups: SynGroup[] | null | undefined): RemediationView | null {
-  const h = pickHeadline(Array.isArray(groups) ? groups : [])
-  if (!h.simple || !h.best) return null
-  return { simple: cellOf(h.simple), best: cellOf(h.best) }
 }
 
 export interface Fact { key: string; label: string; value: string; unit: string; target: string; band: Band | null }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertsBand, bothAbsent, delayBand, instabilityBand, operatorFacts, operatorSummary, qualityWord, remediationView, retailBound } from './dashboard'
+import { alertsBand, bothAbsent, delayBand, instabilityBand, operatorFacts, operatorSummary, qualityWord, retailBound } from './dashboard'
 import type { AuditReport } from './types'
 
 describe('bandes opérateur', () => {
@@ -32,27 +32,6 @@ describe('bandes opérateur', () => {
     expect(qualityWord('A')).toBe('excellent')
     expect(qualityWord('B+')).toBe('bon')
     expect(qualityWord(undefined)).toBe('non noté')
-  })
-})
-
-describe('projection de remédiation P2', () => {
-  const groups = [
-    { profile: 'P2', qdisc: 'pfifo_fast', cc: 'bbr', deadline_median: 60, deadline_valid_n: 22, small_p95_median: 328 },
-    { profile: 'P2', qdisc: 'cake', cc: 'bbr', deadline_median: 98, deadline_valid_n: 20, small_p95_median: 210 },
-    { profile: 'P1', qdisc: 'cake', cc: 'bbr', deadline_median: 100, deadline_valid_n: 16, small_p95_median: 20 },
-  ]
-
-  it('ne retient que les cellules P2 valides', () => {
-    const v = remediationView(groups)
-    expect(v?.simple.qdisc).toBe('pfifo_fast')
-    expect(v?.best.qdisc).toBe('cake')
-    expect(v?.best.deadlinePct).toBe(98)
-    expect(v?.best.smallP95Ms).toBe(210)
-    expect(v?.best.n).toBe(20)
-  })
-
-  it('sans cellule valide, aucune projection', () => {
-    expect(remediationView([{ profile: 'P2', qdisc: 'cake', cc: 'bbr', deadline_median: 99, deadline_valid_n: 0 }])).toBeNull()
   })
 })
 

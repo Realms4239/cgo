@@ -149,6 +149,13 @@ describe('design floor — portes source', () => {
     expect(app, 'raccourcis 1–4 depuis MODES').toContain('MODES.find(m => m.key === e.key)')
   })
 
+  it('l’accueil opérateur ne contient aucun des cinq blocs supprimés', () => {
+    const views = walk(join(SRC, 'views')).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))
+    const names = ['dash-grid', 'syn-proof', 'syn-next', 'dash-onboarding', 'syn-actions']
+    const bad = views.flatMap((f) => names.filter((n) => read(f).includes(n)).map((n) => `${rel(f)}: ${n}`))
+    expect(bad, 'l’accueil est une seule colonne : verdict, remédiation, coût, variation').toEqual([])
+  })
+
   it('le rail et le bandeau ont disparu, pas seulement démontés', () => {
     expect(existsSync(join(SRC, 'components', 'TopNav.tsx')), 'TopNav existe').toBe(true)
     expect(existsSync(join(SRC, 'components', 'ModeRail.tsx')), 'ModeRail supprimé').toBe(false)

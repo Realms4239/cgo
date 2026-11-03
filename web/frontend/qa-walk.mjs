@@ -37,6 +37,15 @@ const attempt = async (name, fn) => {
 const mark = async (label) => {
   await page.evaluate(l => { (window.__MARK ||= []).push({ label: l, t: performance.now() }) }, label).catch(() => {})
 }
+// R3 — l'action principale d'une destination ne passe jamais sous la ligne de
+// flottaison au poste de travail (1440×900), en haut de page.
+const fold = async (label, root) => {
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await page.waitForTimeout(200)
+  const box = await page.locator(`${root} .btn-primary`).first().boundingBox().catch(() => null)
+  ok(`l’action principale de ${label} tient au-dessus de 900 px`, !!box && box.y + box.height <= 900,
+    box ? `bas à ${Math.round(box.y + box.height)} px` : 'aucun btn-primary')
+}
 
 await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 30000 })
 // la marque doit venir après la navigation : __MARK est réinitialisé par le
@@ -46,20 +55,9 @@ await page.waitForTimeout(6000)
 
 // 1 — tableau de bord : les deux mondes sont séparés et nommés
 ok('le bandeau a disparu, pas seulement vidé', await page.locator('.status-ribbon, .ribbon-corpus, .ribbon-seal').count() === 0)
-const realTag = await page.locator('.dash-tag.real').first().textContent().catch(() => null)
-const simTag = await page.locator('.dash-tag.sim').first().textContent().catch(() => null)
-ok('dashboard sépare réel et simulé', !!realTag && !!simTag, `${realTag} | ${simTag}`)
-const drawers = page.locator('.sci-details-toggle')
-const drawerCount = await drawers.count()
-if (drawerCount > 0) {
-  await attempt('tiroir (clic)', async () => { await drawers.first().click({ timeout: 5000 }) })
-  await page.waitForTimeout(300)
-  const open = await page.locator('.sci-details-body').first().isVisible().catch(() => false)
-  ok('tiroir scientifique s’ouvre', open, `${drawerCount} tiroirs`)
-  await attempt('tiroir (repli)', async () => { await drawers.first().click({ timeout: 5000 }) })
-} else {
-  ok('tiroir scientifique s’ouvre', false, 'aucun tiroir trouvé')
-}
+const removedBlocks = await page.locator('.dash-grid, .syn-proof, .syn-next, .syn-actions, .dash-onboarding').count()
+ok('les cinq blocs de l’ancien accueil ont disparu', removedBlocks === 0, `${removedBlocks} blocs résiduels`)
+await fold('tableau de bord', '#v-dashboard')
 
 // 2 — clavier 1–4
 await page.locator('body').click({ position: { x: 5, y: 300 } })
@@ -105,7 +103,7 @@ await page.waitForTimeout(300)
 ok('la palette se ferme', await page.locator('#palette').count() === 0)
 
 // 2c — aucun débordement horizontal aux largeurs de terrain
-for (const [w, h] of [[1366, 768], [1024, 768]]) {
+for (const [w, h] of [[1920, 1080], [1366, 768], [1024, 768]]) {
   await page.setViewportSize({ width: w, height: h })
   await page.waitForTimeout(350)
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
@@ -117,6 +115,7 @@ await page.waitForTimeout(350)
 // 3 — auditer : la déclaration est complète et l’avancé se replie
 await page.keyboard.press('2')
 await page.waitForTimeout(800)
+await fold('auditer', '#v-audit')
 const decisions = await page.locator('.audit-declare label').count()
 ok('auditer expose les quatre décisions', decisions >= 4, `${decisions} étiquettes`)
 const planText = await page.locator('.audit-declare').getByText(/au total/).first().textContent().catch(() => '')
@@ -155,6 +154,7 @@ ok('le focus revient au déclencheur des preuves', await page.evaluate(() => (do
 await mark('banc (chunk différé)')
 await page.keyboard.press('3')
 await page.waitForTimeout(1200)
+await fold('banc', '#v-bench')
 for (const id of ['bench-config', 'bench-observe', 'bench-results']) {
   ok(`section ${id}`, await page.locator(`#${id}`).count() > 0)
 }
@@ -192,6 +192,7 @@ if (pick) {
 await mark('preuves')
 await page.keyboard.press('4')
 await page.waitForTimeout(5000)
+await fold('preuves', '#v-evidence')
 await attempt('ancre rapports', async () => { await page.locator('.evidence-anchors button:has-text("RAPPORTS")').click({ timeout: 5000 }) })
 await page.waitForTimeout(600)
 const rows = await page.locator('#evidence-reports .audit-reports-table tbody tr').count()

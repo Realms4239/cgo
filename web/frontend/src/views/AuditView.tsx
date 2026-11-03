@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react'
 import { AuditDeclare } from '../components/AuditDeclare'
 import { AuditLive } from '../components/AuditLive'
-import { AuditReportCard, gradeTone } from '../components/AuditReportCard'
+import { gradeTone } from '../components/AuditReportCard'
 import AuditHistoryModal from '../components/AuditHistoryModal'
 import { ModeHead } from '../components/ModeHead'
 import { RemediationCard } from '../components/RemediationCard'
 import { VerdictHero } from '../components/VerdictHero'
-import { ScienceDetails } from '../components/ScienceDetails'
 import { Badge } from '../components/ui/StatusPip'
 import { CardHead } from '../components/ui/CardHead'
 import { auditStep } from '../lib/auditFlow'
@@ -24,13 +23,6 @@ export default function AuditView() {
   useEffect(() => {
     useAuditStore.getState().open()
   }, [])
-
-  const copyText = (text: string, label: string) => {
-    navigator.clipboard?.writeText(text).then(
-      () => useUIStore.getState().pushToast(`${label} copié`, 'ok'),
-      () => useUIStore.getState().pushToast('Copie impossible — sélectionnez le texte', 'err'),
-    )
-  }
 
   const report = s.report
   const remediation = report?.remediation
@@ -110,10 +102,6 @@ export default function AuditView() {
           ) : (
             <p className="mono muted">Aucune remédiation émise — capacité ou RTT repos non mesurés.</p>
           )}
-
-          <ScienceDetails label="Détails scientifiques du rapport" testid="audit-report-details">
-            <AuditReportCard report={report} onCopy={copyText} />
-          </ScienceDetails>
 
           <div className="audit-launch">
             <button className="btn" onClick={s.restart}>NOUVEL AUDIT</button>

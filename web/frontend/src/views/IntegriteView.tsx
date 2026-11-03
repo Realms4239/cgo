@@ -15,6 +15,7 @@ type Integrity = {
   run_ids?: string[]
   breakdown?: { run: string; rows: number; valid: number; degraded?: number; quarantined: number }[]
   updated?: string
+  hash8?: string; sha256?: string
 }
 
 export default function IntegriteView({ embedded = false, active = true }: { embedded?: boolean; active?: boolean }) {
@@ -67,6 +68,13 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
     const j = await r.json()
     setData(j); setMsg(j.available ? 'intégrité vérifiée' : j.reason)
   }
+  const copyFingerprint = () => {
+    if (!data?.sha256) { setMsg('empreinte SHA non exposée par /api/integrity'); return }
+    navigator.clipboard?.writeText(data.sha256).then(
+      () => setMsg('empreinte copiée'),
+      () => setMsg('copie impossible — sélectionnez le texte'),
+    )
+  }
   const regen = async () => {
     setMsg('génération…')
     const r = await fetch('/api/figures/regen', {method:'POST'})
@@ -101,16 +109,33 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
         </PeekPopover>
       )}
       {!embedded && <h1 className="view-title">Intégrité — archives scellées</h1>}
-      {/* bandeau preuve — 4 faits Grafana, mots pleins, jamais de soupe */}
-      <div className="card int-proof" data-testid="proof-banner">
-        <span className="mono int-proof-title">Preuve scellée</span>
-        <span className="mono int-proof-fact" data-testid="proof-runs">{data.runs} runs archivés · {data.manifests} manifestes signés</span>
-        <span className="mono int-proof-fact int-proof-ok"><Explain term="valid_only">{data.valid} mesures valides</Explain></span>
-        <span className="mono int-proof-fact" style={{ color: (data.degraded || 0) > 0 ? 'var(--t-threshold)' : 'var(--text-muted)' }}>{data.degraded ?? 0} dégradées</span>
-        <span className="mono int-proof-fact" style={{ color:(data.quarantined||0)>0?'var(--t-danger-text)':'var(--text-muted)' }}>{data.quarantined} mesures écartées</span>
-        <span className="mono int-proof-fact int-proof-updated">mis à jour {data.updated || '—'}</span>
-      </div>
-      {/* d'où viennent ces chiffres — quoi/où/quand par source, en clair */}
+      {/* quatre comptes du corpus — 32 px, l'empreinte complète reste copiable */}
+      <section className="card int-summary" aria-label="Synthèse du corpus scellé">
+        <dl className="int-counts">
+          {[
+            ['runs archivés', data.runs ?? 0],
+            ['mesures valides', data.valid ?? 0],
+            ['dégradées', data.degraded ?? 0],
+            ['écartées', data.quarantined ?? 0],
+          ].map(([label, value]) => (
+            <div className="int-count" key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mono int-seal">
+          <span>sceau {data.hash8 ?? '—'} · {data.manifests ?? '—'} manifestes · maj {data.updated ? data.updated.slice(0, 16).replace('T', ' ') : '—'}</span>
+          <button type="button" className="btn int-copy" onClick={copyFingerprint}>Copier l'empreinte</button>
+        </p>
+        <div className="int-summary-actions">
+          <button className="btn btn-primary" onClick={verify}>Vérifier l'intégrité</button>
+          <a className="btn int-export" href="/api/report/export?format=md" download>Rapport MD</a>
+          <span className="mono muted" role="status" aria-live="polite">{msg}</span>
+        </div>
+      </section>
+      <details className="int-corpus-details" data-testid="corpus-details">
+        <summary className="card-head">Détails du corpus</summary>
       <details className="card int-sources-details" data-testid="sources-card">
         <summary className="card-head">D'où viennent ces chiffres</summary>
         <div className="int-sources">
@@ -120,13 +145,6 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
           <div className="mono int-source-line"><b>Journal</b> — les opérations (campagnes, audits) racontées au fil de l'eau · dans le journal opérateur ci-dessous · en continu</div>
         </div>
       </details>
-      <div className="card">
-        <div className="form-row int-actions">
-          <button className="btn btn-primary" onClick={verify}>Vérifier manifestes</button>
-          <a className="btn int-export" href="/api/report/export?format=md" download>Rapport MD</a>
-          <span className="mono muted">{msg}</span>
-        </div>
-      </div>
       {/* RDF provenance — important look, not debug dump */}
       <div className="card int-rdf">
         <div className="card-head int-rdf-head">
@@ -136,9 +154,9 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
         <div className="int-rdf-body">
           <div className="mono int-rdf-cap">sha256 manifest</div>
           {/* SHA réel exposé par /api/integrity */}
-          {(data as any).sha256 ? (
+          {data.sha256 ? (
             <div data-testid="provenance-hash" className="mono int-hash">
-              sha256:{(data as any).sha256}
+              sha256:{data.sha256}
             </div>
           ) : (
             <div title="empreinte SHA non exposée par /api/integrity — afficher le manifeste archivé">
@@ -269,11 +287,11 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
           <div className="int-figures">
             <div>
               <img src="/api/figures/small_p95.svg" alt="small p95" className="int-figure" />
-              <div className="mono muted int-figure-cap">small p95 par configuration · hash {(data as any).hash8 ?? '—'}</div>
+              <div className="mono muted int-figure-cap">small p95 par configuration · hash {data.hash8 ?? '—'}</div>
             </div>
             <div>
               <img src="/api/figures/scatter.svg" alt="scatter" className="int-figure" />
-              <div className="mono muted int-figure-cap">compromis latence / débit · hash {(data as any).hash8 ?? '—'}</div>
+              <div className="mono muted int-figure-cap">compromis latence / débit · hash {data.hash8 ?? '—'}</div>
             </div>
           </div>
         )}
@@ -323,6 +341,7 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
           <p className="mono int-replay-note">le replay rejoue tout le run — aucun filtre par cellule ou métrique côté serveur, il n'y a pas de portée à choisir</p>
         )}
       </div>
+      </details>
     </div>
   )
 }
