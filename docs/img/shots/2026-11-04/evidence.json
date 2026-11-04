@@ -1,0 +1,42 @@
+{
+  "1024": {
+    "errors": [],
+    "slice22": {
+      "hasSuppressedLine": true,
+      "hasProtectCta": false,
+      "auditId": ""
+    },
+    "slice23": {
+      "deadline": "220",
+      "hasBbrv3Hint": true
+    },
+    "slice24": {
+      "hasMaxiAvant": true,
+      "hasSansReglage": true
+    },
+    "slice25": {
+      "title": "mémoriser la médiane de référence, cliquer pour effacer — la barre compare avant et maintenant, même fenêtre",
+      "titleMatches": true
+    }
+  },
+  "1920": {
+    "errors": [],
+    "slice22": {
+      "hasSuppressedLine": true,
+      "hasProtectCta": false,
+      "auditId": ""
+    },
+    "slice23": {
+      "deadline": "220",
+      "hasBbrv3Hint": true
+    },
+    "slice24": {
+      "hasMaxiAvant": true,
+      "hasSansReglage": true
+    },
+    "slice25": {
+      "title": "mémoriser la médiane de référence, cliquer pour effacer — la barre compare avant et maintenant, même fenêtre",
+      "titleMatches": true
+    }
+  }
+}
