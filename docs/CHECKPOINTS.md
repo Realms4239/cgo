@@ -1758,3 +1758,11 @@ lignes pour un plafond cumule de 650 sur les quatre fichiers d'outillage, et le
 total courant est a 649. Une porte de plus dans `verify.py` depasse le plafond
 immediatement ; le garde-fou lexical de 20B doit donc vivre cote `web/frontend/`
 et non dans l'outillage, ou le plafond est revu par une decision explicite.
+
+## 2026-11-04 06:24 UTC · slice 21 builder pass and verifier packet
+
+- Branch/HEAD: `rebuild/plan1-economics-audit` / `a98ef5e` (`ui: le vocabulaire operateur devient une porte`)
+- Changed: T8 (`lexicon.test.ts`, operator wording on the four default destinations, header tagline no longer names a laboratory protocol, archived bench duel shown by default, Preuves rewritten for the operator); T9 ledgers (`docs/verification/2026-11-02-slice-21.md`, one `PENDING` row in `docs/VERIFY.md`, this entry). `book/content/09-annexes.js` carries one paragraph citing the console and the packet and is intentionally left unstaged.
+- Proven: on DESKTOP-B6K9UCM (Windows 10, MINGW64), `cd web/frontend && npm run build` → exit 0, `TOTAL gz : 353.6 KB`; `npm test` → 57 files, 280 tests passed (`Duration 133.83s`); `GOCACHE=/d/cgo-t7-build/gocache GOTMPDIR=/d/cgo-t7-build/tmp go test ./... -count=1` → exit 0, every package `ok`; `GOCACHE=/d/cgo-t7-build/gocache GOTMPDIR=/d/cgo-t7-build/tmp python tools/verify.py` → `6 passed, 0 failed, 0 not run` (`tests 88.4 s`); `python book/tools/audit-archive.py` → both `OK` lines; `node web/frontend/qa-walk.mjs http://127.0.0.1:9095` → 46 steps, 0 failures, 0 console errors, 0 resource errors, worst long task 184 ms. Go ran from `D:\cgo-t7-build` because `C:` is full; no cache was deleted.
+- Unproven/blocked: no live audit, campaign, bench, CHR boot, Linux acceptance, eBPF, `.dist` or BBRv3 run for this slice; no `PENDING` row is promoted, the verifier decides all twelve proposals; `DESIGN.md` and `PRODUCT.md` are git-ignored and are local only; no mobile width is claimed (1024–1920 px accepted range).
+- Next: the independent verifier re-runs `docs/verification/2026-11-02-slice-21.md` on a clean tree and owns every row it moves; the human decides any merge to `main`.
