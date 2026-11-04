@@ -3,7 +3,8 @@
 // les deux taux viennent des champs du rapport scellé.
 import { useState } from 'react'
 import { numFr } from '../lib/format'
-import type { AuditRemediation } from '../lib/types'
+import type { AuditRemediation, AuditRemediationState } from '../lib/types'
+import { EmptyState } from './ui/EmptyState'
 import { useUIStore } from '../store/ui'
 
 const PLATFORM_KEY = 'meteolink-remediation-platform'
@@ -76,10 +77,20 @@ function RateLine({ dir, measured, shaped }: { dir: 'up' | 'down'; measured?: nu
   )
 }
 
-export function RemediationCard({ remediation }: { remediation: AuditRemediation | null | undefined }) {
+export function RemediationCard({ remediation, state }: { remediation: AuditRemediation | null | undefined; state?: AuditRemediationState | null }) {
+  const normalized: AuditRemediationState = state === "available" ? "available" : "observation_only"
+  if (!remediation) return null
+  if (normalized !== "available") {
+    return (
+      <section className="remediation" aria-labelledby="remediation-title">
+        <h2 id="remediation-title">Protéger ce lien</h2>
+        <EmptyState kind="empty" hint="Aucune configuration émise — charge non établie. Relancez un audit complet." />
+      </section>
+    )
+  }
   const carried = carriedPlatforms(remediation)
   const [chosen, setChosen] = useState<Platform | null>(() => readPlatform())
-  if (!remediation || carried.length === 0) return null
+  if (carried.length === 0) return null
   const platform: Platform = chosen && carried.includes(chosen) ? chosen : carried[0]
   const assumed = platform === 'routeros' && !!remediation.routeros_ingress && !!remediation.routeros_lan_assumed
   const script = scriptOf(remediation, platform)

@@ -20,8 +20,9 @@ import (
 // field that gets a plausible default: a report that invents a deadline
 // compliance rate is worse than one that says "not measured", because the
 // invented number travels into a thesis table and a procurement decision.
-type Report struct {
-	AuditID   string `json:"audit_id"`
+type reportAlias Report // évite la récursion Report.UnmarshalJSON
+
+type Report struct {	AuditID   string `json:"audit_id"`
 	Timestamp string `json:"timestamp"`
 	Site      string `json:"site"`
 	LinkType  string `json:"link_type"`
@@ -60,6 +61,11 @@ type Report struct {
 
 	// Remediation is present only when capacity and RTT were both measured.
 	Remediation *Remediation `json:"remediation,omitempty"`
+
+	// RemediationState — l'absence comme état nommé, pas une absence de champ.
+	// RemediationAvailable = (RemediationState == available).
+	RemediationState     RemediationState `json:"remediation_state"`
+	RemediationAvailable bool             `json:"remediation_available"`
 
 	// Economics is the enterprise valuation, present only when a load was
 	// measured AND a retransmission ratio exists (measured or estimated).
@@ -414,6 +420,7 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		upCap = res.ThroughputMbps
 	}
 	if res.RTTIdleP50 <= 0 || (upCap <= 0 && downCap <= 0) {
+		rep.RemediationState = RemediationObservationState
 		rep.Unavailable = append(rep.Unavailable, Unavailable{
 			Metric: "remediation",
 			Reason: "capacity or idle RTT unmeasured; a queue config sized from a guess would be deployed blindly",
@@ -481,7 +488,10 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		}
 		if len(rem.LinuxTC) > 0 || len(rem.LinuxTCIngress) > 0 || rem.RouterOS != "" || rem.RouterOSIngress != "" {
 			rep.Remediation = rem
+			rep.RemediationState = RemediationAvailableState
+			rep.RemediationAvailable = true
 		} else {
+			rep.RemediationState = RemediationObservationState
 			rep.Unavailable = append(rep.Unavailable, Unavailable{
 				Metric: "remediation",
 				Reason: "no interface was named, so no command set could be generated",
@@ -531,6 +541,21 @@ func countCSVRows(data []byte) int {
 		n++
 	}
 	return n
+}
+
+// UnmarshalJSON rend les rapports scellés avant la slice 22 « observation_only »
+// quand le champ remediation_state manque ou est vide.
+func (r *Report) UnmarshalJSON(data []byte) error {
+	type plain reportAlias
+	var p plain
+	if err := json.Unmarshal(data, &p); err != nil {
+		return err
+	}
+	*r = Report(p)
+	if r.RemediationState == "" {
+		r.RemediationState = RemediationObservationState
+	}
+	return nil
 }
 
 // RenderJSON returns the machine-readable report.

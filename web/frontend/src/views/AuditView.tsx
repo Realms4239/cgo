@@ -98,7 +98,7 @@ export default function AuditView() {
           {report.bloat_verdict ? <p className="audit-verdict">{report.bloat_verdict}</p> : null}
 
           {remediation ? (
-            <RemediationCard remediation={remediation} />
+            <RemediationCard remediation={remediation} state={report.remediation_state ?? (remediation ? "available" : "observation_only")} />
           ) : (
             <p className="mono muted">Aucune remédiation émise — capacité ou RTT repos non mesurés.</p>
           )}

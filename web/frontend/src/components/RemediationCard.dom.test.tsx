@@ -19,7 +19,7 @@ const full: AuditRemediation = {
   linux_tc: ['tc qdisc add dev eth0 root handle 1: htb'],
 }
 
-const markup = (r: AuditRemediation | null | undefined) => renderToStaticMarkup(<RemediationCard remediation={r} />)
+const markup = (r: AuditRemediation | null | undefined) => renderToStaticMarkup(<RemediationCard remediation={r} state="available" />)
 const text = (r: AuditRemediation | null | undefined) => markup(r).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
 
 describe('RemediationCard', () => {
@@ -91,5 +91,13 @@ describe('RemediationCard', () => {
   it('sans remédiation, la carte ne rend rien', () => {
     expect(markup(null)).toBe('')
     expect(markup({ qdisc: '' })).toBe('')
+  })
+
+  it('masque la carte quand l\'état est observation_only', () => {
+    const html = renderToStaticMarkup(
+      <RemediationCard remediation={full} state="observation_only" />
+    )
+    expect(html).toContain('Aucune configuration émise')
+    expect(html).not.toContain('Copier la configuration')
   })
 })

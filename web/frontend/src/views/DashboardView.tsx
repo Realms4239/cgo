@@ -50,7 +50,7 @@ export default function DashboardView() {
         </div>
       </header>
 
-      <RemediationCard remediation={report?.remediation} />
+      <RemediationCard remediation={report?.remediation} state={report?.remediation_state ?? (report?.remediation ? "available" : "observation_only")} />
 
       {report ? (
         bothAbsent(!!primary, !!(change.comparable && currentSummary)) ? (

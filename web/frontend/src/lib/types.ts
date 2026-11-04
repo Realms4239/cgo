@@ -123,6 +123,8 @@ export interface AuditProvenance {
   row_file_sha256?: string
 }
 
+export type AuditRemediationState = "available" | "observation_only"
+
 export interface AuditRemediation {
   qdisc: string
   reason?: string
@@ -245,6 +247,8 @@ export interface AuditReport {
   operator_verdict?: AuditVerdict
   provenance?: AuditProvenance
   remediation?: AuditRemediation
+  remediation_state?: AuditRemediationState
+  remediation_available?: boolean
   economics?: AuditEconomics
   cap_sla?: AuditCapsla
   routeros_validation?: RouterOSValidation
