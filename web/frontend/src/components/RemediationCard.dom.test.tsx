@@ -12,7 +12,7 @@ const full: AuditRemediation = {
   down_measured_mbps: 18.5,
   down_shaped_mbps: 17.58,
   routeros: '/queue type add name=cgo-shape',
-  routeros_ingress: '/interface queue add name=cgo-ingress',
+  routeros_ingress: '/queue tree add name=cgoingress-lan-in parent=bridge queue=cgoingress-cake',
   routeros_wan_iface: 'ether1',
   routeros_lan_iface: 'bridge',
   routeros_lan_assumed: true,
@@ -75,7 +75,7 @@ describe('RemediationCard', () => {
 
   it('le texte copié garde le script de la plateforme choisie', () => {
     expect(scriptOf(full, 'routeros')).toContain('/queue type add name=cgo-shape')
-    expect(scriptOf(full, 'routeros')).toContain('/interface queue add name=cgo-ingress')
+    expect(scriptOf(full, 'routeros')).toContain('/queue tree add name=cgoingress-lan-in parent=bridge')
     expect(scriptOf(full, 'linux')).toContain('tc qdisc add dev eth0 root handle 1: htb')
     expect(scriptOf(full, 'linux')).not.toContain('/queue type')
   })

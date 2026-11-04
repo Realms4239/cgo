@@ -40,7 +40,7 @@ const report: AuditReport = {
     down_measured_mbps: 18.5,
     down_shaped_mbps: 17.58,
     routeros: '/queue type add name=cgo-shape',
-    routeros_ingress: '/interface queue add name=cgo-ingress',
+    routeros_ingress: '/queue tree add name=cgoingress-lan-in parent=bridge queue=cgoingress-cake',
     routeros_lan_iface: 'bridge',
     routeros_lan_assumed: true,
     linux_tc: ['tc qdisc add dev eth0 root handle 1: htb'],
@@ -79,7 +79,7 @@ describe('ProofDrawer', () => {
     expect(out).toContain('Déploiement — envoi')
     expect(out).toContain('Déploiement — réception (LAN)')
     expect(out).toContain('/queue type add name=cgo-shape')
-    expect(out).toContain('/interface queue add name=cgo-ingress')
+    expect(out).toContain('/queue tree add name=cgoingress-lan-in parent=bridge')
     expect(out).toContain('Vérification — après déploiement')
     expect(out).toContain('/queue type print')
     expect((html.match(/role="radio"/g) || []).length).toBe(2)
