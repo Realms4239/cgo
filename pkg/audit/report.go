@@ -22,7 +22,8 @@ import (
 // invented number travels into a thesis table and a procurement decision.
 type reportAlias Report // évite la récursion Report.UnmarshalJSON
 
-type Report struct {	AuditID   string `json:"audit_id"`
+type Report struct {
+	AuditID   string `json:"audit_id"`
 	Timestamp string `json:"timestamp"`
 	Site      string `json:"site"`
 	LinkType  string `json:"link_type"`

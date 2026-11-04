@@ -102,14 +102,14 @@ func TestCfgSSHUser(t *testing.T) {
 // fakeHyp — pilote factice : seul Name() compte pour hypForDrivers.
 type fakeHyp struct{ name string }
 
-func (f *fakeHyp) Name() string              { return f.name }
-func (f *fakeHyp) Exe() string               { return "" }
-func (f *fakeHyp) Running() []string         { return nil }
-func (f *fakeHyp) Start(vmx string) error    { return nil }
-func (f *fakeHyp) StartGUI(vmx string) error { return nil }
-func (f *fakeHyp) Stop(vmx string) error     { return nil }
-func (f *fakeHyp) GuestIP(vmx string) string { return "" }
-func (f *fakeHyp) NetMode(vmx string) string { return "" }
+func (f *fakeHyp) Name() string                      { return f.name }
+func (f *fakeHyp) Exe() string                       { return "" }
+func (f *fakeHyp) Running() []string                 { return nil }
+func (f *fakeHyp) Start(vmx string) error            { return nil }
+func (f *fakeHyp) StartGUI(vmx string) error         { return nil }
+func (f *fakeHyp) Stop(vmx string) error             { return nil }
+func (f *fakeHyp) GuestIP(vmx string) string         { return "" }
+func (f *fakeHyp) NetMode(vmx string) string         { return "" }
 func (f *fakeHyp) SetNetMode(vmx, mode string) error { return nil }
 
 // hypForDrivers — l'extension gagne sur l'ordre de détection ET sur le

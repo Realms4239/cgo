@@ -27,8 +27,8 @@ type auditLiveResp struct {
 		RTT   []float64 `json:"rtt_ms"`
 		Small []float64 `json:"small_ms"`
 	} `json:"samples"`
-	Timeline []audit.TimelinePoint `json:"timeline"`
-	DeadlineMs int                `json:"deadline_ms"`
+	Timeline   []audit.TimelinePoint `json:"timeline"`
+	DeadlineMs int                   `json:"deadline_ms"`
 }
 
 func getJSON(t *testing.T, url string, out any) {

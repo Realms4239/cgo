@@ -51,15 +51,15 @@ const (
 	wsTabstop          = 0x00010000
 	wsGroup            = 0x00020000
 
-	bsPushbutton = 0x00000000
+	bsPushbutton    = 0x00000000
 	bsDefpushbutton = 0x00000001
-	bsGroupbox   = 0x00000007
+	bsGroupbox      = 0x00000007
 
-	lbsNotify   = 0x0001
+	lbsNotify           = 0x0001
 	lbsNoIntegralHeight = 0x0100
 
-	esMultiline  = 0x0004
-	esReadonly   = 0x0800
+	esMultiline   = 0x0004
+	esReadonly    = 0x0800
 	esAutovscroll = 0x0040
 	esAutohscroll = 0x0080
 
@@ -77,20 +77,20 @@ const (
 	bnClicked = 0
 	lbnDblclk = 2
 
-	lbAddstring  = 0x0180
-	lbGetcursel  = 0x0188
-	lbGettext    = 0x0189
-	lbGettextlen = 0x018A
+	lbAddstring    = 0x0180
+	lbGetcursel    = 0x0188
+	lbGettext      = 0x0189
+	lbGettextlen   = 0x018A
 	lbResetcontent = 0x0184
-	lbSetcursel  = 0x0186
+	lbSetcursel    = 0x0186
 
-	emSetsel      = 0x00B1
-	emScrollcaret = 0x00B7
+	emSetsel       = 0x00B1
+	emScrollcaret  = 0x00B7
 	emGetlinecount = 0x00BA
-	emReplacesel  = 0x00C2
+	emReplacesel   = 0x00C2
 
-	wmSeticon = 0x0080
-	imageIcon = 1
+	wmSeticon      = 0x0080
+	imageIcon      = 1
 	lrLoadfromfile = 0x0010
 
 	wmAppLog    = 0x8001

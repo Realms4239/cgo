@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"golang.org/x/sys/windows"
 	"github.com/Realms4239/cgo/internal/kit"
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -33,45 +33,44 @@ const (
 	idNext   = 108
 )
 
-
 type app struct {
-	hwnd       windows.HWND
-	hfont      uintptr
-	vmList     windows.HWND
-	logEdit    windows.HWND
-	status     windows.HWND
-	locked  windows.HWND
-	sshLbl  windows.HWND
-	dashLbl windows.HWND
-	nextLbl windows.HWND
-	userEdit windows.HWND
-	cgoExe     string
-	cfgPath    string
-	mu         sync.Mutex
-	busy       string
-	btns       []windows.HWND // boutons d'action (grisés pendant busy)
-	pending    []string
-	logText    []string
-	logDirty   bool
-	shown      int // lignes déjà rendues (flush append-only)
-	tick       uint64
-	statFlight atomic.Bool // une sonde SSH à la fois
-	cfg        cfgCache   // IP invitée connue (fond) — évite vmrun sur le thread UI
-	vmRows     []vmRow
-	stSSH      string
-	stDash     string
-	stLocked   string
-	stNext     string
-	stNextKind string
-	stNextArgs []string
-	stNextDone bool
-	lastNext   string // dernier bandeau journalisé (transitions seules)
-	lastSSH    string // dernier état SSH journalisé (transitions seules)
-	lastDash   string // dernier état dashboard journalisé (transitions seules)
-	chain      bool   // chaîne Suite en cours (avance seule jusqu'au blocage)
-	chainVerb  string // dernier verbe rejoué par la chaîne
-	chainRepeat int   // répétitions du même verbe (garde anti-boucle)
-	chainCode  *int   // code de l'étape terminée, consommé par la re-analyse
+	hwnd        windows.HWND
+	hfont       uintptr
+	vmList      windows.HWND
+	logEdit     windows.HWND
+	status      windows.HWND
+	locked      windows.HWND
+	sshLbl      windows.HWND
+	dashLbl     windows.HWND
+	nextLbl     windows.HWND
+	userEdit    windows.HWND
+	cgoExe      string
+	cfgPath     string
+	mu          sync.Mutex
+	busy        string
+	btns        []windows.HWND // boutons d'action (grisés pendant busy)
+	pending     []string
+	logText     []string
+	logDirty    bool
+	shown       int // lignes déjà rendues (flush append-only)
+	tick        uint64
+	statFlight  atomic.Bool // une sonde SSH à la fois
+	cfg         cfgCache    // IP invitée connue (fond) — évite vmrun sur le thread UI
+	vmRows      []vmRow
+	stSSH       string
+	stDash      string
+	stLocked    string
+	stNext      string
+	stNextKind  string
+	stNextArgs  []string
+	stNextDone  bool
+	lastNext    string // dernier bandeau journalisé (transitions seules)
+	lastSSH     string // dernier état SSH journalisé (transitions seules)
+	lastDash    string // dernier état dashboard journalisé (transitions seules)
+	chain       bool   // chaîne Suite en cours (avance seule jusqu'au blocage)
+	chainVerb   string // dernier verbe rejoué par la chaîne
+	chainRepeat int    // répétitions du même verbe (garde anti-boucle)
+	chainCode   *int   // code de l'étape terminée, consommé par la re-analyse
 }
 
 var theApp *app
