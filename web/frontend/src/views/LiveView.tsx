@@ -551,7 +551,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
             <div className="edge-row">
               <Pill label="surveillance" value={watching ? 'on' : 'off'} on={watching} onClick={toggleWatch} title="sondes légères en continu (sans bulk) — rend l'effet du façonnage visible" />
               <Pill label="conditions" value={linkOpen ? 'masquer' : `${settings.linkDelayMs} ms`} on={linkOpen} onClick={() => setLinkOpen(!linkOpen)} title="conditions du lien — délai/gigue/perte appliqués au bord" />
-              <button className="btn edge-btn" onClick={lockBaseline} disabled={liveSmallMedian == null} title="mémoriser la médiane de référence, cliquer pour effacer">Maxi avant{liveSmallMedian != null ? ` — ${liveSmallMedian.toFixed(1)} ms` : ''}</button>
+              <button className="btn edge-btn" onClick={lockBaseline} disabled={liveSmallMedian == null} title="mémoriser la médiane de référence, cliquer pour effacer — la barre compare avant et maintenant, même fenêtre">Maxi avant{liveSmallMedian != null ? ` — ${liveSmallMedian.toFixed(1)} ms` : ''}</button>
               {locked && <Pill label="avant" value={`${locked.ms} ms @ ${locked.at}`} on title="avant figé — cliquer pour libérer" onClick={() => { setLocked(null); try { localStorage.removeItem('wall-baseline') } catch { } }} />}
               <button className="btn btn-primary edge-btn edge-btn-end" onClick={exportConstat} disabled={locked == null || liveSmallMedian == null}>TÉLÉCHARGER LE CONSTAT</button>
             </div>
