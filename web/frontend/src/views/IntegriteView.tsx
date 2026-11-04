@@ -109,11 +109,11 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
         </PeekPopover>
       )}
       {!embedded && <h1 className="view-title">Intégrité — archives scellées</h1>}
-      {/* quatre comptes du corpus — 32 px, l'empreinte complète reste copiable */}
-      <section className="card int-summary" aria-label="Synthèse du corpus scellé">
+      {/* quatre comptes du corpus scellé — 32 px, l'empreinte complète reste copiable */}
+      <section className="card int-summary" aria-label="Synthèse des mesures archivées">
         <dl className="int-counts">
           {[
-            ['runs archivés', data.runs ?? 0],
+            ['campagnes archivées', data.runs ?? 0],
             ['mesures valides', data.valid ?? 0],
             ['dégradées', data.degraded ?? 0],
             ['écartées', data.quarantined ?? 0],
@@ -125,7 +125,7 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
           ))}
         </dl>
         <p className="mono int-seal">
-          <span>sceau {data.hash8 ?? '—'} · {data.manifests ?? '—'} manifestes · maj {data.updated ? data.updated.slice(0, 16).replace('T', ' ') : '—'}</span>
+          <span>sceau {data.hash8 ?? '—'} · {data.manifests ?? '—'} empreintes · maj {data.updated ? data.updated.slice(0, 16).replace('T', ' ') : '—'}</span>
           <button type="button" className="btn int-copy" onClick={copyFingerprint}>Copier l'empreinte</button>
         </p>
         <div className="int-summary-actions">
@@ -135,7 +135,7 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
         </div>
       </section>
       <details className="int-corpus-details" data-testid="corpus-details">
-        <summary className="card-head">Détails du corpus</summary>
+        <summary className="card-head">Détails des mesures archivées</summary>
       <details className="card int-sources-details" data-testid="sources-card">
         <summary className="card-head">D'où viennent ces chiffres</summary>
         <div className="int-sources">

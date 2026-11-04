@@ -54,7 +54,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
       >
         METEOLINK
       </span>
-      {!compact && <span className="hd-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase' as const, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Trafic critique · AQM/BBR · Madagascar</span>}
+      {!compact && <span className="hd-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase' as const, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Trafic critique · Madagascar</span>}
     </span>
   )
 }

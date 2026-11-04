@@ -21,7 +21,7 @@ export function AuditReportTable({ rows, onOpen }: {
     <div className="bench-matrix-scroll">
       <table className="data-table audit-reports-table">
         <thead>
-          <tr><th>site</th><th>lien</th><th>date</th><th>p95 chargé</th><th>qualité</th><th /></tr>
+          <tr><th>site</th><th>lien</th><th>date</th><th>réponse chargée</th><th>qualité</th><th /></tr>
         </thead>
         <tbody>
           {rows.map((a, i) => (

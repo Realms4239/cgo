@@ -31,6 +31,9 @@ type Tri = { metric: boolean; chart: Craft; source: 'live' | 'frozen' | 'both' }
 const DEFAULT_TRI: Tri = { metric: true, chart: 'line', source: 'both' }
 
 // Adaptateur — une grammaire, trois rendus (pilule: ligne|barre|aire)
+const plainQueue = (q: string | undefined): string =>
+  q === 'none' ? 'sans' : q === 'pfifo' || q === 'pfifo_fast' ? 'file simple' : q === 'fq_codel' ? 'file courte' : q === 'cake' ? 'file équitable' : 'réglage'
+const plainCc = (c: string | undefined): string => (c === 'cubic' ? 'classique' : c === 'bbr' ? 'régulée' : 'régulée')
 function craftSeries(craft: Craft, name: string, data: [number, number][], color: string) {
   if (craft === 'bar') return barSeries(name, data as any, color)
   return lineSeries(name, data, color, craft === 'area')
@@ -518,7 +521,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
           au bord contredit l'état propre (preuve shape=cake aux shots). */}
       {showLiveSrc && rttP95 != null && rttP95 > settings.critMs && !(shape?.applied && shape.qdisc === 'cake') && (
         <div className="mono live-runbook" data-testid="runbook-pointer">
-          bufferbloat détecté (RTT p95 {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez CAKE via Façonnage du bord · traduction MikroTik : queue type cake
+          latence qui gonfle (aller-retour {rttP95.toFixed(0)} ms &gt; {settings.critMs}) → appliquez la file équitable via Façonnage du bord · terminaison MikroTik : file équitable
         </div>
       )}
       {hasData && showLiveSrc && <Timeline baselineStart={t0} chargeStart={tCharge} chargeEnd={tRecup} recupEnd={tEnd} currentPhase={live.phase || 'idle'} />}
@@ -528,8 +531,8 @@ export default function LiveView({ active = true }: { active?: boolean }) {
           avant/maintenant (même fenêtre), le 738 figé ne l'écrase plus */}
       <div className="live-wall-overlay card live-overlay" data-testid="live-wall-overlay">
         <CardHead
-          label={`Référence archivée vs appliqué — ${baseline?.qdisc ?? 'pfifo'} → ${shape?.applied ? shape.qdisc : 'sans façonnage'}`}
-          sub={`source ${tri.source} · hash ${hash8} · ${wallGroups ? `${wallGroups.length} groupes archivés` : 'en attente'}`}
+          label={`Référence archivée vs réglage appliqué — ${plainQueue(baseline?.qdisc ?? 'pfifo')} → ${shape?.applied ? plainQueue(shape.qdisc) : 'sans façonnage'}`}
+          sub={`source ${tri.source} · sceau ${hash8} · ${wallGroups ? `${wallGroups.length} groupes archivés` : 'en attente'}`}
           right={diffAB != null ? (
             <span className="diff-badge mono" style={{ background: diffAB > 0 ? 'rgba(31,163,72,0.12)' : 'rgba(226,39,24,0.12)', border: '1px solid ' + (diffAB > 0 ? CRAFT.ok : CRAFT.danger), color: diffAB > 0 ? CRAFT.ok : CRAFT.danger, padding: '4px 10px', fontSize: 'var(--fs-body)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{diffAB > 0 ? `-${diffAB}%` : `${diffAB}%`}</span>
           ) : undefined}
@@ -537,8 +540,8 @@ export default function LiveView({ active = true }: { active?: boolean }) {
         {diffAB != null && (
           <div className="mono live-overlay-note">
             {diffAB > 0
-              ? `cake répond ${diffAB} % plus vite que la file simple — médianes archivées, même campagne`
-              : `la file simple répond ${Math.abs(diffAB)} % plus vite — médianes archivées, même campagne`}
+              ? `le réglage retenu répond ${diffAB} % plus vite que la base — médianes archivées, même campagne`
+              : `la base répond ${Math.abs(diffAB)} % plus vite — médianes archivées, même campagne`}
           </div>
         )}
         {/* edge control — trois sections calmes : Surveillance / Façonnage / Essai */}
@@ -570,7 +573,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
           </section>
 
           <section className="edge-section">
-            <CardHead label="Façonnage" sub={shape?.applied ? `bord façonné : ${shape.qdisc} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'} />
+            <CardHead label="Façonnage" sub={shape?.applied ? `bord façonné : ${plainQueue(shape.qdisc)} @ ${shape.capacity_mbps} Mbit/s` : 'bord non façonné (file simple)'} />
             <div className="edge-row">
               <Explain term="capacity">
                 <input
@@ -583,17 +586,17 @@ export default function LiveView({ active = true }: { active?: boolean }) {
               <span className="mono edge-note">Mbit/s</span>
               {/* une campagne active possède le shaper — le levier répond 409 :
                   on grise au lieu de laisser l'opérateur lever une erreur */}
-              {['none', 'fq_codel', 'cake'].map(q => (
+              {[{ value: 'none', label: 'sans' }, { value: 'fq_codel', label: 'file courte' }, { value: 'cake', label: 'file équitable' }].map(({ value, label }) => (
                 <span
-                  key={q}
-                  title={liveSnap?.running ? "campagne active — le façonnage redevient disponible à l'arrêt" : `appliquer ${q} au bord`}
+                  key={value}
+                  title={liveSnap?.running ? "campagne active — le façonnage redevient disponible à l'arrêt" : `appliquer ${label} au bord`}
                   style={{ opacity: liveSnap?.running ? 'var(--disabled-opacity)' : 1, cursor: liveSnap?.running ? 'not-allowed' : 'pointer' }}
                 >
                   <Pill
-                    label={q === 'none' ? 'sans' : q}
-                    on={shape?.applied && shape.qdisc === q}
-                    onClick={liveSnap?.running ? undefined : () => applyShape(q)}
-                    title={liveSnap?.running ? 'campagne active — arrêtez la mesure pour façonner' : `appliquer ${q} au bord`}
+                    label={label}
+                    on={shape?.applied && shape.qdisc === value}
+                    onClick={liveSnap?.running ? undefined : () => applyShape(value)}
+                    title={liveSnap?.running ? 'campagne active — arrêtez la mesure pour façonner' : `appliquer ${label} au bord`}
                   />
                 </span>
               ))}
@@ -601,14 +604,14 @@ export default function LiveView({ active = true }: { active?: boolean }) {
           </section>
 
           <section className="edge-section">
-            <CardHead label="Essai" sub={liveSnap?.running ? 'indisponible pendant la campagne' : 'traverse le bord façonné — regardez goodput et RTT'} />
+            <CardHead label="Essai" sub={liveSnap?.running ? 'indisponible pendant la campagne' : 'traverse le bord façonné — regardez le débit utile et l’aller-retour'} />
             <div className="edge-row">
-              <span className="mono edge-note"><Explain term="burst">Burst test</Explain></span>
-              {['cubic', 'bbr'].map(c => (
-                <button key={c} className="btn edge-btn" aria-pressed={burstCc === c} onClick={() => setBurstCc(c)}>{c}</button>
+              <span className="mono edge-note"><Explain term="burst">Essai de rafale</Explain></span>
+              {([{ value: 'cubic', label: 'classique' }, { value: 'bbr', label: 'régulée' }] as const).map(c => (
+                <button key={c.value} className="btn edge-btn" aria-pressed={burstCc === c.value} onClick={() => setBurstCc(c.value)}>{c.label}</button>
               ))}
               <button className="btn btn-primary edge-btn" onClick={runBurst} disabled={bursting || !!liveSnap?.running}>
-                {bursting ? `burst ${burstCc}…` : `TESTER ${burstCc.toUpperCase()}`}
+                {bursting ? `essai ${plainCc(burstCc)}…` : `TESTER ${plainCc(burstCc).toUpperCase()}`}
               </button>
             </div>
           </section>
@@ -626,7 +629,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
             </div>
             <div>
               <div className="mono edge-ab-head edge-ab-head-cake">
-                <span>{shape?.applied ? shape.qdisc : "cake"} — violet uni{cakeBest?.best ? ' ★' : ''}</span>
+                <span>{shape?.applied ? plainQueue(shape.qdisc) : 'file équitable'} — violet uni{cakeBest?.best ? ' ★' : ''}</span>
                 <span className="edge-ab-num">{cakeBest ? `${cakeBest.small_p95_median.toFixed(1)} ms` : '—'}</span>
               </div>
               <div className="edge-bar edge-bar-cake">

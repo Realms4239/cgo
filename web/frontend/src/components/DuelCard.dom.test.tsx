@@ -20,8 +20,9 @@ describe('DuelCard', () => {
   it('rend le face-à-face et les deltas du moteur', () => {
     const html = render(usable)
     expect(html).toContain('Le duel P2')
-    expect(html).toContain('pfifo_fast · cubic')
-    expect(html).toContain('cake · bbr')
+    expect(html).toContain('réglage par défaut')
+    expect(html).toContain('réglage retenu')
+    expect(html).not.toMatch(/pfifo_fast|fq_codel|cake|bbr|cubic/i)
     expect(html).toContain('48,8')
     expect(html).toContain('328,2')
     expect(html).toContain('22')

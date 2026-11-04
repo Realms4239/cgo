@@ -6,11 +6,11 @@ import type { DuelCell, DuelPair } from '../lib/bench'
 
 const signed = (v: number, digits = 1) => `${v > 0 ? '+' : ''}${numFr(v, digits)}`
 
-function Cell({ label, cell }: { label: string; cell: DuelCell }) {
+function Cell({ label, name, cell }: { label: string; name: string; cell: DuelCell }) {
   return (
     <div className="duel-cell">
       <span className="duel-cell-label">{label}</span>
-      <b className="duel-cell-name">{cell.qdisc} · {cell.cc}</b>
+      <b className="duel-cell-name">{name}</b>
       <dl className="duel-facts">
         <div>
           <dt>réponse sous charge respectée</dt>
@@ -55,9 +55,9 @@ export function DuelCard({
       {pair && base && best ? (
         <>
           <div className="duel-cells">
-            <Cell label="Base mesurée" cell={base} />
+            <Cell label="Base mesurée" name="réglage par défaut" cell={base} />
             <div className="duel-vs" aria-hidden="true">contre</div>
-            <Cell label="Réglage retenu" cell={best} />
+            <Cell label="Réglage retenu" name="réglage retenu" cell={best} />
           </div>
           <p className="duel-delta" data-testid="duel-delta">
             <span>écart du réglage retenu</span>
