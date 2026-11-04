@@ -44,9 +44,9 @@ formatted after the first verifier pass (whitespace only).
 ```
 PASS frozen      OK — corpus 159 runs, 528 lignes, 208 valides, 74 degraded, 246 invalid | OK — 22 cellules, 159 manifestes, inventaire, texte et tableau 15 cohérents | docs/frozen-manifests.sha256: 159 manifests
 PASS provenance  179 headers checked against 5 frozen eras; 0 valuation sidecars checked; writer covered by tests
-PASS tests       go vet + go test in 76.9 s
+PASS tests       go vet + go test in 205.5 s
 PASS exit        5 safe invocations; verdict contract ok
-PASS hygiene     679 tracked files clean; legacy allowlist: 18 backup archives and pkg/results/runs-frozen.tar.gz; 2 named tailnet addresses
+PASS hygiene     678 tracked files clean; legacy allowlist: 18 backup archives and pkg/results/runs-frozen.tar.gz; 2 named tailnet addresses
 PASS links       5 documents scanned; plan and spec links resolve
 
 6 passed, 0 failed, 0 not run
@@ -185,7 +185,7 @@ verifier re-checks the deltas before signing.
 | 6 | Five 390 px captures, not four | All five named in this packet and in the slice-21 post-script. |
 | 7 | Slice-22 wording said the heading was suppressed | Corrected: the archived report renders no card at all; `RemediationCard` keeps `<h2>Protéger ce lien</h2>` when `state=observation_only` and suppresses the shaped script. The invariant is the script, not the heading. |
 | 8 | Local +03 timestamps labelled UTC | Corrected to 20:02–20:30 UTC (builder) and 20:20–20:30 UTC (verifier). |
-| 9 | Stale hygiene count 666 | Quoted block refreshed to the verifier's 679 tracked files. |
+| 9 | Stale hygiene count 666 | Quoted block refreshed to the fresh run at `cf1b4b9`: 678 tracked files (the first verifier saw 679 before the two duplicate slice-25 PNGs were deleted and the tooltip text added). |
 | 10 | Plan T3 still said Slice 8 `SUPERSEDED` | Plan corrected to `PROMOTE`, matching the packet and the 14 passing tests. |
 
 ## Builder proposals for the remaining rows
