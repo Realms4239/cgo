@@ -18,8 +18,8 @@ describe('BenchCapabilities', () => {
     const out = html(base)
     expect(out).toContain('pfifo_fast')
     expect(out).toContain('cubic')
-    expect(out).toContain('BBRv3 absent de ce noyau')
-    expect(out).toContain('install-bbr3.sh')
+    expect(out).toContain('BBRv3 non détecté')
+    expect(out).not.toContain('install-bbr3.sh')
   })
 
   it('renders bbr3 without the absence hint when the kernel exposes it', () => {

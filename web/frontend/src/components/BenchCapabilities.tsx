@@ -39,7 +39,7 @@ export function BenchCapabilities({ caps }: { caps: Capabilities | null }) {
             data-testid="bench-bbr3-hint"
             title={caps.kernel ? `noyau ${caps.kernel}` : undefined}
           >
-            BBRv3 absent de ce noyau · kit/install-bbr3.sh
+            BBRv3 non détecté
           </span>
         ) : null}
       </div>

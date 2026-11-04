@@ -16,7 +16,7 @@ export type Settings = {
 }
 
 export const DEFAULTS: Settings = {
-  warnMs: 40, critMs: 100, deadlineMs: 1000, ringMax: 1800, watchMs: 500,
+  warnMs: 40, critMs: 100, deadlineMs: 220, ringMax: 1800, watchMs: 500,
   shapeCap: 20, linkDelayMs: 20, linkJitterMs: 2, linkLossPct: 0, target: '1.1.1.1',
 }
 

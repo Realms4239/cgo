@@ -15,7 +15,7 @@ export type Param = {
 
 export const LOCAL_FALLBACK: Param[] = [
   { key: 'reps', label: 'Répétitions', min: 1, max: 5, default: 3, unit: '×', desc: 'répétitions de chaque cellule' },
-  { key: 'deadline_ms', label: 'Deadline small p95', min: 200, max: 5000, default: 1000, unit: 'ms', step: 100, desc: 'objectif de latence qui voyage avec la campagne' },
+  { key: 'deadline_ms', label: 'Deadline small p95', min: 200, max: 5000, default: 220, unit: 'ms', step: 100, desc: 'objectif de latence qui voyage avec la campagne' },
   { key: 'target', label: 'Cible de mesure', max: 64, default: '1.1.1.1', desc: 'hôte sondé' },
   { key: 'audit_duration_s', label: "Durée d'audit", min: 10, max: 600, default: 30, unit: 's', step: 10, desc: "durée de l'audit du lien" },
   { key: 'warn_ms', label: 'Seuil dégradé', min: 10, max: 200, default: 40, unit: 'ms', step: 5, desc: 'seuil jaune' },

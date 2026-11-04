@@ -262,7 +262,7 @@ export default function BenchConfig() {
             {!canal.allowed ? <div className="mono muted bench-hint" data-testid="canal-reason">{canal.reason}</div> : null}
             <div className="form-row">
               <label><Explain term="deadline">Deadline</Explain></label>
-              <input className="c-input bench-num" type="number" min={200} max={5000} step={100} value={deadlineMs} onChange={e => setDeadlineMs(parseInt(e.target.value) || 1000)} title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" />
+              <input className="c-input bench-num" type="number" min={200} max={5000} step={100} value={deadlineMs} onChange={e => setDeadlineMs(parseInt(e.target.value) || 220)} title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" />
               <span className="mono muted bench-hint">ms</span>
             </div>
           </>
