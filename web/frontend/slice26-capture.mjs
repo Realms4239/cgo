@@ -87,13 +87,13 @@ for (const [width, height] of [[1920, 1080], [1024, 768]]) {
   await edge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/slice24-bench-edge-labels-${width}.png` });
-  await before.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300);
-  await page.screenshot({ path: `${out}/slice25-bench-tooltip-${width}.png` });
+  // Pas de capture séparée pour 25 : un title natif n'est pas peint. Le texte
+  // exact est extrait ci-dessous ; le bouton reste visible dans la capture 24.
 
   await ctx.close();
 }
 
 await browser.close();
 writeFileSync(`${out}/evidence.json`, JSON.stringify(evidence, null, 2) + '\n');
+writeFileSync(`${out}/slice25-tooltip.txt`, TITLE + '\n');
 console.log(JSON.stringify(evidence, null, 2));

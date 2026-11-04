@@ -85,7 +85,7 @@ Les quatre lignes antérieures à 20A reçoivent leur disposition motivée :
 
 | Ligne | Proposition builder | Preuve |
 |---|---|---|
-| Slice 8 audit report surface and citation | `SUPERSEDED` | La surface a été supprimée par la refonte 21 ; le code de la vue n'existe plus. |
+| Slice 8 audit report surface and citation | `PROMOTE` | Correction du paquet 21 : la surface existe toujours (`EvidenceView` → `AuditReportsPanel` → `AuditReportCard`) et 14 tests ciblés passent à HEAD. |
 | Interface v2 (four modes) and the academic title | `SUPERSEDED` | Rail et ribbon remplacés par TopNav et le cluster d'état ; le titre reste mais la surface n'existe plus. |
 | BBRv3 engine | `BLOCKED` | Aucun noyau 7.1 sur cet hôte ni sur le banc 6.8 ; rien observé dans un socket. |
 | Trace-driven `.dist` engine | `BLOCKED` | Aucune trace de terrain ≥ 30 échantillons baseline ; les deux traces `SMOKE-TEST` font 19 et 25 lignes. |
@@ -134,15 +134,15 @@ lecture seule, produire dans `docs/img/shots/2026-11-04/` :
 | 23 | `slice23-settings-deadline-{1024,1920}.png` | Tiroir Réglages : `220 ms` comme défaut. |
 | 23 | `slice23-bench-bbrv3-{1024,1920}.png` | Banc : pastille `BBRv3 non détecté`. |
 | 24 | `slice24-bench-edge-labels-{1024,1920}.png` | Bord vivant : `Maxi avant` et `sans réglage (file simple)`. |
-| 25 | `slice25-bench-tooltip-{1024,1920}.png` | Le bouton `Maxi avant` ; le texte de l'infobulle est extrait du DOM dans `slice25-tooltip.txt` (un `title` natif n'est pas peint dans une capture). |
+| 25 | `slice25-tooltip.txt` | Un `title` natif n'est pas peint : aucune capture séparée n'est revendiquée pour 25 ; le texte exact est extrait du DOM dans `slice25-tooltip.txt`, et le bouton reste visible dans la capture 24. |
 
 **Limites des captures.** Mode observation Windows ; aucune mesure live n'est
 provoquée ; aucun bouton qui démarre un banc ou un audit n'est cliqué ; les
 images prouvent un rendu, pas une mesure.
 
-**Acceptation.** Dix PNG réels, non vides, à 1024×768 et 1920×1080 ; le texte
+**Acceptation.** Huit PNG réels, non vides, à 1024×768 et 1920×1080 ; le texte
 du `title` de slice 25 est dans le `.txt` et correspond exactement à la chaîne
-committée ; aucun fichier `dist/index.html` stagé.
+committée ; `dist/index.html` est restauré après le build et jamais stagé.
 
 ## T5 — Tâche E : index, registre, checkpoints, annexes
 
@@ -170,7 +170,7 @@ bloc ; il transcrit la signature telle quelle dans `docs/VERIFY.md`.
 - `go test ./... -count=1` → tout `ok`.
 - `npm test` → tous les fichiers/tests passés ; `npm run build` → exit 0.
 - `python book/tools/audit-archive.py` → deux lignes `OK`.
-- Dix captures 1024/1920 pour 22–25.
+- Huit captures 1024/1920 pour 22–25, plus le texte de l'infobulle 25.
 - Zéro ligne `PENDING` pour 20A–25 ; chaque ligne porte date, hôte, commande
   et signature du vérificateur.
 - Aucune modification de `book/data`, aucun schéma CSV, aucun merge `main`.
