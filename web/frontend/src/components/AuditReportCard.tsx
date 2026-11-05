@@ -144,7 +144,7 @@ export function AuditReportCard({ report, onCopy }: {
           <Kpi label="p95 repos" value={ms(m.rtt_idle_p95_ms)} unit="ms" />
           <Kpi label="p95 chargé" value={load ? ms(m.rtt_loaded_p95_ms) : '—'} unit={load ? 'ms' : ''} />
           <Kpi label="Δ p95" value={load ? ms(m.bloat_delta_ms) : '—'} unit={load ? 'ms' : ''} />
-          <Kpi label="drain" value={m.drain_measured ? Number(m.drain_ms ?? 0).toFixed(1) : '—'} unit={m.drain_measured ? 'ms' : ''} />
+          <Kpi label="drain" value={m.drain_measured && m.drain_ms != null ? Number(m.drain_ms).toFixed(1) : '—'} unit={m.drain_measured && m.drain_ms != null ? 'ms' : ''} />
         </div>
         {report.bloat_verdict ? <Muted>{report.bloat_verdict}</Muted> : null}
         {!m.drain_measured ? <Muted>drain non mesuré — un audit court n'a pas de fenêtre de récupération ; ce n'est pas zéro.</Muted> : null}
@@ -183,7 +183,7 @@ export function AuditReportCard({ report, onCopy }: {
       <Section title="SLA CAP">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
           <Badge tone={capTone(cap)}>{!cap?.measured ? 'non mesuré' : cap.breach ? 'manquement SLA' : 'conforme'}</Badge>
-          {cap?.measured ? <Kpi label="échéances" value={Number(cap.ok_pct ?? 0).toFixed(1)} unit="%" /> : null}
+          {cap?.measured ? <Kpi label="échéances" value={cap.ok_pct == null ? '—' : Number(cap.ok_pct).toFixed(1)} unit={cap.ok_pct == null ? '' : '%'} /> : null}
         </div>
         <Muted>objectif opérateur DGM 220 ms (cadre WIS 2.0) · complétions 16 KiB chargées</Muted>
         {cap?.measured && cap.breach && cap.label ? <Muted>{cap.label}</Muted> : null}
@@ -214,7 +214,7 @@ export function AuditReportCard({ report, onCopy }: {
               ) : null}
             </div>
             <Muted>
-              réémission {econ.retrans_ratio?.ratio != null ? Number(econ.retrans_ratio.ratio).toFixed(4) : '—'} ({ratioBasis(econ.retrans_ratio?.basis)}) · {bytes(econ.wasted_bytes)} sur {bytes(econ.transported_bytes)} en {Number(econ.load_seconds ?? 0).toFixed(0)} s de charge
+              réémission {econ.retrans_ratio?.ratio != null ? Number(econ.retrans_ratio.ratio).toFixed(4) : '—'} ({ratioBasis(econ.retrans_ratio?.basis)}) · {bytes(econ.wasted_bytes)} sur {bytes(econ.transported_bytes)} en {econ.load_seconds == null ? '—' : Number(econ.load_seconds).toFixed(0)} s de charge
             </Muted>
             {scenarios.length > 0 ? (
               <details>

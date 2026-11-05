@@ -113,6 +113,10 @@ export default function AuditReportsPanel() {
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then((j: AuditReport) => {
         const text = auditCitation(j)
+        if (!j.provenance?.source_sha256) {
+          setCitationMsg('citation impossible — empreinte source absente')
+          return
+        }
         if (!text) {
           setCitationMsg('citation impossible — le rapport ne porte pas d’identifiant')
           return

@@ -61,7 +61,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--t-live); }
 .audit-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); max-width: 760px; align-items: start; }
 
 /* banc d'essai — trois sections, ancres, pas d'onglets */
-.bench-page { max-width: 1180px; }
+.bench-page { max-width: none; }
 .bench-anchors { display: flex; gap: var(--sp-2); flex-wrap: wrap; position: sticky; top: 0; z-index: 5; background: var(--canvas-solid); padding: 6px 0; border-bottom: 1px solid var(--hairline); }
 /* tout saut d'ancre atterrit sous la barre, jamais dessous */
 #bench-config, #bench-observe, #bench-results,
@@ -313,9 +313,9 @@ footer .fill { margin-left: auto; }
 .bench-section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
 .bench-section-head .bench-section-title { flex: 1; min-width: 0; }
 .bench-config { display: flex; flex-direction: column; gap: var(--sp-3); }
-.bench-config-card { max-width: 760px; }
+.bench-config-card { width: 100%; max-width: none; }
 .profile-stack { display: flex; flex-direction: column; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-3); }
-.profile-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); min-width: 0; }
+.profile-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: var(--sp-2); min-width: 0; }
 .profile-tile { min-width: 0; min-height: 112px; padding: var(--sp-3); border: 1px solid var(--hairline); background: var(--surface-card); color: var(--text-body); text-align: left; display: flex; flex-direction: column; gap: var(--sp-1); align-items: flex-start; justify-content: center; font: inherit; cursor: pointer; }
 .profile-tile:hover, .profile-tile:focus-visible { border-color: var(--t-live); }
 .profile-tile[data-selected="true"] { border-color: var(--t-live); background: var(--live-dim); color: var(--t-live); }
@@ -323,8 +323,6 @@ footer .fill { margin-left: auto; }
 .profile-tile-spec { color: var(--text-body-strong); font: 500 var(--fs-fine)/1.4 var(--font-mono); overflow-wrap: anywhere; }
 .profile-tile-meta { color: var(--text-muted); font-size: var(--fs-fine); line-height: 1.4; overflow-wrap: anywhere; }
 .profile-imported { margin: 0; color: var(--text-muted); font-size: var(--fs-fine); overflow-wrap: anywhere; }
-@media (max-width: 1280px) { .profile-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .profile-tiles { grid-template-columns: minmax(0, 1fr); } }
 
 .bench-profile { display: inline-flex; align-items: flex-start; gap: 6px; min-width: 0; }
 .bench-profile span { display: flex; flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; }
@@ -884,7 +882,7 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .int-sources-details[open] > summary::before { content: '▾ '; }
 .audit-report-back { align-self: flex-start; padding: var(--sp-1) var(--sp-2); }
 .audit-reports-msg { font-size: var(--fs-micro); }
-.evidence-page { max-width: 1180px; }
+.evidence-page { max-width: none; }
 @media (max-width: 900px) { .audit-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .audit-summary { grid-template-columns: 1fr; } }
 
@@ -907,7 +905,7 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .dash-change b[data-dir="good"] { color: var(--t-ok); }
 .dash-change b[data-dir="bad"] { color: var(--t-danger-text); }
 /* ---- Synthèse : accueil opérateur, une lecture, une action ---- */
-.syn { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
+.syn { max-width: none; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
 .syn-hero { display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: var(--sp-2); border-bottom: 1px solid var(--hairline); padding-bottom: var(--sp-3); }
 .syn-hero > .verdict { min-width: 0; width: 100%; padding: var(--sp-2) 0 var(--sp-3); }
 .syn-hero p { color: var(--text-muted); font-size: var(--fs-body); margin: var(--sp-1) 0 0; max-width: 62ch; }
