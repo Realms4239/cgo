@@ -1,124 +1,145 @@
-// Tableau de bord — une colonne : verdict, remédiation, coût, variation.
-// Aucune étiquette de simulation n'occupe l'accueil ; les détails des rapports
-// vivent dans le tiroir de preuve.
+// Tableau de bord — cockpit 2–3–3 : santé, alertes, coût, puis une action.
+// Aucune donnée personnelle n’est inventée : l’absence garde ses mots, le constat reste consultable.
+import { useEffect, useState } from 'react'
 import { useUIStore } from '../store/ui'
 import { useAuditStore } from '../store/audit'
-import { CardHead } from '../components/ui/CardHead'
-import { RemediationCard } from '../components/RemediationCard'
 import { VerdictHero } from '../components/VerdictHero'
-import { bothAbsent, retailBound } from '../lib/dashboard'
-import { compareAudits, summaryOf } from '../lib/auditSummary'
-import { formatCostAR, groupDigits, relativeTime } from '../lib/format'
+import { evaluateLoadedHealth } from '../lib/health'
+import { retailBound } from '../lib/dashboard'
+import { formatCostAR, groupDigits, relativeTime, asArray } from '../lib/format'
 import { loadSettings } from '../lib/settings'
 
 const signed = (v: number) => `${v > 0 ? '+' : ''}${v}`
 
+const HEALTH_LABEL = {
+  ok: 'Lien prêt',
+  attention: 'À surveiller',
+  critical: 'Critique sous charge',
+  absent: 'Mesure absente',
+  unconfigured: 'Seuil non configuré',
+} as const
+
+type ArchiveRecord = {
+  audit_id?: string
+  site?: string
+  link_type?: string
+  timestamp?: string
+  has_report?: string
+  site_name?: string
+}
+
+function healthBlock(report: import('../lib/types').AuditReport): { title: string; detail: string } {
+  const h = evaluateLoadedHealth({
+    linkType: report.link_type ?? '',
+    idleP50Ms: report.measured?.rtt_idle_p50_ms,
+    loadedP95Ms: report.measured?.rtt_loaded_p95_ms,
+  })
+  if (h.kind === 'absent') return { title: HEALTH_LABEL.absent, detail: 'la mesure manque' }
+  if (h.kind === 'unconfigured') return { title: HEALTH_LABEL.unconfigured, detail: `Δ ${Math.round(h.bloatMs)} ms — aucun seuil de classe fourni` }
+  return { title: HEALTH_LABEL[h.kind], detail: `Δ ${signed(Math.round(h.bloatMs))} ms sous charge` }
+}
+
+function CapCard({ report }: { report: import('../lib/types').AuditReport | null }) {
+  const cost = report?.economics?.primary
+  const parsed = formatCostAR(cost?.ar_per_hour)
+  const retail = retailBound(report)
+  return (
+    <section className="card dash-card layout-span-4 dash-capacity" data-testid="dash-capacity">
+      <p className="dash-card-kicker">Capacité gaspillée</p>
+      <p className="dash-card-value">{cost ? <>{parsed.num}<small> {parsed.unit}</small></> : 'Non chiffré'}</p>
+      <p className="dash-card-detail">{cost ? `${cost.name} · estimation contractuelle` : 'le scénario contractuel manque'}</p>
+      {retail != null ? <p className="dash-card-detail">Borne secours : {groupDigits(retail, 2)} Ar/h — pas un modèle fixe</p> : null}
+    </section>
+  )
+}
+
 export default function DashboardView() {
   const setMode = useUIStore(s => s.setMode)
   const report = useAuditStore(s => s.report)
-  const previous = useAuditStore(s => s.previous)
   const showReport = useAuditStore(s => s.showReport)
   const settings = loadSettings()
+  const [archives, setArchives] = useState<ArchiveRecord[] | null>(null)
 
-  const primary = report?.economics?.primary
-  const cost = formatCostAR(primary?.ar_per_hour)
-  const retail = retailBound(report)
-  const currentSummary = report ? summaryOf(report) : null
-  const change = compareAudits(previous, currentSummary)
-  const identity = report
-    ? [report.site || 'site —', report.link_type || 'lien —', report.timestamp ? report.timestamp.slice(0, 16).replace('T', ' ') : '']
-      .filter(Boolean)
-      .join(' · ')
-    : ''
+  useEffect(() => {
+    fetch('/api/audit/list')
+      .then(r => r.json())
+      .then(j => setArchives(asArray<ArchiveRecord>(j.audits).slice(0, 5)))
+      .catch(() => setArchives([]))
+  }, [])
+
+  if (!report) {
+    return (
+      <div className="syn dash">
+        <section className="layout-grid">
+          <div className="layout-span-12 state-card state-absent" data-testid="dash-absent">
+            <p className="state-kicker">Site — mesure en attente</p>
+            <h1>Ce site n’a pas encore été mesuré</h1>
+            <p>L’audit de 60 secondes mesure la latence au repos puis sous charge; il prouve ou échoue, rien entre les deux.</p>
+            <div className="layout-action">
+              <button className="btn btn-primary" onClick={() => setMode('audit')}>Lancer l’audit de 60 secondes</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  const health = healthBlock(report)
+  const cost = formatCostAR(report.economics?.primary?.ar_per_hour)
+  const target = report.cap_sla?.target_pct
+  const okPct = report.cap_sla?.measured ? report.cap_sla.ok_pct : undefined
+  const actionIsSafe = !!report.remediation && report.remediation_state === 'available' && report.remediation_available !== false
+  const rows = archives ?? [{ audit_id: report.audit_id, site: report.site, link_type: report.link_type, timestamp: report.timestamp, has_report: 'true' }]
 
   return (
     <div className="syn dash">
-      <header className="syn-hero">
-        {identity ? (
+      <section className="layout-grid">
+        <div className="layout-span-12 dash-overview-head">
           <p className="dash-iden mono">
-            {identity}
-            {report?.timestamp ? <span className="dash-ago"> · {relativeTime(report.timestamp)}</span> : null}
+            {[report.site || 'Site', report.link_type || 'lien —', report.timestamp ? report.timestamp.slice(0, 16).replace('T', ' ') : ''].filter(Boolean).join(' · ')}
+            {report.timestamp ? <span className="dash-ago"> · {relativeTime(report.timestamp)}</span> : null}
           </p>
-        ) : null}
-        <VerdictHero report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
-        <div className="dash-hero-action">
-          {report ? (
-            <button className="btn btn-primary" onClick={() => { showReport(); setMode('audit') }}>Ouvrir le rapport</button>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setMode('audit')}>Auditer un lien</button>
-          )}
+          <VerdictHero report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
         </div>
-      </header>
 
-      <RemediationCard remediation={report?.remediation} state={report?.remediation_state ?? (report?.remediation ? "available" : "observation_only")} />
+        <section className="card dash-card layout-span-4 dash-gauge" data-testid="dash-gauge">
+          <p className="dash-card-kicker">Santé du lien</p>
+          <p className="dash-card-value">{health.title}</p>
+          <p className="dash-card-detail">{health.detail}</p>
+        </section>
 
-      {report ? (
-        bothAbsent(!!primary, !!(change.comparable && currentSummary)) ? (
-          <section className="card dash-quiet" data-testid="dash-quiet">
-            <p className="syn-read"><b>Ce que ça coûte</b> — non mesuré : aucun coût n’est chiffré plutôt qu’un zéro fabriqué.</p>
-            <p className="syn-read"><b>Ce qui a changé</b> — aucune comparaison disponible{change.reason ? ` — ${change.reason}` : ''}. Il faut deux audits du même site et du même type de lien.</p>
-          </section>
-        ) : (
-          <>
-            <section className="card dash-card" data-testid="dash-cost">
-              <CardHead label="Ce que ça coûte" sub="scénario contractuel, pas une mesure" />
-              {primary ? (
-                <>
-                  <div className="dash-cost">
-                    <span>Perte financière</span>
-                    <b>{cost.num}<small> {cost.unit}</small></b>
-                    <em>{primary.name} · scénario primaire</em>
-                  </div>
-                  {retail != null ? (
-                    <p className="syn-read">
-                      Borne haute hors-forfait : <b>{groupDigits(retail, 2)} Ar/h</b> — une pénalité de secours,
-                      pas un modèle d'infrastructure.
-                    </p>
-                  ) : null}
-                  <p className="dash-disclaimer">{report?.economics?.disclaimer || 'Scénarios contractuels, pas des mesures.'}</p>
-                </>
-              ) : (
-                <p className="syn-read">Non mesuré — aucun coût n'est chiffré plutôt qu'un zéro fabriqué.</p>
-              )}
-            </section>
+        <section className="card dash-card layout-span-4 dash-alerts" data-testid="dash-alerts">
+          <p className="dash-card-kicker">Alertes à l’heure</p>
+          <p className="dash-card-value">{okPct != null ? <>{okPct.toFixed(1)}<small> %</small></> : 'Mesure absente'}</p>
+          <p className="dash-card-detail">{target != null ? `objectif ${target} %` : 'l’objectif manque'}</p>
+        </section>
 
-            <section className="card dash-card" data-testid="dash-change">
-              <CardHead label="Ce qui a changé" sub="comparaison locale avec l'audit précédent" />
-              {change.comparable && currentSummary ? (
-                <>
-                  <div className="dash-change">
-                    {change.smallDeltaPct != null ? (
-                      <div>
-                        <span>Délai sous charge</span>
-                        <b data-dir={change.smallDeltaPct > 0 ? 'bad' : change.smallDeltaPct < 0 ? 'good' : 'same'}>
-                          {signed(change.smallDeltaPct)} %
-                        </b>
-                      </div>
-                    ) : null}
-                    {change.deadlineDelta != null ? (
-                      <div>
-                        <span>Alertes à l'heure</span>
-                        <b data-dir={change.deadlineDelta > 0 ? 'good' : change.deadlineDelta < 0 ? 'bad' : 'same'}>
-                          {signed(change.deadlineDelta)} pts
-                        </b>
-                      </div>
-                    ) : null}
-                  </div>
-                  <p className="syn-read">
-                    {previous?.timestamp ? `Audit précédent du ${previous.timestamp.slice(0, 10)}` : 'Audit précédent'} ·{' '}
-                    {previous?.grade ? `qualité ${previous.grade} → ${currentSummary.grade || '—'}` : `qualité ${currentSummary.grade || '—'}`}.
-                  </p>
-                </>
-              ) : (
-                <p className="syn-read">
-                  Aucune comparaison disponible{change.reason ? ` — ${change.reason}` : ''}. Il faut deux audits du
-                  même site et du même type de lien.
-                </p>
-              )}
-            </section>
-          </>
-        )
-      ) : null}
+        <CapCard report={report} />
+
+        <section className="card dash-action layout-span-8" data-testid="dash-action">
+          <p className="dash-card-kicker">Action recommandée</p>
+          <p className="dash-action-title">{actionIsSafe ? 'Appliquer le réglage recommandé.' : 'Observer d’abord — aucun réglage n’est prêt.'}</p>
+          <p className="dash-card-detail">{actionIsSafe ? 'La mesure supporte le réglage, pas une promesse.' : 'La charge ne permet pas de transformer cette mesure en commande réseau.'}</p>
+          <button className="btn btn-primary" onClick={() => { showReport(); setMode('audit') }}>Voir le constat</button>
+        </section>
+
+        <section className="card dash-recent layout-span-4" data-testid="dash-recent">
+          <p className="dash-card-kicker">Derniers constats</p>
+          <ul className="dash-recent-list">
+            {rows.slice(0, 4).map((row, index) => (
+              <li key={row.audit_id || `${row.site}-${index}`}>
+                <span>{row.site || 'Site'} · {row.timestamp?.slice(0, 10) || '—'}</span>
+                <button className="btn btn-mini" onClick={() => { showReport(); setMode('audit') }}>Ouvrir</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="card dash-card layout-span-12" data-testid="dash-cost">
+          <p className="dash-card-kicker">Détail contractuel</p>
+          <p className="dash-card-detail">{report?.economics?.disclaimer || 'Scénarios contractuels, pas des mesures.'} {report.economics?.primary ? `Scénario principal : ${cost.num} ${cost.unit}.` : ''}</p>
+        </section>
+      </section>
     </div>
   )
 }
