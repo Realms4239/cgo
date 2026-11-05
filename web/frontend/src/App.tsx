@@ -54,13 +54,18 @@ export default function App() {
     return () => disconnectSSE()
   }, [])
 
+  const isInitialMode = useRef(true)
   useEffect(() => {
     const found = MODES.find(m => m.id === mode)
     document.title = found ? `${found.label} — Meteolink` : 'Meteolink'
     const main = document.getElementById('main')
     main?.scrollTo({ top: 0 })
-    // la destination est annoncée au clavier et aux lecteurs d'écran
-    main?.focus({ preventScroll: true })
+    if (isInitialMode.current) {
+      isInitialMode.current = false
+    } else {
+      // la destination est annoncée au clavier et aux lecteurs d'écran
+      main?.focus({ preventScroll: true })
+    }
     animateViewEnter()
   }, [mode])
 

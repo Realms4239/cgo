@@ -21,8 +21,8 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   height: 100vh;
 }
 
-.skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; }
-.skip-link:focus-visible { left: 8px; top: 8px; padding: 8px 12px; background: var(--surface-elevated); border: 1px solid var(--t-live); color: var(--text-primary); }
+.skip-link { position: absolute; left: 0; top: 0; z-index: 100; transform: translateX(-120%); clip-path: inset(0 0 0 0); white-space: nowrap; }
+.skip-link:focus-visible { left: 8px; top: 8px; transform: none; padding: 8px 12px; background: var(--surface-elevated); border: 1px solid var(--t-live); color: var(--text-primary); }
 
 /* header — bien placé, non tronqué : min-width:0 + garde flex, repli wordmark #f2f2f4 ;
    z-index:10 — le chooser wrappe sur 2 lignes, sa moitié basse doit rester cliquable
