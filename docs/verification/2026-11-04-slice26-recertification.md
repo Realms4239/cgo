@@ -245,13 +245,29 @@ compare. Any mismatch is a finding. Then check:
 
 ## Signature block
 
-```
-Verifier: ______________________
-Date (UTC): ____________________
-Rows promoted: _________________
-Rows blocked: __________________
-Rows superseded: _______________
-Screenshots checked (Y/N): ______
-Residuals accepted (Y/N): ______
-Notes: _________________________
-```
+### Verifier signature — 2026-11-04 20:50–21:11 UTC (second independent pass)
+
+Verifier: independent subagent session `ses_e57c7f744ffeRlPHZ3s3aM57zY`
+Host: DESKTOP-B6K9UCM (Windows 10, MINGW64), Go 1.26.5, Node 22.23.2
+Branch: `rebuild/plan1-economics-audit` at `367da9b`
+
+| Gate | Command | Result |
+|---|---|---|
+| Go suite | `go test ./... -count=1` | exit 0; 19 `ok`; `pkg/api` 64.933 s, `pkg/audit` 191.969 s |
+| Six gates | `go clean -testcache && python tools/verify.py` | exit 0; 6 passed, 0 failed, 0 not run; `tests 280.4 s`; hygiene 678 |
+| Book archive | `python book/tools/audit-archive.py` | exit 0; 159 runs, 528 lines, 208 valid / 74 degraded / 246 invalid |
+| Frontend tests | `npm test` | exit 0; 59 files, 283 tests, 137.88 s |
+| Frontend build | `npm run build` | exit 0; 15.29 s; TOTAL gz 353.7 KB; `dist/index.html` restored to `834082e` |
+| Go build | `go build ./...` | exit 0 |
+| Go vet | `go vet ./cmd/cgo` | exit 0 |
+| Formatting | `gofmt -l pkg cmd` | exit 0; 0 files |
+
+Rows: promote 1, 5–17, 26′; blocked 2, 3; superseded 4.
+Screenshots checked: Y — eight PNG at 1024×768 and 1920×1080 plus `slice25-tooltip.txt`.
+Residuals accepted: Y — tooltip has a trailing LF (117 B vs 116 B title), build rewrites `dist/index.html` and was restored, SSE tests are load-sensitive, and the VERIFY row-81 HEAD citation is `367da9b` as transcribed.
+Signature: verified — all ten first-pass findings are closed at `367da9b` (two with recorded residuals), the six gates pass fresh, and the 18 rows are proposed for the dispositions above with rows 2 and 3 blocked on named conditions.
+
+Note: the host clock jumped +8 h at 21:04:55 UTC during the pass; the forced-fresh `verify.py` ran after the jump, so its real end is reconstructed from its 280.4 s `tests` gate. Two SSE tests (`TestSSESubLimitAtomic`, `TestSSECadenceAndDelta`) failed once under the verifier's concurrent test load and passed isolated — flake risk, not a slice-26′ regression.
+
+First verifier pass (same session): conditional — ten defects listed (gofmt non-empty, tooltip without artifact, duplicate PNGs, escaped `\|` regexes, build dirties `dist/index.html`, 390 px captures unnamed, slice-22 wording, +03 timestamps, stale 679 count, plan T3 `SUPERSEDED`). All ten fixed in `5685ecf` / `cf1b4b9` / `367da9b` before this second pass; the ten-finding corrections table above records each closure.
+
