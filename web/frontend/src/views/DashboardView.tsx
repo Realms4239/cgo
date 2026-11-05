@@ -68,17 +68,28 @@ export default function DashboardView() {
   }, [])
 
   if (!report) {
+    const hasArchives = archives != null && archives.length > 0
     return (
-      <div className="syn dash">
-        <section className="layout-grid">
-          <div className="layout-span-12 state-card state-absent" data-testid="dash-absent">
+      <div className="syn dash dash-absent-page">
+        <section className="layout-grid dash-absent-grid">
+          <div className="layout-span-7 state-card state-absent" data-testid="dash-absent">
             <p className="state-kicker">Site — mesure en attente</p>
             <h1>Ce site n’a pas encore été mesuré</h1>
             <p>L’audit de 60 secondes mesure la latence au repos puis sous charge; il prouve ou échoue, rien entre les deux.</p>
             <div className="layout-action">
               <button className="btn btn-primary" onClick={() => setMode('audit')}>Lancer l’audit de 60 secondes</button>
+              {hasArchives ? <button className="btn" onClick={() => setMode('evidence')}>Voir un rapport archivé</button> : null}
             </div>
           </div>
+          <aside className="layout-span-5 state-card state-explain" aria-label="Ce que l’audit établit">
+            <p className="state-kicker">Ce que l’audit établit</p>
+            <ol className="absent-steps">
+              <li><span>01</span><div><b>Repos — 10 s</b><p>latence de base, sans charge artificielle.</p></div></li>
+              <li><span>02</span><div><b>Charge — 40 s</b><p>débit atteint, pertes et aggravation du délai sous charge.</p></div></li>
+              <li><span>03</span><div><b>Vidange — 10 s</b><p>retour au repos, pour voir si les files se vident.</p></div></li>
+            </ol>
+            <p className="dash-card-detail">Aucune valeur n’est inventée avant ces mesures; les preuves archivées restent disponibles dans Preuves &amp; Rapports.</p>
+          </aside>
         </section>
       </div>
     )
