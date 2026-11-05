@@ -1,0 +1,8 @@
+# 2026-10-31 00:00:00 by RouterOS 7.15.3
+/queue type
+add cake-bandwidth=19000000 cake-diffserv=diffserv4 cake-flowmode=dual-dsthost \
+    cake-nat=yes cake-rtt=25ms cake-wash=yes kind=cake name=cgoingress-cake
+
+/queue tree
+add comment=cgo-managed-ingress max-limit=19000000 name=cgoingress-lan-in \
+    parent=ether2-lan queue=cgoingress-cake

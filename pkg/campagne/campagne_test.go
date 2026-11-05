@@ -1,8 +1,13 @@
 package campagne
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,6 +32,20 @@ func fastDeps() Deps {
 	}
 }
 
+// stopWait annule la matrice et attend la fin du gel : les defers passent
+// avant le nettoyage de t.TempDir(), et Windows refuse de supprimer un
+// fichier encore ouvert (E5). La borne expirée est signalée, pas avalée.
+func stopWait(t *testing.T, m *Matrix) {
+	t.Helper()
+	m.Stop()
+	for i := 0; i < 200 && m.IsRunning(); i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if m.IsRunning() {
+		t.Errorf("matrice encore en cours 2 s après Stop : t.TempDir() court après Freeze")
+	}
+}
+
 type fakeTC struct{}
 
 func (fakeTC) Run(args ...string) ([]byte, error) { return nil, nil }
@@ -42,6 +61,27 @@ func TestRunEventHappyPath(t *testing.T) {
 	}
 	if got.BulkGoodputMbps <= 0 || got.RTTp95Ms == 0 {
 		t.Fatalf("metrics not filled: %+v", got)
+	}
+}
+
+func TestRunEventMultiFlowUsesCellCC(t *testing.T) {
+	d := fastDeps()
+	d.Flows = 4
+	var gotCC string
+	d.BulkN = func(_ context.Context, _ string, cc string, n int) ([]uint64, error) {
+		gotCC = cc
+		out := make([]uint64, n)
+		for i := range out {
+			out[i] = 600_000
+		}
+		return out, nil
+	}
+	ev := model.Event{RunID: "r1", EventID: 9, Profile: "P2", Qdisc: model.Cake, CC: model.BBR, Repetition: 1}
+	if _, err := RunEvent(context.Background(), ev, model.Profiles["P2"], d); err != nil {
+		t.Fatal(err)
+	}
+	if gotCC != string(model.BBR) {
+		t.Fatalf("multi-flow CC = %q, want %q (a CUBIC flood would masquerade as BBR)", gotCC, model.BBR)
 	}
 }
 
@@ -73,11 +113,71 @@ func TestWriterAppendAndFreeze(t *testing.T) {
 	if err := w.Append(ev); err == nil || !strings.Contains(err.Error(), "duplicate") {
 		t.Fatalf("G5 not enforced: %v", err)
 	}
-	if err := w.Freeze("cfgsha"); err != nil {
+	cfg := []byte(`{"profiles":["P1"],"reps":2}`)
+	if err := w.Freeze(cfg); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "manifest.json")); err != nil {
+	b, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
 		t.Fatal("manifest missing")
+	}
+	var doc struct {
+		ConfigSHA string `json:"config_sha256"`
+		Config    string `json:"config"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(cfg)
+	want := hex.EncodeToString(sum[:])
+	if doc.ConfigSHA != want || doc.Config != string(cfg) {
+		t.Fatalf("config provenance: hash=%q config=%q want %q", doc.ConfigSHA, doc.Config, want)
+	}
+	if doc.ConfigSHA == "config" {
+		t.Fatal("hash de configuration factice")
+	}
+}
+
+func TestFreezeRejectsNonConfig(t *testing.T) {
+	w, err := OpenRun(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Freeze([]byte("cfg")); err == nil {
+		t.Fatal("un manifeste sans configuration JSON valide doit être refusé")
+	}
+}
+
+func TestCPUGateNeverPassesUnmeasured(t *testing.T) {
+	for _, v := range []float64{math.NaN(), 0, -1} {
+		if g := cpuGate(v); g != nil {
+			t.Fatalf("cpu=%v: gate=%v, attendu nil (non évaluée)", v, *g)
+		}
+	}
+	if g := cpuGate(30); g == nil || !*g {
+		t.Fatalf("cpu=30: gate=%v, attendu true", g)
+	}
+	if g := cpuGate(95); g == nil || *g {
+		t.Fatalf("cpu=95: gate=%v, attendu false", g)
+	}
+}
+
+func TestMatrixConfigIsEffective(t *testing.T) {
+	a, err := buildMatrixConfig([]string{"P1"}, []string{"cake"}, []string{"bbr"}, 3, Deps{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := buildMatrixConfig([]string{"P1"}, []string{"cake"}, []string{"bbr"}, 1, Deps{Direction: "down"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(a, b) {
+		t.Fatal("la configuration ne change pas avec les répétitions/sens")
+	}
+	for _, want := range []string{`"P1"`, `"cake"`, `"bbr"`, `"reps":3`, `"direction":"up"`} {
+		if !strings.Contains(string(a), want) {
+			t.Fatalf("configuration sans %s: %s", want, a)
+		}
 	}
 }
 

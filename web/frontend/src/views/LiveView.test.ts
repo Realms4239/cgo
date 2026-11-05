@@ -19,4 +19,30 @@ describe('LiveView metrics', () => {
     expect(s).toContain('cost')
     expect(s).toContain('deadline')
   })
+
+  it('rend les coûts entreprise et B2B à côté du coût détail gelé', () => {
+    const s = readLive()
+    // trois valorisations distinctes : scénario entreprise (GOLD), B2B au
+    // volume (APN), et le coût détail historique — jamais confondues.
+    expect(s).toContain('cost_primary_ar_per_h')
+    expect(s).toContain('cost_b2b_ar_per_h')
+    expect(s).toContain('Coût détail (archive)')
+    expect(s).toContain('Coût entreprise')
+    expect(s).toContain('Coût B2B')
+  })
+
+  it('expose le débit interface brut et distingue les deux plans', () => {
+    const s = readLive()
+    expect(s).toContain('Débit interface')
+    expect(s).toContain('chart-iface')
+    expect(s).toContain('rawLineSeries')
+    expect(s).toContain('Débit utile applicatif')
+  })
+
+  it('au repos, le mur attend la première frame mesurée', () => {
+    const s = readLive()
+    expect(s).toContain('const wallData =')
+    expect(s).toContain('const showLiveWall = showLiveSrc && wallData')
+    expect(s).toContain('{showLiveWall && (')
+  })
 })

@@ -1,14 +1,17 @@
 import { create } from 'zustand';
 import type { LiveFrame } from '../lib/types';
+import type { BenchStage } from '../lib/bench';
+import { preloadMode } from '../lib/preload';
 
-export const PANELS = [
-  { id: 'campagne', label: 'Campagne de mesure', key: '1', milestone: 1 },
-  { id: 'live', label: 'Tableau live', key: '2', milestone: 1 },
-  { id: 'resultats', label: 'Résultats', key: '3', milestone: 2 },
-  { id: 'integrite', label: 'Provenance & archives', key: '4', milestone: 2 },
+// Une seule taxonomie de navigation : quatre destinations, aucune imbriquée.
+export const MODES = [
+  { id: 'dashboard', label: 'Tableau de bord', key: '1' },
+  { id: 'audit', label: 'Auditer', key: '2' },
+  { id: 'bench', label: "Banc d'essai", key: '3' },
+  { id: 'evidence', label: 'Preuves & Rapports', key: '4' },
 ] as const;
 
-export type PanelId = (typeof PANELS)[number]['id'];
+export type ModeId = (typeof MODES)[number]['id'];
 
 type ToastKind = '' | 'ok' | 'err' | 'blue'
 export interface ToastItem { id: number; msg: string; cls: ToastKind }
@@ -17,21 +20,26 @@ let toastSeq = 1
 export type FlashType = 'success' | 'danger' | 'info'
 export interface FlashItem { type: FlashType; msg: string }
 
+// Le tiroir de preuve : deux lectures du même rapport scellé.
+export type ProofTab = 'commands' | 'proof'
+
 interface UIState {
-  panel: PanelId; setPanel: (p: PanelId) => void
+  mode: ModeId; setMode: (m: ModeId) => void
+  benchStage: BenchStage; setBenchStage: (s: BenchStage) => void
   live: LiveFrame | null; setLive: (f: LiveFrame) => void
   connected: boolean; setConnected: (v: boolean) => void
   sseStatus: string; setSseStatus: (s: string) => void
   toasts: ToastItem[]; pushToast: (msg: string, cls?: ToastKind) => void; dropToast: (id: number) => void
   flash: FlashItem | null; setFlash: (f: FlashItem | null) => void
   replayRunning: boolean; replayRunId: string | null; setReplay: (running: boolean, id: string | null) => void
-  railPinned: boolean; setRailPinned: (v: boolean) => void
+  proof: { tab: ProofTab } | null; openProof: (tab: ProofTab) => void; closeProof: () => void
 }
 
-const getRailPinned = () => false
-
 export const useUIStore = create<UIState>((set) => ({
-  panel: 'campagne', setPanel: (panel) => set({ panel }),
+  // le chunk de la destination part dès que l'opérateur demande le mode —
+  // clavier, palette ou clic, pas seulement au survol du rail.
+  mode: 'dashboard', setMode: (mode) => { preloadMode(mode); set({ mode }) },
+  benchStage: 'config', setBenchStage: (benchStage) => set({ benchStage }),
   live: null, setLive: (live) => set({ live }),
   connected: false, setConnected: (connected) => set({ connected }),
   sseStatus: 'déconnecté', setSseStatus: (sseStatus) => set({ sseStatus }),
@@ -44,6 +52,5 @@ export const useUIStore = create<UIState>((set) => ({
   dropToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   flash: null, setFlash: (flash) => set({ flash }),
   replayRunning: false, replayRunId: null, setReplay: (replayRunning, replayRunId) => set({ replayRunning, replayRunId }),
-  railPinned: getRailPinned(),
-  setRailPinned: (railPinned) => { try { localStorage.setItem('railPinned', railPinned ? '1' : '0') } catch {} ; set({ railPinned }) },
+  proof: null, openProof: (tab) => set({ proof: { tab } }), closeProof: () => set({ proof: null }),
 }));

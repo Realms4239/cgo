@@ -19,6 +19,7 @@ type Group struct {
 	Direction   string `json:"direction"`
 	Count       int    `json:"count"`
 	Quarantined int    `json:"quarantined"`
+	Degraded    int    `json:"degraded"`
 
 	RTTp95Median   float64    `json:"rtt_p95_median"`
 	RTTp95IQR      [2]float64 `json:"rtt_p95_iqr"`
@@ -39,10 +40,28 @@ type Group struct {
 	DeadlineValidCI95      [2]float64 `json:"deadline_valid_ci95"`
 	Best                   bool       `json:"best,omitempty"`
 	HardwareRecommendation string     `json:"hardware_recommendation"`
+	// Runs — les identifiants des runs qui ont nourri les mesures de la cellule
+	// (au moins une ligne non invalid), triés. Une médiane sans provenance n'est
+	// pas une preuve ; un run entièrement en quarantaine n'en est pas une.
+	Runs []string `json:"runs,omitempty"`
 }
 
 // Scan agrège tous les aqm_eval.csv sous dataDir (dernier run, sinon tous).
 // Parcourt les gelés, groupe, médianes. Vide -> nil, nil.
+// runIDs — les runs d'une cellule, triés : le client peut les citer sans
+// hériter de l'ordre d'itération d'une map.
+func runIDs(set map[string]bool) []string {
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func Scan(dataDir, runFilter string) ([]Group, error) {
 	pattern := filepath.Join(dataDir, "*", "aqm_eval.csv")
 	if runFilter != "" {
@@ -56,8 +75,10 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		rtts, smalls, goodputs, deadlines, wasteds, costs []float64
 		vSmalls, vDeadlines                               []float64 // valid-only
 		quarantined                                       int
+		degraded                                          int
 		count                                             int
 		profile, qdisc, cc, direction                     string
+		runs                                              map[string]bool
 	}
 	buckets := map[string]*bucket{}
 	for _, f := range files {
@@ -110,7 +131,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			key := profile + "|" + qdisc + "|" + cc + "|" + direction
 			b := buckets[key]
 			if b == nil {
-				b = &bucket{profile: profile, qdisc: qdisc, cc: cc, direction: direction}
+				b = &bucket{profile: profile, qdisc: qdisc, cc: cc, direction: direction, runs: map[string]bool{}}
 				buckets[key] = b
 			}
 			b.count++
@@ -121,6 +142,12 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			if get(r, iGate) == "invalid" {
 				b.quarantined++
 				continue
+			}
+			// Après le filtre : un run dont toutes les lignes sont en quarantaine
+			// n'a nourri aucune mesure et ne peut pas figurer dans la provenance.
+			b.runs[filepath.Base(filepath.Dir(f))] = true
+			if get(r, iGate) == "degraded" {
+				b.degraded++
 			}
 			if get(r, iGate) == "valid" {
 				add(&b.vSmalls, get(r, iSmall))
@@ -147,7 +174,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		dlo, dhi := metrics.BootstrapMedianCI95(b.vDeadlines, 10000, 42)
 		out = append(out, Group{
 			Profile: b.profile, Qdisc: b.qdisc, CC: b.cc, Direction: b.direction,
-			Count: b.count, Quarantined: b.quarantined,
+			Count: b.count, Quarantined: b.quarantined, Degraded: b.degraded,
 			RTTp95Median: rs.Median, RTTp95IQR: [2]float64{rs.IQRLow, rs.IQRHigh},
 			Smallp95Median: ss.Median, Smallp95IQR: [2]float64{ss.IQRLow, ss.IQRHigh}, GoodputMedian: gs.Median, DeadlineMedian: ds.Median,
 			WastedMedian: ws.Median, CostMedian: cs.Median,
@@ -155,6 +182,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			Smallp95ValidIQR: [2]float64{vq1, vq3}, Smallp95ValidCI95: [2]float64{vlo, vhi},
 			DeadlineValidN: len(b.vDeadlines), DeadlineValidMedian: metrics.Median(b.vDeadlines),
 			DeadlineValidCI95: [2]float64{dlo, dhi},
+			Runs:              runIDs(b.runs),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {

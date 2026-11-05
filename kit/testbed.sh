@@ -10,8 +10,34 @@ set -uo pipefail
 NS=cgo-srv
 CLI=veth-c; SRV=veth-s
 CIDR=10.200.0.1/24; CIP=10.200.0.2/24
-BIN="$HOME/cgo/cgo-linux"
+BIN="${CGO_BIN:-$HOME/cgo/cgo-linux}"
 TBD="$HOME/cgo/testbed"
+# Offloads are a measurement recipe, not a cosmetic setting. The frozen
+# 528-row corpus was measured with TSO/GSO/GRO ON (final220: BBR 18–19 Mbit/s);
+# changing the default now would make the archived result irreproducible.
+# A hardening run must opt in explicitly: CGO_OFFLOADS=off.
+OFFLOADS="${CGO_OFFLOADS:-on}"
+case "$OFFLOADS" in on|off) ;; *) echo "[!] CGO_OFFLOADS must be on|off"; exit 2;; esac
+
+# set_offloads <iface> <netns|""> — apply the selected recipe.
+set_offloads() {
+  local iface="$1" ns="$2"
+  if [ -n "$ns" ]; then
+    sudo -n ip netns exec "$ns" ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS" 2>/dev/null || true
+  else
+    sudo -n ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS" 2>/dev/null || true
+  fi
+}
+
+# offload_line <iface> <netns|""> <feature> — the ethtool -k line, empty on error.
+offload_line() {
+  local iface="$1" ns="$2" feat="$3"
+  if [ -n "$ns" ]; then
+    sudo -n ip netns exec "$ns" ethtool -k "$iface" 2>/dev/null | grep -m1 "^${feat}:"
+  else
+    sudo -n ethtool -k "$iface" 2>/dev/null | grep -m1 "^${feat}:"
+  fi
+}
 
 up() {
   # sudoers : le banc (veth/netns via sudo -n ci-dessous) ET les cellules
@@ -35,7 +61,13 @@ up() {
   fi
   # disciplines du banc : l'autoload échoue parfois dans le netns (vu en prod :
   # "Invalid qdisc name" sur la 1re cellule cake après boot) — preload explicite.
-  sudo -n modprobe sch_netem sch_fq_codel sch_cake 2>/dev/null || true
+  # BBR est le contrôle de référence de la campagne ; il doit être présent
+  # avant la première cellule, et survivre au reboot (modules-load.d).
+  sudo -n modprobe sch_netem sch_fq_codel sch_cake tcp_bbr 2>/dev/null || true
+  echo tcp_bbr | sudo -n tee /etc/modules-load.d/cgo-bbr.conf >/dev/null 2>&1 || true
+  if ! grep -qw bbr /proc/sys/net/ipv4/tcp_allowed_congestion_control 2>/dev/null; then
+    echo "[!] BBR indisponible — modprobe tcp_bbr a échoué"; return 1
+  fi
   if ! sudo ip netns list | grep -q "^$NS"; then sudo ip netns add $NS; fi
   # paire veth : la créer si absente, RÉPARER si à moitié présente (reboot :
   # veth-c existe sans veth-s dans le ns — l'ancien test tout-ou-rien
@@ -58,12 +90,16 @@ up() {
   # 2. initcwnd 50 DES DEUX CÔTÉS — l'objet 16 KiB = 12 paquets > initcwnd 10
   #    par défaut : la réponse part en 2 vols → sonde small = 3×RTT (~315 ms
   #    au lieu de ~210). Volatile (perdu au reboot) → réappliqué à chaque up.
-  sudo -n ip route change 10.200.0.0/24 dev $CLI initcwnd 50 2>/dev/null || sudo -n ip route add 10.200.0.0/24 dev $CLI initcwnd 50 2>/dev/null || true
-  sudo -n ip netns exec $NS ip route change 10.200.0.0/24 dev $SRV initcwnd 50 2>/dev/null || sudo -n ip netns exec $NS ip route add 10.200.0.0/24 dev $SRV initcwnd 50 2>/dev/null || true
-  # 3. offloads veth ON des deux côtés — état de la bonne ère (final220,
-  #    BBR 18-19 Mb/s) ; réglage volatil → réappliqué à chaque up.
-  sudo -n ethtool -K $CLI tso on gso on gro on 2>/dev/null || true
-  sudo -n ip netns exec $NS ethtool -K $SRV tso on gso on gro on 2>/dev/null || true
+  #    APRÈS l'adressage : la route connectée doit exister, sinon change/add
+  #    échoue silencieusement et le check voit une route sans initcwnd.
+  sudo -n ip route replace 10.200.0.0/24 dev $CLI scope link src "${CIP%/*}" initcwnd 50 2>/dev/null || true
+  sudo -n ip netns exec $NS ip route replace 10.200.0.0/24 dev $SRV scope link src "${CIDR%/*}" initcwnd 50 2>/dev/null || true
+  # 3. offloads veth — recette gelée ON par défaut (final220, BBR 18-19 Mb/s),
+  #    OFF pour une passe de durcissement explicite (CGO_OFFLOADS=off), où les
+  #    super-paquets GSO ne doivent plus fausser le comptage des gouttes.
+  #    Réglage volatil → réappliqué à chaque up.
+  set_offloads "$CLI" ""
+  set_offloads "$SRV" "$NS"
   sudo ip addr show dev $CLI | grep -q "${CIP%/*}" || sudo ip addr add $CIP dev $CLI
   sudo ip link set $CLI up
   sudo ip netns exec $NS ip addr show dev $SRV | grep -q "${CIDR%/*}" || sudo ip netns exec $NS ip addr add $CIDR dev $SRV
@@ -92,13 +128,21 @@ check() {
   local ok=1
   sudo ip netns list | grep -q "^$NS" || { echo "[!] netns $NS missing"; ok=0; }
   sudo ip link show $CLI &>/dev/null || { echo "[!] $CLI missing"; ok=0; }
-  # banc sain = état de la recette : TSO ON (état de la bonne ère) + route
-  # initcwnd 50 présente des deux côtés + aucun qdisc résiduel sur veth-c.
-  for itf in "$CLI:root" "$SRV:$NS"; do
+  # banc sain = recette d'offloads respectée + route initcwnd 50 des deux
+  # côtés + aucun qdisc résiduel sur veth-c. Le mode OFF est une passe de
+  # durcissement explicite ; le défaut ON reste celui du corpus gelé.
+  for itf in "$CLI:" "$SRV:$NS"; do
     it="${itf%%:*}"; ns="${itf##*:}"
-    if [ "$ns" = root ]; then o=$(ethtool -k $CLI 2>/dev/null | grep -m1 '^tcp-segmentation-offload'); else o=$(sudo ip netns exec $NS ethtool -k $SRV 2>/dev/null | grep -m1 '^tcp-segmentation-offload'); fi
-    [ "$o" = "tcp-segmentation-offload: on" ] || { echo "[!] TSO off on $it ($o)"; ok=0; }
+    for feat in tcp-segmentation-offload generic-segmentation-offload generic-receive-offload; do
+      o=$(offload_line "$it" "$ns" "$feat")
+      case "$o" in
+        *": $OFFLOADS"*) ;;
+        *) echo "[!] $feat not $OFFLOADS on $it ($o)"; ok=0;;
+      esac
+    done
   done
+  ip route get 10.200.0.2 2>/dev/null | grep -q "dev $CLI" || { echo "[!] client path does not use $CLI (route leak)"; ok=0; }
+  sudo ip netns exec $NS ip route get 10.200.0.1 2>/dev/null | grep -q "dev $SRV" || { echo "[!] server path does not use $SRV (route leak)"; ok=0; }
   ip route show | grep -q "10.200.0.0/24 dev $CLI scope link initcwnd 50" || { echo "[!] initcwnd 50 route missing (client)"; ok=0; }
   sudo ip netns exec $NS ip route show | grep -q "10.200.0.0/24 dev $SRV scope link initcwnd 50" || { echo "[!] initcwnd 50 route missing (server)"; ok=0; }
   tc qdisc show dev $CLI | grep -q noqueue || { echo "[!] stale qdisc on $CLI — run: testbed.sh up"; ok=0; }

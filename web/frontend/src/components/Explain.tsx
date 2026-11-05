@@ -36,10 +36,16 @@ export default function Explain({ term, children, style }: { term: string; child
     <span
       ref={ref}
       data-explain={term}
-      style={{ cursor: 'help', borderBottom: '1px dotted rgba(138,150,160,0.55)', padding: '2px 1px', ...style }}
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      style={{ cursor: 'help', borderBottom: '1px dotted color-mix(in srgb, var(--text-muted) 55%, transparent)', padding: '2px 1px', ...style }}
       onMouseEnter={() => { updatePos(); setHover(true) }}
       onMouseLeave={() => setHover(false)}
+      onFocus={() => { updatePos(); setHover(true) }}
+      onBlur={() => setHover(false)}
       onClick={(e) => { e.stopPropagation(); updatePos(); setPin(p => !p) }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); updatePos(); setPin(p => !p) } }}
     >
       {children}
       {open &&
@@ -50,8 +56,8 @@ export default function Explain({ term, children, style }: { term: string; child
             style={{
               position: 'fixed', left: pos.left, top: pos.top, transform: 'translateY(-100%)',
               width: 280, padding: '10px 12px', zIndex: 9999,
-              background: 'rgba(12,12,14,0.97)', border: '1px solid #2c2c31', borderRadius: 8,
-              color: '#d6dade', fontFamily: 'Inter, sans-serif', fontSize: 12, lineHeight: 1.45,
+              background: 'color-mix(in srgb, var(--canvas-solid) 97%, transparent)', border: '1px solid var(--hairline-strong)', borderRadius: 8,
+              color: 'var(--text-body-strong)', fontFamily: 'var(--font-body)', fontSize: 'var(--fs-cap)', lineHeight: 1.45,
               boxShadow: '0 12px 32px rgba(0,0,0,0.55)', display: 'block', textAlign: 'left',
               whiteSpace: 'normal', pointerEvents: 'none',
             }}

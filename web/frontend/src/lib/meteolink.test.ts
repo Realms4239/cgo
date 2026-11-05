@@ -12,8 +12,9 @@ describe('meteolink', () => {
     expect(s).toContain('METEOLINK')
     expect(s).toContain('createDrawable')
   })
-  it('panel chooser exists', () => {
-    const s=read('web/frontend/src/components/PanelChooser.tsx')
-    expect(s).toContain('Wall')
+  it('top nav exists', () => {
+    const s=read('web/frontend/src/components/TopNav.tsx')
+    expect(s).toContain('MODES.map')
+    expect(s).toContain('aria-current=')
   })
 })

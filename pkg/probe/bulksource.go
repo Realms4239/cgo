@@ -30,15 +30,13 @@ func BulkSource(ctx context.Context, conn net.Conn) (uint64, error) {
 	}
 }
 
-// BulkDownloadTo — protocole du banc : dial, "D" ou "D:<cc>\n" (mode source
-// sur le sink, la CC voyage avec la poignée de main), puis le client
-// RECEVOIT jusqu'au terme du ctx. Rend les octets reçus — la mesure
-// download côté client, comme BulkSendTo est la mesure upload côté client.
-func BulkDownloadTo(ctx context.Context, addr, cc string) (uint64, error) {
-	conn, err := DialWithCC(ctx, addr, cc)
-	if err != nil {
-		return 0, err
-	}
+// BulkRecvSource — moitié protocole du récepteur download : sur une
+// connexion DÉJÀ composée, "D" ou "D:<cc>\n" (mode source sur le sink, la CC
+// voyage avec la poignée de main), puis réception jusqu'au terme du ctx.
+// Extraction partagée : BulkDownloadTo (dial + rendu) et la charge download
+// multi-flux avec statistiques (BulkDownloadNStats) suivent le MÊME hello —
+// les deux voies ne doivent jamais diverger sur la poignée de main.
+func BulkRecvSource(ctx context.Context, conn net.Conn, cc string) (uint64, error) {
 	hello := "D"
 	if cc != "" {
 		hello = "D:" + cc + "\n"
@@ -48,6 +46,18 @@ func BulkDownloadTo(ctx context.Context, addr, cc string) (uint64, error) {
 		return 0, err
 	}
 	return BulkReceive(ctx, conn, nil)
+}
+
+// BulkDownloadTo — protocole du banc : dial, "D" ou "D:<cc>\n" (mode source
+// sur le sink, la CC voyage avec la poignée de main), puis le client
+// RECEVOIT jusqu'au terme du ctx. Rend les octets reçus — la mesure
+// download côté client, comme BulkSendTo est la mesure upload côté client.
+func BulkDownloadTo(ctx context.Context, addr, cc string) (uint64, error) {
+	conn, err := DialWithCC(ctx, addr, cc)
+	if err != nil {
+		return 0, err
+	}
+	return BulkRecvSource(ctx, conn, cc)
 }
 
 // BulkDownloadNTo — N dials indépendants vers addr, "D:<cc>" chacun,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { baseOption, lineSeries, paretoFrontier } from './chartGrammar'
+import { baseOption, lineSeries, rawLineSeries, paretoFrontier } from './chartGrammar'
 describe('chartGrammar', () => {
   it('baseOption has useDirtyRect and markArea', () => {
     const opt: any = baseOption('RTT (ms)', 'ms')
@@ -23,5 +23,11 @@ describe('chartGrammar', () => {
   it('paretoFrontier mixte (goodput up × coût down)', () => {
     const pts = [{ x: 10, y: 5 }, { x: 20, y: 8 }, { x: 20, y: 4 }]
     expect(paretoFrontier(pts, 'down', 'up')).toEqual([0, 1])
+  })
+  it('rawLineSeries ne lisse pas, n’échantillonne pas et ne comble pas les trous', () => {
+    const s: any = rawLineSeries('RX', [[0, 1], [1, null]], '#5ad3e3')
+    expect(s.smooth).toBe(false)
+    expect(s.connectNulls).toBe(false)
+    expect(s.sampling).toBeUndefined()
   })
 })

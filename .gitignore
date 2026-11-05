@@ -14,6 +14,7 @@ bin/
 dist/
 cgo-linux
 cgo-linux.new
+pkg/probe/bpf/vmlinux.h
 
 # data produced by the instrument (frozen archives are committed deliberately,
 # never generated noise)
@@ -38,7 +39,7 @@ web/frontend/playwright-report/
 kit/cgo-vm.yaml
 kit/logs/
 shots/
-
+!docs/img/shots/
 web/frontend/*.log
 
 # deepwork session state
@@ -64,4 +65,17 @@ scripts/seekai-*.js
 # dépôt séparé) — le dépôt GitHub ne contient que l'instrument
 *.docx
 *.pptx
+*.pdf
 /book/
+
+# capture evidence (see handoff §6.2)
+web/frontend/shots-fresh/
+
+# machine junk
+nul
+cgo-*.exe
+__pycache__/
+pkg/api/data/
+
+# cache image CHR — jamais commitée (voir kit/chr/README.md)
+kit/chr/cache/

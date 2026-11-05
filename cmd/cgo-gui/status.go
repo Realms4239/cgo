@@ -10,6 +10,7 @@ import (
 	"github.com/Realms4239/cgo/internal/kit"
 	"github.com/Realms4239/cgo/internal/vm"
 )
+
 // ---- VM list ----
 
 func (a *app) onVMs() {

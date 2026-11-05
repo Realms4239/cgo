@@ -1,0 +1,170 @@
+{
+  "1024": {
+    "errors": [],
+    "dashboard": {
+      "cost": false
+    },
+    "audit": {
+      "declare": true,
+      "observe": false
+    },
+    "slice22": {
+      "hasSuppressedLine": true,
+      "hasProtectCta": false
+    },
+    "slice23": {
+      "deadline": "220",
+      "hasBbrv3Hint": true
+    },
+    "slice24": {
+      "hasMaxiAvant": true,
+      "hasSansReglage": true
+    },
+    "slice25": {
+      "title": "mémoriser la médiane de référence, cliquer pour effacer — la barre compare avant et maintenant, même fenêtre",
+      "titleMatches": true
+    },
+    "duel": true,
+    "reports": true,
+    "integrity": {
+      "runs": true,
+      "quarantine": true
+    }
+  },
+  "1920": {
+    "errors": [],
+    "dashboard": {
+      "cost": false
+    },
+    "audit": {
+      "declare": true,
+      "observe": false
+    },
+    "slice22": {
+      "hasSuppressedLine": true,
+      "hasProtectCta": false
+    },
+    "slice23": {
+      "deadline": "220",
+      "hasBbrv3Hint": true
+    },
+    "slice24": {
+      "hasMaxiAvant": true,
+      "hasSansReglage": true
+    },
+    "slice25": {
+      "title": "mémoriser la médiane de référence, cliquer pour effacer — la barre compare avant et maintenant, même fenêtre",
+      "titleMatches": true
+    },
+    "duel": true,
+    "reports": true,
+    "integrity": {
+      "runs": true,
+      "quarantine": true
+    }
+  },
+  "dash-dashboard-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "audit-declare-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "audit-observe-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slice22-audit-remediation-suppressed-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slice23-settings-deadline-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "bench-configurer-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slice23-bench-bbrv3-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slice24-bench-edge-labels-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "bench-observer-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "bench-resultats-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "evidence-preuves-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "evidence-corpus-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "evidence-rapport-1920": {
+    "width": 1920,
+    "height": 1080
+  },
+  "dash-dashboard-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "audit-declare-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "audit-observe-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "slice22-audit-remediation-suppressed-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "slice23-settings-deadline-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "bench-configurer-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "slice23-bench-bbrv3-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "slice24-bench-edge-labels-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "bench-observer-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "bench-resultats-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "evidence-preuves-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "evidence-corpus-1024": {
+    "width": 1024,
+    "height": 768
+  },
+  "evidence-rapport-1024": {
+    "width": 1024,
+    "height": 768
+  }
+}

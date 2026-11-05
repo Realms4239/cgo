@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+main=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = "refs/heads/main" ] && main=1
+done
+if [ "$main" = 1 ] && [ "${CGO_ALLOW_MAIN:-}" != "1" ]; then
+  echo "pre-push: push to main refused; merge is a user decision (set CGO_ALLOW_MAIN=1 to override)" >&2
+  exit 1
+fi
+python tools/verify.py

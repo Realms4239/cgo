@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { svg, text, animate, stagger } from 'animejs'
+import { svg, animate } from 'animejs'
 import { prefersReducedMotion, EASE } from '../lib/anime'
 
 export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
@@ -13,31 +13,21 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
       const drawable = svg.createDrawable(path)
       animate(drawable as any, { draw: ['0 0', '0 1'], duration: 800, ease: 'linear' } as any)
     }
-    const textEl = el.querySelector('.wordmark-text') as HTMLElement | null
-    const target = (textEl ?? el) as HTMLElement
+    // Le dégradé vit sur l'élément entier : découper en caractères créait des
+    // spans sans background-clip et rendait le mot invisible.
+    const target = (el.querySelector('.wordmark-text') ?? el) as HTMLElement
     try {
-      const splitter = (text as any).splitText(target, { chars: true }) as any
-      const chars: Element[] = splitter?.chars ?? []
-      if (chars.length) {
-        animate(chars as any, {
-          translateY: [8, 0],
-          opacity: [0, 1],
-          duration: 600,
-          ease: EASE,
-          delay: stagger(30, { grid: [4, 2], from: 'center' } as any),
-        } as any)
-      }
+      animate(target, { translateY: [8, 0], opacity: [0, 1], duration: 600, ease: EASE } as any)
     } catch {}
-    void svg.createDrawable; void text.splitText
   }, [])
   return (
     <span ref={ref} className="wordmark-lockup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flex: '0 0 auto', minWidth: 0 }}>
       <span className="stripe" aria-hidden="true" style={{ display: 'flex', flexDirection: 'column', width: 4, height: 18, gap: 2, flex: 'none' }}>
-        <i style={{ flex: 1, background: 'var(--brand-1, #0066b1)' }} />
-        <i style={{ flex: 1, background: 'var(--brand-2, #1c69d4)' }} />
-        <i style={{ flex: 1, background: 'var(--brand-3, #e22718)' }} />
+        <i style={{ flex: 1, background: 'var(--brand-1)' }} />
+        <i style={{ flex: 1, background: 'var(--brand-2)' }} />
+        <i style={{ flex: 1, background: 'var(--brand-3)' }} />
       </span>
-      <svg className="ml-icon" width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ flex: 'none', color: 'var(--t-live, #5ad3e3)', display: 'inline-flex' }}>
+      <svg className="ml-icon" width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ flex: 'none', color: 'var(--t-live)', display: 'inline-flex' }}>
         <circle cx={5} cy={5} r={2.4} stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
         <path d="M5 2 V1.2 M5 8.8 V7.6 M2.2 5 H1.2 M8.8 5 H7.6 M3.3 3.3 L2.4 2.4 M7.6 7.6 L6.7 6.7 M3.3 6.7 L2.4 7.6 M7.6 2.4 L6.7 3.3" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
         <path d="M1.8 11.5 Q5.5 8 8 11.5 T14.2 11.5" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
@@ -45,18 +35,18 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
       <span
         className="wordmark-text"
         style={{
-          fontFamily: 'var(--font-display, "Cormorant Garamond")',
+          fontFamily: 'var(--font-ui)',
           fontWeight: 600,
           fontSize: compact ? 14 : 20,
-          letterSpacing: '0.04em',
+          letterSpacing: 'var(--tracking-caps)',
           textTransform: 'uppercase' as const,
-          color: '#f2f2f4',
+          color: 'var(--text-primary)',
           // repli uni avant dégradé — lisibilité sur navigateurs sans clip
-          background: 'linear-gradient(90deg, #f2f2f4, #a9aeb6)',
+          background: 'linear-gradient(90deg, var(--text-primary), var(--text-body))',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
-          filter: 'drop-shadow(0 0 8px rgba(90,211,227,0.35))',
+          filter: 'drop-shadow(0 0 8px color-mix(in srgb, var(--t-live) 35%, transparent))',
           lineHeight: 1,
           whiteSpace: 'nowrap',
         }}
@@ -64,7 +54,7 @@ export function MeteolinkWordmark({ compact }: { compact?: boolean }) {
       >
         METEOLINK
       </span>
-      {!compact && <span className="hd-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Trafic critique · AQM/BBR · Madagascar</span>}
+      {!compact && <span className="hd-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase' as const, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Trafic critique · Madagascar</span>}
     </span>
   )
 }

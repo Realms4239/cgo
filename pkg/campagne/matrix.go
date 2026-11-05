@@ -64,7 +64,7 @@ func (m *Matrix) IsRunning() bool {
 // la progression arrive dans Live.
 func StartMatrix(base context.Context, profiles []string, reps int,
 	deps Deps, dataDir string) (*Matrix, error) {
-	return startMatrix(base, newRunID(), profiles, allQdiscStrings(), allCCStrings(), reps, deps, dataDir)
+	return startMatrix(base, newRunID(), profiles, allQdiscStrings(), DefaultCCs(), reps, deps, dataDir)
 }
 
 // StartMatrixFiltered — sous-matrice ciblée : axes qdiscs/CC explicites.
@@ -78,7 +78,7 @@ func StartMatrixFiltered(base context.Context, profiles []string, qdiscs, ccs []
 
 func StartMatrixWithID(base context.Context, runID string, profiles []string, reps int,
 	deps Deps, dataDir string) (*Matrix, error) {
-	return startMatrix(base, runID, profiles, allQdiscStrings(), allCCStrings(), reps, deps, dataDir)
+	return startMatrix(base, runID, profiles, allQdiscStrings(), DefaultCCs(), reps, deps, dataDir)
 }
 
 // StartMatrixFilteredWithID — reprise d'une matrice interrompue : les
@@ -96,14 +96,6 @@ func allQdiscStrings() []string {
 	out := make([]string, len(model.AllQdiscs))
 	for i, q := range model.AllQdiscs {
 		out[i] = string(q)
-	}
-	return out
-}
-
-func allCCStrings() []string {
-	out := make([]string, len(model.AllCC))
-	for i, c := range model.AllCC {
-		out[i] = string(c)
 	}
 	return out
 }
@@ -136,15 +128,29 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 		}
 	}
 	validCC := map[string]bool{}
-	for _, c := range model.AllCC {
+	for _, c := range model.KnownCC {
 		validCC[string(c)] = true
 	}
 	for _, c := range ccs {
 		if !validCC[c] {
 			return nil, fmt.Errorf("cc inconnu: %s", c)
 		}
+		if c == string(model.BBRv3) && !ccPresent(c) {
+			return nil, fmt.Errorf("cc bbr3 indisponible sur cet hôte : le noyau n'expose pas bbr3 (kit/install-bbr3.sh) — refus plutôt qu'exécuter un autre contrôle sous cette étiquette")
+		}
 	}
 
+	// Le palier est gelé AVANT le manifeste : le JSON et chaque cellule du run
+	// lisent le même nom, même si l'opérateur change le palier entre deux cellules.
+	// Une reprise relit celui du manifeste précédent, pas le global du jour.
+	if deps.Tier == "" {
+		deps.Tier = tierForRun(dataDir, runID)
+	}
+
+	cfgJSON, err := buildMatrixConfig(profiles, qdiscs, ccs, reps, deps)
+	if err != nil {
+		return nil, fmt.Errorf("config: %w", err)
+	}
 	m := &Matrix{RunID: runID}
 	total := 0
 	for range profiles {
@@ -167,7 +173,7 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 	m.Running = true
 
 	go func() {
-		defer func() { w.Freeze("config"); m.mu.Lock(); m.Running = false; m.mu.Unlock() }()
+		defer func() { _ = w.Freeze(cfgJSON); m.mu.Lock(); m.Running = false; m.mu.Unlock() }()
 		id := 1
 		for _, pid := range profiles {
 			model.ProfilesMu.RLock()
@@ -218,6 +224,12 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 						evCancel()
 						if err == nil {
 							_ = w.Append(done)
+							// sidecar valuation.json : l'économie entreprise de
+							// la cellule voyage à côté du CSV gelé (schéma 23 col
+							// intact) ; échec non fatal — le gel reste la vérité.
+							if err := writeValuationEntry(w.Dir, done, labelsFromDeps(deps)); err != nil {
+								log.Printf("[campagne] sidecar valuation %s: %v", key, err)
+							}
 							m.Done = id
 							// les cellules quarantaine arrivent dans le journal opérateur (Q13)
 							if done.GateStatus == model.GateInvalid && OnQuarantine != nil {

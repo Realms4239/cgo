@@ -30,7 +30,7 @@
 #  the shaped interface for the shaper to be on the data path.
 #
 #  Usage:
-#    cgo-bench-dualns.sh up    [--delay MS] [--loss PCT] [--rate MBIT] [--rtt MS]
+#    cgo-bench-dualns.sh up    [--delay MS] [--loss PCT] [--rate MBIT] [--rtt MS] [--ingress on|off]
 #    cgo-bench-dualns.sh down
 #    cgo-bench-dualns.sh check
 #    cgo-bench-dualns.sh show
@@ -49,6 +49,16 @@ DELAY_MS=100
 LOSS_PCT=0
 RATE_MBIT=20
 RTT_MS=100
+# Hardening default: veth offloads off so GSO super-packets cannot hide drops
+# from CAKE. The legacy frozen campaign (kit/testbed.sh) keeps its own ON
+# recipe; this bench is the explicit offload-clean comparison.
+OFFLOADS=off
+
+# Download ingress is opt-in. The campaign's mode selects the bench mode too,
+# so `cgo run` preflight (which has no flag of its own) checks the same
+# topology through the inherited environment.
+INGRESS=off
+if [ "${CGO_SHAPE_MODE:-}" = "ingress" ]; then INGRESS=on; fi
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -60,6 +70,28 @@ fi
 log() { echo "[dualns] $*"; }
 die() { echo "[!] $*" >&2; exit 1; }
 
+set_offloads() {
+  local ns="$1" iface="$2"
+  case "$OFFLOADS" in
+    on|off) ;;
+    *) die "offloads must be on|off";;
+  esac
+  # Fail-closed : un ethtool muet laisserait des super-paquets GSO fausser
+  # drops×1448 et le déficit round-robin — le banc refuse, il ne prévient pas.
+  $SUDO ip netns exec "$ns" ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS"     || die "ethtool -K $OFFLOADS failed on $ns/$iface (nom de feature absent ou noyau exotique)"
+}
+
+check_offloads() {
+  local ns="$1" iface="$2" feat line
+  for feat in tcp-segmentation-offload generic-segmentation-offload generic-receive-offload; do
+    line=$($SUDO ip netns exec "$ns" ethtool -k "$iface" 2>/dev/null | grep -m1 "^${feat}:")
+    case "$line" in
+      *": $OFFLOADS"*) ;;
+      *) echo "[!] $feat not $OFFLOADS on $ns/$iface ($line)"; return 1;;
+    esac
+  done
+}
+
 need_modules() {
   $SUDO modprobe sch_netem sch_cake sch_fq_codel tcp_bbr 2>/dev/null || true
   # BBR is the campaign's reference congestion control; without it the bulk
@@ -67,9 +99,13 @@ need_modules() {
   if ! grep -qw bbr /proc/sys/net/ipv4/tcp_allowed_congestion_control 2>/dev/null; then
     die "BBR unavailable — modprobe tcp_bbr failed (install linux-modules-extra)"
   fi
+  if [ "$INGRESS" = "on" ]; then
+    $SUDO modprobe ifb sch_ingress act_mirred cls_matchall 2>/dev/null || true
+  fi
 }
 
 down() {
+  $SUDO ip link del m-host 2>/dev/null || true
   for ns in "$NS_CLIENT" "$NS_WAN" "$NS_EDGE" "$NS_SRV"; do
     $SUDO ip netns del "$ns" 2>/dev/null || true
   done
@@ -115,6 +151,27 @@ up() {
   $SUDO ip netns exec "$NS_EDGE"   ip link set e-srv up
   $SUDO ip netns exec "$NS_SRV"    ip link set s-edge up
 
+  # --- veth de gestion : le tableau de bord sert DEPUIS ns_client --------
+  # Le navigateur hôte joint 10.99.0.2:9090 ; le trafic MESURÉ ne passe
+  # jamais par ici (c-cli reste la seule route par défaut de ns_client).
+  $SUDO ip link add m-host type veth peer name m-client netns "$NS_CLIENT"     || die "cannot create mgmt veth"
+  $SUDO ip addr add 10.99.0.1/30 dev m-host
+  $SUDO ip link set m-host up
+  $SUDO ip netns exec "$NS_CLIENT" ip addr add 10.99.0.2/30 dev m-client
+  $SUDO ip netns exec "$NS_CLIENT" ip link set m-client up
+  # m-client porte zéro trafic mesuré : best-effort toléré, le portail
+  # fermé-échec ne couvre que les six interfaces de transit.
+
+  # Offload recipe is applied after the links exist (ethtool cannot tune a
+  # down/missing device). Both directions are covered: c-cli/c-wan, w-edge,
+  # e-wan/e-srv, s-edge.
+  set_offloads "$NS_CLIENT" c-cli
+  set_offloads "$NS_WAN" c-wan
+  set_offloads "$NS_WAN" w-edge
+  set_offloads "$NS_EDGE" e-wan
+  set_offloads "$NS_EDGE" e-srv
+  set_offloads "$NS_SRV" s-edge
+
   # --- routing ------------------------------------------------------------
   # Forwarding is what puts each hop's qdisc on the actual path.
   for ns in "$NS_WAN" "$NS_EDGE"; do
@@ -139,20 +196,62 @@ up() {
   # whole point of the split would be lost.
   $SUDO ip netns exec "$NS_WAN" tc qdisc replace dev w-edge root netem \
     delay "${DELAY_MS}ms" loss "${LOSS_PCT}%"
+  # Download propagation: server -> edge -> wan -> client egresses c-wan.
+  # Without this second netem, only upload sees delay/loss and a "symmetric"
+  # dual-ns run would silently measure an asymmetric link.
+  $SUDO ip netns exec "$NS_WAN" tc qdisc replace dev c-wan root netem \
+    delay "${DELAY_MS}ms" loss "${LOSS_PCT}%"
+
+  if [ "$INGRESS" = "on" ]; then
+    if ! $SUDO ip netns exec "$NS_CLIENT" ip link show ifb0 >/dev/null 2>&1; then
+      $SUDO ip netns exec "$NS_CLIENT" ip link add ifb0 type ifb \
+        || die "cannot create ifb0 (modprobe ifb failed)"
+    fi
+    $SUDO ip netns exec "$NS_CLIENT" ip link set ifb0 up \
+      || die "cannot bring ifb0 up"
+    $SUDO ip netns exec "$NS_CLIENT" tc qdisc del dev c-cli ingress 2>/dev/null || true
+    $SUDO ip netns exec "$NS_CLIENT" tc qdisc add dev c-cli handle ffff: ingress \
+      || die "cannot add ingress qdisc on c-cli"
+    $SUDO ip netns exec "$NS_CLIENT" tc filter add dev c-cli parent ffff: protocol all \
+      matchall action mirred egress redirect dev ifb0 \
+      || die "cannot redirect c-cli ingress to ifb0"
+    $SUDO ip netns exec "$NS_CLIENT" tc qdisc replace dev ifb0 root cake \
+      bandwidth "${RATE_MBIT}mbit" rtt "${RTT_MS}ms" ingress \
+      || die "cannot put cake on ifb0"
+  fi
 
   # --- queue policy: CAKE ONLY, on the edge router ------------------------
   # e-srv shapes the upload direction (client -> server): this is the egress
   # that actually carries the bulk flow, because the server now sits behind it.
-  # e-wan shapes the download direction. Both are root CAKE with no netem
-  # above them.
+  # The download side is either e-wan egress CAKE or the client-side IFB,
+  # never both (see below).
   $SUDO ip netns exec "$NS_EDGE" tc qdisc replace dev e-srv root cake \
     bandwidth "${RATE_MBIT}mbit" rtt "${RTT_MS}ms" \
     ack-filter nat diffserv4 triple-isolate
-  $SUDO ip netns exec "$NS_EDGE" tc qdisc replace dev e-wan root cake \
-    bandwidth "${RATE_MBIT}mbit" rtt "${RTT_MS}ms" \
-    ack-filter nat diffserv4 triple-isolate
+  if [ "$INGRESS" = "on" ]; then
+    # The download is shaped on ifb0. An egress CAKE here would put the
+    # bottleneck upstream of the IFB and its queue would never fill.
+    $SUDO ip netns exec "$NS_EDGE" tc qdisc del dev e-wan root 2>/dev/null || true
+  else
+    $SUDO ip netns exec "$NS_EDGE" tc qdisc replace dev e-wan root cake \
+      bandwidth "${RATE_MBIT}mbit" rtt "${RTT_MS}ms" \
+      ack-filter nat diffserv4 triple-isolate
+  fi
 
-  log "up — netem ${DELAY_MS}ms/${LOSS_PCT}% on w-edge ($NS_WAN); cake ${RATE_MBIT}mbit on e-srv+e-wan ($NS_EDGE)"
+  # Fail-closed : la lecture-retour des six interfaces de transit. Un
+  # offload resté ON fausse la comptabilisation des pertes — démarrage
+  # refusé, pas un avertissement.
+  local pair
+  for pair in "$NS_CLIENT c-cli" "$NS_WAN c-wan" "$NS_WAN w-edge" "$NS_EDGE e-wan" "$NS_EDGE e-srv" "$NS_SRV s-edge"; do
+    set -- $pair
+    check_offloads "$1" "$2" || die "offload non vérifié sur $1/$2 — démarrage refusé"
+  done
+
+  if [ "$INGRESS" = "on" ]; then
+    log "up — netem ${DELAY_MS}ms/${LOSS_PCT}% on w-edge+c-wan ($NS_WAN); cake ${RATE_MBIT}mbit on e-srv + ifb0 ingress ($NS_CLIENT); e-wan unshaped"
+  else
+    log "up — netem ${DELAY_MS}ms/${LOSS_PCT}% on w-edge ($NS_WAN); cake ${RATE_MBIT}mbit on e-srv+e-wan ($NS_EDGE)"
+  fi
   check
 }
 
@@ -162,19 +261,43 @@ check() {
     $SUDO ip netns list | grep -qw "$ns" || { echo "[!] namespace $ns missing"; ok=0; }
   done
 
-  local wan_q up_q down_q
+  local wan_q up_q down_q dl_q
   wan_q=$($SUDO ip netns exec "$NS_WAN" tc qdisc show dev w-edge 2>/dev/null)
+  dl_q=$($SUDO ip netns exec "$NS_WAN" tc qdisc show dev c-wan 2>/dev/null)
   up_q=$($SUDO ip netns exec "$NS_EDGE" tc qdisc show dev e-srv 2>/dev/null)
   down_q=$($SUDO ip netns exec "$NS_EDGE" tc qdisc show dev e-wan 2>/dev/null)
 
-  echo "$wan_q" | grep -q netem || { echo "[!] no netem on w-edge: $wan_q"; ok=0; }
+  echo "$wan_q" | grep -q netem || { echo "[!] no netem on w-edge (upload physics): $wan_q"; ok=0; }
+  echo "$dl_q" | grep -q netem || { echo "[!] no netem on c-wan (download physics): $dl_q"; ok=0; }
   echo "$up_q" | grep -q cake || { echo "[!] no cake on e-srv (upload path unshaped): $up_q"; ok=0; }
-  echo "$down_q" | grep -q cake || { echo "[!] no cake on e-wan (download path unshaped): $down_q"; ok=0; }
 
-  # Neither may contain the other: that is the stacking bug this script exists
-  # to prevent.
-  if echo "$wan_q" | grep -q cake; then
-    echo "[!] cake found on the netem interface — stacking bug: $wan_q"; ok=0
+  if [ "$INGRESS" = "on" ]; then
+    local ifb_link ifb_q ingress_q filter_q
+    ifb_link=$($SUDO ip netns exec "$NS_CLIENT" ip -o link show dev ifb0 2>/dev/null)
+    echo "$ifb_link" | grep -Eq '<([^>]*,)?UP(,|>)' \
+      || { echo "[!] ifb0 missing or down: $ifb_link"; ok=0; }
+    ifb_q=$($SUDO ip netns exec "$NS_CLIENT" tc qdisc show dev ifb0 2>/dev/null)
+    ingress_q=$($SUDO ip netns exec "$NS_CLIENT" tc qdisc show dev c-cli 2>/dev/null)
+    filter_q=$($SUDO ip netns exec "$NS_CLIENT" tc filter show dev c-cli parent ffff: 2>/dev/null)
+    echo "$ifb_q" | grep -q "cake" \
+      || { echo "[!] no cake on ifb0: $ifb_q"; ok=0; }
+    echo "$ifb_q" | grep -q "ingress" \
+      || { echo "[!] cake on ifb0 is not in ingress mode: $ifb_q"; ok=0; }
+    echo "$ingress_q" | grep -q "ingress" \
+      || { echo "[!] no ingress qdisc on c-cli: $ingress_q"; ok=0; }
+    if ! echo "$filter_q" | grep -q "mirred" || ! echo "$filter_q" | grep -q "ifb0"; then
+      echo "[!] no mirred redirect to ifb0: $filter_q"; ok=0
+    fi
+    if echo "$down_q" | grep -q "cake"; then
+      echo "[!] cake on e-wan in ingress mode — bottleneck upstream of ifb0: $down_q"; ok=0
+    fi
+  else
+    echo "$down_q" | grep -q cake \
+      || { echo "[!] no cake on e-wan (download path unshaped): $down_q"; ok=0; }
+  fi
+
+  if echo "$wan_q" | grep -q cake || echo "$dl_q" | grep -q cake; then
+    echo "[!] cake found on a netem interface — stacking bug"; ok=0
   fi
   for q in "$up_q" "$down_q"; do
     if echo "$q" | grep -q netem; then
@@ -186,6 +309,31 @@ check() {
   $SUDO ip netns exec "$NS_CLIENT" ping -c1 -W2 10.30.0.2 >/dev/null 2>&1 \
     || { echo "[!] client cannot reach server"; ok=0; }
 
+  # Routing must traverse the emulated hops, not a local/loopback shortcut.
+  $SUDO ip netns exec "$NS_CLIENT" ip route get 10.30.0.2 2>/dev/null | grep -q "via 10.10.0.2 dev c-cli" \
+    || { echo "[!] client route leak (not via c-cli/10.10.0.2)"; ok=0; }
+  $SUDO ip netns exec "$NS_SRV" ip route get 10.10.0.1 2>/dev/null | grep -q "via 10.30.0.1 dev s-edge" \
+    || { echo "[!] server route leak (not via s-edge/10.30.0.1)"; ok=0; }
+
+  # Preuve data-plane : 5 pings vers le puits doivent INCRÉMENTER les TX de
+  # c-cli — un raccourci loopback ne toucherait pas ce compteur.
+  local tx0 tx1
+  tx0=$($SUDO ip netns exec "$NS_CLIENT" cat /sys/class/net/c-cli/statistics/tx_packets 2>/dev/null || echo 0)
+  $SUDO ip netns exec "$NS_CLIENT" ping -c5 -W2 10.30.0.2 >/dev/null 2>&1
+  tx1=$($SUDO ip netns exec "$NS_CLIENT" cat /sys/class/net/c-cli/statistics/tx_packets 2>/dev/null || echo 0)
+  if [ $((tx1 - tx0)) -lt 5 ]; then
+    echo "[!] leak: pings vers le puits sans traverser c-cli (tx $tx0→$tx1)"; ok=0
+  fi
+  # La veth de gestion existe et porte son adresse.
+  $SUDO ip netns exec "$NS_CLIENT" ip addr show m-client 2>/dev/null | grep -q "10.99.0.2/30"     || { echo "[!] veth de gestion absente (m-client/10.99.0.2)"; ok=0; }
+
+  check_offloads "$NS_CLIENT" c-cli || ok=0
+  check_offloads "$NS_WAN" c-wan || ok=0
+  check_offloads "$NS_WAN" w-edge || ok=0
+  check_offloads "$NS_EDGE" e-wan || ok=0
+  check_offloads "$NS_EDGE" e-srv || ok=0
+  check_offloads "$NS_SRV" s-edge || ok=0
+
   if [ "$ok" = 1 ]; then
     echo "[dualns] ok — link physics and queue policy are isolated"
   fi
@@ -193,14 +341,26 @@ check() {
 }
 
 show() {
-  echo "=== $NS_WAN (w-edge) — link physics ==="
+  echo "=== $NS_WAN (w-edge) — upload link physics ==="
   $SUDO ip netns exec "$NS_WAN" tc qdisc show dev w-edge 2>/dev/null
+  echo
+  echo "=== $NS_WAN (c-wan) — download link physics ==="
+  $SUDO ip netns exec "$NS_WAN" tc qdisc show dev c-wan 2>/dev/null
   echo
   echo "=== $NS_EDGE (e-srv) — upload queue policy ==="
   $SUDO ip netns exec "$NS_EDGE" tc qdisc show dev e-srv 2>/dev/null
   echo
-  echo "=== $NS_EDGE (e-wan) — download queue policy ==="
-  $SUDO ip netns exec "$NS_EDGE" tc qdisc show dev e-wan 2>/dev/null
+  if [ "$INGRESS" = "on" ]; then
+    echo "=== $NS_CLIENT (ifb0) — download queue policy (ingress IFB) ==="
+    $SUDO ip netns exec "$NS_CLIENT" tc qdisc show dev ifb0 2>/dev/null
+    echo
+    echo "=== $NS_CLIENT (c-cli) — ingress redirect ==="
+    $SUDO ip netns exec "$NS_CLIENT" tc qdisc show dev c-cli 2>/dev/null
+    $SUDO ip netns exec "$NS_CLIENT" tc filter show dev c-cli parent ffff: 2>/dev/null
+  else
+    echo "=== $NS_EDGE (e-wan) — download queue policy ==="
+    $SUDO ip netns exec "$NS_EDGE" tc qdisc show dev e-wan 2>/dev/null
+  fi
   echo
   echo "=== routes ==="
   for ns in "$NS_CLIENT" "$NS_WAN" "$NS_EDGE" "$NS_SRV"; do
@@ -216,14 +376,21 @@ while [ $# -gt 0 ]; do
     --loss)  LOSS_PCT="$2"; shift 2;;
     --rate)  RATE_MBIT="$2"; shift 2;;
     --rtt)   RTT_MS="$2"; shift 2;;
+    --offloads) OFFLOADS="$2"; shift 2;;
+    --ingress) INGRESS="$2"; shift 2;;
     *) echo "unknown option: $1" >&2; exit 2;;
   esac
 done
+
+case "$INGRESS" in
+  on|off) ;;
+  *) echo "ingress must be on|off" >&2; exit 2;;
+esac
 
 case "$CMD" in
   up) up;;
   down) down;;
   check) check;;
   show) show;;
-  *) echo "usage: $0 up|down|check|show [--delay MS] [--loss PCT] [--rate MBIT] [--rtt MS]"; exit 2;;
+  *) echo "usage: $0 up|down|check|show [--delay MS] [--loss PCT] [--rate MBIT] [--rtt MS] [--offloads on|off] [--ingress on|off]"; exit 2;;
 esac

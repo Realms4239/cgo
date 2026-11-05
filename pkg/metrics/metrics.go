@@ -119,6 +119,27 @@ func ActiveTierName() string {
 	return DefaultTier.Name
 }
 
+// ActiveTier rend le palier actif complet (nom, tarif, taille du forfait).
+// Le verrou est tenu pendant la copie : un POST /api/cost/tier concurrent ne
+// peut pas déchirer la valeur lue.
+func ActiveTier() PriceTier {
+	tierMu.RLock()
+	defer tierMu.RUnlock()
+	return DefaultTier
+}
+
+// TierByName rend un palier à son nom exact, sans toucher au global.
+func TierByName(name string) (PriceTier, bool) {
+	tierMu.RLock()
+	defer tierMu.RUnlock()
+	for _, tr := range Tiers {
+		if tr.Name == name {
+			return tr, true
+		}
+	}
+	return PriceTier{}, false
+}
+
 // CostARPerH — coût horaire du gaspillage au palier courant.
 // wasted × (Ar/Go) / Go = Ar, l'heure vient de la fenêtre d'événement (3 min
 // extrapolée ×20 — documentée dans la méthodologie, pas une facturation).

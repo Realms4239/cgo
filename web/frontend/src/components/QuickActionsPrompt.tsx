@@ -95,7 +95,7 @@ export default function QuickActionsPrompt() {
           maxWidth: 'calc(100vw - 24px)',
         }}
       >
-        <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#f4b400', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>● {evt} — {phase}</span>
+        <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-micro)', color: 'var(--t-threshold)', letterSpacing: 'var(--tracking-caps)', whiteSpace: 'nowrap' }}>● {evt} — {phase}</span>
       </div>
     )
   }
@@ -126,10 +126,10 @@ export default function QuickActionsPrompt() {
         minWidth: 0,
       }}
     >
-      <span className="mono" style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#f2f2f4', letterSpacing: '0.02em', overflowWrap: 'anywhere', minWidth: 0 }}>{label}</span>
-      <button aria-label="Passer la cellule" title="passer la cellule courante (reprise possible)" onClick={async () => { await fetch('/api/run/skip', { method: 'POST' }).catch(() => {}); close() }} style={{ padding: '6px 12px', background: '#161618', color: '#f4b400', border: '1px solid #26262a', fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>Passer</button>
-      <button aria-label="Réduire" title="réduire en pastille (rouvre au clic)" onClick={() => { shrankOnce.current = true; setMin(true) }} style={{ padding: '6px 8px', background: 'transparent', border: '1px solid #26262a', color: '#9aa3ad', fontSize: 11, cursor: 'pointer' }}>−</button>
-      <button aria-label="Fermer" onClick={() => close(true)} style={{ padding: '6px 8px', background: 'transparent', border: '1px solid #26262a', color: '#9aa3ad', fontSize: 11, cursor: 'pointer' }}>Esc</button>
+      <span className="mono" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)', color: 'var(--text-primary)', letterSpacing: 'var(--tracking-caps)', overflowWrap: 'anywhere', minWidth: 0 }}>{label}</span>
+      <button aria-label="Passer la cellule" title="passer la cellule courante (reprise possible)" onClick={async () => { await fetch('/api/run/skip', { method: 'POST' }).catch(() => {}); close() }} style={{ padding: '6px 12px', background: 'var(--surface-elevated)', color: 'var(--t-threshold)', border: '1px solid var(--hairline)', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-tag)', letterSpacing: 'var(--tracking-caps)', textTransform: 'uppercase', cursor: 'pointer' }}>Passer</button>
+      <button aria-label="Réduire" title="réduire en pastille (rouvre au clic)" onClick={() => { shrankOnce.current = true; setMin(true) }} style={{ padding: 'var(--sp-1) var(--sp-2)', background: 'transparent', border: '1px solid var(--hairline)', color: 'var(--t-neutral)', fontSize: 'var(--fs-tag)', cursor: 'pointer' }}>−</button>
+      <button aria-label="Fermer" onClick={() => close(true)} style={{ padding: 'var(--sp-1) var(--sp-2)', background: 'transparent', border: '1px solid var(--hairline)', color: 'var(--t-neutral)', fontSize: 'var(--fs-tag)', cursor: 'pointer' }}>Esc</button>
     </div>
   )
 }

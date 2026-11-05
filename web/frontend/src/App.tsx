@@ -1,61 +1,78 @@
-import { useEffect, useRef, useState } from 'react'
-import { useUIStore, PANELS } from './store/ui'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { useUIStore, MODES, type ModeId } from './store/ui'
+import { useAuditStore } from './store/audit'
 import { connectSSE, disconnectSSE } from './lib/sse'
 import { clearLive } from './lib/live'
 import { animateViewEnter } from './lib/anime'
-import CampagneView from './views/CampagneView'
-import LiveView from './views/LiveView'
-import ResultatsView from './views/ResultatsView'
-import IntegriteView from './views/IntegriteView'
+import { stageAfterCampaign, stageAfterReplay } from './lib/bench'
+import { relativeTime } from './lib/format'
+import DashboardView from './views/DashboardView'
 import Toasts from './components/Toasts'
 import FlashBanner from './components/FlashBanner'
 import SettingsDrawer from './components/SettingsDrawer'
+import ProofDrawer from './components/ProofDrawer'
 import ErrorBoundary from './components/ErrorBoundary'
-import Rail from './components/Rail'
-import WebGLMesh from './components/WebGLMesh'
+import TopNav from './components/TopNav'
 import QuickActionsPrompt from './components/QuickActionsPrompt'
 import CommandPalette from './components/CommandPalette'
 import MeteolinkWordmark from './components/MeteolinkWordmark'
-import PanelChooser from './components/PanelChooser'
-// En-tête METEOLINK — dégradé wordmark + icône 16×16 par MeteolinkWordmark
+
+// Seule la destination d'atterrissage est dans le premier rendu : le banc
+// porte ECharts, l'audit et les preuves portent leurs propres panneaux.
+const BenchView = lazy(() => import('./views/BenchView'))
+const AuditView = lazy(() => import('./views/AuditView'))
+const EvidenceView = lazy(() => import('./views/EvidenceView'))
+
+function ViewFallback({ label }: { label: string }) {
+  return <div className="card mode-loading mono muted">{label}</div>
+}
+
+function BenchFallback() {
+  return <ViewFallback label="Chargement du banc d'essai…" />
+}
 
 export default function App() {
-  const panel = useUIStore((s) => s.panel)
-  const setPanel = useUIStore((s) => s.setPanel)
-  const live = useUIStore((s) => s.live)
-  const connected = useUIStore((s) => s.connected)
-  const sseStatus = useUIStore((s) => s.sseStatus)
-  const railPinned = useUIStore((s) => s.railPinned)
+  const mode = useUIStore(s => s.mode)
+  const setMode = useUIStore(s => s.setMode)
+  const live = useUIStore(s => s.live)
+  const connected = useUIStore(s => s.connected)
+  const replayRunning = useUIStore(s => s.replayRunning)
+  const report = useAuditStore(s => s.report)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [mode, setMode] = useState<string>('')
+  // une destination lourde ne se monte qu'à la première visite, puis reste.
+  const [mounted, setMounted] = useState<Partial<Record<ModeId, boolean>>>({ dashboard: true })
+
+  useEffect(() => {
+    setMounted(m => (m[mode] ? m : { ...m, [mode]: true }))
+  }, [mode])
 
   useEffect(() => {
     connectSSE()
+    useAuditStore.getState().restore()
     return () => disconnectSSE()
   }, [])
-  // badge capacité (Q10) — rechargé à chaque (re)connexion, un redéploiement ou
-  // un changement de mode serveur est pris en compte sans rechargement manuel
-  useEffect(() => {
-    if (!connected) return
-    fetch('/api/health').then(r => r.json()).then(j => setMode(j.mode ?? '')).catch(() => {})
-  }, [connected])
 
   useEffect(() => {
-    // entrée légère : fondu CSS seulement — plus de blur JS ni de re-stagger des cartes
+    const found = MODES.find(m => m.id === mode)
+    document.title = found ? `${found.label} — Meteolink` : 'Meteolink'
+    const main = document.getElementById('main')
+    main?.scrollTo({ top: 0 })
+    // la destination est annoncée au clavier et aux lecteurs d'écran
+    main?.focus({ preventScroll: true })
     animateViewEnter()
-  }, [panel])
+  }, [mode])
 
   const wasRunningRef = useRef(!!live?.running)
   useEffect(() => {
     const running = !!live?.running
+    const store = useUIStore.getState()
     if (wasRunningRef.current && !running) {
-      // fantôme d'après-arrêt : les anneaux et la présentation retombent —
-      // profil/charge/PASS périmés ne restent pas à côté de `phase idle`
+      // fantôme d'après-arrêt : les anneaux et la présentation retombent.
       clearLive()
-      const last = useUIStore.getState().live
+      const last = store.live
       if (last) {
-        useUIStore.getState().setLive({
+        store.setLive({
           ...last, phase: 'idle', running: false, load_status: '',
           profile: '', qdisc: '', cc: '', repetition: 0,
           rtt_p50_ms: 0, rtt_p95_ms: 0, small_p95_ms: 0, bulk_goodput_mbps: 0,
@@ -63,72 +80,91 @@ export default function App() {
           deadline_ok_pct: undefined, gates: Array(8).fill(null),
         } as typeof last)
       }
-      setPanel('resultats')
-      useUIStore.getState().setFlash({ type: 'success', msg: 'Campagne terminée' })
-      useUIStore.getState().pushToast('Campagne terminée', 'ok')
+      store.setBenchStage(stageAfterCampaign(store.benchStage, false))
+      store.setFlash({ type: 'success', msg: 'Campagne terminée' })
+      store.pushToast('Campagne terminée', 'ok')
     }
     if (!wasRunningRef.current && running) {
-      const cur = useUIStore.getState().panel
-      if (cur === 'campagne') {
-        setPanel('live')
-        useUIStore.getState().setFlash({ type: 'success', msg: 'CHARGE — campagne lancée' })
-      }
+      store.setBenchStage(stageAfterCampaign(store.benchStage, true))
+      store.setFlash({ type: 'success', msg: 'CHARGE — campagne lancée' })
     }
     wasRunningRef.current = running
-  }, [live?.running, setPanel])
+  }, [live?.running])
+
+  useEffect(() => {
+    if (!replayRunning) return
+    const store = useUIStore.getState()
+    store.setBenchStage(stageAfterReplay(store.benchStage, true))
+  }, [replayRunning])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen((o: boolean) => !o); return }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen(o => !o)
+        return
+      }
       const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
-      const hit = PANELS.find((p) => p.key === e.key)
-      if (hit) { setPanel(hit.id); e.preventDefault() }
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const hit = MODES.find(m => m.key === e.key)
+      if (hit) {
+        setMode(hit.id)
+        e.preventDefault()
+      }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [setPanel])
-
-  // (pied de page : l'event_id s'affiche comme événement, jamais `run`)
+  }, [setMode])
 
   return (
     <ErrorBoundary>
-      <WebGLMesh />
-      <div id="shell" className={railPinned ? '' : 'rail-min'}>
+      <div id="shell">
         <a className="skip-link" href="#main">Aller au contenu</a>
-        <header style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: '0 16px', borderBottom: '1px solid var(--hairline, #26262a)', background: 'var(--surface-soft, #0b0b0c)', minWidth: 0 }}>
+        <header className="app-header">
           <MeteolinkWordmark />
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
-            <PanelChooser />
-          </div>
+          <TopNav />
           <div className="hd-right">
-            {mode === 'observe' && <span className="mono" title="Audit et consultation uniquement — campagne et façonnage vivent sur l'hôte Linux (docs/deploy.md)" style={{ color: 'var(--t-warn, #f4b400)', border: '1px solid currentColor', padding: '2px 8px', fontSize: 10, letterSpacing: '0.08em' }}>OBSERVATION</span>}
+            <span
+              className="hd-conn"
+              data-on={connected ? '1' : '0'}
+              role="img"
+              aria-label={connected ? 'Connexion établie' : 'Hors ligne'}
+            />
+            <span id="hd-state" className="mono">{live?.phase || 'au repos'}</span>
+            <span className="hd-audit">dernier audit {relativeTime(report?.timestamp) || '—'}</span>
             <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
-            <span className="mono" style={{ color: connected ? 'var(--t-ok)' : 'var(--t-danger-text, #e84a3a)' }}>{connected ? '● connecté' : '○ déconnecté'}</span>
-            <span id="hd-state" className="mono">{live?.phase ?? 'idle'}</span>
           </div>
         </header>
 
-        <Rail />
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-        {/* quick actions are running-state chrome — never block an idle view */}
-        {live?.running && <QuickActionsPrompt />}
-        <main id="main">
-          {/* vues toutes montées — retour instantané, pas de refetch/réinit ECharts à chaque switch */}
-          <section id="v-campagne" className="view" hidden={panel !== 'campagne'}><CampagneView /></section>
-          <section id="v-live" className="view" hidden={panel !== 'live'}><LiveView /></section>
-          <section id="v-resultats" className="view" hidden={panel !== 'resultats'}><ResultatsView /></section>
-          <section id="v-integrite" className="view" hidden={panel !== 'integrite'}><IntegriteView /></section>
+        {live?.running && mode === 'bench' ? <QuickActionsPrompt /> : null}
+
+        <main id="main" tabIndex={-1}>
+          <section id="v-dashboard" className="view" hidden={mode !== 'dashboard'}><DashboardView /></section>
+          {mounted.audit ? (
+            <section id="v-audit" className="view" hidden={mode !== 'audit'}>
+              <Suspense fallback={<ViewFallback label="Chargement de l’audit…" />}><AuditView /></Suspense>
+            </section>
+          ) : null}
+          {mounted.bench ? (
+            <section id="v-bench" className="view" hidden={mode !== 'bench'}>
+              <Suspense fallback={<BenchFallback />}><BenchView /></Suspense>
+            </section>
+          ) : null}
+          {mounted.evidence ? (
+            <section id="v-evidence" className="view" hidden={mode !== 'evidence'}>
+              <Suspense fallback={<ViewFallback label="Chargement des preuves…" />}><EvidenceView /></Suspense>
+            </section>
+          ) : null}
         </main>
 
-        <footer className="foot-ticker" style={{ minHeight: 28, display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 12, padding: '4px 16px', borderTop: '1px solid var(--hairline)', background: 'var(--surface-soft)', fontFamily: 'var(--font-mono)', fontSize: 10, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em', textTransform: 'none' as const, color: 'var(--text-faint)' }}>
-          <span id="ft-prov">source: {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
-          <span aria-hidden="true" style={{ opacity: 0.4 }}>|</span>
-          <span id="ft-run" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>événement #{live?.event_id ?? '—'} · {live?.phase ?? 'idle'}</span>
-          <span className="fill" style={{ marginLeft: 'auto' }} />
-          <span id="ft-sse" className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>SSE {sseStatus}</span>
+        <footer className="foot-ticker">
+          <span id="ft-prov">source : {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
+          <span className="ft-brand mono">Meteolink</span>
         </footer>
-        {settingsOpen && <SettingsDrawer onClose={() => setSettingsOpen(false)} />}
+
+        {settingsOpen ? <SettingsDrawer onClose={() => setSettingsOpen(false)} /> : null}
+        <ProofDrawer />
         <FlashBanner />
         <Toasts />
       </div>

@@ -16,7 +16,7 @@ export type Settings = {
 }
 
 export const DEFAULTS: Settings = {
-  warnMs: 40, critMs: 100, deadlineMs: 1000, ringMax: 1800, watchMs: 500,
+  warnMs: 40, critMs: 100, deadlineMs: 220, ringMax: 1800, watchMs: 500,
   shapeCap: 20, linkDelayMs: 20, linkJitterMs: 2, linkLossPct: 0, target: '1.1.1.1',
 }
 
@@ -69,6 +69,8 @@ export function dropsLevel(drops: number): Level {
   return 'crit'
 }
 
+import { TOKEN } from './palette'
+
 export const LEVEL_COLOR: Record<Level, string> = {
-  ok: '#1fa348', warn: '#f4b400', crit: '#e84a3a',
+  ok: TOKEN.ok, warn: TOKEN.threshold, crit: TOKEN.dangerText,
 }

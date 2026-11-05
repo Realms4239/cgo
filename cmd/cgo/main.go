@@ -147,33 +147,63 @@ WantedBy=multi-user.target
 		}
 	case "audit":
 		fs := flag.NewFlagSet("audit", flag.ExitOnError)
+		// Surface opérateur : quatre réglages suffisent à un audit terrain.
 		linkType := fs.String("link-type", "5g", "link_type: fiber, 5g, 4g, vsat, other")
 		site := fs.String("site", "Site X", "site / département")
+		duration := fs.Int("duration", 60, "duration seconds (60 = 10/40/10)")
+		direction := fs.String("direction", "up", "sens de charge : up | down | both")
 		provider := fs.String("provider", "", "provider")
-		duration := fs.Int("duration", 60, "duration seconds")
-		target := fs.String("target", "8.8.8.8", "ping target")
-		small := fs.String("small", envDefault("CGO_SMALL_URL", "http://10.200.0.1:8081/small"), "small-object URL through the measured path")
-		bulk := fs.String("bulk", envDefault("CGO_BULK_ADDR", "10.200.0.1:5201"), "bulk sink host:port — empty disables load (no bufferbloat grade)")
+		flows := fs.Int("flows", 4, "flux de charge concurrents (1–8 ; 1 = régime historique)")
+		// Avancé : overrides explicites de terrain. Par défaut, la détection
+		// du banc (dualns → legacy → external) choisit cible et puits ; en
+		// external il n'y a PAS de charge implicite — jamais de note sans
+		// charge réelle.
+		target := fs.String("target", "", "cible ping (défaut : détection banc)")
+		small := fs.String("small", "", "URL petit objet (défaut : détection banc)")
+		bulk := fs.String("bulk", "", "puits bulk host:port (défaut : détection banc ; vide en externe = pas de charge)")
 		// Remediation needs to know which device to configure. These are
 		// deliberately explicit: the tool will not guess an interface name and
 		// emit a tc command against the wrong device.
 		iface := fs.String("iface", "", "Linux egress device to shape in the remediation (e.g. eth0)")
 		rosIface := fs.String("routeros-iface", "", "RouterOS interface for the remediation script (e.g. ether1-wan)")
-		reportPath := fs.String("report", "", "write the audit report here (.md or .json); empty = no report file")
+		rosLan := fs.String("ros-lan", "", "RouterOS LAN/private interface for the download remediation script (e.g. ether2-lan)")
+		reportPath := fs.String("report", "", "additional report path (.md or .json); the standard data/audits/<id>/ artifacts are always written")
 		qdisc := fs.String("qdisc", "", "qdisc for the remediation: cake, fq_codel, pfifo_fast (empty = recommended)")
 		asymmetric := fs.Bool("asymmetric", true, "link is asymmetric (uplink << downlink); drives the qdisc recommendation")
 		cpuBound := fs.Bool("cpu-constrained", false, "gateway is CPU-constrained; drives the qdisc recommendation")
 		_ = fs.Parse(os.Args[2:])
+		sinks := ResolveSinks()
+		if *target == "" {
+			*target = sinks.Target
+		}
+		if *small == "" {
+			*small = sinks.SmallURL
+		}
+		if *bulk == "" {
+			*bulk = envOrBulk(sinks)
+		}
 		p := audit.Params{
 			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
 			Site:    *site, LinkType: *linkType, Provider: *provider,
-			Duration: *duration, Target: *target,
+			Duration: *duration, Target: *target, Direction: *direction, Flows: *flows,
 			SmallURL: *small, BulkAddr: *bulk,
+			// Le mode de banc est un fait de détection, consigné pour que la
+			// reproduction ne se lise pas comme un réglage choisi.
+			SinkMode: sinks.Mode, Origin: "cli",
 		}
-		fmt.Printf("audit %s — %s %s %ds → %s (bulk %s)\n", p.AuditID, p.LinkType, p.Site, p.Duration, p.Target, p.BulkAddr)
+		fmt.Printf("audit %s — %s %s %ds sens %s flux %d (banc %s) → %s (bulk %s)\n",
+			p.AuditID, p.LinkType, p.Site, p.Duration, p.Direction, p.Flows, sinks.Mode, p.Target, p.BulkAddr)
 		res, err := audit.Run(context.Background(), p, audit.Deps{})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit:", err)
+			os.Exit(1)
+		}
+		// Ordre des preuves : la série brute d'abord (telemetry.csv), puis
+		// la ligne gelée (link_audit.csv), puis le rapport qui scelle les
+		// deux — chaque maillon existe avant d'être scellé.
+		telPath, err := audit.WriteTelemetry("data", res)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "audit telemetry:", err)
 			os.Exit(1)
 		}
 		if err := audit.AppendLinkAudit("data", res); err != nil {
@@ -185,20 +215,37 @@ WantedBy=multi-user.target
 		if res.BloatGrade == "" {
 			fmt.Fprintln(os.Stderr, "attention: bufferbloat NON MESURÉ (charge bulk absente/échouée) — ne pas citer cette ligne comme audit terrain")
 		}
-		// The report is opt-in: it is a deliverable, not a side effect of
-		// running a probe.
+		// The report is part of the audit, not an opt-in extra: it is the
+		// artifact an operator pastes into a ticket and the evidence whose
+		// hashes a reviewer can re-check. It is written even when no
+		// remediation can be emitted; the "not measured" section says why.
+		link := remediate.Link{
+			Interface:            *iface,
+			RouterOSInterface:    *rosIface,
+			RouterOSLanInterface: *rosLan,
+		}
+		rep, err := audit.BuildReport(res, link, *qdisc, *asymmetric, *cpuBound)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "audit report:", err)
+			os.Exit(1)
+		}
+		// Double sceau : la série brute, puis la ligne CSV que l'audit vient
+		// d'ajouter — le rapport prouve les deux maillons.
+		if err := rep.SealTelemetry(telPath); err != nil {
+			fmt.Fprintln(os.Stderr, "audit telemetry seal:", err)
+			os.Exit(1)
+		}
+		if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
+			fmt.Fprintln(os.Stderr, "audit report seal:", err)
+			os.Exit(1)
+		}
+		jsonPath, mdPath, err := audit.WriteArtifacts(rep, "data")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "audit artifacts:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("rapport → %s · %s\n", jsonPath, mdPath)
 		if *reportPath != "" {
-			link := remediate.Link{Interface: *iface, RouterOSInterface: *rosIface}
-			rep, err := audit.BuildReport(res, link, *qdisc, *asymmetric, *cpuBound)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "audit report:", err)
-				os.Exit(1)
-			}
-			// Seal the CSV the audit just appended to, so the report and its
-			// evidence can be checked against each other later.
-			if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
-				fmt.Fprintln(os.Stderr, "audit report seal:", err)
-			}
 			var out []byte
 			if strings.HasSuffix(*reportPath, ".json") {
 				out, err = rep.RenderJSON()
@@ -213,26 +260,42 @@ WantedBy=multi-user.target
 				fmt.Fprintln(os.Stderr, "audit report write:", err)
 				os.Exit(1)
 			}
-			fmt.Printf("rapport → %s\n", *reportPath)
-			if rep.Remediation == nil {
-				fmt.Fprintln(os.Stderr, "attention: aucune remédiation émise — capacité ou RTT non mesurés")
+			fmt.Printf("rapport additionnel → %s\n", *reportPath)
+		}
+		printAuditSummary(rep)
+		// Code de sortie 2 : audit PARTIEL — le rapport existe et cite ses
+		// manques ; l'appelant (script, CI, soutenance) sait ne pas citer
+		// les absences comme des mesures.
+		partial := false
+		for _, u := range rep.Unavailable {
+			switch u.Metric {
+			case "bufferbloat grade", "economics", "throughput":
+				partial = true
 			}
+		}
+		if partial {
+			os.Exit(2)
 		}
 	case "run":
 		fs := flag.NewFlagSet("run", flag.ExitOnError)
 		profiles := fs.String("profiles", "P2", "profils à tester (P1,P2,P3-importé)")
 		qdiscs := fs.String("qdiscs", "", "files à tester (pfifo_fast,fq_codel,cake) — vide = toutes")
-		ccs := fs.String("cc", "", "contrôles de congestion (cubic,bbr) — vide = tous")
+		ccs := fs.String("cc", "", "contrôles de congestion (cubic,bbr,bbr3) — vide = tous ; bbr3 si le noyau l'expose")
 		direction := fs.String("direction", "up", "sens de charge : up | down | both (RRUL séquentiel)")
 		reps := fs.Int("reps", 3, "répétitions par cellule (1–5)")
+		flows := fs.Int("flows", 4, "flux de charge concurrents (1–8 ; 1 = régime historique gelé)")
 		deadline := fs.Int("deadline", 1000, "objectif small p95 en ms (200–5000)")
 		target := fs.String("target", "1.1.1.1", "cible de mesure")
 		dataDir := fs.String("data", "data/runs", "répertoire des runs gelés")
 		runID := fs.String("run-id", "", "reprendre ce run (cellules déjà gelées sautées)")
+		bench := fs.String("bench", "", "banc : legacy (reproduction corpus) | dualns (production, défaut CGO_BENCH)")
+		channelModel := fs.String("channel-model", envDefault("CGO_CHANNEL_MODEL", "clean"), "canal : clean | bursty (P2/P3 seulement — refus sinon ; défaut CGO_CHANNEL_MODEL)")
 		_ = fs.Parse(os.Args[2:])
-		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *target, *direction, *dataDir, *runID); code != 0 {
+		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *flows, *target, *direction, *dataDir, *runID, *bench, *channelModel); code != 0 {
 			os.Exit(code)
 		}
+	case "calibrate":
+		os.Exit(runCalibrate(os.Args[2:]))
 	default:
 		usage()
 		os.Exit(2)
@@ -246,11 +309,60 @@ func envDefault(k, def string) string {
 	return def
 }
 
+// printAuditSummary — table 80 colonnes, lisible en 24 lignes : note, Δp95,
+// QDI, drain, VoIP R, JFI, SLA CAP, sens, Ar/h primaire + B2B, sceau,
+// scripts. Aucune valeur fabriquée : chaque absence est dite.
+func printAuditSummary(rep *audit.Report) {
+	line := strings.Repeat("─", 78)
+	fmt.Println(line)
+	grade := rep.Grade
+	if grade == "" {
+		grade = "—"
+	}
+	fmt.Printf(" AUDIT %-28s %-8s flux:%d sens:%s\n", rep.AuditID, grade, rep.Measured.FlowCount, rep.Measured.Direction)
+	fmt.Println(line)
+	fmt.Printf(" Δp95 %6.1f ms   QDI %6.1f ms   drain %6.1f ms\n", rep.Measured.BloatDeltaMs, rep.Measured.QDIMs, rep.Measured.DrainMs)
+	fmt.Printf(" VoIP R %4.1f        JFI %5.1f %%      débit %6.2f Mbit/s\n", rep.Measured.VoIPR, rep.Measured.JFIPct, rep.Measured.ThroughputMbps)
+	if rep.CAPSLA.Measured {
+		etat := "conforme"
+		if rep.CAPSLA.Breach {
+			etat = "MANQUEMENT SLA"
+		}
+		fmt.Printf(" SLA CAP (220 ms) %5.1f %%  %s\n", rep.CAPSLA.OKPct, etat)
+	} else {
+		fmt.Printf(" SLA CAP (220 ms) non mesuré\n")
+	}
+	if rep.Economics != nil && rep.Economics.Primary != nil {
+		fmt.Printf(" Coût primaire (%s) %10.0f Ar/h\n", rep.Economics.Primary.Name, rep.Economics.Primary.ARPerHour)
+		for _, s := range rep.Economics.Scenarios {
+			if s.Model == "B" {
+				fmt.Printf("   B2B %-22s %10.0f Ar/h\n", s.Name, s.ARPerHour)
+			}
+		}
+	} else {
+		fmt.Printf(" Coût primaire non chiffré (ratio de réémission absent)\n")
+	}
+	if rep.Provenance.TelemetrySHA256 != "" {
+		fmt.Printf(" sceau télémétrie %s…\n", rep.Provenance.TelemetrySHA256[:16])
+	}
+	if rep.Provenance.SourceSHA256 != "" {
+		fmt.Printf(" sceau lignes    %s…\n", rep.Provenance.SourceSHA256[:16])
+	}
+	if rep.Remediation != nil {
+		fmt.Printf(" scripts : tc + RouterOS v7+ → %s\n", rep.Provenance.SourceFile)
+	} else {
+		fmt.Println(" remédiation : non émise — capacité, RTT ou interface non mesurés")
+	}
+	fmt.Println(line)
+}
+
 func usage() {
 	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--tls=false] [--http-addr 127.0.0.1:9080] [--mode observe|full|auto]
+       env: CGO_IFACE=<iface> CGO_IFACE_SOURCE=twin|prod|unknown   # débit interface 10 Hz
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify
+       cgo calibrate --audit audit-XXXX --profile P2   # trace baseline → .dist netem
        cgo figures
        cgo doctor                # rapport de capacités (tc, BBR, CAP_NET_ADMIN)
        cgo shape --restore       # retire les qdiscs root posés par meteolink

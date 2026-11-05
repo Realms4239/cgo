@@ -1,6 +1,8 @@
 package remediate
 
 import (
+	"math"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -206,6 +208,90 @@ func TestRecommendAlwaysJustified(t *testing.T) {
 	for _, tc := range []struct{ asym, cpu bool }{{true, false}, {false, true}, {false, false}} {
 		if r := Recommend(goodLink(), tc.asym, tc.cpu); r.Reason == "" {
 			t.Fatalf("recommendation without a reason: %+v", r)
+		}
+	}
+}
+
+func TestRouterOSIngressAssumesBridgeAndSaysSo(t *testing.T) {
+	l := Link{RouterOSInterface: "ether1-wan", CapacityMbps: 18.5, RTTms: 100}
+	script, err := RouterOSIngress(l, QdiscCake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(script, "parent=bridge") {
+		t.Fatalf("script sans interface par défaut :\n%s", script)
+	}
+	if !strings.Contains(script, "ATTENTION") {
+		t.Fatalf("l'avertissement d'interface supposée est absent :\n%s", script)
+	}
+}
+
+func TestRouterOSIngressUsesDeclaredLanInterface(t *testing.T) {
+	l := Link{RouterOSInterface: "ether1-wan", RouterOSLanInterface: "lan-bridge", CapacityMbps: 18.5, RTTms: 100}
+	script, err := RouterOSIngress(l, QdiscCake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(script, "parent=lan-bridge") {
+		t.Fatalf("interface déclarée ignorée :\n%s", script)
+	}
+	if strings.Contains(script, "ATTENTION") {
+		t.Fatal("aucune hypothèse à signaler quand l'interface est déclarée")
+	}
+}
+
+func TestShapedRateMatchesHeadroom(t *testing.T) {
+	if got := ShapedRate(18.5); math.Abs(got-17.575) > 1e-9 {
+		t.Fatalf("ShapedRate(18.5) = %v, voulu 17.575", got)
+	}
+}
+
+// Aucune kind PCQ, aucun /interface queue add — la gate qui fige ce que le
+// jury a vu dans les captures et que HEAD ne reproduit plus.
+func TestRouterOSEmitsOnlyValidKinds(t *testing.T) {
+	l := Link{
+		Interface: "eth0", RouterOSInterface: "ether1-wan", RouterOSLanInterface: "ether2-lan",
+		CapacityMbps: 5.1, RTTms: 100,
+	}
+	for _, q := range []string{QdiscCake, QdiscFqCodel, QdiscPfifo} {
+		up, err := RouterOS(l, q)
+		if err != nil {
+			t.Fatalf("RouterOS(%s): %v", q, err)
+		}
+		if strings.Contains(up, "/interface queue add") {
+			t.Fatalf("RouterOS(%s) contient /interface queue add:\n%s", q, up)
+		}
+		if !strings.Contains(up, "parent=ether1-wan") {
+			t.Fatalf("RouterOS(%s) parent != WAN:\n%s", q, up)
+		}
+		if !strings.Contains(up, `comment="cgo-managed"`) {
+			t.Fatalf("RouterOS(%s) cleanup disjoint manquant:\n%s", q, up)
+		}
+		if !regexp.MustCompile(`kind=(cake|sfq|fifo)`).MatchString(up) {
+			t.Fatalf("RouterOS(%s) sans kind valide:\n%s", q, up)
+		}
+		if strings.Contains(strings.ToLower(up), "pcq") {
+			t.Fatalf("RouterOS(%s) émet pcq:\n%s", q, up)
+		}
+
+		down, err := RouterOSIngress(l, q)
+		if err != nil {
+			t.Fatalf("RouterOSIngress(%s): %v", q, err)
+		}
+		if strings.Contains(down, "/interface queue add") {
+			t.Fatalf("RouterOSIngress(%s) contient /interface queue add:\n%s", q, down)
+		}
+		if !strings.Contains(down, "parent=ether2-lan") {
+			t.Fatalf("RouterOSIngress(%s) parent != LAN:\n%s", q, down)
+		}
+		if !strings.Contains(down, `comment="cgo-managed-ingress"`) {
+			t.Fatalf("RouterOSIngress(%s) cleanup disjoint manquant:\n%s", q, down)
+		}
+		if !regexp.MustCompile(`kind=(cake|sfq|fifo)`).MatchString(down) {
+			t.Fatalf("RouterOSIngress(%s) sans kind valide:\n%s", q, down)
+		}
+		if strings.Contains(strings.ToLower(down), "pcq") {
+			t.Fatalf("RouterOSIngress(%s) émet pcq:\n%s", q, down)
 		}
 	}
 }

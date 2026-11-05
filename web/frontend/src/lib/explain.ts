@@ -15,6 +15,7 @@ export const EXPLAIN: Record<string, string> = {
   // contrôles de congestion
   cubic: 'CC par défaut de Linux: il cherche la capacité en augmentant la fenêtre, ralentit sur perte.',
   bbr: 'CC de Google: il mesure le chemin (débit + RTT) et tient la file du réseau courte — insensible au bufferbloat.',
+  bbr3: 'BBRv3: BBR qui réagit à la perte et plafonne son volume en vol quand elle dépasse son seuil — noyau 7.1 requis.',
   // portes
   G0: 'La cible répond aux pings — sans elle, rien n\'est mesurable.',
   G1: 'Le transfert de masse a bien démarré — sans charge, pas de comparaison.',
@@ -37,6 +38,9 @@ export const EXPLAIN: Record<string, string> = {
   voip_r: 'Score voix du E-model (ITU-T G.107 simplifié): 0-100, depuis délai + gigue + perte. R>80 excellent, R<50 appel difficile.',
   JFI: 'Équité de partage du lien entre flux (0–1): 1 = parfaitement équitable.',
   deadline: 'Objectif de latence pour les petits objets — il voyage avec la campagne.',
+  canal: "Modèle de canal: clean (sans rafales) ou bursty (rafales). Les rafales ne sont légales que sur les profils P2/P3 — le serveur refuse la combinaison avant de lancer quoi que ce soit.",
+  cost_primary_ar_per_h: 'Coût horaire du gaspillage sur une liaison dédiée GOLD (1 000 000 Ar/mois, CIR 200 Mbit/s) — scénario contractuel, pas une mesure de facture.',
+  cost_b2b_ar_per_h: 'Coût horaire du gaspillage sur un APN corporate facturé 150 Ar/Go (devis opérateur) — scénario contractuel.',
   capacity: 'Capacité du bord façonné — calquez-la sur le plan ISP réel.',
   delay: 'Délai du lien appliqué par le levier (netem).',
   jitter: 'Variation du délai appliquée par le levier.',

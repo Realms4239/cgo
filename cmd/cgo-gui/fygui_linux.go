@@ -37,24 +37,24 @@ type fyApp struct {
 	sel      int
 	logLines []string
 
-	logCh  chan string
-	journal *widget.Entry
-	jScroll *container.Scroll
-	status  *widget.Label
-	nextLbl *widget.Label
-	nextKind string
-	nextArgs []string
-	nextDone bool
-	lastNext string
-	chain      bool
-	chainVerb  string
+	logCh       chan string
+	journal     *widget.Entry
+	jScroll     *container.Scroll
+	status      *widget.Label
+	nextLbl     *widget.Label
+	nextKind    string
+	nextArgs    []string
+	nextDone    bool
+	lastNext    string
+	chain       bool
+	chainVerb   string
 	chainRepeat int
-	chainCode  *int
-	sshLbl  *widget.Label
-	userEdit *widget.Entry
-	dashLbl *widget.Label
-	lockLbl *widget.Label
-	vmList  *widget.List
+	chainCode   *int
+	sshLbl      *widget.Label
+	userEdit    *widget.Entry
+	dashLbl     *widget.Label
+	lockLbl     *widget.Label
+	vmList      *widget.List
 
 	statFlight atomic.Bool
 	tick       uint64
@@ -290,7 +290,10 @@ func (f *fyApp) runTerm(label string, args ...string) {
 
 // termRun — premier émulateur trouvé, sinon la commande à taper.
 func termRun(cgo string, args []string) int {
-	type term struct{ bin string; flag string }
+	type term struct {
+		bin  string
+		flag string
+	}
 	for _, t := range []term{
 		{"x-terminal-emulator", "-e"}, {"gnome-terminal", "--"},
 		{"konsole", "-e"}, {"xfce4-terminal", "-e"}, {"xterm", "-e"},

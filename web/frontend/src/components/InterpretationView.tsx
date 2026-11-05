@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { CRAFT } from '../lib/chartGrammar'
 
 // Interprétation d'un profil — pensée pour quelqu'un qui ne connaît PAS le
 // vocabulaire du banc : verdict en français simple d'abord, chiffres avec
@@ -33,66 +32,66 @@ export default function InterpretationView({ profile, onClose }: { profile: stri
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
-  const metric = (label: string, hint: string, v: string, color = '#d6d8dd') => (
-    <div style={{ border: '1px solid var(--hairline)', padding: '12px 14px' }}>
-      <div style={{ fontSize: 13, color: '#a9aeb6', marginBottom: 6 }}>{label}</div>
-      <div className="mono" style={{ fontSize: 20, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{v}</div>
-      <div style={{ fontSize: 12, color: '#8b9099', marginTop: 6, lineHeight: 1.5 }}>{hint}</div>
+  const metric = (label: string, hint: string, v: string, color = 'var(--text-body-strong)') => (
+    <div className="interp-metric">
+      <div className="interp-metric-label">{label}</div>
+      <div className="mono interp-metric-value" style={{ color }}>{v}</div>
+      <div className="interp-metric-hint">{hint}</div>
     </div>
   )
   return (
-    <div className="card" data-testid="interpretation" style={{ gridColumn: '1 / -1', border: '1px solid ' + CRAFT.live, background: 'var(--surface-card)', padding: 0 }}>
-      <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--hairline)' }}>
-        <span style={{ color: CRAFT.live, fontSize: 14 }}>Interprétation — {profile}</span>
-        <span className="mono" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>chiffres gelés, vérifiables</span>
-        <button className="btn" onClick={onClose} style={{ padding: '4px 12px' }}>FERMER</button>
+    <div className="card interp-card" data-testid="interpretation">
+      <div className="card-head interp-head">
+        <span className="interp-head-title">Interprétation — {profile}</span>
+        <span className="mono interp-head-note">chiffres archivés, vérifiables</span>
+        <button className="btn interp-close" onClick={onClose}>FERMER</button>
       </div>
-      <div style={{ padding: 16, display: 'grid', gap: 14 }}>
-        {!data && <span className="mono muted" style={{ fontSize: 13 }}>calcul…</span>}
-        {data && !data.available && <span className="mono muted" style={{ fontSize: 13 }}>{data.reason ?? 'aucune donnée gelée pour ce profil'}</span>}
+      <div className="interp-body">
+        {!data && <span className="mono muted interp-wait">calcul…</span>}
+        {data && !data.available && <span className="mono muted interp-wait">{data.reason ?? 'aucune donnée archivée pour ce profil'}</span>}
         {data?.available && (
           <>
             {/* verdict d'abord, en français, gros et lisible */}
-            <div className="mono" data-testid="interp-verdict" style={{ fontSize: 15, color: '#f2f2f4', lineHeight: 1.65, maxWidth: '70ch' }}>
+            <div className="mono interp-verdict" data-testid="interp-verdict">
               {data.verdict}
-              {data.throughput ? <span style={{ color: '#a9aeb6' }}> · {data.throughput}</span> : null}
+              {data.throughput ? <span className="interp-verdict-sub"> · {data.throughput}</span> : null}
             </div>
             {data.cell && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-                {metric('Réactivité du trafic critique', 'temps de chargement d\'une sonde pendant un transfert lourd — plus bas = mieux',
-                  `${data.cell.small_p95.toFixed(0)} ms`, data.cell.small_p95 < 1000 ? CRAFT.ok : '#f4b400')}
-                {metric('Latence du lien', 'aller-retour d\'un paquet sous charge — à combien le lien "répond"',
-                  `${data.cell.rtt_p95.toFixed(0)} ms`, data.cell.rtt_p95 < 300 ? CRAFT.ok : '#f4b400')}
+              <div className="interp-metrics">
+                {metric('Réactivité du trafic critique', "temps de chargement d'une sonde pendant un transfert lourd — plus bas = mieux",
+                  `${data.cell.small_p95.toFixed(0)} ms`, data.cell.small_p95 < 1000 ? 'var(--t-ok)' : 'var(--t-threshold)')}
+                {metric('Latence du lien', "aller-retour d'un paquet sous charge — à combien le lien \"répond\"",
+                  `${data.cell.rtt_p95.toFixed(0)} ms`, data.cell.rtt_p95 < 300 ? 'var(--t-ok)' : 'var(--t-threshold)')}
                 {metric('Débit utile du transfert lourd', 'ce qui passe réellement une fois la file gérée',
-                  `${data.cell.goodput.toFixed(1)} Mb/s`, '#b48ae0')}
+                  `${data.cell.goodput.toFixed(1)} Mb/s`, 'var(--t-bbr)')}
                 {metric('Échéances respectées', 'part des sondes livrées dans le délai cible',
-                  `${data.cell.deadline_ok.toFixed(0)} %`, data.cell.deadline_ok >= 95 ? CRAFT.ok : '#f4b400')}
+                  `${data.cell.deadline_ok.toFixed(0)} %`, data.cell.deadline_ok >= 95 ? 'var(--t-ok)' : 'var(--t-threshold)')}
               </div>
             )}
             {data.recommendation && (
-              <div style={{ border: '1px solid rgba(244,180,0,0.45)', background: 'rgba(244,180,0,0.05)', padding: '12px 14px' }}>
-                <div style={{ fontSize: 13, color: '#f4b400', marginBottom: 6, letterSpacing: '0.04em' }}>Recommandation terrain</div>
-                <div style={{ fontSize: 13, color: '#d6d8dd', lineHeight: 1.6 }}>{data.recommendation}</div>
+              <div className="interp-reco">
+                <div className="interp-reco-title">Recommandation terrain</div>
+                <div className="interp-reco-body">{data.recommendation}</div>
               </div>
             )}
             {data.cli && (
               <div>
-                <div style={{ fontSize: 12, color: '#a9aeb6', marginBottom: 6 }}>Commande prête à appliquer sur la passerelle :</div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                  <code className="mono" style={{ flex: 1, fontSize: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--hairline)', padding: '10px 12px', color: CRAFT.live, whiteSpace: 'pre', overflowX: 'auto' }}>{data.cli}</code>
-                  <button className="btn" onClick={() => { navigator.clipboard?.writeText(data.cli ?? ''); setCopied(true); setTimeout(() => setCopied(false), 1500) }} style={{ padding: '6px 14px', whiteSpace: 'nowrap' }}>{copied ? 'COPIÉ ✓' : 'COPIER'}</button>
+                <div className="interp-cli-label">Commande prête à appliquer sur la passerelle :</div>
+                <div className="interp-cli-row">
+                  <code className="mono interp-cli">{data.cli}</code>
+                  <button className="btn interp-copy" onClick={() => { navigator.clipboard?.writeText(data.cli ?? ''); setCopied(true); setTimeout(() => setCopied(false), 1500) }}>{copied ? 'COPIÉ ✓' : 'COPIER'}</button>
                 </div>
               </div>
             )}
             {data.next_steps && (
               <div>
-                <div style={{ fontSize: 13, color: '#a9aeb6', marginBottom: 8 }}>Prochaines étapes</div>
-                <ol style={{ paddingLeft: 20, display: 'grid', gap: 8, margin: 0 }}>
-                  {data.next_steps.map((s, i) => <li key={i} style={{ fontSize: 13, color: '#d6d8dd', lineHeight: 1.6 }}>{s}</li>)}
+                <div className="interp-steps-title">Prochaines étapes</div>
+                <ol className="interp-steps">
+                  {data.next_steps.map((s, i) => <li key={i} className="interp-step">{s}</li>)}
                 </ol>
               </div>
             )}
-            <div style={{ fontSize: 12, color: '#8b9099', lineHeight: 1.6, borderTop: '1px solid var(--hairline-faint)', paddingTop: 10 }}>
+            <div className="interp-context">
               Contexte : liens Yas 4G/5G et fibre de Météo Madagascar — le trafic critique (télémétrie, alertes, tableaux de bord) partage le lien avec les gros transferts (imagerie satellite, modèles météo). C'est ce partage que la mesure évalue.
             </div>
           </>

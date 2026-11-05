@@ -48,15 +48,17 @@ describe('chart grammar parameterized — GoAccess/AA craft (plans §3)',()=>{
     expect(g).toContain('chargeMarkArea')
     const lv=read('web/frontend/src/views/LiveView.tsx')
     expect(lv).not.toContain('Math.floor(live.rtt95.length * 0.25)')
-    // appliqué une fois par graphique, pas par série
-    expect((lv.match(/markArea: ma/g)||[]).length).toBeLessThanOrEqual(3)
+    // appliqué une fois par graphique, pas par série — quatre graphiques :
+    // RTT, petits objets, débit applicatif, interface
+    expect((lv.match(/markArea: ma/g)||[]).length).toBe(4)
   })
-  it('PanelChooser chart craft is line|bar|area and dispatches consumable tri event',()=>{
-    const p=read('web/frontend/src/components/PanelChooser.tsx')
+  it('DisplayControls chart craft is line|bar|area and dispatches consumable tri event',()=>{
+    const p=read('web/frontend/src/components/DisplayControls.tsx')
     expect(p).toContain("'line'")
     expect(p).toContain("'bar'")
     expect(p).toContain("'area'")
     expect(p).toContain('data-chart-craft')
+    expect(p).toContain("panel-chooser-tri")
   })
   it('LiveView consumes tri-toggle — metric visibility, chart craft, source overlay',()=>{
     const lv=read('web/frontend/src/views/LiveView.tsx')

@@ -25,6 +25,13 @@ export function groupDigits(n: number, decimals = 0): string {
   return dec != null ? `${grouped},${dec}` : grouped
 }
 
+// numFr — une seule virgule décimale pour la console. Les nombres techniques
+// du tiroir gardent leur format d'origine, celui du moteur. Rien n'arrive au
+// lecteur si le nombre n'existe pas : la chaîne vide se traduit par un mot
+// (« Pas encore mesuré », « Non chiffré ») là où elle est affichée.
+export const numFr = (v: number | null | undefined, digits = 1): string =>
+  v == null || !Number.isFinite(v) ? '' : v.toFixed(digits).replace('.', ',')
+
 // formatBytesFR — octets français (o, Kio, Mio), jamais `bytes`/`MiB`
 export function formatBytesFR(bytes: number | null | undefined): { num: string; unit: string } {
   if (bytes == null || !Number.isFinite(bytes)) return { num: '—', unit: '' }
@@ -57,6 +64,26 @@ export function truncateWords(s: string, max: number): string {
 export function fmtCount(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return '—'
   return groupDigits(Math.round(v))
+}
+
+// relativeTime — l'âge d'un artefact en mots courts ; une date illisible
+// reste vide plutôt que « il y a NaN ».
+export function relativeTime(iso: string | undefined, now = Date.now()): string {
+  if (!iso) return ''
+  const t = Date.parse(iso)
+  if (!Number.isFinite(t)) return ''
+  const s = Math.max(0, Math.round((now - t) / 1000))
+  if (s < 60) return "à l'instant"
+  const m = Math.round(s / 60)
+  if (m < 60) return `il y a ${m} min`
+  const h = Math.round(m / 60)
+  if (h < 24) return `il y a ${h} h`
+  const d = Math.round(h / 24)
+  if (d < 31) return `il y a ${d} j`
+  const mo = Math.round(d / 30)
+  if (mo < 12) return `il y a ${mo} mois`
+  const y = Math.round(mo / 12)
+  return `il y a ${y} an${y >= 2 ? 's' : ''}`
 }
 
 // verdictHeadline — le verdict nomme le GAGNANT, jamais le perdant seul

@@ -8,15 +8,15 @@ export function InlineField({ label, error, helper, children }: { label: string;
     ? cloneElement(children as any, {
         style: {
           ...((children as any).props?.style || {}),
-          ...(error ? { borderColor: 'var(--t-danger-text, #e84a3a)' } : {}),
+          ...(error ? { borderColor: 'var(--t-danger-text)' } : {}),
         },
       })
     : children
   return (
     <div ref={ref} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <label style={{ fontSize: 10, fontFamily: 'JetBrains Mono', color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{label}</label>
+      <label style={{ fontSize: 'var(--fs-micro)', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', letterSpacing: 'var(--tracking-caps)', textTransform: 'uppercase' as const }}>{label}</label>
       {content}
-      {error ? <span style={{ color: 'var(--t-danger-text, #e84a3a)', fontSize: 11, fontFamily: 'JetBrains Mono' }}>{error}</span> : helper ? <span style={{ color: 'var(--text-faint)', fontSize: 11, fontFamily: 'JetBrains Mono' }}>{helper}</span> : null}
+      {error ? <span style={{ color: 'var(--t-danger-text)', fontSize: 'var(--fs-tag)', fontFamily: 'var(--font-mono)' }}>{error}</span> : helper ? <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-tag)', fontFamily: 'var(--font-mono)' }}>{helper}</span> : null}
     </div>
   )
 }

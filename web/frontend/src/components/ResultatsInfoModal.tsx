@@ -24,21 +24,21 @@ export default function ResultatsInfoModal({ onClose }: { onClose: () => void })
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
   return createPortal(
-    <div role="dialog" aria-label="Lire les résultats" style={{ position: 'fixed', inset: 0, zIndex: 650, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
-      <div style={{ maxWidth: 620, width: '100%', maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface-soft, #0b0b0c)', border: '1px solid var(--hairline)', padding: '16px 18px' }} onClick={e => e.stopPropagation()}>
-        <div className="card-head" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+    <div role="dialog" aria-label="Lire les résultats" className="modal-backdrop" onClick={onClose}>
+      <div className="modal-panel modal-panel-sm" onClick={e => e.stopPropagation()}>
+        <div className="card-head modal-head modal-head-spaced">
           <span>Lire le classement</span>
-          <button className="btn" style={{ marginLeft: 'auto', padding: '2px 10px' }} onClick={onClose}>FERMER</button>
+          <button className="btn modal-head-btn" onClick={onClose}>FERMER</button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="info-rows">
           {ROWS.map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', gap: 10, padding: '6px 0', borderTop: '1px solid var(--hairline-faint)', fontSize: 12, lineHeight: 1.55 }}>
-              <span className="mono" style={{ minWidth: 92, color: '#7fd6e8' }}>{k}</span>
-              <span style={{ color: '#c3c9d1' }}>{v}</span>
+            <div key={k} className="info-row">
+              <span className="mono info-row-key">{k}</span>
+              <span className="info-row-val">{v}</span>
             </div>
           ))}
         </div>
-        <div className="mono muted" style={{ fontSize: 10, marginTop: 10 }}>Gel SHA-256 vérifiable : Provenance &amp; archives · Mémoire §3–4.</div>
+        <div className="mono muted info-foot">Gel SHA-256 vérifiable : Provenance &amp; archives · Mémoire §3–4.</div>
       </div>
     </div>,
     document.body

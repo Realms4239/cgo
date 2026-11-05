@@ -98,40 +98,34 @@ export function LiveGuide() {
     try { localStorage.setItem('live-guide-open', o ? '0' : '1') } catch { }
     return !o
   })
-  const L = (t: string, c: string) => <span style={{ display: 'block', color: c }}>{t}</span>
+  const L = (t: string, c: string) => <span className="live-guide-line" style={{ color: c }}>{t}</span>
   return (
-    <div className="card" data-testid="live-guide" style={{ gridColumn: '1 / -1', border: '1px solid var(--hairline)', background: 'var(--surface-card)', padding: '10px 14px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span className="mono" style={{ fontSize: 12, fontWeight: 500, color: '#d6d8dd' }}>Guide de lecture — que disent ces chiffres ?</span>
+    <div className="card live-guide" data-testid="live-guide">
+      <div className="live-guide-head">
+        <span className="mono live-guide-title">Guide de lecture — que disent ces chiffres ?</span>
         <button
-          className="btn" onClick={toggle} aria-expanded={open}
+          className="btn live-guide-toggle" onClick={toggle} aria-expanded={open}
           title={open ? 'masquer le guide' : 'afficher le guide'}
-          style={{
-            marginLeft: 'auto', padding: '3px 10px', fontSize: 11, fontFamily: 'var(--font-mono)',
-            border: '1px solid ' + (open ? '#3a3a40' : 'var(--hairline)'),
-            background: open ? 'rgba(90,211,227,0.12)' : 'transparent',
-            color: open ? '#7fd6e8' : '#a9aeb6',
-          }}
         >{open ? 'masquer' : 'afficher'}</button>
       </div>
       {open && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px 18px', marginTop: 10 }}>
+        <div className="live-guide-grid">
           {entries(settings).map(e => (
-            <div key={e.term} style={{ minWidth: 0 }}>
-              <div className="mono" style={{ fontSize: 13, color: '#d6d8dd', marginBottom: 2 }}><Explain term={e.term}>{e.label}</Explain></div>
-              <div className="mono" style={{ fontSize: 12, lineHeight: 1.6, color: '#a9aeb6' }}>
-                {L(`HAUT : ${e.haut}`, '#f4b400')}
-                {L(`MOYEN : ${e.moyen}`, '#a9aeb6')}
-                {L(`BAS : ${e.bas}`, '#1fa348')}
-                {L(e.impact, '#a9aeb6')}
+            <div key={e.term} className="live-guide-cell">
+              <div className="mono live-guide-term"><Explain term={e.term}>{e.label}</Explain></div>
+              <div className="mono live-guide-body">
+                {L(`HAUT : ${e.haut}`, 'var(--t-threshold)')}
+                {L(`MOYEN : ${e.moyen}`, 'var(--text-body)')}
+                {L(`BAS : ${e.bas}`, 'var(--t-ok)')}
+                {L(e.impact, 'var(--text-body)')}
               </div>
             </div>
           ))}
-          <div style={{ minWidth: 0 }}>
-            <div className="mono" style={{ fontSize: 13, color: '#d6d8dd', marginBottom: 2 }}>Portes G0–G7 et quarantaine</div>
-            <div className="mono" style={{ fontSize: 12, lineHeight: 1.6, color: '#a9aeb6' }}>
-              {L('G0 cible joignable · G1 bulk démarré · G2 sondes actives · G3 latence plausible · G4 débit cohérent · G5 pas de doublon · G6 baseline stable · G7 CPU ok — détail au survol dans Campagne.', '#a9aeb6')}
-              {L('Quarantaine : les runs douteux (G3/G4) sont exclus des médianes, pas moyennés — voir Archives.', '#f4b400')}
+          <div className="live-guide-cell">
+            <div className="mono live-guide-term">Portes G0–G7 et quarantaine</div>
+            <div className="mono live-guide-body">
+              {L('G0 cible joignable · G1 bulk démarré · G2 sondes actives · G3 latence plausible · G4 débit cohérent · G5 pas de doublon · G6 baseline stable · G7 CPU ok — détail au survol dans Campagne.', 'var(--text-body)')}
+              {L('Quarantaine : les runs douteux (G3/G4) sont exclus des médianes, pas moyennés — voir Archives.', 'var(--t-threshold)')}
             </div>
           </div>
         </div>

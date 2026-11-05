@@ -15,7 +15,7 @@ export default function Toasts() {
       {toasts.map((t: any) => (
         <div key={t.id} className={'toast ' + (t.cls || '')} style={{
           background: 'rgba(12,15,20,.96)', border: '1px solid var(--hairline)', padding:'9px 13px',
-          fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-body)', minWidth:240,
+          fontFamily:'var(--font-mono)', fontSize: 'var(--fs-tag)', color:'var(--text-body)', minWidth:240,
           borderColor: t.cls==='ok' ? 'rgba(31,163,72,.55)' : t.cls==='err' ? 'rgba(226,39,24,.55)' : t.cls==='blue' ? 'rgba(90,211,227,.55)' : 'var(--hairline)'
         }}>
           {t.msg}

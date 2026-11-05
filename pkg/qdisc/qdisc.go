@@ -32,11 +32,25 @@ func (ExecRunner) Run(args ...string) ([]byte, error) {
 }
 
 // NsRunner runs tc inside a network namespace (ip netns exec NS tc …).
-type NsRunner struct{ Ns string }
+// Env porte les variables à garder à travers sudo (TC_LIB_DIR pour .dist) :
+// « sudo env VAR=… ip netns exec … tc » ne dépend pas d'env_keep.
+type NsRunner struct {
+	Ns  string
+	Env []string // paires VAR=value
+}
 
 func (r NsRunner) Run(args ...string) ([]byte, error) {
-	full := append([]string{"netns", "exec", r.Ns, "tc"}, args...)
-	return exec.Command("sudo", append([]string{"ip"}, full...)...).CombinedOutput()
+	return exec.Command("sudo", nsTCArgs(r.Ns, r.Env, args)...).CombinedOutput()
+}
+
+func nsTCArgs(ns string, env, args []string) []string {
+	full := make([]string, 0, len(env)+len(args)+6)
+	if len(env) > 0 {
+		full = append(full, "env")
+		full = append(full, env...)
+	}
+	full = append(full, "ip", "netns", "exec", ns, "tc")
+	return append(full, args...)
 }
 
 // FakeRunner records invocations; Run always succeeds.
@@ -59,37 +73,11 @@ func Reset(r TCRunner, iface string) error {
 	return nil
 }
 
-// ApplyNetem pose délai/gigue/perte en qdisc racine du saut de latence.
-// It uses handle 1: so that a shaper can be stacked as child 1:1.
+// ApplyNetem pose délai/gigue/perte uniforme en qdisc racine du saut de
+// latence. It uses handle 1: so that a shaper can be stacked as child 1:1.
+// (La perte Gilbert-Elliott vit dans ApplyNetemPhysics/ApplyNetemGE — ge.go.)
 func ApplyNetem(r TCRunner, iface string, delayMs, jitterMs, lossPct float64) error {
-	return ApplyNetemBurst(r, iface, delayMs, jitterMs, lossPct, 0, 0, 0, 0)
-}
-
-// ApplyNetemBurst — perte uniforme (défaut historique) ou Gilbert-Elliott
-// quand la proba de perte gemodel est fournie : netem
-// "loss gemodel p r h 1-r k", la vraie vie des liens mobiles/satellite où
-// la perte arrive en rafales, pas en gouttes uniformes. Chaîne à 2 états :
-// p = proba de perte, r = bon→mauvais, h = persistance mauvais,
-// k = mauvais→bon (1-k = mauvais→bon ; netem paramètre 1-r/k à sa guise
-// selon la version — on passe p r h 1-r k, ordre du man netem).
-// Kernel banc 6.8 — support vérifié.
-func ApplyNetemBurst(r TCRunner, iface string, delayMs, jitterMs, lossPct, gemodelP, gemodelR, gemodelH, gemodelK float64) error {
-	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
-		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs)}
-	if gemodelP > 0 {
-		args = append(args, "loss", "gemodel",
-			fmt.Sprintf("%g", gemodelP),   // p : proba de perte
-			fmt.Sprintf("%g", gemodelR),   // r : bon → mauvais
-			fmt.Sprintf("%g", gemodelH),   // h : persistance mauvais
-			fmt.Sprintf("%g", 1-gemodelR), // 1-r
-			fmt.Sprintf("%g", gemodelK))   // k : mauvais → bon
-	} else if lossPct > 0 {
-		args = append(args, "loss", fmt.Sprintf("%g%%", lossPct))
-	}
-	if _, err := r.Run(args...); err != nil {
-		return fmt.Errorf("netem %s: %w", iface, err)
-	}
-	return nil
+	return ApplyNetemPhysics(r, iface, delayMs, jitterMs, lossPct, nil)
 }
 
 // ApplyShaper configure capacité + AQM sur le saut de façonnage, empilé enfant

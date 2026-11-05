@@ -37,11 +37,11 @@ func drainLog(f *fyApp) []string {
 
 func TestFyneLockSansSelection(t *testing.T) {
 	f := newTestFy(t)
-	f.dispatch(202) // Verrouiller, rien de sélectionné
+	f.dispatch(202) // Verrouiller, liste vide : refus explicite
 	lines := drainLog(f)
 	joined := strings.Join(lines, "\n")
-	if !strings.Contains(joined, "sélectionnez d'abord") {
-		t.Fatalf("attendu le rappel de sélection, journal : %q", joined)
+	if !strings.Contains(joined, "liste vide") {
+		t.Fatalf("attendu le rappel de liste vide, journal : %q", joined)
 	}
 }
 

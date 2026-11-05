@@ -20,7 +20,7 @@ import (
 // imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
 // (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
 // peut campagner par SSH.
-func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, target, direction, dataDir, runID string) int {
+func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flows int, target, direction, dataDir, runID, bench, channelModel string) int {
 	profiles := strings.Split(profilesStr, ",")
 	for i := range profiles {
 		profiles[i] = strings.TrimSpace(profiles[i])
@@ -73,18 +73,43 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, 
 		fmt.Fprintln(os.Stderr, "run: --direction doit être up|down|both")
 		return 2
 	}
-	deps := campagne.ProdDeps()
-	if direction == "down" {
-		deps = campagne.ProdDepsDown()
+	// Sélection du banc : dualns = chemin de production (quatre sauts,
+	// puits dans ns_server) ; legacy = reproduction du corpus gelé.
+	if bench == "" {
+		bench = os.Getenv("CGO_BENCH")
 	}
+	switch bench {
+	case "", "legacy":
+		bench = "legacy"
+	case "dualns":
+	default:
+		fmt.Fprintln(os.Stderr, "run: --bench doit être legacy|dualns")
+		return 2
+	}
+	var deps campagne.Deps
+	if bench == "dualns" {
+		deps = campagne.ProdDepsDualNS(direction)
+	} else {
+		deps = campagne.ProdDeps()
+		if direction == "down" {
+			deps = campagne.ProdDepsDown()
+		}
+	}
+	deps.Bench = bench
+	deps.ChannelModel = channelModel
 	deps.Direction = direction
 	deps.Target = target
 	deps.DeadlineMs = float64(deadlineMs)
+	if flows < 1 || flows > 8 {
+		fmt.Fprintln(os.Stderr, "run: --flows doit être 1–8")
+		return 2
+	}
+	deps.Flows = flows
 
 	// Preflight banc (camp220 : matrice lancée sur banc mort = campagne à
 	// zéros). Réutilise le script durci : check → up si besoin → re-check ;
 	// échec persistant = on refuse de geler du vide (exit 4).
-	if code := preflightTestbed(); code != 0 {
+	if code := preflightTestbed(bench); code != 0 {
 		return code
 	}
 
@@ -114,11 +139,7 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, 
 		qdiscs = qs
 	}
 	if ccs == nil {
-		cs := make([]string, len(model.AllCC))
-		for i, c := range model.AllCC {
-			cs[i] = string(c)
-		}
-		ccs = cs
+		ccs = campagne.DefaultCCs()
 	}
 
 	var m *campagne.Matrix
@@ -159,11 +180,18 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs int, 
 // preflightTestbed — refuse de lancer une matrice sur un banc mort.
 // check → up si besoin → re-check via le script durci (sudo -n). Script
 // absent (poste non-banc) = avertissement, pas de blocage. 0 = banc prêt.
-func preflightTestbed() int {
+func preflightTestbed(bench string) int {
 	wd, _ := os.Getwd()
+	// Le pré-contrôle suit le banc choisi : dualns vérifie le banc durci
+	// (cgo-bench-dualns.sh, fermé-échec sur les offloads), legacy vérifie
+	// testbed.sh. Un dualns qui précontrôlerait le banc legacy validerait
+	// la mauvaise topologie.
 	script := filepath.Join(wd, "kit", "testbed.sh")
+	if bench == "dualns" {
+		script = filepath.Join(wd, "kit", "cgo-bench-dualns.sh")
+	}
 	if _, err := os.Stat(script); err != nil {
-		fmt.Fprintln(os.Stderr, "run: kit/testbed.sh absent — pré-contrôle banc sauté (poste non-banc ?)")
+		fmt.Fprintf(os.Stderr, "run: %s absent — pré-contrôle banc sauté (poste non-banc ?)\n", script)
 		return 0
 	}
 	run := func(arg string, timeout time.Duration) error {
@@ -179,7 +207,7 @@ func preflightTestbed() int {
 	}
 	fmt.Println("run: banc non prêt — repose (up) puis re-contrôle…")
 	if err := run("up", 180*time.Second); err != nil {
-		fmt.Fprintln(os.Stderr, "run: testbed up ÉCHEC — console VM : sudo bash kit/testbed.sh up")
+		fmt.Fprintf(os.Stderr, "run: %s up ÉCHEC — console VM : sudo bash %s up\n", filepath.Base(script), script)
 		return 4
 	}
 	if err := run("check", 90*time.Second); err != nil {

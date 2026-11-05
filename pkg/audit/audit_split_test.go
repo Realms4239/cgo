@@ -2,28 +2,32 @@ package audit
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
-// Découpe 3 fenêtres : 0–12 s idle, 12–22 s bulk, 22–30 s chargé — le RTT chargé doit différer de l'idle
-// quand le lien est réellement chargé (pings factices simulent la charge apparaissant avec la fenêtre bulk).
-// Audit réel de 30 s par conception (découpe B Q26) — pas de couture d'horloge factice, durée honnête.
+// TestAuditSplit — la fenêtre chargée doit se dérouler PENDANT le bulk :
+// le bulk démarre à la fin de l'idle, pas à t=12 s quelle que soit la durée.
+// Version courte (1 s idle + 1 s chargé) pour ne pas coûter 30 s par test.
 func TestAuditSplit(t *testing.T) {
-	if testing.Short() {
-		t.Skip("30s real audit — skip in -short")
-	}
-	start := time.Now()
-	p := Params{Duration: 30, Target: "1.1.1.1"}
-	res, err := Run(context.Background(), p, Deps{
-		Ping: func(_ context.Context, _ string, _ int) []float64 {
-			// la charge s'active à la marque 22 s (le bulk flood 12–22 s sature le lien)
-			if time.Since(start) > 22*time.Second {
-				return []float64{120, 121}
+	var loading int32
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	res, err := Run(ctx, Params{Duration: 2, Target: "1.1.1.1", BulkAddr: "fake:1"}, Deps{
+		Ping: func(context.Context, string, int) []float64 {
+			if atomic.LoadInt32(&loading) == 1 {
+				return []float64{120, 121, 122}
 			}
-			return []float64{20, 21}
+			return []float64{20, 21, 22}
 		},
-		Small: func(_ context.Context) (float64, error) { return 50, nil },
+		Small: func(context.Context) (float64, error) { return 50, nil },
+		BulkLoad: func(ctx context.Context, _ string, _ string, _ int) LoadOutcome {
+			t0 := time.Now()
+			atomic.StoreInt32(&loading, 1)
+			<-ctx.Done()
+			return LoadOutcome{Bytes: 1_000_000, Elapsed: time.Since(t0)}
+		},
 	})
 	if err != nil {
 		t.Fatal(err)

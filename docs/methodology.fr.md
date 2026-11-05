@@ -83,6 +83,38 @@ Ces profils sont des **défauts surchargeables** par import (`/api/profile/impor
 ce qui permet de caler la matrice sur un lien réel audité au préalable
 (`pkg/audit` → `data/link_audit.csv`).
 
+### 2.1 Distribution empirique (`.dist`)
+
+Le délai d'un profil peut être rejoué depuis une trace d'audit plutôt que
+depuis le couple déclaré `delay/jitter`. La calibration ne retient que la
+phase **baseline** de `data/audits/<id>/telemetry.csv` : les échantillons
+sous charge décrivent l'AQM testé, pas le lien.
+
+```
+cgo calibrate --audit audit-XXXX --profile P2
+```
+
+Le profil doit exister (`pkg/model`, import compris) et sa médiane RTT doit
+dépasser son `delay_ms`. La commande écrit `data/calibrations/P2.dist`
+(table netem native, 1024 entrées, échelle 8192) et `P2.json` (provenance
+scellée : audit source, SHA-256 de la télémétrie et du `.dist`, site, type
+de lien, percentiles source et reconstruits).
+
+Convention : `delay_ms` est un **RTT**. Le mode dist pose `plancher/2` sur
+chaque saut et la table empirique sur le seul saut mesuré (`w-edge` en
+montée, `c-wan` en descente), donc RTT ≈ plancher + résidu. Le mode est
+opt-in :
+
+```
+CGO_DELAY_MODEL=dist CGO_CALIBRATION_DIR=$PWD/data/calibrations   cgo run --bench dualns --profiles P2 --direction up
+```
+
+Une calibration absente, périmée (profil modifié) ou dont le `.dist` ne
+correspond plus au sceau arrête l'événement **avant** toute mutation qdisc :
+jamais de repli synthétique. `both` est refusé (une trace = un sens). Le
+scalaire reste le défaut. Les traces `SMOKE-TEST` locales ne sont pas une
+preuve terrain et aucun `.dist` qui en dérive n'est cité.
+
 ## 3. Plan factoriel
 
 Matrice complète (**Tableau 3**) : profils × qdiscs × CC × répétitions.
@@ -219,3 +251,109 @@ répondent `available: false` plutôt que d'inventer (`F8 : honest empty`) ;
 (ii) les cellules invalides sont exposées, pas masquées ; (iii) l'audit d'un
 lien réel (`pkg/audit`) précède l'import d'un profil, pour que la matrice
 mesure le terrain et non une abstraction.
+
+## 9. Façonnage descendant : IFB (Linux) et file LAN (RouterOS)
+
+Le façonnage egress ne corrige pas un téléchargement : quand le paquet arrive,
+il a déjà traversé le lien. Linux le résout par un **IFB** : l'ingress de
+l'interface WAN est redirigé par `matchall`/`mirred` vers `ifb0`, puis un qdisc
+racine ordinaire met le paquet en file sur `ifb0` — côté réception.
+
+### 9.1 Banc `dualns`
+
+- `ifb0` vit dans `ns_client` ; le redirect et le qdisc ingress vivent sur
+  `c-cli`, l'interface d'accès mesurée.
+- Le CAKE descendant de `e-wan` est **absent** en mode ingress. S'il restait,
+  le goulot serait en amont de l'IFB et la file de l'IFB ne se formerait
+  jamais.
+- Le CAKE montant de `e-srv` reste en place : il n'est pas sur le chemin
+  descendant.
+- Le CAKE par défaut sur `ifb0` est un confort de banc (`up --ingress on`) ;
+  une cellule de campagne remplace la racine `ifb0` puis la supprime en
+  sortie. Après une campagne, `check` peut donc signaler l'absence de CAKE
+  sur `ifb0` jusqu'au prochain `up --ingress on`.
+- Le mode du banc et celui de la campagne doivent coïncider :
+  `CGO_SHAPE_MODE=ingress` sert aussi de défaut à `up`/`check`/`show` du banc
+  lorsque `--ingress` est absent, pour que le pré-contrôle de `cgo run` voie
+  la même topologie.
+- Le banc ne modélise pas le LAN derrière le client : le téléchargement
+  aboutit dans le même namespace que les sondes. C'est un raccourci de banc
+  documenté, pas une topologie CPE complète.
+
+### 9.2 Comptabilité
+
+- Les pertes à l'IFB sont des pertes **hôtes**, après traversée du lien
+  émulé ; elles ne prouvent pas une perte au lien distant et ne libèrent pas
+  de capacité.
+- En mode `ingress`, CAKE compte les paquets jetés comme transférés et
+  maintient au moins deux paquets par flux. Un compteur de pertes ingress
+  n'est donc pas comparable tel quel à un compteur egress ; toute table qui
+  les compare doit le dire.
+- Le RTT mesuré inclut le lien netem et la file IFB. Aucun horodatage noyau
+  ne sépare les deux : on ne présente pas `RTT − repos` comme un temps de
+  séjour dans la file du lien distant.
+- Le mode `ingress` est opt-in (`CGO_SHAPE_MODE=ingress`) et limité à
+  `bench=dualns` + `direction=down`. `up` garde le chemin egress ; `both` est
+  refusé plutôt qu'approché.
+
+### 9.3 RouterOS
+
+RouterOS n'a pas d'IFB. Le script descendant est une **file sur l'interface
+LAN/privée**, là où le trafic descendant sort vers les clients. Ce n'est pas
+un équivalent octet pour octet de l'IFB Linux : le point de passage diffère.
+Les objets portent `cgoingress-*` et `comment="cgo-managed-ingress"`, disjoints
+du nettoyage montant (`^cgo-`, `comment="cgo-managed"`).
+
+### 9.4 Preuve
+
+Les tests Windows prouvent la génération des commandes, les champs du rapport
+et l'ordre fermé-échec du préflight. Ils ne prouvent pas qu'un noyau 6.8
+accepte les commandes ni que l'IFB jette réellement sous charge. Cette preuve
+est la tâche d'acceptation Linux, distincte et bloquée.
+
+## 10. BBRv3 : noyau, étiquette et matrice 3×3
+
+La section 9 est réservée au façonnage descendant IFB (plan distinct). Cette
+section décrit la troisième ligne de contrôle du plan factoriel.
+
+### 10.1 Pourquoi un noyau
+
+BBRv3 n'est pas un module de contrôle de congestion : Google le publie comme
+une arborescence de noyau complète (`google/bbr`), avec des changements dans
+le cœur TCP. Le noyau 6.8 d'Ubuntu n'expose que `bbr`, qui est **BBRv1**.
+La décision #8 du projet reste donc vraie : `bbr` signifie BBRv1. BBRv3
+entre sous une étiquette additive, `bbr3`, et seulement sur un hôte dont le
+noyau enregistre ce nom.
+
+### 10.2 Provisionnement opt-in
+
+`kit/install-bbr3.sh` construit la branche `bbr-v3-2026-09-16-01` (Linux 7.1)
+sur la VM, avec `CONFIG_TCP_CONG_BBR=y` et `CONFIG_TCP_CONG_BBR3=y`. Les deux
+contrôles vivent alors dans le même noyau : la comparaison v1/v3 ne change
+qu'une variable. Le script n'est jamais appelé par `cgo run`, `cgo deploy` ou
+`cgo kit bootstrap` ; il s'exécute sur la console ou via `cgo kit ssh`. Le
+redémarrage est manuel par défaut. Le noyau précédent reste dans GRUB.
+
+### 10.3 Matrice
+
+```bash
+./kit/run-dualns.sh up
+sudo ip netns exec ns_client env CGO_BENCH=dualns ~/cgo/cgo-linux run \
+  --bench dualns --direction up --profiles P2 \
+  --qdiscs pfifo_fast,fq_codel,cake \
+  --cc cubic,bbr,bbr3 \
+  --reps 3 --flows 4 --target 10.30.0.2
+```
+
+Neuf cellules, trois répétitions, 27 événements. Le sens montant reproduit
+la campagne du mémoire. Ce jeu de runs est **autonome** : il ne se fusionne
+pas numériquement avec les cellules du corpus 6.8 ni avec le Tableau 15,
+qui viennent d'un autre banc et d'un autre régime de flux. Chaque manifeste
+gele le noyau (`kernel`) avec la configuration ; une ligne `cc=bbr3` n'est
+citable qu'avec ce noyau.
+
+### 10.4 Portée
+
+La matrice n'active ni ECN ni L4S : les cellules comparent le comportement
+sous perte et délai, pas les signaux ECN de BBRv3. Le façonnage descendant
+reste celui de la section 9 ; la matrice ne dépend pas de l'IFB.

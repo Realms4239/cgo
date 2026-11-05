@@ -45,7 +45,7 @@ func TestFailureIsNotASkip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer m.Stop()
+	defer stopWait(t, m)
 	for i := 0; i < 40 && m.IsRunning(); i++ {
 		time.Sleep(50 * time.Millisecond)
 	}

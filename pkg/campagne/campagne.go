@@ -30,9 +30,11 @@ type Deps struct {
 	Small func(ctx context.Context) (float64, error)
 	Bulk  func(ctx context.Context, addr string) (uint64, error) // one charge-window flood
 	// BulkN — fenêtre de charge multi-flux : N connexions concurrentes vers
-	// addr, per-flow. Nil ⇒ un seul flux (comportement historique). L'équité
-	// inter-flux (JFI) ne se mesure que per-flow.
-	BulkN func(ctx context.Context, addr string, n int) ([]uint64, error)
+	// addr, avec le contrôle de congestion de la cellule. Nil ⇒ un seul flux.
+	// Le CC est explicite : un multi-flux CUBIC ne remplace pas un BBR ;
+	// l'ignorer rendrait les cellules BBR indiscernables. L'équité inter-flux
+	// (JFI) ne se mesure que per-flow.
+	BulkN func(ctx context.Context, addr, cc string, n int) ([]uint64, error)
 	CPU   func() float64
 	Now   func() time.Time
 	// StatsFn rend les compteurs par qdisc pour les deltas pertes/octets.
@@ -45,16 +47,43 @@ type Deps struct {
 	// calibrer le timeout de la sonde small (VSAT 600 ms ⇒ 2,4 s, pas 2 s).
 	ProfileDelayMs float64
 
-	// Flows — nombre de flux de charge concurrents (défaut 1). >1 exige
+	// Flows — nombre de flux de charge concurrents (défaut 4). >1 exige
 	// BulkN câblé par l'hôte ; mesure l'isolation inter-flux (JFI) que
 	// fq_codel/cake promettent et qu'un flux unique ne montre jamais.
 	Flows int
+
+	// PhysicsIfaces — ifaces de physique SUPPLÉMENTAIRES (banc durci :
+	// c-wan en plus de w-edge) : le netem du profil s'y pose à l'identique,
+	// sinon un run « symétrique » mesurerait un lien asymétrique en secret.
+	PhysicsIfaces []string
+	// ChannelModel — clean (défaut, perte uniforme historique) | bursty
+	// (Gilbert-Elliott, P2/P3 seulement — validé avant toute mutation).
+	ChannelModel string
+	// Bench — étiquette de provenance : "legacy" (testbed.sh, reproduction
+	// du corpus gelé) | "dualns" (banc durci, chemin de production).
+	Bench string
+	// Tier — le palier tarifaire gelé avec le run. Vide ⇒ le palier actif est
+	// lu UNE fois à l'entrée de la cellule, jamais événement par événement :
+	// un palier changé en cours de route donnerait deux bases dans un même run.
+	Tier string
+	// DelayModel — "scalar" (défaut : delay/jitter déclarés) | "dist"
+	// (table empirique par profil, chargée fail-closed AVANT toute mutation).
+	DelayModel string
+	// CalibrationDir — répertoire des <profil>.dist/.json.
+	CalibrationDir string
 
 	// Direction — sens de la charge : "" ou "up" = upload (client → sink,
 	// shaper sur l'émission cliente, comportement historique) ; "down" =
 	// download (source → client, shaper sur l'émission SERVEUR : le
 	// shaper doit vivre là où le congestionnement naît).
 	Direction string
+
+	// ShapeMode — "egress" (défaut) ou "ingress" (IFB sur l'ingress WAN).
+	// ingress exige bench=dualns + direction=down + un preflight non nil.
+	ShapeMode string
+	// IngressPreflight — lecture seule de ifb0/ingress/mirred, AVANT toute
+	// mutation qdisc. nil en mode ingress ⇒ la cellule est refusée.
+	IngressPreflight func() error
 
 	BaselineSec int
 	ChargeSec   int
@@ -95,6 +124,18 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 		ProfileJitterMs: prof.JitterMs, ProfileLossPct: prof.LossPct,
 		Gates: gates, Running: true,
 	}
+	// Coût entreprise live : GOLD (modèle A, nécessite des octets transportés —
+	// zéro honnête avant la charge) et APN 150 Ar/Go (modèle B, fenêtre de
+	// charge). JFI à côté : l'équité inter-flux est un livrable du banc durci.
+	charge := d.ChargeSec
+	if charge == 0 {
+		charge = model.ChargeSec
+	}
+	s.JFIPct = ev.JFI
+	s.CostPrimaryARPerH = round1(metrics.CapacityWasteARPerHour(
+		metrics.PlanGOLD.MonthlyOpExMGA, float64(ev.WastedBytes), float64(ev.Bytes)))
+	s.CostB2BARPerH = round1(metrics.MeteredWasteARPerHour(
+		float64(ev.WastedBytes), metrics.TariffCorporateAPN.ARPerGB, float64(charge)))
 	return s
 }
 
@@ -102,9 +143,16 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 // le petit objet y est best-effort, documenté docs/api.md)
 func httpDefault() *http.Client { return &http.Client{Timeout: 2 * time.Second} }
 
-// readCPUIdleGuess — plafond documenté : l'échantillonnage /proc/stat arrive avec
-// le bootstrap VM (M1.6) ; jusque-là le CPU est rapporté 0 et G7 reste non évalué.
-func readCPUIdleGuess() float64 { return 0 }
+// cpuGate — nil = CPU non mesuré : G7 reste non évaluée et ne peut pas passer.
+// Une valeur nulle est le sentinelle historique "non instrumenté" ; 0 % réel
+// n'est pas distinguable et ne doit jamais devenir un feu vert.
+func cpuGate(cpu float64) *bool {
+	if math.IsNaN(cpu) || cpu <= 0 {
+		return nil
+	}
+	ok := cpu < 90
+	return &ok
+}
 
 type qdiscRunner interface {
 	Run(args ...string) ([]byte, error)
@@ -117,31 +165,36 @@ type Live struct {
 }
 
 type Snapshot struct {
-	Phase           string  `json:"phase"`
-	Profile         string  `json:"profile"`
-	Qdisc           string  `json:"qdisc"`
-	CC              string  `json:"cc"`
-	Repetition      int     `json:"repetition"`
-	EventID         int     `json:"event_id"`
-	TotalEvents     int     `json:"total_events"`
-	DoneEvents      int     `json:"done_events"`
-	PhaseTotalS     int     `json:"phase_total_s"`
-	LoadStatus      string  `json:"load_status"`
-	RTTp50Ms        float64 `json:"rtt_p50_ms"`
-	RTTp95Ms        float64 `json:"rtt_p95_ms"`
-	Smallp95Ms      float64 `json:"small_p95_ms"`
-	GoodputMbps     float64 `json:"bulk_goodput_mbps"`
-	Drops           uint64  `json:"drops"`
-	WastedBytes     uint64  `json:"wasted_bytes"`
-	CostARPerH      float64 `json:"cost_ar_per_h"`
-	DeadlineOKPct   float64 `json:"deadline_ok_pct"`
-	ProfileCapMbps  float64 `json:"profile_capacity_mbps"`
-	ProfileDelayMs  float64 `json:"profile_delay_ms"`
-	ProfileJitterMs float64 `json:"profile_jitter_ms"`
-	ProfileLossPct  float64 `json:"profile_loss_pct"`
-	Gates           []*bool `json:"gates"` // nil = not assessed
-	Running         bool    `json:"running"`
-	LastTS          int64   `json:"ts"`
+	// Coût entreprise (live) : le scénario GOLD et le B2B 150 Ar/Go à côté
+	// du cost_ar_per_h historique (qui garde sa signification détail gelée).
+	CostPrimaryARPerH float64 `json:"cost_primary_ar_per_h"`
+	CostB2BARPerH     float64 `json:"cost_b2b_ar_per_h"`
+	JFIPct            float64 `json:"jfi_pct"`
+	Phase             string  `json:"phase"`
+	Profile           string  `json:"profile"`
+	Qdisc             string  `json:"qdisc"`
+	CC                string  `json:"cc"`
+	Repetition        int     `json:"repetition"`
+	EventID           int     `json:"event_id"`
+	TotalEvents       int     `json:"total_events"`
+	DoneEvents        int     `json:"done_events"`
+	PhaseTotalS       int     `json:"phase_total_s"`
+	LoadStatus        string  `json:"load_status"`
+	RTTp50Ms          float64 `json:"rtt_p50_ms"`
+	RTTp95Ms          float64 `json:"rtt_p95_ms"`
+	Smallp95Ms        float64 `json:"small_p95_ms"`
+	GoodputMbps       float64 `json:"bulk_goodput_mbps"`
+	Drops             uint64  `json:"drops"`
+	WastedBytes       uint64  `json:"wasted_bytes"`
+	CostARPerH        float64 `json:"cost_ar_per_h"`
+	DeadlineOKPct     float64 `json:"deadline_ok_pct"`
+	ProfileCapMbps    float64 `json:"profile_capacity_mbps"`
+	ProfileDelayMs    float64 `json:"profile_delay_ms"`
+	ProfileJitterMs   float64 `json:"profile_jitter_ms"`
+	ProfileLossPct    float64 `json:"profile_loss_pct"`
+	Gates             []*bool `json:"gates"` // nil = not assessed
+	Running           bool    `json:"running"`
+	LastTS            int64   `json:"ts"`
 }
 
 func NewLive() *Live { return &Live{} }
@@ -188,7 +241,7 @@ func defaults(d *Deps) {
 		}
 	}
 	if d.CPU == nil {
-		d.CPU = func() float64 { return readCPUIdleGuess() }
+		d.CPU = func() float64 { return readCPUUsage() }
 	}
 	if d.Now == nil {
 		d.Now = time.Now
@@ -202,6 +255,47 @@ func defaults(d *Deps) {
 	if d.RecupSec == 0 {
 		d.RecupSec = model.RecupSec
 	}
+	if d.ChannelModel == "" {
+		d.ChannelModel = "clean"
+	}
+	if d.Bench == "" {
+		d.Bench = "legacy"
+	}
+	if d.Tier == "" {
+		d.Tier = metrics.ActiveTierName()
+	}
+	if d.DelayModel == "" {
+		d.DelayModel = "scalar"
+	}
+	if d.ShapeMode == "" {
+		d.ShapeMode = "egress"
+	}
+}
+
+// validateShapeMode refuses an ingress cell whose topology or ownership is
+// wrong, before any qdisc mutation. The bench owns ifb0 and the redirect; the
+// campaign owns only the qdisc on the IFB.
+func validateShapeMode(d *Deps) error {
+	switch d.ShapeMode {
+	case "egress":
+		return nil
+	case "ingress":
+		if d.Bench != "dualns" {
+			return fmt.Errorf("shape_mode ingress invalide sur bench %q — dualns uniquement", d.Bench)
+		}
+		if d.Direction != "down" {
+			return fmt.Errorf("shape_mode ingress invalide en direction %q — down uniquement (le shaper ingress ne corrige pas l'upload)", d.Direction)
+		}
+		if d.TCShaper == nil || d.ShaperIf == "" {
+			return fmt.Errorf("shape_mode ingress sans shaper/iface — ifb0 et son runner sont requis")
+		}
+		if d.IngressPreflight == nil {
+			return fmt.Errorf("shape_mode ingress sans preflight — ifb0/ingress/mirred non vérifiés, cellule refusée")
+		}
+		return nil
+	default:
+		return fmt.Errorf("shape_mode %q invalide (egress|ingress)", d.ShapeMode)
+	}
 }
 
 // RunEvent exécute une cellule de bout en bout et rend la ligne gelée.
@@ -210,11 +304,33 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	defaults(&d)
 	ensureQdiscModules()
 
-	// configurer les deux sauts — reset d'abord : le levier de façonnage (ou une
-	// cellule périmée) peut laisser un qdisc étranger à la racine, ce qui ferait échouer chaque apply
-	_, _ = d.TC.Run("qdisc", "del", "dev", d.CliIf, "root")
-	if err := qdisc.ApplyNetemBurst(d.TC, d.CliIf, prof.DelayMs, prof.JitterMs, prof.LossPct,
-		prof.LossBurstP, prof.LossBurstR, prof.LossBurstH, prof.LossBurstK); err != nil {
+	// Canal en salves : P2/P3 seulement, et l'erreur part AVANT toute
+	// mutation qdisc — un repli silencieux en uniforme changerait l'identité
+	// de la cellule mesurée (bursty annoncé, uniforme exécuté).
+	switch d.ChannelModel {
+	case "clean", "":
+		d.ChannelModel = "clean"
+	case "bursty":
+		if _, ok := BurstGE(prof.ID); !ok {
+			return ev, fmt.Errorf("channel_model bursty invalide pour %s — rafales sur P2/P3 uniquement (choisir clean)", prof.ID)
+		}
+	default:
+		return ev, fmt.Errorf("channel_model %q invalide (clean|bursty)", d.ChannelModel)
+	}
+	ge := burstGEOrNull(prof.ID, d.ChannelModel)
+
+	if err := validateShapeMode(&d); err != nil {
+		return ev, err
+	}
+	if d.ShapeMode == "ingress" {
+		if err := d.IngressPreflight(); err != nil {
+			return ev, fmt.Errorf("ingress preflight: %w", err)
+		}
+	}
+
+	// Physique : le saut de latence ET chaque iface supplémentaire (banc
+	// durci : w-edge + c-wan, les deux sens voient délai et perte).
+	if err := applyPhysics(&d, prof, ge); err != nil {
 		return ev, fmt.Errorf("netem: %w", err)
 	}
 	shaper := qdiscRunner(d.TC)
@@ -240,7 +356,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// congestionnement du download naît côté source. ProdDeps câble
 	// TCShaper sur NsRunner(cgo-srv)/veth-s pour ce cas.
 	capDown := prof.CapDown()
-	if d.Direction == "down" {
+	if d.ShapeMode == "ingress" {
+		if err := qdisc.ApplyIngressShaper(shaper, shaperIf, ev.Qdisc, capDown, prof.DelayMs); err != nil {
+			return ev, fmt.Errorf("shaper ingress: %w", err)
+		}
+	} else if d.Direction == "down" {
 		if err := qdisc.ApplyShaper(shaper, shaperIf, ev.Qdisc, capDown, prof.DelayMs); err != nil {
 			return ev, fmt.Errorf("shaper down: %w", err)
 		}
@@ -271,6 +391,10 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		startDrops, startBytes = qdisc.SumDrops(sts), qdisc.SumBytes(sts)
 	}
 	liveLastBytes, liveLastT := startBytes, d.Now()
+	// octets transportés cumulés (live) : la somme des deltas SURVIT à un
+	// remplacement de qdisc (compteurs tc remis à zéro) — base honnête du
+	// coût entreprise publié en cours de charge, avant le gel final.
+	liveTransported := uint64(0)
 	publishLive := func(phase string, rtt, small []float64) {
 		if d.OnSnap == nil {
 			return
@@ -292,6 +416,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			if nowB < liveLastBytes {
 				liveLastBytes = nowB // qdisc remplacé (levier de façonnage) — compteurs remis à zéro
 			}
+			if db := int64(nowB) - int64(liveLastBytes); db > 0 {
+				liveTransported += uint64(db)
+			}
 			if dt := nowT.Sub(liveLastT).Seconds(); dt > 0.2 {
 				g := float64(nowB-liveLastBytes) * 8 / 1e6 / dt
 				if g >= 0 && g <= 2500 { // écarter les artefacts de compteur, garder l'axe lisible
@@ -304,8 +431,9 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			}
 			liveLastBytes, liveLastT = nowB, nowT
 		}
+		live.Bytes = liveTransported
 		live.WastedBytes = live.Drops * 1448
-		live.CostARPerH = round1(metrics.CostARPerH(live.WastedBytes))
+		live.CostARPerH = round1(costARPerH(d.Tier, live.WastedBytes))
 		d.OnSnap(d.Snapshot(phase, loadFor(phase), live, nil, nil, 0, prof, gates))
 	}
 	collect := func(secs int, phase string) (rtt, small []float64) {
@@ -343,7 +471,14 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	_ = baseSmall
 	set(model.G0TargetReachable, len(baseRTT) > 0)
 	sumB := metrics.Summarize(baseRTT)
-	set(model.G6BaselineStable, len(baseRTT) > 4 && sumB.P95-sumB.Median < max(5, .2*sumB.Median))
+	// G6 : le repos est-il assez calme pour que la charge qui suit soit
+	// interprétable ? Le seuil tient compte du jitter DÉCLARÉ du profil : sur
+	// un lien LEO, l'étalement du repos est la physique du lien, pas une
+	// instabilité de l'hôte. Voir baseline.go — sur le corpus gelé, les 42
+	// lignes P4 échouaient toutes G6 avec l'ancien seuil statique.
+	g6ok, g6thr := BaselineStable(baseRTT, prof)
+	set(model.G6BaselineStable, g6ok)
+	_ = g6thr
 	// latence au repos gélée avec la ligne : la note bufferbloat Waveform
 	// (écart chargé − repos) exige la référence, pas seulement la charge
 	ev.RTTBaseP50Ms = round1(sumB.Median)
@@ -376,11 +511,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			}
 		}
 	}
-	// charge — N flux concurrents si BulkN câblé (défaut 1 flux : les
-	// médianes historiques restent comparables), per-flow pour le JFI
+	// charge — N flux concurrents si BulkN câblé (défaut 4, régime du banc
+	// durci ; --flows 1 reproduit le gel historique), per-flow pour le JFI
 	flows := d.Flows
 	if flows <= 0 {
-		flows = 1
+		flows = 4
 	}
 	type chargeOut struct {
 		total uint64
@@ -394,7 +529,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			if d.Direction == "down" {
 				per, err = probe.BulkDownloadNTo(chgCtx, d.BulkAddr, string(ev.CC), flows)
 			} else {
-				per, err = d.BulkN(chgCtx, d.BulkAddr, flows)
+				per, err = d.BulkN(chgCtx, d.BulkAddr, string(ev.CC), flows)
 			}
 			_ = err
 			var total uint64
@@ -410,8 +545,41 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	if d.ChargeSec > 0 {
 		time.Sleep(300 * time.Millisecond) // laisser le flood se connecter
 	}
+	// Échantillonnage CPU PENDANT la charge (G7) : une mesure après coup
+	// verrait le calme revenu. Chaque échantillon /proc/stat couvre 200 ms.
+	cpuSamples := make([]float64, 0, 64)
+	cpuDone := make(chan struct{})
+	go func() {
+		defer close(cpuDone)
+		for {
+			select {
+			case <-chgCtx.Done():
+				return
+			default:
+			}
+			v := d.CPU()
+			if math.IsNaN(v) || v <= 0 {
+				return
+			}
+			cpuSamples = append(cpuSamples, v)
+			select {
+			case <-chgCtx.Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}()
 	chgRTT, chgSmall = collect(d.ChargeSec, model.PhaseCharge)
 	cancel()
+	<-cpuDone
+	cpuAvg := math.NaN()
+	if len(cpuSamples) > 0 {
+		sum := 0.0
+		for _, v := range cpuSamples {
+			sum += v
+		}
+		cpuAvg = sum / float64(len(cpuSamples))
+	}
 	out := <-done
 	bulkBytes = out.total
 	ev.JFI = round1(out.jfi * 100) // 0..100 gelé avec la ligne ; 0 = mono-flux/n.a.
@@ -422,6 +590,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 
 	// goodput : préférer le delta côté récepteur de tc -s aux octets côté émetteur
 	goodput := float64(bulkBytes) * 8 / 1e6 / chargeDur
+	rxBytes := uint64(0)
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
 		endDrops := qdisc.SumDrops(sts)
@@ -432,13 +601,18 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		if dd := int64(endDrops) - int64(startDrops); dd > 0 {
 			ev.Drops = uint64(dd)
 		}
-		rxBytes := uint64(0)
 		if db := int64(endBytes) - int64(startBytes); db > 0 {
 			rxBytes = uint64(db)
 		}
 		if rxBytes > 0 {
 			goodput = float64(rxBytes) * 8 / 1e6 / chargeDur
 		}
+	}
+	// octets transportés de la cellule (JSON seul) : récepteur si instrumenté,
+	// sinon émetteur — base du ratio estimé drops×1448/octets du sidecar.
+	ev.Bytes = bulkBytes
+	if rxBytes > 0 {
+		ev.Bytes = rxBytes
 	}
 
 	sumC := metrics.Summarize(chgRTT)
@@ -454,11 +628,14 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.Smallp95Ms = round1(sm.P95)
 	ev.DeadlineOKPct = round1(metrics.DeadlineOKPct(chgSmall, d.DeadlineMs))
 	ev.BulkGoodputMbps = round1(goodput)
-	cpuAvg := d.CPU()
-	ev.CPUPct = round1(cpuAvg)
+	if math.IsNaN(cpuAvg) || cpuAvg <= 0 {
+		ev.CPUPct = 0 // non mesuré : la colonne reste 0, G7 est nil
+	} else {
+		ev.CPUPct = round1(cpuAvg)
+	}
 	// octets gaspillés : segments retransmis × MSS (environ 1448 pour veth MTU 1500)
 	ev.WastedBytes = ev.Drops * 1448
-	ev.CostARPerH = round1(metrics.CostARPerH(ev.WastedBytes))
+	ev.CostARPerH = round1(costARPerH(d.Tier, ev.WastedBytes))
 	set(model.G3LatencyPlausible, ev.RTTp95Ms < prof.DelayMs*10+200)
 	// G4 juge le goodput du SENS MESURÉ : montant → CapUp, descendant →
 	// CapDown (l'asymétrie est la règle, pas l'exception).
@@ -476,7 +653,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		g4Floor = g4Cap * 0.01
 	}
 	set(model.G4ThroughputCoherent, goodput >= g4Floor && goodput <= g4Cap*1.1+.5)
-	set(model.G7CPUNotSaturated, cpuAvg < 90)
+	gates[model.G7CPUNotSaturated] = cpuGate(cpuAvg)
 	set(model.G5NoDuplicateRows, true) // appliqué par l'écrivain au gel
 	// publier les métriques mises à jour pour que SSE porte la vérité (wasted/cost/deadline) sans dérivation
 	if d.OnSnap != nil {
@@ -523,6 +700,15 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	}
 	ev.GateStatus = status
 	return ev, nil
+}
+
+// costARPerH — le coût d'une ligne se calcule au palier gelé avec son run.
+// Lire le global à chaque événement donnerait deux bases dans un même run.
+func costARPerH(tierName string, wastedBytes uint64) float64 {
+	if tr, ok := metrics.TierByName(tierName); ok {
+		return metrics.CostARPerHTier(wastedBytes, tr)
+	}
+	return metrics.CostARPerH(wastedBytes)
 }
 
 func round1(v float64) float64 { return float64(int(v*10+0.5)) / 10 }

@@ -15,16 +15,75 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/pkg/figures"
 	"github.com/Realms4239/cgo/pkg/metrics"
 	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/pkg/probe"
 	"github.com/Realms4239/cgo/pkg/profile"
 	"github.com/Realms4239/cgo/pkg/results"
 	frontend "github.com/Realms4239/cgo/web/frontend"
 )
+
+// envDefault — petit utilitaire de configuration par environnement ;
+// les défauts du banc restent surchargeables sans toucher au code.
+func envDefault(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+// readAuditReport loads the archived JSON artifact. The id is validated with
+// the same guard as writes — a malformed id never silently resolves another
+// audit's file. Empty id reads the global last-report copy.
+func readAuditReport(id string) (*audit.Report, error) {
+	path := filepath.Join(audit.DefaultDataDir, audit.ReportArtifactName)
+	if id != "" {
+		p, err := audit.ArtifactFile(audit.DefaultDataDir, id, audit.ReportArtifactName)
+		if err != nil {
+			return nil, err
+		}
+		path = p
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var rep audit.Report
+	if err := json.Unmarshal(b, &rep); err != nil {
+		return nil, err
+	}
+	if rep.AuditID == "" {
+		return nil, fmt.Errorf("%s: audit_id absent", path)
+	}
+	return &rep, nil
+}
+
+// auditReportExists — le dossier d'archive de ce rapport est-il présent ?
+// Une ligne de link_audit.csv peut précéder l'archivage par dossier : sans ce
+// drapeau, le dashboard propose « OUVRIR » sur une impasse et le premier clic
+// produit un 404.
+func auditReportExists(id string) bool {
+	if id == "" {
+		return false
+	}
+	path, err := audit.ArtifactFile(audit.DefaultDataDir, id, audit.ReportArtifactName)
+	if err != nil {
+		return false
+	}
+	if _, err := os.Stat(path); err == nil {
+		return true
+	}
+	auditMu.Lock()
+	last := lastAuditReport
+	auditMu.Unlock()
+	return last != nil && last.AuditID == id
+}
 
 // Schema — source unique de vérité pour chaque contrôle paramétré :
 // le serveur valide depuis ce registre, GET /api/schema le sert, le client
@@ -97,13 +156,27 @@ type RunOpts struct {
 	Target     string   `json:"target"`
 	Direction  string   `json:"direction"`
 	RunID      string   `json:"run_id"`
+	// Flows — charge multi-flux. 0 = défaut du banc (4, décision 6 — le
+	// câblage cmd/cgo applique le défaut) ; 1 = one stream (historical
+	// cells); 2–8 saturates a lossy path where a single CUBIC collapses
+	// below the link rate. The value travels into the manifest config.
+	Flows int `json:"flows"`
+	// Bench — étiquette de provenance : "" (défaut CGO_BENCH → legacy),
+	// "legacy" (reproduction corpus) ou "dualns" (banc durci production).
+	Bench string `json:"bench"`
+	// ChannelModel — canal : "" (clean côté campagne), "clean" ou "bursty"
+	// (rafales Gilbert-Elliott, P2/P3 uniquement — 400 sinon).
+	ChannelModel string `json:"channel_model"`
 }
 
 // Deps relie le serveur au noyau campagne.
 type Deps struct {
 	GetSnap func() any
-	StartFn func(o RunOpts) error
-	StopFn  func()
+	// NextSnap — fournisseur du hub 10 Hz. Nil ⇒ GetSnap. Le hub lit un
+	// échantillon frais ; /api/state garde GetSnap (dernier échantillon).
+	NextSnap func() any
+	StartFn  func(o RunOpts) error
+	StopFn   func()
 	// SkipFn coupe la cellule en cours sans arrêter la matrice — l'event
 	// n'est pas gelé, il reste re-exécutable à la reprise.
 	SkipFn func()
@@ -131,6 +204,15 @@ type Deps struct {
 	// BurstFn — une sonde bulk avec la CC choisie à travers le bord façonné :
 	// façonnage seul, sans campagne. Bloquant (2–10 s).
 	BurstFn func(cc string, seconds int) error
+	// SinksFn — puits d'audit détectés (dualns → legacy → external) ;
+	// nil ⇒ détection réelle. Les tests injectent un stub pour rester hors
+	// réseau : les défauts d'audit/start suivent le banc, pas un 10.200.0.1
+	// en dur (M4).
+	SinksFn func() audit.Sinks
+	// AuditDepsFn — dépendances de l'audit (tests : ping/small/bulk
+	// instantanés) ; nil ⇒ implémentations réelles. OnProgress est posé
+	// par le handler, jamais par l'injection.
+	AuditDepsFn func() audit.Deps
 }
 
 // observeBlocked — les hôtes Windows observent : l'audit fonctionne, les
@@ -166,7 +248,12 @@ func (h Handler) CloseHub() {
 
 var auditMu sync.Mutex
 var lastAudit *audit.Result
+var lastAuditReport *audit.Report
 var auditRunning bool
+var auditCancel context.CancelFunc
+var auditStartedAt time.Time
+var auditTotalSec int
+var auditProgress atomic.Value // audit.Progress : écrit par l'audit, lu sans verrou
 
 // Journal — mémoire opérateur: anneau des 50 derniers événements.
 var eventsMu sync.Mutex
@@ -225,6 +312,12 @@ func shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (i
 }
 
 const maxSubs = 64
+
+// validRunID — un identifiant fourni ne contient ni séparateur ni point, donc
+// le glob data/runs/<id>/aqm_eval.csv ne sort jamais de data/runs. Vide veut
+// dire « tous les runs » pour les routes qui l'acceptent. Une seule règle,
+// partagée par results, replay/stream, run/rows et quarantine.
+func validRunID(s string) bool { return !strings.ContainsAny(s, `/\.`) }
 
 // New construit le handler complet avec repli SPA. Le Handler retourné expose
 // CloseHub pour un arrêt propre (stoppe le ticker de diffusion 10 Hz).
@@ -293,9 +386,18 @@ func New(d Deps) Handler {
 	if snap == nil {
 		snap = func() any { return map[string]any{"running": false} }
 	}
+	next := d.NextSnap
+	if next == nil {
+		next = snap
+	}
 
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"ok": true, "version": d.Version, "mode": d.Mode})
+		writeJSON(w, map[string]any{"ok": true, "version": d.Version, "mode": d.Mode, "telemetry": probe.KernelSource()})
+	})
+	// capacités du banc : le client rend les files et contrôles que cet hôte
+	// expose réellement, sans recopier de liste.
+	mux.HandleFunc("GET /api/capabilities", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, campagne.CapabilitiesNow())
 	})
 	mux.HandleFunc("GET /api/doctor", func(w http.ResponseWriter, _ *http.Request) {
 		if d.DoctorFn != nil {
@@ -312,6 +414,39 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/cost/tiers", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"tiers": metrics.Tiers, "default": metrics.ActiveTierName()})
 	})
+	// catalogue entreprise — plans, tarifs B2B, pénalité de secours et
+	// mapping primaire : TOUT vient des vars de pkg/metrics (source unique,
+	// un tarif changé au paquet se retrouve ici) ; aucun nombre recopié.
+	mux.HandleFunc("GET /api/cost/enterprise", func(w http.ResponseWriter, _ *http.Request) {
+		plans := make([]map[string]any, 0, 2)
+		for _, p := range []metrics.EnterprisePlan{metrics.PlanGOLD, metrics.PlanPLATINE} {
+			m := map[string]any{"name": p.Name, "monthly_opex_mga": p.MonthlyOpExMGA}
+			// capacité ou FUP — jamais les deux zéros : un plan CIR n'a pas
+			// de FUP, un plan FUP n'a pas de CIR (pas de zéro qui lit « mesuré »)
+			if p.CIRMbps > 0 {
+				m["cir_mbps"] = p.CIRMbps
+			}
+			if p.FUPBytes > 0 {
+				m["fup_bytes"] = p.FUPBytes
+			}
+			plans = append(plans, m)
+		}
+		tariffs := make([]map[string]any, 0, 2)
+		for _, tr := range []metrics.B2BTariff{metrics.TariffWholesale, metrics.TariffCorporateAPN} {
+			t := map[string]any{"name": tr.Name, "ar_per_gb": tr.ARPerGB}
+			if tr.Quoted {
+				t["quoted"] = true // devis opérateur — le rapport doit le dire (invariant 4)
+			}
+			tariffs = append(tariffs, t)
+		}
+		writeJSON(w, map[string]any{
+			"plans":               plans,
+			"tariffs":             tariffs,
+			"emergency_ar_per_gb": metrics.RetailEmergencyARPerGB,
+			"primary_mapping":     map[string]string{"fiber": metrics.PrimaryName("fiber"), "other": metrics.PrimaryName("other"), "4g": metrics.PrimaryName("4g"), "5g": metrics.PrimaryName("5g"), "vsat": metrics.PrimaryName("vsat")},
+			"disclaimer":          metrics.EconomicsDisclaimer,
+		})
+	})
 	// palier actif — le forfait où vit l'institution (les coûts affichés
 	// suivent ; inconnu = 400, pas de défaut silencieux)
 	mux.HandleFunc("POST /api/cost/tier", func(w http.ResponseWriter, r *http.Request) {
@@ -320,6 +455,12 @@ func New(d Deps) Handler {
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
+			return
+		}
+		// Le palier est gelé avec le run : le changer en cours de campagne
+		// donnerait deux bases de coût dans le même gel.
+		if d.RunningFn != nil && d.RunningFn() {
+			writeErr(w, r, "campagne en cours — le palier est gelé avec le run, changez-le après le gel", http.StatusConflict)
 			return
 		}
 		if err := metrics.SetDefaultTier(body.Tier); err != nil {
@@ -476,11 +617,22 @@ func New(d Deps) Handler {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
+		// run_id est un chemin sous data/runs : un identifiant qui en sort
+		// (../, /, \) ferait écrire OpenRun, et lire son manifeste, hors du
+		// dossier. Même garde que les routes qui lisent un run.
+		if opts.RunID != "" && !validRunID(opts.RunID) {
+			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
+			return
+		}
 		// prévention — le client est une indication, jamais le contrat (§6) ; l'entrée
 		// est validée même sur les hôtes sans moteur câblé — bornes issues du
 		// même registre que sert GET /api/schema
 		if mn, mx, ok := paramBounds("reps"); ok && (opts.Reps < int(mn) || opts.Reps > int(mx)) {
 			writeErr(w, r, "reps must be 1–5", http.StatusBadRequest)
+			return
+		}
+		if opts.Flows != 0 && (opts.Flows < 1 || opts.Flows > 8) {
+			writeErr(w, r, "flows must be 1–8", http.StatusBadRequest)
 			return
 		}
 		// bornes — la deadline voyage avec le run, dans la même fenêtre
@@ -511,18 +663,42 @@ func New(d Deps) Handler {
 			writeErr(w, r, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
 			return
 		}
-		// axes qdisc/CC : validés ici même sans moteur câblé (prévention §6) ;
-		// vides = matrice pleine (comportement historique)
+		// provenance déclarée — validée ici même sans moteur câblé (le refus
+		// doit tenir sur les hôtes en observation) ; bursty est une physique
+		// de canal radio : P2/P3 uniquement (décision 7), refusé avant toute
+		// mutation. La campagne reste le dernier mot (même règle, même message).
+		switch opts.Bench {
+		case "", "legacy", "dualns":
+		default:
+			writeErr(w, r, "bench must be legacy | dualns", http.StatusBadRequest)
+			return
+		}
+		switch opts.ChannelModel {
+		case "", "clean", "bursty":
+		default:
+			writeErr(w, r, "channel_model must be clean | bursty", http.StatusBadRequest)
+			return
+		}
+		if opts.ChannelModel == "bursty" {
+			var hors []string
+			for _, id := range opts.Profiles {
+				if id != "P2" && id != "P3" {
+					hors = append(hors, id)
+				}
+			}
+			if len(hors) > 0 {
+				writeErr(w, r, "channel_model bursty invalide pour "+strings.Join(hors, ", ")+" — rafales sur P2/P3 uniquement (choisir clean)", http.StatusBadRequest)
+				return
+			}
+		}
+		// axes qdisc/CC : validés sur les mêmes listes que le moteur
+		// (model.AllQdiscs / model.KnownCC). L'indisponibilité de bbr3 reste
+		// la porte du moteur : refus explicite avec le chemin d'installation,
+		// jamais un repli silencieux. Vides = matrice pleine.
 		if len(opts.Qdiscs) > 0 {
 			validQ := map[string]bool{}
-			for _, p := range schemaParams {
-				if p.Key == "shape_qdisc" {
-					for _, e := range p.Enum {
-						if e != "none" {
-							validQ[e] = true
-						}
-					}
-				}
+			for _, q := range model.AllQdiscs {
+				validQ[string(q)] = true
 			}
 			for _, q := range opts.Qdiscs {
 				if !validQ[q] {
@@ -533,12 +709,8 @@ func New(d Deps) Handler {
 		}
 		if len(opts.CCs) > 0 {
 			validCC := map[string]bool{}
-			for _, p := range schemaParams {
-				if p.Key == "burst_cc" {
-					for _, e := range p.Enum {
-						validCC[e] = true
-					}
-				}
+			for _, c := range model.KnownCC {
+				validCC[string(c)] = true
 			}
 			for _, c := range opts.CCs {
 				if !validCC[c] {
@@ -588,6 +760,10 @@ func New(d Deps) Handler {
 	})
 	mux.HandleFunc("GET /api/results", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
+		if run != "" && !validRunID(run) {
+			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
+			return
+		}
 		groups, _ := results.Scan("data/runs", run)
 		if len(groups) == 0 {
 			writeJSON(w, map[string]any{"available": false, "groups": []any{}, "reason": "résultats disponibles après gel (jalon M2)"})
@@ -693,6 +869,9 @@ func New(d Deps) Handler {
 			"delta": map[string]any{"small_p95_pct": pct(pv.SmallP95, cv.SmallP95), "rtt_p95_pct": pct(pv.RTTp95, cv.RTTp95), "goodput_pct": pct(pv.Goodput, cv.Goodput)},
 		})
 	})
+	// duel — la comparaison de référence : le meilleur AQM éligible et la
+	// ligne pfifo_fast, choisis par le moteur, jamais par l'interface.
+	mux.HandleFunc("GET /api/duel", handleDuel())
 	// compare — preuve pilote : Mann-Whitney bilatéral + Cliff sur deux
 	// cellules valid-only. Ex: GET /api/results/compare?a=P2|pfifo_fast|bbr&b=P2|cake|bbr&metric=small_p95_ms
 	// metric ∈ {small_p95_ms, deadline_ok_pct}. deadline agrégée mélange des
@@ -742,13 +921,14 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, _ *http.Request) {
 		runs, _ := filepath.Glob("data/runs/*")
 		sort.Strings(runs)
-		valid, quarantined := 0, 0
+		valid, degraded, quarantined := 0, 0, 0
 		manifests := 0
 		var runIDs []string
 		type runBreak struct {
 			Run         string `json:"run"`
 			Rows        int    `json:"rows"`
 			Valid       int    `json:"valid"`
+			Degraded    int    `json:"degraded"`
 			Quarantined int    `json:"quarantined"`
 		}
 		breakdown := []runBreak{}
@@ -759,10 +939,13 @@ func New(d Deps) Handler {
 			gs, _ := results.Scan("data/runs", filepath.Base(p))
 			b := runBreak{Run: filepath.Base(p)}
 			for _, g := range gs {
-				valid += g.Count - g.Quarantined
+				strict := g.Count - g.Quarantined - g.Degraded
+				valid += strict
+				degraded += g.Degraded
 				quarantined += g.Quarantined
 				b.Rows += g.Count
-				b.Valid += g.Count - g.Quarantined
+				b.Valid += strict
+				b.Degraded += g.Degraded
 				b.Quarantined += g.Quarantined
 			}
 			breakdown = append(breakdown, b)
@@ -786,7 +969,7 @@ func New(d Deps) Handler {
 			writeJSON(w, map[string]any{"available": false, "reason": "intégrité disponible après gel (jalon M2)"})
 			return
 		}
-		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "quarantined": quarantined, "run_ids": runIDs, "breakdown": breakdown, "updated": updated, "sha256": figures.ProvenanceSHA("data/runs"), "hash8": figures.ProvenanceHash8("data/runs")})
+		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "degraded": degraded, "quarantined": quarantined, "run_ids": runIDs, "breakdown": breakdown, "updated": updated, "sha256": figures.ProvenanceSHA("data/runs"), "hash8": figures.ProvenanceHash8("data/runs")})
 	})
 	mux.HandleFunc("GET /api/report/export", func(w http.ResponseWriter, r *http.Request) {
 		fmtParam := r.URL.Query().Get("format")
@@ -915,8 +1098,7 @@ func New(d Deps) Handler {
 	})
 	mux.HandleFunc("GET /api/replay/stream", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
-		// même garde anti-traversal que /api/run/rows — pas de sortie de data/runs
-		if run == "" || strings.ContainsAny(run, `/\.`) {
+		if run == "" || !validRunID(run) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -961,172 +1143,15 @@ func New(d Deps) Handler {
 		}
 	})
 
-	mux.HandleFunc("POST /api/audit/start", func(w http.ResponseWriter, r *http.Request) {
-		var body struct {
-			Site     string `json:"site"`
-			LinkType string `json:"link_type"`
-			Provider string `json:"provider"`
-			Duration int    `json:"duration"`
-			Target   string `json:"target"`
-			SmallURL string `json:"small_url"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
-			writeErr(w, r, "bad json", http.StatusBadRequest)
-			return
-		}
-		if body.Duration <= 0 {
-			body.Duration = 30
-		}
-		// prévention — bornes imposées; un audit débridé coûte cher
-		if body.Duration < 10 {
-			body.Duration = 10
-		}
-		if body.Duration > 600 {
-			body.Duration = 600
-		}
-		if len(body.Site) > 80 {
-			body.Site = body.Site[:80]
-		}
-		if len(body.Target) > 64 {
-			writeErr(w, r, "cible trop longue", http.StatusBadRequest)
-			return
-		}
-		if body.Target == "" {
-			body.Target = "8.8.8.8"
-		}
-		auditMu.Lock()
-		if auditRunning {
-			auditMu.Unlock()
-			writeErr(w, r, "audit already running", http.StatusConflict)
-			return
-		}
-		auditRunning = true
-		auditMu.Unlock()
-		go func() {
-			defer func() { auditMu.Lock(); auditRunning = false; auditMu.Unlock() }()
-			p := audit.Params{AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()), Site: body.Site, LinkType: body.LinkType, Provider: body.Provider, Duration: body.Duration, Target: body.Target, SmallURL: body.SmallURL}
-			// contexte détaché: l'audit survit à cette requête HTTP
-			res, err := audit.Run(context.Background(), p, audit.Deps{})
-			if err != nil {
-				recordEvent("audit", fmt.Sprintf("échec — %s (%s) : %s", p.Site, p.LinkType, err))
-				return
-			}
-			auditMu.Lock()
-			lastAudit = res
-			auditMu.Unlock()
-			recordEvent("audit", fmt.Sprintf("terminé — %s (%s), p95 %g ms", p.Site, p.LinkType, res.RTTIdleP95))
-			_ = audit.AppendLinkAudit("data", res)
-		}()
-		writeJSON(w, map[string]any{"started": true})
-	})
-	mux.HandleFunc("GET /api/audit/status", func(w http.ResponseWriter, _ *http.Request) {
-		auditMu.Lock()
-		defer auditMu.Unlock()
-		writeJSON(w, map[string]any{"running": auditRunning, "last": lastAudit})
-	})
-	// protocole RQ1 matérialisé : l'opérateur choisit au lieu de recopier.
-	mux.HandleFunc("GET /api/audit/presets", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"presets": audit.Presets()})
-	})
-	mux.HandleFunc("GET /api/audit/list", func(w http.ResponseWriter, _ *http.Request) {
-		// read link_audit.csv
-		f, err := os.Open("data/link_audit.csv")
-		if err != nil {
-			writeJSON(w, map[string]any{"audits": []any{}})
-			return
-		}
-		defer f.Close()
-		rd := csv.NewReader(f)
-		rows, _ := rd.ReadAll()
-		if len(rows) <= 1 {
-			writeJSON(w, map[string]any{"audits": []any{}})
-			return
-		}
-		var out []map[string]string
-		hdr := rows[0]
-		for _, row := range rows[1:] {
-			m := map[string]string{}
-			for i, h := range hdr {
-				if i < len(row) {
-					m[h] = row[i]
-				}
-			}
-			out = append(out, m)
-		}
-		writeJSON(w, map[string]any{"audits": out})
-	})
-	// boucle RQ1→RQ2 : l'audit réel devient profil rejouable sur le banc.
-	// capacity = throughput, delay = rtt_idle_p95, loss = loss_pct mesurés.
-	// ?audit_id= choisit la ligne (défaut : dernière) — l'opérateur importe
-	// la fibre sans relancer la pointe.
-	mux.HandleFunc("POST /api/audit/toprofile", func(w http.ResponseWriter, r *http.Request) {
-		f, err := os.Open("data/link_audit.csv")
-		if err != nil {
-			writeErr(w, r, "aucun audit — lancez d'abord cgo audit", http.StatusNotFound)
-			return
-		}
-		defer f.Close()
-		rd := csv.NewReader(f)
-		rows, _ := rd.ReadAll()
-		if len(rows) < 2 {
-			writeErr(w, r, "audit vide", http.StatusNotFound)
-			return
-		}
-		hdr := rows[0]
-		last := rows[len(rows)-1]
-		// ?audit_id= : la ligne choisie, sinon la dernière
-		if want := r.URL.Query().Get("audit_id"); want != "" {
-			found := false
-			for _, row := range rows[1:] {
-				for i, h := range hdr {
-					if h == "audit_id" && i < len(row) && row[i] == want {
-						last, found = row, true
-					}
-				}
-				if found {
-					break
-				}
-			}
-			if !found {
-				writeErr(w, r, "audit introuvable : "+want, http.StatusNotFound)
-				return
-			}
-		}
-		get := func(col string) string {
-			for i, h := range hdr {
-				if h == col && i < len(last) {
-					return last[i]
-				}
-			}
-			return ""
-		}
-		cap, _ := strconv.ParseFloat(get("throughput_mbps"), 64)
-		delay, _ := strconv.ParseFloat(get("rtt_idle_p95_ms"), 64)
-		loss, _ := strconv.ParseFloat(get("loss_pct"), 64)
-		id := "P-audit"
-		if v := get("audit_id"); v != "" {
-			id = "P-" + v
-		}
-		p := model.Profile{ID: id, CapacityMbps: cap, DelayMs: delay, LossPct: loss}
-		if p.CapacityMbps <= 0 {
-			p.CapacityMbps = 20 // repli documenté — banc par défaut si débit non mesuré
-		}
-		if p.DelayMs <= 0 {
-			p.DelayMs = 100
-		}
-		if p.CapacityMbps <= 0 {
-			p.CapacityMbps = 20 // repli documenté — banc par défaut si débit non mesuré
-		}
-		if p.DelayMs <= 0 {
-			p.DelayMs = 100
-		}
-		if err := profile.Import(p); err != nil {
-			writeErr(w, r, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		recordEvent("profil", fmt.Sprintf("%s importé depuis audit — %g Mbit/s, %g ms, perte %g %%", id, p.CapacityMbps, p.DelayMs, p.LossPct))
-		writeJSON(w, map[string]any{"ok": true, "profile": p})
-	})
+	mux.HandleFunc("POST /api/audit/start", handleAuditStart(d))
+	mux.HandleFunc("GET /api/audit/status", handleAuditStatus())
+	mux.HandleFunc("GET /api/audit/live", handleAuditLive())
+	mux.HandleFunc("POST /api/audit/stop", handleAuditStop())
+	mux.HandleFunc("GET /api/audit/report", handleAuditReport())
+	mux.HandleFunc("GET /api/remediate", handleRemediate())
+	mux.HandleFunc("GET /api/audit/presets", handleAuditPresets())
+	mux.HandleFunc("GET /api/audit/list", handleAuditList())
+	mux.HandleFunc("POST /api/audit/toprofile", handleAuditToProfile())
 	mux.HandleFunc("POST /api/profile/import", func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		if err != nil {
@@ -1245,13 +1270,13 @@ func New(d Deps) Handler {
 	})
 
 	mux.Handle("GET /api/stream", http.HandlerFunc(hub.SSE))
-	hub.Serve(func() any { return snap() })
+	hub.Serve(func() any { return next() })
 
 	spa := http.FileServer(http.FS(frontend.FS))
 	// Vue Compare — lignes gelées brutes d'un run, protégée contre le cheminement.
 	mux.HandleFunc("GET /api/run/rows", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
-		if id == "" || strings.ContainsAny(id, `/\.`) {
+		if id == "" || !validRunID(id) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -1283,7 +1308,7 @@ func New(d Deps) Handler {
 	// Quarantaine réelle — lignes quarantine.json gelées, tous runs si ?run= vide.
 	mux.HandleFunc("GET /api/quarantine", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
-		if strings.ContainsAny(id, `/\.`) {
+		if !validRunID(id) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -1400,7 +1425,37 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"events": out})
 	})
 	mux.Handle("/", spa)
-	return Handler{Handler: mux, hubClose: func() { hub.Close() }}
+	return Handler{Handler: crossSiteGuard(mux), hubClose: func() { hub.Close() }}
+}
+
+// crossSiteGuard — un navigateur venu d'un autre site ne déclenche pas de
+// mutation (CSRF) : Sec-Fetch-Site: cross-site est refusé sur les verbes non
+// sûrs. Les clients non-navigateur (curl, CLI, tests) n'envoient pas cet
+// en-tête et restent inchangés ; aucun jeton n'est introduit.
+func crossSiteGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+		default:
+			if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+				writeErr(w, r, "requête cross-site refusée", http.StatusForbidden)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// truncateUTF8 — coupe à max octets sans fendre un caractère : un site coupé
+// au milieu d'un « é » laisserait un U+FFFD dans le CSV et le rapport.
+func truncateUTF8(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	for max > 0 && s[max]&0xC0 == 0x80 {
+		max--
+	}
+	return s[:max]
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
@@ -1422,4 +1477,45 @@ func writeErr(w http.ResponseWriter, r *http.Request, msg string, code int) {
 		return
 	}
 	http.Error(w, msg, code)
+}
+
+// auditParamsFromRequest — le mapping requête → audit.Params, défauts
+// up/4 (le régime du banc durci). Les champs de terrain fournis passent
+// tels quels : cette fonction mappe, le handler valide et borne.
+func auditParamsFromRequest(body map[string]any) audit.Params {
+	get := func(k string) string {
+		if v, ok := body[k].(string); ok {
+			return v
+		}
+		return ""
+	}
+	num := func(k string, def int) int {
+		// JSON décode en float64 ; un appel Go direct fournit souvent un
+		// int — les deux sont acceptés, jamais réécrits en silence.
+		switch v := body[k].(type) {
+		case float64:
+			if v > 0 {
+				return int(v)
+			}
+		case int:
+			if v > 0 {
+				return v
+			}
+		}
+		return def
+	}
+	dir := get("direction")
+	if dir == "" {
+		dir = "up"
+	}
+	return audit.Params{
+		AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
+		Site:    get("site"), LinkType: get("link_type"), Provider: get("provider"),
+		Duration: num("duration", 60), Target: get("target"),
+		Direction: dir, Flows: num("flows", 4),
+		SmallURL: get("small_url"), BulkAddr: get("bulk_addr"),
+		// Consignés pour la reproduction scellée : le handler connaît le banc
+		// qu'il a détecté, cette fonction ne le devine pas.
+		SinkMode: get("sink_mode"), Origin: get("origin"),
+	}
 }

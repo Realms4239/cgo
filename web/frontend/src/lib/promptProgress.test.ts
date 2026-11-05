@@ -6,7 +6,7 @@ describe('promptProgress', () => {
   it('progress line 6s bottom amber', () => {
     const s=read('web/frontend/src/components/PromptProgressLine.tsx')
     expect(s).toContain('6000')
-    expect(s).toContain('#f4b400')
+    expect(s).toContain('var(--t-threshold)')
     expect(s).toContain('paused')
   })
   it('quick prompt shows progress not choices when running', () => {

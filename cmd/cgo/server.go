@@ -7,17 +7,45 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/api"
 	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/pkg/doctor"
+	"github.com/Realms4239/cgo/pkg/iface"
 	"github.com/Realms4239/cgo/pkg/model"
 	"github.com/Realms4239/cgo/pkg/probe"
 	"github.com/Realms4239/cgo/pkg/qdisc"
 	"github.com/Realms4239/cgo/pkg/results"
 )
+
+// liveFrame — snapshot de campagne + échantillon interface, aplatis en JSON.
+// Les champs iface_* sont additifs ; absents quand CGO_IFACE est vide.
+type liveFrame struct {
+	campagne.Snapshot
+	iface.Sample
+}
+
+// envSampler — CGO_IFACE / CGO_IFACE_SOURCE, lus une fois au démarrage.
+// Pas d'auto-détection : une mauvaise interface serait une mesure mal étiquetée.
+func envSampler(getenv func(string) string, goos string) *iface.Sampler {
+	name := getenv("CGO_IFACE")
+	if name == "" {
+		return nil
+	}
+	if goos != "linux" {
+		log.Printf("CGO_IFACE=%s ignoré — /proc/net/dev absent sur %s", name, goos)
+		return nil
+	}
+	src := getenv("CGO_IFACE_SOURCE")
+	if src != "" && iface.NormalizeSource(src) != src {
+		log.Printf("CGO_IFACE_SOURCE=%q inconnu — source non déclarée", src)
+	}
+	return iface.New(name, src)
+}
 
 // runServer démarre le tableau de bord + l'API avec le cœur de campagne.
 // mode: "full" (Linux bench/edge) or "observe" (Windows workstation).
@@ -32,6 +60,17 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		log.Printf("runs gelés intégrés : %d fichiers", n)
 	}
 	live := campagne.NewLive()
+	sampler := envSampler(os.Getenv, runtime.GOOS)
+	getSnap := func() any { return live.Get() }
+	nextSnap := getSnap
+	if sampler != nil {
+		getSnap = func() any {
+			return liveFrame{Snapshot: live.Get(), Sample: sampler.Latest()}
+		}
+		nextSnap = func() any {
+			return liveFrame{Snapshot: live.Get(), Sample: sampler.Read()}
+		}
+	}
 
 	// deadline par défaut — même registre que GET /api/schema
 	defaultDeadline := func() float64 {
@@ -129,10 +168,29 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 				time.Sleep(100 * time.Millisecond)
 			}
 		}
+		// provenance — même échelle que runCLI : choix API → CGO_BENCH →
+		// legacy. dualns est direction-aware (le shaper change de sens).
+		bench := o.Bench
+		if bench == "" {
+			bench = os.Getenv("CGO_BENCH")
+		}
+		if bench == "" {
+			bench = "legacy"
+		}
 		deps := campagne.ProdDeps()
-		if o.Direction == "down" {
+		if bench == "dualns" {
+			deps = campagne.ProdDepsDualNS(o.Direction)
+		} else if o.Direction == "down" {
 			deps = campagne.ProdDepsDown()
 		}
+		deps.Bench = bench
+		deps.ChannelModel = o.ChannelModel
+		// décision 6 — le défaut est le régime campagne (4 flux), pas le
+		// régime historique gelé (1 flux) ; l'API laisse passer 0 = défaut.
+		if o.Flows == 0 {
+			o.Flows = 4
+		}
+		deps.Flows = o.Flows
 		deps.OnSnap = func(s campagne.Snapshot) { live.Set(s) }
 		// la deadline choisie par l'opérateur voyage avec la campagne —
 		// reprise du défaut registre si non fournie (0 interdit : 0% partout)
@@ -159,11 +217,7 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 			qdiscs = qs
 		}
 		if len(ccs) == 0 {
-			cs := make([]string, len(model.AllCC))
-			for i, c := range model.AllCC {
-				cs[i] = string(c)
-			}
-			ccs = cs
+			ccs = campagne.DefaultCCs()
 		}
 		// Reprise : un run_id existant rejoue les cellules manquantes au lieu
 		// de geler un doublon (PC/VM éteints en pleine matrice). Vide = frais.
@@ -190,8 +244,14 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 					return
 				}
 				depsDown := campagne.ProdDepsDown()
+				if bench == "dualns" {
+					depsDown = campagne.ProdDepsDualNS("down")
+				}
+				depsDown.Flows = deps.Flows
 				depsDown.DeadlineMs = deps.DeadlineMs
 				depsDown.OnSnap = deps.OnSnap
+				depsDown.Bench = deps.Bench
+				depsDown.ChannelModel = deps.ChannelModel
 				if m2, err := campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, depsDown, "data/runs"); err == nil {
 					setMtx(m2)
 				}
@@ -232,7 +292,8 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		return qdisc.ApplyShaper(deps.TCShaper, deps.ShaperIf, model.Qdisc(r.Qdisc), r.CapMbps, 100)
 	}
 	handler := api.New(api.Deps{
-		GetSnap:   func() any { return live.Get() },
+		GetSnap:   getSnap,
+		NextSnap:  nextSnap,
 		StartFn:   startFn,
 		StopFn:    stopFn,
 		SkipFn:    skipFn,

@@ -31,6 +31,9 @@ func TestRenderMeasuredReportFixture(t *testing.T) {
 		BloatDeltaMs:   193.6,
 		BloatGrade:     "C",
 		BloatVerdict:   "queue sous charge",
+		// La fenêtre de charge a bien été programmée : sans ce fait gelé,
+		// le verdict opérateur lirait « pas encore mesuré » sous une note C.
+		LoadAttempted: true,
 	}
 	link := remediate.Link{Interface: "wan0", RouterOSInterface: "ether1-wan", Overhead: 0, MTU: 1500}
 	rep, err := BuildReport(res, link, "", true, false)
