@@ -10,7 +10,8 @@ import { RemediationCard } from '../components/RemediationCard'
 import { VerdictHero } from '../components/VerdictHero'
 import { Badge } from '../components/ui/StatusPip'
 import { CardHead } from '../components/ui/CardHead'
-import { auditStep } from '../lib/auditFlow'
+import PhaseStepper from '../components/PhaseStepper'
+import { selectAuditViewState } from '../lib/viewState'
 import { loadSettings } from '../lib/settings'
 import { useAuditStore } from '../store/audit'
 import { useUIStore } from '../store/ui'
@@ -24,8 +25,16 @@ export default function AuditView() {
     useAuditStore.getState().open()
   }, [])
 
-  const report = s.report
+  const snapshot = selectAuditViewState({
+    stage: s.stage,
+    live: s.live,
+    report: s.report,
+    failure: s.failure ?? null,
+  })
+  const report = snapshot.status === 'complete' ? snapshot.report : s.report
   const remediation = report?.remediation
+  const currentPhase = snapshot.status === 'running' ? snapshot.phase : 'repos'
+  const stepIndex = snapshot.status === 'complete' ? 3 : snapshot.status === 'running' ? 2 : 1
 
   return (
     <div className="panel-stack audit-page">
@@ -44,7 +53,7 @@ export default function AuditView() {
 
       <ol className="audit-steps mono" aria-label="étapes de l'audit">
         {['Déclarer', 'Observer', 'Lire'].map((label, i) => {
-          const active = auditStep(s.stage) === i + 1
+          const active = stepIndex === i + 1
           return (
             <li key={label} aria-current={active ? 'step' : undefined} className={active ? 'on' : ''}>
               {i + 1}. {label}
@@ -53,41 +62,62 @@ export default function AuditView() {
         })}
       </ol>
 
-      {s.stage === 'idle' ? (
+      {snapshot.status === 'error' ? (
+        <section className="state-card state-error" data-testid="audit-error">
+          <p className="state-kicker">Lecture interrompue</p>
+          <h2>La preuve n’a pas pu être relue</h2>
+          <p>{snapshot.message}</p>
+          <div className="layout-action">
+            <button className="btn btn-primary" onClick={snapshot.retryAction}>Réessayer</button>
+            <button className="btn" onClick={s.restart}>Retour à la déclaration</button>
+          </div>
+        </section>
+      ) : null}
+
+      {snapshot.status === 'loading_stale' ? (
+        <section className="state-card state-stale" data-testid="audit-stale">
+          <p className="state-kicker">Lecture en cours</p>
+          <h2>Un constat existe, mais il n’est pas relu</h2>
+          <p>Les données déjà disponibles restent historiques; elles ne sont pas lues comme une mesure active.</p>
+          <div className="layout-action">
+            <button className="btn btn-primary" onClick={s.showReport}>Voir le dernier constat</button>
+          </div>
+        </section>
+      ) : null}
+
+      {snapshot.status === 'idle' ? (
         <section className="card audit-idle">
           <CardHead label="Déclarer un audit" />
-          <p className="mono muted">
-            Quatre décisions suffisent : le site, le type de lien, la durée et le sens. Les champs
-            avancés restent repliés.
-          </p>
+          <p>Cette destination mesure la latence au repos, puis sous charge. Elle ne fabrique pas de résultat intermédiaire.</p>
           <button className="btn btn-primary" onClick={s.open}>DÉCLARER</button>
-          {report ? (
-            <button className="btn" onClick={s.showReport}>VOIR LE DERNIER RAPPORT</button>
+          {snapshot.lastAudit ? (
+            <button className="btn" onClick={s.showReport}>VOIR LE DERNIER CONSTAT</button>
           ) : null}
         </section>
       ) : null}
 
-      {s.stage === 'declared' ? (
+      {s.stage === 'declared' && snapshot.status !== 'error' ? (
         <section className="card" data-testid="audit-declare-card">
-          <CardHead label="Déclarer" sub="presets, quatre décisions, avancé replié" />
+          <CardHead label="Déclarer" sub="site, type de lien, sens" />
           <AuditDeclare />
-          {report ? (
+          {s.report ? (
             <button className="btn audit-last-report" onClick={s.showReport}>
-              VOIR LE DERNIER RAPPORT — {report.site || 'site —'}
+              VOIR LE DERNIER CONSTAT — {s.report.site || 'site —'}
             </button>
           ) : null}
         </section>
       ) : null}
 
-      {s.stage === 'observing' ? (
+      {snapshot.status === 'running' ? (
         <section className="card" data-testid="audit-observe-card">
           <CardHead label="Observer" sub="phases, restant, échantillons de la fenêtre" />
+          <PhaseStepper phase={currentPhase} />
           <AuditLive live={s.live} direction={s.direction} onStop={s.stop} />
           {s.msg ? <span className="mono muted audit-msg">{s.msg}</span> : null}
         </section>
       ) : null}
 
-      {s.stage === 'done' && report ? (
+      {snapshot.status === 'complete' && report ? (
         <section className="card audit-read" data-testid="audit-read-card">
           <CardHead
             label="Lire"
@@ -97,10 +127,10 @@ export default function AuditView() {
           <VerdictHero report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
           {report.bloat_verdict ? <p className="audit-verdict">{report.bloat_verdict}</p> : null}
 
-          {remediation ? (
-            <RemediationCard remediation={remediation} state={report.remediation_state ?? (remediation ? "available" : "observation_only")} />
+          {remediation && report.remediation_state === 'available' ? (
+            <RemediationCard remediation={remediation} state="available" />
           ) : (
-            <p className="mono muted">Aucune remédiation émise — capacité ou RTT repos non mesurés.</p>
+            <p className="mono muted">Observation seule — aucun réglage n’est prêt à être appliqué.</p>
           )}
 
           <div className="audit-launch">
@@ -111,7 +141,7 @@ export default function AuditView() {
         </section>
       ) : null}
 
-      {s.stage === 'done' && !report ? (
+      {snapshot.status === 'complete' && !report ? (
         <section className="card">
           <p className="mono muted">Rapport absent — relancez un audit.</p>
           <button className="btn" onClick={s.restart}>NOUVEL AUDIT</button>
