@@ -23,7 +23,7 @@ describe('banc d’essai linéaire', () => {
 
   it('Configurer garde chaque décision de campagne', () => {
     const c = read('components/BenchConfig.tsx')
-    for (const token of ['Profils', 'Flux de charge', 'Canal', 'Deadline', 'DÉMARRER', "ARRÊTER", 'AUDIT → PROFIL', 'IMPORTER']) {
+    for (const token of ['ProfileTiles', 'Flux de charge', 'Canal', 'Deadline', 'DÉMARRER', "ARRÊTER", 'AUDIT → PROFIL', 'IMPORTER']) {
       expect(c, token).toContain(token)
     }
     expect(read('store/bench.ts'), 'quatre flux par défaut').toContain('flows: 4')

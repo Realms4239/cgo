@@ -15,12 +15,13 @@ afterEach(() => {
 })
 
 describe('BenchConfig', () => {
-  it('masque les réglages de campagne hors mode recherche', async () => {
+  it('expose les quatre profils sans mode recherche', async () => {
     const html = await renderWithResearch(false)
     expect(html).toContain('data-research')
     expect(html).toContain('Mode recherche')
-    expect(html).toContain('Le duel P2')
-    expect(html).not.toContain('Profils')
+    expect(html).toContain('Profils de campagne')
+    expect(html).toContain('P1 — Fibre dédiée')
+    expect(html).toContain('P4 — Orbite basse')
     expect(html).not.toContain('Flux de charge')
     expect(html).not.toContain('Canal')
     expect(html).not.toContain('Deadline')
@@ -28,7 +29,7 @@ describe('BenchConfig', () => {
 
   it('révèle les réglages en mode recherche', async () => {
     const html = await renderWithResearch(true)
-    expect(html).toContain('Profils')
+    expect(html).toContain('Profils de campagne')
     expect(html).toContain('Répétitions')
     expect(html).toContain('Flux de charge')
     expect(html).toContain('Canal')
