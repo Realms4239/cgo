@@ -69,7 +69,8 @@ scripts/seekai-*.js
 /book/
 
 # capture evidence (see handoff §6.2)
-web/frontend/shots-fresh/
+web/frontend/shots-fresh/*
+!web/frontend/shots-fresh/README.md
 
 # machine junk
 nul
