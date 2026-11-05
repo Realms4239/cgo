@@ -139,7 +139,7 @@ export default function App() {
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         {live?.running && mode === 'bench' ? <QuickActionsPrompt /> : null}
 
-        <main id="main" tabIndex={-1}>
+        <main id="main" tabIndex={-1} className="layout-shell">
           <section id="v-dashboard" className="view" hidden={mode !== 'dashboard'}><DashboardView /></section>
           {mounted.audit ? (
             <section id="v-audit" className="view" hidden={mode !== 'audit'}>

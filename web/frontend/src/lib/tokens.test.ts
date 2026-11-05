@@ -73,7 +73,20 @@ describe('mobile 390 — navigation', () => {
   })
 })
 
-// Slice 20B — l'échelle se lit à bout de bras, une seule face sans serif.
+describe('desktop grid 890–1920', () => {
+  const index = read('web/frontend/src/styles/index.css')
+  const tokens = read('web/frontend/src/styles/tokens.css')
+  it('declares the shared 12-column grid and wrap contract', () => {
+    expect(tokens).toContain('--grid-gap:')
+    expect(index).toContain('.layout-grid')
+    expect(index).toContain('flex-wrap: wrap')
+  })
+  it('keeps the operator canvas dark but no longer uses the old narrow panel max-width', () => {
+    expect(index).toContain('.layout-shell')
+    expect(index).not.toContain('.panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 1180px;')
+  })
+})
+
 describe('échelle opérateur', () => {
   const sheet = read('web/frontend/src/styles/tokens.css')
   it('porte l’échelle-body et bannit la serif d’interface', () => {

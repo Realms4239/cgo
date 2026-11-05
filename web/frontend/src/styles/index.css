@@ -114,8 +114,21 @@ main:focus { outline: none; }
 .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
 .btn-danger { background: var(--t-danger); color: var(--text-primary); border-color: var(--t-danger); }
 
-/* panel-stack — colonne lisible sur 1920, pas de lignes étirées */
-.panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 1180px; width: 100%; margin: 0 auto; }
+/* coque desktop fluide — 890–1920 px, pas de bande centrale inerte */
+.layout-shell { width: 100%; max-width: 1680px; margin: 0 auto; padding: clamp(12px, 2vw, 28px); }
+.layout-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--grid-gap); align-content: start; }
+.layout-grid > * { min-width: 0; }
+@media (max-width: 1100px) {
+  .layout-grid { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .layout-grid > * { width: 100%; }
+}
+.layout-span-4 { grid-column: span 4; }
+.layout-span-5 { grid-column: span 5; }
+.layout-span-6 { grid-column: span 6; }
+.layout-span-7 { grid-column: span 7; }
+.layout-span-8 { grid-column: span 8; }
+.layout-span-12 { grid-column: 1 / -1; }
+.panel-stack { display: flex; flex-direction: column; gap: var(--sp-4); width: 100%; }
 /* respiration bento — gap fixe scopée au mur (#wall) */
 #wall { gap: var(--gap); container-type: inline-size; }
 /* bento 2-col du mur — scope direct #wall, jamais les tableaux */
