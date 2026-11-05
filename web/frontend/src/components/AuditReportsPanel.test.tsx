@@ -1,39 +1,67 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { AuditReportTable } from './AuditReportsPanel'
+import { AuditReportsView } from './AuditReportsPanel'
+import type { AuditReport } from '../lib/types'
 
-describe('AuditReportTable', () => {
-  it('liste un rapport avec son site, sa note et son action', () => {
-    const html = renderToStaticMarkup(
-      <AuditReportTable
-        rows={[{ audit_id: 'audit-7', site: 'Département X', link_type: '5g', timestamp: '2026-10-29T08:00:00Z', rtt_loaded_p95_ms: '328', bloat_grade: 'D', has_report: 'true' }]}
-        onOpen={() => {}}
-      />,
-    )
-    expect(html).toContain('Département X')
-    expect(html).toContain('2026-10-29')
-    expect(html).toContain('328')
-    expect(html).toContain('OUVRIR')
+const SEAL = 'b'.repeat(64)
+
+const sealedReport: AuditReport = {
+  audit_id: 'audit-dom',
+  site: 'site-dom',
+  link_type: '4g',
+  provider: 'yas',
+  measured: { direction: 'down', load_measured: true, http_small_p95_ms: 210.5, small_measured: true },
+  provenance: { source_file: 'audit_report.json', row_count: 1, source_sha256: SEAL },
+}
+
+const base = {
+  error: null,
+  msg: '',
+  citationMsg: null,
+  onRetry: vi.fn(),
+  onOpen: vi.fn(),
+  onCopyCitation: vi.fn(),
+  onCloseReport: vi.fn(),
+  onCopy: vi.fn(),
+}
+
+describe('AuditReportsView', () => {
+  it('rend l’attente avant la première réponse', () => {
+    const html = renderToStaticMarkup(<AuditReportsView {...base} rows={null} report={null} />)
+    expect(html).toContain('chargement…')
   })
 
-  it('dit l’absence de rapport sans inventer de ligne', () => {
-    const html = renderToStaticMarkup(<AuditReportTable rows={[]} onOpen={() => {}} />)
-    expect(html).toContain('Aucun rapport d')
-    expect(html).toContain('archivé.')
+  it('rend l’erreur avec sa reprise, pas le silence', () => {
+    const html = renderToStaticMarkup(
+      <AuditReportsView {...base} rows={[]} error="liste des rapports indisponible" report={null} />,
+    )
+    expect(html).toContain('liste des rapports indisponible')
+    expect(html).toContain('Réessayer')
   })
 
-  it('un rapport sans identifiant ne s’ouvre pas', () => {
-    const html = renderToStaticMarkup(
-      <AuditReportTable rows={[{ site: 'site sans id' }]} onOpen={() => {}} />,
-    )
-    expect(html).toContain('disabled')
+  it('rend l’archive virtualisée et compte ses lignes', () => {
+    const rows = Array.from({ length: 179 }, (_, i) => ({
+      audit_id: `a-${i}`,
+      site: `site-${i}`,
+      has_report: 'true',
+      verdict_level: 'green',
+      timestamp: '2026-10-29T08:00:00Z',
+    }))
+    const html = renderToStaticMarkup(<AuditReportsView {...base} rows={rows} report={null} />)
+    expect(html).toContain('archive : 179 lignes')
+    expect(html).toContain('aria-rowcount="179"')
   })
 
-  it('une ligne sans dossier d’archive est dite avant le clic', () => {
-    const html = renderToStaticMarkup(
-      <AuditReportTable rows={[{ audit_id: 'audit-old', site: 'Site X', has_report: 'false' }]} onOpen={() => {}} />,
-    )
-    expect(html).toContain('non archivé')
-    expect(html).not.toContain('OUVRIR')
+  it('ouvre le rapport sans démonter la liste', () => {
+    const rows = [{
+      audit_id: 'audit-dom',
+      site: 'site-dom',
+      has_report: 'true',
+      timestamp: '2026-10-29T08:00:00Z',
+    }]
+    const html = renderToStaticMarkup(<AuditReportsView {...base} rows={rows} report={sealedReport} />)
+    expect(html).toContain('Rapport ouvert')
+    expect(html).toContain('aria-rowcount="1"')
+    expect(html).toContain('RETOUR À LA LISTE')
   })
 })
