@@ -5,7 +5,6 @@ import { ArmButton } from './ArmButton'
 import { InlineField } from './InlineField'
 import { animateShake } from '../lib/anime'
 import {
-  AUDIT_DURATIONS,
   directionLabel,
   phasePlanLabel,
   validateAuditDeclaration,
@@ -83,17 +82,11 @@ export function AuditDeclare() {
             {LINK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </InlineField>
-        <InlineField
-          label="Durée"
-          error={validation.errors.duration}
-          helper={phasePlanLabel(s.duration)}
-        >
-          <div role="group" aria-label="Durée de l'audit" className="audit-pills">
-            {AUDIT_DURATIONS.map(d =>
-              toggle(`${d} s`, s.duration === d, () => s.patch({ duration: d }), `Durée ${d} secondes`),
-            )}
-          </div>
-        </InlineField>
+        <div className="audit-fact" role="group" aria-label="Durée de l’audit">
+          <p className="audit-fact-kicker">Durée</p>
+          <p className="audit-fact-value">Audit unique : 10 s au repos → 40 s sous charge → 10 s de drainage</p>
+          <p className="audit-fact-detail">{phasePlanLabel(60)}</p>
+        </div>
         <InlineField label="Sens" helper="fenêtre de charge exercée">
           <div role="group" aria-label="Sens de l'audit" className="audit-pills">
             {(['up', 'down', 'both'] as const).map(d =>
@@ -123,9 +116,6 @@ export function AuditDeclare() {
           </InlineField>
           <InlineField label="Interface RouterOS" helper="optionnel — ex. ether1-wan">
             <input className="c-input" name="audit-ros-iface" value={s.rosIface} onChange={e => s.patch({ rosIface: e.target.value })} placeholder="ether1-wan" />
-          </InlineField>
-          <InlineField label="Durée libre (s)" helper="10–600 s">
-            <input className="c-input" type="number" min={10} max={600} value={s.duration} onChange={e => s.patch({ duration: parseInt(e.target.value) || 0 })} />
           </InlineField>
         </div>
       ) : null}

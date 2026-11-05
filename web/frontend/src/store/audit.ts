@@ -123,7 +123,7 @@ export const useAuditStore = create<AuditState>((set, get) => ({
   site: 'Département X',
   link: '5g',
   provider: '',
-  duration: 20,
+  duration: 60,
   direction: DEFAULT_AUDIT_DIRECTION,
   target: '',
   iface: '',
@@ -184,13 +184,18 @@ export const useAuditStore = create<AuditState>((set, get) => ({
   },
 
   applyPreset: p =>
-    set({
-      site: p.site,
-      link: p.link_type,
-      provider: p.provider,
-      duration: p.duration,
-      target: p.target,
-      presetNote: p.notes,
+    set(() => {
+      if (p.duration !== 60) {
+        return { presetNote: `Preset incompatible — audit fixe 60 s (reçu ${p.duration} s)` }
+      }
+      return {
+        site: p.site,
+        link: p.link_type,
+        provider: p.provider,
+        duration: 60,
+        target: p.target,
+        presetNote: p.notes,
+      }
     }),
 
   start: async () => {
