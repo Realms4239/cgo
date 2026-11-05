@@ -14,7 +14,11 @@ export function auditCitation(report: AuditReport): string {
   const dir = directionLabel(report.measured?.direction)
 
   const details = [site, linkLabel, report.timestamp?.trim()].filter(Boolean).join(', ')
-  const tail = [details, dir !== '—' ? `direction ${dir}` : ''].filter(Boolean).join(', ')
+  const loadMeasured = !!report.measured?.load_measured || !!report.measured?.load_measured_down
+  const measurement = loadMeasured
+    ? (dir !== '—' ? `direction ${dir}` : 'charge mesurée')
+    : (dir !== '—' ? `direction ${dir} · charge non mesurée` : 'charge non mesurée')
+  const tail = [details, measurement].filter(Boolean).join(', ')
   let out = tail ? `Audit CGO ${id} — ${tail}.` : `Audit CGO ${id}.`
 
   const seal = report.provenance?.source_sha256?.trim()

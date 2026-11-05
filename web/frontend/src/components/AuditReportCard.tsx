@@ -24,6 +24,30 @@ export function capTone(cap?: AuditCapsla): BadgeTone {
   return cap.breach ? 'danger' : 'success'
 }
 
+type ProofState = 'valid' | 'degraded' | 'observation' | 'missing'
+
+function proofState(report: AuditReport): ProofState {
+  // L’absence d’empreinte source est l’absence de preuve, jamais un succès.
+  if (!report.audit_id || !report.provenance?.source_sha256) return 'missing'
+  const measured = report.measured
+  const hasLoad = !!measured?.load_measured || !!measured?.load_measured_down
+  if (!hasLoad) return 'observation'
+  const grade = report.bloat_grade?.trim()[0]?.toUpperCase()
+  if ((report.cap_sla?.measured && report.cap_sla.breach) || grade === 'D' || grade === 'F') return 'degraded'
+  return 'valid'
+}
+
+const PROOF_LABEL: Record<ProofState, string> = {
+  valid: 'Valide',
+  degraded: 'Dégradé',
+  observation: 'Observation seule',
+  missing: 'Preuve manquante',
+}
+
+function proofTone(state: ProofState): BadgeTone {
+  return state === 'valid' ? 'success' : state === 'degraded' ? 'warning' : 'steel'
+}
+
 export function gradeTone(grade?: string): BadgeTone {
   if (!grade) return 'steel'
   if (grade.startsWith('A')) return 'success'
@@ -83,6 +107,7 @@ export function AuditReportCard({ report, onCopy }: {
 }) {
   const m = report.measured
   const load = !!m.load_measured
+  const proof = proofState(report)
   const down = !!m.load_measured_down && m.direction !== 'down'
   const econ = report.economics
   const primary = econ?.primary
@@ -100,9 +125,9 @@ export function AuditReportCard({ report, onCopy }: {
         <span className="mono" style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)' }}>
           {report.link_type || '—'}{report.provider ? ` · ${report.provider}` : ''}
         </span>
-        <span style={{ marginLeft: 'auto' }}><Badge tone={gradeTone(report.bloat_grade)}>{report.bloat_grade || 'non mesuré'}</Badge></span>
+        <span style={{ marginLeft: 'auto' }}><Badge tone={proofTone(proof)}>{PROOF_LABEL[proof]}</Badge></span>
       </div>
-      <Muted>{directionLabel(m.direction)}{report.timestamp ? ` · ${report.timestamp}` : ''}</Muted>
+      <Muted>{directionLabel(m.direction)}{report.timestamp ? ` · ${report.timestamp}` : ''}{report.bloat_grade ? ` · note ${report.bloat_grade}` : ' · non noté'}</Muted>
 
       {report.phases && (report.phases.baseline_seconds != null || report.phases.load_seconds != null || report.phases.recovery_seconds != null) ? (
         <Section title="Fenêtre">
@@ -221,7 +246,7 @@ export function AuditReportCard({ report, onCopy }: {
 
       <Section title="Preuves">
         <Provenance
-          source={report.provenance?.source_file || 'rapport d’audit'}
+          source={report.provenance?.source_file || 'source absente'}
           refresh="au gel"
           state="live"
           n={report.provenance?.row_count}
@@ -241,10 +266,14 @@ export function AuditReportCard({ report, onCopy }: {
             </button>
           ) : null}
         </div>
+        {!report.provenance?.source_sha256 ? <p style={{ color: 'var(--text-body)' }}>Empreinte source absente</p> : null}
         {report.provenance?.telemetry_file ? <Muted>série brute : {report.provenance.telemetry_file}</Muted> : null}
+        {!report.provenance?.telemetry_sha256 ? (
+          <p style={{ color: 'var(--text-body)' }}>{report.provenance?.telemetry_file ? 'Empreinte télémétrie absente' : 'Télémétrie absente'}</p>
+        ) : null}
         <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', alignItems: 'baseline' }}>
           <a className="mono" href={mdHref} target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-micro)', color: 'var(--t-live)' }}>rapport Markdown ↗</a>
-          <button className="btn" style={{ padding: 'var(--sp-1) var(--sp-2)' }}
+          <button className="btn" disabled={proof === 'missing'} title={proof === 'missing' ? 'Citation impossible — empreinte source absente' : undefined} style={{ padding: 'var(--sp-1) var(--sp-2)' }}
             onClick={() => onCopy(auditCitation(report), 'Citation du rapport')}>CITER CE RAPPORT</button>
           {m.data_used_mb ? <Muted>données consommées par l'audit : {Number(m.data_used_mb).toFixed(2)} Mo</Muted> : null}
         </div>
