@@ -833,6 +833,23 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .archive-actions { white-space: nowrap; text-align: left; }
 .archive-actions > * { margin-right: var(--sp-1); vertical-align: middle; }
 .archive-actions .btn { text-decoration: none; }
+@media (max-width: 900px) {
+  /* 890 px CSS : cibles tactiles et actions de tableau qui s’enveloppent. */
+  .btn-mini,
+  .archive-actions .btn,
+  .audit-report-open {
+    min-height: 44px;
+    padding: var(--sp-2);
+  }
+  .archive-actions {
+    white-space: normal;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+    align-items: center;
+  }
+  .archive-actions > * { margin-right: 0; }
+}
 .archive-note { margin: 0; color: var(--text-faint); font-size: var(--fs-micro); }
 .archive-proof { display: flex; flex-direction: column; gap: var(--sp-2); border: 1px solid var(--hairline); padding: var(--sp-3); background: var(--surface-soft); margin-top: var(--sp-2); }
 .archive-proof:focus { outline: 1px solid var(--t-live); outline-offset: 2px; }

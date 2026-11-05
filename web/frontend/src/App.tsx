@@ -4,6 +4,7 @@ import { useAuditStore } from './store/audit'
 import { connectSSE, disconnectSSE } from './lib/sse'
 import { clearLive } from './lib/live'
 import { animateViewEnter } from './lib/anime'
+import { isTextEntryTarget } from './lib/modalFocus'
 import { stageAfterCampaign, stageAfterReplay } from './lib/bench'
 import { relativeTime } from './lib/format'
 import DashboardView from './views/DashboardView'
@@ -104,8 +105,7 @@ export default function App() {
         setPaletteOpen(o => !o)
         return
       }
-      const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (isTextEntryTarget(e.target)) return
       const hit = MODES.find(m => m.key === e.key)
       if (hit) {
         setMode(hit.id)

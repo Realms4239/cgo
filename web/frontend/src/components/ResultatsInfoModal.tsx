@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useRef } from 'react'
+import { useModalFocus } from '../lib/modalFocus'
 
 // Mode d'emploi du classement — modale ⓘ depuis la barre benchmark.
 // Tout ce qu'il faut pour lire une ligne sans ouvrir le mémoire : les 5
@@ -18,14 +19,11 @@ const ROWS: [string, string][] = [
 ];
 
 export default function ResultatsInfoModal({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalFocus(true, onClose, panelRef)
   return createPortal(
-    <div role="dialog" aria-label="Lire les résultats" className="modal-backdrop" onClick={onClose}>
-      <div className="modal-panel modal-panel-sm" onClick={e => e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label="Lire les résultats" className="modal-backdrop" onClick={onClose}>
+      <div ref={panelRef} className="modal-panel modal-panel-sm" onClick={e => e.stopPropagation()}>
         <div className="card-head modal-head modal-head-spaced">
           <span>Lire le classement</span>
           <button className="btn modal-head-btn" onClick={onClose}>FERMER</button>
