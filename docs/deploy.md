@@ -175,3 +175,6 @@ durci :
 
 Ce qui est protégé : l'intégrité des mesures (gel SHA-256) et la validation
 des entrées. Ce qui ne l'est pas : l'accès au levier de façonnage.
+
+## S1 — Nginx boundary
+All 9090 traffic enters through `deploy/nginx/cgo.conf` (TLS termination + `limit_req`). Direct `--tls=false` binds are loopback-only in CI. `POST` mutations that exceed `1r/s burst=3` receive `503`.
