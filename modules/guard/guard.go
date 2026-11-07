@@ -3,6 +3,8 @@
 package guard
 
 import (
+	"crypto/subtle"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -16,11 +18,12 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // RequireAuthToken protège un handler avec un jeton explicite.
-// Même règle : jeton vide = loopback seulement.
+// Même règle : jeton vide = loopback seulement. Le préfixe « Bearer »
+// exact est exigé ; la comparaison du jeton est en temps constant.
 func RequireAuthToken(want string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if want != "" && got == want {
+		got, hasPrefix := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if want != "" && hasPrefix && subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1 {
 			next(w, r)
 			return
 		}
@@ -37,6 +40,12 @@ func RequireAuthToken(want string, next http.HandlerFunc) http.HandlerFunc {
 }
 
 // isLoopback teste l'adresse distante sans résoudre de DNS.
+// Accepte « hôte:port » (RemoteAddr) ou une IP nue.
 func isLoopback(addr string) bool {
-	return strings.HasPrefix(addr, "127.0.0.1") || strings.HasPrefix(addr, "[::1]")
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

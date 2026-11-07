@@ -1,6 +1,8 @@
 services:
   cgo:
-    image: ghcr.io/realms4239/cgo:latest
+    # Epinglé par digest (jamais :latest) : exporter CGO_IMAGE_DIGEST avec
+    # « sha256:<digest de la release> » (ex. `docker inspect` du manifest).
+    image: ghcr.io/realms4239/cgo@sha256:${CGO_IMAGE_DIGEST:?set release digest}
     ports:
       - "127.0.0.1:9090:9090"
     deploy:

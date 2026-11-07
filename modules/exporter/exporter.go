@@ -17,17 +17,60 @@ type Sample struct {
 	Value  string
 }
 
+// escapeLabelValue séquence les caractères spéciaux du format d'exposition
+// Prometheus dans une valeur de label ou un texte HELP.
+func escapeLabelValue(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`)
+	return r.Replace(s)
+}
+
+// validMetricName — [a-zA-Z_:][a-zA-Z0-9_:]* (spec exposition).
+func validMetricName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, c := range s {
+		switch {
+		case c == '_' || c == ':' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+		case c >= '0' && c <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// validLabelName — [a-zA-Z_][a-zA-Z0-9_]* (spec exposition).
+func validLabelName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, c := range s {
+		switch {
+		case c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+		case c >= '0' && c <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // Render construit le corps d'exposition Prometheus. Les séries absentes
 // (aucun échantillon) n'émettent que HELP/TYPE, jamais « nom{ } 0 ».
+// Les noms de métrique/label invalides sont sautés (jamais d'injection) ;
+// les valeurs de label et le texte HELP sont échappés.
 func Render(samples map[string][]Sample, help map[string]string) string {
 	var b strings.Builder
 	names := make([]string, 0, len(samples))
 	for n := range samples {
-		names = append(names, n)
+		if validMetricName(n) {
+			names = append(names, n)
+		}
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		fmt.Fprintf(&b, "# HELP %s %s\n", name, help[name])
+		fmt.Fprintf(&b, "# HELP %s %s\n", name, escapeLabelValue(help[name]))
 		typ := "gauge"
 		if strings.HasSuffix(name, "_total") {
 			typ = "counter"
@@ -36,7 +79,9 @@ func Render(samples map[string][]Sample, help map[string]string) string {
 		for _, s := range samples[name] {
 			parts := make([]string, 0, len(s.Labels))
 			for k, v := range s.Labels {
-				parts = append(parts, fmt.Sprintf(`%s="%s"`, k, v))
+				if validLabelName(k) {
+					parts = append(parts, fmt.Sprintf(`%s="%s"`, k, escapeLabelValue(v)))
+				}
 			}
 			sort.Strings(parts)
 			fmt.Fprintf(&b, "%s{%s} %s\n", name, strings.Join(parts, ","), s.Value)

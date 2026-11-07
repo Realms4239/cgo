@@ -115,6 +115,7 @@ func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64
 			return nil
 		}
 	case model.FqCodel:
+		fq := strings.Fields(fqCoDelString(iface)) // source unique des params RFC 8290
 		if out, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:"}, "handle", "10:", "tbf",
 			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")...); err != nil {
 			if out2, err2 := r.Run(tbfRootArgs()...); err2 != nil {
@@ -123,12 +124,12 @@ func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64
 			_ = tbfArgs
 			return nil
 		}
-		_, err := r.Run("qdisc", "replace", "dev", iface, "parent", "10:1", "handle", "20:", "fq_codel", "target", "5ms", "interval", "100ms", "limit", "10240", "quantum", "1514", "flows", "1024")
+		_, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "10:1", "handle", "20:"}, fq...)...)
 		if err == nil {
 			return nil
 		}
 		// fallback: tbf was at root 1:, so fq_codel parent is 1:1
-		_, err = r.Run("qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "20:", "fq_codel", "target", "5ms", "interval", "100ms", "limit", "10240", "quantum", "1514", "flows", "1024")
+		_, err = r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "20:"}, fq...)...)
 		return err
 	default: // pfifo_fast cell: tbf as child of netem
 		if _, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:"}, "handle", "10:", "tbf",

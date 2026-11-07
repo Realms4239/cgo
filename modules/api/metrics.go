@@ -12,17 +12,56 @@ type metricSample struct {
 	value  string
 }
 
+// escapeMetricText escapes \, " and \n for label values / HELP text.
+func escapeMetricText(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`)
+	return r.Replace(s)
+}
+
+func validMetricName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, c := range s {
+		switch {
+		case c == '_' || c == ':' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+		case c >= '0' && c <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func validLabelName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, c := range s {
+		switch {
+		case c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+		case c >= '0' && c <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // renderMetrics — pure Prometheus exposition builder.
-// Absent is never emitted; the caller only pushes measured values.
+// Absent is never emitted; invalid metric/label names are skipped and
+// label values / HELP are escaped (no exposition injection).
 func renderMetrics(samples map[string][]metricSample, help map[string]string) string {
 	var b strings.Builder
 	names := make([]string, 0, len(samples))
 	for n := range samples {
-		names = append(names, n)
+		if validMetricName(n) {
+			names = append(names, n)
+		}
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		fmt.Fprintf(&b, "# HELP %s %s\n", name, help[name])
+		fmt.Fprintf(&b, "# HELP %s %s\n", name, escapeMetricText(help[name]))
 		typ := "gauge"
 		if strings.HasSuffix(name, "_total") {
 			typ = "counter"
@@ -31,7 +70,9 @@ func renderMetrics(samples map[string][]metricSample, help map[string]string) st
 		for _, s := range samples[name] {
 			var parts []string
 			for k, v := range s.labels {
-				parts = append(parts, fmt.Sprintf(`%s="%s"`, k, v))
+				if validLabelName(k) {
+					parts = append(parts, fmt.Sprintf(`%s="%s"`, k, escapeMetricText(v)))
+				}
 			}
 			sort.Strings(parts)
 			fmt.Fprintf(&b, "%s{%s} %s\n", name, strings.Join(parts, ","), s.value)
@@ -40,6 +81,13 @@ func renderMetrics(samples map[string][]metricSample, help map[string]string) st
 	return b.String()
 }
 
+// FACADE METRICS — the samples below are static placeholders (0) because no
+// live audit counters are wired yet. Named condition for closure:
+//   BLOCKED(facade-metrics): wire these series from the audit engine
+//   (cgo_audit_runs_total, cgo_audit_load_attempted/measured_total,
+//   cgo_cap_sla_measured, cgo_iface_valid, cgo_jfi_measured) so the
+//   zeros become measured values; until then the zeros mean "absent",
+//   and only *_measured / cgo_iface_valid (0/1 flags) may drive alerts.
 func handleMetrics(getBuildInfo func() map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")

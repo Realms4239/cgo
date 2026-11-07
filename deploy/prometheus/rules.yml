@@ -1,15 +1,16 @@
 groups:
   - name: cgo-slo
     rules:
-      - record: cgo:slo:deadline_ok_pct_5m
-        expr: avg(rate(cgo_cap_deadline_ok_pct[5m]))
-      - alert: CGO_deadline_breach_sustained
-        expr: cgo_cap_sla_breach == 1
+      # Limitées aux métriques effectivement émises par /metrics
+      # (pkg/api/metrics.go) : les anciennes règles cgo_cap_deadline_ok_pct
+      # et cgo_cap_sla_breach (jamais émises) ont été retirées.
+      - alert: CGO_cap_sla_unmeasured
+        expr: cgo_cap_sla_measured == 0
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "CAP deadline breach sustained (operator objective)"
+          summary: "CAP SLA not measured - deadline objective unevaluated"
       - alert: CGO_probe_dead
         expr: rate(cgo_audit_load_measured_total[5m]) == 0
         for: 10m

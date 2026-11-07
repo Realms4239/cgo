@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -19,6 +20,8 @@ type Entry struct {
 
 // Parse lit un manifeste : une ligne par fichier, format
 // "<chemin> <sha256hex>" (espaces multiples tolérés, # = commentaire).
+// Un scellé doit être 64 caractères hexadécimaux ; un manifeste sans
+// aucune entrée est une erreur (jamais de succès par défaut).
 func Parse(r *os.File) ([]Entry, error) {
 	var entries []Entry
 	sc := bufio.NewScanner(r)
@@ -31,9 +34,29 @@ func Parse(r *os.File) ([]Entry, error) {
 		if len(f) != 2 {
 			return nil, fmt.Errorf("ligne malformée (attendu \"<chemin> <sha256>\") : %q", line)
 		}
+		if err := validateSHA256(f[1]); err != nil {
+			return nil, fmt.Errorf("ligne malformée (scellé sha256 invalide) : %q", line)
+		}
 		entries = append(entries, Entry{Path: f[0], SHA256: strings.ToLower(f[1])})
 	}
-	return entries, sc.Err()
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("manifeste vide : aucune entrée à vérifier")
+	}
+	return entries, nil
+}
+
+// validateSHA256 exige 64 hexadécimaux (32 octets).
+func validateSHA256(s string) error {
+	if len(s) != 64 {
+		return fmt.Errorf("scellé %d caractères, attendu 64", len(s))
+	}
+	if _, err := hex.DecodeString(s); err != nil {
+		return fmt.Errorf("scellé non hexadécimal : %w", err)
+	}
+	return nil
 }
 
 // VerifyManifest vérifie chaque fichier du manifeste contre son scellé.
@@ -56,16 +79,23 @@ func VerifyManifest(manifestPath string) error {
 	return nil
 }
 
-// VerifyFile compare le sha256 réel d'un fichier à son scellé.
-// Fichier absent ou différent = erreur (jamais de zéro inventé).
+// VerifyFile compare le sha256 réel d'un fichier à son scellé (flux, sans
+// charger le fichier en mémoire). Fichier absent ou différent = erreur.
 func VerifyFile(e Entry) error {
-	data, err := os.ReadFile(e.Path)
+	if err := validateSHA256(e.SHA256); err != nil {
+		return fmt.Errorf("%s : %w", e.Path, err)
+	}
+	f, err := os.Open(e.Path)
 	if err != nil {
 		return fmt.Errorf("%s : %w", e.Path, err)
 	}
-	sum := sha256.Sum256(data)
-	got := hex.EncodeToString(sum[:])
-	if got != e.SHA256 {
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("%s : %w", e.Path, err)
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	if got != strings.ToLower(e.SHA256) {
 		return fmt.Errorf("%s : scellé %q, réel %q", e.Path, e.SHA256, got)
 	}
 	return nil

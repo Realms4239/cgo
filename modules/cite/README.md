@@ -1,8 +1,8 @@
 # cgo/cite
 Citation guard for sealed CGO audit reports.
 Canonical implementation: `web/frontend/src/lib/citation.ts`
-(`auditCitation(report) string`). No Go wrapper needed in v1;
-this module records the contract for future Go ports.
+(`auditCitation(report) string`); Go port `cite.go` (`AuditCitation`)
+mirrors the same rule and is covered by `cite_test.go`.
 
 ## Rule (exact)
 
@@ -25,5 +25,7 @@ the 64-hex check is the documented contract, not yet a runtime gate.
 
 `cd web/frontend && npx vitest run src/lib/citation.test.ts` — 4/4 PASS
 (seal guard, empty-id guard, sealed path).
+Go: `cd modules/cite && go test ./...` — sealed / omits / missing-seal /
+empty-id cases mirror the TS tests.
 
 Versioned with semver; breaking changes bump MAJOR.
