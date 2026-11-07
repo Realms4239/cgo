@@ -394,6 +394,9 @@ func New(d Deps) Handler {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "version": d.Version, "mode": d.Mode, "telemetry": probe.KernelSource()})
 	})
+	mux.HandleFunc("GET /metrics", handleMetrics(func() map[string]string {
+		return map[string]string{"version": d.Version}
+	}))
 	// capacités du banc : le client rend les files et contrôles que cet hôte
 	// expose réellement, sans recopier de liste.
 	mux.HandleFunc("GET /api/capabilities", func(w http.ResponseWriter, _ *http.Request) {
@@ -449,7 +452,7 @@ func New(d Deps) Handler {
 	})
 	// palier actif — le forfait où vit l'institution (les coûts affichés
 	// suivent ; inconnu = 400, pas de défaut silencieux)
-	mux.HandleFunc("POST /api/cost/tier", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/cost/tier", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Tier string `json:"tier"`
 		}
@@ -469,11 +472,11 @@ func New(d Deps) Handler {
 		}
 		recordEvent("tarif", fmt.Sprintf("palier actif : %s", body.Tier))
 		writeJSON(w, map[string]any{"ok": true, "tier": body.Tier})
-	})
+	}))
 	// test burst — une sonde bulk avec la CC choisie à travers le bord
 	// actuellement façonné, pendant que la surveillance veille. Refusé en
 	// cours de campagne : la matrice possède alors le shaper.
-	mux.HandleFunc("POST /api/burst", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/burst", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if d.observeBlocked(w) {
 			return
 		}
@@ -520,7 +523,7 @@ func New(d Deps) Handler {
 		}
 		recordEvent("burst", fmt.Sprintf("burst %s %ds — traverse le bord façonné", body.CC, body.Seconds))
 		writeJSON(w, map[string]any{"ok": true, "cc": body.CC, "seconds": body.Seconds})
-	})
+	}))
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, snap())
 	})
@@ -565,7 +568,7 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"applied": true, "qdisc": shapeQdisc, "capacity_mbps": shapeCap, "since": shapeSince.Format(time.RFC3339)})
 	})
 	// surveillance continue — non intrusive, composable avec le levier
-	mux.HandleFunc("POST /api/watch", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/watch", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if d.observeBlocked(w) {
 			return
 		}
@@ -589,8 +592,8 @@ func New(d Deps) Handler {
 			return
 		}
 		writeJSON(w, map[string]any{"watch": body.On})
-	})
-	mux.HandleFunc("POST /api/shape", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("POST /api/shape", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if d.observeBlocked(w) {
 			return
 		}
@@ -607,8 +610,8 @@ func New(d Deps) Handler {
 			return
 		}
 		writeJSON(w, out)
-	})
-	mux.HandleFunc("POST /api/run/start", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("POST /api/run/start", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if d.observeBlocked(w) {
 			return
 		}
@@ -739,8 +742,8 @@ func New(d Deps) Handler {
 		}
 		recordEvent("campagne", fmt.Sprintf("démarrée — %s ×%d, deadline %d ms, cible %s", strings.Join(opts.Profiles, "/"), opts.Reps, opts.DeadlineMs, opts.Target))
 		writeJSON(w, map[string]any{"started": true})
-	})
-	mux.HandleFunc("POST /api/run/stop", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("POST /api/run/stop", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if d.StopFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
@@ -748,8 +751,8 @@ func New(d Deps) Handler {
 		d.StopFn()
 		recordEvent("campagne", "arrêtée")
 		writeJSON(w, map[string]any{"stopped": true})
-	})
-	mux.HandleFunc("POST /api/run/skip", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("POST /api/run/skip", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if d.SkipFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
@@ -757,7 +760,7 @@ func New(d Deps) Handler {
 		d.SkipFn()
 		recordEvent("campagne", "cellule courante skippée — reprise possible")
 		writeJSON(w, map[string]any{"skipped": true})
-	})
+	}))
 	mux.HandleFunc("GET /api/results", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
 		if run != "" && !validRunID(run) {
@@ -1078,13 +1081,13 @@ func New(d Deps) Handler {
 		}
 	})
 
-	mux.HandleFunc("POST /api/figures/regen", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/figures/regen", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if err := figures.Generate("data/runs", "data/figures"); err != nil {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{"ok": true})
-	})
+	}))
 	mux.Handle("/api/figures/", http.StripPrefix("/api/figures/", http.FileServer(http.Dir("data/figures"))))
 	mux.HandleFunc("GET /api/replay/list", func(w http.ResponseWriter, _ *http.Request) {
 		runs, _ := filepath.Glob("data/runs/*")
@@ -1143,16 +1146,16 @@ func New(d Deps) Handler {
 		}
 	})
 
-	mux.HandleFunc("POST /api/audit/start", handleAuditStart(d))
+	mux.HandleFunc("POST /api/audit/start", requireAuth(handleAuditStart(d)))
 	mux.HandleFunc("GET /api/audit/status", handleAuditStatus())
 	mux.HandleFunc("GET /api/audit/live", handleAuditLive())
-	mux.HandleFunc("POST /api/audit/stop", handleAuditStop())
+	mux.HandleFunc("POST /api/audit/stop", requireAuth(handleAuditStop()))
 	mux.HandleFunc("GET /api/audit/report", handleAuditReport())
 	mux.HandleFunc("GET /api/remediate", handleRemediate())
 	mux.HandleFunc("GET /api/audit/presets", handleAuditPresets())
 	mux.HandleFunc("GET /api/audit/list", handleAuditList())
-	mux.HandleFunc("POST /api/audit/toprofile", handleAuditToProfile())
-	mux.HandleFunc("POST /api/profile/import", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/audit/toprofile", requireAuth(handleAuditToProfile()))
+	mux.HandleFunc("POST /api/profile/import", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		if err != nil {
 			writeErr(w, r, "bad body", http.StatusBadRequest)
@@ -1224,10 +1227,10 @@ func New(d Deps) Handler {
 			return
 		}
 		writeJSON(w, map[string]any{"ok": true, "profile": p})
-	})
+	}))
 	// Suppression d'un profil importé (le référentiel P1–P4 est intouchable —
 	// refusé par profile.Delete, pas par le vide).
-	mux.HandleFunc("POST /api/profile/delete", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/profile/delete", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			ID string `json:"id"`
 		}
@@ -1245,7 +1248,7 @@ func New(d Deps) Handler {
 		}
 		recordEvent("profil", fmt.Sprintf("%s supprimé (import retiré)", strings.TrimSpace(body.ID)))
 		writeJSON(w, map[string]any{"ok": true})
-	})
+	}))
 	mux.HandleFunc("GET /api/profile/list", func(w http.ResponseWriter, _ *http.Request) {
 		profile.Load()
 		// copie sous verrou : l'encodage JSON vers un client lent ne doit pas

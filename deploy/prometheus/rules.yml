@@ -1,0 +1,26 @@
+groups:
+  - name: cgo-slo
+    rules:
+      - record: cgo:slo:deadline_ok_pct_5m
+        expr: avg(rate(cgo_cap_deadline_ok_pct[5m]))
+      - alert: CGO_deadline_breach_sustained
+        expr: cgo_cap_sla_breach == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CAP deadline breach sustained (operator objective)"
+      - alert: CGO_probe_dead
+        expr: rate(cgo_audit_load_measured_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No measured load in 10m - probes may be dead"
+      - alert: CGO_iface_invalid
+        expr: cgo_iface_valid == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Interface sampling invalid - numerics must be ignored"

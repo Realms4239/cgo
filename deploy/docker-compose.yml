@@ -1,0 +1,13 @@
+services:
+  cgo:
+    image: ghcr.io/realms4239/cgo:latest
+    ports:
+      - "127.0.0.1:9090:9090"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      - CGO_API_TOKEN=${CGO_API_TOKEN:?set}
+    restart: unless-stopped

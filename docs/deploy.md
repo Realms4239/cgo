@@ -178,3 +178,6 @@ des entrées. Ce qui ne l'est pas : l'accès au levier de façonnage.
 
 ## S1 — Nginx boundary
 All 9090 traffic enters through `deploy/nginx/cgo.conf` (TLS termination + `limit_req`). Direct `--tls=false` binds are loopback-only in CI. `POST` mutations that exceed `1r/s burst=3` receive `503`.
+
+## S4 — OCI + rollback
+`docker compose up` starts the digest-pinned image. Rollback is `compose pull` of the prior digest + `cgo shape --restore`. `cpu.max`/`memory.max` are set in compose; throttling stats are exported via `/metrics`.

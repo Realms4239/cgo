@@ -25,9 +25,12 @@ describe('auditCitation', () => {
   })
 
   it('omits missing fields and the seal sentence when unsealed', () => {
-    const s = auditCitation(report({ site: undefined, link_type: undefined, provider: undefined, timestamp: undefined, measured: {} }))
-    expect(s).toBe('Audit CGO audit-1 — charge non mesurée.')
-    expect(s).not.toContain('Rapport scellé')
+    const s = auditCitation(report({ site: undefined, link_type: undefined, provider: undefined, timestamp: undefined, measured: {}, provenance: { source_sha256: HEX } }))
+    expect(s).toContain('Rapport scellé')
+  })
+  it('returns empty when the seal is missing, never a partial citation', () => {
+    expect(auditCitation(report({ provenance: undefined }))).toBe('')
+    expect(auditCitation(report({ provenance: { source_sha256: '' } }))).toBe('')
   })
 
   it('returns an empty string for an empty id, never a partial citation', () => {
