@@ -44,3 +44,27 @@ func TestAbsentIsNotZero(t *testing.T) {
 		t.Fatal("cgo_jfi_measured=0 (absent) doit être émis")
 	}
 }
+
+// TestRenderEscapesLabelAndHelp — valeurs de label et HELP échappés ;
+// métrique sans HELP n'émet pas d'en-tête HELP-less.
+func TestRenderEscapesLabelAndHelp(t *testing.T) {
+	out := Render(map[string][]Sample{
+		"cgo_probe":  {{Labels: map[string]string{"site": `we"ird\site`}, Value: "1"}},
+		"cgo_nohelp": {{Value: "1"}},
+	}, map[string]string{"cgo_probe": "help \"quoted\"\ntext"})
+	if strings.Contains(out, `site="we"ird`) {
+		t.Fatalf("label value not escaped : %q", out)
+	}
+	if !strings.Contains(out, `site="we\"ird\\site"`) {
+		t.Fatalf("label value escape missing : %q", out)
+	}
+	if !strings.Contains(out, "# HELP cgo_probe help \\\"quoted\\\"\\ntext") {
+		t.Fatalf("HELP escape missing : %q", out)
+	}
+	if strings.Contains(out, "# HELP cgo_nohelp") {
+		t.Fatalf("HELP emitted for metric without help : %q", out)
+	}
+	if !strings.Contains(out, "# TYPE cgo_nohelp gauge") {
+		t.Fatalf("TYPE must still be emitted without help : %q", out)
+	}
+}

@@ -6,7 +6,7 @@
 3. Verify `curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:9090/api/health` → 200; without → 401.
 
 ## Nginx revoke
-Reload Nginx after token rotation: `sudo systemctl reload nginx`. Breach → 503 under mutation burst (1r/s burst=3).
+Reload Nginx after token rotation: `sudo systemctl reload nginx`. Breach → 429 under mutation burst (1r/s burst=3).
 
 ## Rollback
 `docker compose pull` prior digest, `docker compose up -d`, then `cgo shape --restore` to clear any edge shaped by the failed release. Verify `/metrics` HELP/TYPE still served.

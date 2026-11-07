@@ -25,3 +25,26 @@ func TestVerifyFile(t *testing.T) {
 		t.Fatal("scellé faux accepté")
 	}
 }
+
+// TestParseEmptyManifestErrors — manifeste vide ou que commentaires = erreur.
+func TestParseEmptyManifestErrors(t *testing.T) {
+	empty := filepath.Join(t.TempDir(), "empty.txt")
+	if err := os.WriteFile(empty, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	comments := filepath.Join(t.TempDir(), "comments.txt")
+	if err := os.WriteFile(comments, []byte("# rien ici\n# que des commentaires\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{empty, comments} {
+		f, err := os.Open(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, perr := Parse(f)
+		_ = f.Close()
+		if perr == nil {
+			t.Fatalf("manifeste sans entrée accepté : %s", p)
+		}
+	}
+}

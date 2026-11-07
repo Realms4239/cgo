@@ -70,7 +70,9 @@ func Render(samples map[string][]Sample, help map[string]string) string {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		fmt.Fprintf(&b, "# HELP %s %s\n", name, escapeLabelValue(help[name]))
+		if h := help[name]; h != "" {
+			fmt.Fprintf(&b, "# HELP %s %s\n", name, escapeLabelValue(h))
+		}
 		typ := "gauge"
 		if strings.HasSuffix(name, "_total") {
 			typ = "counter"

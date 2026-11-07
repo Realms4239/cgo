@@ -81,31 +81,27 @@ func renderMetrics(samples map[string][]metricSample, help map[string]string) st
 	return b.String()
 }
 
-// FACADE METRICS — the samples below are static placeholders (0) because no
-// live audit counters are wired yet. Named condition for closure:
-//   BLOCKED(facade-metrics): wire these series from the audit engine
-//   (cgo_audit_runs_total, cgo_audit_load_attempted/measured_total,
-//   cgo_cap_sla_measured, cgo_iface_valid, cgo_jfi_measured) so the
-//   zeros become measured values; until then the zeros mean "absent",
-//   and only *_measured / cgo_iface_valid (0/1 flags) may drive alerts.
+// FACADE METRICS — no live audit counters are wired yet, so value gauges
+// are omitted (absent is never a zero). Only *_measured / cgo_iface_valid
+// absent flags (0) are emitted; only those may drive alerts.
+// Named condition for closure:
+//
+//	BLOCKED(facade-metrics): wire these series from the audit engine
+//	(cgo_audit_runs_total, cgo_audit_load_attempted/measured_total,
+//	cgo_cap_sla_measured, cgo_iface_valid, cgo_jfi_measured) so omitted
+//	value gauges become measured values.
 func handleMetrics(getBuildInfo func() map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		samples := map[string][]metricSample{
-			"cgo_audit_runs_total": {{labels: map[string]string{"status": "completed"}, value: "0"}},
-			"cgo_audit_load_attempted_total": {{labels: map[string]string{"site": "unknown"}, value: "0"}},
-			"cgo_audit_load_measured_total":              {{labels: map[string]string{"site": "unknown"}, value: "0"}},
-			"cgo_cap_sla_measured":                         {{labels: map[string]string{"site": "unknown"}, value: "0"}},
-			"cgo_iface_valid":                              {{labels: map[string]string{"site": "unknown"}, value: "0"}},
-			"cgo_jfi_measured":                             {{labels: map[string]string{"site": "unknown"}, value: "0"}},
+			"cgo_cap_sla_measured": {{labels: map[string]string{"site": "unknown"}, value: "0"}},
+			"cgo_iface_valid":      {{labels: map[string]string{"site": "unknown"}, value: "0"}},
+			"cgo_jfi_measured":     {{labels: map[string]string{"site": "unknown"}, value: "0"}},
 		}
 		help := map[string]string{
-			"cgo_audit_runs_total":           "Total audits by status",
-			"cgo_audit_load_attempted_total": "Load windows attempted",
-			"cgo_audit_load_measured_total":  "Load windows measured",
-			"cgo_cap_sla_measured":           "CAP SLA measured flag",
-			"cgo_iface_valid":                "Interface sampling valid flag",
-			"cgo_jfi_measured":               "JFI measured flag (0 means absent, never a zero value)",
+			"cgo_cap_sla_measured": "CAP SLA measured flag",
+			"cgo_iface_valid":      "Interface sampling valid flag",
+			"cgo_jfi_measured":     "JFI measured flag (0 means absent, never a zero value)",
 		}
 		_, _ = w.Write([]byte(renderMetrics(samples, help)))
 	}
