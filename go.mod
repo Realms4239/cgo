@@ -3,8 +3,11 @@ module github.com/Realms4239/cgo
 go 1.25
 
 require (
+	github.com/Realms4239/cgo/api v0.1.0
 	github.com/Realms4239/cgo/audit v0.1.0
+	github.com/Realms4239/cgo/doctor v0.1.0
 	github.com/Realms4239/cgo/figures v0.1.0
+	github.com/Realms4239/cgo/iface v0.1.0
 	github.com/Realms4239/cgo/metrics v0.1.0
 	github.com/Realms4239/cgo/probe v0.1.0
 	github.com/Realms4239/cgo/qdisc v0.1.0
@@ -67,8 +70,11 @@ require (
 )
 
 replace (
+	github.com/Realms4239/cgo/api => ./modules/api
 	github.com/Realms4239/cgo/audit => ./modules/audit
+	github.com/Realms4239/cgo/doctor => ./modules/doctor
 	github.com/Realms4239/cgo/figures => ./modules/figures
+	github.com/Realms4239/cgo/iface => ./modules/iface
 	github.com/Realms4239/cgo/metrics => ./modules/metrics
 	github.com/Realms4239/cgo/model => ./modules/model
 	github.com/Realms4239/cgo/probe => ./modules/probe
