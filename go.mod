@@ -3,7 +3,9 @@ module github.com/Realms4239/cgo
 go 1.25
 
 require (
+	github.com/Realms4239/cgo/figures v0.1.0
 	github.com/Realms4239/cgo/metrics v0.1.0
+	github.com/Realms4239/cgo/results v0.1.0
 	fyne.io/fyne/v2 v2.8.1
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -61,6 +63,8 @@ require (
 )
 
 replace (
+	github.com/Realms4239/cgo/figures => ./modules/figures
 	github.com/Realms4239/cgo/model => ./modules/model
 	github.com/Realms4239/cgo/metrics => ./modules/metrics
+	github.com/Realms4239/cgo/results => ./modules/results
 )

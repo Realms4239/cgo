@@ -310,7 +310,7 @@ NET_RX = re.compile(r"\b100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.\d{1,3}\.\d
 # Deux adresses nommées volontairement dans AGENTS.md et les registres
 # append-only : on ne réécrit pas l'historique. Toute autre échoue.
 ALLOWED_ADDRESSES = {"100.114.101.13", "100.72.251.32"}
-ALLOWED_ARTIFACTS = {"pkg/results/runs-frozen.tar.gz"}  # //go:embed : le build en dépend
+ALLOWED_ARTIFACTS = {"pkg/results/runs-frozen.tar.gz", "modules/results/runs-frozen.tar.gz"}  # //go:embed : le build en dépend
 # 18 archives suivies avant la règle « backup/ jamais commité » : dette nommée,
 # tout nouveau fichier sous backup/ échoue.
 LEGACY_ARCHIVES = frozenset("""
