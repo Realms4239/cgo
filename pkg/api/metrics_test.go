@@ -25,10 +25,16 @@ func TestMetrics_EmitsHelpTypeAndContentType(t *testing.T) {
 	if !strings.Contains(body, "# TYPE cgo_jfi_measured gauge") {
 		t.Fatalf("missing TYPE for cgo_jfi_measured")
 	}
-	if strings.Contains(body, "cgo_audit_runs_total") {
+	if !strings.Contains(body, "# HELP cgo_audit_load_measured_total Load measured flag (0 means absent, never a count)") {
+		t.Fatalf("cgo_audit_load_measured_total must be a documented measured-flag, not a fake zero gauge")
+	}
+	if !strings.Contains(body, `cgo_audit_load_measured_total{site="unknown"} 0`) {
+		t.Fatalf("measured-flag series for CGO_probe_dead must be present as flag 0")
+	}
+	if strings.Contains(body, "cgo_audit_runs_total{") {
 		t.Fatalf("unmeasured value gauge cgo_audit_runs_total must be absent, not zero")
 	}
-	if strings.Contains(body, "cgo_audit_load_attempted_total") {
+	if strings.Contains(body, "cgo_audit_load_attempted_total{") {
 		t.Fatalf("unmeasured value gauge cgo_audit_load_attempted_total must be absent, not zero")
 	}
 }
@@ -45,5 +51,8 @@ func TestMetrics_AbsentIsNotZero(t *testing.T) {
 	}
 	if !strings.Contains(out, "cgo_jfi_measured") || !strings.Contains(out, "cgo_jfi_measured{") {
 		t.Fatalf("absent JFI must still emit cgo_jfi_measured=0")
+	}
+	if strings.Contains(out, "# HELP cgo_jfi_measured") {
+		t.Fatalf("missing help must skip HELP line, never emit empty HELP")
 	}
 }
