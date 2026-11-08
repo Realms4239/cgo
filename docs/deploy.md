@@ -337,6 +337,13 @@ docker compose -f deploy/docker-compose.yml up -d
 cosign verify ghcr.io/realms4239/cgo@sha256:${CGO_IMAGE_DIGEST}
 ```
 
+État de vérification compose : `config-complete` — Docker absent de
+l'hôte de build (`docker: command not found`), `docker compose config`
+n'a pas pu tourner ici ; `deploy/docker-compose.yml` utilise déjà
+`ghcr.io/realms4239/cgo@sha256:${CGO_IMAGE_DIGEST:?set release digest}`
+et `deploy/Dockerfile` est `FROM scratch` avec les étiquettes
+`org.opencontainers.image.*`. Valider en CI où Docker existe.
+
 Mode image : par défaut le conteneur ne façonne pas le bord (pas de
 `NET_ADMIN`). Pour le mode complet Linux, ajouter localement
 `cap_add: [NET_ADMIN]` dans le compose et utiliser `cgo shape --restore`
