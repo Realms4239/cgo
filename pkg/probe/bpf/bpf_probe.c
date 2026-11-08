@@ -1,4 +1,5 @@
 //go:build ignore
+// +build ignore
 
 // SPDX-License-Identifier: GPL-2.0
 //
