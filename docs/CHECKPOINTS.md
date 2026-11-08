@@ -1885,3 +1885,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08, at `fbe3a17` prior to push: `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run`. Push itself: exit 0, branch created on `origin`.
 - Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3, merge to `main` awaiting human decision. Rows 83/85 stay **PENDING** (Slice 29 verified at `a0b19a4` 05:03 UTC, Slice 30 verified at `1b9a61c` 08:08 UTC). Playwright/browser-use cockpit capture not run in this pass; frontend evidence on record is `npm test` 321 + `npm run build` 357.6 KB gz (verifiers).
 - Next: human decides merge to `main` / PR. No further verifier dispatch for Slices 29/30.
+
+## 2026-11-08 · final push checkpoint — HEAD 54549fd (docs-only)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `54549fd` (`docs: checkpoint pushed branch 90de4f0 for human merge decision`). Previous entry cited `90de4f0`; HEAD is now `54549fd` (docs-only CHECKPOINTS). Artifact wins; declared here.
+- Changed: docs only — this entry. No product code. Pushed `54549fd` to `origin` via `git push origin openchamber/operator-cockpit` (`90de4f0..54549fd`) → pre-push hooks ran `python tools/verify.py`, `6 passed, 0 failed, 0 not run` (tests 13.9 s, hygiene 1006, seal 159 holds). No merge to `main` (human decision required per `AGENTS.md`).
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08, at `90de4f0` prior to push: `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run`. Final review `bcb7fb9..fbe3a17` RESIDUALS Y. Push `90de4f0..54549fd`: exit 0.
+- Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3, merge to `main` awaiting human decision. Rows 83/85 stay **PENDING** (verifier dispositions unchanged).
+- Next: human decides merge to `main` / PR. No further verifier dispatch for Slices 29/30.
