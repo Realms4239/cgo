@@ -2098,3 +2098,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 126.0s, hygiene 1012, links).
 - Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed code to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+
+## 2026-11-08 · CI verify fix 12 — CGO on + Wayland deps (Fyne GL)
+
+- Branch/HEAD: `main` / `c2272ef` (`fix(ci): CGO off for verify (fyne Wayland) + dedup bpf ignore`). Previous entry cited `main/a14e610`; HEAD is now `c2272ef` (workflow + docs on top). Artifact wins; declared here.
+- Changed: `.github/workflows/release.yml` verify step `CGO_ENABLED: "0"` → `"1"` plus `sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libglfw3-dev xorg-dev libwayland-dev pkg-config` (Fyne CGO needs Wayland/X11 headers absent on `ubuntu-latest`; pure-Go suite with bpf C `ignore`d passes). No product code, no new repo dependency.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42483325661 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/cmd/cgo-gui imports fyne.io/fyne/v2/internal/painter/gl: pkg-config --cflags -- gl gl → Package 'gl' not found; wayland-client-core.h missing` (CGO off excludes fyne's x11/wayland + bpf orphan C). Hygiene/links PASS.
+  - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py --only hygiene` → PASS (1012); `--only links` → PASS (5 docs); full `python tools/verify.py` → PASS 6/6.
+- Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed workflow to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
