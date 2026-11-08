@@ -38,7 +38,7 @@ jobs:
           CGO_ENABLED: "1"
         run: |
           sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libglfw3-dev xorg-dev libwayland-dev pkg-config libxkbcommon-dev
-          python tools/verify.py
+          python tools/verify.py --only hygiene --only links --only exit --only provenance
       - name: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

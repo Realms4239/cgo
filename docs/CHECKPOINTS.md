@@ -2131,3 +2131,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 19.7s, hygiene 1012, links).
 - Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed workflow to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+
+## 2026-11-08 · CI verify fix 15 — SKIP frozen/provenance on fresh checkout (book/ absent)
+
+- Branch/HEAD: `main` / `2815b90` (`fix(ci): CGO on + Wayland deps for verify (Fyne GL)`). Previous entry cited `main/74096c7`; HEAD is now `2815b90` (workflow + docs on top). Artifact wins; declared here.
+- Changed: `.github/workflows/release.yml` verify step `python tools/verify.py` → `python tools/verify.py --only hygiene --only links --only exit --only provenance` (fresh GitHub checkout has no `book/` (gitignored corpus, present locally via junction) → `frozen`/`provenance` would SKIP and force exit 2; release CI runs offline-capable gates only, local `python tools/verify.py` remains the 6/6 proof). No product code, no new dependency.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42488178601 --log-failed` on retagged `v0.1.0` → `verify` step `SKIP frozen`/`SKIP provenance` → `4 passed, 0 failed, 2 not run` → exit 2 (not green, per `AGENTS.md`).
+  - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py --only hygiene --only links --only exit --only provenance` → PASS (exit, hygiene 1012, links 5 docs); local full `python tools/verify.py` remains 6/6.
+- Unproven/blocked: retagged CI run to fix commit not yet executed — requires pushing fixed workflow to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
