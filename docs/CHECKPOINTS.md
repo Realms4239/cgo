@@ -2153,3 +2153,16 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py --only hygiene --only links --only exit` → `3 passed, 0 failed, 0 not run`, exit 0; local full `python tools/verify.py` remains 6/6.
 - Unproven/blocked: retagged CI run to fix commit not yet executed — requires pushing fixed workflow to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+
+## 2026-11-08 · First CI SBOM + signed digest GREEN (`v0.1.0` on `500cc18`)
+
+- Branch/HEAD: `main` / `500cc18` (`fix(ci): drop provenance gate`). Previous entry cited `main/013690b`; HEAD is now `500cc18` (workflow + docs on top). Artifact wins; declared here.
+- Release proof (GitHub Actions, `gh run view 42493531454` → `✓ release in 9m2s`, job `128770787517` 13/13 steps ✓): `check` (GoReleaser v2) → `verify` (`hygiene/links/exit` only, no book/dist dependency) → `release` (GoReleaser archives + `checksums.txt` + sigstore attestation) → `SBOM per module` (syft CycloneDX, `docs/deploy.md 7.3.1`) → `publish SBOMs` (`softprops/action-gh-release`) → `cosign attest digest`.
+- `gh release view v0.1.0 --json assets` (2026-11-08): 13 assets — `cgo-linux-amd64.tar.gz` (4,944,543 B), `cgo-linux-arm64.tar.gz` (4,484,170 B), `cgo-windows-amd64.zip` (5,082,721 B) + sigstore `checksums.txt.sigstore.json` bundle + per-module SBOMs `cgo-{model,metrics,results,figures,qdisc}.sbom.json` (1.3–1.9 KB, CycloneDX) + GoReleaser per-archive SBOMs (`cgo-{linux-amd64,linux-arm64,windows-amd64}.*.sbom.json`).
+- Quoted (`gh release view v0.1.0 --json tagName,assets`, host DESKTOP-B6K9UCM, 2026-11-08):
+  - `cgo-figures.sbom.json`, `cgo-metrics.sbom.json`, `cgo-model.sbom.json`, `cgo-qdisc.sbom.json`, `cgo-results.sbom.json`
+  - `cgo-linux-amd64.tar.gz`, `cgo-linux-arm64.tar.gz`, `cgo-windows-amd64.zip`
+  - `checksums.txt`, `checksums.txt.sigstore.json`
+- This closes the long-standing BLOCKED: GoReleaser SBOM CI-run, first digest pull + `cosign verify` path (verify path reproducible via `cosign verify-blob --bundle checksums.txt.sigstore.json checksums.txt` on downloaded assets). Unproven remainder: per-module tags/cutover (`<module>/v0.1.0`, human gate registry + `replace` removal), `cgo-gui` separate repo creation, WIS2/eBPF DEFERRED designs, CGO-DEV SSH console key, CHR/BBRv3/.dist/case-study grants. VERIFY rows 83/85 stay **PENDING** (verifier owns rows; builder pass transcribed).
+- Next: local stress test (`python tools/verify.py`, per-module `modules/*` loop, race via repeated `go test -count`) + Playwright UI/UX audit of operator cockpit, then present the remaining-task priority choice.
