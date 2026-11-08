@@ -1953,6 +1953,16 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Unproven/blocked: first CI tag run not yet triggered (no `goreleaser/syft/cosign/docker` locally; no registry here) — first `v*` tag push (human decision) will run Actions: `goreleaser check` → `verify` → `release` → 5 SBOMs → `digests.txt` attest. First digest pull + `cosign verify` unproven until CI runs. Also BLOCKED: CGO-DEV SSH/console key (E8, human console step), per-module `<module>/v0.1.0` push + `replace` removal, `cgo-gui` repo creation, WIS2 Q1–Q7, eBPF observer new-dep, CHR/BBRv3/.dist/case-study grants. `VERIFY.md` rows 83/85 stay **PENDING**; builder promotes nothing.
 - Next: human pushes `v*` tag to trigger Actions (CI SBOM + digest), then re-check `gh run list` — or, if tag push is deferred, CI stays config-complete.
 
+## 2026-11-08 · CI syft fix 2 — pinned tarball (GitHub API 504 on latest)
+
+- Branch/HEAD: `main` / `3691875` (`fix(ci): syft install via bash stdin (path error)`). Previous entry cited `main/f067948`; HEAD is now `3691875` (workflow + docs on top). Artifact wins; declared here.
+- Changed: workflow only — `.github/workflows/release.yml` `install syft + cosign` step pins syft `v1.24.0` tarball (`syft_1.24.0_linux_amd64.tar.gz` → `/usr/local/bin/syft`) instead of `raw.githubusercontent.com/.../install.sh | bash` latest lookup. No product code.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42469192470 --log-failed` on retagged `v0.1.0` → `install syft + cosign` failed: `[error] received HTTP status=504 for url='https://github.com/anchore/syft/releases/latest'` then `syft: command not found` (cosign `v2.4.0` succeeded).
+  - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 13.8s, hygiene 1012 tracked, links 5 docs; full suite 106.7s at `3691875` equivalent).
+- Unproven/blocked: retagged CI run 2 not yet executed — requires pushing fixed workflow to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then retagging `v0.1.0` to the fix commit to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Unproven/BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run list --limit 1`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
 ## 2026-11-08 · CI syft fix — first tag run failed, workflow patched, retag pending
 
 - Branch/HEAD: `main` / `d8b4dc9` (`feat(ci): GoReleaser release workflow for first SBOM + digest`). Previous entry cited `main/f067948`; HEAD is now `d8b4dc9` (workflow commit on top). Artifact wins; declared here.
