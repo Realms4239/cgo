@@ -19,12 +19,11 @@ jobs:
           go-version: "1.25"
       - name: install syft + cosign
         run: |
-          curl -sSfL https://github.com/anchore/syft/releases/download/v1.24.0/syft_1.24.0_linux_amd64.tar.gz -o syft.tar.gz
-          tar -xzf syft.tar.gz syft_1.24.0_linux_amd64/syft
-          sudo mv syft_1.24.0_linux_amd64/syft /usr/local/bin/syft
+          go install github.com/anchore/syft/cmd/syft@latest
+          go install github.com/sigstore/cosign/v2/cmd/cosign@latest
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          echo "PATH=$PATH" >> $GITHUB_ENV
           syft version
-          curl -O -L https://github.com/sigstore/cosign/releases/download/v2.4.0/cosign-linux-amd64
-          sudo mv cosign-linux-amd64 /usr/local/bin/cosign && chmod +x /usr/local/bin/cosign
           cosign version
       - name: install goreleaser
         run: |
