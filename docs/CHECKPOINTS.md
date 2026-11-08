@@ -2076,3 +2076,25 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 17.5s, hygiene 1012, links).
 - Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed code to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+
+## 2026-11-08 · CI verify fix 10 — dedup ignore tag (Go ignores duplicate //go:build)
+
+- Branch/HEAD: `main` / `a7df8b7` (`fix(verify): ignore orphan bpf C source + skip ellipsis links`). Previous entry cited `main/b881553`; HEAD is now `a7df8b7` (workflow + docs on top). Artifact wins; declared here.
+- Changed: `pkg/probe/bpf/bpf_probe.c` deduplicates `//go:build ignore` to a single line (Go tool requires exactly one constraint block at file top; duplicate breaks ignore). `.github/workflows/release.yml` verify step `CGO_ENABLED: "0"` (fyne needs Wayland/x11 only when CGO on; pure Go suite with bpf C `ignore`d passes without CGO on Linux). Both small patches, no product code, no new dependency.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42480954064 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c`; `FAIL links` was already fixed at `a7df8b7` (ellipsis skip) and now PASS.
+  - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 126.0s, hygiene 1012, links) with CGO unset (pure Go + ignored C).
+- Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed code to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+
+## 2026-11-08 · CI verify fix 11 — CGO off (fyne Wayland) + bpf ignore dedup
+
+- Branch/HEAD: `main` / `a14e610` (`fix(verify): ignore orphan bpf C source + skip ellipsis links`). Previous entry cited `main/a7df8b7`; HEAD is now `a14e610` (workflow + docs on top). Artifact wins; declared here.
+- Changed: `.github/workflows/release.yml` verify step `CGO_ENABLED: "1"` → `"0"` (fyne/go-gl needs Wayland/X11 headers absent on CI; with bpf `.c` properly `//go:build ignore`d the pure-Go suite passes without CGO on Linux). `pkg/probe/bpf/bpf_probe.c` deduplicates `//go:build ignore` to a single line (Go tool requires exactly one constraint block at file top; duplicate breaks ignore). No product code, no new dependency.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42480954064 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed…` (with `CGO_ENABLED=1`, fyne CGO path needs `wayland-client-core.h` / `gl.pc`, absent); hygiene/links PASS.
+  - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 126.0s, hygiene 1012, links).
+- Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed code to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.

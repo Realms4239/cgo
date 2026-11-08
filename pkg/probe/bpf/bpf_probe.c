@@ -1,7 +1,5 @@
 //go:build ignore
 
-//go:build ignore
-
 // SPDX-License-Identifier: GPL-2.0
 //
 // bpf_probe.c — télémétrie noyau exacte du banc CGO.
