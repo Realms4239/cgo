@@ -1982,3 +1982,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 96.2s, hygiene 1012, links).
 - Unproven/blocked: retagged CI run not yet executed — requires deleting remote `v0.1.0` (destructive, human decision per `AGENTS.md`) then pushing fixed tag; first SBOM production and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags push, `cgo-gui` repo, WIS2 Q1–Q7, eBPF observer new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: human approves remote tag delete+repush (`:v0.1.0` then push), then watch Actions; push of this fix commit to `main` needs `CGO_ALLOW_MAIN=1` (human-approved CI run governs).
+
+## 2026-11-08 · CI goreleaser fix 3 — pinned GitHub tarball (install.sh 404)
+
+- Branch/HEAD: `main` / `14d0671` (`fix(ci): go install syft+cosign (API 504 on latest)`). Previous entry cited `main/be08bbb`; HEAD is now `14d0671` (workflow + docs on top). Artifact wins; declared here.
+- Changed: workflow only — `.github/workflows/release.yml` `install goreleaser` step: `curl -sSfL https://goreleaser.com/install.sh | bash` → direct GitHub release tarball pinned `v2.11.0` (`goreleaser_2.11.0_Linux_x86_64.tar.gz` extract `goreleaser` → `/usr/local/bin/goreleaser`). Root cause: `goreleaser.com/install.sh` 404.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42470147295 --log-failed` on retagged `v0.1.0` → `install goreleaser` failed: `curl: (22) The requested URL returned error: 404` then `mv: cannot stat 'goreleaser'`.
+  - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `curl -I https://github.com/goreleaser/goreleaser/releases/download/v2.11.0/goreleaser_2.11.0_Linux_x86_64.tar.gz` → `HTTP 504` (GitHub API flaky, same family as syft) — pinned URL is canonical; `python tools/verify.py --only hygiene` → PASS (1012), `--only links` → PASS (5 docs).
+- Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed workflow to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.

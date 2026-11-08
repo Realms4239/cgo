@@ -27,7 +27,8 @@ jobs:
           cosign version
       - name: install goreleaser
         run: |
-          curl -sSfL https://goreleaser.com/install.sh | bash
+          curl -sSfL https://github.com/goreleaser/goreleaser/releases/download/v2.11.0/goreleaser_2.11.0_Linux_x86_64.tar.gz -o goreleaser.tar.gz
+          tar -xzf goreleaser.tar.gz goreleaser
           sudo mv goreleaser /usr/local/bin/ && goreleaser --version
       - name: check
         run: goreleaser check
