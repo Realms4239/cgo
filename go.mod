@@ -67,5 +67,5 @@ replace (
 	github.com/Realms4239/cgo/iface => ./modules/iface
 	github.com/Realms4239/cgo/probe => ./modules/probe
 	github.com/Realms4239/cgo/remediate => ./modules/remediate
-	github.com/Realms4239/cgo/results => ./modules/results
+	github.com/Realms4239/cgo/results => ./results
 )
