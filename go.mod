@@ -63,7 +63,6 @@ replace (
 	github.com/Realms4239/cgo/api => ./modules/api
 	github.com/Realms4239/cgo/audit => ./modules/audit
 	github.com/Realms4239/cgo/doctor => ./modules/doctor
-	github.com/Realms4239/cgo/figures => ./figures
 	github.com/Realms4239/cgo/iface => ./modules/iface
 	github.com/Realms4239/cgo/probe => ./modules/probe
 	github.com/Realms4239/cgo/remediate => ./modules/remediate

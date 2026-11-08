@@ -2245,3 +2245,15 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Quoted (`go list -m github.com/Realms4239/cgo/results`, DESKTOP-B6K9UCM, 2026-11-08): api: `results v0.1.0` (downloaded), figures: `results v0.1.0`, both NO replace.
 - Proven: per-module ×14 → all `ok` (figures/results include the real fetched deps now); root `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (77.4s, frozen 159 seal intact).
 - Unproven/blocked: verifier re-run (step 8). Last module: `figures` (depends on `results` + `metrics`, both published). Other BLOCKED unchanged: `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING**.
+
+
+## 2026-11-08 · Figures cutover COMPLETE — `figures/v0.1.0`; all 5 modules published
+
+- Branch/HEAD: `main` / `133fd33` (`refactor(figures): move modules/figures to figures/`), cutover commit immediately next. Previous entry cited `main/3cc5aad`; HEAD is now `133fd33` (move on top). Artifact wins; declared here.
+- Same two-commit recipe (`model`, `metrics`, `qdisc`, `results` precedents). Tag `figures/v0.1.0` annotated (GPG absent), post-move commit, pushed — pristine, no dud.
+- Move: `git mv modules/figures figures/` + root replace `=> ./figures` + `api` consumer `=> ../../figures`. `cd figures && go test ./...` → `ok`.
+- Cutover: root + `api` replaces dropped, `go mod tidy` at both. `go list -m github.com/Realms4239/cgo/figures` → `figures v0.1.0` (proxy download ok) with NO replace.
+- Quoted (DESKTOP-B6K9UCM, 2026-11-08): api downloads `figures v0.1.0` and resolves it.
+- Proven: per-module ×14 → all `ok`; root `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (tests 81.2s, frozen 159 seal intact). Published module matrix: `model/v0.1.1` (dud `model/v0.1.0` retained as a broken tag — never consumed, do not delete without a fresh proxy-cache analysis), `metrics/v0.1.0`, `qdisc/v0.1.0`, `results/v0.1.0`, `figures/v0.1.0`.
+- Recipe crystallization (for remaining modules `api/audit/doctor/probe/cite/exporter/guard/iface/remediate/attest` if the human later orders them): move dir to repo root → fix root + consumer replaces → tag first-fetchable version at the post-move commit → drop all `=>` replaces → `go mod tidy` everywhere → verify list + per-module loop + gate. Two hygiene footguns found: quoted stale `modules/<name>` paths trip the `links` gate (use words/`<repo>/...` forms in prose), and artifacts embedded inside a module dir need their `ALLOWED_ARTIFACTS` path updated in the same commit.
+- Unproven/blocked: verifier re-run (step 8) before any `VERIFIED` row for module lines. Other BLOCKED unchanged: `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING** (still awaiting a shell-capable verifier signature).
