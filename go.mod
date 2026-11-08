@@ -3,16 +3,6 @@ module github.com/Realms4239/cgo
 go 1.25
 
 require (
-	github.com/Realms4239/cgo/api v0.1.0
-	github.com/Realms4239/cgo/audit v0.1.0
-	github.com/Realms4239/cgo/doctor v0.1.0
-	github.com/Realms4239/cgo/figures v0.1.0
-	github.com/Realms4239/cgo/iface v0.1.0
-	github.com/Realms4239/cgo/metrics v0.1.0
-	github.com/Realms4239/cgo/probe v0.1.0
-	github.com/Realms4239/cgo/qdisc v0.1.0
-	github.com/Realms4239/cgo/remediate v0.1.0
-	github.com/Realms4239/cgo/results v0.1.0
 	fyne.io/fyne/v2 v2.8.1
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -76,7 +66,6 @@ replace (
 	github.com/Realms4239/cgo/figures => ./modules/figures
 	github.com/Realms4239/cgo/iface => ./modules/iface
 	github.com/Realms4239/cgo/metrics => ./modules/metrics
-	github.com/Realms4239/cgo/model => ./model
 	github.com/Realms4239/cgo/probe => ./modules/probe
 	github.com/Realms4239/cgo/qdisc => ./modules/qdisc
 	github.com/Realms4239/cgo/remediate => ./modules/remediate
