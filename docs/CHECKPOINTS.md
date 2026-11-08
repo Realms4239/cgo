@@ -1830,3 +1830,16 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - `git checkout -- web/frontend/dist/index.html` → exit 0; `git status --short` clean after the restore (build artifact not committed).
 - Unproven/blocked: CHR compliance, WIS 2.0/CAP acceptance, live bench runs, and Mosquitto broker behavior stay **unproven** (no live run, no namespace, qdisc, process or listener touched; frozen corpus read-only via the seal gate only); eBPF, BBRv3 and trace-driven `.dist` live rows remain `BLOCKED` as recorded in `docs/VERIFY.md`. No row is promoted by the builder; the `PENDING` row stays pending for an independent verifier, who was **not** dispatched by this task. The builder ran the four gate groups exactly as listed; per-module `modules/*/go test` re-runs and any cockpit/overflow/manual checks named in the plan's verifier prompt are the verifier's, not this pass's.
 - Next: the independent verifier re-runs the gates on a clean tree and owns the `PENDING` row; the human decides any merge to `main`.
+
+## 2026-11-08 06:11 UTC · slice 30 supplychain-gaps — whole-app verification and closeout (builder pass)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `4cab42d` (`docs(wis2/bpf): deferred probe designs`, Task 5 closeout; this task adds only the three ledger files).
+- Changed: docs only — this entry, one `PENDING` row in `docs/VERIFY.md`, plan index row 30 (`docs/superpowers/plans/README.md`). No product code changed in this task, no frozen-corpus path touched, no live run of any kind.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08 06:02–06:11 UTC, Go 1.26.5, Node v22.23.2, Python 3.11.15:
+  - `go test ./... -count=1` → exit 0, every package `ok` (`pkg/api` 64.199s, `pkg/audit` 190.169s).
+  - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (`tests` gate 77.0 s; `hygiene` 1006 tracked files clean; `frozen` both `OK` lines, 159-run seal holds).
+  - `cd web/frontend && npm test` → exit 0; **68 files, 321 tests passed** (Duration 128.67s).
+  - `npm run build` → exit 0; `TOTAL gz : 357.6 KB` (built in 11.72s).
+  - `git checkout -- web/frontend/dist/index.html` → exit 0; `git status --porcelain` clean after the restore (build artifact not committed).
+- Unproven/blocked: CHR compliance, WIS 2.0/CAP acceptance, live bench runs, and Mosquitto broker behavior stay **unproven** (no live run, no namespace, qdisc, process or listener touched; frozen corpus read-only via the seal gate only); eBPF, BBRv3 and trace-driven `.dist` live rows remain `BLOCKED` as recorded in `docs/VERIFY.md`. GoReleaser CycloneDX SBOM and the digest-pinned OCI are config-complete only: no GoReleaser/syft/cosign or registry is available on this host, so the first SBOM CI-run and a digest pull stay unproven until the first tag on CI. No row is promoted by the builder; the `PENDING` row stays pending for an independent verifier, who was **not** dispatched by this task.
+- Next: the independent verifier re-runs the gates on a clean tree and owns the `PENDING` row; the human decides any merge to `main`.
