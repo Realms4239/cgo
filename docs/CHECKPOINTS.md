@@ -2234,3 +2234,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Leaf cutover: `go mod edit -dropreplace` at root + `go mod tidy` — nothing imports `qdisc` (no consumer requires, no replace left; `qdisc` stands alone as a published module; standalone suite green). Nothing else to `go list` on: resolution is vacuous (no consumers), the tag is fetchable as soon as the proxy indexes it.
 - Proven: per-module ×14 → all `ok`; root `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (tests 81.0s, frozen 159 seal intact).
 - Unproven/blocked: verifier re-run (step 8); remaining modules `results`, `figures` (same recipe; `figures` depends on `results` and `metrics`, order: move `results` before `figures`). Other BLOCKED unchanged: `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING**.
+
+
+## 2026-11-08 · Results cutover COMPLETE — `results/v0.1.0` (first fetchable release)
+
+- Branch/HEAD: `main` / `3cc5aad` (`refactor(results): move modules/results to results/`), cutover commit immediately next. Previous entry cited `main/fc326a3`; HEAD is now `3cc5aad` (move on top). Artifact wins; declared here.
+- Same two-commit recipe (`model`, `metrics`, `qdisc` precedent). Tag `results/v0.1.0` annotated (GPG absent), post-move commit, pushed — pristine, no dud.
+- Move: `git mv modules/results results/` + root replace `=> ./results` + consumers `=> ../../results` (`api`, `figures`). Hygiene sub-fix inside the move commit: `tools/verify.py` `ALLOWED_ARTIFACTS` now names `results/runs-frozen.tar.gz` (the tracked `runs-frozen.tar.gz` build artifact moved with the module dir; same file, `//go:embed` dependency).
+- Cutover: root `go mod edit -dropreplace` + consumers' replaces dropped + tidy. api/figures resolve `results v0.1.0` (proxy download ok).
+- Quoted (`go list -m github.com/Realms4239/cgo/results`, DESKTOP-B6K9UCM, 2026-11-08): api: `results v0.1.0` (downloaded), figures: `results v0.1.0`, both NO replace.
+- Proven: per-module ×14 → all `ok` (figures/results include the real fetched deps now); root `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (77.4s, frozen 159 seal intact).
+- Unproven/blocked: verifier re-run (step 8). Last module: `figures` (depends on `results` + `metrics`, both published). Other BLOCKED unchanged: `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING**.
