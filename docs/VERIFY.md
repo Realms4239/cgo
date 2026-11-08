@@ -169,7 +169,7 @@ Branch: `main` at `a12e7e5` (`docs: prove stress-test main@00f5c56 with explicit
 |---|---|---|
 | Six gates | `python tools/verify.py` | exit 0, `6 passed, 0 failed, 0 not run` — frozen (159 runs, seal holds), provenance, tests, exit, hygiene (1006 files), links PASS |
 | Metrics determinism | `go test ./pkg/api -run TestMetrics -count=5` | exit 0 — `TestMetrics_EmitsHelpTypeAndContentType` + `TestMetrics_AbsentIsNotZero` ×5 |
-| Per-module suites | `modules/api`, `modules/metrics`, `modules/guard`: `go test ./... -count=1` | exit 0 each (api 64.3s, metrics 2.1s, guard 2.0s) |
+| Per-module suites | `api`, `metrics`, `guard`: `go test ./... -count=1` | exit 0 each (api 64.3s, metrics 2.1s, guard 2.0s) |
 | Auth/SSE quick | `go test ./pkg/api -run "TestRequireAuth\|TestSSE" -count=1` + `TestRequireAuth -count=5` | exit 0 |
 | E5 quick | `go test ./pkg/campagne -run TestSkipJournalsViaHook -count=5` | exit 0 |
 | Frontend | `npm test` / `npm run build` | 68 files / 321 tests PASS; `TOTAL gz 357.6 KB` (12.78s) |

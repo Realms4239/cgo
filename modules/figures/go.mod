@@ -10,6 +10,6 @@ require (
 require github.com/Realms4239/cgo/metrics v0.1.0 // indirect
 
 replace (
-	github.com/Realms4239/cgo/metrics => ../metrics
+	github.com/Realms4239/cgo/metrics => ../../metrics
 	github.com/Realms4239/cgo/results => ../results
 )
