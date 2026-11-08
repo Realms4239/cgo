@@ -86,11 +86,20 @@ export default function AuditReportsPanel() {
   const [citationMsg, setCitationMsg] = useState<string | null>(null)
   const wantedCitation = useRef<string | null>(null)
 
+  // Paquet absent ou lien pendu : sans délai, un `fetch` qui ne répond pas
+  // laisse `chargement…` pour toujours (constaté en e2e, 2026-11-08).
+  const fetchTimed = (url: string) => {
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), 3000)
+    return fetch(url, { signal: ctl.signal })
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+      .finally(() => clearTimeout(timer))
+  }
+
   const load = () => {
     setError(null)
     setRows(null)
-    fetch('/api/audit/list')
-      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+    fetchTimed('/api/audit/list')
       .then(j => setRows(asArray<ArchiveRow>(j.audits)))
       .catch(() => { setRows([]); setError('liste des rapports indisponible — vérifiez que le service tourne, puis réessayez') })
   }
@@ -99,8 +108,7 @@ export default function AuditReportsPanel() {
 
   const openReport = (id: string) => {
     setMsg('chargement du rapport…')
-    fetch(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
-      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+    fetchTimed(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
       .then(j => { setReport(j as AuditReport); setMsg('') })
       .catch(() => setMsg('rapport indisponible — réessayez'))
   }
@@ -109,8 +117,7 @@ export default function AuditReportsPanel() {
     if (wantedCitation.current === id) return
     wantedCitation.current = id
     setCitationMsg(null)
-    fetch(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
-      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+    fetchTimed(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
       .then((j: AuditReport) => {
         const text = auditCitation(j)
         if (!j.provenance?.source_sha256) {
