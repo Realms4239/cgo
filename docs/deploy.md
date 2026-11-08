@@ -366,3 +366,12 @@ Si un jour il doit être distribué, il sort du monorepo vers son propre
 dépôt (chemin retenu : `github.com/Realms4239/cgo-gui`, `go 1.25`,
 fenêtre Windows seule) avec sa propre `.goreleaser.yaml`, son propre
 SBOM et sa propre signature — pas un artefact du pipeline `cgo`.
+
+### 7.6 Runbook de bascule par module
+
+La liste de contrôle complète (les 8 étapes atomiques : tag →
+`require` → `tidy` → `list` → dry-run → lock → verify-fast →
+vérifieur, plus la procédure d'exécution à sec et le rollback) est
+`docs/runbooks/tag-cutover.md`. Le dry-run du 2026-11-08 y est consigné :
+le retrait d'un `replace` sans publication préalable casse la
+résolution (`unknown revision`) — publier d'abord, retirer ensuite.
