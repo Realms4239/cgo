@@ -394,7 +394,7 @@ LINK_FILES = ("AGENTS.md", "docs/VERIFY.md", "docs/CHECKPOINTS.md", "docs/ERRORS
 def link_candidates(text, root):
     for token in re.findall(r"`([^`\n]+)`", text):
         tok = token.strip()
-        if not tok or " " in tok or any(c in tok for c in "*<>{}:"):
+        if not tok or " " in tok or any(c in tok for c in "*<>{}:") or tok.endswith("..."):
             continue
         if tok.startswith(("http", "git ", "go ", "make ", "python ", "-", ".")) or "/" not in tok:
             continue
