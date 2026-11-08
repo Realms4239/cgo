@@ -1903,3 +1903,22 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Merge itself: `git checkout main && git merge --no-ff openchamber/operator-cockpit` → merge commit `fa77201`, no conflicts, `git status` clean.
 - Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3. Push of `main` to `origin` pending (pre-push hook requires `CGO_ALLOW_MAIN=1`; local `main` was 293 commits ahead of `origin/main` pre-merge). No row promoted by builder; verifier owns rows.
 - Next: push `main` to `origin` with human-approved `CGO_ALLOW_MAIN=1`; human reviews PR/branch state. No further verifier dispatch for Slices 29/30.
+
+## 2026-11-08 · stress-test + prove on main@00f5c56 with explicit CGO-DEV VM
+
+- Branch/HEAD: `main` / `00f5c56` (`docs: checkpoint merge to main fa77201 (human-approved)`). Previous entry cited `fa77201` (merge commit); HEAD is now `00f5c56` (docs-only checkpoint on top). Artifact wins; declared here.
+- Changed: docs only — this entry. No product code. `docs/VERIFY.md` rows 83/85 stay **PENDING**; builder promotes nothing. Generated files under the `modules/api` data directory removed; `web/frontend/dist/index.html` restored after build.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (frozen 159 seal, provenance, tests 13.6s, hygiene 1006, links).
+  - `go test ./pkg/api -run TestMetrics -count=20` → PASS (2.28s, `TestMetrics_AbsentIsNotZero` + `EmitsHelpType` stable x20).
+  - `go test ./pkg/campagne -run TestSkipJournalsViaHook -count=20` → PASS (4.25s, E5 regression x20).
+  - `go test ./pkg/api -run TestRequireAuth -count=10` → PASS (2.19s, 401 + `Bearer` stable x10).
+  - `go test ./pkg/api -run TestSSE -count=5` → PASS (31.83s, SSE cadence/delta stable x5).
+  - `cd web/frontend && npm test && npm run build` → 68 files / 321 tests PASS (125.37s); build `TOTAL gz 357.6 KB`, `BenchView 241.71 KB gz` (11.68s).
+  - Per-module (explicit VM parity, run locally): `for d in modules/*/; do (cd $d && go test ./... -count=1); done` → api/audit/cite/doctor/exporter/figures/guard/iface/metrics/model/probe/bpf/qdisc/remediate/results ok; generated module data cleaned after.
+- Explicit CGO-DEV VM (`721d4909…` on `100.72.251.32`, host PC2 `Airis` via `nemo_lab`):
+  - `VBoxManage showvminfo CGO-DEV` → `VMState="poweroff"` (2026-11-06) → `VBoxManage startvm CGO-DEV --type headless` → `VMState="running"` (2026-11-08T08:39:19), `Forwarding ssh 2222→22`, `web 9090→9090`.
+  - `VBoxManage guestproperty get /VirtualBox/GuestInfo/OS/Release` → `6.8.0-147-generic` (VM booted).
+  - SSH `2222` sweep `altfloat|cgo|ubuntu|meteolink|airis|nemo|root × id_ed25519|nemo_ed25519|nemo_lab` → all `Permission denied (publickey,password)` (not banned — reached sshd). Same 21 cells reproduce pre-existing `docs/VERIFY.md` BLOCKED `PC2 / nemo live bench access` (E8: VM boots but no recorded SSH identity is accepted). No bypass attempted; `go test -race` on VM therefore stays **BLOCKED** on named condition: VM console `~/.ssh/authorized_keys` must accept a recorded key (human installs via console per `docs/usage.fr.md`), then re-run `python tools/verify.py` + `CGO_ENABLED=1 go test -race` on CGO-DEV.
+- Unproven/blocked: live bench/CHR/BBRv3/`.dist`/WIS/Mosquitto/eBPF (human-approved live run required per `AGENTS.md`; no run executed), GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, race on Windows (CGO_ENABLED=1 breaks on `pkg/probe/bpf` C source — recorded above), Playwright/e2e cockpit capture on this pass (frontend evidence is npm 321 + build only). Rows 83/85 stay **PENDING**; verifier owns them.
+- Next: human decides push of this checkpoint commit to `main` (`CGO_ALLOW_MAIN=1` required) and CGO-DEV key install via console to unblock Linux race.
