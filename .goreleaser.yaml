@@ -70,49 +70,18 @@ sboms:
     documents:
       - "{{ .ArtifactName }}.sbom.json"
     artifacts: archive
-  # SBOM par module pur (model, metrics, results, figures, qdisc) : les
-  # modules purs n'ont pas de binaire ; goreleaser ne catalogue que les
-  # artefacts produits (les archives ci-dessus). Ces entrées font donc
-  # cataloguer par le même syft le répertoire modules/<nom> (son go.mod),
-  # en CycloneDX JSON — le document cgo-<nom>.sbom.json part dans la même
-  # release. SLSA L2 : voir docs/deploy.md § 7.3.1. goreleaser est absent
-  # sur l'hôte de dev : config-complete, à valider par `goreleaser check`
-  # en CI au premier tag (un champ inconnu ferait échouer ce check).
-  - id: cgo-model
-    cmd: syft
-    args: ["modules/model", "--output", "cyclonedx-json=$document", "--enrich", "all"]
-    documents:
-      - "cgo-model.sbom.json"
-    artifacts: archive
-  - id: cgo-metrics
-    cmd: syft
-    args: ["modules/metrics", "--output", "cyclonedx-json=$document", "--enrich", "all"]
-    documents:
-      - "cgo-metrics.sbom.json"
-    artifacts: archive
-  - id: cgo-results
-    cmd: syft
-    args: ["modules/results", "--output", "cyclonedx-json=$document", "--enrich", "all"]
-    documents:
-      - "cgo-results.sbom.json"
-    artifacts: archive
-  - id: cgo-figures
-    cmd: syft
-    args: ["modules/figures", "--output", "cyclonedx-json=$document", "--enrich", "all"]
-    documents:
-      - "cgo-figures.sbom.json"
-    artifacts: archive
-  - id: cgo-qdisc
-    cmd: syft
-    args: ["modules/qdisc", "--output", "cyclonedx-json=$document", "--enrich", "all"]
-    documents:
-      - "cgo-qdisc.sbom.json"
-    artifacts: archive
+  # SBOM par module pur : PAS d'entrée `sboms:` ici (choix I1).
+  # Le pipe `sboms:` ne catalogue que les artefacts GoReleaser (les archives)
+  # ; une entrée `artifacts: archive` avec un répertoire fixe `modules/<nom>`
+  # tournerait une fois par archive et écraserait le même document. Les SBOM
+  # des cinq modules purs sont donc produits en CI par la boucle
+  # `for m in ... ; syft "modules/$m"` (docs/deploy.md § 7.3.1) : même format
+  # CycloneDX, même release, aucun `goreleaser check` à valider ici.
 
 # Signature du fichier de checksums uniquement (recommandé : on signe la
 # somme, pas chaque archive). `cosign` sans clé (keyless OIDC, workflow
 # hébergé) - c'est la brique SLSA L2 de cette release. Les tags git
-# `v0.1.0` par module sont signés localement par `git tag -s`
+# `<module>/v0.1.0` (ex. `model/v0.1.0`) sont signés par `git tag -s`
 # (voir docs/deploy.md § Épingles + cutover).
 signs:
   - id: cosign-checksum
@@ -144,7 +113,7 @@ release:
     - `dist/*.sbom.json` — SBOM CycloneDX par archive (et par module pur en CI)
     - `checksums.txt` + `checksums.txt.sigstore.json` — somme SHA-256 signée cosign (SLSA L2)
     - `digests.txt` — digests OCI signés, épinglés jamais `:latest`
-    - Tags `v0.1.0` par module (model, metrics, results, figures, qdisc) — un tag signé = un contenu immuable (semver §3)
+    - Tags `<module>/v0.1.0` par module (ex. `model/v0.1.0`, `metrics/v0.1.0`) — un tag signé = un contenu immuable (semver §3)
 
     Vérifiez les téléchargements avec `checksums.txt` (SHA-256) puis le
     bundle cosign, et la provenance avec `gh attestation verify`.

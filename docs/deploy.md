@@ -1,4 +1,4 @@
-# Déploiement — installation machine propre (Meteolink 1.2.3)
+# Déploiement — installation machine propre (Meteolink 1.3.5)
 
 Ce document couvre l'installation sur une machine vierge : Windows en
 **mode observation**, Linux en **mode complet**, la VM de banc et la
@@ -140,7 +140,7 @@ Pour un banc fixe sur site :
 7. **Réseau** : ouvrir le **port 9090** (dashboard + API) —
    `sudo ufw allow 9090/tcp` ou équivalent.
 8. Vérifier : `curl -k https://<ip-edge>:9090/api/health` →
-   `{"ok":true,"version":"1.2.3","mode":"full"}` (-k : certificat auto-signé).
+   `{"ok":true,"version":"1.3.5","mode":"full"}` (-k : certificat auto-signé).
 
 Le mini-PC est alors prêt pour la boucle opérateur complète
 (auditer → campagner → façonner → surveiller → comparer → constat),
@@ -222,13 +222,15 @@ puis `metrics`, `qdisc`, `results`, `figures` — ordre topologique) :
    ```
    Les 15 modules doivent passer ensemble ; `go test ./...` depuis la
    racine doit rester vert après chaque cutover.
-2. Tag signé, semver `v0.1.0` (le `0` signale une API publique non
-   garantie — `semver.org` §4 ; `1.0.0` est la promesse) :
+2. Tag signé, semver `v0.1.0` en nom `<module>/v0.1.0` (ex. `model/v0.1.0`,
+   `metrics/v0.1.0` — un tag nu `v0.1.0` est impossible par module dans un
+   même dépôt ; le `0` signale une API publique non garantie, `semver.org`
+   §4 ; `1.0.0` est la promesse) :
    ```bash
-   git tag -s v0.1.0 -m "cgo-model v0.1.0" -- model   # un tag signé par module
+   git tag -s model/v0.1.0 -m "cgo-model v0.1.0"   # répéter : metrics/v0.1.0, qdisc/v0.1.0, results/v0.1.0, figures/v0.1.0
    ```
    Un tag signé est immuable : son contenu ne change jamais (semver §3).
-   On ne déplace pas un tag publié ; on publie `v0.1.1`.
+   On ne déplace pas un tag publié ; on publie `<module>/v0.1.1`.
 3. Retirer le `replace` de CE module dans `go.mod` racine (et dans les
    `go.mod` des modules consommateurs), puis :
    ```bash
@@ -256,7 +258,7 @@ Le niveau d'assurance est déclaré, jamais sous-entendu (SLSA) :
 - **L2** (authentic) : provenance signée par un builder hébergé.
   `.goreleaser.yaml` signe `checksums.txt` avec `cosign sign-blob`
   (keyless OIDC), `digests.txt` est attesté par `actions/attest`. C'est
-  la cible de chaque release `v0.1.0` par module.
+  la cible de chaque release `<module>/v0.1.0` (ex. `model/v0.1.0`).
 
 Vérification par le consommateur, hors ligne sauf la consultation du log
 de transparence pour cosign keyless :
@@ -295,10 +297,15 @@ for m in model metrics results figures qdisc; do
 done
 ```
 
-Les entrées `sboms:` de `.goreleaser.yaml` (`cgo-model`, `cgo-metrics`,
-`cgo-results`, `cgo-figures`, `cgo-qdisc`) portent ces commandes : le
-premier tag CI les produit. `goreleaser` est absent sur cet hôte — état
-`config-complete`, à valider par `goreleaser check` là où le binaire existe.
+Choix I1 : il n'y a PAS d'entrée `sboms:` par module dans `.goreleaser.yaml`.
+Le pipe `sboms:` ne catalogue que les artefacts GoReleaser (les archives) ;
+une entrée `artifacts: archive` avec un répertoire fixe `modules/<nom>`
+tournerait une fois par archive et écraserait le même document
+(`cgo-model.sbom.json` réécrit par chaque archive). La boucle CI ci-dessus
+est donc la voie canonique des SBOM par module pur : même `syft`, même format
+CycloneDX, même release, sans `goreleaser check` à faire passer sur ce pipe.
+`goreleaser` est absent de cet hôte — vérifié par `command -v goreleaser` —
+ce qui rend la validation du pipe chez CI sans objet pour ces modules.
 
 Vérification, hors ligne :
 

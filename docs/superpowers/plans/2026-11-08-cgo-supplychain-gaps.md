@@ -48,7 +48,7 @@
 - Consumes: GoReleaser upstream (`goreleaser.com/customization/sbom/`), CycloneDX (`cyclonedx.org/capabilities/sbom/`), SLSA (`slsa.dev/spec/v1.0/requirements`)
 - Produces: `sboms:` five-field pipeline per artifact (`id`, `kind`, `cmd`, `env`, `artifacts`)
 
-- [ ] **Step 1: Add SBOM generation**
+- [x] **Step 1: Add SBOM generation**
 
 ```yaml
 sboms:
@@ -60,12 +60,12 @@ sboms:
     # full config from 2026-11-08 supplychain-gaps spec §17
 ```
 
-- [ ] **Step 2: Verify config**
+- [x] **Step 2: Verify config**
 
 Run: `goreleaser check` (if binary present) else record config-complete in `docs/deploy.md`.
 Expected: `goreleaser check` passes or documents missing binary.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .goreleaser.yaml docs/deploy.md
@@ -84,16 +84,16 @@ git commit -m "feat(deploy): GoReleaser CycloneDX SBOM for pure modules"
 - Consumes: OCI Image/Distribution specs
 - Produces: `ghcr.io/realms4239/cgo@sha256:${CGO_IMAGE_DIGEST:?}` — never `:latest`
 
-- [ ] **Step 1: Pin digest**
+- [x] **Step 1: Pin digest**
 
 Verify `deploy/docker-compose.yml:3` uses `@sha256:${CGO_IMAGE_DIGEST:?set release digest}` and `deploy/Dockerfile` is `FROM scratch` with `org.opencontainers.image.*` labels.
 
-- [ ] **Step 2: Verify compose**
+- [x] **Step 2: Verify compose**
 
 Run: `docker compose -f deploy/docker-compose.yml config` (if Docker present) else record config-complete.
 Expected: digest required, `:latest` rejected.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add deploy/Dockerfile deploy/docker-compose.yml
@@ -112,15 +112,15 @@ git commit -m "feat(deploy): digest-pinned OCI image"
 - Consumes: SemVer 2.0.0 (`semver.org`), Go Modules canonical versions (`go.dev/ref/mod`)
 - Produces: 8-step cutover (tag → release → verify → replace removal → monorepo pin)
 
-- [ ] **Step 1: Write runbook**
+- [x] **Step 1: Write runbook**
 
 Create `docs/runbooks/tag-cutover.md` with the 8 steps from spec §17.
 
-- [ ] **Step 2: Verify procedure**
+- [x] **Step 2: Verify procedure**
 
 Manual walk: `git tag v0.1.0 -m "cgo/model v0.1.0"` in a dry-run clone, `go list -m all`, confirm `replace` removal is `no-op` (record result in runbook).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/runbooks/tag-cutover.md docs/deploy.md
@@ -139,11 +139,11 @@ git commit -m "docs(deploy): per-module tag/cutover procedure"
 - Consumes: Fyne build constraints (`//go:build linux && cgo` guard)
 - Produces: separate-repo structure with no `internal/` import, stub for non-GUI builds
 
-- [ ] **Step 1: Write scaffolding spec**
+- [x] **Step 1: Write scaffolding spec**
 
 Document: new repo `cgo-gui`, `go.mod` with Fyne, `core.go` dual-view (`windows` Win32 vs `linux` Fyne), `LockOSThread`, `CGO_ENABLED=0` fallback stub, SemVer independent.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add docs/runbooks/gui-repo.md cmd/cgo-gui/README-SEPARATE.md
@@ -162,11 +162,11 @@ git commit -m "docs(gui): cgo-gui separate repo scaffolding"
 - Consumes: WMO WIS 2.0 overview, CAP 1.2 OASIS, Mosquitto `mosquitto.conf(5)`, kernel eBPF/BTF
 - Produces: design docs only — no code, no broker, no loader
 
-- [ ] **Step 1: Write deferred designs**
+- [x] **Step 1: Write deferred designs**
 
 Document: `cgo/wis2-probe` topic tree (`cgo/v1/probe/...`), CAP mapping, Mosquitto TLS/ACL profile; `cgo-bpf-observer` Session API, BTF/CO-RE, capget discipline, 6.8 build gate. Each with `DEFERRED: needs Q1–Q7 + human gate`.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add docs/runbooks/wis2-probe.md docs/runbooks/bpf-observer.md
@@ -182,7 +182,7 @@ git commit -m "docs(wis2/bpf): deferred probe designs"
 - Modify: `docs/VERIFY.md` (PENDING row only)
 - Modify: `docs/superpowers/plans/README.md`
 
-- [ ] **Step 1: Run gates**
+- [x] **Step 1: Run gates**
 
 Run:
 
@@ -193,13 +193,13 @@ python tools/verify.py
 
 Expected: all PASS, `verify.py` 6/6.
 
-- [ ] **Step 2: Checkpoint + ledger**
+- [x] **Step 2: Checkpoint + ledger**
 
 Append to `docs/CHECKPOINTS.md`: command, date UTC, host, exit codes, unproven (CHR, WIS, bench, Mosquitto, eBPF live).
 Update `docs/VERIFY.md` PENDING row (not VERIFIED — verifier owns it).
 Update `docs/superpowers/plans/README.md` slice row → Pending verifier.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/CHECKPOINTS.md docs/VERIFY.md docs/superpowers/plans/README.md

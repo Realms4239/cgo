@@ -25,11 +25,11 @@ extrait dans l'ordre de dépendance. Un module à la fois.
 ## Les 8 étapes (cutover atomique)
 
 ```text
-1. Publier le nouveau tag du module (v0.1.0, immuable)
+1. Publier le nouveau tag du module (`<module>/v0.1.0`, ex. `model/v0.1.0`, immuable)
    v0.1.0 = première release, API publique non garantie
    (SemVer §4) ; 1.0.0 est la promesse.
    Le tag est signé ; son contenu ne change jamais (§3).
-   On ne déplace pas un tag publié : on publie v0.1.1.
+   On ne déplace pas un tag publié : on publie `<module>/v0.1.1`.
 
 2. Monter le require dans le go.mod du consommateur
    (sans aucun replace dans le tag)
@@ -95,8 +95,8 @@ checkout de travail, et ne pousse rien.
 git clone --no-local . /tmp/cgo-cutover-dryrun
 cd /tmp/cgo-cutover-dryrun
 
-# 2. Tag du module (ex. model / v0.1.0, non signé = suffisant ici)
-git tag v0.1.0 -m "cgo/model v0.1.0"
+# 2. Tag du module (ex. model/v0.1.0, non signé = suffisant ici)
+git tag model/v0.1.0 -m "cgo/model v0.1.0"
 
 # 3. Référence : résolution AVANT retrait du replace
 go list -m all > /tmp/cgo-before.txt
@@ -128,7 +128,7 @@ Commandes (clone temporaire, site-packages hors du checkout) :
 ```bash
 git clone --no-local . /tmp/cgo-cutover-dryrun-task3
 cd /tmp/cgo-cutover-dryrun-task3
-git tag v0.1.0 -m "cgo/model v0.1.0"
+git tag model/v0.1.0 -m "cgo/model v0.1.0"
 go list -m all
 go mod edit -dropreplace github.com/Realms4239/cgo/model
 go list -m all
@@ -142,7 +142,7 @@ après `-dropreplace`, la résolution échoue :
 unknown revision model/v0.1.0`.
 Le `replace` est donc porteur tant que le tag n'est pas publié et
 récupérable via le proxy ; le retrait n'est un no-op qu'APRÈS
-publication (`git push origin v0.1.0` + `go mod download`
+publication (`git push origin model/v0.1.0` + `go mod download`
 réussissant — étape 1→3 de la procédure, jamais poursuivie ici).
 Ce que le dry-run prouve c'est la condition de bascule : publier
 d'abord, retirer ensuite, et vérifier `go list -m all` sans flèche
