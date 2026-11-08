@@ -158,3 +158,25 @@ Rows: VERIFY rows 83 (slice 29) and 85 (slice 30) still **PENDING** per this sig
 Screenshots checked: N — no screenshot claimed.
 Residuals accepted: Y — (a) VERIFY row 85 builder text still cites `4cab42d` while HEAD is `1b9a61c` (declared in CHECKPOINTS.md 06:02–09:37 entry; verifier re-ran at HEAD); (b) `verify.py` `tests` gate reports 22.1s vs minutes for full `go test ./... -count=1` — direct full run passed exit 0 regardless. Unproven by design (declared config-complete, tools absent on host): first SBOM CI-run, first digest pull + `cosign verify`, module publication, all live WIS/Mosquitto/eBPF/bench acceptance.
 Signature: independently verified at 2026-11-08 08:08 UTC — verify.py 6/6, go test exit 0, npm 321 tests, build 357.6 KB, all slice-30 supplychain items confirmed at HEAD 1b9a61c, rows 29/30 still PENDING.
+
+## Verifier signature — stress-test proof on main (2026-11-08 08:50 UTC, transcribed; HEAD a12e7e5)
+
+Verifier: independent subagent session `ses_e45ab6f21ffeTNgwbjUQQi0ciR`.
+Host: DESKTOP-B6K9UCM (Windows 10, MINGW64).
+Branch: `main` at `a12e7e5` (`docs: prove stress-test main@00f5c56 with explicit CGO-DEV`) — docs-only on top of `00f5c56`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Six gates | `python tools/verify.py` | exit 0, `6 passed, 0 failed, 0 not run` — frozen (159 runs, seal holds), provenance, tests, exit, hygiene (1006 files), links PASS |
+| Metrics determinism | `go test ./pkg/api -run TestMetrics -count=5` | exit 0 — `TestMetrics_EmitsHelpTypeAndContentType` + `TestMetrics_AbsentIsNotZero` ×5 |
+| Per-module suites | `modules/api`, `modules/metrics`, `modules/guard`: `go test ./... -count=1` | exit 0 each (api 64.3s, metrics 2.1s, guard 2.0s) |
+| Auth/SSE quick | `go test ./pkg/api -run "TestRequireAuth\|TestSSE" -count=1` + `TestRequireAuth -count=5` | exit 0 |
+| E5 quick | `go test ./pkg/campagne -run TestSkipJournalsViaHook -count=5` | exit 0 |
+| Frontend | `npm test` / `npm run build` | 68 files / 321 tests PASS; `TOTAL gz 357.6 KB` (12.78s) |
+
+Parity/honesty: absent ≠ fake zero (only `*_measured` + `cgo_iface_valid`; `TestMetrics_AbsentIsNotZero`); citation `""` without seal (`modules/cite`); auth 401 `Bearer` + `subtle.ConstantTimeCompare` + `IsLoopback` (`pkg/api/auth.go`, `modules/guard`). No frozen-corpus change (`git diff fa77201..HEAD -- book/` empty). No new Go dep (`git diff fa77201..HEAD -- go.mod go.sum` empty).
+
+Rows: VERIFY rows 83 (slice 29) and 85 (slice 30) still **PENDING** per this signature — verifier re-ran at `a12e7e5`, builder promoted nothing. History not rewritten.
+Screenshots checked: N — no screenshot claimed.
+Residuals accepted: Y — generated data under the `modules/api` directory removed, tree clean; SSE load-flake pre-existing, single PASS.
+Signature: independently verified at 2026-11-08 08:50 UTC — re-ran verify.py 6/6, TestMetrics ×5, three per-module suites, npm 321 tests and build 357.6 KB at HEAD a12e7e5, confirmed rows 83/85 PENDING, no frozen-corpus or Go-dep change, and the CGO-DEV BLOCKED record with its E8 console-key condition.
