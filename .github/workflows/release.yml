@@ -37,7 +37,7 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: |
-          sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libglfw3-dev xorg-dev libwayland-dev pkg-config
+          sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libglfw3-dev xorg-dev libwayland-dev pkg-config libxkbcommon-dev
           python tools/verify.py
       - name: release
         env:
