@@ -2224,3 +2224,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Quoted (`go list -m github.com/Realms4239/cgo/metrics`, DESKTOP-B6K9UCM, 2026-11-08): api/audit/figures/results all resolve `metrics v0.1.0` with NO replace.
 - Proven: per-module ×14 → all `ok`; root `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (tests 88.4s, frozen 159 seal intact).
 - Unproven/blocked: verifier re-run (step 8) before any `VERIFIED` row for the module line; next modules `qdisc`, `results`, `figures` (same recipe). Other BLOCKED unchanged: `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING**.
+
+
+## 2026-11-08 · Qdisc cutover COMPLETE — `qdisc/v0.1.0` (leaf module, no consumers)
+
+- Branch/HEAD: `main` / `fc326a3` (`refactor(qdisc): move modules/qdisc to qdisc/`), cutover commit immediately next. Previous entry cited `main/9f7b925`; HEAD is now `fc326a3` (move on top). Artifact wins; declared here.
+- Same two-commit recipe (`model`, `metrics` precedent). Tag `qdisc/v0.1.0` annotated (GPG absent), at the post-move commit, pushed — no dud to avoid (no prior `qdisc` tag).
+- Move: `git mv modules/qdisc qdisc/` + root replace `=> ./qdisc` (only reference; no module requires `qdisc`). `cd qdisc && go test ./...` → `ok`.
+- Leaf cutover: `go mod edit -dropreplace` at root + `go mod tidy` — nothing imports `qdisc` (no consumer requires, no replace left; `qdisc` stands alone as a published module; standalone suite green). Nothing else to `go list` on: resolution is vacuous (no consumers), the tag is fetchable as soon as the proxy indexes it.
+- Proven: per-module ×14 → all `ok`; root `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (tests 81.0s, frozen 159 seal intact).
+- Unproven/blocked: verifier re-run (step 8); remaining modules `results`, `figures` (same recipe; `figures` depends on `results` and `metrics`, order: move `results` before `figures`). Other BLOCKED unchanged: `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING**.

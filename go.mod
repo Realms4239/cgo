@@ -66,7 +66,6 @@ replace (
 	github.com/Realms4239/cgo/figures => ./modules/figures
 	github.com/Realms4239/cgo/iface => ./modules/iface
 	github.com/Realms4239/cgo/probe => ./modules/probe
-	github.com/Realms4239/cgo/qdisc => ./qdisc
 	github.com/Realms4239/cgo/remediate => ./modules/remediate
 	github.com/Realms4239/cgo/results => ./modules/results
 )
