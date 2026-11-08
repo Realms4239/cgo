@@ -2032,3 +2032,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python -c "import yaml; yaml.safe_load(open('.goreleaser.yaml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 85.0s, hygiene 1012, links).
 - Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed config to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+
+## 2026-11-08 · CI goreleaser check fix 8 — deprecated `archives.format_overrides.format` → list `formats: [zip]`
+
+- Branch/HEAD: `main` / `1ea4697` (`fix(release): targets slash to underscore (v2 canonical)`). Previous entry cited `main/a576bda`; HEAD is now `1ea4697` (config + docs on top). Artifact wins; declared here.
+- Changed: config only — `.goreleaser.yaml` `archives.format_overrides`: `format: zip` → `formats: [zip]` (GoReleaser v2 renamed singular → plural list). Root cause: `goreleaser check` → `configuration is valid, but uses deprecated properties` → `check failed`.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42476854900 --log-failed` on retagged `v0.1.0` → `check` failed: `DEPRECATED: archives.format_overrides.format should not be used anymore` → `configuration is valid, but uses deprecated properties`.
+  - Fix validated: `python -c "import yaml; yaml.safe_load(open('.goreleaser.yaml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 79.4s, hygiene 1012, links).
+- Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed config to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
