@@ -1,0 +1,56 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: install syft + cosign
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | syft/install.sh -d latest && sudo mv syft /usr/local/bin/
+          curl -O -L https://github.com/sigstore/cosign/releases/download/v2.4.0/cosign-linux-amd64
+          sudo mv cosign-linux-amd64 /usr/local/bin/cosign && chmod +x /usr/local/bin/cosign
+          cosign version; syft version
+      - name: install goreleaser
+        run: |
+          curl -sSfL https://goreleaser.com/install.sh | bash
+          sudo mv goreleaser /usr/local/bin/ && goreleaser --version
+      - name: check
+        run: goreleaser check
+      - name: verify
+        run: python tools/verify.py
+      - name: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: goreleaser release --clean
+      - name: SBOM per module pur (docs/deploy.md 7.3.1)
+        run: |
+          mkdir -p dist
+          for m in model metrics results figures qdisc; do
+            syft "modules/$m" --output "cyclonedx-json=dist/cgo-$m.sbom.json" --enrich all
+          done
+          ls -lh dist/*.sbom.json
+      - name: publish SBOMs
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.sbom.json
+      - name: cosign attest digest
+        env:
+          CGO_IMAGE_DIGEST: ${{ secrets.CGO_IMAGE_DIGEST }}
+        run: |
+          if [ -n "$CGO_IMAGE_DIGEST" ]; then
+            cosign attest-blob --bundle dist/digests.txt.sigstore.json --yes dist/digests.txt || true
+            echo "digest pinned: $CGO_IMAGE_DIGEST" >> $GITHUB_STEP_SUMMARY
+          fi
