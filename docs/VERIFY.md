@@ -117,3 +117,24 @@ Residuals accepted: Y — tooltip has a trailing LF (117 B vs 116 B title), buil
 Signature: verified — all ten first-pass findings are closed at `367da9b` (two with recorded residuals), the six gates pass fresh, and the 18 rows are proposed for the dispositions above with rows 2 and 3 blocked on named conditions.
 
 Note: the host clock jumped +8 h at 21:04:55 UTC during the pass; the forced-fresh `verify.py` ran after the jump, so its real end is reconstructed from its 280.4 s `tests` gate. No result depends on the wall clock. Two SSE tests (`TestSSESubLimitAtomic`, `TestSSECadenceAndDelta`) failed once under the verifier's concurrent test load and passed isolated — flake risk, not a slice-26′ regression.
+
+## Verifier signature — slice 29 modular extraction (2026-11-08 05:03 UTC, transcribed)
+
+Verifier: independent subagent session `ses_e46881760ffeyPng7vJj6POpUv` (shell-capable re-run; previous verifiers withheld signature, static only).
+Host: DESKTOP-B6K9UCM (Windows 10, MINGW64).
+Branch: `openchamber/operator-cockpit` at `a0b19a4` (`fix(api): constant-time + IsLoopback auth parity`).
+
+| Gate | Command | Result |
+|---|---|---|
+| 15 modules | `for d in modules/*/; do (cd $d && go test ./... -count=1)` | 15/15 exit 0 (api 64.3s, audit 191.7s, probe 11.7s, rest <4s) |
+| TestMetrics | `go test ./pkg/api -run TestMetrics -v` | exit 0 — `TestMetrics_EmitsHelpTypeAndContentType` PASS, `TestMetrics_AbsentIsNotZero` PASS |
+| Six gates | `python tools/verify.py` | exit 0, 6/6 — frozen, provenance, tests (91.3s), exit, hygiene, links PASS |
+| Frontend tests | `npm test` (web/frontend) | exit 0, 68 files / 321 tests |
+| Frontend build | `npm run build` | exit 0, TOTAL gz 357.6 KB |
+
+Parity/honesty: absent ≠ fake zero (only `*_measured` flags + `cgo_iface_valid` emitted; `TestMetrics_AbsentIsNotZero` byte-identical in `pkg/api` and `modules/api`); citation `""` without seal (`modules/cite/cite.go`); no green without load (`AssessVerdict` gated on grade A+/A/B); auth 401 with `Bearer`; nginx `limit_req_status 429`; `CGO_probe_dead` live with `cgo_audit_load_measured_total` emitted in both trees; digest pin `@sha256:${CGO_IMAGE_DIGEST:?...}` (was `:latest`).
+
+Rows: VERIFY row 83 (Slice 29 builder pass) stays **PENDING** per the transcribed signature block — the verifier verified the commands at `a0b19a4` and left row promotion to the verifier-owned disposition; builder made no promotion. History not rewritten.
+Screenshots checked: N — no screenshot claimed for this slice.
+Residuals accepted: Y — (1) builder hygiene number stale (`359` vs `997` tracked files clean in the same run; gate passes); (2) `CGO_probe_dead` `rate(...) == 0` cannot detect a *missing* series (needs `absent_over_time`, pre-existing, documented); (3) `pkg/` ↔ `modules/` drift already visible in test fixtures, both suites pass, dual maintenance risk.
+Signature: independently verified at 2026-11-08 05:03 UTC — all 15 modules `go test` exit 0, `TestMetrics` PASS in both trees, `verify.py` 6/6, npm 321 tests, build 357.6 KB, all parity checks confirmed, VERIFY row 83 still PENDING, tree clean.
