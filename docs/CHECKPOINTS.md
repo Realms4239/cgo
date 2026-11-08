@@ -2065,3 +2065,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 15.3s, hygiene 1012, links 5 docs resolve).
 - Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed code to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+
+## 2026-11-08 · CI verify fix 10 — bpf C ignored for Go tooling + links ellipsis skip
+
+- Branch/HEAD: `main` / `b881553` (`fix(ci): CGO_ENABLED=1 for verify (bpf C source)`). Previous entry cited `main/8732e93`; HEAD is now `b881553` (workflow + docs on top). Artifact wins; declared here.
+- Changed: `pkg/probe/bpf/bpf_probe.c` prepends `//go:build ignore` (standalone BPF source compiled by clang via `make bpf`, never by Go — Go tool must not see it). `tools/verify.py` `link_candidates` skips tokens ending `...` (historical glob ellipsis like `pkg/...` are not real paths; same rule already skipped `*`). No product code.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42478520080 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed…`; `FAIL links`.
+  - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 17.5s, hygiene 1012, links).
+- Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed code to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
