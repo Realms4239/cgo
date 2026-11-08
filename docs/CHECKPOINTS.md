@@ -2043,3 +2043,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python -c "import yaml; yaml.safe_load(open('.goreleaser.yaml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 79.4s, hygiene 1012, links).
 - Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed config to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+
+## 2026-11-08 · CI verify fix 9 — CGO_ENABLED=1 for `tools/verify.py` (bpf C source)
+
+- Branch/HEAD: `main` / `8732e93` (`fix(release): formats list for archives override`). Previous entry cited `main/1ea4697`; HEAD is now `8732e93` (config + docs on top). Artifact wins; declared here.
+- Changed: workflow only — `.github/workflows/release.yml` `verify` step adds `env: CGO_ENABLED: "1"`. Root cause: CI Linux `verify.py` gates run `go vet ./...` with CGO disabled → `pkg/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c` (GitHub ubuntu Go default). Local Windows `verify.py` passed 6/6 because `pkg/probe/bpf` builds differently there. No product code. No new repo dependency.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42477813355 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed…`; `PASS hygiene (1012)`, `FAIL links`.
+  - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py --only hygiene` → PASS (1012); `--only links` → PASS (5 docs).
+- Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed workflow to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
