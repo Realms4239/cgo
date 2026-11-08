@@ -19,10 +19,11 @@ jobs:
           go-version: "1.25"
       - name: install syft + cosign
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | syft/install.sh -d latest && sudo mv syft /usr/local/bin/
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | bash
+          syft version
           curl -O -L https://github.com/sigstore/cosign/releases/download/v2.4.0/cosign-linux-amd64
           sudo mv cosign-linux-amd64 /usr/local/bin/cosign && chmod +x /usr/local/bin/cosign
-          cosign version; syft version
+          cosign version
       - name: install goreleaser
         run: |
           curl -sSfL https://goreleaser.com/install.sh | bash
