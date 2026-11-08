@@ -1877,3 +1877,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Final whole-branch review `bcb7fb9..fbe3a17` (session `ses_e45cad…sNE`, read-only): ✅ SBOM archive-level + CI loop canonical (I1), ✅ digest-pinned OCI no `:latest` `FROM scratch` + labels, ✅ `<module>/v0.1.0` (I2), ✅ 16/16 ticked (M1), ✅ 1.3.5 (M2), ✅ `cgo-gui` separate-repo docs, ✅ WIS2/eBPF `DEFERRED` design-only, ✅ no frozen-corpus change, ✅ no new Go dep. RESIDUALS ACCEPTED: Y (Important residuals are declared config-complete, not blockers).
 - Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3, merge to `main` (human decision required per `AGENTS.md`). No row promoted by builder; verifier owns rows.
 - Next: human decides push/merge to `main`. No further verifier dispatch for Slices 29/30.
+
+## 2026-11-08 · branch pushed for human review — HEAD 90de4f0 (docs-only)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `90de4f0` (`docs: checkpoint fbe3a17 HEAD-match closeout slices 29/30`). Previous entry cited `fbe3a17`; HEAD is now `90de4f0` (docs-only CHECKPOINTS). Artifact wins; declared here.
+- Changed: docs only — this entry. No product code. Pushed `openchamber/operator-cockpit` to `origin` (new branch) via `git push -u origin openchamber/operator-cockpit` → pre-push hooks ran `python tools/verify.py`, `6 passed, 0 failed, 0 not run` (tests 81.0 s, hygiene 1006, seal 159 holds). No merge to `main` (human decision required per `AGENTS.md`).
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08, at `fbe3a17` prior to push: `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run`. Push itself: exit 0, branch created on `origin`.
+- Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3, merge to `main` awaiting human decision. Rows 83/85 stay **PENDING** (Slice 29 verified at `a0b19a4` 05:03 UTC, Slice 30 verified at `1b9a61c` 08:08 UTC). Playwright/browser-use cockpit capture not run in this pass; frontend evidence on record is `npm test` 321 + `npm run build` 357.6 KB gz (verifiers).
+- Next: human decides merge to `main` / PR. No further verifier dispatch for Slices 29/30.
