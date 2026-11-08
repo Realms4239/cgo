@@ -138,3 +138,23 @@ Rows: VERIFY row 83 (Slice 29 builder pass) stays **PENDING** per the transcribe
 Screenshots checked: N — no screenshot claimed for this slice.
 Residuals accepted: Y — (1) builder hygiene number stale (`359` vs `997` tracked files clean in the same run; gate passes); (2) `CGO_probe_dead` `rate(...) == 0` cannot detect a *missing* series (needs `absent_over_time`, pre-existing, documented); (3) `pkg/` ↔ `modules/` drift already visible in test fixtures, both suites pass, dual maintenance risk.
 Signature: independently verified at 2026-11-08 05:03 UTC — all 15 modules `go test` exit 0, `TestMetrics` PASS in both trees, `verify.py` 6/6, npm 321 tests, build 357.6 KB, all parity checks confirmed, VERIFY row 83 still PENDING, tree clean.
+
+## Verifier signature — slice 30 supplychain-gaps (2026-11-08 08:08 UTC, transcribed; HEAD 1b9a61c)
+
+Verifier: independent subagent session `ses_e45d71ad9ffeD1B0eHDzRcEYPq`.
+Host: DESKTOP-B6K9UCM (Windows 10, MINGW64).
+Branch: `openchamber/operator-cockpit` at `1b9a61c` (`docs: transcribe slice 29 verifier signature, checkpoint slice 30 fix a7ec8d2`) — docs-only on top of fix batch `a7ec8d2`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Six gates | `python tools/verify.py` | exit 0, `6 passed, 0 failed, 0 not run` — frozen (159 runs, seal holds), provenance, tests, exit, hygiene (1006 files), links PASS |
+| Go suite | `go test ./... -count=1` | exit 0, 19 `ok`, 0 FAIL (`pkg/api` 67.7s, `pkg/audit` 190.3s) |
+| Frontend tests | `npm test` (web/frontend) | exit 0, 68 files / 321 tests (168.28s) |
+| Frontend build | `npm run build` | exit 0, `TOTAL gz : 357.6 KB` (14.70s); `dist/index.html` restored, tree clean |
+
+Supplychain items: `.goreleaser.yaml` single archive-level CycloneDX SBOM (per-module entries removed, I1); `deploy/docker-compose.yml` digest-pinned `@sha256:${CGO_IMAGE_DIGEST:?}` (no mutable `:latest` in `image:`); `deploy/Dockerfile` `FROM scratch` + `org.opencontainers.image.*` labels; `<module>/v0.1.0` tags in `docs/deploy.md:225` + `docs/runbooks/tag-cutover.md:28` (I2); plan checkboxes 16/16 ticked (M1); `docs/deploy.md` cites `1.3.5`, no stale `1.2.3` (M2); `docs/runbooks/gui-repo.md` + `cmd/cgo-gui/README-SEPARATE.md` exist (pointer-only); `docs/runbooks/wis2-probe.md` + `bpf-observer.md` exist, `DEFERRED`, docs-only (commits `4cab42d`/`8d41744`); `git diff b8904ab..1b9a61c -- book/` empty (frozen corpus untouched); `git diff b8904ab..1b9a61c -- go.mod go.sum modules/` empty (no new Go dependency).
+
+Rows: VERIFY rows 83 (slice 29) and 85 (slice 30) still **PENDING** per this signature — the verifier re-ran at `1b9a61c` and left disposition to the verifier-owned row; builder promoted nothing. History not rewritten.
+Screenshots checked: N — no screenshot claimed.
+Residuals accepted: Y — (a) VERIFY row 85 builder text still cites `4cab42d` while HEAD is `1b9a61c` (declared in CHECKPOINTS.md 06:02–09:37 entry; verifier re-ran at HEAD); (b) `verify.py` `tests` gate reports 22.1s vs minutes for full `go test ./... -count=1` — direct full run passed exit 0 regardless. Unproven by design (declared config-complete, tools absent on host): first SBOM CI-run, first digest pull + `cosign verify`, module publication, all live WIS/Mosquitto/eBPF/bench acceptance.
+Signature: independently verified at 2026-11-08 08:08 UTC — verify.py 6/6, go test exit 0, npm 321 tests, build 357.6 KB, all slice-30 supplychain items confirmed at HEAD 1b9a61c, rows 29/30 still PENDING.
