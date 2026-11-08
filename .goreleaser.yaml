@@ -70,6 +70,44 @@ sboms:
     documents:
       - "{{ .ArtifactName }}.sbom.json"
     artifacts: archive
+  # SBOM par module pur (model, metrics, results, figures, qdisc) : les
+  # modules purs n'ont pas de binaire ; goreleaser ne catalogue que les
+  # artefacts produits (les archives ci-dessus). Ces entrées font donc
+  # cataloguer par le même syft le répertoire modules/<nom> (son go.mod),
+  # en CycloneDX JSON — le document cgo-<nom>.sbom.json part dans la même
+  # release. SLSA L2 : voir docs/deploy.md § 7.3.1. goreleaser est absent
+  # sur l'hôte de dev : config-complete, à valider par `goreleaser check`
+  # en CI au premier tag (un champ inconnu ferait échouer ce check).
+  - id: cgo-model
+    cmd: syft
+    args: ["modules/model", "--output", "cyclonedx-json=$document", "--enrich", "all"]
+    documents:
+      - "cgo-model.sbom.json"
+    artifacts: archive
+  - id: cgo-metrics
+    cmd: syft
+    args: ["modules/metrics", "--output", "cyclonedx-json=$document", "--enrich", "all"]
+    documents:
+      - "cgo-metrics.sbom.json"
+    artifacts: archive
+  - id: cgo-results
+    cmd: syft
+    args: ["modules/results", "--output", "cyclonedx-json=$document", "--enrich", "all"]
+    documents:
+      - "cgo-results.sbom.json"
+    artifacts: archive
+  - id: cgo-figures
+    cmd: syft
+    args: ["modules/figures", "--output", "cyclonedx-json=$document", "--enrich", "all"]
+    documents:
+      - "cgo-figures.sbom.json"
+    artifacts: archive
+  - id: cgo-qdisc
+    cmd: syft
+    args: ["modules/qdisc", "--output", "cyclonedx-json=$document", "--enrich", "all"]
+    documents:
+      - "cgo-qdisc.sbom.json"
+    artifacts: archive
 
 # Signature du fichier de checksums uniquement (recommandé : on signe la
 # somme, pas chaque archive). `cosign` sans clé (keyless OIDC, workflow

@@ -281,6 +281,36 @@ gh attestation verify --owner Realms4239 ghcr.io/realms4239/cgo@sha256:<digest>
 syft dist/cgo-linux-amd64.tar.gz --output cyclonedx-json=module.sbom.json
 ```
 
+### 7.3.1 SBOM par module pur — `config-complete` (S2)
+
+Les cinq modules purs (`model`, `metrics`, `results`, `figures`, `qdisc`)
+n'ont pas de binaire : GoReleaser ne catalogue que les artefacts qu'il
+produit (les archives, §7.1). Leurs SBOM sont donc catalogués par `syft`
+depuis `modules/<nom>/go.mod`, avec le même format CycloneDX et rattachés
+à la même release :
+
+```bash
+for m in model metrics results figures qdisc; do
+  syft "modules/$m" --output "cyclonedx-json=cgo-$m.sbom.json" --enrich all
+done
+```
+
+Les entrées `sboms:` de `.goreleaser.yaml` (`cgo-model`, `cgo-metrics`,
+`cgo-results`, `cgo-figures`, `cgo-qdisc`) portent ces commandes : le
+premier tag CI les produit. `goreleaser` est absent sur cet hôte — état
+`config-complete`, à valider par `goreleaser check` là où le binaire existe.
+
+Vérification, hors ligne :
+
+```bash
+python -c 'import json,sys; d=json.load(open("cgo-model.sbom.json")); assert d["bomFormat"]=="CycloneDX", d.get("bomFormat"); print("CycloneDX OK")'
+sha256sum --check --ignore-missing dist/checksums.txt
+```
+
+Note S2 : le pipe `sboms:` catalogue les archives ; l'image OCI se
+documente hors du pipe (`syft <image>@<digest>`, §7.4 — limite R2
+vérifiée : les images ne sont pas catalogables par le pipe SBOM).
+
 ### 7.4 Image OCI signée, épinglée par digest — jamais de tag mutable
 
 L'image se construit depuis `deploy/Dockerfile` (`FROM scratch`,
