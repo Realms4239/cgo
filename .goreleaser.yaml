@@ -15,9 +15,9 @@ builds:
     main: ./cmd/cgo
     binary: cgo
     targets:
-      - linux/amd64
-      - linux/arm64
-      - windows/amd64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
     ldflags:
       - -s -w -X main.version={{.Version}}
   # le wrapper meteolink re-exécute cgo — gardé comme binaire séparé pour
@@ -27,9 +27,9 @@ builds:
     main: ./cmd/meteolink
     binary: meteolink
     targets:
-      - linux/amd64
-      - linux/arm64
-      - windows/amd64
+      - linux_amd64
+      - linux_arm64
+      - windows_amd64
     ldflags:
       - -s -w
 
