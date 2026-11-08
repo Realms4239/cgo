@@ -135,6 +135,7 @@ function ProofTab({ report }: { report: AuditReport }) {
   const facts = operatorFacts(report, settings.warnMs, settings.critMs)
   const m = report.measured
   const p = report.provenance
+  const hasMissingSource = !p?.source_sha256
   const rows: [string, string][] = [
     ['RTT repos p50 / p95', `${ms(m?.rtt_idle_p50_ms)} / ${ms(m?.rtt_idle_p95_ms)}`],
     ['RTT chargé p50 / p95', `${ms(m?.rtt_loaded_p50_ms)} / ${ms(m?.rtt_loaded_p95_ms)}`],
@@ -147,6 +148,7 @@ function ProofTab({ report }: { report: AuditReport }) {
   ]
   return (
     <>
+      {hasMissingSource ? <p role="status">Preuve manquante — aucune empreinte source : le rapport peut être lu, pas cité.</p> : null}
       <dl className="proof-facts">
         {facts.map(f => {
           const detail = [f.target, f.band?.word].filter(Boolean).join(' · ')

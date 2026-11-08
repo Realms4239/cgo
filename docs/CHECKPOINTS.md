@@ -1816,3 +1816,80 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Proven: independent verifier session `ses_e57c7f744ffeRlPHZ3s3aM57zY`, 2026-11-04 20:50–21:11 UTC, re-ran fresh at `367da9b`: `go test ./... -count=1` exit 0 (19 `ok`, pkg/api 64.933 s, pkg/audit 191.969 s); `go clean -testcache && python tools/verify.py` exit 0, 6 passed (tests 280.4 s, hygiene 678); `python book/tools/audit-archive.py` both `OK`; `npm test` 59 files / 283 tests (137.88 s); `npm run build` 15.29 s, TOTAL gz 353.7 KB; `go build ./...`, `go vet ./cmd/cgo`, `gofmt -l pkg cmd` exit 0. Ten first-pass findings closed; eight PNG verified 1024×768 / 1920×1080 non-blank plus `slice25-tooltip.txt` byte-match.
 - Unproven/blocked: BBRv3 row BLOCKED — no Linux kernel ≥ 7.1 with BBRv3 (condition: such a host + human-approved live run). `.dist` row BLOCKED — no field trace ≥ 30 samples (only 19/25-row SMOKE-TEST files exist). Interface v2 row SUPERSEDED — Rail/Ribbon gone, TopNav current. Slices 4–7, 16, 19 deferred/blocked as before. No live audit, bench, CHR, eBPF or `.dist` run. Residuals: tooltip trailing LF (117 B), build rewrites `web/frontend/dist/index.html` (restored), two SSE tests flake under concurrent load.
 - Next: human decides merge to `main`. Final `python tools/verify.py` re-run after transcription; nothing else pending for 20A–25.
+
+## 2026-11-07 21:18 UTC · slice 29 modular extraction — whole-app verification and closeout (builder pass)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `599022b` (`feat(deploy): ingress Nginx + OCI/SLO ops plane`, Task 8 closeout).
+- Changed: docs only — this entry, one `PENDING` row in `docs/VERIFY.md`, plan index row 29 (`docs/superpowers/plans/README.md`). No product code changed in this task, no frozen-corpus path touched, no live run of any kind.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-07 21:08–21:18 UTC, Go 1.26.5, Node v22.23.2, Python 3.11.15:
+  - `cd web/frontend && npm test` → exit 0; **68 files, 321 tests passed** (Duration 130.38s).
+  - `npm run build` → exit 0; `TOTAL gz : 357.6 KB` (BenchView chunk 241.71 KB gz, built in 12.85s).
+  - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (`tests` gate 81.9 s; `hygiene` 995 tracked files clean, legacy allowlist 18 backup archives + `pkg/results/runs-frozen.tar.gz`; `frozen` both `OK` lines, 159-run seal holds).
+  - `go build ./...` → exit 0, no output.
+  - `go test ./... -count=1` → exit 0, every package `ok` (`pkg/api` 64.366s, `pkg/audit` 189.861s; per-module standalone suites were proven in Tasks 1–8 commits `9581db1`..`599022b` and are not re-run in this task).
+  - `git checkout -- web/frontend/dist/index.html` → exit 0; `git status --short` clean after the restore (build artifact not committed).
+- Unproven/blocked: CHR compliance, WIS 2.0/CAP acceptance, live bench runs, and Mosquitto broker behavior stay **unproven** (no live run, no namespace, qdisc, process or listener touched; frozen corpus read-only via the seal gate only); eBPF, BBRv3 and trace-driven `.dist` live rows remain `BLOCKED` as recorded in `docs/VERIFY.md`. No row is promoted by the builder; the `PENDING` row stays pending for an independent verifier, who was **not** dispatched by this task. The builder ran the four gate groups exactly as listed; per-module `modules/*/go test` re-runs and any cockpit/overflow/manual checks named in the plan's verifier prompt are the verifier's, not this pass's.
+- Next: the independent verifier re-runs the gates on a clean tree and owns the `PENDING` row; the human decides any merge to `main`.
+
+## 2026-11-08 06:11 UTC · slice 30 supplychain-gaps — whole-app verification and closeout (builder pass)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `4cab42d` (`docs(wis2/bpf): deferred probe designs`, Task 5 closeout; this task adds only the three ledger files).
+- Changed: docs only — this entry, one `PENDING` row in `docs/VERIFY.md`, plan index row 30 (`docs/superpowers/plans/README.md`). No product code changed in this task, no frozen-corpus path touched, no live run of any kind.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08 06:02–06:11 UTC, Go 1.26.5, Node v22.23.2, Python 3.11.15:
+  - `go test ./... -count=1` → exit 0, every package `ok` (`pkg/api` 64.199s, `pkg/audit` 190.169s).
+  - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (`tests` gate 77.0 s; `hygiene` 1006 tracked files clean; `frozen` both `OK` lines, 159-run seal holds).
+  - `cd web/frontend && npm test` → exit 0; **68 files, 321 tests passed** (Duration 128.67s).
+  - `npm run build` → exit 0; `TOTAL gz : 357.6 KB` (built in 11.72s).
+  - `git checkout -- web/frontend/dist/index.html` → exit 0; `git status --porcelain` clean after the restore (build artifact not committed).
+- Unproven/blocked: CHR compliance, WIS 2.0/CAP acceptance, live bench runs, and Mosquitto broker behavior stay **unproven** (no live run, no namespace, qdisc, process or listener touched; frozen corpus read-only via the seal gate only); eBPF, BBRv3 and trace-driven `.dist` live rows remain `BLOCKED` as recorded in `docs/VERIFY.md`. GoReleaser CycloneDX SBOM and the digest-pinned OCI are config-complete only: no GoReleaser/syft/cosign or registry is available on this host, so the first SBOM CI-run and a digest pull stay unproven until the first tag on CI. No row is promoted by the builder; the `PENDING` row stays pending for an independent verifier, who was **not** dispatched by this task.
+- Next: the independent verifier re-runs the gates on a clean tree and owns the `PENDING` row; the human decides any merge to `main`.
+
+## 2026-11-08 05:03 UTC · slice 29 verifier signature — ledger transcribed
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `a0b19a4` (`fix(api): constant-time + IsLoopback auth parity`). Signature transcribed into `docs/VERIFY.md`; this entry. No product code. Historical rows not rewritten.
+- Changed: `docs/VERIFY.md` — Slice 29 verifier signature block appended verbatim from session `ses_e46881760ffeyPng7vJj6POpUv` (shell-capable re-run). Row 83 stays **PENDING** per the transcribed signature (verifier verified commands at `a0b19a4`, left disposition to verifier-owned row). This entry. No product code changed.
+- Proven: independent verifier session `ses_e46881760ffeyPng7vJj6POpUv`, 2026-11-08 05:03 UTC, re-ran fresh at `a0b19a4`: 15/15 `modules/*/go test ./... -count=1` exit 0 (api 64.3s, audit 191.7s, probe 11.7s, rest <4s); `go test ./pkg/api -run TestMetrics -v` exit 0 (`TestMetrics_EmitsHelpTypeAndContentType`, `TestMetrics_AbsentIsNotZero` PASS, byte-identical in `pkg/api`/`modules/api`); `python tools/verify.py` exit 0, 6/6 (tests 91.3s); `npm test` 68 files / 321 tests; `npm run build` TOTAL gz 357.6 KB; parity: absent ≠ fake zero, citation `""` without seal, no green without load, auth 401 + `Bearer`, nginx 429, `CGO_probe_dead` live, digest pin. `git status` clean after restore (`dist/index.html` checked out).
+- Unproven/blocked: no live audit, campaign, bench, CHR, WIS, Mosquitto, Linux acceptance, eBPF, `.dist` or BBRv3 claim; no `promtool`/Prometheus runtime check of rules against live scrape. Residuals (accepted Y): hygiene number stale (`359` vs `997`); `CGO_probe_dead` `rate(...) == 0` cannot detect missing series (needs `absent_over_time`); `pkg/` ↔ `modules/` fixture drift, both suites pass.
+- Next: human decides merge to `main`. Slice 30 verifier still pending (see next entry).
+
+## 2026-11-08 06:02–09:37 UTC · slice 30 supplychain-gaps fix batch — final-review fixes (builder pass, verifier pending)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `a7ec8d2` (`fix: final review I1 I2 M1 M2 docs`). This entry. No frozen-corpus path touched, no live run. `docs/CHECKPOINTS.md` 06:11 entry cited `4cab42d`; HEAD is `a7ec8d2` (2 commits later: `1f32f76` closeout + `a7ec8d2` fix) — declared here, artifact wins.
+- Changed: docs/config only in `a7ec8d2` (4 files): `.goreleaser.yaml` (I1: removed 5 per-module `sboms:` entries, CI `syft "modules/$m"` loop canonical), `docs/deploy.md` (I2: `<module>/v0.1.0` tags; M2: 1.2.3 → 1.3.5), `docs/runbooks/tag-cutover.md` (I2), `docs/superpowers/plans/2026-11-08-cgo-supplychain-gaps.md` (M1: 16/16 checkboxes ticked). Final whole-branch review `bcb7fb9..a7ec8d2` 11 files, +858/−25: GoReleaser CycloneDX SBOM + cosign keyless signs present, `deploy/docker-compose.yml` digest-pinned `@sha256:${CGO_IMAGE_DIGEST:?}` (no `:latest`), `FROM scratch` + OCI labels, tags/cutover 8 steps, `cgo-gui` separate-repo scaffolding, WIS2/eBPF deferred design-only.
+- Proven (builder, fix-batch subagent `ses_e46276ee5ffeB1ehPzqktoVCQi`): `go test ./... -count=1` → exit 0 (19 ok, 0 fail); `python tools/verify.py` → 6/6 PASS; `goreleaser check` not run (binary absent). Task 6 builder pass (`1f32f76`): `go test ./...` exit 0, `verify.py` 6/6 (hygiene 1006, seal 159 holds), `npm test` 321, build 357.6 KB gz.
+- Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3. Rows 29/30 stay **PENDING**; builder promotes nothing. Independent verifier for Slice 30 not yet dispatched; it owns the row.
+- Next: dispatch ONE independent verifier at `a7ec8d2`; human decides any merge to `main`.
+
+## 2026-11-08 08:08 UTC · slice 30 verifier signature — ledger transcribed (HEAD 1b9a61c)
+
+- Branch/HEAD at verify time: `openchamber/operator-cockpit` / `1b9a61c` (`docs: transcribe slice 29 verifier signature, checkpoint slice 30 fix a7ec8d2`, docs-only on top of `a7ec8d2`). Signature transcribed into `docs/VERIFY.md`; this entry; plan index rows 29/30 updated to note verifier signature transcribed. Rows stay **PENDING** per verifier disposition; builder promotes nothing; history not rewritten.
+- Changed: `docs/VERIFY.md` — Slice 30 verifier signature block appended verbatim from session `ses_e45d71ad9ffeD1B0eHDzRcEYPq`; `docs/superpowers/plans/README.md` — rows 29/30 note verifier signatures transcribed; this entry. No product code changed in the transcription.
+- Proven: independent verifier session `ses_e45d71ad9ffeD1B0eHDzRcEYPq`, 2026-11-08 08:08 UTC, re-ran fresh at `1b9a61c`: `python tools/verify.py` exit 0, 6/6 (hygiene 1006, seal 159 holds); `go test ./... -count=1` exit 0, 19 `ok` (pkg/api 67.7s, pkg/audit 190.3s); `npm test` 68 files / 321 tests (168.28s); `npm run build` TOTAL gz 357.6 KB (14.70s), `dist/index.html` restored, tree clean. Supplychain items confirmed: single archive-level CycloneDX SBOM (I1), digest-pinned compose no `:latest`, `FROM scratch` + OCI labels, `<module>/v0.1.0` (I2), 16/16 checkboxes (M1), 1.3.5 (M2), `cgo-gui` separate-repo docs, WIS2/eBPF `DEFERRED` docs-only; `git diff b8904ab..1b9a61c -- book/` empty; `-- go.mod go.sum modules/` empty.
+- Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3. Residuals (accepted Y): VERIFY row 85 builder text cites `4cab42d` vs HEAD `1b9a61c` (declared; verifier re-ran at HEAD); `verify.py` `tests` gate 22.1s vs full `go test` minutes (direct full run exit 0 regardless). Per-module `modules/*/go test` not re-run (root covers same packages). CI GoReleaser/syft/cosign absent on host, declared unproven.
+- Next: human decides any merge to `main`. No further verifier dispatch for Slices 29/30.
+
+## 2026-11-08 · slice 30 ledger closeout at fbe3a17 — HEAD-match checkpoint (builder pass, verifier signatures already transcribed)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `fbe3a17` (`docs: transcribe slice 30 verifier signature 08:08 UTC`). This entry corrects the previous entry's HEAD (`1b9a61c`): `fbe3a17` is docs-only on top of `a7ec8d2` (VERIFY + CHECKPOINTS + plan index, 3 files). No product code changed since `a7ec8d2`; no frozen-corpus path touched, no live run.
+- Changed: docs only — this entry. No product code. `docs/VERIFY.md` rows 83/85 stay **PENDING** per verifier dispositions (Slice 29: `a0b19a4`, 05:03 UTC, `ses_e468…Uv`; Slice 30: `1b9a61c`, 08:08 UTC, `ses_e45d…EYPq`); `docs/superpowers/plans/README.md` rows 29/30 note verifier signatures transcribed. History not rewritten.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08, at `fbe3a17`:
+  - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (frozen 159-run seal holds; provenance; tests 80.4 s; exit; hygiene 1006 tracked files; links 5 documents resolve).
+  - Final whole-branch review `bcb7fb9..fbe3a17` (session `ses_e45cad…sNE`, read-only): ✅ SBOM archive-level + CI loop canonical (I1), ✅ digest-pinned OCI no `:latest` `FROM scratch` + labels, ✅ `<module>/v0.1.0` (I2), ✅ 16/16 ticked (M1), ✅ 1.3.5 (M2), ✅ `cgo-gui` separate-repo docs, ✅ WIS2/eBPF `DEFERRED` design-only, ✅ no frozen-corpus change, ✅ no new Go dep. RESIDUALS ACCEPTED: Y (Important residuals are declared config-complete, not blockers).
+- Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3, merge to `main` (human decision required per `AGENTS.md`). No row promoted by builder; verifier owns rows.
+- Next: human decides push/merge to `main`. No further verifier dispatch for Slices 29/30.
+
+## 2026-11-08 · branch pushed for human review — HEAD 90de4f0 (docs-only)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `90de4f0` (`docs: checkpoint fbe3a17 HEAD-match closeout slices 29/30`). Previous entry cited `fbe3a17`; HEAD is now `90de4f0` (docs-only CHECKPOINTS). Artifact wins; declared here.
+- Changed: docs only — this entry. No product code. Pushed `openchamber/operator-cockpit` to `origin` (new branch) via `git push -u origin openchamber/operator-cockpit` → pre-push hooks ran `python tools/verify.py`, `6 passed, 0 failed, 0 not run` (tests 81.0 s, hygiene 1006, seal 159 holds). No merge to `main` (human decision required per `AGENTS.md`).
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08, at `fbe3a17` prior to push: `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run`. Push itself: exit 0, branch created on `origin`.
+- Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3, merge to `main` awaiting human decision. Rows 83/85 stay **PENDING** (Slice 29 verified at `a0b19a4` 05:03 UTC, Slice 30 verified at `1b9a61c` 08:08 UTC). Playwright/browser-use cockpit capture not run in this pass; frontend evidence on record is `npm test` 321 + `npm run build` 357.6 KB gz (verifiers).
+- Next: human decides merge to `main` / PR. No further verifier dispatch for Slices 29/30.
+
+## 2026-11-08 · final push checkpoint — HEAD 54549fd (docs-only)
+
+- Branch/HEAD: `openchamber/operator-cockpit` / `54549fd` (`docs: checkpoint pushed branch 90de4f0 for human merge decision`). Previous entry cited `90de4f0`; HEAD is now `54549fd` (docs-only CHECKPOINTS). Artifact wins; declared here.
+- Changed: docs only — this entry. No product code. Pushed `54549fd` to `origin` via `git push origin openchamber/operator-cockpit` (`90de4f0..54549fd`) → pre-push hooks ran `python tools/verify.py`, `6 passed, 0 failed, 0 not run` (tests 13.9 s, hygiene 1006, seal 159 holds). No merge to `main` (human decision required per `AGENTS.md`).
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08, at `90de4f0` prior to push: `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run`. Final review `bcb7fb9..fbe3a17` RESIDUALS Y. Push `90de4f0..54549fd`: exit 0.
+- Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3, merge to `main` awaiting human decision. Rows 83/85 stay **PENDING** (verifier dispositions unchanged).
+- Next: human decides merge to `main` / PR. No further verifier dispatch for Slices 29/30.

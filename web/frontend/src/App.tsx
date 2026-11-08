@@ -4,6 +4,7 @@ import { useAuditStore } from './store/audit'
 import { connectSSE, disconnectSSE } from './lib/sse'
 import { clearLive } from './lib/live'
 import { animateViewEnter } from './lib/anime'
+import { isTextEntryTarget } from './lib/modalFocus'
 import { stageAfterCampaign, stageAfterReplay } from './lib/bench'
 import { relativeTime } from './lib/format'
 import DashboardView from './views/DashboardView'
@@ -53,13 +54,18 @@ export default function App() {
     return () => disconnectSSE()
   }, [])
 
+  const isInitialMode = useRef(true)
   useEffect(() => {
     const found = MODES.find(m => m.id === mode)
     document.title = found ? `${found.label} — Meteolink` : 'Meteolink'
     const main = document.getElementById('main')
     main?.scrollTo({ top: 0 })
-    // la destination est annoncée au clavier et aux lecteurs d'écran
-    main?.focus({ preventScroll: true })
+    if (isInitialMode.current) {
+      isInitialMode.current = false
+    } else {
+      // la destination est annoncée au clavier et aux lecteurs d'écran
+      main?.focus({ preventScroll: true })
+    }
     animateViewEnter()
   }, [mode])
 
@@ -104,8 +110,7 @@ export default function App() {
         setPaletteOpen(o => !o)
         return
       }
-      const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (isTextEntryTarget(e.target)) return
       const hit = MODES.find(m => m.key === e.key)
       if (hit) {
         setMode(hit.id)
@@ -139,7 +144,7 @@ export default function App() {
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         {live?.running && mode === 'bench' ? <QuickActionsPrompt /> : null}
 
-        <main id="main" tabIndex={-1}>
+        <main id="main" tabIndex={-1} className="layout-shell">
           <section id="v-dashboard" className="view" hidden={mode !== 'dashboard'}><DashboardView /></section>
           {mounted.audit ? (
             <section id="v-audit" className="view" hidden={mode !== 'audit'}>

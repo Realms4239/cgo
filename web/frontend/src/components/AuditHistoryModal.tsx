@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useModalFocus } from '../lib/modalFocus'
 import { useUIStore } from '../store/ui'
 import { asArray } from '../lib/format'
 import { paginate, Paginate } from './ui/Paginate'
@@ -17,11 +18,8 @@ export default function AuditHistoryModal({ onClose, onImported }: { onClose: ()
     fetch('/api/audit/list').then(r=>r.json()).then(j=>setRows(asArray(j.audits))).catch(()=>setRows([]))
   }
   useEffect(()=>{ load() },[])
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalFocus(true, onClose, panelRef)
 
   const toProfile = async (auditId: string) => {
     const store = useUIStore.getState()
@@ -39,8 +37,8 @@ export default function AuditHistoryModal({ onClose, onImported }: { onClose: ()
   // ferait de fixed un positionnement relatif à la carte (modale invisible
   // coincée dans la barre latérale — vu en prod). Même pattern que PeekPopover.
   return createPortal(
-    <div role="dialog" aria-label="Historique des audits" className="modal-backdrop" onClick={onClose}>
-      <div className="modal-panel" onClick={e=>e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label="Historique des audits" className="modal-backdrop" onClick={onClose}>
+      <div ref={panelRef} className="modal-panel" onClick={e=>e.stopPropagation()}>
         <div className="card-head modal-head">
           <span>Audits archivés ({rows?.length ?? '…'})</span>
           <button className="btn modal-head-btn" onClick={load}>RÉACTUALISER</button>

@@ -1,0 +1,24 @@
+services:
+  cgo:
+    # Epinglé par digest (jamais :latest) : exporter CGO_IMAGE_DIGEST avec
+    # « sha256:<digest de la release> » (ex. `docker inspect` du manifest).
+    # Avant `compose up`, vérifier la signature cosign + la provenance
+    # SLSA L2 sur ce digest (voir docs/deploy.md § Chaîne
+    # d'approvisionnement). Sans jeton, `docker compose config` échoue
+    # franchement — c'est le comportement attendu.
+    #
+    # Mode observation par défaut : sans `cap_add`, le conteneur ne peut
+    # pas façonner le bord (pas de NET_ADMIN). Pour le mode complet Linux,
+    # ajouter localement `cap_add: [NET_ADMIN]` et `cgo shape --restore`
+    # au rollback (voir docs/deploy.md § Chaîne d'approvisionnement).
+    image: ghcr.io/realms4239/cgo@sha256:${CGO_IMAGE_DIGEST:?set release digest}
+    ports:
+      - "127.0.0.1:9090:9090"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      - CGO_API_TOKEN=${CGO_API_TOKEN:?set}
+    restart: unless-stopped

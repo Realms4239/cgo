@@ -1,5 +1,12 @@
 import { useEffect, useRef, type RefObject } from 'react'
 
+// Les raccourcis de destinations ne doivent jamais partir d’un champ de saisie.
+export function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false
+  if (target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return true
+  return target.isContentEditable === true
+}
+
 // Contrat d'un dialogue modal : l'arrière-plan (#shell) devient inerte, le
 // focus entre dans le panneau, y reste (Tab/Shift-Tab), Échap ferme, et le
 // focus revient au déclencheur. Le panneau doit vivre HORS de #shell

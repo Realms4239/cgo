@@ -7,6 +7,7 @@ import { InlineField } from './InlineField'
 import { PeekPopover } from './PeekPopover'
 import { BenchCapabilities } from './BenchCapabilities'
 import { DuelCard } from './DuelCard'
+import ProfileTiles from './ProfileTiles'
 import { useBenchStore } from '../store/bench'
 import { useUIStore } from '../store/ui'
 import { live as liveRing } from '../lib/live'
@@ -14,7 +15,6 @@ import { CampaignStartError, loadDuel, startCampaign, type DuelPair } from '../l
 import { loadSettings } from '../lib/settings'
 import { validate } from '../lib/validation'
 import { formatBytesFR, groupDigits } from '../lib/format'
-import { profileShort } from '../lib/profiles'
 import { canalGate, effectiveChannelModel } from '../lib/canal'
 import { useCapabilities } from '../lib/hooks'
 
@@ -76,7 +76,6 @@ export default function BenchConfig() {
     return () => window.removeEventListener('meteolink-settings', on)
   }, [setDeadlineMs])
 
-  const refProfiles = allProfiles.filter(p => /^P[1-4]$/.test(p.id))
   const canal = canalGate(profiles)
   const effectiveModel = effectiveChannelModel(channelModel, canal)
   useEffect(() => {
@@ -199,26 +198,13 @@ export default function BenchConfig() {
             Mode recherche
           </button>
         </div>
+        <ProfileTiles
+          profiles={allProfiles}
+          selected={profiles}
+          onToggle={id => setProfiles(profiles.includes(id) ? profiles.filter(x => x !== id) : [...profiles, id])}
+        />
         {research ? (
           <>
-            <div className="form-row">
-              <label>Profils</label>
-              <div className="check-row bench-profiles">
-                {refProfiles.map(p => (
-                  <label key={p.id} className="bench-profile">
-                    <input
-                      type="checkbox"
-                      checked={profiles.includes(p.id)}
-                      onChange={e => setProfiles(e.target.checked ? [...profiles, p.id] : profiles.filter(x => x !== p.id))}
-                    />
-                    <span>
-                      <Explain term={p.id}>{p.id}</Explain>
-                      <small>{profileShort(p.id)}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
             <BenchCapabilities caps={caps} />
             <div className="form-row">
               <label>Répétitions</label>
@@ -277,15 +263,11 @@ export default function BenchConfig() {
           <span className="mono muted bench-hint bench-cost-note">octets gâchés × tarif unique</span>
         </div>
         <div className="form-row bench-launch">
-          {research ? (
-            <span title={live?.running ? "campagne en cours — arrêter d'abord" : profiles.length === 0 ? 'choisir au moins un profil' : undefined}>
-              <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running || profiles.length === 0} />
-            </span>
-          ) : null}
-          {research || live?.running ? (
-            <ArmButton label="ARRÊTER" confirmLabel="CONFIRMER L'ARRÊT" onConfirm={stop} disabled={!live?.running} />
-          ) : null}
-          <span className="mono muted">{research && profiles.length === 0 ? 'aucun profil sélectionné' : msg}</span>
+          <span title={live?.running ? "campagne en cours — arrêter d'abord" : profiles.length === 0 ? 'choisir au moins un profil' : undefined}>
+            <ArmButton label="DÉMARRER" onConfirm={start} disabled={live?.running || profiles.length === 0} />
+          </span>
+          <ArmButton label="ARRÊTER" confirmLabel="CONFIRMER L'ARRÊT" onConfirm={stop} disabled={!live?.running} />
+          <span className="mono muted">{profiles.length === 0 ? 'Sélectionnez au moins un profil' : msg}</span>
         </div>
       </div>
 

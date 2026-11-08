@@ -10,6 +10,7 @@
   /* surfaces — console plate : fond et cartes en gris plats, aucun dégradé, aucune ombre */
   --canvas: var(--canvas-solid);
   --canvas-solid: #0a0b0e;
+  --grid-gap: 16px;
   --surface-soft: #0e1015;
   --surface-card: #12141a;
   --surface-elevated: #181b22;

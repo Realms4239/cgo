@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   AUDIT_LINK_TYPES,
+  AUDIT_DURATIONS,
   DEFAULT_AUDIT_DIRECTION,
   auditPhasePlan,
   auditPhases,
   auditStep,
   directionLabel,
-  durationChoice,
-  durationFor,
   nextAuditStage,
   normalizeDirection,
   normalizeDuration,
@@ -42,22 +41,18 @@ describe('machine des trois temps', () => {
   })
 })
 
-describe('durée segmentée ↔ libre', () => {
-  it('20 et 60 sont les choix segmentés', () => {
-    expect(durationFor('20', '')).toBe(20)
-    expect(durationFor('60', '')).toBe(60)
-    expect(durationChoice(20)).toBe('20')
-    expect(durationChoice(60)).toBe('60')
+describe('audit fixe', () => {
+  it('une seule durée disponible : 60 secondes', () => {
+    expect(AUDIT_DURATIONS).toEqual([60])
+    const r = validateAuditDeclaration({ site: 'Département X', link_type: 'fiber', duration: 20, direction: 'up' })
+    expect(r.valid).toBe(false)
+    expect(r.errors.duration).toBe('audit limité à 60 s')
   })
 
-  it('durée libre seulement dans 10–600, sans clamp silencieux', () => {
-    expect(durationFor('custom', '90')).toBe(90)
-    expect(normalizeDuration('600')).toBe(600)
+  it('la normalisation refuse toute autre durée', () => {
+    expect(normalizeDuration('60')).toBe(60)
     expect(normalizeDuration('9')).toBeNull()
-    expect(normalizeDuration('601')).toBeNull()
-    expect(normalizeDuration('abc')).toBeNull()
-    expect(normalizeDuration('')).toBeNull()
-    expect(durationChoice(90)).toBe('custom')
+    expect(normalizeDuration('61')).toBeNull()
   })
 })
 
@@ -104,22 +99,9 @@ describe('temps restant', () => {
   })
 })
 
-describe('auditPhasePlan — miroir de phasePlan (pkg/audit)', () => {
+describe('auditPhasePlan — audit unique de 60 s', () => {
   it('60 s = 10 repos · 40 charge · 10 drain', () => {
     expect(auditPhasePlan(60)).toEqual({ idle: 10, loaded: 40, drain: 10 })
-  })
-  it('20 s = un quart de repos, un quart de drain, le reste en charge', () => {
-    expect(auditPhasePlan(20)).toEqual({ idle: 5, loaded: 10, drain: 5 })
-  })
-  it('court (< 20 s) = repos seulement, pas de drain inventé', () => {
-    expect(auditPhasePlan(10)).toEqual({ idle: 5, loaded: 5, drain: 0 })
-    expect(auditPhasePlan(0).idle).toBeGreaterThan(0)
-  })
-  it('la durée annoncée est bien la durée totale', () => {
-    for (const d of [10, 20, 45, 60, 120]) {
-      const p = auditPhasePlan(d)
-      expect(p.idle + p.loaded + p.drain).toBe(d)
-    }
-    expect(phasePlanLabel(20)).toBe('20 s au total : 5 s repos · 10 s charge · 5 s drain')
+    expect(phasePlanLabel(60)).toBe('60 s au total : 10 s repos · 40 s charge · 10 s drain')
   })
 })

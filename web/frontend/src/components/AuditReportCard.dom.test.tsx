@@ -55,6 +55,36 @@ describe('AuditReportCard surface', () => {
     expect(html(report())).not.toContain('audit-phases')
   })
 
+  it('never renders a green proof promise without a completed report payload', () => {
+    const h = html(report({ measured: { direction: 'down' }, remediation: undefined }))
+    expect(h).not.toMatch(/PREUVE VÉRIFIABLE|Prouvé|Vérifiable/)
+  })
+
+  it('disables citation and names Telemetry absente when the seal is missing', () => {
+    const h = html(report({ provenance: undefined }))
+    expect(h).toContain('Preuve manquante')
+    expect(h).toMatch(/<button[^>]*disabled=""[^>]*>CITER CE RAPPORT<\/button>/)
+    expect(h).toContain('Télémétrie absente')
+    expect(h).toContain('Empreinte source absente')
+  })
+
+  it('calls a load not measured Observation seule', () => {
+    const h = html(report({ measured: { direction: 'down', load_measured: false } }))
+    expect(h).toContain('Observation seule')
+    expect(h).not.toContain('Valide')
+  })
+
+  it('calls a sealed SLA breach Degrade', () => {
+    const h = html(report({ cap_sla: { measured: true, breach: true } }))
+    expect(h).toContain('Dégradé')
+    expect(h).not.toContain('Valide')
+  })
+
+  it('calls a sealed complete report Valid', () => {
+    const h = html(report({ measured: { direction: 'down', load_measured: true } }))
+    expect(h).toContain('Valide')
+  })
+
   it('renders one provenance idiom and keeps the citation action', () => {
     const h = html(report())
     expect((h.match(/data-testid="provenance"/g) ?? []).length).toBe(1)

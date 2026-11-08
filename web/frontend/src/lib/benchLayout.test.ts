@@ -23,7 +23,7 @@ describe('banc d’essai linéaire', () => {
 
   it('Configurer garde chaque décision de campagne', () => {
     const c = read('components/BenchConfig.tsx')
-    for (const token of ['Profils', 'Flux de charge', 'Canal', 'Deadline', 'DÉMARRER', "ARRÊTER", 'AUDIT → PROFIL', 'IMPORTER']) {
+    for (const token of ['ProfileTiles', 'Flux de charge', 'Canal', 'Deadline', 'DÉMARRER', "ARRÊTER", 'AUDIT → PROFIL', 'IMPORTER']) {
       expect(c, token).toContain(token)
     }
     expect(read('store/bench.ts'), 'quatre flux par défaut').toContain('flows: 4')
@@ -74,9 +74,9 @@ describe('banc d’essai linéaire', () => {
     const i = read('views/IntegriteView.tsx')
     expect(i).toContain('non rejouable')
     expect(i, 'le replay se gate sur les lignes archivées').toContain('b.rows > 0')
-    const r = read('components/AuditReportsPanel.tsx')
-    expect(r).toContain('non archivé')
-    expect(r).toContain("a.has_report !== 'true'")
+    const r = read('components/ArchiveTable.tsx')
+    expect(r).toContain('Preuve manquante')
+    expect(r).toContain("row.has_report === 'true'")
     const css = read('styles/index.css')
     expect(css).toContain('.data-missing')
     expect(css, 'un seul langage pour les deux tables').not.toContain('.audit-report-missing')

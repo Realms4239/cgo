@@ -35,30 +35,16 @@ export function auditStep(stage: AuditStage): 0 | 1 | 2 | 3 {
 }
 
 export const AUDIT_LINK_TYPES = ['fiber', '5g', '4g', 'vsat', 'other'] as const
-export const AUDIT_DURATIONS = [20, 60] as const
+export const AUDIT_DURATIONS = [60] as const
+export const AUDIT_DURATION_SECONDS = 60 as const
+export function auditDuration(): 60 { return AUDIT_DURATION_SECONDS }
 export const DEFAULT_AUDIT_DIRECTION: AuditDirection = 'up'
 
-export type DurationChoice = '20' | '60' | 'custom'
-
-// 20/60 sont les deux durées de la segmentation ; « custom » ouvre 10–600.
-export function durationChoice(seconds: number): DurationChoice {
-  if (seconds === 20) return '20'
-  if (seconds === 60) return '60'
-  return 'custom'
-}
-
-// Normalisation : jamais de clamp silencieux — hors 10–600 ou illisible ⇒ null.
+// La durée n'est pas négociable : 10 s repos, 40 s charge, 10 s drain.
 export function normalizeDuration(value: string | number): number | null {
   const n = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(n)) return null
-  const seconds = Math.trunc(n)
-  return seconds >= 10 && seconds <= 600 ? seconds : null
-}
-
-export function durationFor(choice: DurationChoice, custom: string | number): number | null {
-  if (choice === '20') return 20
-  if (choice === '60') return 60
-  return normalizeDuration(custom)
+  return Math.trunc(n) === AUDIT_DURATION_SECONDS ? AUDIT_DURATION_SECONDS : null
 }
 
 export function normalizeDirection(value: unknown): AuditDirection {
@@ -104,7 +90,7 @@ export function validateAuditDeclaration(input: AuditDeclarationInput): {
   if (!site) errors.site = 'requis'
   if (!(AUDIT_LINK_TYPES as readonly string[]).includes(input.link_type)) errors.link_type = 'type de lien inconnu'
   const duration = normalizeDuration(input.duration)
-  if (duration === null) errors.duration = '10–600 s'
+  if (duration === null) errors.duration = 'audit limité à 60 s'
   const valid = Object.keys(errors).length === 0
   return {
     valid,
@@ -127,21 +113,12 @@ export function auditPhases(direction: AuditDirection): string[] {
 // avant de lancer, au lieu de laisser l'opérateur deviner ce que « 20 s » veut dire.
 export interface AuditPhasePlan { idle: number; loaded: number; drain: number }
 
-export function auditPhasePlan(duration: number): AuditPhasePlan {
-  const d = duration > 0 ? duration : 10
-  let idle: number
-  let drain: number
-  if (d >= 60) { idle = 10; drain = 10 }
-  else if (d >= 20) { idle = Math.floor(d / 4); drain = Math.floor(d / 4) }
-  else { idle = Math.floor(d / 2); drain = 0 }
-  if (idle < 1) idle = 1
-  const loaded = Math.max(0, d - idle - drain)
-  return { idle, loaded, drain }
+export function auditPhasePlan(_duration: number = AUDIT_DURATION_SECONDS): AuditPhasePlan {
+  return { idle: 10, loaded: 40, drain: 10 }
 }
 
-export function phasePlanLabel(duration: number): string {
-  const p = auditPhasePlan(duration)
-  return `${duration} s au total : ${p.idle} s repos · ${p.loaded} s charge${p.drain ? ` · ${p.drain} s drain` : ''}`
+export function phasePlanLabel(_duration: number = AUDIT_DURATION_SECONDS): string {
+  return '60 s au total : 10 s repos · 40 s charge · 10 s drain';
 }
 
 export function phaseLabel(phase: string | undefined): string {

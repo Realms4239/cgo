@@ -8,6 +8,7 @@ import {
   type AuditStage,
 } from '../lib/auditFlow'
 import type { AuditDirection, AuditLive, AuditReport } from '../lib/types'
+import type { RequestFailure } from '../lib/viewState'
 import {
   compareAudits,
   loadAuditPair,
@@ -47,6 +48,7 @@ interface AuditState extends AuditFields {
   presetNote: string
   historyN: number | null
   msg: string
+  failure: RequestFailure | null
   live: AuditLive | null
   report: AuditReport | null
   previous: AuditSummary | null
@@ -103,7 +105,8 @@ function poll() {
       })
       .catch(() => {
         stopPolling()
-        useAuditStore.getState()._interrupted()
+        const s = useAuditStore.getState()
+        s._interrupted()
       })
   }
   void tick()
@@ -123,7 +126,7 @@ export const useAuditStore = create<AuditState>((set, get) => ({
   site: 'Département X',
   link: '5g',
   provider: '',
-  duration: 20,
+  duration: 60,
   direction: DEFAULT_AUDIT_DIRECTION,
   target: '',
   iface: '',
@@ -133,6 +136,7 @@ export const useAuditStore = create<AuditState>((set, get) => ({
   presetNote: '',
   historyN: null,
   msg: '',
+  failure: null,
   live: null,
   report: null,
   previous: null,
@@ -159,7 +163,7 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       .then(r => r.json())
       .then(j => {
         if (j?.running) {
-          set({ stage: 'observing', msg: 'audit en cours…' })
+          set({ stage: 'observing', msg: 'audit en cours…', failure: null })
           poll()
         }
       })
@@ -179,18 +183,24 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       report: null,
       live: null,
       msg: '',
+      failure: null,
     }))
     stoppedByOperator = false
   },
 
   applyPreset: p =>
-    set({
-      site: p.site,
-      link: p.link_type,
-      provider: p.provider,
-      duration: p.duration,
-      target: p.target,
-      presetNote: p.notes,
+    set(() => {
+      if (p.duration !== 60) {
+        return { presetNote: `Preset incompatible — audit fixe 60 s (reçu ${p.duration} s)` }
+      }
+      return {
+        site: p.site,
+        link: p.link_type,
+        provider: p.provider,
+        duration: 60,
+        target: p.target,
+        presetNote: p.notes,
+      }
     }),
 
   start: async () => {
@@ -204,7 +214,7 @@ export const useAuditStore = create<AuditState>((set, get) => ({
     if (!v.valid || !v.value) return
     const store = useUIStore.getState()
     stoppedByOperator = false
-    set({ msg: 'démarrage…', report: null, live: null })
+    set({ msg: 'démarrage…', report: null, live: null, failure: null })
     try {
       const r = await fetch('/api/audit/start', {
         method: 'POST',
@@ -225,13 +235,16 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       await r.json().catch(() => ({}))
       store.pushToast(`Audit lancé — ${v.value.site}`, 'ok')
       store.setFlash({ type: 'success', msg: `Audit lancé — ${v.value.site}` })
-      set({ stage: 'observing', msg: 'audit en cours…' })
+      set({ stage: 'observing', msg: 'audit en cours…', failure: null })
       poll()
     } catch (e: any) {
       const reason = e?.message ?? 'réseau'
       store.pushToast(`Échec audit : ${reason}`, 'err')
       store.setFlash({ type: 'danger', msg: 'Échec audit' })
-      set({ msg: `échec : ${reason}` })
+      set({
+        msg: `échec : ${reason}`,
+        failure: { code: 'START_FAILED', message: `Démarrage impossible — ${reason}`, retry: () => { void get().start() } },
+      })
     }
   },
 
@@ -255,7 +268,7 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       .then(r => r.json())
       .then(j => {
         if (j?.running) {
-          set({ stage: 'observing', msg: 'audit en cours…' })
+          set({ stage: 'observing', msg: 'audit en cours…', failure: null })
           poll()
           return
         }
@@ -292,6 +305,7 @@ export const useAuditStore = create<AuditState>((set, get) => ({
         report,
         stage: 'done',
         live: null,
+        failure: null,
         previous,
         comparison: compareAudits(previous, current),
         msg: p95 > 0 ? `audit terminé — p95 repos ${p95.toFixed(1)} ms` : 'audit terminé',
@@ -305,13 +319,14 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       const pair = loadAuditPair()
       const previous =
         pair.last && pair.last.audit_id !== current.audit_id ? pair.last : pair.previous
-      return { report, previous, comparison: compareAudits(previous, current) }
+      return { report, previous, comparison: compareAudits(previous, current), failure: null }
     }),
 
   _cancel: byOperator =>
     set(s => ({
       stage: nextAuditStage(s.stage, 'cancel'),
       live: null,
+      failure: null,
       msg: byOperator ? 'audit annulé — aucun rapport écrit' : 'audit interrompu — aucun rapport écrit',
     })),
 
@@ -320,6 +335,11 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       stage: s.stage === 'observing' ? 'declared' : s.stage,
       live: null,
       msg: 'suivi interrompu — vérifiez /api/audit/status',
+      failure: {
+        code: 'RESTORE_FAILED',
+        message: 'Lecture impossible — la dernière preuve n’a pas pu être relue.',
+        retry: () => { void get().restore() },
+      },
     })),
 
   _history: () =>

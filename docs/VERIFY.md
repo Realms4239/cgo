@@ -80,6 +80,10 @@ truth; prose is not. Every row carries a date and an evidence path or command.
 | Slice 25 tooltip honesty (builder pass) | VERIFIED | `docs/verification/2026-11-04-slice-25.md`; DESKTOP-B6K9UCM-equivalent (Windows 10, MINGW64), 2026-11-04 22:15 UTC, `rebuild/plan1-economics-audit` at `7dcf502`: `cd web/frontend && npm run build` → exit 0, `TOTAL gz : 353.7 KB`; `npm test` → 59 files, **283 tests passed**; `go test ./... -count=1` → exit 0, every package `ok`; `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (tests 78.9 s); `python book/tools/audit-archive.py` → both `OK` lines. No live audit, campaign, bench, CHR, Linux acceptance, eBPF, `.dist` or BBRv3 claim; no screenshot claimed for this slice. Three `PENDING` claims carry builder proposals only; the verifier decides every row. 2026-11-04 re-certification: verifier re-ran — text artifact byte-for-byte title match modulo one trailing LF; no PNG claimed → PASS. | 2026-11-04 | DESKTOP-B6K9UCM (Windows 10, MINGW64) |
 | Slice 26′ exhaustive re-certification 20A–25 (builder pass) | VERIFIED | `docs/verification/2026-11-04-slice26-recertification.md`; DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-04 20:30 UTC, `rebuild/plan1-economics-audit` at `367da9b` (builder pass at `319f4e2`, re-verified at `367da9b`): `go test ./... -count=1` → exit 0; `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (verifier fresh run: tests 280.4 s, hygiene 678); `python book/tools/audit-archive.py` → both `OK` lines; `cd web/frontend && npm test` → 59 files, **283 tests passed**; `npm run build` → `TOTAL gz : 353.7 KB`; eight PNG at 1024×768 and 1920×1080 in `docs/img/shots/2026-11-04/`, plus `slice25-tooltip.txt` and `evidence.json` assertions. No live audit, campaign, bench, CHR, Linux acceptance, eBPF, `.dist` or BBRv3 claim. 2026-11-04 independent verifier (second pass, session `ses_e57c7f744ffeRlPHZ3s3aM57zY`) re-ran all gates fresh at `367da9b`: `go test ./... -count=1` exit 0 (19 `ok`, pkg/api 64.933 s, pkg/audit 191.969 s); `go clean -testcache && python tools/verify.py` exit 0, 6 passed (tests 280.4 s, hygiene 678); archive OK; `npm test` 59 files / 283 tests; build 15.29 s, TOTAL gz 353.7 KB; `go build ./...`, `go vet ./cmd/cgo`, `gofmt -l pkg cmd` all exit 0. Ten first-pass findings closed (two residuals recorded in signature below). Note: two SSE tests flaked once under concurrent load, passed isolated — flake risk, not a slice-26′ regression. | 2026-11-04 | DESKTOP-B6K9UCM (Windows 10, MINGW64) |
 
+| Slice 29 modular extraction closure (builder pass) | PENDING | DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-07 21:08–21:18 UTC, `openchamber/operator-cockpit` at `599022b`, Go 1.26.5, Node v22.23.2, Python 3.11.15: `cd web/frontend && npm test` → exit 0, 68 files / 321 tests passed (130.38s); `npm run build` → exit 0, `TOTAL gz : 357.6 KB` (12.85s); `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run` (tests 81.9 s, hygiene 995 tracked files, frozen seal 159 manifests holds); `go build ./...` → exit 0; `go test ./... -count=1` → exit 0, every package `ok` (pkg/api 64.366s, pkg/audit 189.861s); `git checkout -- web/frontend/dist/index.html` → exit 0, `git status --short` clean. Builder pass only: no live audit, campaign, bench, CHR, WIS, Mosquitto, Linux acceptance, eBPF, `.dist` or BBRv3 claim; the independent verifier has not re-run the commands and owns this row. | 2026-11-07 | DESKTOP-B6K9UCM (Windows 10, MINGW64) |
+
+| Slice 30 supplychain-gaps closure (builder pass) | PENDING | DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08 06:02–06:11 UTC, `openchamber/operator-cockpit` at `4cab42d`, Go 1.26.5, Node v22.23.2, Python 3.11.15: `go test ./... -count=1` → exit 0, every package `ok` (`pkg/api` 64.199s, `pkg/audit` 190.169s); `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run` (tests 77.0 s, hygiene 1006 tracked files, frozen seal 159 manifests holds); `cd web/frontend && npm test` → exit 0, 68 files / 321 tests passed (128.67s); `npm run build` → exit 0, `TOTAL gz : 357.6 KB` (11.72s); `git checkout -- web/frontend/dist/index.html` → exit 0, `git status --porcelain` clean. Builder pass only: GoReleaser CycloneDX SBOM config and digest-pinned OCI are config-complete (no GoReleaser/syft/cosign or registry on this host, so the SBOM CI-run and the digest pull stay unproven); no live audit, campaign, bench, CHR, WIS, Mosquitto, Linux acceptance, eBPF, `.dist` or BBRv3 claim; the independent verifier has not re-run the commands and owns this row. | 2026-11-08 | DESKTOP-B6K9UCM (Windows 10, MINGW64) |
+
 ## How a row moves
 
 - Only a named command on a named host, with the date and the output saved or
@@ -113,3 +117,44 @@ Residuals accepted: Y — tooltip has a trailing LF (117 B vs 116 B title), buil
 Signature: verified — all ten first-pass findings are closed at `367da9b` (two with recorded residuals), the six gates pass fresh, and the 18 rows are proposed for the dispositions above with rows 2 and 3 blocked on named conditions.
 
 Note: the host clock jumped +8 h at 21:04:55 UTC during the pass; the forced-fresh `verify.py` ran after the jump, so its real end is reconstructed from its 280.4 s `tests` gate. No result depends on the wall clock. Two SSE tests (`TestSSESubLimitAtomic`, `TestSSECadenceAndDelta`) failed once under the verifier's concurrent test load and passed isolated — flake risk, not a slice-26′ regression.
+
+## Verifier signature — slice 29 modular extraction (2026-11-08 05:03 UTC, transcribed)
+
+Verifier: independent subagent session `ses_e46881760ffeyPng7vJj6POpUv` (shell-capable re-run; previous verifiers withheld signature, static only).
+Host: DESKTOP-B6K9UCM (Windows 10, MINGW64).
+Branch: `openchamber/operator-cockpit` at `a0b19a4` (`fix(api): constant-time + IsLoopback auth parity`).
+
+| Gate | Command | Result |
+|---|---|---|
+| 15 modules | `for d in modules/*/; do (cd $d && go test ./... -count=1)` | 15/15 exit 0 (api 64.3s, audit 191.7s, probe 11.7s, rest <4s) |
+| TestMetrics | `go test ./pkg/api -run TestMetrics -v` | exit 0 — `TestMetrics_EmitsHelpTypeAndContentType` PASS, `TestMetrics_AbsentIsNotZero` PASS |
+| Six gates | `python tools/verify.py` | exit 0, 6/6 — frozen, provenance, tests (91.3s), exit, hygiene, links PASS |
+| Frontend tests | `npm test` (web/frontend) | exit 0, 68 files / 321 tests |
+| Frontend build | `npm run build` | exit 0, TOTAL gz 357.6 KB |
+
+Parity/honesty: absent ≠ fake zero (only `*_measured` flags + `cgo_iface_valid` emitted; `TestMetrics_AbsentIsNotZero` byte-identical in `pkg/api` and `modules/api`); citation `""` without seal (`modules/cite/cite.go`); no green without load (`AssessVerdict` gated on grade A+/A/B); auth 401 with `Bearer`; nginx `limit_req_status 429`; `CGO_probe_dead` live with `cgo_audit_load_measured_total` emitted in both trees; digest pin `@sha256:${CGO_IMAGE_DIGEST:?...}` (was `:latest`).
+
+Rows: VERIFY row 83 (Slice 29 builder pass) stays **PENDING** per the transcribed signature block — the verifier verified the commands at `a0b19a4` and left row promotion to the verifier-owned disposition; builder made no promotion. History not rewritten.
+Screenshots checked: N — no screenshot claimed for this slice.
+Residuals accepted: Y — (1) builder hygiene number stale (`359` vs `997` tracked files clean in the same run; gate passes); (2) `CGO_probe_dead` `rate(...) == 0` cannot detect a *missing* series (needs `absent_over_time`, pre-existing, documented); (3) `pkg/` ↔ `modules/` drift already visible in test fixtures, both suites pass, dual maintenance risk.
+Signature: independently verified at 2026-11-08 05:03 UTC — all 15 modules `go test` exit 0, `TestMetrics` PASS in both trees, `verify.py` 6/6, npm 321 tests, build 357.6 KB, all parity checks confirmed, VERIFY row 83 still PENDING, tree clean.
+
+## Verifier signature — slice 30 supplychain-gaps (2026-11-08 08:08 UTC, transcribed; HEAD 1b9a61c)
+
+Verifier: independent subagent session `ses_e45d71ad9ffeD1B0eHDzRcEYPq`.
+Host: DESKTOP-B6K9UCM (Windows 10, MINGW64).
+Branch: `openchamber/operator-cockpit` at `1b9a61c` (`docs: transcribe slice 29 verifier signature, checkpoint slice 30 fix a7ec8d2`) — docs-only on top of fix batch `a7ec8d2`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Six gates | `python tools/verify.py` | exit 0, `6 passed, 0 failed, 0 not run` — frozen (159 runs, seal holds), provenance, tests, exit, hygiene (1006 files), links PASS |
+| Go suite | `go test ./... -count=1` | exit 0, 19 `ok`, 0 FAIL (`pkg/api` 67.7s, `pkg/audit` 190.3s) |
+| Frontend tests | `npm test` (web/frontend) | exit 0, 68 files / 321 tests (168.28s) |
+| Frontend build | `npm run build` | exit 0, `TOTAL gz : 357.6 KB` (14.70s); `dist/index.html` restored, tree clean |
+
+Supplychain items: `.goreleaser.yaml` single archive-level CycloneDX SBOM (per-module entries removed, I1); `deploy/docker-compose.yml` digest-pinned `@sha256:${CGO_IMAGE_DIGEST:?}` (no mutable `:latest` in `image:`); `deploy/Dockerfile` `FROM scratch` + `org.opencontainers.image.*` labels; `<module>/v0.1.0` tags in `docs/deploy.md:225` + `docs/runbooks/tag-cutover.md:28` (I2); plan checkboxes 16/16 ticked (M1); `docs/deploy.md` cites `1.3.5`, no stale `1.2.3` (M2); `docs/runbooks/gui-repo.md` + `cmd/cgo-gui/README-SEPARATE.md` exist (pointer-only); `docs/runbooks/wis2-probe.md` + `bpf-observer.md` exist, `DEFERRED`, docs-only (commits `4cab42d`/`8d41744`); `git diff b8904ab..1b9a61c -- book/` empty (frozen corpus untouched); `git diff b8904ab..1b9a61c -- go.mod go.sum modules/` empty (no new Go dependency).
+
+Rows: VERIFY rows 83 (slice 29) and 85 (slice 30) still **PENDING** per this signature — the verifier re-ran at `1b9a61c` and left disposition to the verifier-owned row; builder promoted nothing. History not rewritten.
+Screenshots checked: N — no screenshot claimed.
+Residuals accepted: Y — (a) VERIFY row 85 builder text still cites `4cab42d` while HEAD is `1b9a61c` (declared in CHECKPOINTS.md 06:02–09:37 entry; verifier re-ran at HEAD); (b) `verify.py` `tests` gate reports 22.1s vs minutes for full `go test ./... -count=1` — direct full run passed exit 0 regardless. Unproven by design (declared config-complete, tools absent on host): first SBOM CI-run, first digest pull + `cosign verify`, module publication, all live WIS/Mosquitto/eBPF/bench acceptance.
+Signature: independently verified at 2026-11-08 08:08 UTC — verify.py 6/6, go test exit 0, npm 321 tests, build 357.6 KB, all slice-30 supplychain items confirmed at HEAD 1b9a61c, rows 29/30 still PENDING.
