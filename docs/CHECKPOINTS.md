@@ -2012,3 +2012,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Fix validated: `python -c "import yaml; yaml.safe_load(open('.goreleaser.yaml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 24.7s, hygiene 1012, links).
 - Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed config to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
 - Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
+
+## 2026-11-08 · CI goreleaser check fix 6 — drop darwin/arm64 too (Go 1.25 invalid)
+
+- Branch/HEAD: `main` / `3468c1c` (`fix(release): drop darwin/amd64 (Go 1.25 invalid target)`). Previous entry cited `main/0b24db8`; HEAD is now `3468c1c` (config + docs on top). Artifact wins; declared here.
+- Changed: config only — `.goreleaser.yaml` builds `cgo` + `meteolink` targets: `- darwin/arm64` removed (now only `linux/amd64`, `linux/arm64`, `windows/amd64`). Root cause: after removing `darwin/amd64`, `goreleaser check` still fails `darwin/arm64 is not a valid build target` on Go 1.25 — all darwin dropped.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
+  - `gh run view 42475074036 --log-failed` on retagged `v0.1.0` → `check` failed: `building binaries: darwin/arm64 is not a valid build target`.
+  - Fix validated: `python -c "import yaml; yaml.safe_load(open('.goreleaser.yaml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 24.7s, hygiene 1012, links).
+- Unproven/blocked: retry `v0.1.0` retag to fix commit not yet executed — requires pushing fixed config to `main` (`CGO_ALLOW_MAIN=1`, human-approved CI run) then force-retagging `v0.1.0` to retrigger Actions; first SBOMs and `cosign verify` remain unproven until Actions passes. Other BLOCKED unchanged: CGO-DEV SSH console key, per-module tags, `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CHR/BBRv3/.dist/case-study grants. Rows 83/85 stay **PENDING**.
+- Next: push fix to `main`, retag `v0.1.0` to fix commit, watch Actions (`gh run watch`), then `gh release view v0.1.0` for SBOMs/`digests.txt`.
