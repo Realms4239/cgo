@@ -47,7 +47,8 @@ jobs:
         run: |
           mkdir -p dist
           for m in model metrics results figures qdisc; do
-            syft "modules/$m" --output "cyclonedx-json=dist/cgo-$m.sbom.json" --enrich all
+            if [ -d "modules/$m" ]; then d="modules/$m"; else d="$m"; fi
+            syft "$d" --output "cyclonedx-json=dist/cgo-$m.sbom.json" --enrich all
           done
           ls -lh dist/*.sbom.json
       - name: publish SBOMs

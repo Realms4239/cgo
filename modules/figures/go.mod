@@ -10,6 +10,6 @@ require (
 
 replace (
 	github.com/Realms4239/cgo/metrics => ../metrics
-	github.com/Realms4239/cgo/model => ../model
+	github.com/Realms4239/cgo/model => ../../model
 	github.com/Realms4239/cgo/results => ../results
 )

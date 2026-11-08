@@ -396,6 +396,7 @@ def link_candidates(text, root):
         tok = token.strip()
         if not tok or " " in tok or any(c in tok for c in "*<>{}:") or tok.endswith("..."):
             continue
+        if any(re.fullmatch(r"v\d+\.\d+\.\d+", seg) for seg in tok.split("/")): continue  # tag, not path
         if tok.startswith(("http", "git ", "go ", "make ", "python ", "-", ".")) or "/" not in tok:
             continue
         first = tok.split("/")[0]

@@ -76,7 +76,7 @@ replace (
 	github.com/Realms4239/cgo/figures => ./modules/figures
 	github.com/Realms4239/cgo/iface => ./modules/iface
 	github.com/Realms4239/cgo/metrics => ./modules/metrics
-	github.com/Realms4239/cgo/model => ./modules/model
+	github.com/Realms4239/cgo/model => ./model
 	github.com/Realms4239/cgo/probe => ./modules/probe
 	github.com/Realms4239/cgo/qdisc => ./modules/qdisc
 	github.com/Realms4239/cgo/remediate => ./modules/remediate

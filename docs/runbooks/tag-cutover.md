@@ -102,18 +102,18 @@ git tag model/v0.1.0 -m "cgo/model v0.1.0"
 go list -m all > /tmp/cgo-before.txt
 
 # 4. Retirer le replace de CE module dans go.mod racine
-#    (ex. la ligne  github.com/Realms4239/cgo/model => ./modules/model)
+#    (ex. la ligne  github.com/Realms4239/cgo/model => ./model)
 go mod edit -dropreplace github.com/Realms4239/cgo/model
 
 # 5. Résolution APRÈS + vérification no-op
 go list -m all > /tmp/cgo-after.txt
-go test ./modules/model/...
+go test ./model/...
 go test ./...      # ou la suite racine concernée
 diff /tmp/cgo-before.txt /tmp/cgo-after.txt
 ```
 
 Critère de succès : `diff` vide sur la ligne du module (même version
-résolue, sans `=> ./modules/model`), tests verts avant et après.
+résolue, sans `=> ./model`), tests verts avant et après.
 Sans publication préalable, la résolution échoue après retrait
 (`unknown revision`) : c'est le signal que l'étape 1 (publication)
 n'est pas faite. Nettoyage : `rm -rf /tmp/cgo-cutover-dryrun`

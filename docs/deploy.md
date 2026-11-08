@@ -218,7 +218,8 @@ puis `metrics`, `qdisc`, `results`, `figures` — ordre topologique) :
 
 1. Module vert isolé :
    ```bash
-   go test ./...   # depuis modules/model, puis modules/metrics, etc.
+   go test ./...   # depuis model/, puis metrics/, etc. (modules migrés
+   # hors de modules/ au fur et à mesure des cutovers, voir tag-cutover.md)
    ```
    Les 15 modules doivent passer ensemble ; `go test ./...` depuis la
    racine doit rester vert après chaque cutover.
@@ -293,7 +294,8 @@ depuis `modules/<nom>/go.mod`, avec le même format CycloneDX et rattachés
 
 ```bash
 for m in model metrics results figures qdisc; do
-  syft "modules/$m" --output "cyclonedx-json=cgo-$m.sbom.json" --enrich all
+  if [ -d "modules/$m" ]; then d="modules/$m"; else d="$m"; fi
+  syft "$d" --output "cyclonedx-json=cgo-$m.sbom.json" --enrich all
 done
 ```
 
