@@ -2213,3 +2213,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Proven: `go test ./...` per-module ×14 → all `ok`; root `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (tests 130.1s, frozen 159 seal intact). New `modules/*/go.sum` (6 files) committed (fetch hashes for the published `model v0.1.1`).
 - Unproven/blocked: cutover steps 5–6 (GoReleaser dry-run SBOM — config-complete on CI) and 8 (verifier re-run before `VERIFIED` row for the module line) remain; next modules `metrics`, `qdisc`, `results`, `figures` (same move+cutover recipe). Other BLOCKED unchanged: `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING**; new model-notice rows to be marked by the verifier.
 - Note for the 070-level verifier: `python tools/verify.py` after the link-candidate fix — selftest still green (see gate run).
+
+
+## 2026-11-08 · Metrics cutover COMPLETE — `metrics/v0.1.0` (first fetchable release, no dud)
+
+- Branch/HEAD: `main` / `9f7b925` (`refactor(metrics): move modules/metrics to metrics/`), cutover commit immediately next. Previous entry cited `main/7024a72`; HEAD is now `9f7b925` (move on top). Artifact wins; declared here.
+- Same two-commit recipe as `model` (human approval for the per-module cutover stands; this module had NO prior tag, so `metrics/v0.1.0` at the post-move commit is pristine and version-consistent with consumers' existing `require metrics v0.1.0` — no bump needed). Tag `metrics/v0.1.0` annotated (GPG absent), pushed.
+- Move (`9f7b925`): `git mv modules/metrics metrics/` + root replace `=> ./metrics` + consumers `=> ../../metrics` + VERIFY.md path-maintenance (`metrics` in the living row 172; status untouched, disclosed here). Hmm — VERIFY ownership: this was path-maintenance required by the links gate (no status re-certification); the verifier may revert the row if it wants its own wording. CHECKPOINTS wording likewise path-only.
+- Cutover: `go mod edit -dropreplace` at root + dropped consumers' `=> ../../metrics`; root `go mod tidy` (no-prune surprises beyond stale requires, same as `model`); each consumer `go mod tidy` + `go list -m github.com/Realms4239/cgo/metrics` → `metrics v0.1.0` (proxy download ok). `metrics` imports nothing from `model` (self-contained; its `go.mod` needed no edit).
+- Quoted (`go list -m github.com/Realms4239/cgo/metrics`, DESKTOP-B6K9UCM, 2026-11-08): api/audit/figures/results all resolve `metrics v0.1.0` with NO replace.
+- Proven: per-module ×14 → all `ok`; root `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (tests 88.4s, frozen 159 seal intact).
+- Unproven/blocked: verifier re-run (step 8) before any `VERIFIED` row for the module line; next modules `qdisc`, `results`, `figures` (same recipe). Other BLOCKED unchanged: `cgo-gui` repo, WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING**.
