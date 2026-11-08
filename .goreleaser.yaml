@@ -5,6 +5,11 @@ project_name: meteolink
 # un seul binaire — meteolink devient un alias embarqué (commande `cgo top`
 # historique + wrapper de compat dans l'archive). Moins de surface, une
 # seule toolchain, zéro divergence.
+#
+# cmd/cgo-gui est volontairement hors de ce pipeline : il porte
+# `//go:build windows` + x/sys/windows et casse le cross-build Linux
+# (panne pré-existante, cf. docs/VERIFY.md). Il vit dans son propre dépôt
+# (voir docs/deploy.md § Chaîne d'approvisionnement).
 builds:
   - id: cgo
     main: ./cmd/cgo
@@ -50,6 +55,44 @@ checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
+# SBOM CycloneDX par archive (un document par artefact, jamais : seul le
+# graphe de dépendances hiérarchique compte - R5 CycloneDX). Les cinq
+# modules purs (model, metrics, results, figures, qdisc) sont des
+# bibliothèques sans binaire : leur SBOM est produit en CI depuis
+# `modules/<nom>/go.mod` par le même syft et rattaché à la même release
+# (voir docs/deploy.md § SBOM + SLSA). Limite R2 : les images OCI ne sont
+# pas catalogables par ce pipe - l'image se documente par
+# `syft <image>@<digest>` + `cosign attest` (voir docs/deploy.md).
+sboms:
+  - id: cyclonedx
+    cmd: syft
+    args: ["$artifact", "--output", "cyclonedx-json=$document", "--enrich", "all"]
+    documents:
+      - "{{ .ArtifactName }}.sbom.json"
+    artifacts: archive
+
+# Signature du fichier de checksums uniquement (recommandé : on signe la
+# somme, pas chaque archive). `cosign` sans clé (keyless OIDC, workflow
+# hébergé) - c'est la brique SLSA L2 de cette release. Les tags git
+# `v0.1.0` par module sont signés localement par `git tag -s`
+# (voir docs/deploy.md § Épingles + cutover).
+signs:
+  - id: cosign-checksum
+    cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+
+# Digests des images OCI publiées : `dist/digests.txt` est l'ancre
+# vérifiable par `gh attestation verify` et par `cosign verify`
+# (SLSA L2 - voir docs/deploy.md). Jamais de tag mutable `:latest`.
+docker_digest:
+  name_template: "digests.txt"
+
 changelog:
   sort: asc
 
@@ -60,5 +103,10 @@ release:
 
     - `cgo` — le binaire unique : dashboard + API + `cgo setup` + `cgo kit` + `cgo run` + `cgo tui`
     - `meteolink` — alias de compatibilité (re-exécute cgo)
+    - `dist/*.sbom.json` — SBOM CycloneDX par archive (et par module pur en CI)
+    - `checksums.txt` + `checksums.txt.sigstore.json` — somme SHA-256 signée cosign (SLSA L2)
+    - `digests.txt` — digests OCI signés, épinglés jamais `:latest`
+    - Tags `v0.1.0` par module (model, metrics, results, figures, qdisc) — un tag signé = un contenu immuable (semver §3)
 
-    Vérifiez les téléchargements avec `checksums.txt` (SHA-256).
+    Vérifiez les téléchargements avec `checksums.txt` (SHA-256) puis le
+    bundle cosign, et la provenance avec `gh attestation verify`.

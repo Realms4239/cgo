@@ -181,3 +181,151 @@ All 9090 traffic enters through `deploy/nginx/cgo.conf` (TLS termination + `limi
 
 ## S4 — OCI + rollback
 `docker compose up` starts the digest-pinned image. Rollback is `compose pull` of the prior digest + `cgo shape --restore`. `cpu.max`/`memory.max` are set in compose; throttling stats are exported via `/metrics`.
+
+---
+
+## 7. Chaîne d'approvisionnement — SBOM + signatures + SLSA L2
+
+Un binaire sans provenance est un jouet. Ce § est le contrat
+d'expédition : tout artefact publié est nommé, énumérable et vérifiable
+hors ligne, ou il ne part pas.
+
+### 7.1 Ce que produit `.goreleaser.yaml`
+
+| Artefact | Contenu | Référence primaire |
+|---|---|---|
+| `cgo-<os>-<arch>.tar.gz` / `.zip` | Binaires `cgo` + `meteolink` (le wrapper re-exécute `cgo`) | `semver.org` §2 (déclarer l'API, nommer la version) |
+| `cgo-<os>-<arch>.tar.gz.sbom.json` | SBOM CycloneDX par archive, graphe hierarchique complet (`syft … --output cyclonedx-json`, `--enrich all`) | CycloneDX « Inventory … hierarchical relationships » |
+| `checksums.txt` + `checksums.txt.sigstore.json` | Somme SHA-256 de chaque archive, signée `cosign sign-blob` keyless (workflow hébergé) | SLSA v1.0 L2 (authentic, signé par le builder hébergé) |
+| `digests.txt` | Digests OCI publiés par le builder, attestés `actions/attest` (SLSA L2) | SLSA v1.0 « Providable, digest-identified » |
+| SBOM par module pur (`cgo-<module>.sbom.json`) | Produit en CI depuis `modules/<module>/go.mod` par le même `syft`, même format, même release | R2 GoReleaser (limite : l'image OCI n'est pas catalogable par le pipe SBOM) |
+
+Les cinq modules purs sont `model`, `metrics`, `results`, `figures`,
+`qdisc`. Ce sont des bibliothèques sans binaire. `goreleaser` ne peut
+pas les compiler en archives ; leur SBOM est produit par le CI depuis
+leur `go.mod` et rattaché à la même release. L'image OCI, pareillement,
+se documente hors du pipe SBOM (`syft <image>@<digest>` + attestation).
+
+### 7.2 Épingles + cutover par module — aucun `replace` ne survit à un tag
+
+Le monorepo vit en `require` + `replace` local (`go.mod` racine,
+`modules/*/go.mod`). Le `replace` ne lie que le module principal : un
+tag publié en gardant un `replace` embarque le chemin local au lieu du
+module publié — le tag ne vaut rien.
+
+Procédure, **dans l'ordre, module par module** (commencer par `model`,
+puis `metrics`, `qdisc`, `results`, `figures` — ordre topologique) :
+
+1. Module vert isolé :
+   ```bash
+   go test ./...   # depuis modules/model, puis modules/metrics, etc.
+   ```
+   Les 15 modules doivent passer ensemble ; `go test ./...` depuis la
+   racine doit rester vert après chaque cutover.
+2. Tag signé, semver `v0.1.0` (le `0` signale une API publique non
+   garantie — `semver.org` §4 ; `1.0.0` est la promesse) :
+   ```bash
+   git tag -s v0.1.0 -m "cgo-model v0.1.0" -- model   # un tag signé par module
+   ```
+   Un tag signé est immuable : son contenu ne change jamais (semver §3).
+   On ne déplace pas un tag publié ; on publie `v0.1.1`.
+3. Retirer le `replace` de CE module dans `go.mod` racine (et dans les
+   `go.mod` des modules consommateurs), puis :
+   ```bash
+   go mod download github.com/Realms4239/cgo/model
+   go test ./...
+   python tools/verify.py
+   ```
+   Le consommateur doit résoudre le module publié, pas le chemin local.
+   Tant qu'un `replace` survit, le cutover n'est pas terminé.
+4. Vérifier avant de passer au suivant : `git grep "=>" go.mod
+   modules/*/go.mod` ne doit plus nommer le module coupé, et la suite
+   racine reste verte.
+
+La version du monolithe (`VERSION`, `1.3.5`) et les versions des modules
+(`v0.1.0` via `require`) sont deux lignes indépendantes : les modules ne
+suivent pas `VERSION`, et inversement.
+
+### 7.3 SBOM + SLSA en CI (L2)
+
+Le niveau d'assurance est déclaré, jamais sous-entendu (SLSA) :
+
+- **L1** (provenance existe) : `provenance.json` publié avec chaque
+  artefact — digest cryptographique, commit source, builder. C'est le
+  plancher.
+- **L2** (authentic) : provenance signée par un builder hébergé.
+  `.goreleaser.yaml` signe `checksums.txt` avec `cosign sign-blob`
+  (keyless OIDC), `digests.txt` est attesté par `actions/attest`. C'est
+  la cible de chaque release `v0.1.0` par module.
+
+Vérification par le consommateur, hors ligne sauf la consultation du log
+de transparence pour cosign keyless :
+
+```bash
+# 1. Vérifier la signature du fichier de checksums (valider l'identité
+#    attendue du workflow + l'émetteur OIDC de GitHub Actions)
+cosign verify-blob \
+  --certificate-identity "https://github.com/Realms4239/cgo/.github/workflows/release.yml@refs/tags/v0.1.0" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  --bundle dist/checksums.txt.sigstore.json dist/checksums.txt
+
+# 2. Vérifier chaque archive contre ce fichier signé
+sha256sum --check --ignore-missing dist/checksums.txt
+
+# 3. Vérifier la provenance SLSA L2
+gh attestation verify --owner Realms4239 dist/cgo-linux-amd64.tar.gz
+gh attestation verify --owner Realms4239 ghcr.io/realms4239/cgo@sha256:<digest>
+
+# 4. SBOM CycloneDX : graphe hiérarchique, pas une liste de fichiers
+#    (ex. avec l'outil de consultation de votre choix, local, sans réseau)
+syft dist/cgo-linux-amd64.tar.gz --output cyclonedx-json=module.sbom.json
+```
+
+### 7.4 Image OCI signée, épinglée par digest — jamais de tag mutable
+
+L'image se construit depuis `deploy/Dockerfile` (`FROM scratch`,
+un binaire, zéro surface) avec les étiquettes
+`org.opencontainers.image.*` (`title`, `version`, `revision`, `source`,
+`licenses`) — `docker inspect` retrouve donc la provenance sans réseau.
+Elle se publie par digest :
+
+```bash
+docker build --build-arg VERSION=1.3.5 --build-arg REVISION=$(git rev-parse HEAD) \
+  -f deploy/Dockerfile -t ghcr.io/realms4239/cgo:<semver> .
+cosign sign ghcr.io/realms4239/cgo@sha256:<digest>
+# SBOM de l'image, hors du pipe GoReleaser (limite R2) :
+syft ghcr.io/realms4239/cgo@sha256:<digest> --output cyclonedx-json=cgo.sbom.json
+```
+
+Le runner ne prend qu'un digest (`deploy/docker-compose.yml`) :
+
+```bash
+export CGO_IMAGE_DIGEST=<sha256-hex-du-manifest>
+export CGO_API_TOKEN=<jeton>   # paramètre, jamais une valeur committée
+docker compose -f deploy/docker-compose.yml config   # échoue franc sans digest/jeton
+docker compose -f deploy/docker-compose.yml up -d
+cosign verify ghcr.io/realms4239/cgo@sha256:${CGO_IMAGE_DIGEST}
+```
+
+Mode image : par défaut le conteneur ne façonne pas le bord (pas de
+`NET_ADMIN`). Pour le mode complet Linux, ajouter localement
+`cap_add: [NET_ADMIN]` dans le compose et utiliser `cgo shape --restore`
+au rollback : le bord ne reste jamais façonné à l'insu de l'opérateur.
+
+Bundle hors ligne (mini-PC, banc sans egress) : charger le tar image
+sans registre, SBOM et provenance en fichiers dans le bundle — un SBOM
+derrière une URL est inutile hors ligne (CycloneDX, machine-readable).
+
+### 7.5 `cmd/cgo-gui` — interne, hors chaîne d'expédition
+
+`cmd/cgo-gui` est le client Windows natif (tags `//go:build windows` +
+`golang.org/x/sys/windows`). Il reste **interne au monorepo** : il n'est
+pas construit par `.goreleaser.yaml`, pas archivé, pas dans l'image OCI.
+C'est volontaire : le cross-build Linux de ce paquetage Fyne casse déjà
+(voir `docs/VERIFY.md`, « pré-existing `cmd/cgo-gui` cross-build
+failure »). L'inclure casserait chaque release Linux.
+
+Si un jour il doit être distribué, il sort du monorepo vers son propre
+dépôt (chemin retenu : `github.com/Realms4239/cgo-gui`, `go 1.25`,
+fenêtre Windows seule) avec sa propre `.goreleaser.yaml`, son propre
+SBOM et sa propre signature — pas un artefact du pipeline `cgo`.
