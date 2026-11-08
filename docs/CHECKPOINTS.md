@@ -2166,3 +2166,15 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - `checksums.txt`, `checksums.txt.sigstore.json`
 - This closes the long-standing BLOCKED: GoReleaser SBOM CI-run, first digest pull + `cosign verify` path (verify path reproducible via `cosign verify-blob --bundle checksums.txt.sigstore.json checksums.txt` on downloaded assets). Unproven remainder: per-module tags/cutover (`<module>/v0.1.0`, human gate registry + `replace` removal), `cgo-gui` separate repo creation, WIS2/eBPF DEFERRED designs, CGO-DEV SSH console key, CHR/BBRv3/.dist/case-study grants. VERIFY rows 83/85 stay **PENDING** (verifier owns rows; builder pass transcribed).
 - Next: local stress test (`python tools/verify.py`, per-module `modules/*` loop, race via repeated `go test -count`) + Playwright UI/UX audit of operator cockpit, then present the remaining-task priority choice.
+
+
+## 2026-11-08 · Stress test + frontend timeout fix
+
+- Branch/HEAD: `main` / `65e82a9` (`docs(checkpoint): v0.1.0 CI SBOM+digest green`). Previous entry cited `main/500cc18`; HEAD is now `65e82a9` (docs on top). Artifact wins; declared here.
+- Stress test (DESKTOP-B6K9UCM, Windows 10, MINGW64, 2026-11-08):
+  - `python tools/verify.py` → `6 passed, 0 failed, 0 not run`, exit 0 (frozen 159 seal, provenance, tests 95.5s, hygiene 1012, links).
+  - Per-module loop `cd modules/$m && go test ./...` (15 modules): `api/audit/cite/doctor/exporter/figures/guard/iface/metrics/model/probe(bpf)/qdisc/remediate/results` all `ok` (BPF module `modules/probe` gives `ok github.com/Realms4239/cgo/probe/bpf`).
+  - `go test -count=3 -run TestRequireAuth ./pkg/api` → `ok 3.133s`; `TestSkipJournalsViaHook`/`TestMetrics` race probes re-run `-count=5` pass.
+- Frontend fix (uncommitted in working tree, to commit next): `web/frontend/vitest.config.ts` adds `testTimeout: 15000` — `BenchConfig.dom.test.tsx` does `vi.resetModules()` + dynamic import; under full-suite load (315s, cold transform) it exceeded the 5s default (flaky `Test timed out in 5000ms`); in isolation it passed in 1605ms. After fix: `npx vitest run src/components/BenchConfig.dom.test.tsx` → 2 passed (4891ms, 62.8s env), within new budget. No product code. Full `npm test` (68 files) re-run pending browser install to prove 68/68 under load.
+- Unproven/blocked unchanged: Playwright `accessibility.spec.ts` 8/8 failed at launch (`chromium_headless_shell-1234` missing; installed `chromium-1243` mismatch) — browser install running in background; per-module cutover `<module>/v0.1.0` (human gate registry + `replace` removal), GUI repo, WIS2/eBPF DEFERRED, CGO-DEV SSH key, grants. Rows 83/85 stay **PENDING**.
+- Next: commit `vitest.config.ts` + checkpoint, then smoke-run Playwright once browser ready, screenshot audit at 890–1920, then present remaining-task priority choice (per-module tags / GUI repo / WIS2 / eBPF) via render.
