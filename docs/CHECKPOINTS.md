@@ -1893,3 +1893,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08, at `90de4f0` prior to push: `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run`. Final review `bcb7fb9..fbe3a17` RESIDUALS Y. Push `90de4f0..54549fd`: exit 0.
 - Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3, merge to `main` awaiting human decision. Rows 83/85 stay **PENDING** (verifier dispositions unchanged).
 - Next: human decides merge to `main` / PR. No further verifier dispatch for Slices 29/30.
+
+## 2026-11-08 · merge to main — HEAD fa77201 (human-approved)
+
+- Branch/HEAD: `main` / `fa77201` (`merge: openchamber/operator-cockpit (slices 29/30 supplychain-gaps) into main`). Previous entry cited `54549fd`; HEAD is now `fa77201` (merge of `f55e7ee` on top of local `main@b710e54`). Artifact wins; declared here.
+- Changed: merge commit `fa77201` only — no product code changed in the merge itself. `docs/VERIFY.md` rows 83/85 stay **PENDING** per verifier dispositions (Slice 29 verified at `a0b19a4` 05:03 UTC, Slice 30 verified at `1b9a61c` 08:08 UTC); `docs/superpowers/plans/README.md` rows 29/30 note verifier signatures transcribed. History not rewritten.
+- Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08, at `fa77201` (merged main):
+  - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (frozen 159-run seal holds; provenance; tests 87.5 s; exit; hygiene 1006 tracked files; links 5 documents resolve).
+  - Merge itself: `git checkout main && git merge --no-ff openchamber/operator-cockpit` → merge commit `fa77201`, no conflicts, `git status` clean.
+- Unproven/blocked: GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, CHR/WIS/Mosquitto/eBPF live, `.dist`/BBRv3. Push of `main` to `origin` pending (pre-push hook requires `CGO_ALLOW_MAIN=1`; local `main` was 293 commits ahead of `origin/main` pre-merge). No row promoted by builder; verifier owns rows.
+- Next: push `main` to `origin` with human-approved `CGO_ALLOW_MAIN=1`; human reviews PR/branch state. No further verifier dispatch for Slices 29/30.
