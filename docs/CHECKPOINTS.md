@@ -2281,3 +2281,12 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Link-gate repairs (walked through two VERIFY.md/CHECKPOINTS.md tokens: the moved `modules/<name>` locations and a slash-list `cite`, `exporter`, `guard`, `iface`, `remediate`, `attest` in ledger prose — reworded to `cite`, `guard` package + parentheticals, and comma lists; status untouched, disclosed).
 - Proven (2026-11-09, DESKTOP-B6K9UCM): per-module ×15 all `ok`; root `python tools/verify.py` → `6 passed, 0 failed` (tests 105.9s; one parallel-loop `audit` FAIL was a flakes-under-load (204s suite), standalone `ok` 204s + gate retry 6/6).
 - Unproven: verifier re-run (step 8). Next: `doctor`, `probe`, `audit`, `api` (and their dependents).
+
+
+## 2026-11-09 · Doctor cutover COMPLETE — `doctor/v0.1.0` (standalone, no consumers)
+
+- Branch/HEAD: `main` / `1b438e6` (`refactor(doctor): move modules/doctor to doctor/`), cutover commit immediately next. Previous entries sit below in CHECKPOINTS. Artifact wins.
+- Same two-commit recipe. Tag `doctor/v0.1.0` annotated (GPG absent), post-move commit, pushed — pristine.
+- Move: `git mv modules/doctor doctor/` + root replace `=> ./doctor`. Leaf cutover: root `go mod edit -dropreplace` + `go mod tidy` — nobody requires `doctor` (standalone module, resolves vacuous).
+- Proven: `python tools/verify.py` → `6 passed, 0 failed` (tests 111.8s, frozen seal intact).
+- Unproven: verifier re-run (step 8). Next: `probe`, then `audit`, then `api` (matrix published so far: model/v0.1.1, metrics/v0.1.0, qdisc/v0.1.0, results/v0.1.0, figures/v0.1.0, cite/v0.1.0, exporter/v0.1.0, guard/v0.1.0, iface/v0.1.0, remediate/v0.1.0, attest/v0.1.0, doctor/v0.1.0).
