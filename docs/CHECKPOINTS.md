@@ -2487,3 +2487,15 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - eBPF: loader + first capture need Linux 6.8 host probes H1-H11 then `make bpf` (clang-18/bpftool/BTF) - gate pack APPROVED (a)+(b), stub repo live (cgo-bpf-observer v0.1.0 CI green), loader is the next commit once H1-H11 pass.
   - BBRv3 3x3: 7.1 kernel. .dist: 30-sample field trace. CHR: QEMU + CHR image. Case study: operator grant a-d. WIS2: Q4/Q5/scope signatures (wis2-signoff.md).
 - No code, no dependency, no live bench, no VM mutation, `book/` untouched. Nothing further ships until PC2 is online.
+
+
+## 2026-11-09 - PC2 online, CGO-DEV-FRESH booted, guest SSH still no banner (console key step remains)
+
+- Branch/HEAD: `main` / `ca22a50`. Previous entry said `main/25f266d`; HEAD is now `ca22a50` (end-state audit). Artifact wins. No local edits pending before this entry.
+- Live probe 2026-11-09 ~17:45 UTC (DESKTOP-B6K9UCM): `tailscale status` shows `nemo 100.72.251.32` online (`idle`); `tailscale ping -c 2` replied `pong via 192.168.88.12:41641 in 9ms`.
+  - Host SSH works: `ssh -i ~/.ssh/nemo_lab -o BatchMode=yes Airis@100.72.251.32 "whoami"` -> `nemoiris`; `VBoxManage list vms` includes `CGO-DEV-FRESH {9f4dc984-fc38-42d9-9197-214ca863d439}`.
+  - `VBoxManage showvminfo CGO-DEV-FRESH` showed `VMState="poweroff"` (2026-11-08T09:34), NAT forwarding `ssh 2222->22` present.
+  - Started it: `VBoxManage startvm CGO-DEV-FRESH --type headless` -> `successfully started`; after 6s `VMState="running"` (`2026-11-09T17:45:34Z`), still `GuestAdditionsRunLevel=0`.
+  - Guest SSH then: `ssh -i ~/.ssh/nemo_lab -p 2222 nemo@100.72.251.32 "uname -r"` -> `Connection timed out during banner exchange` at +45s, +90s and +180s. VM keeps running; sshd never answers (guest not boot-ready or sshd not running).
+- Interpretation (recorded, not bypassed): the host is up and the VM boots, but guest SSH is unreachable — the console key install (docs/runbooks/ssh-console-key.md steps 1-3, GUI console on PC2, operator-only) is still the unblock. H1 probe cannot run until that lands; `authorized_keys` was never installed remotely and the VM console is not reachable from this host.
+- No live bench, no VM mutation beyond the startvm above, `book/` untouched.
