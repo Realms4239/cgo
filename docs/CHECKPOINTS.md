@@ -2533,3 +2533,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Screenshot proof (VBoxManage screenshotpng, pulled as base64, this host): guest console shows `Ubuntu 24.04.4 LTS cgo tty1` and `cgo login: _`. Earlier "hangs at boot" was boot-in-progress (the +60s screenshot was still black; the +330s one shows the prompt). User answered "Console not showing a login (guest hangs at boot)" + "can you install it yourself" - I cannot: SSH accepts no recorded key, and the console is operator-only. No remote install path exists.
 - Live retry just now: `ssh -i ~/.ssh/nemo_lab -p 2222 cgo@100.72.251.32 "uname -r; uname -m; whoami"` -> `Permission denied (publickey,password)` (banner present). Same for all 21 recorded pairs (sweep 2026-11-09). The guest user is `cgo` (from the login prompt) - sweep already covered it; the blocker is authorized_keys, not the username.
 - Next human step (PC2 GUI, guest user `cgo`): paste the console cmd from docs/runbooks/ssh-console-key.md, then H1 runs from here. No VM mutation from here remains possible.
+
+
+## 2026-11-09 - Guest fully booted (Guest Additions loaded), auth still denied - paused on operator console
+
+- Branch/HEAD: `main` / `b7396ec`. Artifact wins.
+- Live probe just now (DESKTOP-B6K9UCM): `VBoxManage showvminfo CGO-DEV-FRESH` -> `VMState="running"`, `GuestOSType="Linux26_64"`, `GuestAdditionsRunLevel=2`, `GuestAdditionsVersion="7.2.2 r170484"` with Base Driver + System Service facilities. The guest is fully booted (not hanging).
+  - SSH re-probe (users `cgo`, `nemo`, `ubuntu`, `root` x `nemo_lab`, port 2222): all `Permission denied (publickey,password)` - banner up, no recorded key accepted.
+- Everything executable from this host is done: repo `verify.py` 6/6 (87.0s), pushed. The single remaining unblock is the operator console step (docs/runbooks/ssh-console-key.md): GUI console on PC2 as `cgo` -> `mkdir -p ~/.ssh && echo '<nemo_lab.pub full line>' >> ~/.ssh/authorized_keys` + 700/600 -> then `ssh -i ~/.ssh/nemo_lab -p 2222 cgo@100.72.251.32 "uname -r"` is H1 and H1-H11 + `make bpf` + loader `Open`/`Check` follow.
