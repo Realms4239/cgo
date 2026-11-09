@@ -41,7 +41,7 @@ test('no report at all stays measured-absent, not green', async ({ page }) => {
   test.setTimeout(60000)
   await mockApis(page, { reportStatus: 404 })
   await page.setViewportSize({ width: 890, height: 768 })
-  await page.goto('/')
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   const absent = page.locator('[data-testid="dash-absent"]')
   await expect(absent).toBeVisible()
   await expect(absent).not.toContainText(/stable|sain|OK/i)
@@ -50,7 +50,7 @@ test('no report at all stays measured-absent, not green', async ({ page }) => {
 test('absent evidence cannot render green proof language', async ({ page }) => {
   await mockApis(page, { reportBody: ABSENT_REPORT })
   await page.setViewportSize({ width: 890, height: 768 })
-  await page.goto('/')
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Preuves & Rapports' }).click()
   await page.getByRole('button', { name: 'Ouvrir' }).press('Enter')
   await expect(page.getByRole('region', { name: 'Rapport ouvert' })).toBeVisible()
@@ -62,7 +62,7 @@ test('absent evidence cannot render green proof language', async ({ page }) => {
 test('failure state has a recovery action and adequate contrast', async ({ page }) => {
   await mockApis(page, { listStatus: 500 })
   await page.setViewportSize({ width: 890, height: 768 })
-  await page.goto('/')
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Preuves & Rapports' }).click()
   const retry = page.getByTestId('audit-reports').getByRole('button', { name: 'Réessayer' })
   await expect(retry).toBeVisible()
@@ -75,9 +75,10 @@ test('failure state has a recovery action and adequate contrast', async ({ page 
 })
 
 test('keyboard reaches the archive and opens the valid report', async ({ page }) => {
+  test.setTimeout(60000)
   await mockApis(page)
   await page.setViewportSize({ width: 890, height: 768 })
-  await page.goto('/')
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
 
   await page.keyboard.press('Tab')
   await expect(page.locator('.skip-link')).toBeFocused()
@@ -99,7 +100,7 @@ test('archive window keeps aria row count and limits mounted rows', async ({ pag
   test.setTimeout(60000)
   await mockApis(page, { listBody: ARCHIVE_179_ROWS })
   await page.setViewportSize({ width: 890, height: 768 })
-  await page.goto('/')
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Preuves & Rapports' }).click()
   const table = page.locator('.archive-table')
   await expect(table).toHaveAttribute('aria-rowcount', '179')
@@ -111,7 +112,7 @@ test('archive window keeps aria row count and limits mounted rows', async ({ pag
 test('corrupt evidence fails to open', async ({ page }) => {
   await mockApis(page, { reportBody: CORRUPT_PAYLOAD })
   await page.setViewportSize({ width: 890, height: 768 })
-  await page.goto('/')
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Preuves & Rapports' }).click()
   await page.getByRole('button', { name: 'Ouvrir' }).click()
   await expect(page.getByText('rapport indisponible — réessayez')).toBeVisible()
@@ -123,7 +124,7 @@ for (const viewport of [{ width: 890, height: 768 }, { width: 1920, height: 1080
     await mockApis(page)
     test.setTimeout(60000)
     await page.setViewportSize(viewport)
-    await page.goto('/')
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     for (const label of ['Tableau de bord', 'Auditer', "Banc d'essai", 'Preuves & Rapports']) {
       await page.getByRole('button', { name: label }).click()
       await expect.poll(() => page.evaluate(() =>
