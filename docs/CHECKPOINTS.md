@@ -2499,3 +2499,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Guest SSH then: `ssh -i ~/.ssh/nemo_lab -p 2222 nemo@100.72.251.32 "uname -r"` -> `Connection timed out during banner exchange` at +45s, +90s and +180s. VM keeps running; sshd never answers (guest not boot-ready or sshd not running).
 - Interpretation (recorded, not bypassed): the host is up and the VM boots, but guest SSH is unreachable — the console key install (docs/runbooks/ssh-console-key.md steps 1-3, GUI console on PC2, operator-only) is still the unblock. H1 probe cannot run until that lands; `authorized_keys` was never installed remotely and the VM console is not reachable from this host.
 - No live bench, no VM mutation beyond the startvm above, `book/` untouched.
+
+
+## 2026-11-09 - Reprobe: VM still running, guest sshd silent (~14h after boot)
+
+- Branch/HEAD: `main` / `37848dc`. Artifact wins.
+- Live reprobe 2026-11-09 late (DESKTOP-B6K9UCM): `tailscale status` still shows `nemo 100.72.251.32` online/active; `VBoxManage showvminfo CGO-DEV-FRESH` still `VMState="running"` (`2026-11-09T17:45:34Z`), `Forwarding ssh 2222->22` present.
+  - `ssh -i ~/.ssh/nemo_lab -p 2222 nemo@100.72.251.32 "uname -r; uname -m; whoami"` -> `Connection timed out during banner exchange`. Same as the +45/+90/+180s attempts: guest opens no banner (sshd not listening or blocked), not an auth failure.
+- Unblock remains the operator console step (`docs/runbooks/ssh-console-key.md` steps 1-3: power on PC2 is done, GUI console login, append `nemo_lab.pub` to `~/.ssh/authorized_keys`, 700/600, then `ssh ... "uname -r"` is probe H1). Until that lands, H1-H11 + Linux acceptance + live IFB/eBPF/BBRv3/dist/CHR stay BLOCKED. Nothing else is executable from this host while sshd is silent.
