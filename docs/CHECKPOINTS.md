@@ -2460,3 +2460,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Drafted `docs/runbooks/ssh-key-install.md`: 3-step console install of `nemo_lab.pub` on CGO-DEV-FRESH guest (idempotent grep-guard), verify `ssh -i ~/.ssh/nemo_lab -p 2222 ... "uname -r"` (probe H1), record procedure. Public key only — private keys stay in `~/.ssh/`.
 - Live probe this session (DESKTOP-B6K9UCM, 2026-11-09): `tailscale status` → nemo `100.72.251.32` offline; `tailscale ping -c 2` → timeout, no reply. Guest SSH unreachable until the host is powered on and `CGO-DEV-FRESH` started from its console — this guide is the unblock path, not a workaround.
 - Unproven: guest `authorized_keys` still lacks the recorded key; H1–H11 + Linux acceptance + live IFB/eBPF/BBRv3/dist/CHR still **BLOCKED**. `book/` untouched; no live bench; no VM mutation from this host.
+
+
+## 2026-11-09 · SSH console-key install packet ready (operator console step)
+
+- Branch/HEAD: `main` / `87d6e84`. Previous entry cited `main/b0c4f8f` approvals; HEAD is now `87d6e84` + guide. Artifact wins.
+- Drafted `docs/runbooks/ssh-console-key.md`: the full console install for `CGO-DEV-FRESH` (1 vCPU / 3072 MB, NAT `2222→22`, reused VDI) — pre-call (PC2 online is the human unblock #1), console login, verbatim `mkdir -p ~/.ssh && echo '<nemo_lab.pub>' >> ~/.ssh/authorized_keys` + 700/600, verification `ssh -i ~/.ssh/nemo_lab -p 2222 … "uname -r"` (probe H1), then H1–H11 commands inline. Public key shown in full; private key stays in `~/.ssh/` and is never committed (hygiene 1024 files clean).
+- Human unblock chain (recorded, not bypassed): PC2 online → `VBoxManage startvm "CGO-DEV-FRESH"` → guest console login → step 2 → step 3 green → then H1–H11 + `make bpf` can be dispatched (eBPF approvals (a)+(b) already granted). Windows/this host cannot do any of it (no VirtualBox here; PC2 WSL is 6.18, not 6.8).
+- Unproven: guest `authorized_keys` still lacks the recorded key; H1–H11 + Linux acceptance + live IFB/eBPF/BBRv3/dist/CHR still **BLOCKED**. `book/` untouched.
