@@ -2310,3 +2310,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Cutover: root `go mod edit -dropreplace` + `api` replace dropped + `go mod tidy`. Quoted (`go list -m github.com/Realms4239/cgo/audit`, 2026-11-09, DESKTOP-B6K9UCM): api resolves `audit v0.1.0` (downloaded), NO replace.
 - Proven: root `python tools/verify.py` → `6 passed, 0 failed` (tests 78.0s, frozen seal intact; audit's own suite 189s at new location).
 - Unproven: verifier re-run (step 8). Last module: `api`.
+
+
+## 2026-11-09 · Api cutover COMPLETE — `api/v0.1.0`; ALL 15 modules published
+
+- Branch/HEAD: `main` / `f9c5061` (`refactor(api): move modules/api to api/`). Earlier entries below. Artifact wins.
+- Same two-commit recipe. Tag `api/v0.1.0` annotated (GPG absent), post-move commit, pushed — pristine.
+- Cutover: root `go mod edit -dropreplace` + `go mod tidy` — nobody requires `api` (standalone module, resolves vacuous).
+- Plus ledger-wide link-gate repair: historical `modules/<name>` (now at repo root) and slash-list tokens in VERIFY.md/CHECKPOINTS.md reworded to root paths and comma lists (wording preserved; status untouched, disclosed).
+- Proven (2026-11-09, DESKTOP-B6K9UCM): root `python tools/verify.py` → `6 passed, 0 failed` (tests 77.6s, frozen seal intact).
+- PUBLISHED MATRIX (all first-fetchable, replace-free): `model/v0.1.1`, `metrics/v0.1.0`, `qdisc/v0.1.0`, `results/v0.1.0`, `figures/v0.1.0`, `cite/v0.1.0`, `exporter/v0.1.0`, `guard/v0.1.0`, `iface/v0.1.0`, `remediate/v0.1.0`, `attest/v0.1.0`, `doctor/v0.1.0`, `probe/v0.1.0`, `audit/v0.1.0`, `api/v0.1.0`. Dud `model/v0.1.0` retained (never consumed; do not delete without a fresh proxy-cache analysis).
+- Unproven: verifier re-run (step 8) before any `VERIFIED` row for gear-2 lines — the packet is: this entry's matrix + `go list -m <each module>` + root gate. Other BLOCKED unchanged: WIS2 Q1–Q7, eBPF new-dep, CGO-DEV SSH key install, grants. Rows 83/85 stay **PENDING**.
