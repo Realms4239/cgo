@@ -9,7 +9,40 @@ Contexte : `docs/superpowers/specs/2026-11-08-cgo-supplychain-gaps-design.md`
 §6 (dual-view, échec bloquant, structure cible). Pointeur dans le
 monorepo : `cmd/cgo-gui/README-SEPARATE.md`.
 
-## État aujourd’hui (monorepo)
+## État (2026-11-09)
+
+**Dépôt créé et vert :** [Realms4239/cgo-gui](https://github.com/Realms4239/cgo-gui),
+module `github.com/Realms4239/cgo-gui`, `go 1.25`, départ SemVer `v0.1.0`
+(tag `v0.1.0` poussé le 2026-11-09 aux 06:24 UTC). CI GitHub Actions
+`ci` (two jobs) : `stub` (`GOOS=linux CGO_ENABLED=0` : `go vet` +
+`go build`) et `windows` (`windows-latest` : `go build` + `go test`) —
+tous deux verts sur le run `42572824714`. Vue Linux Fyne native :
+preuve non faite ici (toolchain CGO + écran, pas d'hôte Linux au poste —
+reste non prouvé, documenté dans le README du dépôt).
+
+Structure implémentée, avec deux corrections de vanille portées du
+runbook : `win/`, `linux/`, `stubs/` ne sont PAS des sous-dossiers (Go
+ne peut pas partager `package main` entre dossiers pour un seul binaire) ;
+ce sont des fichiers du paquet `main` à gardes disjointes, exactement
+comme dans le monolithe : `main.go`/`win32.go`/… (`//go:build windows`),
+`fygui_linux.go` (`//go:build linux && cgo` + miroir de test
+`fytest_linux_test.go` à la même garde — CI stub en a été la preuve :
+sans elle, `undefined: fyApp` sous `GOOS=linux CGO_ENABLED=0`),
+`stub.go` (`//go:build !windows && (!linux || !cgo)`, sortie 2 —
+table de couverture corrigée : sous `GOOS=windows`, `main.go` couvre
+déjà le binaire, le stub ne doit jamais compiler en parallèle).
+`kit/` (client fin par sous-processus `cgo kit …`, zéro import du
+monolithe), `vm/` (copié d'`internal/vm`, pur Go) et `pkg/kit-client`
+n'existe pas : le client est `kit/` directement.
+
+Le monolithe garde son `cmd/cgo-gui` (copie, pas suppression — runbook :
+« il ne déplace pas le code dans cette tâche ») ; les deux codebases
+divergent à partir de cette date. La « dual-view parity » (S4) est
+portée par fixtures (`gui_test.go`, `chain_test.go`, `vnet_parity_test.go`,
+`health_telemetry_test.go` passent dans les deux dépôts) ; le client
+sous-processus exécute les mêmes verbes `cgo kit` aux mêmes codes de
+sortie que le CLI nativ (vérification fonctionnelle restante : run
+live de la VM, jamais lancé ici).
 
 - `cmd/cgo-gui/core.go` : cœur partagé SANS tag (pur Go : `internal/kit`,
   `internal/vm`, stdlib). Deux vues pilotent les mêmes actions.

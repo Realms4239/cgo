@@ -1,8 +1,9 @@
 # cgo-gui — dépôt séparé (pointeur)
 
-La GUI vitra dans son propre dépôt **`cgo-gui`** (module
-`github.com/Realms4239/cgo-gui`, `go 1.25`). Ce dossier ici est un
-pointeur : aucun code n’a été déplacé dans cette tâche.
+La GUI vit dans son propre dépôt : [Realms4239/cgo-gui](https://github.com/Realms4239/cgo-gui)
+(module `github.com/Realms4239/cgo-gui`, `go 1.25`, créé le 2026-11-09,
+`v0.1.0` publié, CI stub + Windows verte). Ce dossier ici est un pointeur :
+aucun code n'a été déplacé hors de cette section de travail.
 
 Spécification complète : [`docs/runbooks/gui-repo.md`](../../docs/runbooks/gui-repo.md)
 (design `docs/superpowers/specs/2026-11-08-cgo-supplychain-gaps-design.md` §6).
