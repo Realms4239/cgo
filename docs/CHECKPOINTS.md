@@ -2444,3 +2444,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Build-host gate (docs/runbooks/bpf-observer-gates.md §1): probes H1–H11 must be re-run on the 6.8 host (uname 6.8/amd64, BTF + bpftool dump, clang-18 -target bpf, libbpf headers, make bpf && make bpf-check, readelf hooks, GPL-2.0 licence guard). No probe substitution; any failure = BLOCKED with owner + unblock condition.
 - Dep gate (§2): `go get github.com/cilium/ebpf@v0.22.0 && go mod tidy` once the object exists; `go list -m all` in the observer module must show stdlib + cilium/ebpf only (x/sys transitive) — zero metrics/audit/remediate/model imports.
 - Dispatch prompt (§4) is handed over to the builder next and is copy-paste ready. This builder records the approvals and stops here per AGENTS.md stop-and-ask; no code, no object, no loader in this entry.
+
+
+## 2026-11-09 · gofmt sweep (formatting-only, 8 files)
+
+- Branch/HEAD: `main` / `b0c4f8f`. Previous entry cited `main/8d00414`-`b0c4f8f` approvals; HEAD is now `b0c4f8f` + gofmt working-tree edits. Artifact wins.
+- Changed: `gofmt -w` over the only `gofmt -l .` misses repo-wide (8 files): `cite/cite.go`, `cite/cite_test.go`, `internal/kit/actions2.go`, `internal/kit/kit.go`, `internal/kit/kit_test.go`, `internal/kit/next.go`, `internal/kit/vnet_test.go`, `internal/vm/guest_test.go`. No behaviour change: struct-tag alignment + one blank line; `internal/kit/kit.go` `shq` comment quote normalization only.
+- Measured on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-09: `gofmt -l .` → clean after sweep; `go test ./cite/` (separate module `github.com/Realms4239/cgo/cite`, run from `cite/`) → `ok 0.897s`; `go test ./internal/kit/ ./internal/vm/` → `ok`; `python tools/verify.py` 6 passed, 0 failed, 0 not run.
+- Unproven: this sweep is formatting-only; verifier re-run owns its promotion. Live rows (Linux live bench, eBPF live attach, IFB ingress acceptance, BBRv3 3x3, .dist, CHR, case study) stay **BLOCKED** — gates: Linux 6.8 build host probes (docs/runbooks/bpf-observer-gates.md §1), SSH console key install (`cgo/credentials/README.md`), WIS2 Q4/Q5 signatures + dissemination-scope (docs/runbooks/wis2-signoff.md). No new dependency, no live bench, no VM mutation, `book/` untouched.

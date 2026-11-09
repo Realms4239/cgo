@@ -243,21 +243,21 @@ func (r *Runner) Svc(c *Config, sub string) int {
 				return 5
 			}
 		}
-	for i := 0; i < 15; i++ {
-		time.Sleep(time.Second)
-		if c.Health() {
-			r.out("[svc] en ligne → %s", c.dashURL())
-			return 0
+		for i := 0; i < 15; i++ {
+			time.Sleep(time.Second)
+			if c.Health() {
+				r.out("[svc] en ligne → %s", c.dashURL())
+				return 0
+			}
 		}
-	}
-	// HTTP seul mais HTTPS muet = binaire pré-TLS (≤1.2.2) : seul un deploy
-	// soigne — « svc start » en boucle ne servira jamais (vu en prod : 1.1.0
-	// sain en HTTP, health HTTPS KO, opérateur en rond).
-	if httpOnlyUp(c) {
-		r.errf("[svc] dashboard HTTP seul (binaire pré-TLS ?) — remède : cgo kit deploy (pas un restart)")
-	}
-	r.errf("[svc] santé KO après 15 s — voir : cgo kit logs")
-	return 8
+		// HTTP seul mais HTTPS muet = binaire pré-TLS (≤1.2.2) : seul un deploy
+		// soigne — « svc start » en boucle ne servira jamais (vu en prod : 1.1.0
+		// sain en HTTP, health HTTPS KO, opérateur en rond).
+		if httpOnlyUp(c) {
+			r.errf("[svc] dashboard HTTP seul (binaire pré-TLS ?) — remède : cgo kit deploy (pas un restart)")
+		}
+		r.errf("[svc] santé KO après 15 s — voir : cgo kit logs")
+		return 8
 	case "restart":
 		if code := r.Svc(c, "stop"); code != 0 {
 			return code
@@ -278,7 +278,7 @@ func firstOr(s, def string) string {
 
 // httpOnlyUp — le dashboard répond en HTTP brut mais pas en HTTPS : binaire
 // pré-TLS. Diagnostic de remède uniquement (jamais une porte de santé —
-/// le HTTP ne prouve rien sur la voie HSTS des navigateurs).
+// / le HTTP ne prouve rien sur la voie HSTS des navigateurs).
 func httpOnlyUp(c *Config) bool {
 	port := c.DashPort
 	if port == "" {

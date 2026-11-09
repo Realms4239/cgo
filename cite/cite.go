@@ -8,9 +8,9 @@ import "strings"
 
 // AuditMeasured — miroir du sous-ensemble mesuré lu par la citation.
 type AuditMeasured struct {
-	Direction         string `json:"direction,omitempty"`
-	LoadMeasured      bool   `json:"load_measured,omitempty"`
-	LoadMeasuredDown  bool   `json:"load_measured_down,omitempty"`
+	Direction        string `json:"direction,omitempty"`
+	LoadMeasured     bool   `json:"load_measured,omitempty"`
+	LoadMeasuredDown bool   `json:"load_measured_down,omitempty"`
 }
 
 // AuditProvenance — le scellé transporté par la citation.
@@ -20,12 +20,12 @@ type AuditProvenance struct {
 
 // AuditReport — miroir des champs consommés par AuditCitation.
 type AuditReport struct {
-	AuditID    string         `json:"audit_id"`
-	Timestamp  string         `json:"timestamp,omitempty"`
-	Site       string         `json:"site,omitempty"`
-	LinkType   string         `json:"link_type,omitempty"`
-	Provider   string         `json:"provider,omitempty"`
-	Measured   AuditMeasured  `json:"measured"`
+	AuditID    string           `json:"audit_id"`
+	Timestamp  string           `json:"timestamp,omitempty"`
+	Site       string           `json:"site,omitempty"`
+	LinkType   string           `json:"link_type,omitempty"`
+	Provider   string           `json:"provider,omitempty"`
+	Measured   AuditMeasured    `json:"measured"`
 	Provenance *AuditProvenance `json:"provenance,omitempty"`
 }
 

@@ -31,13 +31,13 @@ func TestSameVM(t *testing.T) {
 func TestHypForPath(t *testing.T) {
 	for p, want := range map[string]string{
 		`D:\VMs\ubuntu Fanasina\ubuntu Fanasina.vbox`: "virtualbox",
-		`/home/u/VirtualBox VMs/x.vbox`:              "virtualbox",
-		`D:\ubuntu.vmx`:                              "vmware",
-		`./rel.vmx`:                                  "vmware",
-		`D:\x.VBOX`:                                  "virtualbox",
-		`D:\x.VMX`:                                   "vmware",
-		`D:\sans-ext`:                                "",
-		`D:\x.vmdk`:                                  "",
+		`/home/u/VirtualBox VMs/x.vbox`:               "virtualbox",
+		`D:\ubuntu.vmx`:                               "vmware",
+		`./rel.vmx`:                                   "vmware",
+		`D:\x.VBOX`:                                   "virtualbox",
+		`D:\x.VMX`:                                    "vmware",
+		`D:\sans-ext`:                                 "",
+		`D:\x.vmdk`:                                   "",
 	} {
 		if got := HypForPath(p); got != want {
 			t.Errorf("HypForPath(%q) = %q, want %q", p, got, want)

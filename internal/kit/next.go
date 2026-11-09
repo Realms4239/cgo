@@ -66,14 +66,14 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 		push(NextStep{ID: "vm", Label: "Verrouiller une VM", State: "ko",
 			Detail: "aucune VM verrouillée",
 			Remedy: "Suite : scan + verrouillage auto (1 seule) — cgo kit scan",
-			Verb: "bg:scan"})
+			Verb:   "bg:scan"})
 	default:
 		st, err := os.Stat(vpath)
 		if err != nil || st.IsDir() {
 			push(NextStep{ID: "vm", Label: "VM introuvable", State: "ko",
 				Detail: vpath + " n'existe plus",
 				Remedy: "Suite : re-scan + verrouillage auto — cgo kit scan",
-				Verb: "bg:scan"})
+				Verb:   "bg:scan"})
 			break
 		}
 		h, err := selectDriver(vm.Detect(), c.Hypervisor, vpath)
@@ -210,7 +210,7 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 			push(NextStep{ID: "svc", Label: "Kit local périmé", State: "ko",
 				Detail: "distant " + ver + " plus neuf qu'attendu " + wantVer + " (ne pas downgrader)",
 				Remedy: "update local : git pull + rebuild (jamais `cgo kit deploy` ici — downgrade)",
-				Verb: ""})
+				Verb:   ""})
 		} else {
 			push(NextStep{ID: "svc", Label: "Dashboard", State: "ok", Detail: "sain (version " + ver + ")"})
 		}

@@ -303,6 +303,7 @@ func (r *Runner) requireLockUser(tag string, c *Config) bool {
 	}
 	return true
 }
+
 // Factorisé de SaveVMX : keysetup y mémorise ssh_user après une pose réussie.
 func saveConfigValue(path, key, val string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -671,7 +672,7 @@ func (c *Config) SCP(local, remote string) error {
 // scpKey — clé résolue (~/ → home réel, SUDO_USER respecté).
 func (c *Config) scpKey() string { return expandKey(c.SSHKey) }
 
-// shq — quote shell POSIX d'un chemin distant : 'a'b → 'a'\''b'.
+// shq — quote shell POSIX d'un chemin distant : 'a'b → 'a'\”b'.
 // SANS ça, un espace (ou $ ; ` &) dans ProjectDir (dérivé du nom
 // d'utilisateur !) casse chaque commande ssh/scp distante en silence.
 func shq(s string) string {

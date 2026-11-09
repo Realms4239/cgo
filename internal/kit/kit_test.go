@@ -133,11 +133,11 @@ func TestLoadConfigFastNoResolve(t *testing.T) {
 // shell distant intact (vérifié en rejouant via sh -c sur le poste).
 func TestShq(t *testing.T) {
 	for in, want := range map[string]string{
-		"/home/u/cgo":        "'/home/u/cgo'",
-		"/home/a b/cgo":      "'/home/a b/cgo'",
-		"/home/o'b/x":        "'/home/o'\\''b/x'",
-		"/home/a$b/c;d`e/x":  "'/home/a$b/c;d`e/x'",
-		"":                   "''",
+		"/home/u/cgo":           "'/home/u/cgo'",
+		"/home/a b/cgo":         "'/home/a b/cgo'",
+		"/home/o'b/x":           "'/home/o'\\''b/x'",
+		"/home/a$b/c;d`e/x":     "'/home/a$b/c;d`e/x'",
+		"":                      "''",
 		"/tmp/cgo-backup-1.tgz": "'/tmp/cgo-backup-1.tgz'",
 	} {
 		if got := shq(in); got != want {
@@ -150,14 +150,14 @@ func TestShq(t *testing.T) {
 // touchent jamais au binaire).
 type fakeHyp struct{ name string }
 
-func (f *fakeHyp) Name() string                    { return f.name }
-func (f *fakeHyp) Exe() string                     { return "" }
-func (f *fakeHyp) Running() []string               { return nil }
-func (f *fakeHyp) Start(vmx string) error          { return nil }
-func (f *fakeHyp) StartGUI(vmx string) error       { return nil }
-func (f *fakeHyp) Stop(vmx string) error           { return nil }
-func (f *fakeHyp) GuestIP(vmx string) string       { return "" }
-func (f *fakeHyp) NetMode(vmx string) string       { return "" }
+func (f *fakeHyp) Name() string                      { return f.name }
+func (f *fakeHyp) Exe() string                       { return "" }
+func (f *fakeHyp) Running() []string                 { return nil }
+func (f *fakeHyp) Start(vmx string) error            { return nil }
+func (f *fakeHyp) StartGUI(vmx string) error         { return nil }
+func (f *fakeHyp) Stop(vmx string) error             { return nil }
+func (f *fakeHyp) GuestIP(vmx string) string         { return "" }
+func (f *fakeHyp) NetMode(vmx string) string         { return "" }
 func (f *fakeHyp) SetNetMode(vmx, mode string) error { return nil }
 
 // selectDriver — même bug racine, côté ensure/deploy : le .vbox obtient
@@ -274,6 +274,7 @@ func TestSelectDriver(t *testing.T) {
 		t.Fatalf("chemin ambigu + config vbox → virtualbox, got %v err %v", h, err)
 	}
 }
+
 // hypNameForScan — régression du bug racine : un .vbox reste virtualbox
 // même quand vmrun existe (primaire vmware). Le primaire ne sert que
 // pour les chemins sans extension connue.

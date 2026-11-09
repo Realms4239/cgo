@@ -9,12 +9,12 @@ const testSeal = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 func testReport() AuditReport {
 	return AuditReport{
-		AuditID:   "audit-1",
-		Timestamp: "2026-10-28T10:00:00Z",
-		Site:      "site-a",
-		LinkType:  "4g",
-		Provider:  "yas",
-		Measured:  AuditMeasured{Direction: "down"},
+		AuditID:    "audit-1",
+		Timestamp:  "2026-10-28T10:00:00Z",
+		Site:       "site-a",
+		LinkType:   "4g",
+		Provider:   "yas",
+		Measured:   AuditMeasured{Direction: "down"},
 		Provenance: &AuditProvenance{SourceSHA256: testSeal},
 	}
 }
