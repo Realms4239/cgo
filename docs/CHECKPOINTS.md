@@ -2507,3 +2507,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Live reprobe 2026-11-09 late (DESKTOP-B6K9UCM): `tailscale status` still shows `nemo 100.72.251.32` online/active; `VBoxManage showvminfo CGO-DEV-FRESH` still `VMState="running"` (`2026-11-09T17:45:34Z`), `Forwarding ssh 2222->22` present.
   - `ssh -i ~/.ssh/nemo_lab -p 2222 nemo@100.72.251.32 "uname -r; uname -m; whoami"` -> `Connection timed out during banner exchange`. Same as the +45/+90/+180s attempts: guest opens no banner (sshd not listening or blocked), not an auth failure.
 - Unblock remains the operator console step (`docs/runbooks/ssh-console-key.md` steps 1-3: power on PC2 is done, GUI console login, append `nemo_lab.pub` to `~/.ssh/authorized_keys`, 700/600, then `ssh ... "uname -r"` is probe H1). Until that lands, H1-H11 + Linux acceptance + live IFB/eBPF/BBRv3/dist/CHR stay BLOCKED. Nothing else is executable from this host while sshd is silent.
+
+
+## 2026-11-09 - Screenshot probe: no guest type available (Guest Additions absent), sshd silent
+
+- Branch/HEAD: `main` / `c7b1fa0`. Artifact wins.
+- Remote probe (`ssh Airis@100.72.251.32`, 2026-11-09):
+  - `VBoxManage guestproperty enumerate CGO-DEV-FRESH` -> only TRANSIENT HostGuest Sysprep/HostInfo/VBoxVer entries (VirtualBox 7.2.2); no `/VirtualBox/GuestInfo/OSRelease` or OS type -> guest additions never reported (GuestAdditionsRunLevel=0). A fully-booted Linux usually posts OSRelease; absent suggests the guest is not far enough into boot (still systemd/kernel, or guest additions missing).
+  - `VBoxManage controlvm CGO-DEV-FRESH screenshotpng C:/Users/Airis/cgo-shoot-1.png` -> exit 0 (file written on host, not yet inspected here - needs host-side read; host SSH `cat` of binary = messy, skip).
+- Interpretation: guest boot has not reached a state where sshd (if installed) listens. This is not an authorized_keys problem - there is no sshd to accept keys. The console step unblocks both answers (is sshd installed/enabled?).
+- Still BLOCKED: console key install + H1 probe. Nothing else ships from here.
