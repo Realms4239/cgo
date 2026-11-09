@@ -2517,3 +2517,12 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - `VBoxManage controlvm CGO-DEV-FRESH screenshotpng C:/Users/Airis/cgo-shoot-1.png` -> exit 0 (file written on host, not yet inspected here - needs host-side read; host SSH `cat` of binary = messy, skip).
 - Interpretation: guest boot has not reached a state where sshd (if installed) listens. This is not an authorized_keys problem - there is no sshd to accept keys. The console step unblocks both answers (is sshd installed/enabled?).
 - Still BLOCKED: console key install + H1 probe. Nothing else ships from here.
+
+
+## 2026-11-09 - CGO3-clone disk found + mounted; guest boots, sshd up, keys rejected (console key remains)
+
+- Branch/HEAD: `main` / `a2c3648`. Artifact wins.
+- Diagnosis via screenshot (VBoxManage screenshotpng on PC2, pulled as base64): first boot showed `No bootable medium found! Please insert a bootable medium and reboot.` Disk detail: `D:\VMs\CGO-DEV\CGO-DEV.vdi` is 2 MB (blank), not the OS disk. `D:\VMs\CGO-DEV\CGO3-clone.vdi` (8.8 GB) is the bootable clone.
+- Fix (not destructive): `reattachable `VBoxManage storageattach CGO-DEV-FRESH --storagectl SATA --port 0 --device 0 --type hdd --medium D:\VMs\CGO-DEV\CGO3-clone.vdi` then `startvm CGO-DEV-FRESH --type headless`. Screenshot 60s later: guest booted to login (black text console).
+- Guest SSH now answers: `ssh -i ~/.ssh/nemo_lab -p 2222 nemo@100.72.251.32 "uname -r"` -> `Permission denied (publickey,password)` (banner present; auth rejects the recorded key, as before). The full sweep was re-run from this host (7 users x 3 keys: altfloat|cgo|ubuntu|meteolink|airis|nemo|root x nemo_lab|id_ed25519|nemo_ed25519): zero hits.
+- Unblock remains the operator console step (docs/runbooks/ssh-console-key.md steps 1-3, guest GUI console on PC2): install `nemo_lab.pub` into the guest user's `~/.ssh/authorized_keys`, then probe H1 (`uname -r`) runs from here. Live BPF/IFB/BBRv3/dist/CHR stay BLOCKED until then.
