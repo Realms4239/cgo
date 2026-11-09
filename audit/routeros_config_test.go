@@ -43,7 +43,7 @@ func TestParseScriptDialect(t *testing.T) {
 }
 
 func TestParseExportDialect(t *testing.T) {
-	b, err := os.ReadFile("../../kit/chr/export-fixture.txt")
+	b, err := os.ReadFile("../kit/chr/export-fixture.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
