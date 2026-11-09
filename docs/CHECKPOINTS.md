@@ -2436,3 +2436,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Drafted `docs/runbooks/wis2-signoff.md` — the single human-signable artefact closing the Q1–Q7 research pass: §1 Q4 (centre-id entry or written non-registration), §2 Q5 (cap_ok_pct band table marked `PROVEN-a` for domains but `unverified` for any numeric mapping — no primary exists, so the bands are operator policy by necessity), §3 dissemination-scope (transport / data-policy / Internet stance). Nothing is implemented until the bracketed fields are signed; the doc states that up front.
 - Gates remaining after this form: (1) the operator signature on it, (2) the new-dep stop-and-ask for `github.com/eclipse/paho.golang` (Q7 PROVEN-a) before S1/S2, (3) Q4 outcome before S4.
 - No code, no dependency, no publication: `book/` untouched; **PANE ledgers unchanged.**
+
+
+## 2026-11-09 · eBPF approvals (a)+(b) GRANTED by human — gate pack ready to dispatch
+
+- Human granted **(a) the Linux 6.8 build host** and **(b) `github.com/cilium/ebpf v0.22.0`** (render UI choice, this session). Both are now recorded; the only remaining blocker is the named unblock condition per probe.
+- Build-host gate (docs/runbooks/bpf-observer-gates.md §1): probes H1–H11 must be re-run on the 6.8 host (uname 6.8/amd64, BTF + bpftool dump, clang-18 -target bpf, libbpf headers, make bpf && make bpf-check, readelf hooks, GPL-2.0 licence guard). No probe substitution; any failure = BLOCKED with owner + unblock condition.
+- Dep gate (§2): `go get github.com/cilium/ebpf@v0.22.0 && go mod tidy` once the object exists; `go list -m all` in the observer module must show stdlib + cilium/ebpf only (x/sys transitive) — zero metrics/audit/remediate/model imports.
+- Dispatch prompt (§4) is handed over to the builder next and is copy-paste ready. This builder records the approvals and stops here per AGENTS.md stop-and-ask; no code, no object, no loader in this entry.
