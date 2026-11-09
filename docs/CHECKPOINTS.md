@@ -2541,3 +2541,10 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Live probe just now (DESKTOP-B6K9UCM): `VBoxManage showvminfo CGO-DEV-FRESH` -> `VMState="running"`, `GuestOSType="Linux26_64"`, `GuestAdditionsRunLevel=2`, `GuestAdditionsVersion="7.2.2 r170484"` with Base Driver + System Service facilities. The guest is fully booted (not hanging).
   - SSH re-probe (users `cgo`, `nemo`, `ubuntu`, `root` x `nemo_lab`, port 2222): all `Permission denied (publickey,password)` - banner up, no recorded key accepted.
 - Everything executable from this host is done: repo `verify.py` 6/6 (87.0s), pushed. The single remaining unblock is the operator console step (docs/runbooks/ssh-console-key.md): GUI console on PC2 as `cgo` -> `mkdir -p ~/.ssh && echo '<nemo_lab.pub full line>' >> ~/.ssh/authorized_keys` + 700/600 -> then `ssh -i ~/.ssh/nemo_lab -p 2222 cgo@100.72.251.32 "uname -r"` is H1 and H1-H11 + `make bpf` + loader `Open`/`Check` follow.
+
+
+## 2026-11-09 - Recheck after "proceed": key still not installed, nothing else executable from here
+
+- Branch/HEAD: `main` / `83ee3ac`. Artifact wins.
+- Live reprobe 2026-11-09 20:42 UTC (DESKTOP-B6K9UCM): `ssh -i ~/.ssh/nemo_lab -p 2222` as `cgo`, `nemo`, `ubuntu`, `root` -> all `Permission denied (publickey,password)`. Unchanged from the 20:38 UTC check. (One attempt in this session was cancelled by the harness - interaction location shut down - and retried; the clean retry is the one quoted.)
+- No autonomous step remains: the guest console on PC2 is the only write path into the guest; `docs/runbooks/ssh-console-key.md` step 2 is the command. H1-H11, `make bpf`, loader `Open`/`Check`, Linux acceptance, IFB, BBRv3, `.dist`, CHR, case study stay BLOCKED per VERIFY.md.
