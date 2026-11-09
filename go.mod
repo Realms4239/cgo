@@ -59,4 +59,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/Realms4239/cgo/api => ./modules/api
+replace github.com/Realms4239/cgo/api => ./api
