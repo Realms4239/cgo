@@ -2290,3 +2290,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Move: `git mv modules/doctor doctor/` + root replace `=> ./doctor`. Leaf cutover: root `go mod edit -dropreplace` + `go mod tidy` — nobody requires `doctor` (standalone module, resolves vacuous).
 - Proven: `python tools/verify.py` → `6 passed, 0 failed` (tests 111.8s, frozen seal intact).
 - Unproven: verifier re-run (step 8). Next: `probe`, then `audit`, then `api` (matrix published so far: model/v0.1.1, metrics/v0.1.0, qdisc/v0.1.0, results/v0.1.0, figures/v0.1.0, cite/v0.1.0, exporter/v0.1.0, guard/v0.1.0, iface/v0.1.0, remediate/v0.1.0, attest/v0.1.0, doctor/v0.1.0).
+
+
+## 2026-11-09 · Probe cutover COMPLETE — `probe/v0.1.0`
+
+- Branch/HEAD: `main` / `8d3dc10` (refactor(probe) sibling-dir move) + `0d8058b` (docs link-gate repair). Previous entries below. Artifact wins.
+- Same two-commit recipe. Tag `probe/v0.1.0` annotated (GPG absent), post-move commit, pushed — pristine.
+- Move: `git mv` of the probe dir (now at the repo root, `<repo>/probe`); root replace `=> ./probe`; `audit`/`api` replaces `=> ../../probe`. Hygiene clean (probe/bpf ships `//go:build ignore` C source only, no `.o` tracked). Docs link-gate repairs: two nested-location tokens in historical CHECKPOINTS entries → `<repo>/probe` (wording preserved).
+- Cutover: root `go mod edit -dropreplace` + `audit`/`api` replaces dropped, `go mod tidy`. Quoted (`go list -m github.com/Realms4239/cgo/probe`, 2026-11-09, host DESKTOP-B6K9UCM): audit downloads and resolves `probe v0.1.0`, api resolves `probe v0.1.0`, both NO replace.
+- Proven: root `python tools/verify.py` → `6 passed, 0 failed` (tests 80.5s, frozen seal intact).
+- Unproven: verifier re-run (step 8). Next: `audit` (depends probe ✓ + remediate ✓ + metrics ✓ + model ✓), then `api` (depends audit + figures ✓ + metrics ✓ + model ✓ + probe ✓ + remediate ✓).

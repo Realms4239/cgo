@@ -12,7 +12,4 @@ require (
 	github.com/Realms4239/cgo/results v0.1.0
 )
 
-replace (
-	github.com/Realms4239/cgo/audit => ../audit
-	github.com/Realms4239/cgo/probe => ../../probe
-)
+replace github.com/Realms4239/cgo/audit => ../audit
