@@ -132,7 +132,7 @@ Branch: `openchamber/operator-cockpit` at `a0b19a4` (`fix(api): constant-time + 
 | Frontend tests | `npm test` (web/frontend) | exit 0, 68 files / 321 tests |
 | Frontend build | `npm run build` | exit 0, TOTAL gz 357.6 KB |
 
-Parity/honesty: absent ≠ fake zero (only `*_measured` flags + `cgo_iface_valid` emitted; `TestMetrics_AbsentIsNotZero` byte-identical in `pkg/api` and `modules/api`); citation `""` without seal (`cite` package, at `cite/cite.go` — moved from nested `modules/<name>` on 2026-11-09); no green without load (`AssessVerdict` gated on grade A+/A/B); auth 401 with `Bearer`; nginx `limit_req_status 429`; `CGO_probe_dead` live with `cgo_audit_load_measured_total` emitted in both trees; digest pin `@sha256:${CGO_IMAGE_DIGEST:?...}` (was `:latest`).
+Parity/honesty: absent ≠ fake zero (only `*_measured` flags + `cgo_iface_valid` emitted; `TestMetrics_AbsentIsNotZero` byte-identical in `pkg/api` and `api`); citation `""` without seal (`cite` package, at `cite/cite.go` — moved from nested `<name>` on 2026-11-09); no green without load (`AssessVerdict` gated on grade A+/A/B); auth 401 with `Bearer`; nginx `limit_req_status 429`; `CGO_probe_dead` live with `cgo_audit_load_measured_total` emitted in both trees; digest pin `@sha256:${CGO_IMAGE_DIGEST:?...}` (was `:latest`).
 
 Rows: VERIFY row 83 (Slice 29 builder pass) stays **PENDING** per the transcribed signature block — the verifier verified the commands at `a0b19a4` and left row promotion to the verifier-owned disposition; builder made no promotion. History not rewritten.
 Screenshots checked: N — no screenshot claimed for this slice.
@@ -174,9 +174,9 @@ Branch: `main` at `a12e7e5` (`docs: prove stress-test main@00f5c56 with explicit
 | E5 quick | `go test ./pkg/campagne -run TestSkipJournalsViaHook -count=5` | exit 0 |
 | Frontend | `npm test` / `npm run build` | 68 files / 321 tests PASS; `TOTAL gz 357.6 KB` (12.78s) |
 
-Parity/honesty: absent ≠ fake zero (only `*_measured` + `cgo_iface_valid`; `TestMetrics_AbsentIsNotZero`); citation `""` without seal (`cite` package — moved from nested `modules/<name>` on 2026-11-09); auth 401 `Bearer` + `subtle.ConstantTimeCompare` + `IsLoopback` (`pkg/api/auth.go`, `guard` package — moved from nested `modules/<name>` on 2026-11-09). No frozen-corpus change (`git diff fa77201..HEAD -- book/` empty). No new Go dep (`git diff fa77201..HEAD -- go.mod go.sum` empty).
+Parity/honesty: absent ≠ fake zero (only `*_measured` + `cgo_iface_valid`; `TestMetrics_AbsentIsNotZero`); citation `""` without seal (`cite` package — moved from nested `<name>` on 2026-11-09); auth 401 `Bearer` + `subtle.ConstantTimeCompare` + `IsLoopback` (`pkg/api/auth.go`, `guard` package — moved from nested `<name>` on 2026-11-09). No frozen-corpus change (`git diff fa77201..HEAD -- book/` empty). No new Go dep (`git diff fa77201..HEAD -- go.mod go.sum` empty).
 
 Rows: VERIFY rows 83 (slice 29) and 85 (slice 30) still **PENDING** per this signature — verifier re-ran at `a12e7e5`, builder promoted nothing. History not rewritten.
 Screenshots checked: N — no screenshot claimed.
-Residuals accepted: Y — generated data under the `modules/api` directory removed, tree clean; SSE load-flake pre-existing, single PASS.
+Residuals accepted: Y — generated data under the `api` directory removed, tree clean; SSE load-flake pre-existing, single PASS.
 Signature: independently verified at 2026-11-08 08:50 UTC — re-ran verify.py 6/6, TestMetrics ×5, three per-module suites, npm 321 tests and build 357.6 KB at HEAD a12e7e5, confirmed rows 83/85 PENDING, no frozen-corpus or Go-dep change, and the CGO-DEV BLOCKED record with its E8 console-key condition.
