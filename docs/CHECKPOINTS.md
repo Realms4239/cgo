@@ -2476,3 +2476,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Quoted (`gh run list --repo Realms4239/cgo-bpf-observer`, 2026-11-09): `completed success ci v0.1.0 push 42656401288 23s`. Repo: https://github.com/Realms4239/cgo-bpf-observer (public, v0.1.0).
 - Structure (module `github.com/Realms4239/cgo-bpf-observer`, `go 1.25`): repo-internal bpf types/errors/status/assets copied pure-Go from `pkg/probe/bpf/` [Note: internal/ in design] + `session_stub.go` (build tag !linux || !amd64, Open/Check/Lookup/Snapshot/Globals/Attach/Close returning typed UnavailableError, honest, never ebpf without object+caps) + README + CI (stub cross GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go vet/build). Verified locally before push: stub vet + build exit 0; CI green 23s. No new Go dependency yet - cilium/ebpf v0.22.0 is imported only by the future Linux loader file, deliberately not present in the stub tree.
 - Unproven: H1-H11 probes on the CGO-DEV VM still BLOCKED (SSH console key pending - docs/runbooks/ssh-console-key.md); first capture + Check()/doctor on 6.8 pending; book/ untouched.
+
+
+## 2026-11-09 - End-state audit, all PC2-free work closed (tree green, everything else BLOCKED on PC2)
+
+- Branch/HEAD: `main` / `25f266d`. Previous entry said `main/80eeac8`; HEAD is now `25f266d` (observer scaffold). Artifact wins. Tree clean.
+- Measured on DESKTOP-B6K9UCM, 2026-11-09: `python tools/verify.py` 6 passed, 0 failed, 0 not run. No local edits pending (`git status --porcelain` empty).
+- Inventory of the BLOCKED set (all named conditions in VERIFY.md, none clearable from this host):
+  - Linux live acceptance G0-G7 + IFB Task 9, PC2 bench access: CGO-DEV-FRESH console key (docs/runbooks/ssh-console-key.md) needs PC2 online (tailscale offline 2026-11-09) + VM boot + authorized_keys install.
+  - eBPF: loader + first capture need Linux 6.8 host probes H1-H11 then `make bpf` (clang-18/bpftool/BTF) - gate pack APPROVED (a)+(b), stub repo live (cgo-bpf-observer v0.1.0 CI green), loader is the next commit once H1-H11 pass.
+  - BBRv3 3x3: 7.1 kernel. .dist: 30-sample field trace. CHR: QEMU + CHR image. Case study: operator grant a-d. WIS2: Q4/Q5/scope signatures (wis2-signoff.md).
+- No code, no dependency, no live bench, no VM mutation, `book/` untouched. Nothing further ships until PC2 is online.
