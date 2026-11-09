@@ -2585,3 +2585,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - `ssh -i ~/.ssh/nemo_lab -p 2222 cgo@100.72.251.32 "uname -r"` -> `Permission denied (publickey,password)` (22:19 UTC).
 - Gates re-run from this host, 2026-11-09 22:21 UTC: `python tools/verify.py` 6 passed, 0 failed, 0 not run (frozen seal 159 manifests holds). Tree clean (`git status --porcelain` empty).
 - The single unblock is still the operator console step (`cgo/ credentials/README.md` + `docs/runbooks/ssh-console-key.md`): install `nemo_lab.pub` into `~/.ssh/authorized_keys` as user `cgo`, then H1-H11 chain proceeds from here. No remote-write path exists; no hardware input can be substituted.
+
+
+## 2026-11-09 - Recheck after "proceed": key still not installed (22:25 UTC), nothing else executable remotely
+
+- Branch/HEAD: `main` / `d0c36c4`. Artifact wins.
+- Live probe 22:25 UTC: `ssh -i ~/.ssh/nemo_lab -p 2222` for `cgo`, `nemo`, `ubuntu`, `root` -> all `Permission denied (publickey,password)`. Host probe unchanged: `VMState="running"`, Additions loaded. Console prompt (screenshot, 22:19 UTC) still shows `cgo login:`.
+- Everything else in the chain stays blocked behind the operator console key install (`docs/runbooks/ssh-console-key.md` steps 1-3, user `cgo`). No remote write path exists; no prior attempt installed it (all keys rejected since 2026-11-08).
+- No code, no live bench, no VM mutation, `book/` untouched. If the key lands, H1-H11 + `make bpf` run next.
