@@ -2300,3 +2300,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Cutover: root `go mod edit -dropreplace` + `audit`/`api` replaces dropped, `go mod tidy`. Quoted (`go list -m github.com/Realms4239/cgo/probe`, 2026-11-09, host DESKTOP-B6K9UCM): audit downloads and resolves `probe v0.1.0`, api resolves `probe v0.1.0`, both NO replace.
 - Proven: root `python tools/verify.py` → `6 passed, 0 failed` (tests 80.5s, frozen seal intact).
 - Unproven: verifier re-run (step 8). Next: `audit` (depends probe ✓ + remediate ✓ + metrics ✓ + model ✓), then `api` (depends audit + figures ✓ + metrics ✓ + model ✓ + probe ✓ + remediate ✓).
+
+
+## 2026-11-09 · Audit cutover COMPLETE — `audit/v0.1.0` (published, one fixture-path fix)
+
+- Branch/HEAD: `main` / `809863d` (`refactor(audit): move modules/audit to audit/`), cutover commit immediately next. Earlier checkpoints below. Artifact wins.
+- Same two-commit recipe. Tag `audit/v0.1.0` annotated (GPG absent), post-move commit, pushed — pristine.
+- Move: `git mv modules/audit audit/`; root replace `=> ./audit`; `api` replace `=> ../../audit`. One code fix inside the move commit: `audit/routeros_config_test.go` fixture path `../../kit/chr/export-fixture.txt` → `../kit/chr/export-fixture.txt` (relative to module dir at repo root now). Hygiene clean.
+- Cutover: root `go mod edit -dropreplace` + `api` replace dropped + `go mod tidy`. Quoted (`go list -m github.com/Realms4239/cgo/audit`, 2026-11-09, DESKTOP-B6K9UCM): api resolves `audit v0.1.0` (downloaded), NO replace.
+- Proven: root `python tools/verify.py` → `6 passed, 0 failed` (tests 78.0s, frozen seal intact; audit's own suite 189s at new location).
+- Unproven: verifier re-run (step 8). Last module: `api`.
