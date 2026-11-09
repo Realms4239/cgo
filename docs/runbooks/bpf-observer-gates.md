@@ -1,9 +1,10 @@
-# Runbook — eBPF observer kernel gates (`cgo-bpf-observer`) — DESIGN DIFFÉRÉ
+# Runbook — eBPF observer kernel gates (`cgo-bpf-observer`) — APPROVED (a)+(b) 2026-11-09
 
-> **État : DEFERRED.** Gate pack only — no code, no loader, no eBPF object
-> built here. Slice 2 (object + loader) starts only after **both** human
-> approvals below are written: (1) the Linux 6.8 build-host gate,
-> (2) the new-dependency approval for `github.com/cilium/ebpf`.
+> **État : APPROVED (a)+(b) 2026-11-09 — probes + object + loader pending.**
+> Gate pack only in this document — no code, no loader, no eBPF object
+> built here. Human granted (1) the Linux 6.8 build host and
+> (2) `github.com/cilium/ebpf v0.22.0` (2026-11-09, render choice);
+> Slices 2+ dispatch on the probes in §1 below.
 >
 > Contexte : `docs/runbooks/bpf-observer.md` (design, DEFERRED),
 > `docs/superpowers/specs/2026-11-08-cgo-supplychain-gaps-design.md` §8
