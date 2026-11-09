@@ -2452,3 +2452,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Changed: `gofmt -w` over the only `gofmt -l .` misses repo-wide (8 files): `cite/cite.go`, `cite/cite_test.go`, `internal/kit/actions2.go`, `internal/kit/kit.go`, `internal/kit/kit_test.go`, `internal/kit/next.go`, `internal/kit/vnet_test.go`, `internal/vm/guest_test.go`. No behaviour change: struct-tag alignment + one blank line; `internal/kit/kit.go` `shq` comment quote normalization only.
 - Measured on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-09: `gofmt -l .` → clean after sweep; `go test ./cite/` (separate module `github.com/Realms4239/cgo/cite`, run from `cite/`) → `ok 0.897s`; `go test ./internal/kit/ ./internal/vm/` → `ok`; `python tools/verify.py` 6 passed, 0 failed, 0 not run.
 - Unproven: this sweep is formatting-only; verifier re-run owns its promotion. Live rows (Linux live bench, eBPF live attach, IFB ingress acceptance, BBRv3 3x3, .dist, CHR, case study) stay **BLOCKED** — gates: Linux 6.8 build host probes (docs/runbooks/bpf-observer-gates.md §1), SSH console key install (`cgo/credentials/README.md`), WIS2 Q4/Q5 signatures + dissemination-scope (docs/runbooks/wis2-signoff.md). No new dependency, no live bench, no VM mutation, `book/` untouched.
+
+
+## 2026-11-09 · SSH key install guide ready (operator console task; nemo offline)
+
+- Branch/HEAD: `main` / `87d6e84`. Previous entry cited `main/b0c4f8f`-`87d6e84`; HEAD is now `87d6e84` + guide. Artifact wins.
+- Drafted `docs/runbooks/ssh-key-install.md`: 3-step console install of `nemo_lab.pub` on CGO-DEV-FRESH guest (idempotent grep-guard), verify `ssh -i ~/.ssh/nemo_lab -p 2222 ... "uname -r"` (probe H1), record procedure. Public key only — private keys stay in `~/.ssh/`.
+- Live probe this session (DESKTOP-B6K9UCM, 2026-11-09): `tailscale status` → nemo `100.72.251.32` offline; `tailscale ping -c 2` → timeout, no reply. Guest SSH unreachable until the host is powered on and `CGO-DEV-FRESH` started from its console — this guide is the unblock path, not a workaround.
+- Unproven: guest `authorized_keys` still lacks the recorded key; H1–H11 + Linux acceptance + live IFB/eBPF/BBRv3/dist/CHR still **BLOCKED**. `book/` untouched; no live bench; no VM mutation from this host.
