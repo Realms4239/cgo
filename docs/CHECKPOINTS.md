@@ -2526,3 +2526,10 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Fix (not destructive): `reattachable `VBoxManage storageattach CGO-DEV-FRESH --storagectl SATA --port 0 --device 0 --type hdd --medium D:\VMs\CGO-DEV\CGO3-clone.vdi` then `startvm CGO-DEV-FRESH --type headless`. Screenshot 60s later: guest booted to login (black text console).
 - Guest SSH now answers: `ssh -i ~/.ssh/nemo_lab -p 2222 nemo@100.72.251.32 "uname -r"` -> `Permission denied (publickey,password)` (banner present; auth rejects the recorded key, as before). The full sweep was re-run from this host (7 users x 3 keys: altfloat|cgo|ubuntu|meteolink|airis|nemo|root x nemo_lab|id_ed25519|nemo_ed25519): zero hits.
 - Unblock remains the operator console step (docs/runbooks/ssh-console-key.md steps 1-3, guest GUI console on PC2): install `nemo_lab.pub` into the guest user's `~/.ssh/authorized_keys`, then probe H1 (`uname -r`) runs from here. Live BPF/IFB/BBRv3/dist/CHR stay BLOCKED until then.
+
+
+## 2026-11-09 - Guest reaches login (cgo tty1); key still not accepted - console install is the unblock
+
+- Screenshot proof (VBoxManage screenshotpng, pulled as base64, this host): guest console shows `Ubuntu 24.04.4 LTS cgo tty1` and `cgo login: _`. Earlier "hangs at boot" was boot-in-progress (the +60s screenshot was still black; the +330s one shows the prompt). User answered "Console not showing a login (guest hangs at boot)" + "can you install it yourself" - I cannot: SSH accepts no recorded key, and the console is operator-only. No remote install path exists.
+- Live retry just now: `ssh -i ~/.ssh/nemo_lab -p 2222 cgo@100.72.251.32 "uname -r; uname -m; whoami"` -> `Permission denied (publickey,password)` (banner present). Same for all 21 recorded pairs (sweep 2026-11-09). The guest user is `cgo` (from the login prompt) - sweep already covered it; the blocker is authorized_keys, not the username.
+- Next human step (PC2 GUI, guest user `cgo`): paste the console cmd from docs/runbooks/ssh-console-key.md, then H1 runs from here. No VM mutation from here remains possible.
