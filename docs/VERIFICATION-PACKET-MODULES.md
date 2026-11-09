@@ -21,7 +21,7 @@ git log --oneline -1   # attendu : le HEAD publié de main
 ```bash
 for m in model metrics qdisc results figures cite exporter guard iface \
           remediate attest doctor probe audit api; do
-  go list -m github.com/Realms4239/cgo/$m 2>&1 | grep -E '^(github.com/Realms4239/cgo/\S+ v0\.1\.(0|1))$'
+  go list -m github.com/Realms4239/cgo/$m@latest 2>&1 | grep -E '^(github.com/Realms4239/cgo/\S+ v0\.1\.(0|1))$'
 done
 ```
 
