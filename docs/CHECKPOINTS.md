@@ -2574,3 +2574,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Disposition: every command in all three packets passes with the expected output at HEAD `2786ccb`. Rows 83, 85, and 87–101 stay `VERIFIED` (re-confirmed, not re-promoted, not duplicated). Hygiene is 1026 tracked files (was 1023 at the prior pass; +3 docs-only guides/observer scaffold, no product change).
 - Unproven/blocked (unchanged): live audit/campaign/bench/CHR/BBR/`.dist`/WIS/Mosquitto/eBPF acceptance; GitHub-provided SLSA provenance remains 404 (sign-blob is the verified chain).
 - Next: human decides commit/merge of this verifier entry; PC2 console-key install remains the only unblock for H1–H11.
+
+
+## 2026-11-09 - Night-probe re-check (22:21 UTC): guest still at cgo login, key still not installed
+
+- Branch/HEAD: `main` / `4a6bf7b`. Artifact wins.
+- Live probe (22:19 UTC): tailscale `nemo 100.72.251.32` idle/online; host SSH (`nemo_lab`) OK.
+  - `VBoxManage showvminfo CGO-DEV-FRESH` -> `VMState="running"`, `GuestAdditionsRunLevel=2`, `GuestAdditionsVersion="7.2.2 r170484"`.
+  - Guest-console screenshot (`VBoxManage screenshotpng` -> base64 -> local): still `Ubuntu 24.04.4 LTS cgo tty1` / `cgo login:` (prompt unchanged since 18:32 UTC run start).
+  - `ssh -i ~/.ssh/nemo_lab -p 2222 cgo@100.72.251.32 "uname -r"` -> `Permission denied (publickey,password)` (22:19 UTC).
+- Gates re-run from this host, 2026-11-09 22:21 UTC: `python tools/verify.py` 6 passed, 0 failed, 0 not run (frozen seal 159 manifests holds). Tree clean (`git status --porcelain` empty).
+- The single unblock is still the operator console step (`cgo/ credentials/README.md` + `docs/runbooks/ssh-console-key.md`): install `nemo_lab.pub` into `~/.ssh/authorized_keys` as user `cgo`, then H1-H11 chain proceeds from here. No remote-write path exists; no hardware input can be substituted.
