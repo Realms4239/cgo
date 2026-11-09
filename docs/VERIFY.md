@@ -174,7 +174,7 @@ Branch: `main` at `a12e7e5` (`docs: prove stress-test main@00f5c56 with explicit
 | E5 quick | `go test ./pkg/campagne -run TestSkipJournalsViaHook -count=5` | exit 0 |
 | Frontend | `npm test` / `npm run build` | 68 files / 321 tests PASS; `TOTAL gz 357.6 KB` (12.78s) |
 
-Parity/honesty: absent ≠ fake zero (only `*_measured` + `cgo_iface_valid`; `TestMetrics_AbsentIsNotZero`); citation `""` without seal (`cite` package — moved from nested `modules/<name>` on 2026-11-09); auth 401 `Bearer` + `subtle.ConstantTimeCompare` + `IsLoopback` (`pkg/api/auth.go`, `modules/guard`). No frozen-corpus change (`git diff fa77201..HEAD -- book/` empty). No new Go dep (`git diff fa77201..HEAD -- go.mod go.sum` empty).
+Parity/honesty: absent ≠ fake zero (only `*_measured` + `cgo_iface_valid`; `TestMetrics_AbsentIsNotZero`); citation `""` without seal (`cite` package — moved from nested `modules/<name>` on 2026-11-09); auth 401 `Bearer` + `subtle.ConstantTimeCompare` + `IsLoopback` (`pkg/api/auth.go`, `guard` package — moved from nested `modules/<name>` on 2026-11-09). No frozen-corpus change (`git diff fa77201..HEAD -- book/` empty). No new Go dep (`git diff fa77201..HEAD -- go.mod go.sum` empty).
 
 Rows: VERIFY rows 83 (slice 29) and 85 (slice 30) still **PENDING** per this signature — verifier re-ran at `a12e7e5`, builder promoted nothing. History not rewritten.
 Screenshots checked: N — no screenshot claimed.

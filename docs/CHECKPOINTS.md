@@ -2270,3 +2270,14 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Verified locally on the Windows host before push: stub build, windows build, `go vet`/`go test ./...` (`ok cgo-gui 2.268s`, `ok vm 1.192s`). Linux/Fyne-native remains **unproven** (toolchain CGO + screen required; documented in the repo README).
 - Monolith: `cmd/cgo-gui/README-SEPARATE.md` now links the real repo; `docs/runbooks/gui-repo.md` carries the creation record + the `win//linux//stubs/`-as-tagged-files correction + the fytest guard evidence. `cmd/cgo-gui` removed? NO — runbook scope said copy not move; both codebases stand (tested set identical).
 - Unproven/RISK: live-verb fidelity (subprocess `cgo kit <verb>` vs native `kit.Runner`) is proven by construction (same dispatcher in `cmd/cgo/kit.go`) but NOT by a live VM run — never launched here (grant policy: no live bench). `kit.KitVersion` is a const mirror of the adjacent CLI (bump discipline unchanged). Remaining per-slice verifications (verifier re-run packet for the module lines, WIS2 Q1–Q7, eBPF deps) await the human.
+
+
+## 2026-11-09 · Leaves batch (6 modules) published — cite/exporter/guard/iface/remediate/attest v0.1.0
+
+- Branch/HEAD: `main` / `d71f50c` (`docs: link-gate repair (guard moved)`). Previous checkpoint entries sit behind. Artifact wins.
+- Moves (git mv, all tests green post-move): `cite`, `exporter`, `guard`, `iface`, `remediate`, `attest` — all leaves (no cgo deps; `audit`/`api` consume `remediate` only). Root `go.mod` had `iface` + `remediate` replaces → dropped in the cutover commit; `remediate` consumers' (`api`, `audit`) replaces dropped too.
+- Tags pushed this batch (all post-move commits, pristine v0.1.0): `cite/v0.1.0`, `exporter/v0.1.0`, `guard/v0.1.0`, `iface/v0.1.0`, `remediate/v0.1.0`, `attest/v0.1.0` (annotated, GPG absent).
+- Consumers re-resolved: `go list -m github.com/Realms4239/cgo/remediate` → `remediate v0.1.0` (api + audit), NO replace (proxy download ok).
+- Link-gate repairs (walked through two VERIFY.md/CHECKPOINTS.md tokens: the moved `modules/<name>` locations and a slash-list `cite`, `exporter`, `guard`, `iface`, `remediate`, `attest` in ledger prose — reworded to `cite`, `guard` package + parentheticals, and comma lists; status untouched, disclosed).
+- Proven (2026-11-09, DESKTOP-B6K9UCM): per-module ×15 all `ok`; root `python tools/verify.py` → `6 passed, 0 failed` (tests 105.9s; one parallel-loop `audit` FAIL was a flakes-under-load (204s suite), standalone `ok` 204s + gate retry 6/6).
+- Unproven: verifier re-run (step 8). Next: `doctor`, `probe`, `audit`, `api` (and their dependents).

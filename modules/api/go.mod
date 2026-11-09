@@ -15,5 +15,4 @@ require (
 replace (
 	github.com/Realms4239/cgo/audit => ../audit
 	github.com/Realms4239/cgo/probe => ../probe
-	github.com/Realms4239/cgo/remediate => ../remediate
 )
