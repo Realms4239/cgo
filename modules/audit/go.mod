@@ -9,4 +9,4 @@ require (
 	github.com/Realms4239/cgo/remediate v0.1.0
 )
 
-replace github.com/Realms4239/cgo/probe => ../probe
+replace github.com/Realms4239/cgo/probe => ../../probe

@@ -62,5 +62,5 @@ require (
 replace (
 	github.com/Realms4239/cgo/api => ./modules/api
 	github.com/Realms4239/cgo/audit => ./modules/audit
-	github.com/Realms4239/cgo/probe => ./modules/probe
+	github.com/Realms4239/cgo/probe => ./probe
 )
