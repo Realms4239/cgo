@@ -9,6 +9,7 @@ import (
 	"runtime"
 
 	"github.com/Realms4239/cgo/audit"
+	"github.com/Realms4239/cgo/results"
 )
 
 type reportFile struct {
@@ -36,7 +37,7 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 		return 2
 	}
 	if outDir == "" {
-		outDir = filepath.Join("data", "chr", rep.AuditID)
+		outDir = filepath.Join(results.DataRoot(), "chr", rep.AuditID)
 	}
 	script := rep.Remediation.RouterOS + "\n" + rep.Remediation.RouterOSIngress
 	expected := audit.ParseRouterOSConfig(script)

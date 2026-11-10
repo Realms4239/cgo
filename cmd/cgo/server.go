@@ -225,9 +225,9 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		var m *campagne.Matrix
 		var err error
 		if o.RunID != "" {
-			m, err = campagne.StartMatrixFilteredWithID(ctx, o.RunID, o.Profiles, qdiscs, ccs, o.Reps, deps, "data/runs")
+			m, err = campagne.StartMatrixFilteredWithID(ctx, o.RunID, o.Profiles, qdiscs, ccs, o.Reps, deps, results.RunsRoot())
 		} else {
-			m, err = campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, deps, "data/runs")
+			m, err = campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, deps, results.RunsRoot())
 		}
 		if err != nil {
 			return err
@@ -253,7 +253,7 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 				depsDown.OnSnap = deps.OnSnap
 				depsDown.Bench = deps.Bench
 				depsDown.ChannelModel = deps.ChannelModel
-				if m2, err := campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, depsDown, "data/runs"); err == nil {
+				if m2, err := campagne.StartMatrixFiltered(ctx, o.Profiles, qdiscs, ccs, o.Reps, depsDown, results.RunsRoot()); err == nil {
 					setMtx(m2)
 				}
 			}(m)

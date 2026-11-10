@@ -8,6 +8,7 @@ import (
 
 	"github.com/Realms4239/cgo/probe"
 	"github.com/Realms4239/cgo/qdisc"
+	"github.com/Realms4239/cgo/results"
 )
 
 // ProdDeps retourne les dépendances de production du runner campagne,
@@ -62,7 +63,7 @@ func prodDeps(direction string) Deps {
 		BulkAddr:       bulk,
 		Direction:      direction,
 		DelayModel:     env("CGO_DELAY_MODEL", "scalar"),
-		CalibrationDir: env("CGO_CALIBRATION_DIR", filepath.Join("data", "calibrations")),
+		CalibrationDir: env("CGO_CALIBRATION_DIR", filepath.Join(results.DataRoot(), "calibrations")),
 		// Optional shortened windows for stress runs; zero keeps the thesis
 		// defaults (30/120/30). Never set in the frozen campaign environment.
 		BaselineSec: envInt("CGO_BASELINE_SEC", 0),

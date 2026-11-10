@@ -2751,3 +2751,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - **B6 — pré-existant, hors scope** (nommé) : Win32 demande confirmation avant `bg:nic-toggle`/`bg:vmoff` (`askYes`), Fyne ne demande rien — divergence d'interface, pas de parité. Ne pas corriger sans décision de conception.
 - **Non prouvé** : compilation Fyne; parité du comportement Fyne de la Suite sous Linux réel; les edits Fyne sont l'image Win32 par construction (mêmes helpers), pas par preuve.
 - Mesuré : `go vet ./cmd/cgo-gui/` vert; `go test ./cmd/cgo-gui/` vert (parité incluse); `python tools/verify.py` 6/6 + liens.
+
+
+## 2026-11-10 - Deepwork Phase 3 : la racine du corpus a UN propriétaire (CGO_DATA_DIR)
+
+- Candidat **4** (revue 2026-11-10) — « data/runs » était un littéral cwd-relatif, écrit 29×, qu'aucun déploiement n'épinglait : systemd cherchait sous / ; l'image scratch n'avait ni WORKDIR ni volume.
+- **`results/corpus.go`** (nouveau, tag `results/v0.1.2` publié) : `DataRoot()` (env `CGO_DATA_DIR`, défaut relatif « data », whitespace-only = défaut), `RunsRoot()/FiguresRoot()/LinkAuditCSV()` dérivés. Les tests `corpus_test.go` épinglent les trois (env pinned, défaut, whitespace).
+- **Tous les lecteurs passent par la racine** : api (`Scan`, globs, figures regenerate, `/api/figures/` fileserver, `ReadAQM`, quarantine, run/rows, compare/integrity/SHA), audit (artifacts ArtifactFile via `DataDir()` — la constante published `DefaultDataDir` intacte; `CGO_DATA_DIR` si définie, sinon défaut), cmd/cgo (`figures` pkg, verifyManifests, `--data`, server.go, tui_audit audits, `cmd/cgo-chr`), campagne (dualns/prod CGO_CALIBRATION_DIR sous DataRoot()).
+- **Défaut inchangé pour les checkouts** : sans `CGO_DATA_DIR`, tout fonctionne comme avant (« data/... » relatif) — aucune migration forcée.
+- **Publiés avant la renumérotation des tags** : `results/v0.1.2`. **`audit/v0.1.1` suit** (DataDir + bounds) — ordre bootstrap publié : commit d'abord, tag ensuite.
+- Mesuré : racine vet + tests verts, `python tools/verify.py` **6/6** après `go mod tidy`.

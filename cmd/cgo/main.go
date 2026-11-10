@@ -31,6 +31,7 @@ import (
 	"github.com/Realms4239/cgo/internal/kit"
 	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/remediate"
+	"github.com/Realms4239/cgo/results"
 )
 
 // version — overridden at release time: -X main.version={{.Version}}.
@@ -120,13 +121,13 @@ WantedBy=multi-user.target
 		fmt.Println("service: /etc/systemd/system/meteolink.service écrit — puis:")
 		fmt.Println("  systemctl daemon-reload && systemctl enable --now meteolink")
 	case "figures":
-		if err := figures.Generate("data/runs", "data/figures"); err != nil {
+		if err := figures.Generate(results.RunsRoot(), results.FiguresRoot()); err != nil {
 			fmt.Fprintln(os.Stderr, "figures:", err)
 			os.Exit(1)
 		}
 		fmt.Println("figures générées dans data/figures")
 	case "verify":
-		ok, err := verifyManifests("data/runs")
+		ok, err := verifyManifests(results.RunsRoot())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "verify:", err)
 			os.Exit(1)
@@ -249,7 +250,7 @@ WantedBy=multi-user.target
 			fmt.Fprintln(os.Stderr, "audit telemetry seal:", err)
 			os.Exit(1)
 		}
-		if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
+		if err := rep.SealSource(filepath.Join(results.DataRoot(), "link_audit.csv")); err != nil {
 			fmt.Fprintln(os.Stderr, "audit report seal:", err)
 			os.Exit(1)
 		}
@@ -300,7 +301,7 @@ WantedBy=multi-user.target
 		flows := fs.Int("flows", 4, "flux de charge concurrents (1–8 ; 1 = régime historique gelé)")
 		deadline := fs.Int("deadline", 1000, "objectif small p95 en ms (200–5000)")
 		target := fs.String("target", "1.1.1.1", "cible de mesure")
-		dataDir := fs.String("data", "data/runs", "répertoire des runs gelés")
+		dataDir := fs.String("data", results.RunsRoot(), "répertoire des runs gelés")
 		runID := fs.String("run-id", "", "reprendre ce run (cellules déjà gelées sautées)")
 		bench := fs.String("bench", "", "banc : legacy (reproduction corpus) | dualns (production, défaut CGO_BENCH)")
 		channelModel := fs.String("channel-model", envDefault("CGO_CHANNEL_MODEL", "clean"), "canal : clean | bursty (P2/P3 seulement — refus sinon ; défaut CGO_CHANNEL_MODEL)")

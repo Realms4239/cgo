@@ -1,7 +1,9 @@
 package audit
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 )
 
 // DefaultDataDir — la zone d'artefacts par défaut, relative au répertoire de
@@ -9,6 +11,16 @@ import (
 // ce qui est scellé dans un rapport est un chemin RELATIF, pas une promesse
 // absolue — c'est ce que la console peut afficher sans mentir.
 const DefaultDataDir = "data"
+
+// DataDir — la racine EFFECTIVE : CGO_DATA_DIR si définie, sinon
+// DefaultDataDir. Les appels INTERNES passent par elle ; la constante reste
+// pour compat de signature.
+func DataDir() string {
+	if r := strings.TrimSpace(os.Getenv("CGO_DATA_DIR")); r != "" {
+		return r
+	}
+	return DefaultDataDir
+}
 
 // ReportArtifactName — le nom canonique du rapport scellé.
 const ReportArtifactName = "audit_report.json"
@@ -47,7 +59,7 @@ func ArtifactFile(baseDir, id, name string) (string, error) {
 // identifiant refusé rend une ABSENCE, jamais un chemin approximatif : mieux
 // vaut un tiroir qui dit « non enregistré » qu'un lien vers un dossier voisin.
 func ArtifactPointer(id string) string {
-	p, err := ArtifactFile(DefaultDataDir, id, ReportArtifactName)
+	p, err := ArtifactFile(DataDir(), id, ReportArtifactName)
 	if err != nil {
 		return ""
 	}

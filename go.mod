@@ -24,7 +24,7 @@ require (
 	github.com/Realms4239/cgo/profile v0.1.0
 	github.com/Realms4239/cgo/qdisc v0.1.0
 	github.com/Realms4239/cgo/remediate v0.1.0
-	github.com/Realms4239/cgo/results v0.1.1
+	github.com/Realms4239/cgo/results v0.1.2
 	github.com/anthonynsimon/bild v0.14.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect

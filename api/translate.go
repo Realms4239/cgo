@@ -22,7 +22,7 @@ func HandleTranslate(w http.ResponseWriter, r *http.Request) {
 	if profile == "P1" {
 		bestQdisc = "cake"
 	}
-	groups, _ := results.Scan("data/runs", "")
+	groups, _ := results.Scan(results.RunsRoot(), "")
 	if len(groups) == 0 {
 		// F8 : pas encore de données — vide honnête, pas de succès synthétique
 		w.Header().Set("Content-Type", "application/json")

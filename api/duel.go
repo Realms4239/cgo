@@ -14,7 +14,8 @@ import (
 
 // duelDir — même source que /api/results ; variable pour que le test pointe
 // sur un corpus jetable sans écrire dans data/runs.
-var duelDir = "data/runs"
+// duelDir
+var duelDir = results.RunsRoot()
 
 var duelProfile = regexp.MustCompile(`^P[0-9]$`)
 

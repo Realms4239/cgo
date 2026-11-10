@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/results"
 )
 
 // auditView — le dernier audit scellé, réduit à ce que le TUI rend. Les onglets
@@ -478,7 +479,7 @@ func scriptFor(v auditView, platform string) (name, text string, err error) {
 
 // auditScriptRoot — l'emplacement de production, à côté des rapports scellés.
 // Variable pour que le test le vérifie sans écrire dans data/ ; jamais /tmp.
-var auditScriptRoot = filepath.Join("data", "audits")
+var auditScriptRoot = filepath.Join(results.DataRoot(), "audits")
 
 // writeRemediation — écrit à côté du rapport scellé, jamais dans /tmp, jamais
 // hors de data/audits.

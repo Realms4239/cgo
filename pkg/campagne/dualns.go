@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/results"
 	"github.com/Realms4239/cgo/probe"
 	"github.com/Realms4239/cgo/qdisc"
 )
@@ -119,7 +120,7 @@ func ProdDepsDualNS(direction string) Deps {
 	}
 	edge := qdisc.NsRunner{Ns: env("CGO_EDGE_NS", "ns_edge_router")}
 	delayModel := env("CGO_DELAY_MODEL", "scalar")
-	calibDir := env("CGO_CALIBRATION_DIR", filepath.Join("data", "calibrations"))
+	calibDir := env("CGO_CALIBRATION_DIR", filepath.Join(results.DataRoot(), "calibrations"))
 	wan := qdisc.NsRunner{Ns: env("CGO_WAN_NS", "ns_wan_emulator")}
 	if delayModel == "dist" {
 		if abs, err := filepath.Abs(calibDir); err == nil {
