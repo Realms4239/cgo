@@ -15,14 +15,20 @@ import (
 //go:embed runs-frozen.tar.gz
 var runsFrozen []byte
 
-// SeedRuns garantit un corpus de runs gelés sous <root>/data/runs.
+// SeedRuns garantit un corpus de runs gelés sous <root>/data/runs — la
+// forme historique (root = « . » d'un checkout). La racine gelée des
+// déploiements épinglés passe par SeedRunsFor.
+func SeedRuns(root string) (seeded bool, n int, err error) {
+	return SeedRunsFor(filepath.Join(root, "data", "runs"))
+}
+
+// SeedRunsFor garantit un corpus de runs gelés directement sous runsDir.
 // Si au moins un aqm_eval.csv existe déjà, ne fait rien (seeded=false) :
 // les runs vivants et l'historique local priment toujours sur le gel.
 // Sinon extrait l'archive intégrée au binaire (portabilité : un binaire
 // seul suffit sur une machine vierge). Seules les entrées régulières sous
 // data/runs/ sont acceptées (anti-traversal strict).
-func SeedRuns(root string) (seeded bool, n int, err error) {
-	runsDir := filepath.Join(root, "data", "runs")
+func SeedRunsFor(runsDir string) (seeded bool, n int, err error) {
 	if files, _ := filepath.Glob(filepath.Join(runsDir, "*", "aqm_eval.csv")); len(files) > 0 {
 		return false, 0, nil
 	}

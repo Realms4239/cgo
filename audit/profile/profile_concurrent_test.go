@@ -21,6 +21,7 @@ func TestImportConcurrentSafe(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("CGO_DATA_DIR", "")
 	defer func() { _ = os.Chdir(old) }()
 
 	var wg sync.WaitGroup

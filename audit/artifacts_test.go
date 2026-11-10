@@ -35,6 +35,7 @@ func TestArtifactPathsAreTheOneConvention(t *testing.T) {
 // TestArtifactPointerIsPortableAndRefusesBadIDs — le chemin scellé se relit de
 // la même façon quel que soit l'hôte, et un identifiant refusé rend une absence.
 func TestArtifactPointerIsPortableAndRefusesBadIDs(t *testing.T) {
+	t.Setenv("CGO_DATA_DIR", "")
 	if got := ArtifactPointer("audit-7"); got != "data/audits/audit-7/audit_report.json" {
 		t.Errorf("pointeur : %q", got)
 	}

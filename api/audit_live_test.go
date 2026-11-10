@@ -76,7 +76,9 @@ func TestAuditLiveAndStop(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 	waitAuditIdle(t, srv)
-	csvBefore := auditRows("data/link_audit.csv")
+	dir := chdirTemp(t)
+	t.Setenv("CGO_DATA_DIR", dir)
+	csvBefore := auditRows(filepath.Join(dir, "link_audit.csv"))
 
 	body, _ := json.Marshal(map[string]any{
 		"site": site, "link_type": "fiber", "duration": 10, "direction": "up", "flows": 4,
@@ -179,7 +181,7 @@ func TestAuditLiveAndStop(t *testing.T) {
 	if !annulled {
 		t.Fatalf("aucun événement « annulé par l'opérateur » pour %s", site)
 	}
-	if got := auditRows("data/link_audit.csv"); got != csvBefore {
+	if got := auditRows(filepath.Join(dir, "link_audit.csv")); got != csvBefore {
 		t.Fatalf("l'annulation a écrit une ligne CSV partielle : %d → %d", csvBefore, got)
 	}
 }

@@ -812,7 +812,7 @@ func WriteArtifacts(rep *Report, baseDir string) (jsonPath, mdPath string, err e
 		return "", "", fmt.Errorf("audit: nil report")
 	}
 	if baseDir == "" {
-		baseDir = "data"
+		baseDir = DataDir()
 	}
 	dir, err := ArtifactDir(baseDir, rep.AuditID)
 	if err != nil {

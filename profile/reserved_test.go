@@ -17,6 +17,7 @@ func chdirTemp(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("CGO_DATA_DIR", "")
 	t.Cleanup(func() { _ = os.Chdir(old) })
 }
 

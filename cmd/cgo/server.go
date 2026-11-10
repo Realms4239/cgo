@@ -55,7 +55,7 @@ func envSampler(getenv func(string) string, goos string) *iface.Sampler {
 func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr string) error {
 	// runs gelés embarqués : premier lancement sans preuves → restauration
 	// best-effort (jamais fatale : un seed illisible n'empêche pas de servir).
-	if seeded, n, err := results.SeedRuns("."); err != nil {
+	if seeded, n, err := results.SeedRunsFor(results.RunsRoot()); err != nil {
 		log.Printf("runs gelés : seed impossible (%v) — démarrage sans restauration", err)
 	} else if seeded {
 		log.Printf("runs gelés intégrés : %d fichiers", n)

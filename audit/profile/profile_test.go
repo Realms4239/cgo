@@ -28,6 +28,7 @@ func TestImportCustom(t *testing.T) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("CGO_DATA_DIR", "")
 	defer func() { _ = os.Chdir(old) }()
 	p := model.Profile{ID: "PX", CapacityMbps: 20, DelayMs: 100, JitterMs: 15, LossPct: 0.5}
 	if err := Import(p); err != nil {

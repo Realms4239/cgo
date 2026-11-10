@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 
-	"github.com/Realms4239/cgo/results"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -334,9 +333,14 @@ func TestWriteRemediationStaysUnderDataAudits(t *testing.T) {
 	}
 	// la racine de production est dérivée au moment de l'appel (CGO_DATA_DIR) :
 	// jamais un temporaire sauf si l'opérateur l'a définie ainsi lui-même.
-	// la racine de production est dérivée au moment de l'appel (CGO_DATA_DIR).
-	if base := filepath.Base(filepath.Join(results.DataRoot(), "audits")); base != "audits" {
-		t.Fatalf("racine de production = %q", base)
+	// la racine de production suit CGO_DATA_DIR au moment de l'appel.
+	t.Setenv("CGO_DATA_DIR", t.TempDir())
+	if got := remediationRoot(); filepath.Dir(got) != os.Getenv("CGO_DATA_DIR") {
+		t.Fatalf("remediationRoot() = %q, veut <CGO_DATA_DIR>/audits", got)
+	}
+	t.Setenv("CGO_DATA_DIR", "")
+	if got := remediationRoot(); got != filepath.Join("data", "audits") {
+		t.Fatalf("remediationRoot() = %q, veut data/audits", got)
 	}
 }
 

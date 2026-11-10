@@ -39,9 +39,9 @@ func envDefault(k, def string) string {
 // the same guard as writes — a malformed id never silently resolves another
 // audit's file. Empty id reads the global last-report copy.
 func readAuditReport(id string) (*audit.Report, error) {
-	path := filepath.Join(audit.DefaultDataDir, audit.ReportArtifactName)
+	path := filepath.Join(audit.DataDir(), audit.ReportArtifactName)
 	if id != "" {
-		p, err := audit.ArtifactFile(audit.DefaultDataDir, id, audit.ReportArtifactName)
+		p, err := audit.ArtifactFile(audit.DataDir(), id, audit.ReportArtifactName)
 		if err != nil {
 			return nil, err
 		}
@@ -69,7 +69,7 @@ func auditReportExists(s *auditSession, id string) bool {
 	if id == "" {
 		return false
 	}
-	path, err := audit.ArtifactFile(audit.DefaultDataDir, id, audit.ReportArtifactName)
+	path, err := audit.ArtifactFile(audit.DataDir(), id, audit.ReportArtifactName)
 	if err != nil {
 		return false
 	}
