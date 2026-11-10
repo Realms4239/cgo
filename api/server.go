@@ -280,7 +280,7 @@ const maxSubs = 64
 // readValidMetric — valeurs valid-only d'une métrique pour une cellule
 // profile|qdisc|cc + direction (défaut up historique). Ignore run-smoke.
 func readValidMetric(cell, metric, direction string) ([]float64, int) {
-	files, _ := filepath.Glob(filepath.Join("data", "runs", "*", "aqm_eval.csv"))
+	files, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*", "aqm_eval.csv"))
 	var out []float64
 	n := 0
 	for _, f := range files {
@@ -788,7 +788,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
-		groups, _ := results.Scan("data/runs", run)
+		groups, _ := results.Scan(results.RunsRoot(), run)
 		if len(groups) == 0 {
 			writeJSON(w, map[string]any{"available": false, "groups": []any{}, "reason": "résultats disponibles après gel (jalon M2)"})
 			return
@@ -812,7 +812,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			return
 		}
 		cellKey := cell + "|" + direction
-		runs, _ := filepath.Glob("data/runs/*")
+		runs, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*"))
 		if len(runs) < 2 {
 			writeJSON(w, map[string]any{"available": false})
 			return
@@ -914,7 +914,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			writeErr(w, r, "metric ∈ {small_p95_ms, deadline_ok_pct}", http.StatusBadRequest)
 			return
 		}
-		key := figures.ProvenanceHash8("data/runs") + "|" + a + "|" + b + "|" + metric + "|" + direction
+		key := figures.ProvenanceHash8(results.RunsRoot()) + "|" + a + "|" + b + "|" + metric + "|" + direction
 		s.compare.Lock()
 		if s.compare.key == key {
 			v := s.compare.val
@@ -943,7 +943,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 		writeJSON(w, out)
 	})
 	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, _ *http.Request) {
-		runs, _ := filepath.Glob("data/runs/*")
+		runs, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*"))
 		sort.Strings(runs)
 		valid, degraded, quarantined := 0, 0, 0
 		manifests := 0
@@ -960,7 +960,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			if st, err := os.Stat(filepath.Join(p, "manifest.json")); err == nil && !st.IsDir() {
 				manifests++
 			}
-			gs, _ := results.Scan("data/runs", filepath.Base(p))
+			gs, _ := results.Scan(results.RunsRoot(), filepath.Base(p))
 			b := runBreak{Run: filepath.Base(p)}
 			for _, g := range gs {
 				strict := g.Count - g.Quarantined - g.Degraded
@@ -983,7 +983,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			runIDs[i], runIDs[j] = runIDs[j], runIDs[i]
 		}
 		updated := ""
-		if files, _ := filepath.Glob(filepath.Join("data/runs", "*", "aqm_eval.csv")); len(files) > 0 {
+		if files, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*", "aqm_eval.csv")); len(files) > 0 {
 			sort.Strings(files)
 			if st, err := os.Stat(files[len(files)-1]); err == nil {
 				updated = st.ModTime().UTC().Format(time.RFC3339)
@@ -993,14 +993,14 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			writeJSON(w, map[string]any{"available": false, "reason": "intégrité disponible après gel (jalon M2)"})
 			return
 		}
-		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "degraded": degraded, "quarantined": quarantined, "run_ids": runIDs, "breakdown": breakdown, "updated": updated, "sha256": figures.ProvenanceSHA("data/runs"), "hash8": figures.ProvenanceHash8("data/runs")})
+		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "degraded": degraded, "quarantined": quarantined, "run_ids": runIDs, "breakdown": breakdown, "updated": updated, "sha256": figures.ProvenanceSHA(results.RunsRoot()), "hash8": figures.ProvenanceHash8(results.RunsRoot())})
 	})
 	mux.HandleFunc("GET /api/report/export", func(w http.ResponseWriter, r *http.Request) {
 		fmtParam := r.URL.Query().Get("format")
 		if fmtParam == "" {
 			fmtParam = "md"
 		}
-		groups, _ := results.Scan("data/runs", "")
+		groups, _ := results.Scan(results.RunsRoot(), "")
 		if len(groups) == 0 {
 			writeErr(w, r, "no data", http.StatusNotFound)
 			return
@@ -1022,7 +1022,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 		// rejouable en l'état sur l'équipement Linux cible (NetDevOps : le
 		// verdict devient un artefact versionnable, pas une ligne isolée)
 		if fmtParam == "sh" {
-			groups, _ := results.Scan("data/runs", "")
+			groups, _ := results.Scan(results.RunsRoot(), "")
 			if len(groups) == 0 {
 				writeErr(w, r, "no data", http.StatusNotFound)
 				return
@@ -1040,7 +1040,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			model.ProfilesMu.RUnlock()
 			var b strings.Builder
 			b.WriteString("#!/bin/sh\n# Meteolink — recette AQM dérivée des mesures gelées\n")
-			b.WriteString("# provenance : sha256:" + figures.ProvenanceSHA("data/runs") + "\n")
+			b.WriteString("# provenance : sha256:" + figures.ProvenanceSHA(results.RunsRoot()) + "\n")
 			b.WriteString("# usage : sh aqm-recipe.sh [interface] (lancer en root)\n")
 			b.WriteString("IF=${1:-eth0}\n\n")
 			for _, id := range ids {
@@ -1097,7 +1097,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			w.Write([]byte(fmt.Sprintf("| %s | %s | %s | %d | %.1f | %.1f | %.1f | %d | %s |\n", g.Profile, g.Qdisc, g.CC, g.Count, g.Smallp95Median, g.RTTp95Median, g.GoodputMedian, g.Quarantined, mark)))
 		}
 		// triple provenance — même hash8 que le tiroir, les archives et les figures RDF
-		if hash8 := figures.ProvenanceHash8("data/runs"); hash8 != "" {
+		if hash8 := figures.ProvenanceHash8(results.RunsRoot()); hash8 != "" {
 			fmt.Fprintf(w, "\nprovenance : sha256:%s · source data/runs/*/aqm_eval.csv · généré %s\n", hash8, time.Now().UTC().Format(time.RFC3339))
 		}
 	})
@@ -1107,19 +1107,19 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 // registerFigures — un seul site d'enregistrement par domaine.
 func (s *Server) registerFigures(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/figures/regen", requireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if err := figures.Generate("data/runs", "data/figures"); err != nil {
+		if err := figures.Generate(results.RunsRoot(), results.FiguresRoot()); err != nil {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{"ok": true})
 	}))
-	mux.Handle("/api/figures/", http.StripPrefix("/api/figures/", http.FileServer(http.Dir("data/figures"))))
+	mux.Handle("/api/figures/", http.StripPrefix("/api/figures/", http.FileServer(http.Dir(results.FiguresRoot()))))
 }
 
 // registerReplay — un seul site d'enregistrement par domaine.
 func (s *Server) registerReplay(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/replay/list", func(w http.ResponseWriter, _ *http.Request) {
-		runs, _ := filepath.Glob("data/runs/*")
+		runs, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*"))
 		var ids []string
 		for _, p := range runs {
 			if st, err := os.Stat(filepath.Join(p, "aqm_eval.csv")); err == nil && !st.IsDir() {
@@ -1136,7 +1136,7 @@ func (s *Server) registerReplay(mux *http.ServeMux) {
 		}
 		// Lecture par NOM de colonne : small_p95_ms depuis small_p95_ms (pas
 		// qdi_ms), goodput depuis bulk_goodput_mbps (pas deadline_ok_pct).
-		header, rows, err := results.ReadAQM(filepath.Join("data/runs", run, "aqm_eval.csv"))
+		header, rows, err := results.ReadAQM(filepath.Join(results.RunsRoot(), run, "aqm_eval.csv"))
 		if err != nil {
 			writeErr(w, r, "not found", http.StatusNotFound)
 			return
@@ -1337,7 +1337,7 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
-		path := filepath.Join("data", "runs", id, "aqm_eval.csv")
+		path := filepath.Join(results.RunsRoot(), id, "aqm_eval.csv")
 		f, err := os.Open(path)
 		if err != nil {
 			writeErr(w, r, "run introuvable: "+id, http.StatusNotFound)
@@ -1383,7 +1383,7 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 		}
 		out := []qrow{}
 		collect := func(run string) {
-			b, err := os.ReadFile(filepath.Join("data", "runs", run, "quarantine.json"))
+			b, err := os.ReadFile(filepath.Join(results.RunsRoot(), run, "quarantine.json"))
 			if err != nil {
 				return // aucun gel de quarantaine pour ce run : pas une erreur
 			}
@@ -1397,13 +1397,13 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 			}
 		}
 		if id != "" {
-			if st, err := os.Stat(filepath.Join("data", "runs", id)); err != nil || !st.IsDir() {
+			if st, err := os.Stat(filepath.Join(results.RunsRoot(), id)); err != nil || !st.IsDir() {
 				writeErr(w, r, "run introuvable: "+id, http.StatusNotFound)
 				return
 			}
 			collect(id)
 		} else {
-			runs, _ := filepath.Glob(filepath.Join("data", "runs", "*"))
+			runs, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*"))
 			sort.Strings(runs)
 			for i := len(runs) - 1; i >= 0; i-- {
 				collect(filepath.Base(runs[i]))
@@ -1415,7 +1415,7 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 	// que l'annexe : low/high/zero/G3, non-exclusives). Aucune constante
 	// gelée : fonctionne sur tout jeu de runs.
 	mux.HandleFunc("GET /api/quarantine/summary", func(w http.ResponseWriter, _ *http.Request) {
-		files, _ := filepath.Glob(filepath.Join("data", "runs", "*", "aqm_eval.csv"))
+		files, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*", "aqm_eval.csv"))
 		var total, low, high, zero, g3 int
 		for _, f := range files {
 			if strings.HasPrefix(filepath.Base(filepath.Dir(f)), "run-smoke") {

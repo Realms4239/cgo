@@ -23,7 +23,7 @@ func runCalibrate(args []string) int {
 	fs := flag.NewFlagSet("calibrate", flag.ExitOnError)
 	auditID := fs.String("audit", "", "identifiant de l'audit source (data/audits/<id>)")
 	profileID := fs.String("profile", "", "profil à calibrer (P2, P3, yas_4g…)")
-	dataDir := fs.String("data", "data", "racine des artefacts d'audit")
+	dataDir := fs.String("data", audit.DataDir(), "racine des artefacts d'audit (CGO_DATA_DIR)")
 	outDir := fs.String("out", "", "répertoire des .dist/.json (défaut <data>/calibrations)")
 	_ = fs.Parse(args)
 	if *auditID == "" || *profileID == "" {

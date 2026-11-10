@@ -477,10 +477,6 @@ func scriptFor(v auditView, platform string) (name, text string, err error) {
 	return "", "", fmt.Errorf("plateforme inconnue : %q", platform)
 }
 
-// auditScriptRoot — l'emplacement de production, à côté des rapports scellés.
-// Variable pour que le test le vérifie sans écrire dans data/ ; jamais /tmp.
-var auditScriptRoot = filepath.Join(results.DataRoot(), "audits")
-
 // writeRemediation — écrit à côté du rapport scellé, jamais dans /tmp, jamais
 // hors de data/audits.
 func writeRemediation(root string, v auditView, platform string) (string, error) {
@@ -557,7 +553,7 @@ func (m modelTUI) copyScript() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.platform = platform
-	path, err := writeRemediation(auditScriptRoot, m.audit, platform)
+	path, err := writeRemediation(filepath.Join(results.DataRoot(), "audits"), m.audit, platform)
 	if err != nil {
 		m.status = "écriture impossible — " + err.Error()
 		return m, nil

@@ -12,10 +12,9 @@ import (
 	"github.com/Realms4239/cgo/results"
 )
 
-// duelDir — même source que /api/results ; variable pour que le test pointe
-// sur un corpus jetable sans écrire dans data/runs.
-// duelDir
-var duelDir = results.RunsRoot()
+// duelDir — même source que /api/results; lue au moment de l'appel dans les
+// handlers (tests épinglent CGO_DATA_DIR, l'init-time valait pour le process seul).
+func duelDir() string { return results.RunsRoot() }
 
 var duelProfile = regexp.MustCompile(`^P[0-9]$`)
 
@@ -75,7 +74,7 @@ func handleDuel() http.HandlerFunc {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
-		groups, _ := results.Scan(duelDir, run)
+		groups, _ := results.Scan(duelDir(), run)
 		var cells []results.Group
 		for _, g := range groups {
 			if g.Profile == profile && eligible(g) {

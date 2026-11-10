@@ -10,16 +10,16 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Realms4239/cgo/profile"
 	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/metrics"
 	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/results"
+	"github.com/Realms4239/cgo/profile"
 	"github.com/Realms4239/cgo/remediate"
 )
 
@@ -162,7 +162,7 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			}
 			// Evidence first: the report is sealed from the row this audit
 			// appended, so the artifact and the CSV cannot drift apart.
-			if err := audit.AppendLinkAudit("data", res); err != nil {
+			if err := audit.AppendLinkAudit(results.DataRoot(), res); err != nil {
 				recordEvent("audit", fmt.Sprintf("échec écriture CSV — %s : %s", p.Site, err))
 			}
 			link := remediate.Link{
@@ -174,10 +174,10 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			if rerr != nil {
 				recordEvent("audit", fmt.Sprintf("rapport impossible — %s : %s", p.Site, rerr))
 			} else {
-				if err := rep.SealSource(filepath.Join("data", "link_audit.csv")); err != nil {
+				if err := rep.SealSource(results.LinkAuditCSV()); err != nil {
 					recordEvent("audit", fmt.Sprintf("scellement impossible — %s : %s", p.Site, err))
 				}
-				if _, _, err := audit.WriteArtifacts(rep, "data"); err != nil {
+				if _, _, err := audit.WriteArtifacts(rep, audit.DataDir()); err != nil {
 					recordEvent("audit", fmt.Sprintf("artefacts non écrits — %s : %s", p.Site, err))
 				}
 			}
@@ -346,7 +346,7 @@ func resolveArchivedReport(s *auditSession, id string) (*audit.Report, bool) {
 func handleAuditList(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		// read link_audit.csv
-		f, err := os.Open("data/link_audit.csv")
+		f, err := os.Open(results.LinkAuditCSV())
 		if err != nil {
 			writeJSON(w, map[string]any{"audits": []any{}})
 			return
@@ -390,7 +390,7 @@ func handleAuditList(s *auditSession) http.HandlerFunc {
 // la fibre sans relancer la pointe.
 func handleAuditToProfile() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		f, err := os.Open("data/link_audit.csv")
+		f, err := os.Open(results.LinkAuditCSV())
 		if err != nil {
 			writeErr(w, r, "aucun audit — lancez d'abord cgo audit", http.StatusNotFound)
 			return

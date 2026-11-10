@@ -130,3 +130,65 @@ func TestSealedPointerIsTheFileTheWriterWrites(t *testing.T) {
 		t.Errorf("chemin télémétrie refusé pour un identifiant accepté : %v", err)
 	}
 }
+
+// DataDir — CGO_DATA_DIR épingle la racine ; whitespace = absent ; défaut data/.
+func TestDataDirFollowsEnv(t *testing.T) {
+	t.Setenv("CGO_DATA_DIR", "")
+	if got := DataDir(); got != "data" {
+		t.Fatalf("DataDir() = %q, veut data", got)
+	}
+	t.Setenv("CGO_DATA_DIR", "/var/lib/cgo")
+	if got := DataDir(); got != "/var/lib/cgo" {
+		t.Fatalf("DataDir() = %q", got)
+	}
+	t.Setenv("CGO_DATA_DIR", "   ")
+	if got := DataDir(); got != "data" {
+		t.Fatalf("DataDir() = %q, whitespace = retour au défaut", got)
+	}
+}
+
+// La racine épinglée vaut pour tout le flux : moteur écrit, pointeur scellé,
+// ledger CSV — le même corpus, le même dossier, aucune fuite vers ./data.
+func TestPinnedCorpusWriteReadRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CGO_DATA_DIR", dir)
+	res := loadedResult()
+
+	// le moteur écrit sous la racine épinglée
+	if err := AppendLinkAudit(DataDir(), res); err != nil {
+		t.Fatal(err)
+	}
+	ledger := filepath.Join(dir, "link_audit.csv")
+	if data, err := os.ReadFile(ledger); err != nil || len(data) == 0 {
+		t.Fatalf("ledger absent sous %q : %v", ledger, err)
+	}
+
+	// BuildReport scelle le pointeur de l'artefact (ArtifactPointer -> DataDir())
+	rep, err := BuildReport(res, testLink(), "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsonPath, _, err := WriteArtifacts(rep, DataDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// le pointeur scellé dans le rapport et le fichier écrit sont LE même chemin
+	want := filepath.ToSlash(filepath.Join(dir, "audits", res.AuditID, ReportArtifactName))
+	if filepath.ToSlash(jsonPath) != want {
+		t.Fatalf("jsonPath = %q, veut %q", jsonPath, want)
+	}
+	pointer, err := ArtifactFile(DataDir(), res.AuditID, ReportArtifactName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.ToSlash(pointer) != want {
+		t.Fatalf("pointeur = %q, veut %q", pointer, want)
+	}
+	if !strings.HasPrefix(rep.Artifact, filepath.ToSlash(dir)) {
+		t.Fatalf("artefact scellé %q hors de la racine épinglée %q", rep.Artifact, dir)
+	}
+	// rien n'écrit sous ./data (le répertoire de travail du test ne l'a pas)
+	if _, err := os.Stat(filepath.Join("data", "audits", res.AuditID)); err == nil {
+		t.Fatal("un artefact est apparu sous ./data — la racine épinglée est ignorée")
+	}
+}

@@ -33,13 +33,14 @@ func ftoa(f float64) string { return strconv.FormatFloat(f, 'f', 1, 64) }
 
 func TestDuelPicksBestAndBaseWithGuardrail(t *testing.T) {
 	dir := t.TempDir()
-	writeDuelRun(t, dir, "run-a", "pfifo_fast", "bbr", 3, 328.2, 60.2, "valid")
-	writeDuelRun(t, dir, "run-b", "fq_codel", "bbr", 3, 205.4, 96.2, "valid")
-	writeDuelRun(t, dir, "run-c", "cake", "bbr", 1, 100, 100, "valid") // n=1 : exclu
-
-	old := duelDir
-	duelDir = dir
-	t.Cleanup(func() { duelDir = old })
+	runsRoot := filepath.Join(dir, "runs")
+	if err := os.MkdirAll(runsRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CGO_DATA_DIR", dir)
+	writeDuelRun(t, runsRoot, "run-a", "pfifo_fast", "bbr", 3, 328.2, 60.2, "valid")
+	writeDuelRun(t, runsRoot, "run-b", "fq_codel", "bbr", 3, 205.4, 96.2, "valid")
+	writeDuelRun(t, runsRoot, "run-c", "cake", "bbr", 1, 100, 100, "valid") // n=1 : exclu
 
 	srv := httptest.NewServer(New(Deps{}))
 	defer srv.Close()

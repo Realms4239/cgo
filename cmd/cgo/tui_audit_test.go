@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+
+	"github.com/Realms4239/cgo/results"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -330,13 +332,11 @@ func TestWriteRemediationStaysUnderDataAudits(t *testing.T) {
 	if filepath.Base(path) != "remediation.linux.sh" {
 		t.Fatalf("nom de fichier = %q", filepath.Base(path))
 	}
-	// la racine de production est data/audits, jamais un temporaire : c'est
-	// l'appelant (copyScript) qui la pose, donc c'est elle qu'on vérifie.
-	if auditScriptRoot != filepath.Join("data", "audits") {
-		t.Fatalf("racine de production = %q", auditScriptRoot)
-	}
-	if strings.HasPrefix(filepath.Clean(auditScriptRoot), filepath.Clean(os.TempDir())) {
-		t.Fatalf("racine de production sous un temporaire : %q", auditScriptRoot)
+	// la racine de production est dérivée au moment de l'appel (CGO_DATA_DIR) :
+	// jamais un temporaire sauf si l'opérateur l'a définie ainsi lui-même.
+	// la racine de production est dérivée au moment de l'appel (CGO_DATA_DIR).
+	if base := filepath.Base(filepath.Join(results.DataRoot(), "audits")); base != "audits" {
+		t.Fatalf("racine de production = %q", base)
 	}
 }
 

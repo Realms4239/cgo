@@ -5,11 +5,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Realms4239/cgo/model"
 )
 
-const file = "data/profiles.json"
+// file — le fichier des profils importés, épinglé sur la racine du corpus
+// quand CGO_DATA_DIR est défini : sans elle, les profils partiraient
+// ailleurs que le reste du corpus.
+func file() string {
+	if r := strings.TrimSpace(os.Getenv("CGO_DATA_DIR")); r != "" {
+		return filepath.Join(r, "profiles.json")
+	}
+	return "data/profiles.json"
+}
 
 // Reserved — le référentiel P1–P4 n'est ni importable ni supprimable :
 // un import "P3" masquerait le VSAT 5/600/30/1 dans la carte live ET dans
@@ -34,15 +43,15 @@ func Import(p model.Profile) error {
 	defer model.ProfilesMu.Unlock()
 	model.Profiles[p.ID] = p
 	m := map[string]model.Profile{}
-	if data, err := os.ReadFile(file); err == nil {
+	if data, err := os.ReadFile(file()); err == nil {
 		_ = json.Unmarshal(data, &m)
 	}
 	m[p.ID] = p
 	data, _ := json.MarshalIndent(m, "", "  ")
-	if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(file()), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(file, data, 0644)
+	return os.WriteFile(file(), data, 0644)
 }
 
 // Load fusionne les profils persistés dans model.Profiles — sauf les
@@ -50,7 +59,7 @@ func Import(p model.Profile) error {
 func Load() {
 	model.ProfilesMu.Lock()
 	defer model.ProfilesMu.Unlock()
-	data, err := os.ReadFile(file)
+	data, err := os.ReadFile(file())
 	if err != nil {
 		return
 	}
@@ -75,7 +84,7 @@ func Delete(id string) error {
 	model.ProfilesMu.Lock()
 	defer model.ProfilesMu.Unlock()
 	m := map[string]model.Profile{}
-	if data, err := os.ReadFile(file); err == nil {
+	if data, err := os.ReadFile(file()); err == nil {
 		_ = json.Unmarshal(data, &m)
 	}
 	if _, ok := m[id]; !ok {
@@ -86,8 +95,8 @@ func Delete(id string) error {
 	delete(m, id)
 	delete(model.Profiles, id)
 	data, _ := json.MarshalIndent(m, "", "  ")
-	if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(file()), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(file, data, 0644)
+	return os.WriteFile(file(), data, 0644)
 }

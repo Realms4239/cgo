@@ -219,12 +219,12 @@ WantedBy=multi-user.target
 		// Ordre des preuves : la série brute d'abord (telemetry.csv), puis
 		// la ligne gelée (link_audit.csv), puis le rapport qui scelle les
 		// deux — chaque maillon existe avant d'être scellé.
-		telPath, err := audit.WriteTelemetry("data", res)
+		telPath, err := audit.WriteTelemetry(audit.DataDir(), res)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit telemetry:", err)
 			os.Exit(1)
 		}
-		if err := audit.AppendLinkAudit("data", res); err != nil {
+		if err := audit.AppendLinkAudit(audit.DataDir(), res); err != nil {
 			fmt.Fprintln(os.Stderr, "audit write:", err)
 			os.Exit(1)
 		}
@@ -253,11 +253,11 @@ WantedBy=multi-user.target
 			fmt.Fprintln(os.Stderr, "audit telemetry seal:", err)
 			os.Exit(1)
 		}
-		if err := rep.SealSource(filepath.Join(results.DataRoot(), "link_audit.csv")); err != nil {
+		if err := rep.SealSource(results.LinkAuditCSV()); err != nil {
 			fmt.Fprintln(os.Stderr, "audit report seal:", err)
 			os.Exit(1)
 		}
-		jsonPath, mdPath, err := audit.WriteArtifacts(rep, "data")
+		jsonPath, mdPath, err := audit.WriteArtifacts(rep, audit.DataDir())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit artifacts:", err)
 			os.Exit(1)
