@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadSchema, param } from './schema'
+import { param } from './schema'
 
 // Le client n'a plus aucun repli local : il doit se comporter honnêtement
 // quand le contrat est absent (réseau coupé, vieux binaire, 404) — une liste
