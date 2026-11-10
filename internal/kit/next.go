@@ -248,7 +248,7 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 	// 10. confiance OS (HTTPS système, pas -k)
 	if !stepOK(steps, "dns") {
 		push(NextStep{ID: "tls", Label: "Confiance HTTPS", State: "attente", Detail: "nom d'abord"})
-	} else if tlsTrusted(dashURLFor(c)) {
+	} else if tlsTrusted(c.DashURL()) {
 		push(NextStep{ID: "tls", Label: "Confiance HTTPS", State: "ok", Detail: "magasin OS OK"})
 	} else {
 		push(NextStep{ID: "tls", Label: "Confiance HTTPS (admin)", State: "ko",
@@ -387,7 +387,7 @@ func (r *Runner) NextVer(c *Config, wantVer string) int {
 		}
 		return 3
 	}
-	r.out("→ tout est vert — dashboard : %s", dashURLFor(c))
+	r.out("→ tout est vert — dashboard : %s", c.DashURL())
 	return 0
 }
 
@@ -405,18 +405,6 @@ func sshPort(c *Config) string {
 		return c.SSHPort
 	}
 	return "22"
-}
-
-func dashURLFor(c *Config) string {
-	host := c.DashHost
-	if host == "" {
-		host = "meteolink.dev"
-	}
-	port := c.DashPort
-	if port == "" {
-		port = "9090"
-	}
-	return "https://" + host + ":" + port
 }
 
 // dashProbeURL — sonde le dashboard sur la CIBLE VIVANTE (IP SSH), pas le
@@ -437,7 +425,7 @@ func dashProbeURL(c *Config) string {
 		}
 		return "https://" + h + ":" + port
 	}
-	return dashURLFor(c)
+	return c.DashURL()
 }
 
 func dashProbe(url string) (string, bool) {

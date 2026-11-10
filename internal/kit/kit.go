@@ -621,10 +621,10 @@ func portOpen(host, port string) bool {
 	return true
 }
 
-// classifySSHError — distingue les trois échecs SSH d'une VM propre :
+// ClassifySSHError — distingue les trois échecs SSH d'une VM propre :
 // refused (sshd absent/éteint), auth (clé non autorisée), unreachable
 // (VM éteinte, IP fausse, réseau). Vide si la sortie n'est pas un échec SSH.
-func classifySSHError(out string) string {
+func ClassifySSHError(out string) string {
 	o := strings.ToLower(out)
 	switch {
 	case o == "":
@@ -642,10 +642,10 @@ func classifySSHError(out string) string {
 	return "unknown"
 }
 
-// sshAdvice — la remédiation actionnable par classe d'échec. Une VM propre
+// SSHAdvice — la remédiation actionnable par classe d'échec. Une VM propre
 // n'a ni sshd configuré ni la clé de l'hôte : seul le canal console permet
 // la première pose, les advice guident jusqu'à SSHUp().
-func sshAdvice(class string) string {
+func SSHAdvice(class string) string {
 	switch class {
 	case "refused":
 		return "port 22 fermé : sshd est absent ou éteint dans la VM. Ouvrir la console de la VM (hyperviseur) puis : sudo apt install -y openssh-server && sudo systemctl enable --now ssh"
@@ -727,10 +727,10 @@ func (c *Config) healthURL() string {
 	return "https://" + host + ":" + port + "/api/health"
 }
 
-// dashURL — l'adresse à donner à l'opérateur : le nom stable d'abord
+// DashURL — l'adresse à donner à l'opérateur : le nom stable d'abord
 // (meteolink.dev via `kit dns`), l'IP en repli si le nom ne résout pas.
 // Même garde anti-vide que healthURL (jamais « https://:9090 »).
-func (c *Config) dashURL() string {
+func (c *Config) DashURL() string {
 	host := c.DashHost
 	if host == "" {
 		host = c.SSHHost
@@ -858,10 +858,10 @@ func (r *Runner) Doctor(c *Config) int {
 		if portOpen(probeHost, probePort) {
 			r.out("  port 22    %s:%s OUVERT", probeHost, probePort)
 			if out, err := probe.SSH("true"); err != nil {
-				cls := classifySSHError(out)
+				cls := ClassifySSHError(out)
 				if cls == "auth" {
 					r.out("  auth       REFUSÉE — la clé de l'hôte n'est pas dans authorized_keys")
-					r.out("             → %s", sshAdvice("auth"))
+					r.out("             → %s", SSHAdvice("auth"))
 				} else {
 					r.out("  auth       échec (%s)", cls)
 				}
@@ -873,7 +873,7 @@ func (r *Runner) Doctor(c *Config) int {
 			r.out("             → cgo kit ensure (repose le forward + boote)")
 		} else {
 			r.out("  port 22    %s:%s FERMÉ — sshd absent/éteint dans la VM ou VM éteinte", c.SSHHost, c.SSHPort)
-			r.out("             → %s", sshAdvice("refused"))
+			r.out("             → %s", SSHAdvice("refused"))
 		}
 	}
 	for _, h := range vm.Detect() {
@@ -903,7 +903,7 @@ func (r *Runner) Doctor(c *Config) int {
 		}
 	}
 	r.out("  config     %s → %s:%s %s", "<cgo-vm.yaml>", c.SSHHost, c.DashPort, c.ProjectDir)
-	r.out("  tableau    %s  (kit dns pour mapper le nom)", c.dashURL())
+	r.out("  tableau    %s  (kit dns pour mapper le nom)", c.DashURL())
 	return 0
 }
 
@@ -1070,7 +1070,7 @@ func (r *Runner) Ensure(c *Config, cfgPath string, deep bool) int {
 			// attendre 300 s l'IP invitée (injoignable en NAT) est aveugle
 			// (vu en prod : forward ouvert, sshd OK, boucle jusqu'au timeout
 			// au lieu de dire « clé »). Diagnostic tôt, sortie propre.
-			if portOpen(natHost, natPort) && classifySSHError(fwdOut) == "auth" {
+			if portOpen(natHost, natPort) && ClassifySSHError(fwdOut) == "auth" {
 				r.sshDiag("[ensure]", fwdOut)
 				r.errf("[ensure] forward NAT ouvert mais clé refusée — reposez la clé (kit keysetup), la cible n'y est pour rien")
 				return 5
@@ -1508,7 +1508,7 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 		return 8
 	}
 	if c.Health() {
-		r.out("[deploy] fait → %s (IP directe : https://%s:%s)", c.dashURL(), c.SSHHost, c.DashPort)
+		r.out("[deploy] fait → %s (IP directe : https://%s:%s)", c.DashURL(), c.SSHHost, c.DashPort)
 		return 0
 	}
 	// le redémarrage du service et la poignée TLS peuvent se chevaucher :
@@ -1518,7 +1518,7 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 	for i := 0; i < 29; i++ {
 		time.Sleep(time.Second)
 		if c.Health() {
-			r.out("[deploy] fait → %s (IP directe : https://%s:%s)", c.dashURL(), c.SSHHost, c.DashPort)
+			r.out("[deploy] fait → %s (IP directe : https://%s:%s)", c.DashURL(), c.SSHHost, c.DashPort)
 			return 0
 		}
 	}
@@ -1529,7 +1529,7 @@ func (r *Runner) deployPush(c *Config, bin string) int {
 // sshDiag — échec SSH : classifier la sortie et donner la remédiation.
 // Retourne la sortie brute pour affichage ; imprime la cause probable.
 func (r *Runner) sshDiag(prefix string, out string) string {
-	cls := classifySSHError(out)
+	cls := ClassifySSHError(out)
 	if cls == "" || cls == "unknown" {
 		r.errf("%s SSH échoue — sortie brute : %s", prefix, strings.TrimSpace(out))
 		return cls
@@ -1539,7 +1539,7 @@ func (r *Runner) sshDiag(prefix string, out string) string {
 		"auth":        "clé de l'hôte refusée par la VM",
 		"unreachable": "VM éteinte, IP changée ou réseau coupé",
 	}[cls])
-	r.errf("→ %s", sshAdvice(cls))
+	r.errf("→ %s", SSHAdvice(cls))
 	return cls
 }
 

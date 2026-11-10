@@ -165,6 +165,13 @@ func (a *app) kitRunner() *kit.Runner {
 
 func (a *app) loadCfg() *kit.Config { return a.cfg.load(a.cfgPath) }
 
+// dashURL — l'adresse opérateur, résolue par la MÊME règle que le banc
+// (kit.Config.DashURL) ; le cache lent (loadFast) uniquement pour garder
+// le clic « Ouvrir le dashboard » sous le thread UI.
+func (a *app) dashURL() string {
+	return a.cfg.loadFast(a.cfgPath).DashURL()
+}
+
 func (a *app) noteHost(ip string) { a.cfg.note(ip) }
 
 // setBusy — état occupant + grise/réactive les boutons d'action.
@@ -528,7 +535,7 @@ func (a *app) suiteStep(nk string, na []string, next string) {
 		a.appendLog("tout est vert — rien à faire (Rescanner pour revérifier)")
 		return
 	}
-	if !isKnownSuiteVerb(nk) {
+	if !kit.IsKnownSuiteVerb(nk) {
 		a.mu.Lock()
 		a.chain = false
 		a.mu.Unlock()
@@ -586,19 +593,4 @@ func (a *app) suiteContinue(code int) {
 		return
 	}
 	a.suiteStep(nk, na, next)
-}
-
-func (a *app) dashURL() string {
-	host, port := "meteolink.dev", "9090"
-	// loadFast : JAMAIS de GuestIP ici — dashURL tourne sur le thread UI
-	// (clic « Ouvrir le dashboard »), LoadConfig résoudrait via vmrun.
-	if c := a.cfg.loadFast(a.cfgPath); c != nil {
-		if c.DashHost != "" {
-			host = c.DashHost
-		}
-		if c.DashPort != "" {
-			port = c.DashPort
-		}
-	}
-	return "https://" + host + ":" + port
 }

@@ -106,22 +106,6 @@ var controlActions = []buttonDef{
 // groupe : placé à côté du champ utilisateur (Win32 + Fyne), pas dans
 // la colonne Contrôle.
 
-// isKnownSuiteVerb — verbes que runKind/dispatchKind savent exécuter (partagé
-// Win32 + Fyne) ; le reste passe par le cas Suite honnête au lieu de tomber
-// dans le vide du switch.
-func isKnownSuiteVerb(nk string) bool {
-	switch nk {
-	case "direct:lock", "direct:saveuser", "direct:open", "direct:suite",
-		"bg:scan", "bg:diag", "bg:dns", "bg:tls", "bg:mkkey", "bg:console",
-		"bg:ensure", "bg:deploy", "bg:svc", "bg:testbed", "bg:logs",
-		"bg:verify", "bg:backup", "bg:snapshot", "bg:netinfo", "bg:vmon",
-		"bg:vmoff", "bg:nic-toggle", "bg:nic", "bg:hosttun", "bg:guest",
-		"bg:vnet", "bg:guide", "console:keysetup":
-		return true
-	}
-	return false
-}
-
 func itoa(n int) string {
 	if n == 0 {
 		return "0"
@@ -145,17 +129,19 @@ func itoa(n int) string {
 }
 
 func shortDiag(out string) string {
-	o := strings.ToLower(out)
-	switch {
-	case strings.Contains(o, "ssh_user vide"):
+	switch kit.ClassifySSHError(out) {
+	case "config":
 		return "utilisateur vide"
-	case strings.Contains(o, "refused"), strings.Contains(o, "closed"):
+	case "refused":
 		return "port 22 fermé"
-	case strings.Contains(o, "denied"):
+	case "auth":
 		return "clé refusée"
-	case strings.Contains(o, "timed out"), strings.Contains(o, "timeout"), strings.Contains(o, "unreachable"), strings.Contains(o, "no route"):
+	case "unreachable":
 		return "injoignable"
 	default:
+		if strings.TrimSpace(out) == "" {
+			return "silencieux — VM allumée ?"
+		}
 		return "voir journal"
 	}
 }

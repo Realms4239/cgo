@@ -8,7 +8,7 @@ import (
 	"github.com/Realms4239/cgo/internal/vm"
 )
 
-// classifySSHError — une VM propre échoue SSH de trois façons distinctes,
+// ClassifySSHError — une VM propre échoue SSH de trois façons distinctes,
 // chacune appelle une remédiation différente. Les messages d'OpenSSH sont
 // stables d'une version à l'autre ; on matche les fragments canoniques.
 func TestClassifySSHError(t *testing.T) {
@@ -27,8 +27,8 @@ func TestClassifySSHError(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := classifySSHError(c.out); got != c.want {
-				t.Errorf("classifySSHError(%q) = %q, want %q", c.out, got, c.want)
+			if got := ClassifySSHError(c.out); got != c.want {
+				t.Errorf("ClassifySSHError(%q) = %q, want %q", c.out, got, c.want)
 			}
 		})
 	}
@@ -60,9 +60,9 @@ func TestSSHAdvice(t *testing.T) {
 	// chaque classe d'échec doit porter un conseil actionnable, pas juste un code
 	seen := map[string]string{}
 	for _, cls := range []string{"refused", "auth", "unreachable"} {
-		adv := sshAdvice(cls)
+		adv := SSHAdvice(cls)
 		if len(adv) < 20 {
-			t.Errorf("sshAdvice(%q) trop court : %q", cls, adv)
+			t.Errorf("SSHAdvice(%q) trop court : %q", cls, adv)
 		}
 		seen[cls] = adv
 	}
@@ -77,8 +77,8 @@ func TestSSHAdvice(t *testing.T) {
 // TCP joignable sur port 22 : le advice "refused" doit mentionner sshd install,
 // pas d'inonder l'opérateur d'auth alors que le port est fermé.
 func TestSSHAdviceRefusedMentionsSSHService(t *testing.T) {
-	if !strings.Contains(sshAdvice("refused"), "sshd") {
-		t.Errorf("sshAdvice(refused) doit orienter vers sshd : %q", sshAdvice("refused"))
+	if !strings.Contains(SSHAdvice("refused"), "sshd") {
+		t.Errorf("SSHAdvice(refused) doit orienter vers sshd : %q", SSHAdvice("refused"))
 	}
 }
 
@@ -311,6 +311,25 @@ func TestKeepExplicitTarget(t *testing.T) {
 	} {
 		if got := keepExplicitTarget(host); got != want {
 			t.Errorf("keepExplicitTarget(%q) = %v, want %v", host, got, want)
+		}
+	}
+}
+
+func TestDashURLOneRule(t *testing.T) {
+	cases := []struct {
+		cfg  Config
+		want string
+	}{
+		{Config{}, "https://meteolink.dev:9090"},
+		{Config{SSHHost: "192.168.1.50"}, "https://192.168.1.50:9090"},
+		{Config{DashHost: "192.168.1.60"}, "https://192.168.1.60:9090"},
+		{Config{DashHost: "192.168.1.60", SSHHost: "192.168.1.50", DashPort: "443"}, "https://192.168.1.60:443"},
+		{Config{DashHost: "auto", DashPort: "8080"}, "https://meteolink.dev:8080"},
+		{Config{SSHHost: "auto", DashPort: ""}, "https://meteolink.dev:9090"},
+	}
+	for _, c := range cases {
+		if got := c.cfg.DashURL(); got != c.want {
+			t.Errorf("DashURL(%+v) = %s, veut %s", c.cfg, got, c.want)
 		}
 	}
 }

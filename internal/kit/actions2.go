@@ -134,7 +134,7 @@ func (r *Runner) SSHInteractive(c *Config) int {
 	// l'opérateur voie la cause et la remédiation plutôt qu'un refus ssh sec.
 	if !c.SSHUp() {
 		probe, _ := c.SSH("true")
-		if cls := classifySSHError(probe); cls != "" {
+		if cls := ClassifySSHError(probe); cls != "" {
 			r.sshDiag("[ssh]", probe)
 			return 5
 		}
@@ -246,7 +246,7 @@ func (r *Runner) Svc(c *Config, sub string) int {
 		for i := 0; i < 15; i++ {
 			time.Sleep(time.Second)
 			if c.Health() {
-				r.out("[svc] en ligne → %s", c.dashURL())
+				r.out("[svc] en ligne → %s", c.DashURL())
 				return 0
 			}
 		}

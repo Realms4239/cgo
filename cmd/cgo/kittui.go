@@ -226,7 +226,7 @@ func (m modelKT) items() []ktItem {
 	case ktDeploy:
 		return []ktItem{
 			{id: "deploy", label: "DÉPLOYER vers la VM", hint: "push binaire + install + health"},
-			{id: "open", label: "Ouvrir le dashboard", hint: "navigateur — " + m.dashURL()},
+			{id: "open", label: "Ouvrir le dashboard", hint: "navigateur — " + m.cfg.DashURL()},
 			{id: "next", label: "Continuer → Contrôle", hint: ""},
 		}
 	default: // ktControle
@@ -250,19 +250,6 @@ func (m modelKT) items() []ktItem {
 			{id: "switch", label: "Changer de VM", hint: "→ étape Machine"},
 		}
 	}
-}
-
-func (m modelKT) dashURL() string {
-	host, port := "meteolink.dev", "9090"
-	if m.cfg != nil {
-		if m.cfg.DashHost != "" {
-			host = m.cfg.DashHost
-		}
-		if m.cfg.DashPort != "" {
-			port = m.cfg.DashPort
-		}
-	}
-	return "https://" + host + ":" + port
 }
 
 // ---- vue ----

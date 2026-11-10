@@ -543,24 +543,23 @@ func (m *modelKT) refreshSSH() {
 }
 
 func shortSSHDiag(out string) string {
-	o := strings.ToLower(out)
-	switch {
-	case strings.Contains(o, "refused"), strings.Contains(o, "closed"):
+	switch kit.ClassifySSHError(out) {
+	case "refused":
 		return "port 22 fermé — openssh-server à installer DANS la VM"
-	case strings.Contains(o, "permission denied"), strings.Contains(o, "denied"):
+	case "auth":
 		return "clé refusée — posez la clé (ci-dessous)"
-	case strings.Contains(o, "timed out"), strings.Contains(o, "timeout"), strings.Contains(o, "unreachable"), strings.Contains(o, "no route"):
+	case "unreachable":
 		return "VM injoignable — allumée ? bonne IP ?"
-	case strings.Contains(o, "no such file"), strings.Contains(o, "cannot"):
-		return "clé locale introuvable — vérifiez ~/.ssh"
+	case "config":
+		return "utilisateur vide — renseignez-le (ci-dessous)"
 	default:
 		if strings.TrimSpace(out) == "" {
 			return "échec silencieux — démarrez la VM puis réessayez"
 		}
 		if len(out) > 90 {
-			out = out[:90]
+			return out[:90] + "…"
 		}
-		return strings.TrimSpace(out)
+		return out
 	}
 }
 
@@ -660,8 +659,8 @@ func (m *modelKT) activate(id string) tea.Cmd {
 		m.runBG("deploy", func(r *kit.Runner) int { return r.Deploy(m.cfg, m.cfgPath, true) })
 		return nil
 	case "open":
-		openBrowser(m.dashURL())
-		m.pushLog("navigateur → " + m.dashURL())
+		openBrowser(m.cfg.DashURL())
+		m.pushLog("navigateur → " + m.cfg.DashURL())
 		return nil
 	case "switch":
 		m.step = ktVM

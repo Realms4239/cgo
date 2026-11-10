@@ -5,6 +5,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/Realms4239/cgo/internal/kit"
 )
 
 func lastLog(a *app) string {
@@ -40,12 +42,12 @@ func TestSuiteStepUnknownVerb(t *testing.T) {
 
 func TestKnownSuiteVerbs(t *testing.T) {
 	for _, v := range []string{"bg:scan", "bg:ensure", "bg:deploy", "bg:dns", "bg:tls", "bg:testbed", "bg:svc", "console:keysetup", "direct:lock", "direct:suite"} {
-		if !isKnownSuiteVerb(v) {
+		if !kit.IsKnownSuiteVerb(v) {
 			t.Errorf("%s devrait être connu", v)
 		}
 	}
 	for _, v := range []string{"", "bogus", "bg:nope"} {
-		if isKnownSuiteVerb(v) {
+		if kit.IsKnownSuiteVerb(v) {
 			t.Errorf("%s ne devrait PAS être connu", v)
 		}
 	}

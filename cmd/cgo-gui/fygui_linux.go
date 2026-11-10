@@ -61,7 +61,12 @@ type fyApp struct {
 }
 
 func (f *fyApp) loadCfg() *kit.Config { return f.cfg.load(f.cfgPth) }
-func (f *fyApp) noteHost(ip string)   { f.cfg.note(ip) }
+
+// dashURL — la même règle que le banc (kit.Config.DashURL).
+func (f *fyApp) dashURL() string {
+	return f.loadCfg().DashURL()
+}
+func (f *fyApp) noteHost(ip string) { f.cfg.note(ip) }
 
 func (f *fyApp) log(line string) {
 	select {
@@ -316,19 +321,6 @@ func termRun(cgo string, args []string) int {
 	return 9
 }
 
-func (f *fyApp) dashURL() string {
-	host, port := "meteolink.dev", "9090"
-	if c := f.loadCfg(); c != nil {
-		if c.DashHost != "" {
-			host = c.DashHost
-		}
-		if c.DashPort != "" {
-			port = c.DashPort
-		}
-	}
-	return "https://" + host + ":" + port
-}
-
 func (f *fyApp) lockSelected() {
 	f.mu.Lock()
 	idx, rows := f.sel, f.rows
@@ -548,7 +540,7 @@ func (f *fyApp) dispatchKind(kind string, args []string) {
 			f.log("tout est vert — rien à faire (Rescanner pour revérifier)")
 			return
 		}
-		if !isKnownSuiteVerb(nk) {
+		if !kit.IsKnownSuiteVerb(nk) {
 			f.log("suite : pas d'action automatique — " + next)
 			return
 		}
@@ -569,7 +561,7 @@ func (f *fyApp) suiteStep(nk string, na []string, next string) {
 		f.log("tout est vert — rien à faire (Rescanner pour revérifier)")
 		return
 	}
-	if !isKnownSuiteVerb(nk) {
+	if !kit.IsKnownSuiteVerb(nk) {
 		f.mu.Lock()
 		f.chain = false
 		f.mu.Unlock()
