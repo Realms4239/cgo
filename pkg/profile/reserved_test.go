@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 func chdirTemp(t *testing.T) {

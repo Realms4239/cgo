@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // Fixtures au schéma réel gelé (18 colonnes, qdi_ms en 8) — valeurs

@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/results"
+	"github.com/Realms4239/cgo/results"
 )
 
 // Generate crée des figures SVG à partir des CSV gelés sous dataDir, en écrivant dans outDir.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Realms4239/cgo/pkg/results"
+	"github.com/Realms4239/cgo/results"
 )
 
 func hardwareRecommendation(bestQdisc, profile string) string {

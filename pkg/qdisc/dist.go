@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // Constantes du format netem (tc/q_netem.c) : la table est lue comme des

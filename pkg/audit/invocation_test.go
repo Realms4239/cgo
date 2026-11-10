@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/remediate"
+	"github.com/Realms4239/cgo/remediate"
 )
 
 // La promesse de la console : une donnée normalisée mais bornée par la donnée

@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/Realms4239/cgo/pkg/audit"
-	"github.com/Realms4239/cgo/pkg/probe/bpf"
+	"github.com/Realms4239/cgo/audit"
+	"github.com/Realms4239/cgo/probe/bpf"
 )
 
 // kernelTelemetryFromSummary — le pont unique entre le résumé noyau et le

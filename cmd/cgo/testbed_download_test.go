@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/probe"
+	"github.com/Realms4239/cgo/probe"
 )
 
 // TestTestbedDownloadProtocol — le serveur du banc distingue les sens sur un

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // TestG4DownDeadPipeOnly — en download, le plancher G4 ne détecte que le

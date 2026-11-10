@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/remediate"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/remediate"
 )
 
 // BuildReport dérive Measured.LoadMeasured de

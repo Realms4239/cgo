@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // TestImportConcurrentSafe — imports, chargements et lectures simultanés :

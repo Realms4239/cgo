@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/probe"
+	"github.com/Realms4239/cgo/probe"
 )
 
 // PlaneReady — le banc de mesure répond-il ? Sonde l'objet small ET le

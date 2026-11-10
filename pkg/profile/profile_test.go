@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // Valeurs P3 VSAT (5/600/30/1) — l'import ne doit pas les masquer.

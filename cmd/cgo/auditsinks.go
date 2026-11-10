@@ -1,6 +1,6 @@
 package main
 
-import "github.com/Realms4239/cgo/pkg/audit"
+import "github.com/Realms4239/cgo/audit"
 
 // La détection des puits vit dans pkg/audit depuis le plan 3 : le CLI et
 // l'API tranchent avec la MÊME échelle (dualns → legacy → external). Ces

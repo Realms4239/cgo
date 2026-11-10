@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // FlowResult — un flux de charge : octets envoyés. Per-flow, pas total seul :

@@ -12,14 +12,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/api"
+	"github.com/Realms4239/cgo/api"
 	"github.com/Realms4239/cgo/pkg/campagne"
-	"github.com/Realms4239/cgo/pkg/doctor"
-	"github.com/Realms4239/cgo/pkg/iface"
-	"github.com/Realms4239/cgo/pkg/model"
-	"github.com/Realms4239/cgo/pkg/probe"
-	"github.com/Realms4239/cgo/pkg/qdisc"
-	"github.com/Realms4239/cgo/pkg/results"
+	"github.com/Realms4239/cgo/doctor"
+	"github.com/Realms4239/cgo/iface"
+	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/probe"
+	"github.com/Realms4239/cgo/qdisc"
+	"github.com/Realms4239/cgo/results"
 )
 
 // liveFrame — snapshot de campagne + échantillon interface, aplatis en JSON.

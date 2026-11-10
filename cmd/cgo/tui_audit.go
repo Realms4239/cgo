@@ -12,7 +12,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
+	"github.com/Realms4239/cgo/metrics"
 )
 
 // auditView — le dernier audit scellé, réduit à ce que le TUI rend. Les onglets

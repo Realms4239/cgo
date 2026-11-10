@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/audit"
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/audit"
+	"github.com/Realms4239/cgo/model"
 	"github.com/Realms4239/cgo/pkg/profile"
-	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/qdisc"
 )
 
 // runCalibrate — transforme une trace terrain (telemetry.csv, phase baseline

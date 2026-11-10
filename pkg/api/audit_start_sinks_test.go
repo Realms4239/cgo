@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/audit"
 )
 
 // waitAuditIdle — le statut d'audit est global au serveur : un audit lancé

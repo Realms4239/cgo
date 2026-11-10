@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/probe/bpf"
+	"github.com/Realms4239/cgo/probe/bpf"
 )
 
 func TestKernelSourceUsesFacts(t *testing.T) {

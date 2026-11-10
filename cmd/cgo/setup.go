@@ -11,7 +11,7 @@ import (
 
 	"github.com/Realms4239/cgo/internal/kit"
 	"github.com/Realms4239/cgo/internal/vm"
-	"github.com/Realms4239/cgo/pkg/doctor"
+	"github.com/Realms4239/cgo/doctor"
 )
 
 // runSetup — wizard de première installation : de git clone au dashboard en

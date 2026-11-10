@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/Realms4239/cgo/pkg/campagne"
-	"github.com/Realms4239/cgo/pkg/model"
-	"github.com/Realms4239/cgo/pkg/results"
+	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/results"
 )
 
 // runCLI — campagne en ligne de commande : la même matrice que le dashboard,

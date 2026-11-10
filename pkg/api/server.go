@@ -18,14 +18,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/pkg/campagne"
-	"github.com/Realms4239/cgo/pkg/figures"
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/model"
-	"github.com/Realms4239/cgo/pkg/probe"
+	"github.com/Realms4239/cgo/figures"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/probe"
 	"github.com/Realms4239/cgo/pkg/profile"
-	"github.com/Realms4239/cgo/pkg/results"
+	"github.com/Realms4239/cgo/results"
 	frontend "github.com/Realms4239/cgo/web/frontend"
 )
 

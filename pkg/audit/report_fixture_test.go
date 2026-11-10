@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/remediate"
+	"github.com/Realms4239/cgo/remediate"
 )
 
 // TestRenderMeasuredReportFixture writes a report from a fully measured result

@@ -6,7 +6,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // OnQuarantine — hook de niveau package posé par l'hôte (cmd/cgo) pour que les

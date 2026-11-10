@@ -1,6 +1,6 @@
 package campagne
 
-import "github.com/Realms4239/cgo/pkg/model"
+import "github.com/Realms4239/cgo/model"
 
 // Capabilities — la vue hôte rendue au client : files supportées, contrôles
 // réellement exécutables, libellés connus et release du noyau. Le client ne

@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/model"
-	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/qdisc"
 )
 
 func TestMatrixConfigFreezesActiveTier(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/model"
 )
 
 // matrixConfig — configuration effective de la matrice, gelée dans le

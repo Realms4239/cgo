@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/remediate"
+	"github.com/Realms4239/cgo/remediate"
 )
 
 // BuildReport dérive Measured.LoadMeasured de

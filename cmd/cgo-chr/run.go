@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/audit"
 )
 
 type reportFile struct {

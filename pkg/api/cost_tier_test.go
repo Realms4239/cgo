@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
+	"github.com/Realms4239/cgo/metrics"
 )
 
 // TestCostTierSelect — le palier actif se choisit et s'applique : inconnu =

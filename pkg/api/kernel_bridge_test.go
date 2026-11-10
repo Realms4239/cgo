@@ -3,7 +3,7 @@ package api
 import (
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/probe/bpf"
+	"github.com/Realms4239/cgo/probe/bpf"
 )
 
 func TestKernelTelemetryFromSummary(t *testing.T) {

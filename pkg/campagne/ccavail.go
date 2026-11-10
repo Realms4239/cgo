@@ -1,6 +1,6 @@
 package campagne
 
-import "github.com/Realms4239/cgo/pkg/model"
+import "github.com/Realms4239/cgo/model"
 
 // readCCList et readKernelRelease sont des variables : les tests les
 // remplacent pour rester indépendants de l'hôte (un noyau BBRv3 ne doit pas

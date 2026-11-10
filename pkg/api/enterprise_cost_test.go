@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
+	"github.com/Realms4239/cgo/metrics"
 )
 
 // TestCostEnterpriseCatalog — le catalogue entreprise expose les MÊMES

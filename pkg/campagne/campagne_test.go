@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/model"
-	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/qdisc"
 )
 
 func fastDeps() Deps {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/audit"
 )
 
 const cakeScript = `/queue type add name=cgo-cake kind=cake \

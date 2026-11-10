@@ -13,7 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/Realms4239/cgo/pkg/audit"
+	"github.com/Realms4239/cgo/audit"
 )
 
 // TestCrossSiteGuard — une page tierce ne peut pas déclencher une mutation

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/remediate"
+	"github.com/Realms4239/cgo/remediate"
 )
 
 // TestJFIIsSealedWithItsOwnMeasure — metrics.JFI rend 0 quand il n'y a pas de

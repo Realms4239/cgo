@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/probe"
+	"github.com/Realms4239/cgo/probe"
 )
 
 // runTestbedSrv sert le petit objet en HTTP et le puits de masse,

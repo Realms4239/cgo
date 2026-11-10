@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // Tâche 5.1 — les figures exigent des données (erreur honnête, pas de SVG vide) et

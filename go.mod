@@ -12,6 +12,17 @@ require (
 require (
 	fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/Realms4239/cgo/api v0.1.0
+	github.com/Realms4239/cgo/audit v0.1.0
+	github.com/Realms4239/cgo/doctor v0.1.0
+	github.com/Realms4239/cgo/figures v0.1.0
+	github.com/Realms4239/cgo/iface v0.1.0
+	github.com/Realms4239/cgo/metrics v0.1.0
+	github.com/Realms4239/cgo/model v0.1.1
+	github.com/Realms4239/cgo/probe v0.1.0
+	github.com/Realms4239/cgo/qdisc v0.1.0
+	github.com/Realms4239/cgo/remediate v0.1.0
+	github.com/Realms4239/cgo/results v0.1.0
 	github.com/anthonynsimon/bild v0.14.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
@@ -58,3 +69,33 @@ require (
 	golang.org/x/text v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/Realms4239/cgo/model => ./model
+
+replace github.com/Realms4239/cgo/metrics => ./metrics
+
+replace github.com/Realms4239/cgo/qdisc => ./qdisc
+
+replace github.com/Realms4239/cgo/results => ./results
+
+replace github.com/Realms4239/cgo/figures => ./figures
+
+replace github.com/Realms4239/cgo/probe => ./probe
+
+replace github.com/Realms4239/cgo/api => ./api
+
+replace github.com/Realms4239/cgo/audit => ./audit
+
+replace github.com/Realms4239/cgo/doctor => ./doctor
+
+replace github.com/Realms4239/cgo/iface => ./iface
+
+replace github.com/Realms4239/cgo/remediate => ./remediate
+
+replace github.com/Realms4239/cgo/cite => ./cite
+
+replace github.com/Realms4239/cgo/exporter => ./exporter
+
+replace github.com/Realms4239/cgo/guard => ./guard
+
+replace github.com/Realms4239/cgo/attest => ./attest

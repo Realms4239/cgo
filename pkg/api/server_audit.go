@@ -16,11 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/audit"
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/audit"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/model"
 	"github.com/Realms4239/cgo/pkg/profile"
-	"github.com/Realms4239/cgo/pkg/remediate"
+	"github.com/Realms4239/cgo/remediate"
 )
 
 func handleAuditStart(d Deps) http.HandlerFunc {

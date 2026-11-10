@@ -4,7 +4,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/Realms4239/cgo/pkg/probe/bpf"
+	"github.com/Realms4239/cgo/probe/bpf"
 )
 
 // KernelSourceInfo — ce que la télémétrie noyau peut dire sur cet hôte,

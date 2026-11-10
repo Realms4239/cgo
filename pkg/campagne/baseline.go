@@ -3,8 +3,8 @@ package campagne
 import (
 	"math"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/model"
 )
 
 // BaselineStable decides G6: is the idle baseline quiet enough that a loaded

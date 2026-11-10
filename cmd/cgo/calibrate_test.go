@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/audit"
-	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/audit"
+	"github.com/Realms4239/cgo/qdisc"
 )
 
 func TestRunCalibrateWritesSealedArtifacts(t *testing.T) {

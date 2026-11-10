@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
-	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/qdisc"
 )
 
 func TestBurstGEOnlyP2P3(t *testing.T) {

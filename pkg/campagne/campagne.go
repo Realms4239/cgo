@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/model"
-	"github.com/Realms4239/cgo/pkg/probe"
-	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/probe"
+	"github.com/Realms4239/cgo/qdisc"
 )
 
 type Deps struct {

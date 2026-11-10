@@ -8,8 +8,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/probe"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/probe"
 )
 
 // Paramètres d'un audit de lien.

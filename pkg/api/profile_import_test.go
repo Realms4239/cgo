@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // Import de profil CSV — une ligne sans en-tête : id,capacity_mbps,delay_ms,jitter_ms,loss_pct

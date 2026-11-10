@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
-	"github.com/Realms4239/cgo/pkg/results"
+	"github.com/Realms4239/cgo/metrics"
+	"github.com/Realms4239/cgo/results"
 )
 
 // duelDir — même source que /api/results ; variable pour que le test pointe

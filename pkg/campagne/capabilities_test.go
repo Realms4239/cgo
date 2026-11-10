@@ -3,7 +3,7 @@ package campagne
 import (
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 func stubKernelRelease(t *testing.T, release string) {

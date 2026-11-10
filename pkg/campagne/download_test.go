@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
-	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/qdisc"
 )
 
 // TestRunEventDownloadShaper — sens download : le shaper se pose sur

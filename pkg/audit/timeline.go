@@ -1,6 +1,6 @@
 package audit
 
-import "github.com/Realms4239/cgo/pkg/metrics"
+import "github.com/Realms4239/cgo/metrics"
 
 // TimelinePoint — une seconde de la fenêtre d'audit. Les valeurs sont pointeurs
 // : nil veut dire « aucune sonde n'a répondu », ce qui n'est pas un 0 ms.

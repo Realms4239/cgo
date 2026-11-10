@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/audit"
-	"github.com/Realms4239/cgo/pkg/metrics"
+	"github.com/Realms4239/cgo/audit"
+	"github.com/Realms4239/cgo/metrics"
 )
 
 type auditLiveResp struct {

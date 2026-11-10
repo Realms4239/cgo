@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Realms4239/cgo/pkg/metrics"
+	"github.com/Realms4239/cgo/metrics"
 )
 
 // Group is one aggregated cell profile×qdisc×cc.

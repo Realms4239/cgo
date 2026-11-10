@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // TestWriterGelsBaselineRTT — l'écriture gelée porte rtt_base_p50/p95_ms

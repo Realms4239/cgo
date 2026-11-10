@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/Realms4239/cgo/pkg/probe"
-	"github.com/Realms4239/cgo/pkg/qdisc"
+	"github.com/Realms4239/cgo/probe"
+	"github.com/Realms4239/cgo/qdisc"
 )
 
 // ProdDeps retourne les dépendances de production du runner campagne,

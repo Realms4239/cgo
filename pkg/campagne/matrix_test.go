@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 func TestMatrixReducedOrderAndResume(t *testing.T) {

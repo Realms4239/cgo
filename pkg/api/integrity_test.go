@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Realms4239/cgo/pkg/model"
+	"github.com/Realms4239/cgo/model"
 )
 
 // Triple provenance (registre maître) : /api/integrity expose le sha256 du
