@@ -64,7 +64,7 @@ func (f *fyApp) loadCfg() *kit.Config { return f.cfg.load(f.cfgPth) }
 
 // dashURL — la même règle que le banc (kit.Config.DashURL).
 func (f *fyApp) dashURL() string {
-	return f.loadCfg().DashURL()
+	return f.cfg.loadFast(f.cfgPth).DashURL()
 }
 func (f *fyApp) noteHost(ip string) { f.cfg.note(ip) }
 
@@ -233,7 +233,7 @@ func (f *fyApp) runBg(label string, fn func(r *kit.Runner) int) {
 		}
 		f.setStatus("Prêt.")
 		if label == "deploy" && code == 0 {
-			f.log("dashboard : https://meteolink.dev:9090")
+			f.log("dashboard : " + f.dashURL())
 		}
 		f.mu.Lock()
 		if f.chain {

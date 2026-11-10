@@ -25,11 +25,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Realms4239/cgo/internal/kit"
 	"github.com/Realms4239/cgo/audit"
-	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/doctor"
 	"github.com/Realms4239/cgo/figures"
+	"github.com/Realms4239/cgo/internal/kit"
+	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/remediate"
 )
 

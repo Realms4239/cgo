@@ -163,8 +163,7 @@ func (m *modelKT) diagnose() {
 			if out, err := cmd.CombinedOutput(); err == nil {
 				rows = append(rows, diagRow{label: "Clé autorisée", state: "ok", detail: m.cfg.SSHUser + "@" + host + " accepte la clé"})
 			} else {
-				o := strings.ToLower(string(out))
-				if strings.Contains(o, "permission denied") || strings.Contains(o, "denied") {
+				if kit.ClassifySSHError(string(out)) == "auth" {
 					rows = append(rows, diagRow{label: "Clé autorisée", state: "ko", detail: "refusée — « Poser la clé SSH » (mot de passe, une fois)"})
 				} else {
 					rows = append(rows, diagRow{label: "Clé autorisée", state: "ko", detail: "échec : " + firstLineTUI(string(out))})

@@ -113,7 +113,7 @@ require (
 
 - `core.go` : SANS tag de compilation. Aucune API Win32, aucun widget.
   Inventaires `groupActions`/`accessActions`/`deployActions`/
-  `controlActions`, `buttonAction(id) → (kind, args)`, `isKnownSuiteVerb`,
+  `controlActions`, `buttonAction(id) → (kind, args)`, `kit.IsKnownSuiteVerb` (la table `internal/kit/verbs.go` — 30 verbes, une seule source),
   `diagGUI`, `probeStatus`, `scanVMRows`, `cfgCache` (45 s, anti-vmrun),
   miroir journal `cgo-gui-<date>.log`.
 - Vue Windows (`//go:build windows`) : Win32 brut. Fenêtre 940×700,
@@ -124,9 +124,11 @@ require (
   garde anti-double-clic. `fyne` n’apparaît QUE derrière cette garde.
   Sans écran (`DISPLAY`/`WAYLAND_DISPLAY` vides), refus + redirection
   `cgo kit tui`.
-- Parité : `buttonAction` et `isKnownSuiteVerb` sont partagés et
-  testables sans écran ; les deux boucles de dispatch restent
-  distinctes (risque de drift documenté en §6.3).
+- Parité : `buttonAction` et `kit.IsKnownSuiteVerb` sont partagés et
+  testables sans écran ; la table `SuiteVerbs` lue par les deux
+  exécutants est épinglée par `cmd/cgo-gui/verbs_parity_test.go`
+  (lecture des sources — un verbe ajouté dans un seul exécutant
+  fait échouer le test).
 
 ## Contraintes de compilation + stub `CGO_ENABLED=0`
 

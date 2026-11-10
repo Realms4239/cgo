@@ -2738,3 +2738,16 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - **Tests épinglés** : `verbs_test.go` — pas de verbe dupliqué, exactement 30, `console:dns`/`console:tls` connus, verbes inventés refusés, namespace prefixe:suffixe vérifié. `kit_test.go` — `TestDashURLOneRule` 6 cas (SSHHost repli, DashHost prioritaire, `auto`, port défaut) — le `port=9090` attendu est la règle produit CAP/WIS (vérifiable depuis la spec), pas une devinette.
 - **Non prouvé et nommé** : la vue Fyne (`fygui_linux.go`) — compile UNVERIFIED ici (CGO/GL/X11 absents de ce poste; fyne exige CGO sur Linux). Ses edits sont l'image exacte des edits Win32 (vetted) mais elles ne sont pas compilées. Le test de table est plateforme-indépendant et passe.
 - Mesuré : `go vet` + `go test ./internal/kit/ ./cmd/cgo/ ./cmd/cgo-gui/` verts; `python tools/verify.py` 6/6.
+
+
+## 2026-11-10 - Deepwork Phase 2 — revue G2 : correctifs B1/B3/B4/B5 (A1 reste honnêtement ouvert)
+
+- **B1** : `fygui_linux.go` journalisait « dashboard : https://meteolink.dev:9090 » en dur — la dérive que la phase éliminait. → `f.dashURL()` partout (la règle `kit.Config.DashURL`).
+- **B2** : `f.loadCfg()` résolut l'invité (subprocess vmrun/VBoxManage, 100 ms–s) sur le thread UI — le même click Win32 faisait un parse seul. → `f.cfg.loadFast(f.cfgPth).DashURL()`, identique à Win32.
+- **B3** : trois clones restants du test d'auth (`« permission denied » || « denied »`) dans les chemins de diagnostic (GUI + TUI) → `kit.ClassifySSHError(...) == "auth"`. Plus aucun clone ne survit.
+- **B4** : `cmd/cgo-gui/verbs_parity_test.go` (nouveau) — lit actions.go et fygui_linux.go, exige l'ÉGALITÉ exacte avec la table des verbes de `internal/kit` (set Win32 ≡ set Fyne ≡ table). Un verbe ajouté dans un seul exécutant fait échouer le test.
+- **B5** : runbook `gui-repo.md` met à jour `isKnownSuiteVerb` → `kit.IsKnownSuiteVerb` + la parité mécanique; auto-contradictions du checkpoint précédent corrigées.
+- **A1 — OUVERT et HONNÊTE** : la vue Fyne (`fygui_linux.go`) ne compile PAS ici (poste Windows, pas de CGO/GL/X11) et **ni la CI ni aucun autre poste ne la buildent**. Hand-verified imports/identifiers only; le risque est borné mais PAS ÉLIMINÉ. « Windows-green » est le bon libellé de ce garde, pas « Fyne compilée ».
+- **B6 — pré-existant, hors scope** (nommé) : Win32 demande confirmation avant `bg:nic-toggle`/`bg:vmoff` (`askYes`), Fyne ne demande rien — divergence d'interface, pas de parité. Ne pas corriger sans décision de conception.
+- **Non prouvé** : compilation Fyne; parité du comportement Fyne de la Suite sous Linux réel; les edits Fyne sont l'image Win32 par construction (mêmes helpers), pas par preuve.
+- Mesuré : `go vet ./cmd/cgo-gui/` vert; `go test ./cmd/cgo-gui/` vert (parité incluse); `python tools/verify.py` 6/6 + liens.

@@ -523,7 +523,7 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 				fmt.Fprintln(r.Stdout, ko+" NAT VirtualBox : "+host+" injoignable en direct (normal) — forward "+natH+":"+natP+" ouvert, test de la clé dessus…")
 				if out, err := authProbe(natH, natP); err == nil {
 					fmt.Fprintln(r.Stdout, ok+" clé acceptée via le forward "+natH+":"+natP+" — prêt à déployer")
-				} else if o := strings.ToLower(out); strings.Contains(o, "permission denied") || strings.Contains(o, "denied") {
+				} else if kit.ClassifySSHError(out) == "auth" {
 					koAct(" clé refusée via le forward — « Poser la clé SSH » (mot de passe, une fois)")
 				} else {
 					koAct(" auth via le forward : " + strings.TrimSpace(out))
@@ -545,8 +545,7 @@ func diagGUI(c *kit.Config, r *kit.Runner) int {
 	if out, err := authProbe(host, port); err == nil {
 		fmt.Fprintln(r.Stdout, ok+" clé acceptée par "+c.SSHUser+"@"+host+" — prêt à déployer")
 	} else {
-		o := strings.ToLower(string(out))
-		if strings.Contains(o, "permission denied") || strings.Contains(o, "denied") {
+		if kit.ClassifySSHError(string(out)) == "auth" {
 			koAct(" clé refusée — « Poser la clé SSH » (mot de passe, une fois)")
 		} else {
 			koAct(" auth : " + strings.TrimSpace(string(out)))

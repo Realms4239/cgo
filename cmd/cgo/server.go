@@ -14,10 +14,10 @@ import (
 
 	"github.com/Realms4239/cgo/api"
 	"github.com/Realms4239/cgo/capabilities"
-	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/doctor"
 	"github.com/Realms4239/cgo/iface"
 	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/probe"
 	"github.com/Realms4239/cgo/qdisc"
 	"github.com/Realms4239/cgo/results"
