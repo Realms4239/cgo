@@ -13,7 +13,7 @@ require (
 	fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/Realms4239/cgo/api v0.1.0
-	github.com/Realms4239/cgo/audit v0.1.1
+	github.com/Realms4239/cgo/audit v0.1.2
 	github.com/Realms4239/cgo/capabilities v0.1.0
 	github.com/Realms4239/cgo/doctor v0.1.0
 	github.com/Realms4239/cgo/figures v0.1.0
@@ -21,7 +21,7 @@ require (
 	github.com/Realms4239/cgo/metrics v0.1.0
 	github.com/Realms4239/cgo/model v0.1.1
 	github.com/Realms4239/cgo/probe v0.1.0
-	github.com/Realms4239/cgo/profile v0.1.0
+	github.com/Realms4239/cgo/profile v0.1.1
 	github.com/Realms4239/cgo/qdisc v0.1.0
 	github.com/Realms4239/cgo/remediate v0.1.0
 	github.com/Realms4239/cgo/results v0.1.2
