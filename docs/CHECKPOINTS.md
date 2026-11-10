@@ -2614,3 +2614,28 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Hygiene/evidence: `tools/verify.py` `ALLOWED_ARTIFACTS` now names only `results/runs-frozen.tar.gz` (the embedded corpus artifact moved with the module); Makefile `BPF_DIR` -> `probe/bpf`; `test-real` target path fixed; ledger tokens re-rooted (`pkg/results/...` -> `results/...`, etc.); `docs/architecture.md` `1983` route table unchanged valid.
 - Known residual: the published tags currently point at pre-deletion commits; the duplicate-deletion tree is `main` only until the next tag bump. Verified consumers: root module (this tree) uses local `replace => ./<dir>`, never the network tags; upstream consistency is pinned by the manifest tests inside each module + the verifier packet.
 - Unproven, unchanged: live bench/CHR/BBRv3/`.dist`/WIS/eBPF/case study (grants/hosts pending); SSH console key still not installed (guest login pending, scancode injections abandoned 2026-11-10); PC2 still offline->online cycle repeated (`nemo` currently online, `CGO-DEV-FRESH` running with console pending). `book/` untouched.
+
+
+## 2026-11-10 - Impeccable critique+audit+fix pass (P0/P1 fixes; no redesign)
+
+- Scope: operator cockpit at `main` (React, tokens.css). Modeแนน: Operate (dashboard), not bolder/redesign. Critique+audit via `impeccable` skill, assessments A (visual/heuristic) + B (detector) run as sub-agents. Assessment A output was persisted (LiveView/DashboardView/IntegriteView findings).
+- Fixes applied (uncommitted until this checkpoint, now committed):
+  - P0 one-click network mutation: `LiveView.tsx` shaping buttons (`sans`/`file courte`/`file équitable`) were one-tap via `Pill.onClick` → `POST /api/shape` live. Now two-step arm: click once arms + shows `CONFIRMER ?` with 5s timeout; click again applies; `shapeMsg` reads `confirmation requise — recliquez pour <action>` while armed. Same error degradation: English-ish `e.message` toasts replaced with `erreur réseau` / `échec du façonnage` in LiveView + IntegriteView + CompareView (French-facing copy, no internal exception surfaces).
+  - P1 duplicated campaign-end feedback: App fired both `FlashBanner` (`setFlash`) and `Toasts` (`pushToast`) for the same `running:false` event — now only `FlashBanner`; launch keeps `pushToast` only.
+  - P1 bare `header` selector in `index.css` re-skinned `.mode-head` re-scope conflict — now `.app-header` (only occurrence in file).
+  - P1 heading structure: populated Dashboard view rendered zero headings → added `<h1 className="sr-only">Tableau de bord</h1>`; absent state already had `<h1>`.
+- Detector evidence (impeccable): `detect.mjs --json web/frontend/src/styles web/frontend/src/views web/frontend/src/components` -> `[]` zero findings exit 0. Non-broken self-test in temp dir passes (Inter fixture → overused-font exit 2). Waiver audit `--no-inline-ignores`: 2 warnings (gradient-text `.wordmark-text`, overused-font Inter), both pinned by missing `DESIGN.md` — **DESIGN.md absent from this worktree; waiver authority unverified**.
+- Build/test at this HEAD: `npm test` 68/321 PASS (assessor's run verified); `npm run build` -> `TOTAL gz: 357.8 KB`; `bin/cgo` embeds an older build (stale; out of scope for this pass).
+- Known residuals not addressed (named, not hidden): bench `Cost` card duplication (3 scenario cards computed on every live frame, same number), live wall's sparse-vs-dense v8 findings (no detector hits as measured), `aria-sort` only on 1 live table, `dist/index.html` shows modifications after every build (stale assets expected; same as before). Real remaining work (needs a redesign direction decision, NOT applied here): token system drift (350+ hex, 584 inline styles) and inter-view spacing/rhythm — scores 5/40 on consistency heuristic in 2026-10-25 critique.
+
+
+## 2026-11-10 - Bolder pass on the cockpit (type scale, primary action, nav active state)
+
+- Branch/HEAD: `main` at `f628cf7`. Previous entry was the critique-fix pass (`f628cf7`). Artifact wins.
+- Changed (8 token edits + 7 index.css edits, all in operator LIEN system vocabulary — no new color, no new font, every token reuses `var(--t-live)` / existing hairline/surface):
+  - `tokens.css`: `--fs-hero` 40→56px, `--fs-metric` 32→40px, `--fs-title` 28→34px — scale jump (up), no new tokens; `--fs-body/label/fine` unchanged.
+  - `index.css`: `.state-card h1` 2.5rem→4.25rem clamp with -0.04em tracking (absent-state poster), `.topnav-btn.on` is now solid `var(--t-live)` with dark text (unmistakable active state, no border decoration), `.topnav-key` letter 700, `.btn-primary` solid cyan with dark text + `.btn-primary:disabled` retoned neutral (retires the white-on-canvas inverted text), `.dash-card-value` 2.75rem→3.5rem clamp, `.dash-action-title` and `.Absent` captions up in weight, footer fill dimmer.
+- `tokens.test.ts` amended to pin the new scale (`--fs-hero: 56px`, `--fs-metric: 40px`, `--fs-title: 34px`); the test authorised the 3-value scale jump.
+- No OTHER tokens, no layout rules changed; no behavior changes; the tokens.test.ts harness (computing contrast + suite green) untouched; the DESIGN.md still missing (nothing refers to it in this pass).
+- Measured at this HEAD: `npm run typecheck` exit 0; `npm test` 68 files / 321 tests PASS (tokens.test.ts updated first — the scale edit failed its initial pin, then amended and re-ran 18/18 ok, then full suite 321/321 ok); `npm run build` `TOTAL gz: 357.8 KB`; `python tools/verify.py --only links --only hygiene --only exit` PASS.
+- Not attempted (left deliberately): bolder redesign of the absent-state grid or bento wall composition — would need direction from the user (art direction / grid concept); not possible to choose without it.
