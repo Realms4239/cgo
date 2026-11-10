@@ -56,7 +56,7 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 	// Garde anti-double-launch (camp-final : deux `run` concurrents se sont
 	// battus sur les mêmes qdiscs + aqm_eval.csv, 36 lignes pour 18 events).
 	// Verrou fichier O_EXCL dans le dataDir : le second meurt avec un message.
-	lockPath := runID
+	var lockPath string
 	if dataDir != "" {
 		lockPath = dataDir + "/." + runID + ".lock"
 	} else {

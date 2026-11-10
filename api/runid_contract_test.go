@@ -57,6 +57,10 @@ func TestRunIDEndpointContract(t *testing.T) {
 	if code, _ := get("/api/run/rows?run=.."); code != 400 {
 		t.Fatalf("run/rows traversal : %d, veut 400", code)
 	}
+	// duel : même règle (accepté par la bataille de l'audit, il faut le test)
+	if code, _ := get("/api/duel?profile=P2&run=.."); code != 400 {
+		t.Fatalf("duel traversal : %d, veut 400", code)
+	}
 }
 
 func TestRunStartRejectsHostileRunID(t *testing.T) {

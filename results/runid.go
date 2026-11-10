@@ -38,7 +38,8 @@ func validateRunID(id string) error {
 		if r == '/' || r == '\\' || r == '.' {
 			return ErrInvalidRunID
 		}
-		if r < 0x20 {
+		// C0 controls rejetés; 0x7f-0x9f aussi (SPOF visuel dans les journaux)
+		if r < 0x20 || (r >= 0x7f && r <= 0x9f) {
 			return ErrInvalidRunID
 		}
 	}

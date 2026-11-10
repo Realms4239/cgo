@@ -150,7 +150,7 @@ func TestRunStartProvenanceValidation(t *testing.T) {
 
 // TestRunStartRefusesEscapingRunID — le run_id est un chemin sous data/runs :
 // un identifiant qui en sort (../, /, \\) ferait écrire OpenRun hors du dossier.
-// Le reste de l'API valide déjà chaque identifiant via validRunID.
+// Le reste de l'API valide déjà chaque identifiant via results.ValidRunID.
 func TestRunStartRefusesEscapingRunID(t *testing.T) {
 	called := false
 	h := New(Deps{StartFn: func(o RunOpts) error { called = true; return nil }})

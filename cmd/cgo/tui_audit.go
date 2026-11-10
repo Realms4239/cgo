@@ -429,7 +429,7 @@ func scriptName(platform string) string {
 }
 
 // safeAuditID — l'identifiant vient du serveur et devient un chemin : la même
-// règle que validRunID côté API (E11). Rien qui remonte, rien de vide.
+// règle que results.ValidRunID côté API (E11). Rien qui remonte, rien de vide.
 func safeAuditID(id string) error {
 	if id == "" || id == "." || id == ".." {
 		return fmt.Errorf("identifiant d'audit invalide")

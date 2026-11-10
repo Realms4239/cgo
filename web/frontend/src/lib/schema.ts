@@ -21,7 +21,8 @@ export async function loadSchema(): Promise<Param[]> {
   if (cache) return cache
   try {
     const j = await fetch('/api/schema').then(r => r.json())
-    cache = (j?.params ?? []) as Param[]
+    const p = j?.params
+    cache = (Array.isArray(p) ? p : []) as Param[]
   } catch { cache = [] }
   return cache
 }

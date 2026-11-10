@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Six-gate verifier for CGO. Standard library only; no network; no shell."""
 from __future__ import annotations
-import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile, time
+import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from dataclasses import dataclass
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,7 +41,6 @@ def line_ceiling_problem(root, files, maximum):
     return f"gate line ceiling exceeded: {total} > {maximum} ({counts})" if total > maximum else None
 def missing_proofs(gates):
     return [g.name for g in gates if not callable(g.prove)]
-
 
 # — frozen : l'audit du corpus est la seule source ------------------------
 SEAL = "docs/frozen-manifests.sha256"
@@ -127,7 +126,6 @@ def prove_frozen():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-
 # — provenance : en-têtes CSV et enums de valuation -----------------------
 BASES, SOURCES = {"measured", "estimated"}, {"ebpf", "tcpinfo", ""}
 def csv_header(path):
@@ -190,23 +188,24 @@ def prove_provenance():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-
-# — tests : la suite Go existante, jamais réécrite ------------------------
+# — tests : la suite Go, racine et modules imbriqués ----------------------
 def gate_tests():
     if not (ROOT / "web/frontend/dist").is_dir():
         return Result("tests", SKIP, "web/frontend/dist absent: build the frontend first")
     go = shutil.which("go")
     if not go:
         return Result("tests", SKIP, "go not found on PATH")
-    started = time.monotonic()
-    for label, args, timeout in (("go vet", [go, "vet", "./..."], 300), ("go test", [go, "test", "./..."], 600)):
-        try:
-            p = _proc(args, timeout)
-        except subprocess.TimeoutExpired:
-            return Result("tests", FAIL, f"{label} timed out after {timeout} s")
-        if p.returncode:
-            return Result("tests", FAIL, f"{label} exit {p.returncode}:\n{_tail(p.stdout + p.stderr)}")
-    return Result("tests", PASS, f"go vet + go test in {time.monotonic() - started:.1f} s")
+    dirs = [ROOT, *(ROOT / s for s in ("results", "api"))]
+    for cwd in dirs:
+        tag = "" if cwd == ROOT else cwd.name + " "
+        for label, args, timeout in (("go vet", [go, "vet", "./..."], 300), ("go test", [go, "test", "./..."], 600)):
+            try:
+                p = _proc(args, timeout, cwd=cwd)
+            except subprocess.TimeoutExpired:
+                return Result("tests", FAIL, f"{tag}{label} timed out after {timeout} s")
+            if p.returncode:
+                return Result("tests", FAIL, f"{tag}{label} exit {p.returncode}:\n{_tail(p.stdout + p.stderr)}")
+    return Result("tests", PASS, "go vet + go test in all modules")
 def _module(path, body, name="ok_test.go"):
     path.mkdir()
     (path / "go.mod").write_text("module fixture\n\ngo 1.25\n", encoding="utf-8")
@@ -232,7 +231,6 @@ def prove_tests():
         return True, "control ok; failing test and vet error caught"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-
 
 # — exit : le contrat 0/1/2 du CLI et du runner ---------------------------
 SAFE_INVOCATIONS = (
@@ -301,7 +299,6 @@ def prove_exit():
     if verdict_contract():
         return False, verdict_contract()
     return True, "control ok; exit 3, panic, refusal and verdict contract caught"
-
 
 # — hygiene : secrets, artefacts, adresses, taille ------------------------
 KEY_RX = re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----")
@@ -387,7 +384,6 @@ def prove_hygiene():
             return False, f"SURVIVED or control failed: {label}"
     return True, "control ok; key, token, tailnet address and .docx caught"
 
-
 # — links : AGENTS.md, registres et index pointent des fichiers réels -----
 LINK_FILES = ("AGENTS.md", "docs/VERIFY.md", "docs/CHECKPOINTS.md", "docs/ERRORS.md",
               "docs/superpowers/plans/README.md")
@@ -450,7 +446,6 @@ def prove_links():
         return True, "control ok; missing path and missing plan link caught"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-
 
 # — registre --------------------------------------------------------------
 GATES = (
@@ -522,7 +517,6 @@ def main(argv=None):
     skipped = sum(r.status == SKIP for r in results)
     print(f"\n{len(results) - failed - skipped} passed, {failed} failed, {skipped} not run")
     return verdict(results)
-
 
 if __name__ == "__main__":
     sys.exit(main())

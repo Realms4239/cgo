@@ -63,6 +63,11 @@ func runIDs(set map[string]bool) []string {
 }
 
 func Scan(dataDir, runFilter string) ([]Group, error) {
+	// Le filtre est un élément de chemin simple — même règle que le reste
+	// du corpus (ValidRunID). Un filtre hôte (« ../… ») lirait hors données.
+	if runFilter != "" && !ValidRunID(runFilter) {
+		return nil, ErrInvalidRunID
+	}
 	pattern := filepath.Join(dataDir, "*", "aqm_eval.csv")
 	if runFilter != "" {
 		pattern = filepath.Join(dataDir, runFilter, "aqm_eval.csv")

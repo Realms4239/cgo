@@ -28,7 +28,14 @@ describe('loadSchema', () => {
     expect(await fresh.loadSchema()).toEqual([])
   })
 
-  it('returns an empty list when the server answers 404 with no params — never a fabricated registry', async () => {
+  it('returns an empty list when params is not an array — never a fabricated registry', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ params: 42 }) })))
+    vi.resetModules()
+    const fresh = await import('./schema')
+    expect(await fresh.loadSchema()).toEqual([])
+  })
+
+  it('returns an empty list when params is not an array — never a fabricated registry', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({}) })))
     vi.resetModules()
     const fresh = await import('./schema')
