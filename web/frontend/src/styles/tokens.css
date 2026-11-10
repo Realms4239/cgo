@@ -71,9 +71,9 @@
   --fs-fine: 13px;
   --fs-label: 14px;
   --fs-body: 16px;
-  --fs-title: 28px;
-  --fs-metric: 32px;
-  --fs-hero: 40px;
+  --fs-title: 34px;
+  --fs-metric: 40px;
+  --fs-hero: 56px;
 
   /* tracking — noms canoniques ; les --tt-* restent des alias CSS */
   --tracking-tight: -0.02em;

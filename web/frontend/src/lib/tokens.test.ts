@@ -90,7 +90,7 @@ describe('desktop grid 890–1920', () => {
 describe('échelle opérateur', () => {
   const sheet = read('web/frontend/src/styles/tokens.css')
   it('porte l’échelle-body et bannit la serif d’interface', () => {
-    for (const [tok, px] of [['--fs-hero', '40px'], ['--fs-metric', '32px'], ['--fs-title', '28px'], ['--fs-body', '16px'], ['--fs-label', '14px'], ['--fs-fine', '13px']]) {
+    for (const [tok, px] of [['--fs-hero', '56px'], ['--fs-metric', '40px'], ['--fs-title', '34px'], ['--fs-body', '16px'], ['--fs-label', '14px'], ['--fs-fine', '13px']]) {
       expect(sheet, tok).toContain(`${tok}: ${px}`)
     }
     expect(sheet).not.toContain('Cormorant')

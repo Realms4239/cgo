@@ -44,9 +44,9 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .topnav { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
 .topnav-btn { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 40px; padding: 0 var(--sp-3); color: var(--text-muted); white-space: nowrap; border-bottom: 2px solid transparent; transition: color var(--dur-fast) var(--ease); }
 .topnav-btn:hover { color: var(--text-primary); }
-.topnav-btn.on { color: var(--t-live); border-bottom-color: var(--t-live); }
+.topnav-btn.on { color: var(--canvas-solid); background: var(--t-live); border-bottom-color: var(--t-live); }
 .topnav-lbl { font-weight: 500; letter-spacing: 0.02em; }
-.topnav-key { font: 400 var(--fs-micro) var(--font-mono); opacity: .55; border: 1px solid var(--hairline); padding: 0 4px; }
+.topnav-key { font: 700 var(--fs-micro) var(--font-mono); opacity: .8; border: 1px solid var(--hairline); padding: 0 4px; }
 .hd-conn { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--t-danger-text); }
 .hd-conn[data-on="1"] { background: var(--t-ok); box-shadow: 0 0 8px currentColor; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -110,8 +110,8 @@ main:focus { outline: none; }
 .banner { padding: 6px 10px; border: 1px solid var(--hairline); background: var(--surface-elevated); font: 400 12px var(--font-mono); letter-spacing: 0.02em; text-transform: none; color: var(--text-muted); overflow-wrap: anywhere; min-width: 0; }
 .btn { padding: 0 var(--sp-5); min-height: 48px; border: 1px solid var(--hairline); font: 600 var(--fs-body) var(--font-ui); letter-spacing: 0; text-transform: none; color: var(--text-body); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .btn:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
-.btn-primary { background: var(--text-primary); color: var(--canvas-solid); border-color: var(--text-primary); }
-.btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+.btn-primary { background: var(--t-live); color: var(--canvas-solid); border-color: var(--t-live); font-weight: 800; letter-spacing: 0.01em; }
+.btn-primary:disabled { opacity: .35; cursor: not-allowed; background: var(--text-faint); border-color: var(--text-faint); color: var(--surface-soft); }
 .btn-danger { background: var(--t-danger); color: var(--text-primary); border-color: var(--t-danger); }
 
 /* coque desktop fluide — 890–1920 px, pas de bande centrale inerte */
@@ -119,12 +119,12 @@ main:focus { outline: none; }
 /* cockpit opérateur — hiérarchie pleine largeur */
 .dash-overview-head { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .dash-card-kicker { margin: 0; color: var(--text-muted); font-size: var(--fs-fine); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
-.dash-card-value { margin: var(--sp-2) 0 0; color: var(--text-primary); font: 600 clamp(2rem, 3vw, 2.75rem)/1.1 var(--font-ui); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dash-card-value { margin: var(--sp-2) 0 0; color: var(--text-primary); font: 650 clamp(2.5rem, 4.2vw, 3.5rem)/1 var(--font-ui); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .dash-card-value small { margin-left: var(--sp-1); font: 500 var(--fs-body) var(--font-mono); color: var(--text-muted); }
 .dash-card-detail { margin: 0; color: var(--text-body); line-height: 1.55; overflow-wrap: anywhere; }
 .dash-capacity { justify-content: space-between; }
 .dash-action { display: flex; flex-direction: column; gap: var(--sp-2); align-items: start; }
-.dash-action-title { margin: 0; color: var(--text-primary); font: 600 var(--fs-title)/1.2 var(--font-ui); }
+.dash-action-title { margin: 0; color: var(--text-primary); font: 700 var(--fs-title)/1.1 var(--font-ui); letter-spacing: -0.02em; }
 .dash-recent { display: flex; flex-direction: column; gap: var(--sp-2); }
 .dash-recent-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .dash-recent-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) 0; border-top: 1px solid var(--hairline-faint); }
@@ -147,8 +147,8 @@ main:focus { outline: none; }
   .absent-steps li { padding-top: var(--sp-2); }
 }
 .state-card { border: 1px solid var(--hairline); background: var(--surface-card); padding: clamp(1.5rem, 4vw, 3rem); display: flex; flex-direction: column; gap: var(--sp-3); align-items: start; }
-.state-card h1 { margin: 0; color: var(--text-primary); font: 600 clamp(1.75rem, 3vw, 2.5rem)/1.15 var(--font-ui); max-width: 24ch; }
-.state-card p { margin: 0; color: var(--text-body); font-size: var(--fs-body);line-height: 1.65; max-width: 68ch; }
+.state-card h1 { margin: 0; color: var(--text-primary); font: 700 clamp(2.25rem, 5vw, 4.25rem)/0.98 var(--font-ui); letter-spacing: -0.04em; max-width: 22ch; }
+.state-card p { margin: 0; color: var(--text-body); font-size: var(--fs-body);line-height: 1.6; max-width: 68ch; }
 .state-kicker { margin: 0; color: var(--text-muted); font-size: var(--fs-fine); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
 .layout-action { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 @media (max-width: 1280px) {
@@ -190,7 +190,7 @@ main:focus { outline: none; }
 
 /* footer ticker — wrap, min-height 28 (was fixed 28 clipped) */
 footer { grid-area: ft; display: flex; align-items: center; flex-wrap: wrap; gap: 8px var(--sp-4); padding: 4px var(--sp-4); border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 var(--fs-micro) var(--font-mono); color: var(--text-faint); min-height: 28px; }
-footer .fill { margin-left: auto; }
+footer .fill { margin-left: auto; color: var(--text-faint); }
 .foot-ticker { min-height: 28px; height: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 4px 16px; border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 var(--fs-micro) var(--font-mono); color: var(--text-faint); letter-spacing: var(--tracking-caps); text-transform: none; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .foot-ticker > span { min-width: 0; overflow-wrap: anywhere; }
 .foot-ticker .mono { font-variant-numeric: tabular-nums; }
