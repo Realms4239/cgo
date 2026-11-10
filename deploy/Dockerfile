@@ -7,7 +7,8 @@ COPY bin/cgo /cgo
 # valeurs. Jamais de tag mutable :latest ; l'image se tire par digest
 # (voir deploy/docker-compose.yml + docs/deploy.md § Chaîne
 # d'approvisionnement).
-# Le corpus gelé vit ici — le conteneur est auto-cohérent, pas besoin de lire le cwd.
+# Le corpus gelé vit ici : CGO_DATA_DIR épingle la racine pour TOUT le flux
+# (runs, figures, link_audit.csv, artefacts d'audit, profils, calibrations).
 ENV CGO_DATA_DIR=/data
 WORKDIR /data
 VOLUME /data

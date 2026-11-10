@@ -274,7 +274,6 @@ func (s *Server) shapeApply(fn func(r ShapeReq) error, req ShapeReq, running fun
 
 const maxSubs = 64
 
-
 // New construit le handler complet avec repli SPA. Le Handler retourné expose
 // CloseHub pour un arrêt propre (stoppe le ticker de diffusion 10 Hz).
 // readValidMetric — valeurs valid-only d'une métrique pour une cellule
@@ -1098,7 +1097,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 		}
 		// triple provenance — même hash8 que le tiroir, les archives et les figures RDF
 		if hash8 := figures.ProvenanceHash8(results.RunsRoot()); hash8 != "" {
-			fmt.Fprintf(w, "\nprovenance : sha256:%s · source data/runs/*/aqm_eval.csv · généré %s\n", hash8, time.Now().UTC().Format(time.RFC3339))
+			fmt.Fprintf(w, "\nprovenance : sha256:%s · source %s/*/aqm_eval.csv · généré %s\n", hash8, filepath.ToSlash(results.RunsRoot()), time.Now().UTC().Format(time.RFC3339))
 		}
 	})
 
