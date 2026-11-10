@@ -27,7 +27,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 /* header — bien placé, non tronqué : min-width:0 + garde flex, repli wordmark #f2f2f4 ;
    z-index:10 — le chooser wrappe sur 2 lignes, sa moitié basse doit rester cliquable
    au-dessus de main (sans z-index, main le recouvre car il suit dans le DOM) */
-header { grid-area: hd; position: relative; z-index: 10; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); min-width: 0; min-height: 48px; }
+.app-header { grid-area: hd; position: relative; z-index: 10; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 0 16px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); min-width: 0; min-height: 48px; }
 .stripe { display: flex; flex-direction: column; width: 4px; height: 18px; gap: 2px; flex: none; }
 .stripe i { flex: 1; }
 .stripe i:nth-child(1) { background: var(--brand-1); }

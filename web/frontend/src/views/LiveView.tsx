@@ -131,6 +131,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
   // la capacité du bord suit les Réglages (le levier repart du défaut)
   useEffect(() => { setShapeCap(settings.shapeCap) }, [settings.shapeCap])
   const [shapeMsg, setShapeMsg] = useState('')
+  const [pendingShape, setPendingShape] = useState<string | null>(null)
   const [journal, setJournal] = useState<{ ts: string; kind: string; msg: string }[]>([])
   const [journalTotal, setJournalTotal] = useState(0)
   const [journalOpen, setJournalOpen] = useState<boolean>(() => {
@@ -311,19 +312,40 @@ export default function LiveView({ active = true }: { active?: boolean }) {
     try { localStorage.setItem('wall-baseline', JSON.stringify(b)) } catch { }
     useUIStore.getState().pushToast?.(`baseline verrouillée — ${b.ms} ms`, 'ok')
   }
-  const applyShape = async (q: string) => {
+  useEffect(() => {
+    if (!pendingShape) return
+    const t = setTimeout(() => setPendingShape(null), 5000)
+    return () => clearTimeout(t)
+  }, [pendingShape])
+  const applyShape = (q: string) => {
+    if (pendingShape === q) {
+      setPendingShape(null)
+      void doApplyShape(q)
+      return
+    }
+    setPendingShape(q)
+    setShapeMsg(`confirmation requise — recliquez pour ${q === 'none' ? 'retirer le réglage' : 'appliquer ' + q}`)
+  }
+  const doApplyShape = async (q: string) => {
     setShapeMsg('')
     try {
       const st = loadSettings()
       const r = await fetch('/api/shape', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ qdisc: q, capacity_mbps: shapeCap, delay_ms: st.linkDelayMs, jitter_ms: st.linkJitterMs, loss_pct: st.linkLossPct }) })
-      const j = await r.json()
-      if (!r.ok) { setShapeMsg(j?.error ?? `erreur ${r.status}`); useUIStore.getState().pushToast?.(j?.error ?? 'échec du façonnage', 'err') }
-      else {
-        setShape({ applied: q !== 'none', qdisc: q === 'none' ? undefined : q, capacity_mbps: shapeCap })
-        setShapeMsg(q === 'none' ? 'façonnage retiré' : `${q} appliqué au bord @ ${shapeCap} Mbit/s`)
-        useUIStore.getState().pushToast?.(q === 'none' ? 'façonnage retiré' : `bord façonné — ${q}`, 'ok')
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        const fallback = 'échec du façonnage'
+        setShapeMsg(j?.error ?? fallback)
+        useUIStore.getState().pushToast?.(j?.error ?? fallback, 'err')
+        return
       }
-    } catch (e) { setShapeMsg(String(e)) }
+      setShape({ applied: q !== 'none', qdisc: q === 'none' ? undefined : q, capacity_mbps: shapeCap })
+      setShapeMsg(q === 'none' ? 'façonnage retiré' : `${q} appliqué au bord @ ${shapeCap} Mbit/s`)
+      useUIStore.getState().pushToast?.(q === 'none' ? 'façonnage retiré' : `bord façonné — ${q}`, 'ok')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'réseau injoignable'
+      setShapeMsg(`échec — ${msg}`)
+      useUIStore.getState().pushToast?.('échec du façonnage', 'err')
+    }
   }
   const runBurst = async () => {
     setBursting(true)
@@ -332,7 +354,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
       const j = await r.json().catch(() => ({}))
       if (!r.ok) useUIStore.getState().pushToast?.(j?.error ?? `échec burst (${r.status})`, 'err')
       else useUIStore.getState().pushToast?.(`burst ${burstCc} traversé — lisez goodput et RTT`, 'ok')
-    } catch (e) { useUIStore.getState().pushToast?.(String(e), 'err') } finally { setBursting(false) }
+    } catch (e) { useUIStore.getState().pushToast?.('erreur réseau', 'err') } finally { setBursting(false) }
   }
   const toggleWatch = async () => {
     try {
@@ -344,7 +366,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
       setWatching(!!j.watch)
       if (j.watch) { setLocked(null); lockedRingRef.current = [] }
       useUIStore.getState().pushToast?.(j.watch ? 'surveillance active — le mur est vivant' : 'surveillance arrêtée', 'ok')
-    } catch (e) { useUIStore.getState().pushToast?.(String(e), 'err') }
+    } catch (e) { useUIStore.getState().pushToast?.('erreur réseau', 'err') }
   }
   const toggleJournal = () => setJournalOpen(o => {
     try { localStorage.setItem('live-journal-open', o ? '0' : '1') } catch { }
@@ -593,8 +615,8 @@ export default function LiveView({ active = true }: { active?: boolean }) {
                   style={{ opacity: liveSnap?.running ? 'var(--disabled-opacity)' : 1, cursor: liveSnap?.running ? 'not-allowed' : 'pointer' }}
                 >
                   <Pill
-                    label={label}
-                    on={shape?.applied && shape.qdisc === value}
+                    label={pendingShape === value ? `CONFIRMER ?` : label}
+                    on={pendingShape === value || (shape?.applied && shape.qdisc === value)}
                     onClick={liveSnap?.running ? undefined : () => applyShape(value)}
                     title={liveSnap?.running ? 'campagne active — arrêtez la mesure pour façonner' : `appliquer ${label} au bord`}
                   />

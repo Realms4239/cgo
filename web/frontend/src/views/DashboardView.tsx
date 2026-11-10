@@ -106,6 +106,7 @@ export default function DashboardView() {
     <div className="syn dash">
       <section className="layout-grid">
         <div className="layout-span-12 dash-overview-head">
+          <h1 className="sr-only">Tableau de bord</h1>
           <p className="dash-iden mono">
             {[report.site || 'Site', report.link_type || 'lien —', report.timestamp ? report.timestamp.slice(0, 16).replace('T', ' ') : ''].filter(Boolean).join(' · ')}
             {report.timestamp ? <span className="dash-ago"> · {relativeTime(report.timestamp)}</span> : null}

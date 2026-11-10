@@ -60,7 +60,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
       // contiennent le plus sûrement les cellules épinglées
       setRunA(ids[ids.length - 1] ?? null)
       setRunB(ids[ids.length - 2] ?? ids[ids.length - 1] ?? null)
-    }).catch(e => setErr(String(e)))
+    }).catch(() => setErr('indisponible — réessayez'))
   }, [])
 
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function CompareView({ a, b, onClose }: { a: Pinned; b: Pinned; o
     Promise.all([load(runA), load(runB)]).then(([ra, rb]) => {
       if (cancelled) return
       setRows({ a: ra, b: rb })
-    }).catch(e => setErr(String(e)))
+    }).catch(() => setErr('indisponible — réessayez'))
     return () => { cancelled = true }
   }, [runA, runB])
 

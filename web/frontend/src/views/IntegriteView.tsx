@@ -43,7 +43,7 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
   const RUNS_PAGE_SIZE = 12
 
   const load = () => {
-    fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(e=>setErr(String(e)))
+    fetch('/api/integrity').then(r=>r.json()).then(j=>setData(j)).catch(()=>setErr('indisponible — réessayez'))
     fetch('/api/replay/list').then(r=>r.json()).then(j=>setReplayRuns(asArray<string>(j.runs))).catch(()=>{})
     fetch('/api/results').then(r=>r.json()).then(j=>setGroups(asArray(j.groups))).catch(()=>setGroups([]))
     fetch('/api/quarantine').then(r=>r.json()).then(j=>setQuar(asArray(j.quarantines))).catch(()=>{})

@@ -88,7 +88,6 @@ export default function App() {
       }
       store.setBenchStage(stageAfterCampaign(store.benchStage, false))
       store.setFlash({ type: 'success', msg: 'Campagne terminée' })
-      store.pushToast('Campagne terminée', 'ok')
     }
     if (!wasRunningRef.current && running) {
       store.setBenchStage(stageAfterCampaign(store.benchStage, true))
