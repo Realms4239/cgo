@@ -3,7 +3,7 @@ module github.com/Realms4239/cgo/api
 go 1.25
 
 require (
-	github.com/Realms4239/cgo/audit v0.1.0
+	github.com/Realms4239/cgo/audit v0.1.1
 	github.com/Realms4239/cgo/capabilities v0.1.0
 	github.com/Realms4239/cgo/figures v0.1.0
 	github.com/Realms4239/cgo/metrics v0.1.0

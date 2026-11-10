@@ -107,6 +107,9 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+StateDirectory=cgo
+WorkingDirectory=/var/lib/cgo
+Environment=CGO_DATA_DIR=/var/lib/cgo
 		ExecStart=/usr/local/bin/cgo --serve --addr 0.0.0.0:9090 --tls=false --http-addr=
 Restart=on-failure
 RestartSec=3

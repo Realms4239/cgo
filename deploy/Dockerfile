@@ -7,6 +7,10 @@ COPY bin/cgo /cgo
 # valeurs. Jamais de tag mutable :latest ; l'image se tire par digest
 # (voir deploy/docker-compose.yml + docs/deploy.md § Chaîne
 # d'approvisionnement).
+# Le corpus gelé vit ici — le conteneur est auto-cohérent, pas besoin de lire le cwd.
+ENV CGO_DATA_DIR=/data
+WORKDIR /data
+VOLUME /data
 LABEL org.opencontainers.image.title="cgo" \
       org.opencontainers.image.description="Binaire cgo (dashboard + API + audit) — le façonnage exige CAP_NET_ADMIN, l'observation ne demande rien" \
       org.opencontainers.image.version="${VERSION}" \

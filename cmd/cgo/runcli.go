@@ -26,7 +26,13 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 	// banc (un élément de chemin simple). Sans ça, le verrou fichier serait
 	// écrit hors du dossier de données.
 	if err := results.ValidateRunID(runID); runID != "" && err != nil {
-		fmt.Fprintf(os.Stderr, "run: run-id %q invalide — un élément de chemin, sans separateur ni point, 128 octets max\n", runID)
+		fmt.Fprintf(os.Stderr, "run: run-id %q invalide — un élément de chemin, sans séparateur ni point, 128 octets max\n", runID)
+		return 2
+	}
+	// Un --data vide pointe OpenRun vers "/" (mkdir à la racine du FS) :
+	// on le refuse, comme le run-id.
+	if strings.TrimSpace(dataDir) == "" {
+		fmt.Fprintln(os.Stderr, "run: --data vide — indiquez le répertoire des runs (défaut : data/runs)")
 		return 2
 	}
 	profiles := strings.Split(profilesStr, ",")

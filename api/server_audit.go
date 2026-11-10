@@ -47,19 +47,12 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			return
 		}
 		// prévention — bornes imposées; un audit débridé coûte cher.
-		// La règle EST celle du moteur (audit/bounds.go, qui borne aussi
-		// tout appelant) ; cette copie de la fenêtre existe parce que le
-		// module api consomme une version publiée du module audit. Elle
-		// disparaît quand api REQUIRE l'audit qui porte les bornes.
+		// La règle est celle du moteur (audit/bounds.go, publiée dans
+		// audit v0.1.1) — plus de copie locale.
 		if body.Duration <= 0 {
 			body.Duration = 30
 		}
-		if body.Duration < 10 {
-			body.Duration = 10
-		}
-		if body.Duration > 600 {
-			body.Duration = 600
-		}
+		body.Duration = audit.ClampWindow(body.Duration)
 		if len(body.Site) > 80 {
 			body.Site = truncateUTF8(body.Site, 80)
 		}
@@ -94,13 +87,11 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			writeErr(w, r, "direction invalide (up|down|both)", http.StatusBadRequest)
 			return
 		}
-		if body.Flows > 8 {
+		if body.Flows > audit.MaxFlows {
 			writeErr(w, r, "flows hors bornes (1–8)", http.StatusBadRequest)
 			return
 		}
-		if body.Flows <= 0 {
-			body.Flows = 4
-		}
+		body.Flows = audit.ClampFlows(body.Flows)
 		if body.SmallURL == "" {
 			// external laisse le petit objet vide (pas de charge implicite) ;
 			// l'env garde la main sur les liaisons de terrain.

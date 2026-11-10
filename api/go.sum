@@ -1,5 +1,5 @@
-github.com/Realms4239/cgo/audit v0.1.0 h1:wEbz2QW8Vr8Vy/ZuYqzDC6q9jTcvwMH6nE10utkLbhs=
-github.com/Realms4239/cgo/audit v0.1.0/go.mod h1:YeB5Yo7Xz3xP31vUClLpfAVBV9cYFFQeD8F0B+Q9D3Q=
+github.com/Realms4239/cgo/audit v0.1.1 h1:eBPl3rvxIcdVTCf0m/XwjReXDj5AOBJhWc3KvPbulWg=
+github.com/Realms4239/cgo/audit v0.1.1/go.mod h1:YeB5Yo7Xz3xP31vUClLpfAVBV9cYFFQeD8F0B+Q9D3Q=
 github.com/Realms4239/cgo/capabilities v0.1.0 h1:ZEdXVDRtghisz1afJeLWxwrG81S0hg7HDtVOUlQfv2k=
 github.com/Realms4239/cgo/capabilities v0.1.0/go.mod h1:gQYGJGWXIHGMX87wjIOWLYaYNxgT78EwqeEZgzAIcwQ=
 github.com/Realms4239/cgo/figures v0.1.0 h1:kwY6Gg6/QIkjx8GvPFlz6Z51u6+x7MHo/yTXNmwUUlo=

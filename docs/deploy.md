@@ -35,6 +35,16 @@ actifs (commit `4968745`).
 
 ---
 
+## 0. La racine du corpus — `CGO_DATA_DIR`
+
+Depuis 2026-11-10, la racine des données n'est plus un littéral cwd-relatif (`data/`). Défaut inchangé pour les postes de travail (relatif) ; **tout déploiement doit l'épingler** :
+
+- `systemd` (`cgo service install`) : crée `/var/lib/cgo` via `StateDirectory=cgo`, pose `WorkingDirectory=/var/lib/cgo` et `Environment=CGO_DATA_DIR=/var/lib/cgo` dans l'unité.
+- `Docker` : l'image pose `WORKDIR /data`, `VOLUME /data`, `ENV CGO_DATA_DIR=/data` ; `docker-compose.yml` monte `cgo-data:/data`.
+- La variable vaut pour tout (runs gelés, figures, `link_audit.csv`, artefacts d'audit, profils, calibrations).
+
+Le contexte du changement et la revérification sont dans le registre des checkpoints (2026-11-10).
+
 ## 1. Windows — mode observation
 
 Deux voies, au choix :
