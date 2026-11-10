@@ -2772,3 +2772,12 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - **Non encore prouvé / connu inacceptable actuellement** : l'oracle G3 round 2 n'a PAS re-vérifié ce correctif ; `api` requiert audit v0.1.2/profile v0.1.1 (330a62a) — le tag `results/v0.1.3` attend la fin de la ronde (voir checkpoint suivant).
 - **Dockerfile/docs** : correction prévue de son commentaire "auto-cohérent" (il n'écrit pas encore — voir round 3).
 - Mesuré après correctifs : tout l'arbre vet+tests vert (audit 190 s, api, profile, profile_concurrent), `python tools/verify.py` 6/6 avant commit 6ffe10c.
+
+
+## 2026-11-10 - Deepwork Phase 3 — round 3 : le corpus est servi E2E sous CGO_DATA_DIR
+
+- Le round 2 laissait un doute : le dashboard lit-il VRAIMENT le corpus épinglé ? Réponse : oui, désormais prouvé — `api/corpus_flow_test.go` (`TestPinnedCorpusServesDashboard`) : `SeedRunsFor(RunsRoot())` sous une racine temporaire, puis `/api/integrity` (available + runs≥1), `/api/results` (au moins une cellule), `/api/quarantine` — sans aucun réseau, via les handlers de production.
+- Tag `results/v0.1.3` publié (le module exporte `SeedRunsFor(runsDir)` — SeedRuns historique délègue). api requiert v0.1.3. Nombre de la racine de test hermetic : `CGO_DATA_DIR` épinglé dans tous les tests qui chdayerient sans l'avoir fait (audit_list*, audit_live, artifacts_test:38,58, reserved des deux copies, profile_concurrent/profile_test des deux copies) — la suite API est hermétique sous un environnement pinné.
+- Ordre bootstrap respecté : commit (implémentation + tests) → push (gate 6/6) → tag → api bump → verify → commit → push. Le tag `results/v0.1.3` pointe sur `10b9deb` (contient SeedRunsFor), pas sur le commit bootstrap pour api.
+- Debts non fermées nommées : (i) api n'a PAS de republish v0.1.1 (module consommé via replace en racine, pas nécessaire pour l'interne; publication api différée, décision à prendre), (ii) les deux copies de profile restent des copies (limite de l'architecture consommée) — la duplication est consciente, documentée, pas silencieuse, (iii) le Dockerfile comment "auto-cohérent" a été corrigé en réalité de fait (la variable déplace bien tout le flux), (iv) `audit_live_test.go` pollute `./data/` dans le checkout (write au CWD du process de test) — nommé, non corrigé ici pour ne pas mélanger les portes.
+- Mesuré : `go vet` + `go test ./...` de l'arbre complet verts, `python tools/verify.py` **6/6**, e2e `api/corpus_flow_test.go` PASS.

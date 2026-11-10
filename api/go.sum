@@ -14,5 +14,5 @@ github.com/Realms4239/cgo/profile v0.1.1 h1:WqfhxeKCRsfAQipjdBb+/9yYHQjlrRxN61qj
 github.com/Realms4239/cgo/profile v0.1.1/go.mod h1:VNC2Hnyed0Gx5tXQ6l4xLjguvnGsccbsnjanSXU71oQ=
 github.com/Realms4239/cgo/remediate v0.1.0 h1:DkkinjvMf2f1i2XTIg8sQVEkZ9Q1cGz14hx0PPvToPw=
 github.com/Realms4239/cgo/remediate v0.1.0/go.mod h1:5YDy4jqGdZhV6loJV51HBXpG4H1qvlQwwOZGD8MVaMg=
-github.com/Realms4239/cgo/results v0.1.2 h1:Q9oNx8TzFGpbYM6TBt6e1aCTZ0np0uxw2i2awKFP5JM=
-github.com/Realms4239/cgo/results v0.1.2/go.mod h1:5+PHQK9BhATScsCms4OItryz6nCyG1kSRH8S2xqa7Uw=
+github.com/Realms4239/cgo/results v0.1.3 h1:5xRDmgPnWkFHT0xrpzCaudHGtM2Td45ApVhr2LyhUQQ=
+github.com/Realms4239/cgo/results v0.1.3/go.mod h1:5+PHQK9BhATScsCms4OItryz6nCyG1kSRH8S2xqa7Uw=
