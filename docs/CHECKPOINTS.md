@@ -2639,3 +2639,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - No OTHER tokens, no layout rules changed; no behavior changes; the tokens.test.ts harness (computing contrast + suite green) untouched; the DESIGN.md still missing (nothing refers to it in this pass).
 - Measured at this HEAD: `npm run typecheck` exit 0; `npm test` 68 files / 321 tests PASS (tokens.test.ts updated first — the scale edit failed its initial pin, then amended and re-ran 18/18 ok, then full suite 321/321 ok); `npm run build` `TOTAL gz: 357.8 KB`; `python tools/verify.py --only links --only hygiene --only exit` PASS.
 - Not attempted (left deliberately): bolder redesign of the absent-state grid or bento wall composition — would need direction from the user (art direction / grid concept); not possible to choose without it.
+
+
+## 2026-11-10 - impeccable `document` pass: DESIGN.md (local) + .impeccable/design.json sidecar
+
+- Follows the impeccable `document` command (scan mode, incumbent LIEN system — no redesign, nothing invented).
+- `DESIGN.md` written at repo root: LIEN scanner (l'instrument sombre), flat + overlay-only elevation, Inter/JetBrains Mono, scale fine 13 / label 14 / body 16 / title 34 / metric 40 / hero 56 (chiffre de 7f5547a), cyan only for 'vivant', tricolor wordmark-only. DESIGN.md is gitignored by this repository — it is a local authority, not a tracked artifact.
+- Waiter authority resolved: the two detector `--no-inline-ignores` warnings (gradient-text wordmark pinned by DESIGN.md, overused-font Inter self-hosted) are now backed by an existing DESIGN.md — the pin comment in tokens.css:7 and index.css:37 is no longer a dangling reference.
+- Sidecar `.impeccable/design.json` (schemaVersion 2) committed: colorMeta (22 tokens, displayName/role/tonalRamp synthesized in HSL per token — same hue/saturation, lightness 15→85 steps), typographyMeta (6), shadows (overlay-lift only), motion (80/150/400 ms + ease-standard), breakpoints (sm 640 / md 1100 container, viewport pin 890), 8 components (Primary/Danger/Ghost buttons, Top Navigation, Text Input, Card, Metric Pill, Provenance Strip), narrative mapped verbatim from DESIGN.md (northStar, overview, keyCharacteristics, rules, dos, donts).
+- Build/test at this HEAD: unchanged — this pass touched no source (no vite build, no vitest re-run; f628cf7→7f5547a already green: 68/321, 357.8 KB gz). `python tools/verify.py` 6/6 at this HEAD.
+- Not done (named): PRODUCT.md does not exist in this worktree (.gitignore-pruned) — `/impeccable init` is the path to it and was NOT run; detector still reports the 2 waíved anti-patterns (expected — they are waivers, not defects); DESIGN.md waiver strings in CSS comments reference a file git does not track (deliberate — local authority).
