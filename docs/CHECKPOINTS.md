@@ -51,7 +51,7 @@ end, at a settled decision, and at a handoff.
   Byte accounting: `c-cli` TX delta 65,804,658 B vs `e-srv` qdisc `Sent`
   delta 65,783,532 B → 21,126 B (0.032 %). Gap test: 20 `absent`, 1 `warmup`,
   65 valid, then 46 valid after the route restore, sink ping 302 ms.
-  Race: `go test -race ./...` on a standalone `pkg/iface` copy → `ok 1.066s`.
+  Race: `go test -race ./...` on a standalone `iface (published module)` copy → `ok 1.066s`.
   Windows: `go test ./...` exit 0, `go vet ./...` exit 0, `npm test`
   150/150, `npm run build` ok, targeted Linux cross-build exit 0.
 - Unproven/blocked: the browser paint gate is **REFUTED on this host**, not
@@ -134,14 +134,14 @@ end, at a settled decision, and at a handoff.
      run: the corpus has 5 sealed schema eras (17/18/19/22/23 columns) and
      the first-run rule would fail 164 of 179 local runs.
   2. `hygiene` carries an exact-path allowlist: 18 `backup/*.tar.gz` tracked
-     before the rule (new archives still fail), `pkg/results/runs-frozen.tar.gz`
-     (`//go:embed` in `pkg/results/seed.go`, build-critical), and the two
+     before the rule (new archives still fail), `results/runs-frozen.tar.gz`
+     (`//go:embed` in `results/seed.go`, build-critical), and the two
      tailnet addresses named deliberately in `AGENTS.md` and the append-only
      ledgers. A new address still fails.
   3. `links` only treats a backticked token with `/` and an existing top-level
      directory as a path; otherwise numeric metrics, schema filenames, branch
      names and IPs were false positives (73 on the real tree). One index token
-     changed from pkg/probe/bpf to `pkg/probe` because the eBPF package does
+     changed from pkg/probe/bpf to `probe (published module)` because the eBPF package does
      not exist yet.
 - Unproven/blocked: `make` is not installed on this host (`make: command not
   found`), so `make verify` was not runnable; the same command ran directly as
@@ -410,7 +410,7 @@ end, at a settled decision, and at a handoff.
   `e508cec`, docs `b05fb85`). Slice 6 stays **Windows-green**: Task 9 is not
   executed.
 - Changed: seven code commits — `575a30d` `LinuxTCIngress`/`RouterOSIngress`/
-  `ingressSetup` + `RouterOSLanInterface`; `9c0cca5` `pkg/qdisc/ingress.go`
+  `ingressSetup` + `RouterOSLanInterface`; `9c0cca5` `qdisc/ingress.go`
   (`ApplyIngressShaper`, read-only `CheckIngress`, `NsCommand`);
   `3005510` `Deps.ShapeMode`/`Deps.IngressPreflight`, `validateShapeMode`,
   preflight before any qdisc mutation; `cb3abcf` `ProdDepsDualNS` ingress env
@@ -425,7 +425,7 @@ end, at a settled decision, and at a handoff.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64):
   focused `go test ./pkg/remediate/... ./pkg/qdisc/... ./pkg/campagne/...
   ./pkg/audit/... ./cmd/cgo/... ./pkg/api/...` → exit 0 (fresh per task:
-  `pkg/audit` 178.2 s, `pkg/campagne` 8.078 s, `pkg/api` 63.3 s);
+  `audit (published module)` 178.2 s, `pkg/campagne` 8.078 s, `api (published module)` 63.3 s);
   `go test ./...` → exit 0; `go vet ./...` → exit 0, no output;
   `GOOS=linux GOARCH=amd64 go build ./...` → exit 1 only in `cmd/cgo-gui`
   (pre-existing Fyne/go-gl constraints), scoped build of the other 18
@@ -457,7 +457,7 @@ end, at a settled decision, and at a handoff.
 - Commands on DESKTOP-B6K9UCM (Windows 10, MINGW64):
   - `go test -count=1 ./pkg/remediate/... ./pkg/qdisc/... ./pkg/campagne/...
     ./pkg/audit/... ./cmd/cgo/... ./pkg/api/...` → exit 0; six packages `ok`
-    (`pkg/audit` 180.088 s, `pkg/campagne` 11.367 s, `pkg/api` 65.607 s).
+    (`audit (published module)` 180.088 s, `pkg/campagne` 11.367 s, `api (published module)` 65.607 s).
   - `go vet ./...` → exit 0, no output.
   - `go test -count=1 ./...` → exit 0, 17 packages `ok`, no failure.
   - `GOOS=linux GOARCH=amd64 go build ./...` → exit 1, sole failing package
@@ -752,9 +752,9 @@ end, at a settled decision, and at a handoff.
 - Branch/HEAD: `rebuild/plan1-economics-audit` / `9a59276` before the ledger
   commit (code commits `53bd6a2`, `41ef618`, `ca09893`, `9a59276`). `book/` and
   `PRODUCT.md` stay working-tree only.
-- Changed: `pkg/results`, `pkg/api`, `web/frontend` integrity counts; `pkg/model`,
-  `pkg/doctor`, `pkg/campagne`, `cmd/cgo`, `kit/install-bbr3.sh` for BBRv3;
-  `pkg/audit`, `pkg/qdisc`, `pkg/campagne`, `cmd/cgo` for trace-driven `.dist`;
+- Changed: `results`, `api (published module)`, `web/frontend` integrity counts; `model`,
+  `doctor`, `pkg/campagne`, `cmd/cgo`, `kit/install-bbr3.sh` for BBRv3;
+  `audit (published module)`, `qdisc`, `pkg/campagne`, `cmd/cgo` for trace-driven `.dist`;
   `web/frontend` Synthèse, SVG nav, deferred mounting and last-audit strip;
   `book/content` and `book/figures` (topology, current UI captures); `PRODUCT.md`
   rewritten (gitignored); docs, plan index, ledgers.
@@ -810,8 +810,8 @@ end, at a settled decision, and at a handoff.
   kernel `6.18.54.1-microsoft-standard-WSL2`, exposes only `reno cubic`, and
   lacks `tc`, `iperf3`, `clang`, `bpftool` and `jq`; it cannot certify the
   Linux 6.8 path. No live audit, campaign, IFB, `.dist` or BBRv3 run occurred.
-- eBPF preparation: `pkg/probe/bpf/bpf_probe.c` (four programs, two maps),
-  `pkg/probe/bpf/BUILD.md`, the `vmlinux.h` ignore rule and the
+- eBPF preparation: `probe (published module)/bpf/bpf_probe.c` (four programs, two maps),
+  `probe (published module)/bpf/BUILD.md`, the `vmlinux.h` ignore rule and the
   `make bpf`/`make bpf-check` maintainer targets are landed. `make` is absent
   on this Windows host, so the target was not run. No object, hash, loader or
   test ships; the slice stays **Blocked** until `make bpf` runs on a stable
@@ -868,7 +868,7 @@ end, at a settled decision, and at a handoff.
 ## 2026-10-30 10:49 UTC · slice 15 Task 11 — quality of life and runtime QA on the served build
 
 - Branch/HEAD: `rebuild/plan1-economics-audit` / `43f2066`.
-- Changed: `pkg/api/server.go` gains `auditReportExists` and a `has_report`
+- Changed: `api (published module)/server.go` gains `auditReportExists` and a `has_report`
   field on `GET /api/audit/list`, so `AuditReportsPanel` marks a row
   `non archivé` from the server's word instead of learning it from a failed
   click; `BenchView` opens the results section inside `startTransition`;
@@ -980,7 +980,7 @@ end, at a settled decision, and at a handoff.
 ## 2026-10-30 18:38 UTC · slice 16 — CHR proof built, waiting on QEMU
 
 - Branch/HEAD: `rebuild/plan1-economics-audit` / `e14753c`.
-- Changed: `pkg/audit` gains the RouterOS parser (both dialects), the
+- Changed: `audit (published module)` gains the RouterOS parser (both dialects), the
   field-level diff, the sealed CHR proof writer and the report block plus its
   Markdown line; `cmd/cgo-chr` builds the QEMU line for TCG and KVM, drives the
   serial console through an injectable transport and applies the failure
@@ -1010,7 +1010,7 @@ end, at a settled decision, and at a handoff.
 ## 2026-10-30 19:10 UTC · slice 17 — moitié Go du slice 4, readiness, runbook, badge
 
 - Branch/HEAD: `rebuild/plan1-economics-audit` / `ec0cf68`.
-- Changed: `pkg/probe/bpf` gains the typed contract, typed errors, the object
+- Changed: `probe (published module)/bpf` gains the typed contract, typed errors, the object
   behind `-tags ebpf_object` and a pure fallback ladder; `probe.KernelSource`
   injects the host facts; the report carries an additive `kernel_telemetry`
   with its reason; `/api/health` exposes the source and the ribbon shows
@@ -1097,7 +1097,7 @@ end, at a settled decision, and at a handoff.
 ## 2026-10-30 20:00 UTC · deepwork — API, GUI, livre (trois phases, trois revues)
 
 - Branch/HEAD: `rebuild/plan1-economics-audit` / `91b6ecb`.
-- Phase A (`1536f09`): 9 audit routes moved to `pkg/api/server_audit.go`;
+- Phase A (`1536f09`): 9 audit routes moved to `api (published module)/server_audit.go`;
   `server.go` 1,899 → 1,495. Oracle gate PASS: route lists identical, 377 body
   lines byte-identical, package state declared once, `handleAuditStart`
   locking/goroutine untouched, `go vet` clean, targeted tests ok.
@@ -1111,7 +1111,7 @@ end, at a settled decision, and at a handoff.
   The oracle found a blocking overclaim (a concrete `validée (7.15.3, CHR)`
   implying an acceptance): reworded as a format plus the replay caveat. The
   follow-up gate found the same empty-`checks` hole in the Markdown renderer;
-  fixed in `pkg/audit/report.go` and the card, each with a test (`91b6ecb`).
+  fixed in `audit (published module)/report.go` and the card, each with a test (`91b6ecb`).
 - Proven: `python tools/verify.py` → 6 passed; frontend 46 files / 215 tests;
   `go test ./cmd/cgo-gui` ok; `go vet ./pkg/api ./cmd/cgo-gui` clean.
 - Non-blocking, recorded for later: “non instrumenté” for a pre-telemetry
@@ -1576,8 +1576,8 @@ end, at a settled decision, and at a handoff.
 - Changed: `audit.KernelSample` + `KernelTelemetryFrom` (neutral input, empty
   sample stays absent); `api.kernelTelemetryFromSummary` maps `bpf.Summary`
   including per-flow rows — placed in the composition layer after the first
-  location (pkg/probe) failed with an import cycle, because `pkg/audit` already
-  imports `pkg/probe`. Ring gains a scale line (0 – max bytes retransmitted).
+  location (pkg/probe) failed with an import cycle, because `audit (published module)` already
+  imports `probe (published module)`. Ring gains a scale line (0 – max bytes retransmitted).
 - Proven: `go test ./pkg/audit ./pkg/api -run TestKernelTelemetry|TestReportTelemetry`
   ok; KernelRing 3/3; typecheck clean; build 350.4 KB gz.
 - Unproven, named to one line: the loader does not exist, so nothing calls the
@@ -1627,7 +1627,7 @@ end, at a settled decision, and at a handoff.
     l'interface LAN de l'opérateur”: `cmd/cgo-chr/run.go` concatenates the
     assumed-`bridge` ingress script, so a green proof cannot attest an operator
     name it never saw.
-  - `pkg/audit/audit.go` named a `LoadMeasured` symbol that does not exist above
+  - `audit (published module)/audit.go` named a `LoadMeasured` symbol that does not exist above
     `LoadAttempted`; the comment now names `LoadEstablished`.
   - Spec §3.3 refreshed: the 0.95 factor points at
     `pkg/remediate/remediate.go:74`, and the removed `ErrUnmeasured` refusal is
@@ -1824,9 +1824,9 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-07 21:08–21:18 UTC, Go 1.26.5, Node v22.23.2, Python 3.11.15:
   - `cd web/frontend && npm test` → exit 0; **68 files, 321 tests passed** (Duration 130.38s).
   - `npm run build` → exit 0; `TOTAL gz : 357.6 KB` (BenchView chunk 241.71 KB gz, built in 12.85s).
-  - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (`tests` gate 81.9 s; `hygiene` 995 tracked files clean, legacy allowlist 18 backup archives + `pkg/results/runs-frozen.tar.gz`; `frozen` both `OK` lines, 159-run seal holds).
+  - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (`tests` gate 81.9 s; `hygiene` 995 tracked files clean, legacy allowlist 18 backup archives + `results/runs-frozen.tar.gz`; `frozen` both `OK` lines, 159-run seal holds).
   - `go build ./...` → exit 0, no output.
-  - `go test ./... -count=1` → exit 0, every package `ok` (`pkg/api` 64.366s, `pkg/audit` 189.861s; per-module standalone suites were proven in Tasks 1–8 commits `9581db1`..`599022b` and are not re-run in this task).
+  - `go test ./... -count=1` → exit 0, every package `ok` (`api (published module)` 64.366s, `audit (published module)` 189.861s; per-module standalone suites were proven in Tasks 1–8 commits `9581db1`..`599022b` and are not re-run in this task).
   - `git checkout -- web/frontend/dist/index.html` → exit 0; `git status --short` clean after the restore (build artifact not committed).
 - Unproven/blocked: CHR compliance, WIS 2.0/CAP acceptance, live bench runs, and Mosquitto broker behavior stay **unproven** (no live run, no namespace, qdisc, process or listener touched; frozen corpus read-only via the seal gate only); eBPF, BBRv3 and trace-driven `.dist` live rows remain `BLOCKED` as recorded in `docs/VERIFY.md`. No row is promoted by the builder; the `PENDING` row stays pending for an independent verifier, who was **not** dispatched by this task. The builder ran the four gate groups exactly as listed; per-module `*/go test` re-runs and any cockpit/overflow/manual checks named in the plan's verifier prompt are the verifier's, not this pass's.
 - Next: the independent verifier re-runs the gates on a clean tree and owns the `PENDING` row; the human decides any merge to `main`.
@@ -1836,7 +1836,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Branch/HEAD: `openchamber/operator-cockpit` / `4cab42d` (`docs(wis2/bpf): deferred probe designs`, Task 5 closeout; this task adds only the three ledger files).
 - Changed: docs only — this entry, one `PENDING` row in `docs/VERIFY.md`, plan index row 30 (`docs/superpowers/plans/README.md`). No product code changed in this task, no frozen-corpus path touched, no live run of any kind.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08 06:02–06:11 UTC, Go 1.26.5, Node v22.23.2, Python 3.11.15:
-  - `go test ./... -count=1` → exit 0, every package `ok` (`pkg/api` 64.199s, `pkg/audit` 190.169s).
+  - `go test ./... -count=1` → exit 0, every package `ok` (`api (published module)` 64.199s, `audit (published module)` 190.169s).
   - `python tools/verify.py` → exit 0; `6 passed, 0 failed, 0 not run` (`tests` gate 77.0 s; `hygiene` 1006 tracked files clean; `frozen` both `OK` lines, 159-run seal holds).
   - `cd web/frontend && npm test` → exit 0; **68 files, 321 tests passed** (Duration 128.67s).
   - `npm run build` → exit 0; `TOTAL gz : 357.6 KB` (built in 11.72s).
@@ -1848,7 +1848,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 
 - Branch/HEAD: `openchamber/operator-cockpit` / `a0b19a4` (`fix(api): constant-time + IsLoopback auth parity`). Signature transcribed into `docs/VERIFY.md`; this entry. No product code. Historical rows not rewritten.
 - Changed: `docs/VERIFY.md` — Slice 29 verifier signature block appended verbatim from session `ses_e46881760ffeyPng7vJj6POpUv` (shell-capable re-run). Row 83 stays **PENDING** per the transcribed signature (verifier verified commands at `a0b19a4`, left disposition to verifier-owned row). This entry. No product code changed.
-- Proven: independent verifier session `ses_e46881760ffeyPng7vJj6POpUv`, 2026-11-08 05:03 UTC, re-ran fresh at `a0b19a4`: 15/15 `*/go test ./... -count=1` exit 0 (api 64.3s, audit 191.7s, probe 11.7s, rest <4s); `go test ./pkg/api -run TestMetrics -v` exit 0 (`TestMetrics_EmitsHelpTypeAndContentType`, `TestMetrics_AbsentIsNotZero` PASS, byte-identical in `pkg/api`/`api`); `python tools/verify.py` exit 0, 6/6 (tests 91.3s); `npm test` 68 files / 321 tests; `npm run build` TOTAL gz 357.6 KB; parity: absent ≠ fake zero, citation `""` without seal, no green without load, auth 401 + `Bearer`, nginx 429, `CGO_probe_dead` live, digest pin. `git status` clean after restore (`dist/index.html` checked out).
+- Proven: independent verifier session `ses_e46881760ffeyPng7vJj6POpUv`, 2026-11-08 05:03 UTC, re-ran fresh at `a0b19a4`: 15/15 `*/go test ./... -count=1` exit 0 (api 64.3s, audit 191.7s, probe 11.7s, rest <4s); `go test ./pkg/api -run TestMetrics -v` exit 0 (`TestMetrics_EmitsHelpTypeAndContentType`, `TestMetrics_AbsentIsNotZero` PASS, byte-identical in `api (published module)`/`api`); `python tools/verify.py` exit 0, 6/6 (tests 91.3s); `npm test` 68 files / 321 tests; `npm run build` TOTAL gz 357.6 KB; parity: absent ≠ fake zero, citation `""` without seal, no green without load, auth 401 + `Bearer`, nginx 429, `CGO_probe_dead` live, digest pin. `git status` clean after restore (`dist/index.html` checked out).
 - Unproven/blocked: no live audit, campaign, bench, CHR, WIS, Mosquitto, Linux acceptance, eBPF, `.dist` or BBRv3 claim; no `promtool`/Prometheus runtime check of rules against live scrape. Residuals (accepted Y): hygiene number stale (`359` vs `997`); `CGO_probe_dead` `rate(...) == 0` cannot detect missing series (needs `absent_over_time`); `pkg/` ↔ `modules/` fixture drift, both suites pass.
 - Next: human decides merge to `main`. Slice 30 verifier still pending (see next entry).
 
@@ -1920,7 +1920,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - `VBoxManage showvminfo CGO-DEV` → `VMState="poweroff"` (2026-11-06) → `VBoxManage startvm CGO-DEV --type headless` → `VMState="running"` (2026-11-08T08:39:19), `Forwarding ssh 2222→22`, `web 9090→9090`.
   - `VBoxManage guestproperty get /VirtualBox/GuestInfo/OS/Release` → `6.8.0-147-generic` (VM booted).
   - SSH `2222` sweep `altfloat|cgo|ubuntu|meteolink|airis|nemo|root × id_ed25519|nemo_ed25519|nemo_lab` → all `Permission denied (publickey,password)` (not banned — reached sshd). Same 21 cells reproduce pre-existing `docs/VERIFY.md` BLOCKED `PC2 / nemo live bench access` (E8: VM boots but no recorded SSH identity is accepted). No bypass attempted; `go test -race` on VM therefore stays **BLOCKED** on named condition: VM console `~/.ssh/authorized_keys` must accept a recorded key (human installs via console per `docs/usage.fr.md`), then re-run `python tools/verify.py` + `CGO_ENABLED=1 go test -race` on CGO-DEV.
-- Unproven/blocked: live bench/CHR/BBRv3/`.dist`/WIS/Mosquitto/eBPF (human-approved live run required per `AGENTS.md`; no run executed), GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, race on Windows (CGO_ENABLED=1 breaks on `pkg/probe/bpf` C source — recorded above), Playwright/e2e cockpit capture on this pass (frontend evidence is npm 321 + build only). Rows 83/85 stay **PENDING**; verifier owns them.
+- Unproven/blocked: live bench/CHR/BBRv3/`.dist`/WIS/Mosquitto/eBPF (human-approved live run required per `AGENTS.md`; no run executed), GoReleaser SBOM CI-run, first digest pull + `cosign verify`, module publication, race on Windows (CGO_ENABLED=1 breaks on `probe (published module)/bpf` C source — recorded above), Playwright/e2e cockpit capture on this pass (frontend evidence is npm 321 + build only). Rows 83/85 stay **PENDING**; verifier owns them.
 - Next: human decides push of this checkpoint commit to `main` (`CGO_ALLOW_MAIN=1` required) and CGO-DEV key install via console to unblock Linux race.
 
 ## 2026-11-08 08:50 UTC · stress-test proof verifier signature — ledger transcribed (HEAD a12e7e5)
@@ -2048,7 +2048,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 ## 2026-11-08 · CI verify fix 9 — CGO_ENABLED=1 for `tools/verify.py` (bpf C source)
 
 - Branch/HEAD: `main` / `8732e93` (`fix(release): formats list for archives override`). Previous entry cited `main/1ea4697`; HEAD is now `8732e93` (config + docs on top). Artifact wins; declared here.
-- Changed: workflow only — `.github/workflows/release.yml` `verify` step adds `env: CGO_ENABLED: "1"`. Root cause: CI Linux `verify.py` gates run `go vet ./...` with CGO disabled → `pkg/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c` (GitHub ubuntu Go default). Local Windows `verify.py` passed 6/6 because `pkg/probe/bpf` builds differently there. No product code. No new repo dependency.
+- Changed: workflow only — `.github/workflows/release.yml` `verify` step adds `env: CGO_ENABLED: "1"`. Root cause: CI Linux `verify.py` gates run `go vet ./...` with CGO disabled → `probe (published module)/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c` (GitHub ubuntu Go default). Local Windows `verify.py` passed 6/6 because `probe (published module)/bpf` builds differently there. No product code. No new repo dependency.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
   - `gh run view 42477813355 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed…`; `PASS hygiene (1012)`, `FAIL links`.
   - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py --only hygiene` → PASS (1012); `--only links` → PASS (5 docs).
@@ -2059,7 +2059,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 ## 2026-11-08 · CI verify fix 10 — bpf C excluded from Go tooling (ignore tag) + links ellipsis skip
 
 - Branch/HEAD: `main` / `b881553` (`fix(ci): CGO_ENABLED=1 for verify (bpf C source)`). Previous entry cited `main/8732e93`; HEAD is now `b881553` (workflow + docs on top). Artifact wins; declared here.
-- Changed: `pkg/probe/bpf/bpf_probe.c` prepends `// +build ignore` (standalone BPF source is compiled manually via `make bpf` with clang, never as cgo — Go tool must not see it as ambiguous C file). `tools/verify.py` `link_candidates` skips tokens ending `...` (historical `` `pkg/...` `` literals are glob ellipsis, not real paths; same rule already skipped `*`). No product code, no new dependency.
+- Changed: `probe (published module)/bpf/bpf_probe.c` prepends `// +build ignore` (standalone BPF source is compiled manually via `make bpf` with clang, never as cgo — Go tool must not see it as ambiguous C file). `tools/verify.py` `link_candidates` skips tokens ending `...` (historical `` `pkg/...` `` literals are glob ellipsis, not real paths; same rule already skipped `*`). No product code, no new dependency.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
   - `gh run view 42478520080 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c`; `FAIL links docs/VERIFY.md: pkg/...`.
   - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 15.3s, hygiene 1012, links 5 docs resolve).
@@ -2070,7 +2070,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 ## 2026-11-08 · CI verify fix 10 — bpf C ignored for Go tooling + links ellipsis skip
 
 - Branch/HEAD: `main` / `b881553` (`fix(ci): CGO_ENABLED=1 for verify (bpf C source)`). Previous entry cited `main/8732e93`; HEAD is now `b881553` (workflow + docs on top). Artifact wins; declared here.
-- Changed: `pkg/probe/bpf/bpf_probe.c` prepends `//go:build ignore` (standalone BPF source compiled by clang via `make bpf`, never by Go — Go tool must not see it). `tools/verify.py` `link_candidates` skips tokens ending `...` (historical glob ellipsis like `pkg/...` are not real paths; same rule already skipped `*`). No product code.
+- Changed: `probe (published module)/bpf/bpf_probe.c` prepends `//go:build ignore` (standalone BPF source compiled by clang via `make bpf`, never by Go — Go tool must not see it). `tools/verify.py` `link_candidates` skips tokens ending `...` (historical glob ellipsis like `pkg/...` are not real paths; same rule already skipped `*`). No product code.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
   - `gh run view 42478520080 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed…`; `FAIL links`.
   - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 17.5s, hygiene 1012, links).
@@ -2081,7 +2081,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 ## 2026-11-08 · CI verify fix 10 — dedup ignore tag (Go ignores duplicate //go:build)
 
 - Branch/HEAD: `main` / `a7df8b7` (`fix(verify): ignore orphan bpf C source + skip ellipsis links`). Previous entry cited `main/b881553`; HEAD is now `a7df8b7` (workflow + docs on top). Artifact wins; declared here.
-- Changed: `pkg/probe/bpf/bpf_probe.c` deduplicates `//go:build ignore` to a single line (Go tool requires exactly one constraint block at file top; duplicate breaks ignore). `.github/workflows/release.yml` verify step `CGO_ENABLED: "0"` (fyne needs Wayland/x11 only when CGO on; pure Go suite with bpf C `ignore`d passes without CGO on Linux). Both small patches, no product code, no new dependency.
+- Changed: `probe (published module)/bpf/bpf_probe.c` deduplicates `//go:build ignore` to a single line (Go tool requires exactly one constraint block at file top; duplicate breaks ignore). `.github/workflows/release.yml` verify step `CGO_ENABLED: "0"` (fyne needs Wayland/x11 only when CGO on; pure Go suite with bpf C `ignore`d passes without CGO on Linux). Both small patches, no product code, no new dependency.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
   - `gh run view 42480954064 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c`; `FAIL links` was already fixed at `a7df8b7` (ellipsis skip) and now PASS.
   - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 126.0s, hygiene 1012, links) with CGO unset (pure Go + ignored C).
@@ -2092,7 +2092,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 ## 2026-11-08 · CI verify fix 11 — CGO off (fyne Wayland) + bpf ignore dedup
 
 - Branch/HEAD: `main` / `a14e610` (`fix(verify): ignore orphan bpf C source + skip ellipsis links`). Previous entry cited `main/a7df8b7`; HEAD is now `a14e610` (workflow + docs on top). Artifact wins; declared here.
-- Changed: `.github/workflows/release.yml` verify step `CGO_ENABLED: "1"` → `"0"` (fyne/go-gl needs Wayland/X11 headers absent on CI; with bpf `.c` properly `//go:build ignore`d the pure-Go suite passes without CGO on Linux). `pkg/probe/bpf/bpf_probe.c` deduplicates `//go:build ignore` to a single line (Go tool requires exactly one constraint block at file top; duplicate breaks ignore). No product code, no new dependency.
+- Changed: `.github/workflows/release.yml` verify step `CGO_ENABLED: "1"` → `"0"` (fyne/go-gl needs Wayland/X11 headers absent on CI; with bpf `.c` properly `//go:build ignore`d the pure-Go suite passes without CGO on Linux). `probe (published module)/bpf/bpf_probe.c` deduplicates `//go:build ignore` to a single line (Go tool requires exactly one constraint block at file top; duplicate breaks ignore). No product code, no new dependency.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
   - `gh run view 42480954064 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/Realms4239/cgo/pkg/probe/bpf: C source files not allowed…` (with `CGO_ENABLED=1`, fyne CGO path needs `wayland-client-core.h` / `gl.pc`, absent); hygiene/links PASS.
   - Fix validated: `python tools/verify.py` → exit 0, 6/6 (frozen 159 seal, provenance, tests 126.0s, hygiene 1012, links).
@@ -2114,7 +2114,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 ## 2026-11-08 · CI verify fix 13 — CGO on + apt Wayland deps (Fyne GL)
 
 - Branch/HEAD: `main` / `74096c7` (`fix(ci): CGO on + Wayland deps for verify (Fyne GL)`). Previous entry cited `main/c2272ef`; HEAD is now `74096c7` (workflow + docs on top). Artifact wins; declared here.
-- Changed: `.github/workflows/release.yml` verify step `CGO_ENABLED: "1"` + `sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libglfw3-dev xorg-dev libwayland-dev pkg-config` (Fyne CGO needs Wayland/GL headers absent on `ubuntu-latest`; bpf `.c` properly `//go:build ignore`d). `pkg/probe/bpf/bpf_probe.c` deduplicates `//go:build ignore` to a single line (Go tool requires exactly one constraint block). No product code, no new dependency.
+- Changed: `.github/workflows/release.yml` verify step `CGO_ENABLED: "1"` + `sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libglfw3-dev xorg-dev libwayland-dev pkg-config` (Fyne CGO needs Wayland/GL headers absent on `ubuntu-latest`; bpf `.c` properly `//go:build ignore`d). `probe (published module)/bpf/bpf_probe.c` deduplicates `//go:build ignore` to a single line (Go tool requires exactly one constraint block). No product code, no new dependency.
 - Proven on DESKTOP-B6K9UCM (Windows 10, MINGW64), 2026-11-08:
   - `gh run view 42487198937 --log-failed` on retagged `v0.1.0` → `verify` failed: `FAIL tests go vet exit 1: package github.com/go-gl/glfw/v3.4/glfw` → `fatal error: xkbcommon/xkbcommon.h: No such file or directory` (CGO on path; libglfw present but xkbcommon headers missing). Hygiene/links PASS.
   - Fix validated: `python -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))"` → `YAML OK`; `python tools/verify.py` → exit 0, 6/6.
@@ -2400,7 +2400,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - Packet A `cd web/frontend && npm test` → exit 0, 68 files / 321 tests passed (168.69s). PASS.
   - `npm run build` → exit 0, `TOTAL gz : 357.6 KB` (budget 600 KB), built in 14.13s. PASS.
   - `git checkout -- dist/index.html` → exit 0; `git status --short` → empty (clean). PASS.
-  - `go test ./... -count=1` (from repo root) → exit 0, every package `ok` (notably `pkg/api` 66.323s, `pkg/audit` 190.950s). PASS.
+  - `go test ./... -count=1` (from repo root) → exit 0, every package `ok` (notably `api (published module)` 66.323s, `audit (published module)` 190.950s). PASS.
   - `python tools/verify.py` → exit 0, `6 passed, 0 failed, 0 not run` (tests gate 83.1s; frozen 159 runs / seal holds; hygiene 1023 tracked files; links PASS). PASS.
   - Packet B scratch-dir line `cd /tmp/cgo-digest && rm -rf * 2>/dev/null; mkdir -p /tmp/cgo-digest && cd /tmp/cgo-digest` → the first `cd` reported `No such file or directory` because the dir did not yet exist on this host; `mkdir -p` created it and the second `cd` succeeded with an empty dir; exit 0. Same end state as the packet (empty scratch dir); recorded here, not hidden. PASS.
   - `gh release download v0.1.0 --repo Realms4239/cgo` → exit 0, 13 assets (3 archives + 3 per-archive SBOMs + 5 per-module SBOMs + `checksums.txt` + `checksums.txt.sigstore.json`). PASS.
@@ -2474,7 +2474,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 
 - Human-approved eBPF (a)+(b); this is the PC2-free part of slice 2: the separate repo scaffold (stub) that builds cross-platform. The Linux object + loader remain BLOCKED on the 6.8 host (H1-H11, `make bpf`).
 - Quoted (`gh run list --repo Realms4239/cgo-bpf-observer`, 2026-11-09): `completed success ci v0.1.0 push 42656401288 23s`. Repo: https://github.com/Realms4239/cgo-bpf-observer (public, v0.1.0).
-- Structure (module `github.com/Realms4239/cgo-bpf-observer`, `go 1.25`): repo-internal bpf types/errors/status/assets copied pure-Go from `pkg/probe/bpf/` [Note: internal/ in design] + `session_stub.go` (build tag !linux || !amd64, Open/Check/Lookup/Snapshot/Globals/Attach/Close returning typed UnavailableError, honest, never ebpf without object+caps) + README + CI (stub cross GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go vet/build). Verified locally before push: stub vet + build exit 0; CI green 23s. No new Go dependency yet - cilium/ebpf v0.22.0 is imported only by the future Linux loader file, deliberately not present in the stub tree.
+- Structure (module `github.com/Realms4239/cgo-bpf-observer`, `go 1.25`): repo-internal bpf types/errors/status/assets copied pure-Go from `probe (published module)/bpf/` [Note: internal/ in design] + `session_stub.go` (build tag !linux || !amd64, Open/Check/Lookup/Snapshot/Globals/Attach/Close returning typed UnavailableError, honest, never ebpf without object+caps) + README + CI (stub cross GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go vet/build). Verified locally before push: stub vet + build exit 0; CI green 23s. No new Go dependency yet - cilium/ebpf v0.22.0 is imported only by the future Linux loader file, deliberately not present in the stub tree.
 - Unproven: H1-H11 probes on the CGO-DEV VM still BLOCKED (SSH console key pending - docs/runbooks/ssh-console-key.md); first capture + Check()/doctor on 6.8 pending; book/ untouched.
 
 
@@ -2558,12 +2558,12 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   - §1 `go list -m github.com/Realms4239/cgo/<m>@latest` ×15 (packet loop with `grep -E`) → `model v0.1.1` + 14× `v0.1.0` (`metrics`, `qdisc`, `results`, `figures`, `cite`, `exporter`, `guard`, `iface`, `remediate`, `attest`, `doctor`, `probe`, `audit`, `api`), no arrows. `git ls-remote origin 'refs/tags/model/v0.1.0'` → `f7c2baf1d1d90d02c2cc6c26b6e06d5c66b4e671	refs/tags/model/v0.1.0` (dud retained, never deleted). PASS.
   - §2 `grep -rn "=> .*/" go.mod $(ls -d */go.mod)` → `aucun replace local`. PASS.
   - §3 per-module `go test ./... -count=1` ×15 → all `ok`, no `ECHEC`: `api` 72.132s (+`profile` 9.624s), `audit` 191.316s (+`profile` 5.999s), `cite` 1.736s, `doctor` 1.572s, `exporter` 2.071s, `figures` 1.604s, `guard` 2.085s, `iface` 1.893s, `metrics` 1.763s, `model` 1.072s, `probe` 13.625s (+`bpf` 1.086s), `qdisc` 1.862s, `remediate` 1.480s, `results` 3.725s, `attest` 1.539s. PASS.
-  - §4 `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (frozen 159 runs / seal 159 manifests; tests 93.6s; hygiene 1026 tracked files; exit 5 safe invocations; links PASS). Root `go test ./... -count=1` → every package `ok` (`pkg/api` 65.067s, `pkg/audit` 190.509s). PASS.
+  - §4 `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (frozen 159 runs / seal 159 manifests; tests 93.6s; hygiene 1026 tracked files; exit 5 safe invocations; links PASS). Root `go test ./... -count=1` → every package `ok` (`api (published module)` 65.067s, `audit (published module)` 190.509s). PASS.
 - Proven — Packet A (`docs/VERIFICATION-PACKET-29-30.md`, row 83, in order):
   - `npm test` (web/frontend) → `68 passed (68)` files, `321 passed (321)` tests, 157.53s, exit 0. PASS.
   - `npm run build` → exit 0, `TOTAL gz : 357.6 KB` (budget 600 KB), built in 19.67s. PASS.
   - `git checkout -- web/frontend/dist/index.html` (root-relative form of the packet's `git checkout -- dist/index.html`; run once from `web/frontend` the bare pathspec did not match, then restored from the root) → exit 0; `git status --short` → empty (clean). PASS.
-  - `go test ./... -count=1` (repo root) → every package `ok` (`pkg/api` 64.591s, `pkg/audit` 190.398s). PASS.
+  - `go test ./... -count=1` (repo root) → every package `ok` (`api (published module)` 64.591s, `audit (published module)` 190.398s). PASS.
   - `python tools/verify.py` → `6 passed, 0 failed, 0 not run` (tests 80.2s; hygiene 1026 tracked files). PASS.
 - Proven — Packet B (`docs/VERIFICATION-PACKET-29-30.md`, row 85, in order):
   - Scratch line `cd /tmp/cgo-digest && rm -rf * 2>/dev/null; mkdir -p /tmp/cgo-digest && cd /tmp/cgo-digest` → first `cd` `No such file or directory` (dir did not exist), `mkdir -p` created it, empty dir, exit 0 — same end state as the prior verifier pass. PASS.

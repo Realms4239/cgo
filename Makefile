@@ -16,7 +16,7 @@ vet:
 
 # Real gates (tc/netem/BBR) — run INSIDE the VM only.
 test-real:
-	$(GO) test -tags=real ./pkg/qdisc/... ./pkg/campagne/...
+	$(GO) test -tags=real ./qdisc/... ./pkg/campagne/...
 
 figures: build
 	./bin/cgo figures
@@ -42,7 +42,7 @@ clean:
 	rm -rf bin $(FRONTEND)/dist
 
 # ---- eBPF maintainer targets (Linux 6.8 build host only) ----
-BPF_DIR := pkg/probe/bpf
+BPF_DIR := probe/bpf
 BPF_CLANG ?= clang-18
 BPF_CFLAGS := -O2 -g -target bpf -D__TARGET_ARCH_x86 -Wall -Werror -I$(BPF_DIR)
 
