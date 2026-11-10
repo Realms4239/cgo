@@ -1,6 +1,6 @@
 //go:build linux
 
-package campagne
+package capabilities
 
 import (
 	"os"

@@ -12,7 +12,7 @@ import (
 
 	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/model"
-	"github.com/Realms4239/cgo/pkg/profile"
+	"github.com/Realms4239/cgo/profile"
 	"github.com/Realms4239/cgo/qdisc"
 )
 

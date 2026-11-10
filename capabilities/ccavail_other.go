@@ -1,6 +1,6 @@
 //go:build !linux
 
-package campagne
+package capabilities
 
 // Hors Linux, ni /proc ni les qdiscs : la campagne dualns n'y tourne pas.
 func readHostCCList() []string      { return nil }

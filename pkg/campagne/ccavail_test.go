@@ -6,34 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Realms4239/cgo/capabilities"
 	"github.com/Realms4239/cgo/model"
 )
 
-func stubCCs(t *testing.T, list ...string) {
-	t.Helper()
-	old := readCCList
-	readCCList = func() []string { return list }
-	t.Cleanup(func() { readCCList = old })
-}
-
-func TestDefaultCCsWithoutBBRv3(t *testing.T) {
-	stubCCs(t, "cubic", "bbr")
-	got := DefaultCCs()
-	if len(got) != 2 || got[0] != "cubic" || got[1] != "bbr" {
-		t.Fatalf("défaut sans bbr3 : %v", got)
-	}
-}
-
-func TestDefaultCCsWithBBRv3(t *testing.T) {
-	stubCCs(t, "cubic", "bbr", "bbr3")
-	got := DefaultCCs()
-	if len(got) != 3 || got[2] != "bbr3" {
-		t.Fatalf("défaut avec bbr3 : %v", got)
-	}
-}
+// Ces tests portent sur la MATRICE (le bbr3 explicite est joué uniquement si
+// le noyau l'enregistre) — ils vivent ici, pas dans le module capabilities.
+// Le noyau simulé traverse la seam de test du module.
 
 func TestExplicitBBRv3RefusedWithoutKernel(t *testing.T) {
-	stubCCs(t, "cubic", "bbr")
+	defer capabilities.StubHost([]string{"cubic", "bbr"}, "")()
 	_, err := StartMatrixFiltered(context.Background(), []string{"P2"},
 		[]string{"cake"}, []string{"bbr3"}, 1, fastDeps(), t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "install-bbr3") {
@@ -42,7 +24,7 @@ func TestExplicitBBRv3RefusedWithoutKernel(t *testing.T) {
 }
 
 func TestExplicitBBRv3AcceptedWhenPresent(t *testing.T) {
-	stubCCs(t, "cubic", "bbr", "bbr3")
+	defer capabilities.StubHost([]string{"cubic", "bbr", "bbr3"}, "")()
 	m, err := StartMatrixFiltered(context.Background(), []string{"P2"},
 		[]string{"cake"}, []string{"bbr3"}, 1, fastDeps(), t.TempDir())
 	if err != nil {
@@ -58,9 +40,7 @@ func TestExplicitBBRv3AcceptedWhenPresent(t *testing.T) {
 }
 
 func TestKernelReleaseIsFrozen(t *testing.T) {
-	old := readKernelRelease
-	readKernelRelease = func() string { return "7.1.0-rc5-cgo-bbr3-test" }
-	t.Cleanup(func() { readKernelRelease = old })
+	defer capabilities.StubHost([]string{"cubic", "bbr"}, "7.1.0-rc5-cgo-bbr3-test")()
 	cfg, err := buildMatrixConfig([]string{"P1"}, []string{"cake"}, []string{string(model.BBRv3)}, 1, Deps{})
 	if err != nil {
 		t.Fatal(err)

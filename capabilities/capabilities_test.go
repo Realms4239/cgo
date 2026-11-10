@@ -1,4 +1,4 @@
-package campagne
+package capabilities
 
 import (
 	"testing"

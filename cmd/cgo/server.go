@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Realms4239/cgo/api"
+	"github.com/Realms4239/cgo/capabilities"
 	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/doctor"
 	"github.com/Realms4239/cgo/iface"
@@ -217,7 +218,7 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 			qdiscs = qs
 		}
 		if len(ccs) == 0 {
-			ccs = campagne.DefaultCCs()
+			ccs = capabilities.DefaultCCs()
 		}
 		// Reprise : un run_id existant rejoue les cellules manquantes au lieu
 		// de geler un doublon (PC/VM éteints en pleine matrice). Vide = frais.

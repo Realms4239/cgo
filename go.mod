@@ -14,12 +14,14 @@ require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/Realms4239/cgo/api v0.1.0
 	github.com/Realms4239/cgo/audit v0.1.0
+	github.com/Realms4239/cgo/capabilities v0.1.0
 	github.com/Realms4239/cgo/doctor v0.1.0
 	github.com/Realms4239/cgo/figures v0.1.0
 	github.com/Realms4239/cgo/iface v0.1.0
 	github.com/Realms4239/cgo/metrics v0.1.0
 	github.com/Realms4239/cgo/model v0.1.1
 	github.com/Realms4239/cgo/probe v0.1.0
+	github.com/Realms4239/cgo/profile v0.1.0
 	github.com/Realms4239/cgo/qdisc v0.1.0
 	github.com/Realms4239/cgo/remediate v0.1.0
 	github.com/Realms4239/cgo/results v0.1.0
@@ -81,6 +83,10 @@ replace github.com/Realms4239/cgo/results => ./results
 replace github.com/Realms4239/cgo/figures => ./figures
 
 replace github.com/Realms4239/cgo/probe => ./probe
+
+replace github.com/Realms4239/cgo/capabilities => ./capabilities
+
+replace github.com/Realms4239/cgo/profile => ./profile
 
 replace github.com/Realms4239/cgo/api => ./api
 

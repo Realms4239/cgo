@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Realms4239/cgo/capabilities"
 	"github.com/Realms4239/cgo/metrics"
 	"github.com/Realms4239/cgo/model"
 )
@@ -116,6 +117,6 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 		Direction: dir, Target: deps.Target, BulkAddr: deps.BulkAddr,
 		SmallURL: deps.SmallURL, Flows: flows, BaselineSec: baseline,
 		ChargeSec: charge, DeadlineMs: deps.DeadlineMs,
-		ChannelModel: cm, Bench: bench, Kernel: readKernelRelease(), Tier: tier,
+		ChannelModel: cm, Bench: bench, Kernel: capabilities.KernelRelease(), Tier: tier,
 	})
 }

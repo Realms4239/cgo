@@ -1,4 +1,4 @@
-package campagne
+package capabilities
 
 import "github.com/Realms4239/cgo/model"
 
@@ -28,7 +28,7 @@ func CapabilitiesNow() Capabilities {
 		Qdiscs:   qdiscs,
 		CCs:      DefaultCCs(),
 		KnownCCs: known,
-		Kernel:   readKernelRelease(),
-		BBRv3:    ccPresent(string(model.BBRv3)),
+		Kernel:   KernelRelease(),
+		BBRv3:    CCPresent(string(model.BBRv3)),
 	}
 }

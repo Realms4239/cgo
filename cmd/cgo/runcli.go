@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Realms4239/cgo/capabilities"
 	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/model"
 	"github.com/Realms4239/cgo/results"
@@ -139,7 +140,7 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 		qdiscs = qs
 	}
 	if ccs == nil {
-		ccs = campagne.DefaultCCs()
+		ccs = capabilities.DefaultCCs()
 	}
 
 	var m *campagne.Matrix

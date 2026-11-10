@@ -1,4 +1,4 @@
-package campagne
+package capabilities
 
 import "github.com/Realms4239/cgo/model"
 
@@ -10,9 +10,9 @@ var (
 	readKernelRelease = readHostKernelRelease
 )
 
-// ccPresent — le noyau expose-t-il exactement ce nom ? Le token, pas le
+// CCPresent — le noyau expose-t-il exactement ce nom ? Le token, pas le
 // préfixe : « bbr » ne doit jamais se lire dans « bbr3 ».
-func ccPresent(cc string) bool {
+func CCPresent(cc string) bool {
 	for _, c := range readCCList() {
 		if c == cc {
 			return true
@@ -29,8 +29,11 @@ func DefaultCCs() []string {
 	for _, c := range model.AllCC {
 		out = append(out, string(c))
 	}
-	if ccPresent(string(model.BBRv3)) {
+	if CCPresent(string(model.BBRv3)) {
 		out = append(out, string(model.BBRv3))
 	}
 	return out
 }
+
+// KernelRelease — la release du noyau ("" si illisible).
+func KernelRelease() string { return readKernelRelease() }
