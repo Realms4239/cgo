@@ -8,6 +8,7 @@ import (
 
 	"github.com/Realms4239/cgo/capabilities"
 	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/results"
 )
 
 // OnQuarantine — hook de niveau package posé par l'hôte (cmd/cgo) pour que les
@@ -103,6 +104,12 @@ func allQdiscStrings() []string {
 
 func startMatrix(base context.Context, runID string, profiles []string, qdiscs, ccs []string, reps int,
 	deps Deps, dataDir string) (*Matrix, error) {
+	// Le module qui ÉCRIT le dossier est le dernier rempart : un identifiant
+	// de run non-conforme ne passe pas ici, quel que soit l'appelant
+	// (CLI, API, reprise). Sans ça, « ../… » écrivait hors du corpus.
+	if err := results.ValidateRunID(runID); err != nil {
+		return nil, fmt.Errorf("run-id invalide : %q (un élément de chemin, sans séparateur, point ni contrôle, ≤ 128 octets)", runID)
+	}
 	if len(profiles) == 0 {
 		return nil, fmt.Errorf("no profiles")
 	}

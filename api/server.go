@@ -274,11 +274,6 @@ func (s *Server) shapeApply(fn func(r ShapeReq) error, req ShapeReq, running fun
 
 const maxSubs = 64
 
-// validRunID — un identifiant fourni ne contient ni séparateur ni point, donc
-// le glob data/runs/<id>/aqm_eval.csv ne sort jamais de data/runs. Vide veut
-// dire « tous les runs » pour les routes qui l'acceptent. Une seule règle,
-// partagée par results, replay/stream, run/rows et quarantine.
-func validRunID(s string) bool { return !strings.ContainsAny(s, `/\.`) }
 
 // New construit le handler complet avec repli SPA. Le Handler retourné expose
 // CloseHub pour un arrêt propre (stoppe le ticker de diffusion 10 Hz).
@@ -645,7 +640,7 @@ func (s *Server) registerRun(mux *http.ServeMux) {
 		// run_id est un chemin sous data/runs : un identifiant qui en sort
 		// (../, /, \) ferait écrire OpenRun, et lire son manifeste, hors du
 		// dossier. Même garde que les routes qui lisent un run.
-		if opts.RunID != "" && !validRunID(opts.RunID) {
+		if opts.RunID != "" && !results.ValidRunID(opts.RunID) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -789,7 +784,7 @@ func (s *Server) registerRun(mux *http.ServeMux) {
 func (s *Server) registerResults(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/results", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
-		if run != "" && !validRunID(run) {
+		if run != "" && !results.ValidRunID(run) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -1135,7 +1130,7 @@ func (s *Server) registerReplay(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("GET /api/replay/stream", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
-		if run == "" || !validRunID(run) {
+		if run == "" || !results.ValidRunID(run) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -1338,7 +1333,7 @@ func (s *Server) registerStream(mux *http.ServeMux) {
 func (s *Server) registerCorpus(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/run/rows", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
-		if id == "" || !validRunID(id) {
+		if id == "" || !results.ValidRunID(id) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
@@ -1367,10 +1362,11 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 		}
 		writeJSON(w, map[string]any{"run": id, "rows": out})
 	})
-	// Quarantaine réelle — lignes quarantine.json gelées, tous runs si ?run= vide.
+	// Quarantaine réelle — ?run= vide est un cas légitime : tous les runs.
+	// La règle du module results borne les identifiants non vides.
 	mux.HandleFunc("GET /api/quarantine", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
-		if !validRunID(id) {
+		if id != "" && !results.ValidRunID(id) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}

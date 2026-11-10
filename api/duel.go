@@ -70,7 +70,7 @@ func handleDuel() http.HandlerFunc {
 			return
 		}
 		run := r.URL.Query().Get("run")
-		if run != "" && !validRunID(run) {
+		if run != "" && !results.ValidRunID(run) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}

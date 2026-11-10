@@ -2714,3 +2714,16 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - **`api/README.md`** : la note « Compat shims (vendored until the composition layer is promoted) » est remplacée par la ligne d'état (les tags `capabilities/v0.1.0` et `profile/v0.1.0` sont requis ; seul le SPA stub reste, par choix de cutover).
 - **Preuve** : `go mod tidy` téléchargé `capabilities v0.1.0` et `profile v0.1.0` depuis le proxy ; `go vet ./...` et `go test ./...` du module serveur **verts** ; la résolution passe par les tags publiés, plus par le chemin du dépôt — le module est auto-suffisant.
 - Mesuré aussi : `python tools/verify.py --only links` vert (le checkpoint précédent citait les chemins supprimés — reword).
+
+
+## 2026-11-10 - Deepwork Phase 1 : candidat 5 (fallback TS mort) + candidat 3 (jail du run-id, tests hostiles)
+
+- Candidat **5** — suppression de `LOCAL_FALLBACK` (jamais lu en production : `loadSchema()` tombait déjà sur `[]`), du test qui épinglait la dérive (220 vs 1000), et de la constante produit dupliquée. Remplacé par `src/lib/schema.test.ts` : 4 tests non biaisés — le contrat serveur est rendu tel quel; serveur injoignable ou sans `params` ⇒ liste vide, jamais un registre inventé. Mesuré : `npx vitest run src/lib/schema.test.ts` 4/4 vert.
+- Candidat **3** — **le trou vivant** : l'ancienne règle n'existait que dans le handler HTTP; le module qui ÉCRIT — la fonction startMatrix du module campagne — ne testait rien → `cgo run --run-id "../…"` atteignait le corpus gelé.
+  - La règle a UN propriétaire : `results/runid.go` (nouveau, `ValidRunID`/`ValidateRunID`) — un élément de chemin simple, sans `/`, `\`, point ni contrôle, ≤ 128 octets. Tag **`results/v0.1.1`** publié.
+  - Le banc valide dans `startMatrix` (dernier rempart) — CLI, API et reprises passent tous.
+  - Le CLI refuse la saisie hors règle avant d'écrire le verrou fichier (exit 2).
+  - L'API délègue à `results.ValidRunID` (une seule règle, plus deux copies qui divergent); la route quarantine garde sa sémantique « ?run= vide = tous les runs » (régression détectée par le test existant `csvmapping_test.go:211`, corrigée au même commit).
+- **Tests hostiles (prouvés non complaisants)** : `pkg/campagne/runid_jail_test.go` — 8 ids hostiles (`..`, `../escape`, `a/b`, `a`, `..\..`, `.`, `a.b`, `""`) sur `StartMatrixWithID` et la reprise; aucun dossier créé sous `t.TempDir()`. **Vérifié en revertant le fix** : les tests panent le binaire de test sur l'ancien code, passent après. `results/runid_test.go` — 20 cas y compris unicode et 128 octets exactement. `api/runid_contract_test.go` — contrat HTTP épinglé : « ?run= vide = 200 » et traversal ⇒ 400 nommé « id de run invalide » (message vérifié avec un corps sinon valide et un corps sinon invalide — le refus vient bien de la garde, pas d'une autre validation).
+- Mesuré : racine `go vet` + `go test ./...` verts; module api `go vet` + `go test ./...` verts (après `go mod tidy`, results v0.1.1 résolu depuis le proxy); `python tools/verify.py` **6/6**.
+- Non prouvé ici : le comportement sur un noyau Linux réel (tous les tests tournent sur Windows; le banc Linux n'a pas été utilisé — aucune grant).

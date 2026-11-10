@@ -11,5 +11,5 @@ require (
 	github.com/Realms4239/cgo/probe v0.1.0
 	github.com/Realms4239/cgo/profile v0.1.0
 	github.com/Realms4239/cgo/remediate v0.1.0
-	github.com/Realms4239/cgo/results v0.1.0
+	github.com/Realms4239/cgo/results v0.1.1
 )

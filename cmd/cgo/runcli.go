@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/Realms4239/cgo/capabilities"
-	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/model"
+	"github.com/Realms4239/cgo/pkg/campagne"
 	"github.com/Realms4239/cgo/results"
 )
 
@@ -22,6 +22,13 @@ import (
 // (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
 // peut campagner par SSH.
 func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flows int, target, direction, dataDir, runID, bench, channelModel string) int {
+	// Un --run-id hostile ne touche JAMAIS le disque : même garde que le
+	// banc (un élément de chemin simple). Sans ça, le verrou fichier serait
+	// écrit hors du dossier de données.
+	if err := results.ValidateRunID(runID); runID != "" && err != nil {
+		fmt.Fprintf(os.Stderr, "run: run-id %q invalide — un élément de chemin, sans separateur ni point, 128 octets max\n", runID)
+		return 2
+	}
 	profiles := strings.Split(profilesStr, ",")
 	for i := range profiles {
 		profiles[i] = strings.TrimSpace(profiles[i])
