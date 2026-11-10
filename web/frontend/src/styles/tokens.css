@@ -39,6 +39,7 @@
   --t-threshold: #f4b400; /* amber — thresholds/caution */
   --t-danger: #e22718;    /* red — drops/errors/failed (fills, dots) */
   --t-danger-text: #e84a3a; /* red — text-only on card/elevated (4.95/4.71) */
+  --t-danger-fill: #b3241a; /* red — fond PLEIN portant du texte (5.90:1 sur texte primaire) */
   --t-ok: #1fa348;        /* green — passed/safe */
   --t-bbr: #b48ae0;       /* violet — BBR series */
   --t-neutral: #9aa3ad;   /* steel — neutral series */

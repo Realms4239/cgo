@@ -34,13 +34,21 @@ export function animateBar(el: Element) {
 
 // U6d: largeur animée par CHANGEMENT DE VALEUR (live campaign) — l'enter
 // scaleX ci-dessus reste réservé à la première peinture.
+// La largeur est posée une fois (mise en page), le CHANGEMENT est animé en
+// transform: scaleX — animer `width` déclenche un reflow par frame.
 export function animateBarWidth(el: Element, from: string, to: string) {
   const h = el as HTMLElement
   try {
-    if (prefersReducedMotion()) { h.style.width = to; return }
-    h.style.width = from
-    animate(h, { width: [from, to], duration: 500, ease: EASE } as any)
-  } catch { try { h.style.width = to } catch {} }
+    h.style.width = to
+    if (prefersReducedMotion()) return
+    const fromN = parseFloat(from)
+    const toN = parseFloat(to)
+    if (!Number.isFinite(fromN) || !Number.isFinite(toN) || toN <= 0 || fromN === toN) return
+    const ratio = Math.max(0, Math.min(1, fromN / toN))
+    h.style.transformOrigin = 'left center'
+    utils.set(h, { scaleX: ratio } as any)
+    animate(h, { scaleX: 1, duration: 500, ease: EASE } as any)
+  } catch { /* la largeur reste posée : la valeur est déjà à jour */ }
 }
 
 // U6e: les lignes se réordonnent dans le DOM — pas de FLIP layout, le flash

@@ -18,8 +18,16 @@ type Integrity = {
   hash8?: string; sha256?: string
 }
 
+// l'état du poste : le build qui a produit les preuves, et ce que la machine
+// sait faire encore. Sans cela l'opérateur doit ouvrir un terminal.
+type Machine = {
+  version?: string; mode?: string; telemetry?: string
+  checks?: { name: string; status: string; detail: string }[]
+}
+
 export default function IntegriteView({ embedded = false, active = true }: { embedded?: boolean; active?: boolean }) {
   const [data, setData] = useState<Integrity|null>(null)
+  const [machine, setMachine] = useState<Machine|null>(null)
   const [err, setErr] = useState<string|null>(null)
   const [msg, setMsg] = useState('')
   const [replayRuns, setReplayRuns] = useState<string[]>([])
@@ -56,6 +64,13 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
     const t=setInterval(load,10000)
     return ()=>clearInterval(t)
   }, [active])
+  // l'état du poste ne bouge pas : on le lit une fois (le doctor lance des
+  // commandes sur l'hôte, inutile de le redemander toutes les 10 s)
+  useEffect(()=>{
+    if (!active) return
+    fetch('/api/health').then(r=>r.json()).then(j=>setMachine(m=>({ ...(m||{}), ...j }))).catch(()=>{})
+    fetch('/api/doctor').then(r=>r.json()).then(j=>setMachine(m=>({ ...(m||{}), ...j }))).catch(()=>{})
+  }, [active])
   useEffect(()=>{
     if (!peek) return
     setPeekGroups(null)
@@ -82,9 +97,29 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
     else setMsg('échec: '+r.status)
   }
 
-  if (err) return <div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="error" hint={err} /></div>
-  if (!data) return <div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="loading" hint="vérification des archives" /></div>
-  if (!data.available) return <div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary int-retry" onClick={load}>Réessayer</button></div>
+  // LE POSTE — visible dans TOUS les états, y compris corpus indisponible :
+  // c'est précisément quand l'opérateur veut savoir quel build il regarde.
+  const post = machine && (machine.checks?.length || machine.version) ? (
+    <section className="card int-post" aria-label="État du poste" data-testid="machine-card">
+      <div className="card-head">Le poste</div>
+      <p className="mono int-post-id">
+        cgo {machine.version || '—'} · mode {machine.mode || '—'} · télémétrie {machine.telemetry || '—'}
+      </p>
+      <ul className="int-post-checks">
+        {(machine.checks || []).map(c => (
+          <li key={c.name} className="mono int-post-check" data-status={c.status}>
+            <span className="int-post-dot" aria-hidden="true" />
+            <span className="int-post-name">{c.name}</span>
+            <span className="int-post-detail">{c.detail}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null
+
+  if (err) return <div className="panel-stack int-stack">{post}<div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="error" hint={err} /></div></div>
+  if (!data) return <div className="panel-stack int-stack">{post}<div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="loading" hint="vérification des archives" /></div></div>
+  if (!data.available) return <div className="panel-stack int-stack">{post}<div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="empty" hint={data.reason} /><button className="btn btn-primary int-retry" onClick={load}>Réessayer</button></div></div>
 
   // Quarantaine synthétique retirée — gate_status réel depuis Scan.
   // single scroll: main défile déjà (double-scroll supprimé).
@@ -109,6 +144,7 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
         </PeekPopover>
       )}
       {!embedded && <h1 className="view-title">Intégrité — archives scellées</h1>}
+      {post}
       {/* quatre comptes du corpus scellé — 32 px, l'empreinte complète reste copiable */}
       <section className="card int-summary" aria-label="Synthèse des mesures archivées">
         <dl className="int-counts">

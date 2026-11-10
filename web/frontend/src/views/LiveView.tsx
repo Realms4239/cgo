@@ -341,9 +341,9 @@ export default function LiveView({ active = true }: { active?: boolean }) {
       setShape({ applied: q !== 'none', qdisc: q === 'none' ? undefined : q, capacity_mbps: shapeCap })
       setShapeMsg(q === 'none' ? 'façonnage retiré' : `${q} appliqué au bord @ ${shapeCap} Mbit/s`)
       useUIStore.getState().pushToast?.(q === 'none' ? 'façonnage retiré' : `bord façonné — ${q}`, 'ok')
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'réseau injoignable'
-      setShapeMsg(`échec — ${msg}`)
+    } catch {
+      // pas de e.message ici : le navigateur dit « Failed to fetch » en anglais
+      setShapeMsg('échec — le poste ne répond pas')
       useUIStore.getState().pushToast?.('échec du façonnage', 'err')
     }
   }

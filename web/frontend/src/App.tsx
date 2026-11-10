@@ -41,6 +41,9 @@ export default function App() {
   const report = useAuditStore(s => s.report)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // l'estampille du poste : build, mode, source de télémétrie — la preuve se
+  // dépose toujours, donc le build qui l'a produite doit rester lisible.
+  const [health, setHealth] = useState<{ version?: string; mode?: string; telemetry?: string } | null>(null)
   // une destination lourde ne se monte qu'à la première visite, puis reste.
   const [mounted, setMounted] = useState<Partial<Record<ModeId, boolean>>>({ dashboard: true })
 
@@ -52,6 +55,10 @@ export default function App() {
     connectSSE()
     useAuditStore.getState().restore()
     return () => disconnectSSE()
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/health').then(r => r.json()).then(j => setHealth(j)).catch(() => {})
   }, [])
 
   const isInitialMode = useRef(true)
@@ -164,6 +171,11 @@ export default function App() {
 
         <footer className="foot-ticker">
           <span id="ft-prov">source : {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
+          {health ? (
+            <span className="ft-post mono" title="build, mode et source de télémétrie de ce poste">
+              poste : cgo {health.version || '—'} · {health.mode || '—'} · télémétrie {health.telemetry || '—'}
+            </span>
+          ) : null}
           <span className="ft-brand mono">Meteolink</span>
         </footer>
 

@@ -99,8 +99,10 @@ export default function BenchConfig() {
         setImportForm(false)
       })
       .catch(e => {
-        setImportMsg('échec : ' + e.message)
-        pushToast('Échec import : ' + e.message, 'err')
+        // e.message ici ne vaut qu'un code HTTP (« 400 ») : on le nomme.
+        const code = e instanceof Error ? e.message : ''
+        setImportMsg(`échec de l'import${code ? ` (HTTP ${code})` : ''}`)
+        pushToast(`Échec import${code ? ` (HTTP ${code})` : ''}`, 'err')
       })
   }
 

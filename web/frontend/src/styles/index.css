@@ -79,6 +79,19 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--t-live); }
 .gate.fail { background: var(--t-danger); }
 .gate.degraded { background: var(--t-threshold); }
 
+/* écran d'erreur — l'opérateur lit du français et retrouve le service.
+   Sans style, ce panneau s'affichait en HTML nu : le seul écran qui doit
+   être lisible est celui qui s'affiche quand tout le reste a échoué. */
+.error-boundary { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); max-width: 68ch; margin: 0 auto; padding: clamp(24px, 7vw, 88px); }
+.error-boundary h1 { font: 700 var(--fs-title)/1.15 var(--font-ui); letter-spacing: -0.02em; color: var(--text-primary); margin: 0; }
+.eb-advice { margin: 0; font-size: var(--fs-body); line-height: 1.55; color: var(--text-body); max-width: 62ch; }
+.eb-detail { margin: 0; width: 100%; box-sizing: border-box; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); background: var(--surface-card); font: 400 var(--fs-fine)/1.5 var(--font-mono); color: var(--text-muted); overflow-wrap: anywhere; white-space: pre-wrap; }
+.eb-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.eb-actions .side-btn { min-height: 44px; padding: 0 var(--sp-4); border: 1px solid var(--hairline); background: var(--surface-card); color: var(--text-body); font: 600 var(--fs-body) var(--font-ui); cursor: pointer; transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.eb-actions .side-btn:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
+.eb-actions .side-btn:focus-visible { outline: 1px solid var(--t-live); outline-offset: 2px; }
+.eb-actions .side-btn:active { transform: translateY(1px); }
+
 /* main / view */
 main { grid-area: main; overflow-y: auto; position: relative; }
 /* cible du focus après un changement de mode — conteneur, pas une commande */
@@ -110,9 +123,12 @@ main:focus { outline: none; }
 .banner { padding: 6px 10px; border: 1px solid var(--hairline); background: var(--surface-elevated); font: 400 12px var(--font-mono); letter-spacing: 0.02em; text-transform: none; color: var(--text-muted); overflow-wrap: anywhere; min-width: 0; }
 .btn { padding: 0 var(--sp-5); min-height: 48px; border: 1px solid var(--hairline); font: 600 var(--fs-body) var(--font-ui); letter-spacing: 0; text-transform: none; color: var(--text-body); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .btn:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
+/* retour tactile — la pression s'enfonce d'un pixel, la position reste la même */
+.btn:active { transform: translateY(1px); }
+.topnav-btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--t-live); color: var(--canvas-solid); border-color: var(--t-live); font-weight: 800; letter-spacing: 0.01em; }
 .btn-primary:disabled { opacity: .35; cursor: not-allowed; background: var(--text-faint); border-color: var(--text-faint); color: var(--surface-soft); }
-.btn-danger { background: var(--t-danger); color: var(--text-primary); border-color: var(--t-danger); }
+.btn-danger { background: var(--t-danger-fill); color: var(--text-primary); border-color: var(--t-danger-fill); }
 
 /* coque desktop fluide — 890–1920 px, pas de bande centrale inerte */
 .layout-shell { width: 100%; max-width: 1680px; margin: 0 auto; padding: clamp(12px, 2vw, 28px); }
@@ -649,6 +665,17 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .int-seal { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; margin: 0; font-size: var(--fs-fine); color: var(--text-muted); }
 .int-copy { min-height: 36px; padding: 0 var(--sp-2); }
 .int-summary-actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+/* LE POSTE — build, mode, télémétrie, puis les contrôles que la machine sait faire */
+.int-post { display: flex; flex-direction: column; gap: var(--sp-2); }
+.int-post-id { margin: 0; font-size: var(--fs-fine); color: var(--text-body); }
+.int-post-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.int-post-check { display: grid; grid-template-columns: 10px minmax(96px, 148px) minmax(0, 1fr); align-items: baseline; gap: var(--sp-2); padding: 5px 0; border-top: 1px solid var(--hairline-faint); font-size: var(--fs-fine); color: var(--text-muted); }
+.int-post-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); align-self: center; }
+.int-post-check[data-status="ok"] .int-post-dot { background: var(--t-ok); }
+.int-post-check[data-status="warn"] .int-post-dot { background: var(--t-threshold); }
+.int-post-check[data-status="fail"] .int-post-dot { background: var(--t-danger-text); }
+.int-post-name { color: var(--text-body); }
+.int-post-detail { min-width: 0; overflow-wrap: anywhere; }
 .int-sources { display: grid; gap: 8px; }
 .int-source-line { font-size: var(--fs-tag); line-height: 1.6; color: var(--text-body-strong); }
 .int-source-line b { color: var(--text-primary); }

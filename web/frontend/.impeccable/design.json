@@ -4,50 +4,423 @@
   "title": "Design System: Meteolink — LIEN",
   "extensions": {
     "colorMeta": {
-      "canvas": { "role": "neutral", "displayName": "Console Canvas", "roleHint": "Fond de l'écran — la ligne de fuite.", "tonalRamp": ["#20232d", "#353a4a", "#4a5268", "#606986", "#79839f", "#979eb5", "#b5baca", "#d2d6df"] },
-      "surface-soft": { "role": "neutral", "displayName": "Surface Soft", "roleHint": "Panneaux et rails d'interface.", "tonalRamp": ["#1f232e", "#333a4d", "#47526b", "#5c698a", "#7582a3", "#949eb8", "#b3bacc", "#d1d5e0"] },
-      "surface-card": { "role": "neutral", "displayName": "Surface Card", "roleHint": "Cartes d'état (défaut à repos).", "tonalRamp": ["#1f232d", "#343a4b", "#495169", "#5e6888", "#7782a1", "#969eb6", "#b4b9cb", "#d2d5e0"] },
-      "surface-elevated": { "role": "neutral", "displayName": "Surface Elevated", "roleHint": "Overlays flottants — toasts, modals, popovers.", "tonalRamp": ["#20242d", "#353b4b", "#4a5369", "#5f6b87", "#7884a0", "#96a0b5", "#b4bbca", "#d2d6df"] },
-      "hairline": { "role": "neutral", "displayName": "Hairline", "roleHint": "Filet de séparation partout (1px).", "tonalRamp": ["#242428", "#3d3d43", "#55555e", "#6d6d78", "#878792", "#a1a1aa", "#bcbcc2", "#d7d7db"] },
-      "hairline-strong": { "role": "neutral", "displayName": "Hairline Strong", "roleHint": "Hover et bord d'interaction.", "tonalRamp": ["#242428", "#3d3d43", "#55555e", "#6d6d78", "#878792", "#a1a1aa", "#bcbcc2", "#d7d7db"] },
-      "hairline-faint": { "role": "neutral", "displayName": "Hairline Faint", "roleHint": "Divisions intérieures de carte.", "tonalRamp": ["#242428", "#3d3d43", "#55555e", "#6d6d78", "#878792", "#a2a2aa", "#bcbcc2", "#d7d7db"] },
-      "text-primary": { "role": "neutral", "displayName": "Text Primary", "roleHint": "Titres et valeurs en avant.", "tonalRamp": ["#232329", "#3a3a45", "#525261", "#69697c", "#838396", "#9e9ead", "#babac5", "#d6d6dc"] },
-      "text-body-strong": { "role": "neutral", "displayName": "Text Body Strong", "roleHint": "Corps accentué (boutons, emphase).", "tonalRamp": ["#23252a", "#3a3d46", "#515662", "#686e7d", "#828897", "#9da2ae", "#b9bdc5", "#d5d7dc"] },
-      "text-body": { "role": "neutral", "displayName": "Text Body", "roleHint": "Corps de prose par défaut.", "tonalRamp": ["#232629", "#3b3f45", "#525861", "#69717c", "#838a96", "#9ea4ad", "#babec4", "#d6d8dc"] },
-      "text-muted": { "role": "neutral", "displayName": "Text Muted", "roleHint": "Métadonnées, labels de carte.", "tonalRamp": ["#242629", "#3c3f44", "#54585f", "#6b717a", "#858a94", "#a0a4ab", "#bbbec3", "#d6d8db"] },
-      "text-faint": { "role": "neutral", "displayName": "Text Faint", "roleHint": "Captions, unités, hints (AA mesuré).", "tonalRamp": ["#252528", "#3d3d42", "#56565c", "#6f6f77", "#888890", "#a3a3a9", "#bdbdc2", "#d7d7da"] },
-      "live": { "role": "primary", "displayName": "Live Cyan", "roleHint": "Unique substance vivante : temps réel, connexion, focus ring, état actif.", "tonalRamp": ["#0b3b41", "#12626d", "#1a8a99", "#21b1c4", "#3bcbde", "#66d6e5", "#92e2ed", "#beeef4"] },
-      "threshold": { "role": "secondary", "displayName": "Threshold Amber", "roleHint": "Zone de vigilance (latence, jitter, perte) — toujours annotée.", "tonalRamp": ["#4d3800", "#805e00", "#b38400", "#e6a900", "#ffc31a", "#ffd04d", "#ffde80", "#ffebb3"] },
-      "danger": { "role": "tertiary", "displayName": "Danger Red (fill)", "roleHint": "Échecs, drops — fills et dots.", "tonalRamp": ["#450c07", "#73140c", "#a11c11", "#cf2416", "#e93d30", "#ee685e", "#f3938c", "#f8beba"] },
-      "danger-text": { "role": "tertiary", "displayName": "Danger Red (text)", "roleHint": "Rouge texte AA sur carte/élévation.", "tonalRamp": ["#450e08", "#72170d", "#a02013", "#ce2918", "#e74231", "#ec6c5f", "#f2968d", "#f7c0ba"] },
-      "ok": { "role": "tertiary", "displayName": "Acquittement Green", "roleHint": "Acquittement, succès — jamais un vert fabriqué sans verdict du moteur.", "tonalRamp": ["#0c401c", "#146b2f", "#1d9642", "#25c155", "#3eda6f", "#69e28f", "#94ebaf", "#bff3cf"] },
-      "bbr": { "role": "tertiary", "displayName": "BBR Violet", "roleHint": "Série BBR dans la matrice A/B.", "tonalRamp": ["#26103c", "#3f1b65", "#58258d", "#7130b5", "#8b4acf", "#a572da", "#be9ae4", "#d8c3ef"] },
-      "neutral": { "role": "neutral", "displayName": "Series Neutral", "roleHint": "Série grise neutre.", "tonalRamp": ["#22262a", "#393f46", "#505963", "#67727f", "#808c98", "#9ca5af", "#b9bfc6", "#d5d9dd"] },
-      "brand-1": { "role": "brand", "displayName": "Brand Azure", "roleHint": "Identité wordmark uniquement (segment tricolore).", "tonalRamp": ["#002c4d", "#004980", "#0067b3", "#0084e6", "#1a9eff", "#4db3ff", "#80c9ff", "#b3dfff"] },
-      "brand-2": { "role": "brand", "displayName": "Brand Blue", "roleHint": "Identité wordmark uniquement (segment tricolore).", "tonalRamp": ["#092144", "#0f3871", "#154e9e", "#1b64cb", "#347ee4", "#619bea", "#8eb7f0", "#bbd4f6"] },
-      "brand-3": { "role": "brand", "displayName": "Brand Red", "roleHint": "Identité wordmark uniquement (segment tricolore).", "tonalRamp": ["#450c07", "#73140c", "#a11c11", "#cf2416", "#e93d30", "#ee685e", "#f3938c", "#f8beba"] }
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Console Canvas",
+        "roleHint": "Fond de l'écran — la ligne de fuite.",
+        "tonalRamp": [
+          "#20232d",
+          "#353a4a",
+          "#4a5268",
+          "#606986",
+          "#79839f",
+          "#979eb5",
+          "#b5baca",
+          "#d2d6df"
+        ]
+      },
+      "surface-soft": {
+        "role": "neutral",
+        "displayName": "Surface Soft",
+        "roleHint": "Panneaux et rails d'interface.",
+        "tonalRamp": [
+          "#1f232e",
+          "#333a4d",
+          "#47526b",
+          "#5c698a",
+          "#7582a3",
+          "#949eb8",
+          "#b3bacc",
+          "#d1d5e0"
+        ]
+      },
+      "surface-card": {
+        "role": "neutral",
+        "displayName": "Surface Card",
+        "roleHint": "Cartes d'état (défaut à repos).",
+        "tonalRamp": [
+          "#1f232d",
+          "#343a4b",
+          "#495169",
+          "#5e6888",
+          "#7782a1",
+          "#969eb6",
+          "#b4b9cb",
+          "#d2d5e0"
+        ]
+      },
+      "surface-elevated": {
+        "role": "neutral",
+        "displayName": "Surface Elevated",
+        "roleHint": "Overlays flottants — toasts, modals, popovers.",
+        "tonalRamp": [
+          "#20242d",
+          "#353b4b",
+          "#4a5369",
+          "#5f6b87",
+          "#7884a0",
+          "#96a0b5",
+          "#b4bbca",
+          "#d2d6df"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "roleHint": "Filet de séparation partout (1px).",
+        "tonalRamp": [
+          "#242428",
+          "#3d3d43",
+          "#55555e",
+          "#6d6d78",
+          "#878792",
+          "#a1a1aa",
+          "#bcbcc2",
+          "#d7d7db"
+        ]
+      },
+      "hairline-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Strong",
+        "roleHint": "Hover et bord d'interaction.",
+        "tonalRamp": [
+          "#242428",
+          "#3d3d43",
+          "#55555e",
+          "#6d6d78",
+          "#878792",
+          "#a1a1aa",
+          "#bcbcc2",
+          "#d7d7db"
+        ]
+      },
+      "hairline-faint": {
+        "role": "neutral",
+        "displayName": "Hairline Faint",
+        "roleHint": "Divisions intérieures de carte.",
+        "tonalRamp": [
+          "#242428",
+          "#3d3d43",
+          "#55555e",
+          "#6d6d78",
+          "#878792",
+          "#a2a2aa",
+          "#bcbcc2",
+          "#d7d7db"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Text Primary",
+        "roleHint": "Titres et valeurs en avant.",
+        "tonalRamp": [
+          "#232329",
+          "#3a3a45",
+          "#525261",
+          "#69697c",
+          "#838396",
+          "#9e9ead",
+          "#babac5",
+          "#d6d6dc"
+        ]
+      },
+      "text-body-strong": {
+        "role": "neutral",
+        "displayName": "Text Body Strong",
+        "roleHint": "Corps accentué (boutons, emphase).",
+        "tonalRamp": [
+          "#23252a",
+          "#3a3d46",
+          "#515662",
+          "#686e7d",
+          "#828897",
+          "#9da2ae",
+          "#b9bdc5",
+          "#d5d7dc"
+        ]
+      },
+      "text-body": {
+        "role": "neutral",
+        "displayName": "Text Body",
+        "roleHint": "Corps de prose par défaut.",
+        "tonalRamp": [
+          "#232629",
+          "#3b3f45",
+          "#525861",
+          "#69717c",
+          "#838a96",
+          "#9ea4ad",
+          "#babec4",
+          "#d6d8dc"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Text Muted",
+        "roleHint": "Métadonnées, labels de carte.",
+        "tonalRamp": [
+          "#242629",
+          "#3c3f44",
+          "#54585f",
+          "#6b717a",
+          "#858a94",
+          "#a0a4ab",
+          "#bbbec3",
+          "#d6d8db"
+        ]
+      },
+      "text-faint": {
+        "role": "neutral",
+        "displayName": "Text Faint",
+        "roleHint": "Captions, unités, hints (AA mesuré).",
+        "tonalRamp": [
+          "#252528",
+          "#3d3d42",
+          "#56565c",
+          "#6f6f77",
+          "#888890",
+          "#a3a3a9",
+          "#bdbdc2",
+          "#d7d7da"
+        ]
+      },
+      "live": {
+        "role": "primary",
+        "displayName": "Live Cyan",
+        "roleHint": "Unique substance vivante : temps réel, connexion, focus ring, état actif.",
+        "tonalRamp": [
+          "#0b3b41",
+          "#12626d",
+          "#1a8a99",
+          "#21b1c4",
+          "#3bcbde",
+          "#66d6e5",
+          "#92e2ed",
+          "#beeef4"
+        ]
+      },
+      "threshold": {
+        "role": "secondary",
+        "displayName": "Threshold Amber",
+        "roleHint": "Zone de vigilance (latence, jitter, perte) — toujours annotée.",
+        "tonalRamp": [
+          "#4d3800",
+          "#805e00",
+          "#b38400",
+          "#e6a900",
+          "#ffc31a",
+          "#ffd04d",
+          "#ffde80",
+          "#ffebb3"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger Red (fill)",
+        "roleHint": "Échecs, drops — fills et dots.",
+        "tonalRamp": [
+          "#450c07",
+          "#73140c",
+          "#a11c11",
+          "#cf2416",
+          "#e93d30",
+          "#ee685e",
+          "#f3938c",
+          "#f8beba"
+        ]
+      },
+      "danger-text": {
+        "role": "tertiary",
+        "displayName": "Danger Red (text)",
+        "roleHint": "Rouge texte AA sur carte/élévation.",
+        "tonalRamp": [
+          "#450e08",
+          "#72170d",
+          "#a02013",
+          "#ce2918",
+          "#e74231",
+          "#ec6c5f",
+          "#f2968d",
+          "#f7c0ba"
+        ]
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "Acquittement Green",
+        "roleHint": "Acquittement, succès — jamais un vert fabriqué sans verdict du moteur.",
+        "tonalRamp": [
+          "#0c401c",
+          "#146b2f",
+          "#1d9642",
+          "#25c155",
+          "#3eda6f",
+          "#69e28f",
+          "#94ebaf",
+          "#bff3cf"
+        ]
+      },
+      "bbr": {
+        "role": "tertiary",
+        "displayName": "BBR Violet",
+        "roleHint": "Série BBR dans la matrice A/B.",
+        "tonalRamp": [
+          "#26103c",
+          "#3f1b65",
+          "#58258d",
+          "#7130b5",
+          "#8b4acf",
+          "#a572da",
+          "#be9ae4",
+          "#d8c3ef"
+        ]
+      },
+      "neutral": {
+        "role": "neutral",
+        "displayName": "Series Neutral",
+        "roleHint": "Série grise neutre.",
+        "tonalRamp": [
+          "#22262a",
+          "#393f46",
+          "#505963",
+          "#67727f",
+          "#808c98",
+          "#9ca5af",
+          "#b9bfc6",
+          "#d5d9dd"
+        ]
+      },
+      "brand-1": {
+        "role": "brand",
+        "displayName": "Brand Azure",
+        "roleHint": "Identité wordmark uniquement (segment tricolore).",
+        "tonalRamp": [
+          "#002c4d",
+          "#004980",
+          "#0067b3",
+          "#0084e6",
+          "#1a9eff",
+          "#4db3ff",
+          "#80c9ff",
+          "#b3dfff"
+        ]
+      },
+      "brand-2": {
+        "role": "brand",
+        "displayName": "Brand Blue",
+        "roleHint": "Identité wordmark uniquement (segment tricolore).",
+        "tonalRamp": [
+          "#092144",
+          "#0f3871",
+          "#154e9e",
+          "#1b64cb",
+          "#347ee4",
+          "#619bea",
+          "#8eb7f0",
+          "#bbd4f6"
+        ]
+      },
+      "brand-3": {
+        "role": "brand",
+        "displayName": "Brand Red",
+        "roleHint": "Identité wordmark uniquement (segment tricolore).",
+        "tonalRamp": [
+          "#450c07",
+          "#73140c",
+          "#a11c11",
+          "#cf2416",
+          "#e93d30",
+          "#ee685e",
+          "#f3938c",
+          "#f8beba"
+        ]
+      },
+      "danger-fill": {
+        "role": "tertiary",
+        "displayName": "Danger Red (filled surface)",
+        "roleHint": "Fond plein portant du texte — bouton de confirmation (5.90:1 sur texte primaire).",
+        "tonalRamp": [
+          "#3a0906",
+          "#631008",
+          "#8c170c",
+          "#b3241a",
+          "#c93d2c",
+          "#d65f50",
+          "#e28579",
+          "#eeaaa1"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Grandes affirmations d'un seul trait (états vides, verdicts). Jamais en grille dense." },
-      "headline": { "displayName": "Headline", "purpose": "Titres de vues — une seule lecture possible." },
-      "title": { "displayName": "Title", "purpose": "Sections action, interstitielles, verdicts secondaires." },
-      "body": { "displayName": "Body", "purpose": "Prose explicative ; mesure ≤ 75ch (typiquement 68ch)." },
-      "label": { "displayName": "Label", "purpose": "JetBrains Mono caps — sections, KPIs, nav, cartes." },
-      "data": { "displayName": "Data / Fine", "purpose": "JetBrains Mono 400 — valeurs, ticks, lignes de table." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Grandes affirmations d'un seul trait (états vides, verdicts). Jamais en grille dense."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Titres de vues — une seule lecture possible."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Sections action, interstitielles, verdicts secondaires."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose explicative ; mesure ≤ 75ch (typiquement 68ch)."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "JetBrains Mono caps — sections, KPIs, nav, cartes."
+      },
+      "data": {
+        "displayName": "Data / Fine",
+        "purpose": "JetBrains Mono 400 — valeurs, ticks, lignes de table."
+      }
     },
     "shadows": [
-      { "name": "overlay-lift", "value": "0 4px 20px rgba(0,0,0,0.35)", "purpose": "Uniquement sur les overlays flottants actifs — jamais sur une carte au repos." }
+      {
+        "name": "overlay-lift",
+        "value": "0 4px 20px rgba(0,0,0,0.35)",
+        "purpose": "Uniquement sur les overlays flottants actifs — jamais sur une carte au repos."
+      }
     ],
     "motion": [
-      { "name": "dur-fast", "value": "80ms", "purpose": "Micro-états (hover, focus)." },
-      { "name": "dur-base", "value": "150ms", "purpose": "Transitions standard." },
-      { "name": "dur-slow", "value": "400ms", "purpose": "Entrées de vue (fadeIn)." },
-      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Easing par défaut ; remplacé par linear sous prefers-reduced-motion." }
+      {
+        "name": "dur-fast",
+        "value": "80ms",
+        "purpose": "Micro-états (hover, focus)."
+      },
+      {
+        "name": "dur-base",
+        "value": "150ms",
+        "purpose": "Transitions standard."
+      },
+      {
+        "name": "dur-slow",
+        "value": "400ms",
+        "purpose": "Entrées de vue (fadeIn)."
+      },
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Easing par défaut ; remplacé par linear sous prefers-reduced-motion."
+      }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px", "purpose": "Container query — bento 1 colonne." },
-      { "name": "md", "value": "1100px", "purpose": "Container query — bento 2 colonnes." },
-      { "name": "viewport-pin", "value": "890px", "purpose": "Coque opérateur — plancher de largeur (plafond 1920)." }
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Container query — bento 1 colonne."
+      },
+      {
+        "name": "md",
+        "value": "1100px",
+        "purpose": "Container query — bento 2 colonnes."
+      },
+      {
+        "name": "viewport-pin",
+        "value": "890px",
+        "purpose": "Coque opérateur — plancher de largeur (plafond 1920)."
+      }
     ]
   },
   "components": [
@@ -128,9 +501,21 @@
       "JetBrains Mono pour les données, Inter pour le corps"
     ],
     "rules": [
-      { "name": "The LIEN Rule", "body": "Un seul accent « vivant » par écran : le cyan. Toute autre couleur est data (ambre/rouge/vert/violet/acier) ou identité (tricolore dans le wordmark uniquement).", "section": "colors" },
-      { "name": "The Numbers Speak Rule", "body": "Toute valeur mesurée a un envoi typographique : le chiffre est tabular-nums, jamais justifié, l'unité est plus petite (--fs-body) et faint.", "section": "typography" },
-      { "name": "The Flat-By-Default Rule", "body": "Les cartes ne portent pas d'ombre ; elles appartiennent à la silhouette tonale. L'ombre n'est qu'un indicateur d'animation d'état (hover, focus actif).", "section": "elevation" }
+      {
+        "name": "The LIEN Rule",
+        "body": "Un seul accent « vivant » par écran : le cyan. Toute autre couleur est data (ambre/rouge/vert/violet/acier) ou identité (tricolore dans le wordmark uniquement).",
+        "section": "colors"
+      },
+      {
+        "name": "The Numbers Speak Rule",
+        "body": "Toute valeur mesurée a un envoi typographique : le chiffre est tabular-nums, jamais justifié, l'unité est plus petite (--fs-body) et faint.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Les cartes ne portent pas d'ombre ; elles appartiennent à la silhouette tonale. L'ombre n'est qu'un indicateur d'animation d'état (hover, focus actif).",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do utiliser le cyan uniquement pour « vivant » : valeur temps réel, état de connexion, focus ring, segment actif.",
