@@ -24,6 +24,7 @@ import (
 	"github.com/Realms4239/cgo/probe"
 	"github.com/Realms4239/cgo/profile"
 	"github.com/Realms4239/cgo/results"
+	"github.com/Realms4239/cgo/runreq"
 )
 
 // envDefault — petit utilitaire de configuration par environnement ;
@@ -644,109 +645,20 @@ func (s *Server) registerRun(mux *http.ServeMux) {
 			return
 		}
 		// prévention — le client est une indication, jamais le contrat (§6) ; l'entrée
-		// est validée même sur les hôtes sans moteur câblé — bornes issues du
-		// même registre que sert GET /api/schema
-		if mn, mx, ok := paramBounds("reps"); ok && (opts.Reps < int(mn) || opts.Reps > int(mx)) {
-			writeErr(w, r, "reps must be 1–5", http.StatusBadRequest)
-			return
+		// est validée même sur les hôtes sans moteur câblé. La règle vit dans le
+		// module runreq — une règle, un verdict, aucun double registre.
+		req := runreq.CampaignRequest{
+				RunID: opts.RunID, Profiles: opts.Profiles, Qdiscs: opts.Qdiscs,
+				CCs: opts.CCs, Reps: opts.Reps, Flows: opts.Flows, DeadlineMs: opts.DeadlineMs,
+				Bench: opts.Bench, Direction: opts.Direction, ChannelModel: opts.ChannelModel, Target: opts.Target,
 		}
-		if opts.Flows != 0 && (opts.Flows < 1 || opts.Flows > 8) {
-			writeErr(w, r, "flows must be 1–8", http.StatusBadRequest)
-			return
-		}
-		// bornes — la deadline voyage avec le run, dans la même fenêtre
-		// que le tiroir Réglages impose côté client
-		if opts.DeadlineMs != 0 {
-			if mn, mx, ok := paramBounds("deadline_ms"); ok && (float64(opts.DeadlineMs) < mn || float64(opts.DeadlineMs) > mx) {
-				writeErr(w, r, "deadline_ms must be 200–5000", http.StatusBadRequest)
+		if errs := req.ValidateAll(); len(errs) > 0 {
+				msgs := make([]string, 0, len(errs))
+				for _, e := range errs {
+					msgs = append(msgs, e.Error())
+				}
+				writeErr(w, r, strings.Join(msgs, " ; "), http.StatusBadRequest)
 				return
-			}
-		}
-		if len(opts.Target) > 64 {
-			writeErr(w, r, "target must be ≤ 64 characters", http.StatusBadRequest)
-			return
-		}
-		if len(opts.Profiles) == 0 {
-			writeErr(w, r, "aucun profil sélectionné", http.StatusBadRequest)
-			return
-		}
-		var unknown []string
-		model.ProfilesMu.RLock()
-		for _, id := range opts.Profiles {
-			if _, ok := model.Profiles[id]; !ok {
-				unknown = append(unknown, id)
-			}
-		}
-		model.ProfilesMu.RUnlock()
-		if len(unknown) > 0 {
-			writeErr(w, r, "profils inconnus: "+strings.Join(unknown, ", "), http.StatusBadRequest)
-			return
-		}
-		// provenance déclarée — validée ici même sans moteur câblé (le refus
-		// doit tenir sur les hôtes en observation) ; bursty est une physique
-		// de canal radio : P2/P3 uniquement (décision 7), refusé avant toute
-		// mutation. La campagne reste le dernier mot (même règle, même message).
-		switch opts.Bench {
-		case "", "legacy", "dualns":
-		default:
-			writeErr(w, r, "bench must be legacy | dualns", http.StatusBadRequest)
-			return
-		}
-		switch opts.ChannelModel {
-		case "", "clean", "bursty":
-		default:
-			writeErr(w, r, "channel_model must be clean | bursty", http.StatusBadRequest)
-			return
-		}
-		if opts.ChannelModel == "bursty" {
-			var hors []string
-			for _, id := range opts.Profiles {
-				if id != "P2" && id != "P3" {
-					hors = append(hors, id)
-				}
-			}
-			if len(hors) > 0 {
-				writeErr(w, r, "channel_model bursty invalide pour "+strings.Join(hors, ", ")+" — rafales sur P2/P3 uniquement (choisir clean)", http.StatusBadRequest)
-				return
-			}
-		}
-		// axes qdisc/CC : validés sur les mêmes listes que le moteur
-		// (model.AllQdiscs / model.KnownCC). L'indisponibilité de bbr3 reste
-		// la porte du moteur : refus explicite avec le chemin d'installation,
-		// jamais un repli silencieux. Vides = matrice pleine.
-		if len(opts.Qdiscs) > 0 {
-			validQ := map[string]bool{}
-			for _, q := range model.AllQdiscs {
-				validQ[string(q)] = true
-			}
-			for _, q := range opts.Qdiscs {
-				if !validQ[q] {
-					writeErr(w, r, "qdisc inconnu: "+q, http.StatusBadRequest)
-					return
-				}
-			}
-		}
-		if len(opts.CCs) > 0 {
-			validCC := map[string]bool{}
-			for _, c := range model.KnownCC {
-				validCC[string(c)] = true
-			}
-			for _, c := range opts.CCs {
-				if !validCC[c] {
-					writeErr(w, r, "cc inconnu: "+c, http.StatusBadRequest)
-					return
-				}
-			}
-		}
-		if len(opts.Qdiscs) == 0 && len(opts.CCs) > 0 || len(opts.Qdiscs) > 0 && len(opts.CCs) == 0 {
-			writeErr(w, r, "qdiscs et ccs se filtrent ensemble", http.StatusBadRequest)
-			return
-		}
-		switch opts.Direction {
-		case "", "up", "down", "both":
-		default:
-			writeErr(w, r, "direction must be up|down|both", http.StatusBadRequest)
-			return
 		}
 		if s.deps.StartFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)

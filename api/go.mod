@@ -12,4 +12,5 @@ require (
 	github.com/Realms4239/cgo/profile v0.1.1
 	github.com/Realms4239/cgo/remediate v0.1.0
 	github.com/Realms4239/cgo/results v0.1.3
+	github.com/Realms4239/cgo/runreq v0.1.0
 )
