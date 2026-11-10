@@ -23,7 +23,7 @@ import (
 	"github.com/Realms4239/cgo/remediate"
 )
 
-func handleAuditStart(d Deps) http.HandlerFunc {
+func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Site           string `json:"site"`
@@ -111,24 +111,15 @@ func handleAuditStart(d Deps) http.HandlerFunc {
 		if body.RouterOSIface == "" {
 			body.RouterOSIface = os.Getenv("CGO_AUDIT_ROUTEROS_IFACE")
 		}
-		auditMu.Lock()
-		if auditRunning {
-			auditMu.Unlock()
+		// contexte détaché de la requête HTTP mais annulable par l'opérateur
+		runCtx, cancel := context.WithCancel(context.Background())
+		// La session réserve le run et efface le rapport précédent d'un seul
+		// geste : refusé ⇒ un audit tourne déjà (409), rien n'est touché.
+		if !s.begin(cancel, body.Duration, time.Now()) {
+			cancel()
 			writeErr(w, r, "audit already running", http.StatusConflict)
 			return
 		}
-		// contexte détaché de la requête HTTP mais annulable par l'opérateur
-		runCtx, cancel := context.WithCancel(context.Background())
-		auditRunning = true
-		auditCancel = cancel
-		auditStartedAt = time.Now()
-		auditTotalSec = body.Duration
-		auditProgress.Store(audit.Progress{Phase: "repos"})
-		// Le rapport en mémoire appartient à l'audit PRÉCÉDENT : le garder
-		// pendant ce run ferait lire un ancien rapport comme le résultat de
-		// celui-ci si le nouveau échoue. L'archive disque reste disponible.
-		lastAuditReport = nil
-		auditMu.Unlock()
 		asymmetric := true
 		if body.Asymmetric != nil {
 			asymmetric = *body.Asymmetric
@@ -142,15 +133,10 @@ func handleAuditStart(d Deps) http.HandlerFunc {
 				if rec := recover(); rec != nil {
 					log.Printf("audit: panne interne : %v\n%s", rec, debug.Stack())
 					recordEvent("audit", fmt.Sprintf("panne interne — %s (%s) : %v", body.Site, body.LinkType, rec))
-					auditMu.Lock()
-					lastAuditReport = nil
-					auditMu.Unlock()
+					s.clearReport()
 				}
 				cancel()
-				auditMu.Lock()
-				auditRunning = false
-				auditCancel = nil
-				auditMu.Unlock()
+				s.finish()
 			}()
 			p := auditParamsFromRequest(map[string]any{
 				"site": body.Site, "link_type": body.LinkType, "provider": body.Provider,
@@ -165,7 +151,7 @@ func handleAuditStart(d Deps) http.HandlerFunc {
 			if d.AuditDepsFn != nil {
 				deps = d.AuditDepsFn()
 			}
-			deps.OnProgress = func(pr audit.Progress) { auditProgress.Store(pr) }
+			deps.OnProgress = s.setProgress
 			res, err := audit.Run(runCtx, p, deps)
 			// Annulation opérateur : Run rend context.Canceled sans résultat
 			// partiel. Le rapport précédent a été effacé au démarrage : un
@@ -200,10 +186,7 @@ func handleAuditStart(d Deps) http.HandlerFunc {
 					recordEvent("audit", fmt.Sprintf("artefacts non écrits — %s : %s", p.Site, err))
 				}
 			}
-			auditMu.Lock()
-			lastAudit = res
-			lastAuditReport = rep
-			auditMu.Unlock()
+			s.setResult(res, rep)
 			grade := res.BloatGrade
 			if grade == "" {
 				grade = "non mesuré"
@@ -225,26 +208,23 @@ func handleAuditStart(d Deps) http.HandlerFunc {
 	}
 }
 
-func handleAuditStatus() http.HandlerFunc {
+func handleAuditStatus(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		auditMu.Lock()
-		defer auditMu.Unlock()
-		writeJSON(w, map[string]any{"running": auditRunning, "last": lastAudit, "report": lastAuditReport})
+		running, last, rep := s.status()
+		writeJSON(w, map[string]any{"running": running, "last": last, "report": rep})
 	}
 }
 
 // Audit vivant — la carte « Observer » sonde ceci toutes les 2 s. Pas
 // d'audit ⇒ running:false seul : aucun zéro ne se lit comme mesuré.
-func handleAuditLive() http.HandlerFunc {
+func handleAuditLive(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		auditMu.Lock()
-		running, started, total := auditRunning, auditStartedAt, auditTotalSec
-		auditMu.Unlock()
+		running, started, total := s.live()
 		if !running {
 			writeJSON(w, map[string]any{"running": false})
 			return
 		}
-		pr, _ := auditProgress.Load().(audit.Progress)
+		pr := s.progressValue()
 		rttSamples, smallSamples := pr.SamplesRTT, pr.SamplesSmall
 		if rttSamples == nil {
 			rttSamples = []float64{}
@@ -269,20 +249,15 @@ func handleAuditLive() http.HandlerFunc {
 
 // Arrêt opérateur — la goroutine d'audit voit son contexte annulé,
 // n'écrit rien de partiel et journalise « annulé par l'opérateur ».
-func handleAuditStop() http.HandlerFunc {
+func handleAuditStop(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		auditMu.Lock()
-		cancel, running := auditCancel, auditRunning
-		if !running || cancel == nil {
-			auditMu.Unlock()
+		// Une seule livraison : la session retire le cancel avant l'appel, un
+		// second arrêt ne peut donc pas re-annuler quelque chose.
+		cancel, ok := s.stop()
+		if !ok {
 			writeJSON(w, map[string]any{"stopped": false})
 			return
 		}
-		// Une seule livraison : la goroutine efface encore ces champs à sa
-		// sortie, sans effet. Sans ce nil, deux arrêts rapprochés répondaient
-		// « stopped » deux fois alors qu'un seul avait annulé quelque chose.
-		auditCancel = nil
-		auditMu.Unlock()
 		cancel()
 		writeJSON(w, map[string]any{"stopped": true})
 	}
@@ -290,17 +265,12 @@ func handleAuditStop() http.HandlerFunc {
 
 // Rapport d'audit — artefact persistant, pas seulement l'état en mémoire.
 // Sans audit_id, le dernier rapport ; avec, la copie archivée.
-func handleAuditReport() http.HandlerFunc {
+func handleAuditReport(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimSpace(r.URL.Query().Get("audit_id"))
-		var rep *audit.Report
-		auditMu.Lock()
-		if id == "" || (lastAuditReport != nil && lastAuditReport.AuditID == id) {
-			rep = lastAuditReport
-		}
-		auditMu.Unlock()
+		rep := s.reportFor(id)
 		if rep == nil {
-			archived, ok := resolveArchivedReport(id)
+			archived, ok := resolveArchivedReport(s, id)
 			if !ok {
 				writeErr(w, r, "rapport introuvable : "+id, http.StatusNotFound)
 				return
@@ -320,16 +290,11 @@ func handleAuditReport() http.HandlerFunc {
 // existe pour que le dashboard copie sans parser le Markdown. Un iface
 // fourni ici ne réécrit pas les mesures : BuildReport repart du Result
 // mesuré et ne fait que nommer l'équipement.
-func handleRemediate() http.HandlerFunc {
+func handleRemediate(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		id := strings.TrimSpace(q.Get("audit_id"))
-		var rep *audit.Report
-		auditMu.Lock()
-		if id == "" || (lastAuditReport != nil && lastAuditReport.AuditID == id) {
-			rep = lastAuditReport
-		}
-		auditMu.Unlock()
+		rep := s.reportFor(id)
 		if rep == nil {
 			var err error
 			rep, err = readAuditReport(id)
@@ -342,9 +307,7 @@ func handleRemediate() http.HandlerFunc {
 		// result is still in memory; otherwise return the archived report's
 		// remediation verbatim.
 		if iface := strings.TrimSpace(q.Get("iface")); iface != "" {
-			auditMu.Lock()
-			res := lastAudit
-			auditMu.Unlock()
+			res := s.lastResult()
 			if res != nil && res.AuditID == rep.AuditID {
 				link := remediate.Link{
 					Interface:            iface,
@@ -373,11 +336,9 @@ func handleAuditPresets() http.HandlerFunc {
 // l'audit en mémoire s'il s'agit de celui-là, sinon la copie disque. Le listeur
 // et le détail partagent ce chemin, sinon la liste afficherait un verdict que le
 // rapport du même audit_id ne confirme pas.
-func resolveArchivedReport(id string) (*audit.Report, bool) {
-	auditMu.Lock()
-	last := lastAuditReport
-	auditMu.Unlock()
-	if last != nil && id != "" && last.AuditID == id {
+func resolveArchivedReport(s *auditSession, id string) (*audit.Report, bool) {
+	last := s.reportByID(id)
+	if last != nil {
 		return last, true
 	}
 	rep, err := readAuditReport(id)
@@ -387,7 +348,7 @@ func resolveArchivedReport(id string) (*audit.Report, bool) {
 	return rep, true
 }
 
-func handleAuditList() http.HandlerFunc {
+func handleAuditList(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		// read link_audit.csv
 		f, err := os.Open("data/link_audit.csv")
@@ -411,13 +372,13 @@ func handleAuditList() http.HandlerFunc {
 					m[h] = row[i]
 				}
 			}
-			m["has_report"] = strconv.FormatBool(auditReportExists(m["audit_id"]))
+			m["has_report"] = strconv.FormatBool(auditReportExists(s, m["audit_id"]))
 			// Le mot vient de l'artefact scellé, jamais du CSV : la note seule ne
 			// dit pas si la charge a été tentée, et c'est exactement le faux vert
 			// que la tache 1 de 20A a fermé. Pas d'artefact, pas de verdict — une
 			// absence, jamais « neutre » inventé par le listeur.
 			if m["has_report"] == "true" {
-				if rep, ok := resolveArchivedReport(m["audit_id"]); ok && rep.OperatorVerdict.Level != "" {
+				if rep, ok := resolveArchivedReport(s, m["audit_id"]); ok && rep.OperatorVerdict.Level != "" {
 					m["verdict_level"] = string(rep.OperatorVerdict.Level)
 					m["verdict_word"] = rep.OperatorVerdict.Word
 				}

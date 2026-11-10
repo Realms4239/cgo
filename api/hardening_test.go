@@ -72,24 +72,18 @@ func TestReadAuditReportRejectsUnsafeID(t *testing.T) {
 // mémoire du suivi courant compte sans être encore relu du disque.
 func TestAuditReportExists(t *testing.T) {
 	t.Chdir(t.TempDir())
+	// le test prépare l'état par la MÊME seam que les handlers : la session.
+	s := &auditSession{}
 	for _, id := range []string{"", "..", ".", "../x", `..\x`, "a/b"} {
-		if auditReportExists(id) {
+		if auditReportExists(s, id) {
 			t.Fatalf("id %q accepté comme archivé", id)
 		}
 	}
-	auditMu.Lock()
-	last := lastAuditReport
-	lastAuditReport = &audit.Report{AuditID: "audit-9"}
-	auditMu.Unlock()
-	defer func() {
-		auditMu.Lock()
-		lastAuditReport = last
-		auditMu.Unlock()
-	}()
-	if !auditReportExists("audit-9") {
+	s.setResult(nil, &audit.Report{AuditID: "audit-9"})
+	if !auditReportExists(s, "audit-9") {
 		t.Fatal("rapport du suivi courant non reconnu")
 	}
-	if auditReportExists("audit-8") {
+	if auditReportExists(s, "audit-8") {
 		t.Fatal("id sans archive reconnu comme archivable")
 	}
 	dir := filepath.Join("data", "audits", "audit-8")
@@ -99,7 +93,7 @@ func TestAuditReportExists(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "audit_report.json"), []byte(`{"audit_id":"audit-8"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if !auditReportExists("audit-8") {
+	if !auditReportExists(s, "audit-8") {
 		t.Fatal("dossier présent non reconnu")
 	}
 }

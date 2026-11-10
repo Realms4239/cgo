@@ -189,7 +189,7 @@ func TestAuditLiveAndStop(t *testing.T) {
 // ou en échec afficherait l'ancien rapport comme son résultat.
 func TestAuditStartClearsStaleReport(t *testing.T) {
 	site := "stale-report-" + time.Now().Format("150405.000000")
-	h := New(Deps{
+	srv0 := NewServer(Deps{
 		SinksFn: func() audit.Sinks {
 			return audit.Sinks{Mode: "external", Target: "127.0.0.1"}
 		},
@@ -206,12 +206,12 @@ func TestAuditStartClearsStaleReport(t *testing.T) {
 			}
 		},
 	})
-	srv := httptest.NewServer(h)
+	srv := httptest.NewServer(srv0)
 	defer srv.Close()
 	waitAuditIdle(t, srv)
 
-	lastAuditReport = &audit.Report{AuditID: "stale-report-" + site}
-	t.Cleanup(func() { lastAuditReport = nil })
+	srv0.audit.setResult(nil, &audit.Report{AuditID: "stale-report-" + site})
+	t.Cleanup(func() { srv0.audit.setResult(nil, nil) })
 
 	body, _ := json.Marshal(map[string]any{
 		"site": site, "link_type": "fiber", "duration": 10, "direction": "up", "flows": 4,

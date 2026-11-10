@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // TestAuditStopDeliversCancelOnce — un arrêt demandé deux fois ne doit pas
@@ -14,18 +15,12 @@ import (
 // statut disait encore running tant que la goroutine n'avait pas rendu la main.
 func TestAuditStopDeliversCancelOnce(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	auditMu.Lock()
-	auditRunning = true
-	auditCancel = cancel
-	auditMu.Unlock()
-	defer func() {
-		auditMu.Lock()
-		auditRunning = false
-		auditCancel = nil
-		auditMu.Unlock()
-	}()
+	// le test prépare l'état par la MÊME seam que les handlers : la session.
+	s := &auditSession{}
+	s.begin(cancel, 60, time.Now())
+	defer s.finish()
 
-	h := handleAuditStop()
+	h := handleAuditStop(s)
 	call := func() bool {
 		rr := httptest.NewRecorder()
 		h(rr, httptest.NewRequest("POST", "/api/audit/stop", nil))

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -14,8 +13,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/Realms4239/cgo/api/campagne"
@@ -68,7 +65,7 @@ func readAuditReport(id string) (*audit.Report, error) {
 // Une ligne de link_audit.csv peut précéder l'archivage par dossier : sans ce
 // drapeau, le dashboard propose « OUVRIR » sur une impasse et le premier clic
 // produit un 404.
-func auditReportExists(id string) bool {
+func auditReportExists(s *auditSession, id string) bool {
 	if id == "" {
 		return false
 	}
@@ -79,10 +76,8 @@ func auditReportExists(id string) bool {
 	if _, err := os.Stat(path); err == nil {
 		return true
 	}
-	auditMu.Lock()
-	last := lastAuditReport
-	auditMu.Unlock()
-	return last != nil && last.AuditID == id
+	last := s.reportByID(id)
+	return last != nil
 }
 
 // Schema — source unique de vérité pour chaque contrôle paramétré :
@@ -228,10 +223,6 @@ func (d Deps) observeBlocked(w http.ResponseWriter) bool {
 	return true
 }
 
-// RecordEvent exporte le journal opérateur vers les hôtes qui câblent les
-// callbacks campagne (les cellules quarantaine arrivent ici depuis la boucle matrice).
-func RecordEvent(kind, msg string) { recordEvent(kind, msg) }
-
 // Handler porte le cycle de vie du hub afin que les hôtes puissent arrêter
 // le ticker 10 Hz à l'arrêt (Server.Close seul ne le fait jamais).
 type Handler struct {
@@ -246,35 +237,8 @@ func (h Handler) CloseHub() {
 	}
 }
 
-var auditMu sync.Mutex
-var lastAudit *audit.Result
-var lastAuditReport *audit.Report
-var auditRunning bool
-var auditCancel context.CancelFunc
-var auditStartedAt time.Time
-var auditTotalSec int
-var auditProgress atomic.Value // audit.Progress : écrit par l'audit, lu sans verrou
-
-// Journal — mémoire opérateur: anneau des 50 derniers événements.
-var eventsMu sync.Mutex
-var eventsRing []map[string]any
-
-func recordEvent(kind, msg string) {
-	eventsMu.Lock()
-	defer eventsMu.Unlock()
-	eventsRing = append(eventsRing, map[string]any{"ts": time.Now().Format(time.RFC3339), "kind": kind, "msg": msg})
-	if len(eventsRing) > 50 {
-		eventsRing = eventsRing[len(eventsRing)-50:]
-	}
-}
-
 // shapeState — dernier façonnage du bord appliqué (observabilité du contrôle).
-var shapeMu sync.Mutex
-var shapeQdisc string
-var shapeCap float64
-var shapeSince time.Time
-
-func shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (int, any) {
+func (s *Server) shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (int, any) {
 	q, cap := req.Qdisc, req.CapMbps
 	if running != nil && running() {
 		return http.StatusConflict, map[string]any{"error": "campagne active — arrêtez la mesure avant de façonner le bord"}
@@ -299,10 +263,7 @@ func shapeApply(fn func(r ShapeReq) error, req ShapeReq, running func() bool) (i
 	if err := fn(req); err != nil {
 		return http.StatusInternalServerError, map[string]any{"error": err.Error()}
 	}
-	shapeMu.Lock()
-	shapeQdisc, shapeCap, shapeSince = q, cap, time.Now()
-	since := shapeSince.Format(time.RFC3339)
-	shapeMu.Unlock()
+	since := s.shape.set(q, cap, time.Now())
 	cond := ""
 	if req.DelayMs > 0 || req.JitterMs > 0 || req.LossPct > 0 {
 		cond = fmt.Sprintf(", conditions %gms/%gms/%g%%", req.DelayMs, req.JitterMs, req.LossPct)
@@ -321,14 +282,6 @@ func validRunID(s string) bool { return !strings.ContainsAny(s, `/\.`) }
 
 // New construit le handler complet avec repli SPA. Le Handler retourné expose
 // CloseHub pour un arrêt propre (stoppe le ticker de diffusion 10 Hz).
-// compareCache — le bootstrap/MW coûte ~ms par cellule : précalcul + cache,
-// invalidé par le hash de provenance (tout nouveau gel change la clé).
-var compareCache struct {
-	sync.Mutex
-	key string
-	val map[string]any
-}
-
 // readValidMetric — valeurs valid-only d'une métrique pour une cellule
 // profile|qdisc|cc + direction (défaut up historique). Ignore run-smoke.
 func readValidMetric(cell, metric, direction string) ([]float64, int) {
@@ -377,10 +330,31 @@ func readValidMetric(cell, metric, direction string) ([]float64, int) {
 	return out, n
 }
 
-func New(d Deps) Handler {
-	hub := NewHub()
-	mux := http.NewServeMux()
+// Server — le serveur HTTP et l'état qu'il possède. Un serveur = un
+// journal, une session d'audit, un état de façonnage, un cache de
+// comparaison. Avant, cet état vivait dans des variables de paquet
+// partagées entre server.go et server_audit.go.
+type Server struct {
+	deps    Deps
+	hub     *Hub
+	audit   *auditSession
+	shape   *shapeState
+	compare compareCache
+	snap    func() any
+	next    func() any
+	mux     *http.ServeMux
+}
 
+// New — l'interface publique ne change pas : Deps dedans, Handler dehors.
+func New(d Deps) Handler {
+	s := NewServer(d)
+	return Handler{Handler: crossSiteGuard(s), hubClose: func() { s.hub.Close() }}
+}
+
+// NewServer — le serveur et son état. Les tests passent par ici pour
+// préparer un état (audit en cours, rapport présent) au lieu d'écrire
+// dans des variables de paquet.
+func NewServer(d Deps) *Server {
 	// fournisseur nil ⇒ instantané idle — vide honnête, jamais de panic sur appel nil
 	snap := d.GetSnap
 	if snap == nil {
@@ -390,12 +364,45 @@ func New(d Deps) Handler {
 	if next == nil {
 		next = snap
 	}
+	s := &Server{
+		deps:  d,
+		hub:   NewHub(),
+		audit: &auditSession{},
+		shape: &shapeState{},
+		snap:  snap,
+		next:  next,
+	}
+	mux := http.NewServeMux()
+	s.registerHealth(mux)
+	s.registerCost(mux)
+	s.registerState(mux)
+	s.registerEdge(mux)
+	s.registerRun(mux)
+	s.registerResults(mux)
+	s.registerFigures(mux)
+	s.registerReplay(mux)
+	s.registerAudit(mux)
+	s.registerProfiles(mux)
+	s.registerMisc(mux)
+	s.registerFallbacks(mux)
+	s.registerStream(mux)
+	s.registerCorpus(mux)
+	s.mux = mux
+	return s
+}
 
+// ServeHTTP — le serveur EST son handler.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
+}
+
+// registerHealth — un seul site d'enregistrement par domaine.
+func (s *Server) registerHealth(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"ok": true, "version": d.Version, "mode": d.Mode, "telemetry": probe.KernelSource()})
+		writeJSON(w, map[string]any{"ok": true, "version": s.deps.Version, "mode": s.deps.Mode, "telemetry": probe.KernelSource()})
 	})
 	mux.HandleFunc("GET /metrics", handleMetrics(func() map[string]string {
-		return map[string]string{"version": d.Version}
+		return map[string]string{"version": s.deps.Version}
 	}))
 	// capacités du banc : le client rend les files et contrôles que cet hôte
 	// expose réellement, sans recopier de liste.
@@ -403,17 +410,21 @@ func New(d Deps) Handler {
 		writeJSON(w, campagne.CapabilitiesNow())
 	})
 	mux.HandleFunc("GET /api/doctor", func(w http.ResponseWriter, _ *http.Request) {
-		if d.DoctorFn != nil {
-			writeJSON(w, d.DoctorFn())
+		if s.deps.DoctorFn != nil {
+			writeJSON(w, s.deps.DoctorFn())
 			return
 		}
-		writeJSON(w, map[string]any{"mode": d.Mode, "checks": []any{}})
+		writeJSON(w, map[string]any{"mode": s.deps.Mode, "checks": []any{}})
 	})
 	// le contrat de paramètres — le client rend les champs depuis ce registre
 	mux.HandleFunc("GET /api/schema", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"params": schemaParams})
 	})
 	// paliers tarifaires réels — le client rend le choix de forfait honnêtement
+}
+
+// registerCost — un seul site d'enregistrement par domaine.
+func (s *Server) registerCost(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/cost/tiers", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"tiers": metrics.Tiers, "default": metrics.ActiveTierName()})
 	})
@@ -462,7 +473,7 @@ func New(d Deps) Handler {
 		}
 		// Le palier est gelé avec le run : le changer en cours de campagne
 		// donnerait deux bases de coût dans le même gel.
-		if d.RunningFn != nil && d.RunningFn() {
+		if s.deps.RunningFn != nil && s.deps.RunningFn() {
 			writeErr(w, r, "campagne en cours — le palier est gelé avec le run, changez-le après le gel", http.StatusConflict)
 			return
 		}
@@ -477,7 +488,7 @@ func New(d Deps) Handler {
 	// actuellement façonné, pendant que la surveillance veille. Refusé en
 	// cours de campagne : la matrice possède alors le shaper.
 	mux.HandleFunc("POST /api/burst", requireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if d.observeBlocked(w) {
+		if s.deps.observeBlocked(w) {
 			return
 		}
 		var body struct {
@@ -509,23 +520,27 @@ func New(d Deps) Handler {
 			writeErr(w, r, "seconds must be 2–10", http.StatusBadRequest)
 			return
 		}
-		if d.RunningFn != nil && d.RunningFn() {
+		if s.deps.RunningFn != nil && s.deps.RunningFn() {
 			writeErr(w, r, "campagne active — le burst se lance hors campagne", http.StatusConflict)
 			return
 		}
-		if d.BurstFn == nil {
+		if s.deps.BurstFn == nil {
 			writeErr(w, r, "burst engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
-		if err := d.BurstFn(body.CC, body.Seconds); err != nil {
+		if err := s.deps.BurstFn(body.CC, body.Seconds); err != nil {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		recordEvent("burst", fmt.Sprintf("burst %s %ds — traverse le bord façonné", body.CC, body.Seconds))
 		writeJSON(w, map[string]any{"ok": true, "cc": body.CC, "seconds": body.Seconds})
 	}))
+}
+
+// registerState — un seul site d'enregistrement par domaine.
+func (s *Server) registerState(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, snap())
+		writeJSON(w, s.snap())
 	})
 	// Profils dynamiques (profil importé inclus):
 	mux.HandleFunc("GET /api/profiles", func(w http.ResponseWriter, _ *http.Request) {
@@ -559,17 +574,20 @@ func New(d Deps) Handler {
 	})
 	// Façonnage du bord — appliquer / observer:
 	mux.HandleFunc("GET /api/shape", func(w http.ResponseWriter, _ *http.Request) {
-		shapeMu.Lock()
-		defer shapeMu.Unlock()
-		if shapeQdisc == "" {
+		qdisc, cap, since := s.shape.get()
+		if qdisc == "" {
 			writeJSON(w, map[string]any{"applied": false})
 			return
 		}
-		writeJSON(w, map[string]any{"applied": true, "qdisc": shapeQdisc, "capacity_mbps": shapeCap, "since": shapeSince.Format(time.RFC3339)})
+		writeJSON(w, map[string]any{"applied": true, "qdisc": qdisc, "capacity_mbps": cap, "since": since.Format(time.RFC3339)})
 	})
 	// surveillance continue — non intrusive, composable avec le levier
+}
+
+// registerEdge — un seul site d'enregistrement par domaine.
+func (s *Server) registerEdge(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/watch", requireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if d.observeBlocked(w) {
+		if s.deps.observeBlocked(w) {
 			return
 		}
 		var body struct {
@@ -579,22 +597,22 @@ func New(d Deps) Handler {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
-		if d.WatchFn == nil {
+		if s.deps.WatchFn == nil {
 			writeErr(w, r, "watch engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
-		if body.On && d.RunningFn != nil && d.RunningFn() {
+		if body.On && s.deps.RunningFn != nil && s.deps.RunningFn() {
 			writeErr(w, r, "campagne active — la surveillance se lance hors campagne", http.StatusConflict)
 			return
 		}
-		if err := d.WatchFn(body.On); err != nil {
+		if err := s.deps.WatchFn(body.On); err != nil {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		writeJSON(w, map[string]any{"watch": body.On})
 	}))
 	mux.HandleFunc("POST /api/shape", requireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if d.observeBlocked(w) {
+		if s.deps.observeBlocked(w) {
 			return
 		}
 		var req ShapeReq
@@ -602,7 +620,7 @@ func New(d Deps) Handler {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
-		code, out := shapeApply(d.ShapeFn, req, d.RunningFn)
+		code, out := s.shapeApply(s.deps.ShapeFn, req, s.deps.RunningFn)
 		if code != http.StatusOK {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(code)
@@ -611,8 +629,12 @@ func New(d Deps) Handler {
 		}
 		writeJSON(w, out)
 	}))
+}
+
+// registerRun — un seul site d'enregistrement par domaine.
+func (s *Server) registerRun(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/run/start", requireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if d.observeBlocked(w) {
+		if s.deps.observeBlocked(w) {
 			return
 		}
 		var opts RunOpts
@@ -732,11 +754,11 @@ func New(d Deps) Handler {
 			writeErr(w, r, "direction must be up|down|both", http.StatusBadRequest)
 			return
 		}
-		if d.StartFn == nil {
+		if s.deps.StartFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
-		if err := d.StartFn(opts); err != nil {
+		if err := s.deps.StartFn(opts); err != nil {
 			writeErr(w, r, err.Error(), http.StatusConflict)
 			return
 		}
@@ -744,23 +766,27 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"started": true})
 	}))
 	mux.HandleFunc("POST /api/run/stop", requireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if d.StopFn == nil {
+		if s.deps.StopFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
-		d.StopFn()
+		s.deps.StopFn()
 		recordEvent("campagne", "arrêtée")
 		writeJSON(w, map[string]any{"stopped": true})
 	}))
 	mux.HandleFunc("POST /api/run/skip", requireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if d.SkipFn == nil {
+		if s.deps.SkipFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
 		}
-		d.SkipFn()
+		s.deps.SkipFn()
 		recordEvent("campagne", "cellule courante skippée — reprise possible")
 		writeJSON(w, map[string]any{"skipped": true})
 	}))
+}
+
+// registerResults — un seul site d'enregistrement par domaine.
+func (s *Server) registerResults(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/results", func(w http.ResponseWriter, r *http.Request) {
 		run := r.URL.Query().Get("run")
 		if run != "" && !validRunID(run) {
@@ -894,14 +920,14 @@ func New(d Deps) Handler {
 			return
 		}
 		key := figures.ProvenanceHash8("data/runs") + "|" + a + "|" + b + "|" + metric + "|" + direction
-		compareCache.Lock()
-		if compareCache.key == key {
-			v := compareCache.val
-			compareCache.Unlock()
+		s.compare.Lock()
+		if s.compare.key == key {
+			v := s.compare.val
+			s.compare.Unlock()
 			writeJSON(w, v)
 			return
 		}
-		compareCache.Unlock()
+		s.compare.Unlock()
 		xa, na := readValidMetric(a, metric, direction)
 		xb, nb := readValidMetric(b, metric, direction)
 		if len(xa) == 0 || len(xb) == 0 {
@@ -916,9 +942,9 @@ func New(d Deps) Handler {
 			"cliff_delta": d, "cliff_interp": metrics.CliffInterp(d),
 			"deadline_mixed_D": metric == "deadline_ok_pct",
 		}
-		compareCache.Lock()
-		compareCache.key, compareCache.val = key, out
-		compareCache.Unlock()
+		s.compare.Lock()
+		s.compare.key, s.compare.val = key, out
+		s.compare.Unlock()
 		writeJSON(w, out)
 	})
 	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, _ *http.Request) {
@@ -1081,6 +1107,10 @@ func New(d Deps) Handler {
 		}
 	})
 
+}
+
+// registerFigures — un seul site d'enregistrement par domaine.
+func (s *Server) registerFigures(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/figures/regen", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if err := figures.Generate("data/runs", "data/figures"); err != nil {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)
@@ -1089,6 +1119,10 @@ func New(d Deps) Handler {
 		writeJSON(w, map[string]any{"ok": true})
 	}))
 	mux.Handle("/api/figures/", http.StripPrefix("/api/figures/", http.FileServer(http.Dir("data/figures"))))
+}
+
+// registerReplay — un seul site d'enregistrement par domaine.
+func (s *Server) registerReplay(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/replay/list", func(w http.ResponseWriter, _ *http.Request) {
 		runs, _ := filepath.Glob("data/runs/*")
 		var ids []string
@@ -1146,15 +1180,23 @@ func New(d Deps) Handler {
 		}
 	})
 
-	mux.HandleFunc("POST /api/audit/start", requireAuth(handleAuditStart(d)))
-	mux.HandleFunc("GET /api/audit/status", handleAuditStatus())
-	mux.HandleFunc("GET /api/audit/live", handleAuditLive())
-	mux.HandleFunc("POST /api/audit/stop", requireAuth(handleAuditStop()))
-	mux.HandleFunc("GET /api/audit/report", handleAuditReport())
-	mux.HandleFunc("GET /api/remediate", handleRemediate())
+}
+
+// registerAudit — un seul site d'enregistrement par domaine.
+func (s *Server) registerAudit(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/audit/start", requireAuth(handleAuditStart(s.deps, s.audit)))
+	mux.HandleFunc("GET /api/audit/status", handleAuditStatus(s.audit))
+	mux.HandleFunc("GET /api/audit/live", handleAuditLive(s.audit))
+	mux.HandleFunc("POST /api/audit/stop", requireAuth(handleAuditStop(s.audit)))
+	mux.HandleFunc("GET /api/audit/report", handleAuditReport(s.audit))
+	mux.HandleFunc("GET /api/remediate", handleRemediate(s.audit))
 	mux.HandleFunc("GET /api/audit/presets", handleAuditPresets())
-	mux.HandleFunc("GET /api/audit/list", handleAuditList())
+	mux.HandleFunc("GET /api/audit/list", handleAuditList(s.audit))
 	mux.HandleFunc("POST /api/audit/toprofile", requireAuth(handleAuditToProfile()))
+}
+
+// registerProfiles — un seul site d'enregistrement par domaine.
+func (s *Server) registerProfiles(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/profile/import", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		if err != nil {
@@ -1261,22 +1303,39 @@ func New(d Deps) Handler {
 		model.ProfilesMu.RUnlock()
 		writeJSON(w, cp)
 	})
+}
+
+// registerMisc — un seul site d'enregistrement par domaine.
+func (s *Server) registerMisc(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/diagnostics", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"hub": "ok", "time": time.Now().UTC().Format(time.RFC3339)})
 	})
 	mux.HandleFunc("GET /api/hardware/translate", HandleTranslate)
 	// 404 JSON pour /api/* inconnu — doit précéder le catch-all SPA "/"
+}
+
+// registerFallbacks — un seul site d'enregistrement par domaine.
+func (s *Server) registerFallbacks(mux *http.ServeMux) {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "not found", "path": r.URL.Path})
 	})
 
-	mux.Handle("GET /api/stream", http.HandlerFunc(hub.SSE))
-	hub.Serve(func() any { return next() })
-
 	spa := http.FileServer(http.FS(frontend.FS))
+	mux.Handle("/", spa)
+}
+
+// registerStream — un seul site d'enregistrement par domaine.
+func (s *Server) registerStream(mux *http.ServeMux) {
+	mux.Handle("GET /api/stream", http.HandlerFunc(s.hub.SSE))
+	s.hub.Serve(func() any { return s.next() })
+
 	// Vue Compare — lignes gelées brutes d'un run, protégée contre le cheminement.
+}
+
+// registerCorpus — un seul site d'enregistrement par domaine.
+func (s *Server) registerCorpus(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/run/rows", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
 		if id == "" || !validRunID(id) {
@@ -1421,14 +1480,8 @@ func New(d Deps) Handler {
 		})
 	})
 	mux.HandleFunc("GET /api/events", func(w http.ResponseWriter, _ *http.Request) {
-		eventsMu.Lock()
-		defer eventsMu.Unlock()
-		out := make([]map[string]any, len(eventsRing))
-		copy(out, eventsRing)
-		writeJSON(w, map[string]any{"events": out})
+		writeJSON(w, map[string]any{"events": journal.snapshot()})
 	})
-	mux.Handle("/", spa)
-	return Handler{Handler: crossSiteGuard(mux), hubClose: func() { hub.Close() }}
 }
 
 // crossSiteGuard — un navigateur venu d'un autre site ne déclenche pas de
