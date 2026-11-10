@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Realms4239/cgo/api/campagne"
 	frontend "github.com/Realms4239/cgo/api/frontend"
-	"github.com/Realms4239/cgo/api/profile"
 	"github.com/Realms4239/cgo/audit"
+	"github.com/Realms4239/cgo/capabilities"
 	"github.com/Realms4239/cgo/figures"
 	"github.com/Realms4239/cgo/metrics"
 	"github.com/Realms4239/cgo/model"
 	"github.com/Realms4239/cgo/probe"
+	"github.com/Realms4239/cgo/profile"
 	"github.com/Realms4239/cgo/results"
 )
 
@@ -407,7 +407,7 @@ func (s *Server) registerHealth(mux *http.ServeMux) {
 	// capacités du banc : le client rend les files et contrôles que cet hôte
 	// expose réellement, sans recopier de liste.
 	mux.HandleFunc("GET /api/capabilities", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, campagne.CapabilitiesNow())
+		writeJSON(w, capabilities.CapabilitiesNow())
 	})
 	mux.HandleFunc("GET /api/doctor", func(w http.ResponseWriter, _ *http.Request) {
 		if s.deps.DoctorFn != nil {

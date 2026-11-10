@@ -1,5 +1,5 @@
 # cgo/api
 REST/SSE surface for CGO: `New(d Deps) Handler`, SSE hub, Prometheus `/metrics`, profile and audit routes.
-Stdlib only (plus cgo/audit, cgo/figures, cgo/metrics, cgo/model, cgo/probe, cgo/remediate, cgo/results). Versioned with semver; breaking changes bump MAJOR.
+Stdlib only (plus cgo/audit, cgo/capabilities, cgo/figures, cgo/metrics, cgo/model, cgo/probe, cgo/profile, cgo/remediate, cgo/results). Versioned with semver; breaking changes bump MAJOR.
 
-Compat shims (vendored until the composition layer is promoted): `campagne/` (CapabilitiesNow subset), `profile/` (full copy), `frontend/` (SPA stub — the real dist stays in web/frontend until cutover).
+`frontend/` reste un SPA stub — le vrai dist vit dans web/frontend jusqu'à la bascule. Les copies vendored `campagne/` et `profile/` ont été supprimées : le module requiert les modules publiés `capabilities` et `profile` (tags `capabilities/v0.1.0`, `profile/v0.1.0`).

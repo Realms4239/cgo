@@ -2680,7 +2680,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - **Le test traverse la même seam que le handler** : `audit_stop_test.go`, `audit_live_test.go` et `hardening_test.go` préparaient l'état en écrivant dans les variables de paquet ; ils passent désormais par la session (`s.begin(...)`, `srv0.audit.setResult(...)`). Plus de test qui atteint l'intérieur du module.
 - **Hygiène** : `.gitignore` pointait encore sur deux chemins morts depuis la restructuration en modules racine — le répertoire de données de l'ancien module serveur et le fichier de kernel BPF généré (les deux préfixés `pkg`, supprimé à l'extraction). Les artefacts de test du module serveur allaient réapparaître en non suivis (`api/data/`). Corrigé.
 - Mesuré : `go vet ./...` + `go test ./...` (module api) **verts** ; racine `go vet ./...` + `go test ./...` **verts** ; `python tools/verify.py` **6/6** (hygiène 875 fichiers suivis propres).
-- Non couvert par cette slice (nommé) : le chemin de jail des runs (`validRunID`) reste dispersé, la racine du corpus reste un littéral `data/runs` relatif au cwd, la validation des requêtes de campagne est encore dupliquée, et `api/campagne` + `api/profile` sont des copies au mot près de `pkg/campagne` + `pkg/profile` (exploration du 2026-11-10) — chaque copie est un module publié qui ne peut pas importer le module racine.
+- Non couvert par cette slice (nommé) : le chemin de jail des runs (`validRunID`) reste dispersé, la racine du corpus reste un littéral `data/runs` relatif au cwd, la validation des requêtes de campagne est encore dupliquée, et les copies vendored du module serveur (deux répertoires internes, supprimés depuis) étaient des copies au mot près de `pkg/campagne` + `pkg/profile` (exploration du 2026-11-10) — chaque copie est un module publié qui ne peut pas importer le module racine.
 
 
 ## 2026-11-10 - Architecture : les bornes d'audit ont UN propriétaire (le moteur)
@@ -2696,11 +2696,21 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 
 ## 2026-11-10 - Architecture : deux modules publiés (capabilities, profile) — les copies vendored de api deviennent supprimables
 
-- Slice C de la revue (candidat `api-vendored-shims` — l'exploration du 2026-11-10 a mesuré `diff` = IDENTICAL entre `api/campagne/*` et `pkg/campagne/*` (4 fichiers) et entre `api/profile/*` et `pkg/profile/*`; les deux copies étaient vivantes et écrivaient le même `data/profiles.json`; la copie vive dans api n'avait aucun test).
+- Slice C de la revue (candidat `api-vendored-shims` — l'exploration du 2026-11-10 a mesuré `diff` = IDENTICAL entre la copie vendored du module serveur et `pkg/campagne/*` (4 fichiers), et entre la copie vendored des profils et `pkg/profile/*`; les deux copies étaient vivantes et écrivaient le même `data/profiles.json`; la copie vive dans api n'avait aucun test).
 - **Créés** : `profile/` (`github.com/Realms4239/cgo/profile`) — les profils importables de l'opérateur (Import/Delete/List/GetProfile, réservés P1–P4), extrait tel quel de `pkg/profile/` (4 fichiers, tests inclus). `capabilities/` (`github.com/Realms4239/cgo/capabilities`) — l'instantané honnête des capacités hôte : `CapabilitiesNow`, `DefaultCCs`, `CCPresent`, `KernelRelease`, et `StubHost` (seam de test explicite et documentée pour simuler un noyau dans les tests de campagnes), extrait de `pkg/campagne/` (4 fichiers + les 2 tests qui testaient CETTE surface).
 - **Les tests suivent leur surface** : le fichier `capabilities_test.go` + les 2 tests de matrice qui portent sur les caps vivent dans le module capabilities; les 3 tests de matrice (bbr3 explicite refusé sans noyau, bbr3 explicite accepté avec noyau, gel de la release dans le manifeste) restent dans `pkg/campagne` — ils portent sur la MATRICE, et passent par `capabilities.StubHost` au lieu d'écrire une variable de paquet.
 - **Le moteur de campagne consomme le module** : `matrix.go` (DefaultCCs / CCPresent / StartMatrixFiltered), `config.go` (KernelRelease), `main_test.go` (TestMain stubbe le noyau via `capabilities.StubHost`).
 - `cmd/cgo` : `calibrate.go` importe `github.com/Realms4239/cgo/profile` (plus de `pkg/profile`); `runcli.go` et `server.go` utilisent `capabilities.DefaultCCs()`.
 - Racine : `go.mod` requiert `capabilities v0.1.0` et `profile v0.1.0` avec `replace` locaux (même convention que les autres modules du dépôt).
 - Mesuré : `go vet ./...` racine vert; `go test ./pkg/campagne/ ./cmd/cgo/ ./internal/kit/` verts (matrice, cmd, kit); `profile` — `go test ./...` vert; `capabilities` — build propre après split des tests.
-- **Pas encore fait** (prochaine slice) : api perd ses copies vendored `api/campagne` et `api/profile` et requiert les tags publiés; la note « Compat shims (vendored until the composition layer is promoted) » de `api/README.md` disparaîtra avec la suppression.
+- **Prochaine slice** : api perd ses copies vendored et requiert les tags publiés — terminé depuis (voir la copie des tags dans la slice C+).
+
+
+## 2026-11-10 - Architecture : api perd ses copies vendored — les modules publiés sont requis
+
+- Slice C+ de la revue (fin du candidat `api-vendored-shims`).
+- **Supprimés** : les deux répertoires vendored du module serveur (la copie byte-identique des caps hôte et la copie byte-identique des profils). Le module requiert désormais les modules publiés : `capabilities v0.1.0` et `profile v0.1.0` (tags publiés sur GitHub avant ce changement — `git push origin capabilities/v0.1.0 profile/v0.1.0`).
+- **Imports du module serveur** : les trois call sites (`server.go`, `server_audit.go`, `capabilities_test.go`) pointent sur les modules publiés — `CapabilitiesNow`, `Capabilities`. Aucune ligne de comportement ne change : `diff` avait prouvé les copies identiques.
+- **`api/README.md`** : la note « Compat shims (vendored until the composition layer is promoted) » est remplacée par la ligne d'état (les tags `capabilities/v0.1.0` et `profile/v0.1.0` sont requis ; seul le SPA stub reste, par choix de cutover).
+- **Preuve** : `go mod tidy` téléchargé `capabilities v0.1.0` et `profile v0.1.0` depuis le proxy ; `go vet ./...` et `go test ./...` du module serveur **verts** ; la résolution passe par les tags publiés, plus par le chemin du dépôt — le module est auto-suffisant.
+- Mesuré aussi : `python tools/verify.py --only links` vert (le checkpoint précédent citait les chemins supprimés — reword).

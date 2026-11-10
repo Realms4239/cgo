@@ -1,5 +1,7 @@
 github.com/Realms4239/cgo/audit v0.1.0 h1:wEbz2QW8Vr8Vy/ZuYqzDC6q9jTcvwMH6nE10utkLbhs=
 github.com/Realms4239/cgo/audit v0.1.0/go.mod h1:YeB5Yo7Xz3xP31vUClLpfAVBV9cYFFQeD8F0B+Q9D3Q=
+github.com/Realms4239/cgo/capabilities v0.1.0 h1:ZEdXVDRtghisz1afJeLWxwrG81S0hg7HDtVOUlQfv2k=
+github.com/Realms4239/cgo/capabilities v0.1.0/go.mod h1:gQYGJGWXIHGMX87wjIOWLYaYNxgT78EwqeEZgzAIcwQ=
 github.com/Realms4239/cgo/figures v0.1.0 h1:kwY6Gg6/QIkjx8GvPFlz6Z51u6+x7MHo/yTXNmwUUlo=
 github.com/Realms4239/cgo/figures v0.1.0/go.mod h1:a0zMY1//ubRgO/zAgIe04TzOesTLwMF97S92RNlyDYs=
 github.com/Realms4239/cgo/metrics v0.1.0 h1:xulSBfRz2Rz9j6nN+xtAcwmCBeOd7CbmfsYyHzPsCHs=
@@ -8,6 +10,8 @@ github.com/Realms4239/cgo/model v0.1.1 h1:upl9s4Gx3VPZdQM4lM0i5pCGcUTWZndaNU6f1N
 github.com/Realms4239/cgo/model v0.1.1/go.mod h1:OnMataF8aXZj3pIRUFG5wRb0NPQoSsBZGgl1x37X3gM=
 github.com/Realms4239/cgo/probe v0.1.0 h1:6w6Y0OKcXnsx+Mo+HYEm85PEWcM8iag54RT5A0aUPZg=
 github.com/Realms4239/cgo/probe v0.1.0/go.mod h1:LbA6tooZ2JIFUfQRsa1PRjulgDO/v/kqq8D7bgN5eI0=
+github.com/Realms4239/cgo/profile v0.1.0 h1:zdfTSRB0Id7y279HfkUT0fTpwwxFDLb864ncloE99Ds=
+github.com/Realms4239/cgo/profile v0.1.0/go.mod h1:VNC2Hnyed0Gx5tXQ6l4xLjguvnGsccbsnjanSXU71oQ=
 github.com/Realms4239/cgo/remediate v0.1.0 h1:DkkinjvMf2f1i2XTIg8sQVEkZ9Q1cGz14hx0PPvToPw=
 github.com/Realms4239/cgo/remediate v0.1.0/go.mod h1:5YDy4jqGdZhV6loJV51HBXpG4H1qvlQwwOZGD8MVaMg=
 github.com/Realms4239/cgo/results v0.1.0 h1:eZuFxkj66Fi85TIZpkXEs0XQMiPrP1YD4mPQi/PRAsY=

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Realms4239/cgo/api/profile"
+	"github.com/Realms4239/cgo/profile"
 	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/metrics"
 	"github.com/Realms4239/cgo/model"

@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Realms4239/cgo/api/campagne"
+	"github.com/Realms4239/cgo/capabilities"
 )
 
 // TestCapabilitiesEndpoint — le client reçoit les listes de l'hôte, pas une
@@ -25,7 +25,7 @@ func TestCapabilitiesEndpoint(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
 	}
-	var got campagne.Capabilities
+	var got capabilities.Capabilities
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
