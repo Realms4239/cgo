@@ -2791,3 +2791,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Le moteur garde sa propre porte bbr3 (installation noyau) — elle est par conception dans le moteur (`RunEvent`), pas dans le module de requête : le refus explique comment l'hôte acquiert la capacité.
 - Ordre bootstrap : commit racine d'abord, tag serveurs après, bump des consommateurs après le tag.
 - Mesuré : `runreq` vet+tests verts; `pkg/campagne` vert (les tests matrice existants passent par la même seam).
+
+
+## 2026-11-11 - Deepwork Phase 5 : e2e reconcilies with the CURRENT cockpit
+
+- `web/frontend/e2e/` : 18 stale specs deleted (LIEN-SPA era : [data-panel] tabs, .rail, .live-wall-overlay, old French nav, live-bench mutation specs), 2 rewritten as specs proving CURRENT behavior : `integrity.spec.ts` (embedded `Preuves & Rapports` > `corpus-details` > RDF provenance card ; sha256 visible when /api/integrity exposes it, EmptyState otherwise ; display-controls tri preserved on the bench) and `command-palette.spec.ts` (Ctrl+K opens, `.palette-item` filtering, Escape closes).
+- Suite e2e : 20/20 green under headless Edge against a static server on `dist/` (AUDIT_BASE=http://127.0.0.1:4194). NOTE : `vite preview` on this Windows host intermittently drops connections mid-run (`net::ERR_CONNECTION_TIMED_OUT` on lazy chunks) — issue is the preview, not the bundle ; 5 specs failed there with the SAME cause and all passed 8/8 via static dist. Canonical harness should reuse a static server or a Linux host.
+- accessibility.spec.ts : 8/8 green after the rebuilt `dist/` (the failures were stale build + dead preview, not the product). `schema.test.ts` : unused `loadSchema` import removed (broke `npm run build`).
+- The tracked `web/frontend/dist/index.html` was bumped to the rebuilt bundle (points at the fresh chunks); `dist/*` otherwise stays gitignored.
+- Phase 6 remaining : `types.gen.ts` for the sealed-report Go→TS mirror, and the renderer product decision (Markdown vs TSX) — decision is the human's.
+- Gates : 6/6 verify.py ; e2e 20/20 ; book/ and frozen corpus untouched.
