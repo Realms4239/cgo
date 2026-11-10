@@ -46,10 +46,14 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
 		}
+		// prévention — bornes imposées; un audit débridé coûte cher.
+		// La règle EST celle du moteur (audit/bounds.go, qui borne aussi
+		// tout appelant) ; cette copie de la fenêtre existe parce que le
+		// module api consomme une version publiée du module audit. Elle
+		// disparaît quand api REQUIRE l'audit qui porte les bornes.
 		if body.Duration <= 0 {
 			body.Duration = 30
 		}
-		// prévention — bornes imposées; un audit débridé coûte cher
 		if body.Duration < 10 {
 			body.Duration = 10
 		}
@@ -90,12 +94,12 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			writeErr(w, r, "direction invalide (up|down|both)", http.StatusBadRequest)
 			return
 		}
-		if body.Flows <= 0 {
-			body.Flows = 4
-		}
 		if body.Flows > 8 {
 			writeErr(w, r, "flows hors bornes (1–8)", http.StatusBadRequest)
 			return
+		}
+		if body.Flows <= 0 {
+			body.Flows = 4
 		}
 		if body.SmallURL == "" {
 			// external laisse le petit objet vide (pas de charge implicite) ;

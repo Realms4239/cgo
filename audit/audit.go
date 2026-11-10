@@ -266,9 +266,9 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 			return out
 		}
 	}
-	if p.Flows <= 0 {
-		p.Flows = 4
-	}
+	// Les bornes sont la règle du moteur : aucun appelant (CLI, HTTP) ne
+	// peut lancer une mesure de 27 h ou un régime hors bornes.
+	p.Flows = ClampFlows(p.Flows)
 	switch p.Direction {
 	case "", "up":
 		p.Direction = "up"
@@ -277,9 +277,7 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		return nil, fmt.Errorf("audit %s : direction %q invalide (up|down|both)", p.AuditID, p.Direction)
 	}
 	start := time.Now()
-	if p.Duration <= 0 {
-		p.Duration = 10
-	}
+	p.Duration = ClampDuration(p.Duration)
 	// Timeline honnête : la charge bulk couvre la fenêtre « chargée », qui
 	// occupe la FIN de l'audit. L'ancienne version lançait le bulk à t=12 s
 	// puis mesurait à t=Duration-8 s : à 60 s, la charge était finie depuis

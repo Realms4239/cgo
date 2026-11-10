@@ -182,6 +182,20 @@ WantedBy=multi-user.target
 		if *bulk == "" {
 			*bulk = envOrBulk(sinks)
 		}
+		// Les bornes sont celles du moteur (audit/bounds.go) : ici on REFUSE
+		// une saisie hors bornes au lieu de la raboter en silence — un
+		// opérateur qui demande 999999 s veut le savoir, pas attendre 10 min
+		// en croyant avoir lancé un audit de 27 h.
+		if !audit.DurationInBounds(*duration) {
+			fmt.Fprintf(os.Stderr, "audit: durée %d s hors bornes (%d–%d s)\n",
+				*duration, audit.MinDurationSec, audit.MaxDurationSec)
+			os.Exit(2)
+		}
+		if *flows > audit.MaxFlows || *flows < audit.MinFlows {
+			fmt.Fprintf(os.Stderr, "audit: flux %d hors bornes (%d–%d)\n",
+				*flows, audit.MinFlows, audit.MaxFlows)
+			os.Exit(2)
+		}
 		p := audit.Params{
 			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
 			Site:    *site, LinkType: *linkType, Provider: *provider,
