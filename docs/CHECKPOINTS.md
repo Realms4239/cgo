@@ -2781,3 +2781,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Ordre bootstrap respecté : commit (implémentation + tests) → push (gate 6/6) → tag → api bump → verify → commit → push. Le tag `results/v0.1.3` pointe sur `10b9deb` (contient SeedRunsFor), pas sur le commit bootstrap pour api.
 - Debts non fermées nommées : (i) api n'a PAS de republish v0.1.1 (module consommé via replace en racine, pas nécessaire pour l'interne; publication api différée, décision à prendre), (ii) les deux copies de profile restent des copies (limite de l'architecture consommée) — la duplication est consciente, documentée, pas silencieuse, (iii) le Dockerfile comment "auto-cohérent" a été corrigé en réalité de fait (la variable déplace bien tout le flux), (iv) `audit_live_test.go` pollute `./data/` dans le checkout (write au CWD du process de test) — nommé, non corrigé ici pour ne pas mélanger les portes.
 - Mesuré : `go vet` + `go test ./...` de l'arbre complet verts, `python tools/verify.py` **6/6**, e2e `api/corpus_flow_test.go` PASS.
+
+
+## 2026-11-10 - Deepwork Phase 4 : runreq - la règle de campagne a UN propriétaire
+
+- Candidat **7** (`run-request-validation-triplicated`) clos. La règle vit dans `runreq/` (nouveau module, `github.com/Realms4239/cgo/runreq`) : `CampaignRequest` (profiles/qdiscs/ccs/reps/flows/deadline/bench/direction/channel_model/target). `ValidateAll()` rend TOUTES les violations d'un coup ; `Validate()` le premier refus. Chaque refus porte un `Rule` en ASCII (machine) et un `Msg` en français (opérateur).
+- Le moteur (`startMatrix`) délègue qdisc/cc aux mêmes fonctions — la doublure de validQ/validCC maps disparaît. Les tests hostiles valent toujours pour le moteur puisqu'il passe par la même seam.
+- L'API consomme le module (reverting go.mod pour le push, puis re-require) : la chaîne de validation du handler `/api/run/start` délègue enfin à un seul propriétaire au lieu de deux copies divergentes du même registre. Les messages passent des chaînes anglaises héritées au français du produit ; aucun test de contrat ne pinçait ces chaînes.
+- Le moteur garde sa propre porte bbr3 (installation noyau) — elle est par conception dans le moteur (`RunEvent`), pas dans le module de requête : le refus explique comment l'hôte acquiert la capacité.
+- Ordre bootstrap : commit racine d'abord, tag serveurs après, bump des consommateurs après le tag.
+- Mesuré : `runreq` vet+tests verts; `pkg/campagne` vert (les tests matrice existants passent par la même seam).

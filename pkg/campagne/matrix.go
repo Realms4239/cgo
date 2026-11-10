@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/Realms4239/cgo/capabilities"
+	"github.com/Realms4239/cgo/runreq"
 	"github.com/Realms4239/cgo/model"
 	"github.com/Realms4239/cgo/results"
 )
@@ -126,23 +127,15 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 	if len(ccs) == 0 {
 		return nil, fmt.Errorf("no cc selected")
 	}
-	validQ := map[string]bool{}
-	for _, q := range model.AllQdiscs {
-		validQ[string(q)] = true
+	for _, q := range runreq.UnknownQdiscs(qdiscs) {
+		return nil, fmt.Errorf("qdisc inconnu: %s", q)
 	}
-	for _, q := range qdiscs {
-		if !validQ[q] {
-			return nil, fmt.Errorf("qdisc inconnu: %s", q)
-		}
-	}
-	validCC := map[string]bool{}
-	for _, c := range model.KnownCC {
-		validCC[string(c)] = true
+	// CC : la liste connue du banc est la règle du banc ; le noyau
+	// conditionne seulement bbr3 (le moteur refuse plutôt que de l'omettre).
+	for _, cc := range runreq.UnknownCCs(ccs) {
+		return nil, fmt.Errorf("cc inconnu: %s", cc)
 	}
 	for _, c := range ccs {
-		if !validCC[c] {
-			return nil, fmt.Errorf("cc inconnu: %s", c)
-		}
 		if c == string(model.BBRv3) && !capabilities.CCPresent(c) {
 			return nil, fmt.Errorf("cc bbr3 indisponible sur cet hôte : le noyau n'expose pas bbr3 (kit/install-bbr3.sh) — refus plutôt qu'exécuter un autre contrôle sous cette étiquette")
 		}
