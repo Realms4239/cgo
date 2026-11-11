@@ -6,12 +6,21 @@ import { ProofSheet, replayLine } from './ProofDrawer'
 import { useAuditStore } from '../store/audit'
 import { useUIStore, type ProofTab } from '../store/ui'
 import type { AuditReport } from '../lib/types'
+import {
+  capsla,
+  measured,
+  provenance,
+  remediation,
+  report as sealedReport,
+  routerosValidation,
+  verdict,
+} from '../lib/auditFixtures'
 
-const report: AuditReport = {
+const report: AuditReport = sealedReport({
   audit_id: 'audit-2026-11-02',
   site: 'Département X',
   link_type: '5g',
-  measured: {
+  measured: measured({
     rtt_idle_p50_ms: 28,
     rtt_idle_p95_ms: 31,
     rtt_loaded_p50_ms: 44,
@@ -23,17 +32,17 @@ const report: AuditReport = {
     flow_count: 4,
     direction: 'both',
     load_measured: true,
-  },
-  provenance: {
+  }),
+  provenance: provenance({
     source_file: 'data/audits/audit-2026-11-02/report.json',
     source_sha256: 'a'.repeat(64),
     telemetry_file: 'data/audits/audit-2026-11-02/telemetry.csv',
     telemetry_sha256: 'b'.repeat(64),
-  },
+  }),
   kernel_telemetry: { available: true, source: 'ebpf' },
-  cap_sla: { measured: true, ok_pct: 96.7, target_pct: 95, deadline_ms: 220 },
-  operator_verdict: { level: 'green', word: 'Lien sain', sentence: 'Sous charge, la latence reste sous l’objectif.' },
-  remediation: {
+  cap_sla: capsla({ measured: true, ok_pct: 96.7, target_pct: 95, deadline_ms: 220 }),
+  operator_verdict: verdict({ level: 'green', word: 'Lien sain', sentence: 'Sous charge, la latence reste sous l’objectif.' }),
+  remediation: remediation({
     qdisc: 'fq_codel',
     up_measured_mbps: 5.06,
     up_shaped_mbps: 4.81,
@@ -44,9 +53,11 @@ const report: AuditReport = {
     routeros_lan_iface: 'bridge',
     routeros_lan_assumed: true,
     linux_tc: ['tc qdisc add dev eth0 root handle 1: htb'],
-  },
-  routeros_validation: { checks: [{ name: 'queue type', expected: 'cgo-shape', found: 'cgo-shape', pass: true }] },
-}
+  }),
+  routeros_validation: routerosValidation({
+    checks: [{ name: 'queue type', expected: 'cgo-shape', found: 'cgo-shape', pass: true }],
+  }),
+})
 
 function render(tab: ProofTab, r: AuditReport | null = report): string {
   useUIStore.setState({ proof: { tab } })
@@ -62,8 +73,8 @@ describe('ProofDrawer', () => {
   it('l’onglet preuve est sélectionné et porte l’empreinte source', () => {
     const html = render('proof')
     expect(html).toMatch(/id="proof-tab-proof"[^>]*aria-selected="true"/)
-    expect(html).toContain(report.provenance!.source_sha256)
-    expect(html).toContain(report.provenance!.telemetry_sha256)
+    expect(html).toContain(report.provenance.source_sha256)
+    expect(html).toContain(report.provenance.telemetry_sha256)
     const out = text(html)
     expect(out).toContain('RTT repos p50 / p95')
     expect(out).toContain('les deux sens (both)')
@@ -88,15 +99,15 @@ describe('ProofDrawer', () => {
   })
 
   it('un rapport montant seul n’a pas de bloc de réception', () => {
-    const uploadOnly: AuditReport = {
+    const uploadOnly = sealedReport({
       ...report,
-      remediation: {
+      remediation: remediation({
         qdisc: 'fq_codel',
         up_measured_mbps: 5.06,
         up_shaped_mbps: 4.81,
         routeros: '/queue type add name=cgo-shape',
-      },
-    }
+      }),
+    })
     const out = text(render('commands', uploadOnly))
     expect(out).toContain('Déploiement — envoi')
     expect(out).not.toContain('Déploiement — réception')
@@ -110,9 +121,9 @@ describe('ProofDrawer', () => {
 
   it('la ligne de rejeu ne dit jamais « appliquée »', () => {
     expect(replayLine(undefined)).toContain('aucune preuve')
-    expect(replayLine({ checks: [] })).toContain('non validée — aucune vérification')
-    expect(replayLine({ checks: [{ name: 'x', expected: 'a', found: 'b', pass: false }] })).toContain('non validée — écarts dans le rapport')
-    expect(replayLine({ checks: [{ name: 'x', expected: 'a', found: 'a', pass: true }] })).toContain('validée par rejeu')
+    expect(replayLine(routerosValidation({ checks: [] }))).toContain('non validée — aucune vérification')
+    expect(replayLine(routerosValidation({ checks: [{ name: 'x', expected: 'a', found: 'b', pass: false }] }))).toContain('non validée — écarts dans le rapport')
+    expect(replayLine(routerosValidation({ checks: [{ name: 'x', expected: 'a', found: 'a', pass: true }] }))).toContain('validée par rejeu')
     const out = text(render('commands', { ...report, routeros_validation: undefined }))
     expect(out).toContain('Rejeu RouterOS : aucune preuve')
     expect(out).not.toContain('appliquée')

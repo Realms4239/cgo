@@ -4,9 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { RemediationCard, scriptOf } from './RemediationCard'
 import type { AuditRemediation } from '../lib/types'
+import { remediation } from '../lib/auditFixtures'
 
 const full: AuditRemediation = {
   qdisc: 'fq_codel',
+  reason: 'fq_codel en défaut',
   up_measured_mbps: 5.06,
   up_shaped_mbps: 4.81,
   down_measured_mbps: 18.5,
@@ -68,7 +70,7 @@ describe('RemediationCard', () => {
     const linuxOnly = text({ ...full, routeros: '', routeros_ingress: undefined })
     expect(linuxOnly).toContain('Linux tc')
     expect(linuxOnly).not.toContain('MikroTik RouterOS 7')
-    const routerosOnly = text({ ...full, linux_tc: undefined })
+    const routerosOnly = text({ ...full, linux_tc: [] })
     expect(routerosOnly).toContain('MikroTik RouterOS 7')
     expect(routerosOnly).not.toContain('Linux tc')
   })
@@ -90,7 +92,9 @@ describe('RemediationCard', () => {
 
   it('sans remédiation, la carte ne rend rien', () => {
     expect(markup(null)).toBe('')
-    expect(markup({ qdisc: '' })).toBe('')
+    // qdisc vide n'est PAS le signal — le composant se tait quand le rapport
+    // ne porte aucune plateforme (carriedPlatforms vide).
+    expect(markup(remediation({ qdisc: '', reason: '', linux_tc: [], routeros: '', routeros_ingress: undefined, linux_tc_ingress: undefined }))).toBe('')
   })
 
   it('masque la carte quand l\'état est observation_only', () => {

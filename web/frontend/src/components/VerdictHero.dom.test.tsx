@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { VerdictHero } from './VerdictHero'
 import type { AuditReport, AuditVerdictLevel } from '../lib/types'
+import { capsla, measured, report as sealedReport, verdict } from '../lib/auditFixtures'
 
 function read(p: string): string {
   for (const q of [p, `../${p}`, `../../${p}`, `C:/cgo/${p}`]) {
@@ -20,13 +21,13 @@ function read(p: string): string {
   return readFileSync(p, 'utf8')
 }
 
-const base: AuditReport = {
+const base: AuditReport = sealedReport({
   audit_id: 'a1', site: 'Département X', link_type: '4g',
-  measured: { load_attempted: true, load_measured: true, http_small_p95_ms: 209, small_measured: true },
-  operator_verdict: { level: 'green', word: 'Lien sain', sentence: "Sous charge, la latence reste sous l'objectif." },
-  cap_sla: { measured: true, ok_pct: 96.7, breach: false, target_pct: 95, deadline_ms: 220 },
+  measured: measured({ load_attempted: true, load_measured: true, http_small_p95_ms: 209, small_measured: true }),
+  operator_verdict: verdict({ level: 'green', word: 'Lien sain', sentence: "Sous charge, la latence reste sous l'objectif." }),
+  cap_sla: capsla({ measured: true, ok_pct: 96.7, breach: false, target_pct: 95, deadline_ms: 220 }),
   bloat_grade: 'A',
-}
+})
 
 function mount(r: AuditReport | null | undefined): HTMLElement {
   const host = document.createElement('div')
@@ -64,9 +65,9 @@ describe('VerdictHero', () => {
   it('ne transforme jamais une absence en chiffre', () => {
     const noLoad: AuditReport = {
       ...base,
-      measured: { load_attempted: true, load_measured: false },
-      operator_verdict: { level: 'neutral', word: 'Charge non établie', sentence: 'Le flux saturant n’a pas pu démarrer.' },
-      cap_sla: { measured: false, ok_pct: 0, breach: false },
+      measured: measured({ load_attempted: true, load_measured: false }),
+      operator_verdict: verdict({ level: 'neutral', word: 'Charge non établie', sentence: 'Le flux saturant n’a pas pu démarrer.' }),
+      cap_sla: capsla({ measured: false, ok_pct: 0, breach: false }),
       bloat_grade: '',
     }
     const out = text(noLoad)
@@ -79,23 +80,12 @@ describe('VerdictHero', () => {
     expect(out).not.toContain('0,0')
   })
 
-  it('n’invente pas de verdict si le moteur n’en a pas produit', () => {
-    const noVerdict: AuditReport = { ...base, operator_verdict: undefined }
-    const out = text(noVerdict)
-    expect(out).toContain('Pas encore mesuré')
-    expect(wordText(noVerdict)).toBe('Pas encore mesuré')
-    expect(markup(noVerdict)).toContain('data-level="neutral"')
-    expect(out).toContain('Ce rapport ne porte pas de verdict')
-    // le motif d'absence ne prend aucune couleur de verdict
-    for (const color of ['var(--t-ok)', 'var(--t-threshold)', 'var(--t-danger-text)']) {
-      expect(markup(noVerdict), `absence rendue avec ${color}`).not.toContain(color)
-    }
-  })
-
   it('un rapport scellé avant le verdict rend le motif d’absence', () => {
     // omitempty ne supprime pas une structure : relire un rapport antérieur à
     // la cascade donne {level:"",word:"",sentence:""}, pas un champ absent.
-    const archived: AuditReport = { ...base, operator_verdict: { level: '', word: '', sentence: '' } }
+    // (Le champ operator_verdict est toujours émis ; c'est d'ailleurs le seul
+    // chemin d'absence — il n'existe pas d'état « verdict undefined » dans le JSON.)
+    const archived: AuditReport = { ...base, operator_verdict: verdict() }
     const out = text(archived)
     expect(wordText(archived)).toBe('Pas encore mesuré')
     expect(markup(archived)).toContain('data-level="neutral"')
@@ -108,7 +98,7 @@ describe('VerdictHero', () => {
   it('ne montre jamais la phrase du moteur quand le niveau est vide', () => {
     const contradictory: AuditReport = {
       ...base,
-      operator_verdict: { level: '', word: '', sentence: 'Sous charge, la latence reste sous l’objectif.' },
+      operator_verdict: verdict({ level: '', word: '', sentence: 'Sous charge, la latence reste sous l’objectif.' }),
     }
     expect(text(contradictory)).not.toContain('Sous charge')
     expect(text(contradictory)).toContain('Pas encore mesuré')
@@ -120,7 +110,7 @@ describe('VerdictHero', () => {
     // inconnue ni un point sans style : il dit le mot, en neutre.
     const unknownLevel: AuditReport = {
       ...base,
-      operator_verdict: { level: 'violet' as unknown as AuditVerdictLevel, word: 'Lien nouveau', sentence: 'Phrase du moteur pour Lien nouveau.' },
+      operator_verdict: verdict({ level: 'violet' as unknown as AuditVerdictLevel, word: 'Lien nouveau', sentence: 'Phrase du moteur pour Lien nouveau.' }),
     }
     expect(markup(unknownLevel)).toContain('data-level="neutral"')
     expect(wordText(unknownLevel)).toBe('Lien nouveau')
@@ -131,7 +121,7 @@ describe('VerdictHero', () => {
     // Phrase verte de la cascade, apostrophe droite et virgule décimale : une
     // prose qui vient de Go traverse le navigateur sans réécriture ni coupe.
     const sentence = "Sous charge, la latence reste sous l'objectif et 96,7 % des alertes passent à l'heure."
-    const greenCase: AuditReport = { ...base, operator_verdict: { level: 'green', word: 'Lien sain', sentence } }
+    const greenCase: AuditReport = { ...base, operator_verdict: verdict({ level: 'green', word: 'Lien sain', sentence }) }
     expect(sentenceText(greenCase)).toBe(sentence)
     expect(text(greenCase)).not.toContain('…')
     expect(text(greenCase)).not.toContain('96.7 % des alertes')
@@ -152,7 +142,7 @@ describe('VerdictHero', () => {
     for (const c of CASES) {
       const r: AuditReport = {
         ...base,
-        operator_verdict: { level: c.level, word: c.word, sentence: `Phrase du moteur pour ${c.word}.` },
+        operator_verdict: verdict({ level: c.level, word: c.word, sentence: `Phrase du moteur pour ${c.word}.` }),
       }
       const out = markup(r)
       expect(out, c.word).toContain(`data-level="${c.level}"`)
@@ -167,8 +157,8 @@ describe('VerdictHero', () => {
   it('les objectifs viennent du rapport scellé, pas d’une constante retapée', () => {
     // 90 et 300 ne sont pas les constantes Go (95, 220) : une valeur figée dans
     // l'interface échouerait ici.
-    const measured = { ...base, cap_sla: { measured: true, ok_pct: 90, breach: false, target_pct: 90, deadline_ms: 300 } }
-    const out = text(measured)
+    const measuredR = { ...base, cap_sla: capsla({ measured: true, ok_pct: 90, breach: false, target_pct: 90, deadline_ms: 300 }) }
+    const out = text(measuredR)
     expect(out).toContain('objectif 90 %')
     expect(out).toContain('objectif 300 ms')
     expect(out).not.toContain('objectif 95 %')

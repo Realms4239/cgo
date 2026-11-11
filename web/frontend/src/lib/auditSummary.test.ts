@@ -1,20 +1,21 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { compareAudits, loadAuditPair, loadLastSummary, saveLastSummary, summaryOf, type AuditSummary } from './auditSummary'
 import type { AuditReport } from './types'
+import { capsla, measured, report as sealedReport } from './auditFixtures'
 
-const report = (over: Partial<AuditReport> = {}): AuditReport => ({
+const report = (over: Partial<AuditReport> = {}): AuditReport => sealedReport({
   audit_id: 'audit-1',
   site: 'Département X',
   link_type: '5g',
   timestamp: '2026-10-29T10:00:00Z',
-  measured: {
+  measured: measured({
     http_small_p95_ms: 328,
     small_measured: true,
     rtt_loaded_p95_ms: 410,
     rtt_idle_p95_ms: 55,
     qdi_ms: 355,
-  },
-  cap_sla: { measured: true, ok_pct: 60 },
+  }),
+  cap_sla: capsla({ measured: true, ok_pct: 60 }),
   bloat_grade: 'D',
   ...over,
 })
@@ -22,12 +23,12 @@ const report = (over: Partial<AuditReport> = {}): AuditReport => ({
 describe('summaryOf', () => {
   it('préfère le petit objet mesuré, garde le chargé en repli', () => {
     expect(summaryOf(report()).small_p95_ms).toBe(328)
-    const fallback = summaryOf(report({ measured: { rtt_loaded_p95_ms: 410 } }))
+    const fallback = summaryOf(report({ measured: measured({ rtt_loaded_p95_ms: 410 }) }))
     expect(fallback.small_p95_ms).toBe(410)
   })
 
   it('un SLA non mesuré reste absent — jamais 0 %', () => {
-    expect(summaryOf(report({ cap_sla: { measured: false } })).deadline_ok_pct).toBeUndefined()
+    expect(summaryOf(report({ cap_sla: capsla({ measured: false }) })).deadline_ok_pct).toBeUndefined()
   })
 })
 

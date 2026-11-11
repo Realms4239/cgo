@@ -74,183 +74,33 @@ export interface AuditLive {
   deadline_ms?: number
 }
 
-// ── Rapport d'audit (GET /api/audit/status, /api/audit/report) — miroir des tags Go.
-export interface AuditUnavailable { metric: string; reason: string }
-
-export interface AuditMeasured {
-  rtt_idle_p50_ms?: number
-  rtt_idle_p95_ms?: number
-  rtt_loaded_p50_ms?: number
-  rtt_loaded_p95_ms?: number
-  qdi_ms?: number
-  bloat_delta_ms?: number
-  drain_ms?: number
-  drain_measured?: boolean
-  // Une fenêtre de charge était programmée (load_attempted), pas forcément
-  // établie (load_measured). Le moteur seul en tire un mot ; la console lit les
-  // deux champs tels quels.
-  load_attempted?: boolean
-  load_measured?: boolean
-  throughput_mbps?: number
-  loss_pct?: number
-  http_small_p95_ms?: number
-  small_measured?: boolean
-  voip_r?: number
-  data_used_mb?: number
-  direction?: string
-  flow_count?: number
-  jfi_pct?: number
-  rtt_loaded_down_p95_ms?: number
-  throughput_down_mbps?: number
-  bloat_delta_down_ms?: number
-  jfi_down_pct?: number
-  load_measured_down?: boolean
-  grade_down?: string
-}
-
-export interface AuditPhases {
-  baseline_seconds?: number
-  load_seconds?: number
-  recovery_seconds?: number
-}
-
-export interface AuditProvenance {
-  source_file?: string
-  source_sha256?: string
-  row_count?: number
-  telemetry_file?: string
-  telemetry_sha256?: string
-  row_file_sha256?: string
-}
-
-export type AuditRemediationState = "available" | "observation_only"
-
-export interface AuditRemediation {
-  qdisc: string
-  reason?: string
-  linux_tc?: string[]
-  routeros?: string
-  linux_tc_ingress?: string[]
-  routeros_ingress?: string
-  up_measured_mbps?: number
-  up_shaped_mbps?: number
-  down_measured_mbps?: number
-  down_shaped_mbps?: number
-  linux_iface?: string
-  routeros_wan_iface?: string
-  routeros_lan_iface?: string
-  routeros_lan_assumed?: boolean
-}
-
-// Les clés lues par la console ; le moteur en émet un superset (tranche 20A).
-// Un modèle ne consomme qu'une partie des entrées : les autres sont omises du
-// JSON plutôt que montrées mesurées.
-export interface AuditEconomicsNumbers {
-  model: string
-  monthly_opex_mga?: number
-  cir_mbps?: number
-  ar_per_gb?: number
-  retrans_ratio?: number
-  wasted_bytes?: number
-  transport_bytes?: number
-  load_seconds?: number
-}
-
-export interface AuditEconomicsScenario {
-  model: string
-  name: string
-  ar_per_hour: number
-  basis: string
-  numbers?: AuditEconomicsNumbers
-}
-
-export interface AuditEconomics {
-  primary_link_type?: string
-  primary?: AuditEconomicsScenario
-  scenarios?: AuditEconomicsScenario[]
-  retrans_ratio?: { ratio?: number; basis?: string }
-  wasted_bytes?: number
-  transported_bytes?: number
-  load_seconds?: number
-  disclaimer?: string
-}
-
-export interface AuditCapsla {
-  measured?: boolean
-  ok_pct?: number
-  breach?: boolean
-  label?: string
-  target_pct?: number
-  deadline_ms?: number
-}
-
-export interface RouterOSCheck {
-  name: string
-  expected: string
-  found: string
-  pass: boolean
-}
-
-export interface RouterOSValidation {
-  version?: string
-  level?: string
-  export_sha256?: string
-  proof_path?: string
-  checks?: RouterOSCheck[]
-}
-
-// ── Télémétrie noyau (miroir de pkg/audit.KernelTelemetry) — les flux ne
-// viennent que de l'objet eBPF ; TCP_INFO n'a pas de lignes par flux.
-export interface KernelFlow {
-  local: string
-  peer: string
-  retrans_payload_bytes: number
-  retrans_events: number
-  qdisc_drop_packets: number
-  srtt_us: number
-}
-
-export interface KernelTelemetry {
-  available?: boolean
-  source?: string
-  reason?: string
-  object_sha256?: string
-  retrans_payload_bytes?: number
-  qdisc_drop_packets?: number
-  flows_seen?: number
-  flows_total?: number
-  flows?: KernelFlow[]
-}
-
-export type AuditVerdictLevel = 'neutral' | 'red' | 'amber' | 'green'
-
-// Verdict opérateur calculé par le moteur (pkg/metrics.Verdict) : un mot et une
-// phrase, affichés tels quels. Un rapport scellé avant la cascade rend les trois
-// champs vides — omitempty ne supprime pas une structure —, d'où '' dans level.
-export interface AuditVerdict {
-  level: '' | AuditVerdictLevel
-  word: string
-  sentence: string
-}
-
-export interface AuditReport {
-  audit_id: string
-  timestamp?: string
-  site?: string
-  link_type?: string
-  provider?: string
-  measured: AuditMeasured
-  phases?: AuditPhases
-  unavailable?: AuditUnavailable[]
-  bloat_grade?: string
-  bloat_verdict?: string
-  operator_verdict?: AuditVerdict
-  provenance?: AuditProvenance
-  remediation?: AuditRemediation
-  remediation_state?: AuditRemediationState
-  remediation_available?: boolean
-  economics?: AuditEconomics
-  cap_sla?: AuditCapsla
-  routeros_validation?: RouterOSValidation
-  kernel_telemetry?: KernelTelemetry
-}
+// ── Rapport d'audit scellé (GET /api/audit/report) — types GÉNÉRÉS, jamais à la main.
+// `audit/cmd/typesgen` les régénère depuis les structs Go tagées json ; un champ
+// ajouté en Go paraît en TS à la génération, sinon le générateur s'arrête.
+// Sémantique d'absence (voir la doc des structs Go) :
+//   un float64 sans omitempty est TOUJOURS émis — 0 signifie « non mesuré pour ce
+//   champ-là » (drain_ms, jfi_pct…), jamais un zéro vrai ; les drapeaux de mesure
+//   (load_measured, drain_measured, small_measured, jfi_measured) disent ce qui a
+//   été mesuré ; les champs omitempty (remediation, economics, invocation) sont
+//   ABSENTS d'un rapport scellé avant ces champs.
+export type {
+  AuditReport,
+  AuditMeasured,
+  AuditPhases,
+  AuditUnavailable,
+  AuditProvenance,
+  AuditInvocation,
+  AuditRemediation,
+  AuditRemediationState,
+  AuditEconomics,
+  AuditEconomicsScenario,
+  AuditEconomicsNumbers,
+  AuditRetransRatio,
+  AuditCapsla,
+  AuditVerdict,
+  AuditVerdictLevel,
+  RouterOSCheck,
+  RouterOSValidation,
+  KernelTelemetry,
+  KernelFlow,
+} from './types.gen'

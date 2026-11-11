@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { alertsBand, bothAbsent, delayBand, instabilityBand, operatorFacts, operatorSummary, qualityWord, retailBound } from './dashboard'
 import type { AuditReport } from './types'
+import {
+  capsla,
+  economics,
+  economicsNumbers,
+  economicsScenario,
+  measured,
+  report as sealedReport,
+} from './auditFixtures'
 
 describe('bandes opérateur', () => {
   it('délai : quatre mots, seuils des Réglages', () => {
@@ -38,19 +46,19 @@ describe('bandes opérateur', () => {
 describe('borne détail', () => {
   it('lit le scénario emergency, pas le primaire', () => {
     const report = {
-      economics: {
-        primary: { model: 'A', name: 'enterprise-gold-cir', ar_per_hour: 1200, basis: '' },
+      economics: economics({
+        primary: economicsScenario({ model: 'A', name: 'enterprise-gold-cir', ar_per_hour: 1200 }),
         scenarios: [
-          { model: 'A', name: 'enterprise-gold-cir', ar_per_hour: 1200, basis: '' },
-          { model: 'emergency', name: 'retail-outofbundle', ar_per_hour: 72000, basis: '' },
+          economicsScenario({ model: 'A', name: 'enterprise-gold-cir', ar_per_hour: 1200 }),
+          economicsScenario({ model: 'emergency', name: 'retail-outofbundle', ar_per_hour: 72000 }),
         ],
-      },
+      }),
     }
     expect(retailBound(report)).toBe(72000)
   })
 
   it('aucun scénario ⇒ null', () => {
-    expect(retailBound({ economics: { scenarios: [] } })).toBeNull()
+    expect(retailBound({ economics: economics({ scenarios: [] }) })).toBeNull()
   })
 })
 
@@ -58,8 +66,8 @@ describe('borne détail', () => {
 describe('operatorSummary', () => {
   it('préfère le petit objet mesuré et n’invente pas un SLA', () => {
     const s = operatorSummary({
-      measured: { small_measured: true, http_small_p95_ms: 328, rtt_loaded_p95_ms: 410 },
-      cap_sla: { measured: false },
+      measured: measured({ small_measured: true, http_small_p95_ms: 328, rtt_loaded_p95_ms: 410 }),
+      cap_sla: capsla({ measured: false }),
       bloat_grade: 'D',
     }, 40, 100)
     expect(s.delayMs).toBe(328)
@@ -70,7 +78,7 @@ describe('operatorSummary', () => {
   })
 
   it('replie sur le RTT chargé quand le petit objet n’est pas mesuré', () => {
-    const s = operatorSummary({ measured: { rtt_loaded_p95_ms: 80 }, bloat_grade: 'B' }, 40, 100)
+    const s = operatorSummary({ measured: measured({ rtt_loaded_p95_ms: 80 }), cap_sla: capsla({ measured: false }), bloat_grade: 'B' }, 40, 100)
     expect(s.delayMs).toBe(80)
     expect(s.delay?.word).toBe('modéré')
     expect(s.quality).toBe('bon')
@@ -93,10 +101,10 @@ describe('operatorSummary', () => {
 // Les quatre faits de la console, écrits une fois pour le tableau de bord et
 // pour l'audit : mêmes libellés, mêmes mots d'absence.
 describe('operatorFacts', () => {
-  const report = (patch: Partial<AuditReport> = {}): AuditReport => ({
+  const report = (patch: Partial<AuditReport> = {}): AuditReport => sealedReport({
     audit_id: 't3',
-    measured: { load_attempted: true, load_measured: true, small_measured: true, http_small_p95_ms: 209 },
-    cap_sla: { measured: true, ok_pct: 96.7, breach: false, target_pct: 90, deadline_ms: 300 },
+    measured: measured({ load_attempted: true, load_measured: true, small_measured: true, http_small_p95_ms: 209 }),
+    cap_sla: capsla({ measured: true, ok_pct: 96.7, breach: false, target_pct: 90, deadline_ms: 300 }),
     bloat_grade: 'A',
     ...patch,
   })
@@ -133,10 +141,10 @@ describe('operatorFacts', () => {
   })
 
   it('un coût chiffré nomme le scénario en français', () => {
-    const economics = {
-      primary: { model: 'A', name: 'enterprise-gold-cir', ar_per_hour: 72000, basis: 'part réémise', numbers: { model: 'A', cir_mbps: 10 } },
-    }
-    const cost = operatorFacts(report({ economics }), 40, 100)[3]
+    const econ = economics({
+      primary: economicsScenario({ model: 'A', name: 'enterprise-gold-cir', ar_per_hour: 72000, basis: 'part réémise', numbers: economicsNumbers({ model: 'A', cir_mbps: 10 }) }),
+    })
+    const cost = operatorFacts(report({ economics: econ }), 40, 100)[3]
     // U+202F : l'espace fine insécable du groupement français.
     expect(cost.value).toBe('72 000,00')
     expect(cost.unit).toBe('Ar/h')
@@ -147,7 +155,7 @@ describe('operatorFacts', () => {
   it('un pourcentage illisible ne devient pas une cellule vide', () => {
     // cap_sla.measured vrai avec ok_pct illisible : le mot d'absence s'affiche,
     // jamais une chaîne vide que l'opérateur lirait comme un zéro.
-    const facts = operatorFacts(report({ cap_sla: { measured: true, ok_pct: Number.NaN } }), 40, 100)
+    const facts = operatorFacts(report({ cap_sla: capsla({ measured: true, ok_pct: Number.NaN }) }), 40, 100)
     expect(facts[0].value).toBe('Pas encore mesuré')
     expect(facts[0].unit).toBe('')
     expect(facts.every(f => f.value.length > 0)).toBe(true)

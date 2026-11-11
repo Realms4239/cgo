@@ -2,17 +2,18 @@ import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { AuditReportsView } from './AuditReportsPanel'
 import type { AuditReport } from '../lib/types'
+import { measured, provenance, report as sealed } from '../lib/auditFixtures'
 
 const SEAL = 'b'.repeat(64)
 
-const sealedReport: AuditReport = {
+const sealedReport: AuditReport = sealed({
   audit_id: 'audit-dom',
   site: 'site-dom',
   link_type: '4g',
   provider: 'yas',
-  measured: { direction: 'down', load_measured: true, http_small_p95_ms: 210.5, small_measured: true },
-  provenance: { source_file: 'audit_report.json', row_count: 1, source_sha256: SEAL },
-}
+  measured: measured({ direction: 'down', load_measured: true, http_small_p95_ms: 210.5, small_measured: true }),
+  provenance: provenance({ source_file: 'audit_report.json', row_count: 1, source_sha256: SEAL }),
+})
 
 const base = {
   error: null,

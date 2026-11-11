@@ -2,25 +2,37 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { AuditReportCard } from './AuditReportCard'
 import type { AuditReport } from '../lib/types'
+import {
+  capsla,
+  measured,
+  phases,
+  provenance,
+  remediation,
+  report as sealedReport,
+  routerosValidation,
+} from '../lib/auditFixtures'
 
 const SEAL = 'b'.repeat(64)
 
+// Le contrat généré (types.gen.ts) exige des valeurs complètes : chaque test
+// n'échange que les champs qui le concerne.
 function report(patch: Partial<AuditReport> = {}): AuditReport {
-  return {
+  return sealedReport({
     audit_id: 'audit-dom',
     site: 'site-dom',
     link_type: '4g',
     provider: 'yas',
-    measured: {
+    measured: measured({
       direction: 'down',
       load_measured: true,
       throughput_mbps: 18.2,
       http_small_p95_ms: 210.5,
       small_measured: true,
-    },
-    provenance: { source_file: 'audit_report.json', row_count: 1, source_sha256: SEAL },
+    }),
+    provenance: provenance({ source_file: 'audit_report.json', row_count: 1, source_sha256: SEAL }),
+    phases: phases({ baseline_seconds: 30, load_seconds: 120, recovery_seconds: 30 }),
     ...patch,
-  }
+  })
 }
 
 function html(r: AuditReport): string {
@@ -30,33 +42,33 @@ function html(r: AuditReport): string {
 describe('AuditReportCard surface', () => {
   it('renders ingress scripts only when the report carries them', () => {
     const withIngress = html(report({
-      remediation: {
+      remediation: remediation({
         qdisc: 'cake',
         linux_tc: ['tc qdisc add dev eth0 root cake'],
         routeros: '/queue type add name=cake',
         linux_tc_ingress: ['tc qdisc add dev ifb0 root cake'],
         routeros_ingress: '/queue tree add name=ingress',
-      },
+      }),
     }))
     expect(withIngress).toContain('audit-remediation-ingress')
     expect(withIngress).toContain('COPIER LINUX TC (INGRESS)')
     expect(withIngress).toContain('COPIER ROUTEROS (INGRESS)')
 
-    const without = html(report({ remediation: { qdisc: 'cake', linux_tc: ['tc qdisc add dev eth0 root cake'] } }))
+    const without = html(report({ remediation: remediation({ qdisc: 'cake', linux_tc: ['tc qdisc add dev eth0 root cake'] }) }))
     expect(without).not.toContain('audit-remediation-ingress')
   })
 
-  it('renders the audit window only when phases are present', () => {
-    const withPhases = html(report({ phases: { baseline_seconds: 30, load_seconds: 120, recovery_seconds: 30 } }))
+  it('renders the audit window with the phases the engine sealed', () => {
+    // Le rapport scellé émet TOUJOURS phases (float64 sans omitempty) : la fenêtre
+    // s'affiche ; un champ absent n'existe plus dans le contrat.
+    const withPhases = html(report())
     expect(withPhases).toContain('audit-phases')
     expect(withPhases).toContain('repos')
     expect(withPhases).toContain('récupération')
-
-    expect(html(report())).not.toContain('audit-phases')
   })
 
   it('never renders a green proof promise without a completed report payload', () => {
-    const h = html(report({ measured: { direction: 'down' }, remediation: undefined }))
+    const h = html(report({ measured: measured({ direction: 'down' }), remediation: undefined }))
     expect(h).not.toMatch(/PREUVE VÉRIFIABLE|Prouvé|Vérifiable/)
   })
 
@@ -69,19 +81,19 @@ describe('AuditReportCard surface', () => {
   })
 
   it('calls a load not measured Observation seule', () => {
-    const h = html(report({ measured: { direction: 'down', load_measured: false } }))
+    const h = html(report({ measured: measured({ direction: 'down', load_measured: false }) }))
     expect(h).toContain('Observation seule')
     expect(h).not.toContain('Valide')
   })
 
   it('calls a sealed SLA breach Degrade', () => {
-    const h = html(report({ cap_sla: { measured: true, breach: true } }))
+    const h = html(report({ cap_sla: capsla({ measured: true, breach: true }) }))
     expect(h).toContain('Dégradé')
     expect(h).not.toContain('Valide')
   })
 
   it('calls a sealed complete report Valid', () => {
-    const h = html(report({ measured: { direction: 'down', load_measured: true } }))
+    const h = html(report({ measured: measured({ direction: 'down', load_measured: true }) }))
     expect(h).toContain('Valide')
   })
 
@@ -94,15 +106,15 @@ describe('AuditReportCard surface', () => {
 })
 
 describe('AuditReportCard — validation RouterOS', () => {
-  const remediation = { qdisc: 'cake', linux_tc: ['tc qdisc add dev eth0 root cake'], routeros: '/queue type add name=cgo-cake kind=cake' }
+  const base = () => remediation({ qdisc: 'cake', linux_tc: ['tc qdisc add dev eth0 root cake'], routeros: '/queue type add name=cgo-cake kind=cake' })
 
   it('dit la validation avec la version, le niveau et l’empreinte', () => {
     const h = html(report({
-      remediation,
-      routeros_validation: {
+      remediation: base(),
+      routeros_validation: routerosValidation({
         version: '7.15.3', level: 'windows-tcg', export_sha256: 'abcdef1234567890',
         checks: [{ name: 'queue type cgo-cake.kind', expected: 'cake', found: 'cake', pass: true }],
-      },
+      }),
     }))
     expect(h).toContain('Configuration RouterOS validée')
     expect(h).toContain('7.15.3')
@@ -112,26 +124,26 @@ describe('AuditReportCard — validation RouterOS', () => {
 
   it('un écart dit non validée', () => {
     const h = html(report({
-      remediation,
-      routeros_validation: {
+      remediation: base(),
+      routeros_validation: routerosValidation({
         version: '7.15.3', level: 'windows-tcg', export_sha256: 'abcdef1234567890',
         checks: [{ name: 'queue type cgo-cake.kind', expected: 'cake', found: 'none', pass: false }],
-      },
+      }),
     }))
     expect(h).toContain('Configuration RouterOS non validée')
     expect(h).not.toContain('Configuration RouterOS validée (')
   })
 
   it('un script sans preuve le dit', () => {
-    const h = html(report({ remediation }))
+    const h = html(report({ remediation: base() }))
     expect(h).toContain('non validée')
     expect(h).toContain('aucune preuve CHR')
   })
 
   it('zéro vérification n’est pas une validation', () => {
     const h = html(report({
-      remediation,
-      routeros_validation: { version: '7.15.3', level: 'windows-tcg', export_sha256: 'abcdef1234567890', checks: [] },
+      remediation: base(),
+      routeros_validation: routerosValidation({ version: '7.15.3', level: 'windows-tcg', export_sha256: 'abcdef1234567890', checks: [] }),
     }))
     expect(h).toContain('non validée — aucune vérification')
     expect(h).not.toContain('Configuration RouterOS validée (')
