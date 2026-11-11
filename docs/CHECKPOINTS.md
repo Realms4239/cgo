@@ -2801,3 +2801,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - The tracked `web/frontend/dist/index.html` was bumped to the rebuilt bundle (points at the fresh chunks); `dist/*` otherwise stays gitignored.
 - Phase 6 remaining : `types.gen.ts` for the sealed-report Go→TS mirror, and the renderer product decision (Markdown vs TSX) — decision is the human's.
 - Gates : 6/6 verify.py ; e2e 20/20 ; book/ and frozen corpus untouched.
+
+## 2026-11-11 - Deepwork Phase 6 : la mirror Go↔TS du rapport scellé est GÉNÉRÉE (`2fc05bf`)
+
+- Candidat Phase 6 (reste de Phase 5) : `types.gen.ts` n'existait pas — `types.ts` maintenait à la main la mirror du rapport scellé (audit Go → TS), dérive garantie.
+- **`audit/cmd/typesgen`** (nouveau, 228 lignes) : génère `web/frontend/src/lib/types.gen.ts` depuis le contrat Go ; `types.ts` ne réexporte plus que le généré. `auditFixtures.ts` (nouveau, 140 lignes) porte les fixtures de test complètes (tous les champs du rapport scellé) ; les tests de composants (`AuditReportCard`, `AuditReportsPanel`, `ProofDrawer`, `RemediationCard`, `VerdictHero`, `auditSummary`, `citation`, `dashboard`) passent par ces fixtures.
+- **Gate staleness en `go test`** : la mirror ne peut plus dériver silencieusement — une régénération non commitée fait échouer la suite.
+- Mesuré à l' commit `2fc05bf` (session précédente) : suite npm **328 verte**, e2e **20/20**, verify **6/6**. Mesuré aujourd'hui (2026-11-11, poste DESKTOP-B6K9UCM, branche `main`) : `python tools/verify.py` **6/6** (frozen 159 runs, hygiene 879 files, links, exit, provenance, tests). e2e et npm **non re-mesurés aujourd'hui** — chiffres du commit.
+- `audit/report.go` figurait dans le diff comme CRLF-only → **non commité** (no-op) ; les fins de ligne pré-existantes de `artifacts_test.go` laissées telles.
+- **Non prouvé / limites** : la fidélité de la mirror est tenue par le test de staleness (généré == commité), pas par une revue indépendante ; la décision produit renderer (Markdown vs TSX pour le rapport scellé) reste **ouverte — le humain décide** ; `.gitattributes` (+1 ligne) marque le généré.
+- Gates : verify.py 6/6 aujourd'hui ; book/ et corpus frozen intouchés (aucun diff `book/` dans `2fc05bf`).
