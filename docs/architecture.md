@@ -101,3 +101,19 @@ seule pour toute la surface HTTP/SSE — pas de framework web), et des
 en parallèle d'un bulk pendant 120 s) et le fan-out SSE à 10 Hz vers 64
 abonnés. Le compromis CGO est évité : tout le façonnage passe par `tc`
 exécuté en sous-processus, ce qui garde le binaire cross-compilable.
+
+## Décision — rendu du rapport scellé : l'hybride est conservé (2026-11-11)
+
+Deux rendus coexistent, **par décision produit** (humain, 2026-11-11) :
+
+| Rendu | Rôle | Surface |
+|---|---|---|
+| **Markdown** (Go, `Report.RenderMarkdown()`) | artefact d'export/téléchargement — la copie à citer, archiver, partager | `/api/audit/report?format=md`, boutons « Rapport MD » (`IntegriteView`, `ResultatsView`), lien dans `ArchiveTable` |
+| **TSX** (cockpit) | affichage en app — verdict, KPI, tiroir de preuve | `AuditReportCard`, `VerdictHero`, `ProofDrawer`… sur le JSON (`/api/audit/report` sans format) |
+
+Règles :
+
+- **Aucune dépendance Markdown n'entre dans le frontend.** Le cockpit ne rend que le JSON, typé par `types.gen.ts` (généré depuis Go — aucun champ ajouté en Go ne manque côté TS sans casser le compilateur ou le gate de staleness).
+- **Aucun chiffre n'est recalculé des deux côtés** : chaque valeur affichée vient du même rapport scellé Go ; les absences se rendent `Unavailable`, jamais un zéro fabriqué.
+- **La concordance de contenu n'est pas épinglée mécaniquement** (types épinglés ≠ contenu épinglé) : la maintenance s'en tient à « toute métrique nouvelle au rapport apparaît des deux côtés ou dans `Unavailable` » — couvert côté TSX par les fixtures complètes (`auditFixtures.ts`), côté MD par `audit/artifacts_test.go`.
+- Si un jour un seul rendu doit survivre, cette section sera remplacée — ne pas laisser l'hybride dériver silencieusement.

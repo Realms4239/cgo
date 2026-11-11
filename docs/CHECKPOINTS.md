@@ -2811,3 +2811,10 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - `audit/report.go` figurait dans le diff comme CRLF-only → **non commité** (no-op) ; les fins de ligne pré-existantes de `artifacts_test.go` laissées telles.
 - **Non prouvé / limites** : la fidélité de la mirror est tenue par le test de staleness (généré == commité), pas par une revue indépendante ; la décision produit renderer (Markdown vs TSX pour le rapport scellé) reste **ouverte — le humain décide** ; `.gitattributes` (+1 ligne) marque le généré.
 - Gates : verify.py 6/6 aujourd'hui ; book/ et corpus frozen intouchés (aucun diff `book/` dans `2fc05bf`).
+
+## 2026-11-11 - Décision renderer : l'hybride MD/TSX est conservé (le humain a tranché)
+
+- La décision restée ouverte en Phase 6 est **prise** : Markdown (Go, `RenderMarkdown()`) reste l'artefact d'export/téléchargement ; TSX reste le rendu d'affichage du cockpit. Pas de runtime Markdown dans le frontend ; pas de génération TSX depuis le MD.
+- Écrit dans `docs/architecture.md` (§ « Décision — rendu du rapport scellé ») avec ses règles de maintenance ; note de renvoi dans l'en-tête de `web/frontend/src/lib/auditFixtures.ts`.
+- Non épinglé (nommé, accepté) : la concordance de contenu entre les deux rendus — seules les *formes* le sont (`types.gen.ts`, gate de staleness).
+- Aucun code de runtime changé ; aucun gate re-mesuré pour cette entrée (docs + commentaire).

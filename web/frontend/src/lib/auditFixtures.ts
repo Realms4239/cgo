@@ -3,6 +3,9 @@
 // n'a été mesuré » : elles ne prétendent pas à des mesures inventées.
 // Ces fixtures existent parce que le miroir TS est GÉNÉRÉ (types.gen.ts) : un champ
 // ajouté en Go manque ici d'abord, et le compilateur le dit.
+// Décision 2026-11-11 (docs/architecture.md §« Décision — rendu du rapport scellé ») :
+// le TSX affiche le cockpit, le Markdown Go reste l'artefact d'export ; les deux
+// rendent le même rapport scellé, aucun chiffre n'est recalculé.
 import type {
   AuditCapsla,
   AuditEconomics,
