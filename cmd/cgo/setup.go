@@ -79,28 +79,21 @@ func runSetup(args []string) int {
 
 	// 3 — build (frontend + binaire)
 	step(3, "Construction")
-	distIndex := filepath.Join(root, "web", "frontend", "dist", "index.html")
-	distPlaceholder := filepath.Join(root, "web", "frontend", "dist", ".placeholder")
-	_, hasIndex := os.Stat(distIndex)
-	_, hasPlaceholder := os.Stat(distPlaceholder)
-	needsBuild := os.IsNotExist(hasIndex) || !os.IsNotExist(hasPlaceholder)
+	frontDir := filepath.Join(root, "web", "frontend")
+	_, indexErr := os.Stat(filepath.Join(frontDir, "dist", "index.html"))
+	assets, _ := filepath.Glob(filepath.Join(frontDir, "dist", "assets", "*.js"))
+	needsBuild := indexErr != nil || len(assets) == 0
 	if needsBuild {
-		fmt.Println("frontend non construit (placeholder)")
-		if confirm("Builder le frontend maintenant (bun install + build) ?") {
-			fmt.Println("→ bun install && bun run build")
-			if out, err := kitRun(filepath.Join(root, "web", "frontend"), "bun", "install"); err != nil {
-				fmt.Println(out)
-				fmt.Println("bun install ÉCHEC — installez bun puis relancez : https://bun.sh")
+		fmt.Println("frontend non construit (dist/index.html ou bundle JS manquant)")
+		if yes || confirm("Builder le frontend maintenant (bun install + build) ?") {
+			out, err := buildFrontend(frontDir)
+			fmt.Println(out)
+			if err != nil {
+				fmt.Println("build frontend ÉCHEC — bun (https://bun.sh) ou npm requis")
 				return 2
 			}
-			if out, err := kitRun(filepath.Join(root, "web", "frontend"), "bun", "run", "build"); err != nil {
-				fmt.Println(out)
-				fmt.Println("bun build ÉCHEC")
-				return 2
-			}
-			_ = os.Remove(distPlaceholder)
 		} else {
-			fmt.Println("sans dist réel, le dashboard servira la page placeholder — lancez le build avant de servir")
+			fmt.Println("sans dist réel, le dashboard ne peut pas servir le SPA — lancez le build avant de servir")
 		}
 	} else {
 		fmt.Println("frontend dist : présent")
@@ -219,8 +212,8 @@ func runSetup(args []string) int {
 	next := ask("Lancer [dashboard] (cgo --serve), [tui], ou [quitter] ?", "dashboard")
 	switch strings.ToLower(next) {
 	case "dashboard", "d":
-		fmt.Println("→ cgo --serve  (https://meteolink.dev:9090, certificat local auto-signé : accepter une fois dans le navigateur)")
-		return runServe()
+		fmt.Println("→ lancez ensuite : cgo --serve  (https://meteolink.dev:9090, certificat local auto-signé : accepter une fois dans le navigateur)")
+		return 0
 	case "tui", "t":
 		fmt.Println("→ cgo tui")
 		return runTUI(nil)
@@ -286,6 +279,20 @@ func kitRun(dir string, name string, args ...string) (string, error) {
 	return string(out), err
 }
 
+// buildFrontend — bun d'abord (lockfile figé), repli npm sur un hôte sans bun.
+func buildFrontend(dir string) (string, error) {
+	if _, err := exec.LookPath("bun"); err == nil {
+		if out, err := kitRun(dir, "bun", "install", "--frozen-lockfile"); err != nil {
+			return out, err
+		}
+		return kitRun(dir, "bun", "run", "build")
+	}
+	if out, err := kitRun(dir, "npm", "ci"); err != nil {
+		return out, err
+	}
+	return kitRun(dir, "npm", "run", "build")
+}
+
 func goVer() string {
 	out, err := exec.Command("go", "version").CombinedOutput()
 	if err != nil {
@@ -309,11 +316,6 @@ func mustRepoRoot() string {
 	fmt.Fprintln(os.Stderr, "lancez depuis la racine du dépôt (go.mod requis)")
 	os.Exit(2)
 	return "."
-}
-
-// runServe — point d'entrée partagé avec main --serve (utilisé par le menu final).
-func runServe() int {
-	return 0 // le main gère déjà --serve ; ici on délègue en re-exec
 }
 
 // mini-flagset local — évite d'exiger l'ordre des flags.

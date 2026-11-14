@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	frontend "github.com/Realms4239/cgo/api/frontend"
 	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/capabilities"
 	"github.com/Realms4239/cgo/figures"
@@ -195,6 +195,10 @@ type Deps struct {
 	Mode string
 	// Version — estampillée au build (-X main.version), exposée par /api/health.
 	Version string
+	// StaticFS — le SPA construit (web/frontend/dist), injecté par cmd/cgo :
+	// le module api ne peut pas importer le module racine (cycle). Nil ⇒ 404
+	// honnête « SPA non embarqué », jamais un stub.
+	StaticFS fs.FS
 	// DoctorFn — rapport de capacités pour GET /api/doctor ; nil ⇒ mode seul.
 	DoctorFn func() any
 	// BurstFn — une sonde bulk avec la CC choisie à travers le bord façonné :
@@ -1228,8 +1232,16 @@ func (s *Server) registerFallbacks(mux *http.ServeMux) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "not found", "path": r.URL.Path})
 	})
 
-	spa := http.FileServer(http.FS(frontend.FS))
-	mux.Handle("/", spa)
+	if s.deps.StaticFS == nil {
+		// Pas de SPA injecté : une page 404 explicite, jamais un stub muet.
+		mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `<!doctype html><html lang="fr"><meta charset="utf-8"><title>SPA non embarqué</title><p>SPA non embarqué dans ce binaire — lancez <code>make build</code> puis relancez le serveur.</p></html>`)
+		})
+		return
+	}
+	mux.Handle("/", http.FileServer(http.FS(s.deps.StaticFS)))
 }
 
 // registerStream — un seul site d'enregistrement par domaine.

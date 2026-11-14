@@ -21,6 +21,7 @@ import (
 	"github.com/Realms4239/cgo/probe"
 	"github.com/Realms4239/cgo/qdisc"
 	"github.com/Realms4239/cgo/results"
+	"github.com/Realms4239/cgo/web/frontend"
 )
 
 // liveFrame — snapshot de campagne + échantillon interface, aplatis en JSON.
@@ -53,6 +54,11 @@ func envSampler(getenv func(string) string, goos string) *iface.Sampler {
 // tlsOn: HTTPS avec le certificat local meteolink.dev (défaut) ; false =
 // HTTP brut (VM, systemd). httpAddr: redirection HTTP→HTTPS ("" = off).
 func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr string) error {
+	// Le SPA réel doit être dans le binaire : un index sans bundle sert une
+	// page blanche. On refuse de démarrer plutôt que de mentir.
+	if err := frontend.ValidateEmbeddedAssets(); err != nil {
+		return err
+	}
 	// runs gelés embarqués : premier lancement sans preuves → restauration
 	// best-effort (jamais fatale : un seed illisible n'empêche pas de servir).
 	if seeded, n, err := results.SeedRunsFor(results.RunsRoot()); err != nil {
@@ -295,6 +301,7 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 	handler := api.New(api.Deps{
 		GetSnap:   getSnap,
 		NextSnap:  nextSnap,
+		StaticFS:  frontend.FS,
 		StartFn:   startFn,
 		StopFn:    stopFn,
 		SkipFn:    skipFn,
