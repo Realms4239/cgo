@@ -19,3 +19,5 @@ require (
 replace github.com/Realms4239/cgo/exporter => ../exporter
 
 replace github.com/Realms4239/cgo/results => ../results
+
+replace github.com/Realms4239/cgo/probe => ../probe
