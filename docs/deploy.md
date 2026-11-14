@@ -147,10 +147,40 @@ Pour un banc fixe sur site :
 4. Diagnostic : `cgo doctor` — tout vert.
 5. Privilèges : `sudo setcap cap_net_admin+ep ./cgo`.
 6. Service : `cgo service install`.
-7. **Réseau** : ouvrir le **port 9090** (dashboard + API) —
-   `sudo ufw allow 9090/tcp` ou équivalent.
+7. **Réseau** : ouvrir le **port 9090** (dashboard + API) **uniquement depuis
+   le CIDR d'administration**, jamais `0.0.0.0/0` —
+   `sudo ufw allow from 192.168.0.0/16 to any port 9090 proto tcp`
+   (adapter le CIDR au plan d'administration) ou équivalent.
 8. Vérifier : `curl -k https://<ip-edge>:9090/api/health` →
    `{"ok":true,"version":"1.3.5","mode":"full"}` (-k : certificat auto-signé).
+
+### Contrat d'exposition (depuis l'unité systemd durcie)
+
+Le service installé par `cgo service install` écoute par défaut sur
+**127.0.0.1:9090 en TLS** — aucun accès distant n'est possible tant que
+l'opérateur ne l'ouvre pas explicitement. Pour exposer le dashboard sur un
+réseau, trois conditions sont exigées par le binaire lui-même (sinon il refuse
+de démarrer, code 2) :
+
+1. un bind non-loopback exige `--expose` ;
+2. `--expose` exige un token — `CGO_API_TOKEN`, ou `/etc/cgo/auth.token`
+   (généré à l'installation, 32 octets hex, mode 0600 root:root, lu par
+   l'unité via `EnvironmentFile=` — jamais en ligne dans le unit, lisible par tous) ;
+3. sans `--expose` hors loopback, le démarrage sort en code 2 avec un message
+   sur stderr, sans ouvrir de socket.
+
+TLS sans token n'autorise rien : le chiffrement protège l'écoute, pas
+l'accès — l'authentification reste exigée. L'opérateur atteint alors le
+dashboard par **tunnel SSH** (`ssh -L 9090:127.0.0.1:9090 <edge>`) ou par un
+**reverse proxy** qui fait TLS + auth en amont (nginx avec `limit_req`, voir
+§S1). Côté navigateur : `POST /api/login` avec le token pose un cookie de
+session HttpOnly (`cgo_session`) ; les appels suivants — y compris
+l'EventSource sur `/api/stream` — passent sans l'en-tête `Authorization` ;
+`POST /api/logout` l'efface. Les lectures non authentifiées répondent 401 dès
+que le caller est non-loopback (ou dès qu'un token est configuré), et les
+mutations répondent 429 au-delà de la rafale (10 rps/20) depuis une même IP.
+Le mode dev reste inchangé : boucle-retour + aucun token = aucune
+authentification demandée.
 
 Le mini-PC est alors prêt pour la boucle opérateur complète
 (auditer → campagner → façonner → surveiller → comparer → constat),
@@ -161,7 +191,7 @@ voir `docs/usage.fr.md`.
 ```text
 [ ] /api/health renvoie {ok:true, version, mode attendu}
 [ ] cgo doctor passe (Linux : tc, CAP_NET_ADMIN, bbr, ping)
-[ ] port 9090 ouvert (accès distant)
+[ ] port 9090 ouvert uniquement sur le CIDR d'administration (accès distant)
 [ ] cgo shape --restore exécuté une fois (bord propre au départ)
 [ ] service systemd actif : systemctl status meteolink
 ```
@@ -172,19 +202,23 @@ voir `docs/usage.fr.md`.
 netns `ns_client`, en HTTP brut. Ce n'est **pas** un service multi-tenant
 durci :
 
-- **pas d'authentification ni d'autorisation** : quiconque atteint le port
-  (ou le loopback de l'hôte) peut lancer/arrêter une campagne, appliquer ou
-  retirer un façonnage, changer le palier tarifaire ;
-- **pas de jeton CSRF ni de rate limit** ; les mutations refusent seulement
-  `Sec-Fetch-Site: cross-site` (garde navigateur, contournable par un client
-  direct) ; le corps JSON est borné à 1 Mio, ce n'est pas un contrôle
-  d'accès ;
+- **authentification par jeton** (Bearer ou cookie de session HttpOnly via
+  `POST /api/login`) dès qu'un token est configuré ; sans token configuré,
+  seul le loopback est admis — et un bind non-loopback exige `--expose` +
+  token, sinon le binaire refuse de démarrer (code 2) ;
+- **garde CSRF navigateur** (`Sec-Fetch-Site: cross-site` refusé sur les
+  mutations) **et limite de débit par IP** (10 rps, rafale 20, 429 + `Retry-After: 1`)
+  sur toutes les routes POST ; le corps JSON est borné à 1 Mio — ce n'est pas
+  un contrôle d'accès fin : un seul rôle opérateur existe ;
 - **le façonnage modifie réellement le bord** : banc/labo ou mini-PC DSI,
   jamais exposé sur Internet ; n'ouvrir le 9090 que sur le réseau
-  d'administration.
+  d'administration (CIDR, voir étape 7).
 
-Ce qui est protégé : l'intégrité des mesures (gel SHA-256) et la validation
-des entrées. Ce qui ne l'est pas : l'accès au levier de façonnage.
+Ce qui est protégé : l'intégrité des mesures (gel SHA-256), la validation
+des entrées, et l'accès au levier de façonnage (jeton exigé hors loopback).
+Ce qui ne l'est pas : des rôles fins (mono-opérateur) et un TLS géré — le
+certificat par défaut est auto-signé, la confiance se fait au bord (SSH
+tunnel ou proxy) ou via `-k`.
 
 ## S1 — Nginx boundary
 All 9090 traffic enters through `deploy/nginx/cgo.conf` (TLS termination + `limit_req`). Direct `--tls=false` binds are loopback-only in CI. `POST` mutations that exceed `1r/s burst=3` receive `503`.
