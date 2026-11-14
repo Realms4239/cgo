@@ -62,3 +62,16 @@ func TestBulkSendNFlowsCountsAll(t *testing.T) {
 	}
 
 }
+
+// TestBulkSendNFlowsPropagatesError — au moins un flux en panne d'écriture
+// (ctx vivant) : l'erreur doit remonter avec les résultats per-flow.
+func TestBulkSendNFlowsPropagatesError(t *testing.T) {
+	bad, _ := net.Pipe()
+	bad.Close() // Write échoue immédiatement
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	perFlow, err := BulkSendNFlows(ctx, []net.Conn{bad}, 1)
+	if err == nil {
+		t.Fatalf("erreur de flux perdue (perFlow=%+v)", perFlow)
+	}
+}

@@ -34,7 +34,12 @@ func BulkSend(ctx context.Context, conn net.Conn) (uint64, error) {
 		n, err := conn.Write(buf)
 		total += uint64(n)
 		if err != nil {
-			return total, nil // receiver closed = end of charge
+			// fenêtre terminée pendant un write = fin de charge normale ;
+			// sinon vraie panne d'écriture, à propager (pas une mesure).
+			if ctx.Err() != nil {
+				return total, nil
+			}
+			return total, err
 		}
 	}
 }

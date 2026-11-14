@@ -13,8 +13,9 @@ func TestParsePing(t *testing.T) {
 		"64 bytes from x: icmp_seq=2 ttl=57 time=20.9 ms\n" +
 		"request timed out\n" +
 		"64 bytes from x: icmp_seq=3 ttl=57 time=88.1 ms\n"
+	// ordre d'arrivée (chronologique), plus jamais trié par RTT
 	s := parsePing(out)
-	if len(s) != 3 || s[0].RTTms != 20.9 || s[2].RTTms != 88.1 {
+	if len(s) != 3 || s[0].RTTms != 21.3 || s[1].RTTms != 20.9 || s[2].RTTms != 88.1 {
 		t.Fatalf("parse = %+v", s)
 	}
 }
@@ -26,8 +27,9 @@ func TestParsePingWindowsLocales(t *testing.T) {
 		"Réponse de 8.8.8.8 : octets=32 temps=13ms TTL=117\n" +
 		"Réponse de 8.8.8.8 : octets=32 temps<1ms TTL=128\n" +
 		"Paquets : envoyés = 4, reçus = 3, perdus = 1 (perte 25%),\n"
+	// ordre d'arrivée : 12 (EN), 13 (FR), 0.5 (`temps<1ms`) — jamais trié
 	s := parsePing(out)
-	if len(s) != 3 || s[0].RTTms != 0.5 || s[1].RTTms != 12 || s[2].RTTms != 13 {
+	if len(s) != 3 || s[0].RTTms != 12 || s[1].RTTms != 13 || s[2].RTTms != 0.5 {
 		t.Fatalf("parse windows = %+v", s)
 	}
 }
@@ -55,6 +57,23 @@ func TestSmallObjectTimesCompletion(t *testing.T) {
 	ms, err := SmallObject(context.Background(), srv.Client(), srv.URL)
 	if err != nil || ms <= 0 {
 		t.Fatalf("ms=%v err=%v", ms, err)
+	}
+}
+
+// TestSmallObjectNon2xxIsError — un 500 n'est PAS une mesure : le
+// SmallObject doit rendre une erreur (l'appelant la traite comme absence),
+// jamais un ms mesuré sur une panne.
+func TestSmallObjectNon2xxIsError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	ms, err := SmallObject(context.Background(), srv.Client(), srv.URL)
+	if err == nil {
+		t.Fatalf("HTTP 500 accepté comme mesure (ms=%v)", ms)
+	}
+	if ms != 0 {
+		t.Fatalf("ms=%v sur une panne, want 0", ms)
 	}
 }
 

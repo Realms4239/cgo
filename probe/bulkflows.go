@@ -23,16 +23,25 @@ type FlowResult struct {
 func BulkSendNFlows(ctx context.Context, conns []net.Conn, _ int) ([]FlowResult, error) {
 	var wg sync.WaitGroup
 	results := make([]FlowResult, len(conns))
+	errs := make([]error, len(conns)) // race-free : chaque flux écrit sa case
 	for i, c := range conns {
 		wg.Add(1)
 		go func(i int, c net.Conn) {
 			defer wg.Done()
-			n, _ := BulkSend(ctx, c) // BulkSend ferme c et rend les octets
+			n, err := BulkSend(ctx, c) // BulkSend ferme c et rend les octets
+			errs[i] = err
 			results[i] = FlowResult{Bytes: n}
 		}(i, c)
 	}
 	wg.Wait()
-	return results, nil
+	var firstErr error
+	for _, e := range errs {
+		if e != nil {
+			firstErr = e
+			break
+		}
+	}
+	return results, firstErr
 }
 
 // BulkSendNTo — N dials indépendants vers addr (même CC), inondation

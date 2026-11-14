@@ -43,6 +43,30 @@ func TestBulkSourceServesDownload(t *testing.T) {
 	_ = io.Discard
 }
 
+// TestBulkSourceWriteErrorPropagates — miroir de BulkSend : panne d'écriture
+// (ctx vivant) = erreur, jamais une mesure silencieuse.
+func TestBulkSourceWriteErrorPropagates(t *testing.T) {
+	c, _ := net.Pipe()
+	c.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	total, err := BulkSource(ctx, c)
+	if err == nil {
+		t.Fatalf("write error masqué (total=%d)", total)
+	}
+}
+
+// TestBulkSourceCancelledCtxNoError — fin de fenêtre = nil.
+func TestBulkSourceCancelledCtxNoError(t *testing.T) {
+	c, _ := net.Pipe()
+	defer c.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := BulkSource(ctx, c); err != nil {
+		t.Fatalf("ctx annulé rendu en erreur: %v", err)
+	}
+}
+
 // TestParseDownloadHello — "D" historique (CC hôte), "D:<cc>" étiqueté,
 // bruit rejeté.
 func TestParseDownloadHello(t *testing.T) {

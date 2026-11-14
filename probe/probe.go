@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os/exec"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,7 +52,8 @@ func parsePing(out string) []PingSample {
 			s = append(s, PingSample{RTTms: v})
 		}
 	}
-	sort.Slice(s, func(i, j int) bool { return s[i].RTTms < s[j].RTTms })
+	// ordre d'arrivée, pas trié : les agrégats finaux (percentiles) trient
+	// de leur côté — ici la chronologie des paquets est l'information.
 	return s
 }
 
@@ -145,8 +145,14 @@ func SmallObject(ctx context.Context, client *http.Client, url string) (float64,
 	if err != nil {
 		return 0, err
 	}
+	defer resp.Body.Close()
+	// non-2xx = ABSENCE, pas une mesure : un 500 est une panne du service,
+	// l'échantillon ne doit pas polluer les agrégats (les appelants traitent
+	// err != nil comme échantillon absent).
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return 0, fmt.Errorf("small object %s: HTTP %d", url, resp.StatusCode)
+	}
 	n, err := io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
 	if err != nil {
 		return 0, err
 	}

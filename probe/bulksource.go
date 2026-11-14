@@ -25,7 +25,12 @@ func BulkSource(ctx context.Context, conn net.Conn) (uint64, error) {
 		n, err := conn.Write(buf)
 		total += uint64(n)
 		if err != nil {
-			return total, nil // récepteur fermé = fin de charge
+			// miroir de BulkSend : fenêtre terminée pendant un write = fin
+			// de charge normale ; sinon vraie panne d'écriture, à propager.
+			if ctx.Err() != nil {
+				return total, nil
+			}
+			return total, err
 		}
 	}
 }

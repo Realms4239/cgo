@@ -53,3 +53,33 @@ func TestBulkSendBlockedConnReturns(t *testing.T) {
 		t.Fatal("no write deadline set before blocking Write")
 	}
 }
+
+// TestBulkSendWriteErrorPropagates — une vraie panne d'écriture (ctx VIVANT)
+// doit remonter en erreur, pas passer pour une fin de charge.
+func TestBulkSendWriteErrorPropagates(t *testing.T) {
+	c, _ := net.Pipe()
+	c.Close() // tout Write échoue immédiatement (io.ErrClosedPipe)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	total, err := BulkSend(ctx, c)
+	if err == nil {
+		t.Fatalf("write error masqué (total=%d)", total)
+	}
+}
+
+// TestBulkSendCancelledCtxNoError — fenêtre terminée pendant un write =
+// fin de charge NORMALE : nil, les octets comptés sont la mesure.
+func TestBulkSendCancelledCtxNoError(t *testing.T) {
+	c, _ := net.Pipe()
+	defer c.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	total, err := BulkSend(ctx, c)
+	if err != nil {
+		t.Fatalf("ctx annulé rendu en erreur: %v", err)
+	}
+	if total != 0 {
+		t.Fatalf("total=%d sur ctx annulé avant tout write", total)
+	}
+}

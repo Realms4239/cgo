@@ -16,13 +16,20 @@ import (
 	"github.com/Realms4239/cgo/probe"
 )
 
-// runTestbedSrv sert le petit objet en HTTP et le puits de masse,
-// tous deux liés dans le netns cgo-srv (kit/testbed.sh).
-func runTestbedSrv(httpAddr, bulkAddr string) error {
-	obj := os.Getenv("CGO_TESTBED_OBJ")
-	if obj == "" {
-		obj = "testbed/obj16.bin"
+// testbedSmallObj — chemin de l'objet servi : CGO_TESTBED_OBJ sinon le
+// défaut relatif du banc (testbed/obj16.bin).
+func testbedSmallObj() string {
+	if obj := os.Getenv("CGO_TESTBED_OBJ"); obj != "" {
+		return obj
 	}
+	return "testbed/obj16.bin"
+}
+
+// testbedMux — routes HTTP du banc : /small sert l'objet exact (octets
+// identiques, Content-Length fidèle) ; objet manquant = 500 par design
+// (une absence de service n'est jamais une mesure).
+func testbedMux() *http.ServeMux {
+	obj := testbedSmallObj()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/small", func(w http.ResponseWriter, _ *http.Request) {
 		b, err := os.ReadFile(obj)
@@ -34,6 +41,14 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 		w.Header().Set("Content-Length", strconv.Itoa(len(b)))
 		w.Write(b)
 	})
+	return mux
+}
+
+// runTestbedSrv sert le petit objet en HTTP et le puits de masse,
+// tous deux liés dans le netns cgo-srv (kit/testbed.sh).
+func runTestbedSrv(httpAddr, bulkAddr string) error {
+	obj := testbedSmallObj()
+	mux := testbedMux()
 	hs := &http.Server{Addr: httpAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	ln, err := net.Listen("tcp", bulkAddr)
 	if err != nil {
@@ -63,8 +78,13 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 					}
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 					defer cancel()
-					// observabilité de fortune : ce que la source ENVOIE
-					n, _ := probe.BulkSource(ctx, c) // mode source : download
+					// observabilité de fortune : ce que la source ENVOIE ;
+					// une vraie panne d'écriture se logue (fin de fenêtre
+					// normale = err nil, pas de bruit).
+					n, err := probe.BulkSource(ctx, c) // mode source : download
+					if err != nil {
+						log.Printf("[src] download cc=%s: erreur source: %v", cc, err)
+					}
 					log.Printf("[src] download cc=%s: %d octets envoyés", cc, n)
 					return
 				}
