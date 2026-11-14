@@ -88,6 +88,56 @@ Destructive actions, a live bench run, a merge to `main`, a secret exposure, a
 frozen-data change, a new dependency, or a scope that grew. Ask before acting,
 not after.
 
+## FAST TOOLS — standing arsenal (ingested 2026-11-14)
+
+Source: `FINAL PLAN/FAST TOOLs.md` (ingested 2026-11-14). Read it before
+touching tests, gates, CI, probing, or data scripts. Not a reference appendix:
+when a number in it applies here, the rule applies here.
+
+**Build and test at the lightest lawful tier.**
+- Pure logic tests run plain; DOM assertions stay in DOM tests; browser e2e is
+  the exception. Real timers only under an explicit `real` build tag on the lab
+  host; any tag with zero tests behind it is deleted, never shipped.
+- Time-dependent Go tests prefer the stdlib in-process virtual clock
+  (synctest) over wall-clock sleeps; time-dependent SSE/timeout assertions
+  belong in that lane. In-memory transports beat loopback pipes.
+- Unit tests never fork `ping`, `tc`, or `sudo`; the lab host carries those.
+
+**Never pay the OS tax in a hot loop.**
+- No fork/exec per sample; no fresh http.Transport per sample (one shared
+  transport per phase, pooled buffers, idle conns closed); read binary kernel
+  or rtnetlink state, not text scraped from `tc`, behind an honest fallback
+  that is labelled as fallback, not asserted as measurement.
+- `/api` handlers that aggregate the corpus parallelize (all CPU cores,
+  provenance-keyed memoization, ETag) — the 360–490 ms sequential bootstraps
+  are a defect, not a platform fact.
+
+**Frontend stays cheap to check.**
+- Split pure TS tests (plain runner) from DOM tests (happy-dom class, never
+  jsdom for logic); split echarts into its own manualChunk; budgets are
+  measured: TOTAL 400 KB gz, echarts 350 KB gz — never recalibrated upward
+  without a named justification.
+
+**Python is for analysis, not for the critical path.**
+- Corpus/thesis scans: uv + Polars (or DuckDB) + orjson + Ruff. Never
+  pip + venv + pandas for routine aggregation; never Python where a gate
+  needs Go's compiled guarantees.
+
+**Honesty clause.**
+- Faster never means weaker: a swap ships with before/after timings and zero
+  gate relaxation. The FAST TOOLS proposal to port `tools/verify.py` to a
+  compiled `cgo verify` is a plan-level decision to be taken by the human
+  through the plan — an agent must never land it unilaterally. The exit
+  0/1/2 contract, named gates, `-count=1`, and the frozen corpus are outside
+  this arsenal's authority.
+- Perf lanes are queued plan items, not self-granted licences: synctest for
+  pkg/audit and pkg/api time tests; happy-dom split for DOM tests; native
+  ICMP probing; rtnetlink-backed qdisc reads; the gate-runner port (plan tier
+  only). Until a lane lands through the plan it does not exist here.
+- Live bench, cap-40 purge, force-push, and any eBPF/live measurement stay
+  human-gated regardless of what the arsenal would make possible. Speed
+  applies to iteration, never to release decisions.
+
 ## Pointers
 
 - Six gates and their fault proofs:
