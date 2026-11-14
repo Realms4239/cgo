@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Realms4239/cgo"
 	"github.com/Realms4239/cgo/internal/vm"
 )
 
@@ -46,10 +47,8 @@ type Config struct {
 	NatHostPort string
 }
 
-// KitVersion — version du kit (SOURCE UNIQUE : cmd/cgo `version` vaut ça
-// par défaut, les vues GUI comparent le dashboard distant à elle pour
-// refuser un binaire périmé). À bumper à chaque release, avec le tag.
-const KitVersion = "1.3.5"
+// KitVersion — version du kit, dérivée de VERSION (source unique, embed).
+var KitVersion = cgo.Version
 
 // VMPath — LE chemin de la VM verrouillée, quel que soit l'hyperviseur
 // (.vmx ou .vbox). Tout le code lit ÇA, jamais les champs bruts : lire
