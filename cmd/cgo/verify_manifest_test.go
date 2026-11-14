@@ -94,7 +94,7 @@ func TestVerifyManifestsDetectsTamper(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "aqm_eval.csv"), files["aqm_eval.csv"], 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if ok, err := verifyManifests(root); ok || err == nil || !strings.Contains(err.Error(), "sha mismatch") {
+	if ok, err := verifyManifests(root); ok || err == nil || !strings.Contains(err.Error(), "scellé") || !strings.Contains(err.Error(), "aqm_eval.csv") {
 		t.Fatalf("fichier modifié accepté: ok=%v err=%v", ok, err)
 	}
 }

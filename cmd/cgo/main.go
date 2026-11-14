@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Realms4239/cgo/attest"
 	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/doctor"
 	"github.com/Realms4239/cgo/figures"
@@ -421,13 +422,8 @@ func verifyManifests(dataDir string) (bool, error) {
 		}
 		listed := map[string]bool{}
 		for _, f := range doc.Files {
-			b, err := os.ReadFile(filepath.Join(dir, f.File))
-			if err != nil {
-				return false, fmt.Errorf("%s: %w", name, err)
-			}
-			s := sha256.Sum256(b)
-			if hex.EncodeToString(s[:]) != f.Sha256 {
-				return false, fmt.Errorf("%s: sha mismatch %s", name, f.File)
+			if err := attest.VerifyFile(attest.Entry{Path: filepath.Join(dir, f.File), SHA256: f.Sha256}); err != nil {
+				return false, fmt.Errorf("%s: scellé invalide: %w", name, err)
 			}
 			listed[f.File] = true
 		}
