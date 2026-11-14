@@ -8,6 +8,7 @@
 //	cgo tui                              tableau de bord terminal complet
 //	cgo verify                           manifest integrity check
 //	cgo figures                          régénère les SVG depuis les CSV gelés
+//	cgo audit purge [--keep N] [--before YYYY-MM-DD] [--dry-run] [DIR]   rétention des sessions d'audit
 package main
 
 import (
@@ -149,6 +150,8 @@ WantedBy=multi-user.target
 			os.Exit(1)
 		}
 		fmt.Println("figures générées dans data/figures")
+	case "purge":
+		os.Exit(purgeCmd(os.Args[2:]))
 	case "verify":
 		ok, err := verifyManifests(results.RunsRoot())
 		if err != nil {
@@ -170,6 +173,9 @@ WantedBy=multi-user.target
 			os.Exit(1)
 		}
 	case "audit":
+		if len(os.Args) > 2 && os.Args[2] == "purge" {
+			os.Exit(purgeCmd(os.Args[3:]))
+		}
 		fs := flag.NewFlagSet("audit", flag.ExitOnError)
 		// Surface opérateur : quatre réglages suffisent à un audit terrain.
 		linkType := fs.String("link-type", "5g", "link_type: fiber, 5g, 4g, vsat, other")
@@ -402,6 +408,7 @@ func usage() {
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify
+       cgo audit purge [--keep N] [--before YYYY-MM-DD] [--dry-run] [DIR]   # prune les sessions d'audit antérieures à --before (garde les --keep plus récentes)
        cgo calibrate --audit audit-XXXX --profile P2   # trace baseline → .dist netem
        cgo figures
        cgo doctor                # rapport de capacités (tc, BBR, CAP_NET_ADMIN)
