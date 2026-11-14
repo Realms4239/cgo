@@ -1,0 +1,66 @@
+# Configuration gitleaks pour CGO — n'implémente QUE la legacy allowlist
+# nommée, identique à la porte hygiene du runner Go compilé
+# (cmd/gates/main.go, `legacyArchives` + `allowedArtifacts`) :
+#
+#   18 archives backup/ suivies avant la règle « backup/ jamais commité » :
+#     backup/runs-20260902-001002.tar.gz
+#     backup/runs-20260903-232145.tar.gz
+#     backup/runs-20260904-004749.tar.gz
+#     backup/runs-20260904-024318.tar.gz
+#     backup/runs-20260904-034927.tar.gz
+#     backup/runs-20260904-053037.tar.gz
+#     backup/runs-20260904-081048.tar.gz
+#     backup/runs-20260904-085058.tar.gz
+#     backup/runs-20260904-093525.tar.gz
+#     backup/runs-20260904-101207.tar.gz
+#     backup/runs-20260904-104558.tar.gz
+#     backup/runs-20260904-110337.tar.gz
+#     backup/runs-20260904-111003.tar.gz
+#     backup/runs-20260904-113340.tar.gz
+#     backup/runs-20260904-115508.tar.gz
+#     backup/runs-20260904-121855.tar.gz
+#     backup/runs-20260904-124132.tar.gz
+#     backup/runs-20260904-125750.tar.gz
+#   1 archive embarquée (//go:embed, le build en dépend) :
+#     results/runs-frozen.tar.gz
+#
+# Toute autre correspondance FAILLE la porte — la legacy allowlist n'est
+# pas extensible ici. Les chaînes ressemblant à des adresses tailnet ne
+# sont PAS l'affaire de ce scanner et ne sont PAS allowlistées (CRC : aucun).
+
+title = "CGO gitleaks — legacy allowlist nommée uniquement"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Legacy allowlist nommée : 18 archives backup/ + results/runs-frozen.tar.gz (cf. cmd/gates/main.go) + 1 littéral faux positif documenté"
+paths = [
+  '''backup/runs-20260902-001002\.tar\.gz''',
+  '''backup/runs-20260903-232145\.tar\.gz''',
+  '''backup/runs-20260904-004749\.tar\.gz''',
+  '''backup/runs-20260904-024318\.tar\.gz''',
+  '''backup/runs-20260904-034927\.tar\.gz''',
+  '''backup/runs-20260904-053037\.tar\.gz''',
+  '''backup/runs-20260904-081048\.tar\.gz''',
+  '''backup/runs-20260904-085058\.tar\.gz''',
+  '''backup/runs-20260904-093525\.tar\.gz''',
+  '''backup/runs-20260904-101207\.tar\.gz''',
+  '''backup/runs-20260904-104558\.tar\.gz''',
+  '''backup/runs-20260904-110337\.tar\.gz''',
+  '''backup/runs-20260904-111003\.tar\.gz''',
+  '''backup/runs-20260904-113340\.tar\.gz''',
+  '''backup/runs-20260904-115508\.tar\.gz''',
+  '''backup/runs-20260904-121855\.tar\.gz''',
+  '''backup/runs-20260904-124132\.tar\.gz''',
+  '''backup/runs-20260904-125750\.tar\.gz''',
+  '''results/runs-frozen\.tar\.gz''',
+]
+regexes = [
+  # Faux positif documenté (controller, 2026-11-14) : CGO_BENCH=dualns est la
+  # bascule de banc documentée dans docs/superpowers/plans/
+  # 2026-10-25-cgo-plan2-bench-campaign.md ligne 259 — une assignation de
+  # variable d'environnement, pas un credential (entropy 3.875, règle
+  # generic-api-key). Autorisé par contenu, pas par chemin.
+  '''CGO_BENCH=dualns''',
+]

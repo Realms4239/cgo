@@ -14,6 +14,11 @@ cd "$DIR/cgo"
 # clone = HEAD du dépôt courant, pas la tête d'une autre branche
 git checkout -q "$(git -C "$ROOT" rev-parse HEAD)"
 
+# le clone vierge n'a pas node_modules : sans cet install, `make build`
+# (bun run build) échoue sur tsc/vite absents — CI n'a pas non plus le cache local
+echo "[fresh] bun install (clone)"
+(cd web/frontend && bun install --frozen-lockfile)
+
 echo "[fresh] build (make build)"
 make build
 BIN="bin/cgo"

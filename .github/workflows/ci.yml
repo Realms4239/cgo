@@ -1,0 +1,74 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: gates (frozen-skip acceptance)
+        run: |
+          set +e
+          out=$(sh .githooks/run-gates.sh 2>&1); rc=$?
+          set -e
+          printf '%s\n' "$out"
+          if [ $rc -ne 0 ]; then
+            if [ $rc -eq 2 ] && printf '%s' "$out" | grep -E 'SKIP[[:space:]]+frozen' >/dev/null && ! printf '%s' "$out" | grep -q 'FAIL'; then
+              echo "frozen gate: named host-only skip (corpus absent in fresh clone) — accepted"
+              exit 0
+            fi
+            echo "gates failed (rc=$rc)" >&2
+            exit 1
+          fi
+      - name: go build
+        run: go build ./...
+      - name: go vet
+        run: go vet ./...
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: install
+        run: bun install --frozen-lockfile
+      - name: typecheck
+        run: bun run typecheck
+      - name: build
+        run: bun run build
+      - name: vitest
+        run: bun x vitest run
+
+  fresh-clone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - uses: oven-sh/setup-bun@v2
+      - name: fresh-clone gate
+        run: bash kit/test-fresh-clone.sh
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: gitleaks
+        uses: gitleaks/gh-actions-gitleaks@v2
+        with:
+          args: detect --source=. --no-git -v --redact
