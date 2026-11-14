@@ -345,9 +345,14 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 	})
 	srv := &http.Server{
 		Addr: addr, Handler: handler,
-		// Pas de WriteTimeout (SSE + replay tiennent des connexions longues),
-		// mais les en-têtes lentes ne doivent pas pendre un slot (Slowloris).
+		// WriteTimeout: 0 — SSE never terminates (le flux /api/stream et le
+		// replay tiennent des connexions longues par construction).
+		// Les en-têtes lentes ne pendent pas un slot (Slowloris) ; les lectures
+		// entières sont bornées ; les connexions oisives expirent.
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      0,
+		IdleTimeout:       120 * time.Second,
 	}
 	var extra []*http.Server // redirection HTTP : fermés avec le principal
 	errCh := make(chan error, 1)
@@ -367,7 +372,7 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 			return fmt.Errorf("écoute %q impossible%s : %w", addr, hint, err)
 		}
 		if httpAddr != "" {
-			redir := &http.Server{Addr: httpAddr, Handler: redirectHTTPS(addr), ReadHeaderTimeout: 5 * time.Second}
+			redir := &http.Server{Addr: httpAddr, Handler: redirectHTTPS(addr), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 120 * time.Second}
 			extra = append(extra, redir)
 			go func() {
 				if err := redir.ListenAndServe(); err != nil && err != http.ErrServerClosed {

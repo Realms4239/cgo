@@ -351,7 +351,7 @@ type Server struct {
 // New — l'interface publique ne change pas : Deps dedans, Handler dehors.
 func New(d Deps) Handler {
 	s := NewServer(d)
-	return Handler{Handler: crossSiteGuard(s), hubClose: func() { s.hub.Close() }}
+	return Handler{Handler: securityHeaders(crossSiteGuard(s)), hubClose: func() { s.hub.Close() }}
 }
 
 // NewServer — le serveur et son état. Les tests passent par ici pour
@@ -1480,6 +1480,24 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("GET /api/events", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"events": journal.snapshot()})
+	})
+}
+
+// securityHeaders — en-têtes défensifs sur toutes les réponses (200 comme
+// 404) : nosniff, DENY, Referrer-Policy, CSP self-only ; HSTS uniquement
+// sous TLS réel. HSTS en production = une fois le TLS vérifié au bord.
+func securityHeaders(next http.Handler) http.Handler {
+	const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'"
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Content-Security-Policy", csp)
+		if r.TLS != nil {
+			h.Set("Strict-Transport-Security", "max-age=31536000")
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 
