@@ -190,8 +190,8 @@ def prove_provenance():
 
 # — tests : la suite Go, racine et modules imbriqués ----------------------
 def gate_tests():
-    if not (ROOT / "web/frontend/dist").is_dir():
-        return Result("tests", SKIP, "web/frontend/dist absent: build the frontend first")
+    if not (ROOT / "web/frontend/dist/assets").is_dir():
+        return Result("tests", SKIP, "web/frontend/dist/assets absent: build the frontend first")
     go = shutil.which("go")
     if not go:
         return Result("tests", SKIP, "go not found on PATH")

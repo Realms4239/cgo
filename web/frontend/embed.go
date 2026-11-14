@@ -1,6 +1,6 @@
 // Package frontend embeds the built SPA (web/frontend/dist).
-// The dist directory always exists via its tracked .gitkeep so the module
-// builds before the first frontend build; Makefile rebuilds it first.
+// The tracked dist/index.html keeps //go:embed all:dist valid before the
+// first frontend build; Makefile rebuilds dist first.
 package frontend
 
 import (
@@ -14,16 +14,20 @@ var embedded embed.FS
 
 // ValidateEmbeddedAssets refuses a placeholder embed: dist/index.html alone
 // serves a blank dashboard. The binary must carry the hashed JS bundle.
-func ValidateEmbeddedAssets() error {
-	if _, err := fs.Stat(embedded, "dist/index.html"); err != nil {
-		return fmt.Errorf("embedded SPA: dist/index.html missing: %w", err)
+func ValidateEmbeddedAssets() error { return validateAssets(FS) }
+
+// validateAssets checks a dist-rooted FS: a real index.html and at least one
+// hashed JS bundle.
+func validateAssets(fsys fs.FS) error {
+	if _, err := fs.Stat(fsys, "index.html"); err != nil {
+		return fmt.Errorf("SPA embarqué : dist/index.html manquant : %w", err)
 	}
-	js, err := fs.Glob(embedded, "dist/assets/*.js")
+	js, err := fs.Glob(fsys, "assets/*.js")
 	if err != nil {
-		return fmt.Errorf("embedded SPA: dist/assets unreadable: %w", err)
+		return fmt.Errorf("SPA embarqué : dist/assets illisible : %w", err)
 	}
 	if len(js) == 0 {
-		return fmt.Errorf("embedded SPA: no dist/assets/*.js — dist/index.html is a placeholder, run the frontend build")
+		return fmt.Errorf("SPA embarqué : aucun dist/assets/*.js — construisez le frontend")
 	}
 	return nil
 }
