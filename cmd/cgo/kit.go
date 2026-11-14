@@ -33,7 +33,8 @@ actions :
   svc       pilote le dashboard distant : start|stop|restart|status
   testbed   banc de mesure invité : check (défaut, audit) | up (pose) | down (retire)
   dns       mappe meteolink.dev vers la VM (hosts local, lien stable)
-  tls       confiance du certificat dashboard (magasin local + vérif HTTPS)
+  tls       confiance du certificat dashboard (empreintes + confirmation + vérif HTTPS)
+  tls-uninstall retire la confiance (magasin local) — confirmation requise
   shipcheck porte d'embarquement release : DNS→TCP→TLS→cert→health→confiance
   package   zip/tar poste opérateur (--os windows|linux) : binaire + config + mode d'emploi
   bootstrap paquets VM + veth (idempotent)
@@ -120,6 +121,8 @@ exit codes : 2 usage/build, 3 scan ambigu, 4 hyperviseur absent, 5 timeout SSH,
 		return r.DNS(c)
 	case "tls":
 		return r.TLS(c)
+	case "tls-uninstall":
+		return r.TLSUninstall(c)
 	case "shipcheck":
 		return r.ShipCheck(c)
 	case "package":
