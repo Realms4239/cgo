@@ -24,8 +24,8 @@ CMD="${1:-up}"; shift 2>/dev/null || true
 INGRESS=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --bin) BIN="$2"; shift 2;;
-    --ingress) INGRESS="$2"; shift 2;;
+    --bin) BIN="${2:?--bin requires PATH}"; shift 2;;
+    --ingress) INGRESS="${2:?--ingress requires on|off}"; shift 2;;
     *) echo "unknown option: $1" >&2; exit 2;;
   esac
 done
@@ -71,8 +71,11 @@ case "$CMD" in
     TOPO="${CGO_TOPOLOGY_JSON:-/tmp/cgo-dualns-topology.json}"
     IFB_JSON=null
     if [ "$SHAPE_MODE" = "ingress" ]; then IFB_JSON='"ifb0"'; fi
+    # Écriture atomique : tmp puis mv (même fs), jamais un JSON à moitié
+    # écrit qu'un preflight pourrait lire (M3).
     printf '{"shape_mode":"%s","rate_mbit":20,"delay_ms":100,"loss_pct":0,"namespaces":["ns_client","ns_wan_emulator","ns_edge_router","ns_server"],"ifb":%s,"written_at":"%s"}\n' \
-      "${SHAPE_MODE:-egress}" "$IFB_JSON" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$TOPO"
+      "${SHAPE_MODE:-egress}" "$IFB_JSON" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$TOPO.tmp"
+    mv "$TOPO.tmp" "$TOPO"
     # puits : petit objet + masse, DANS ns_server — jamais dans le routeur
     # (un puits à l'edge court-circuiterait le shaper : 193 Mbit/s à travers
     # un plafond de 20, vu en prod).
@@ -98,7 +101,10 @@ case "$CMD" in
     # vide du serveur embarqué) pour ne jamais viser un autre process cgo.
     pkill -f '.*--serve .*--http-addr=' 2>/dev/null || true
     pkill -f "testbedsrv -http 10.30.0.2" 2>/dev/null || true
-    "$HERE/cgo-bench-dualns.sh" down
+    # Échec du bench down ne doit PAS court-circuiter la preuve 0-orphan :
+    # rc capturé, vérification exécutée, verdict à la fin (C1).
+    bench_rc=0
+    "$HERE/cgo-bench-dualns.sh" down || bench_rc=$?
     # Échec fermé : affirmer un teardown propre sans preuve = faux succès.
     orphans=""
     for ns in ns_client ns_wan_emulator ns_edge_router ns_server; do
@@ -112,8 +118,13 @@ case "$CMD" in
     if pgrep -f '.*--serve .*--http-addr=' >/dev/null 2>&1; then
       orphans="$orphans proc:dashboard"
     fi
+    # Verdict unique : orphelins OU bench down en échec ⇒ pas de « 0 orphelin ».
     if [ -n "$orphans" ]; then
       echo "[!] orphelins survivants au down :$orphans" >&2
+      exit 1
+    fi
+    if [ "$bench_rc" -ne 0 ]; then
+      echo "[!] bench down en échec (rc=$bench_rc) — teardown non prouvé" >&2
       exit 1
     fi
     echo "[run-dualns] down — 0 orphelin (netns, puits, dashboard)"
