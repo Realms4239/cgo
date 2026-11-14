@@ -1,6 +1,5 @@
 *.go text eol=lf
 *.sh text eol=lf
-deploy/* text eol=lf
 *.ps1 text eol=crlf
 docs/frozen-manifests.sha256 text eol=lf
 web/frontend/src/lib/types.gen.ts text eol=lf
