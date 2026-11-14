@@ -12,6 +12,7 @@ jobs:
       contents: write
       packages: write
       id-token: write
+      attestations: write # requis par actions/attest-build-provenance — porte humaine nommée (plan Task 1.3)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -38,7 +39,18 @@ jobs:
           CGO_ENABLED: "1"
         run: |
           sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libglfw3-dev xorg-dev libwayland-dev pkg-config libxkbcommon-dev
-          sh .githooks/run-gates.sh --only hygiene --only links --only exit
+          set +e
+          out=$(sh .githooks/run-gates.sh 2>&1); rc=$?
+          set -e
+          printf '%s\n' "$out"
+          if [ $rc -ne 0 ]; then
+            if [ $rc -eq 2 ] && printf '%s' "$out" | grep -E 'SKIP[[:space:]]+frozen' >/dev/null && ! printf '%s' "$out" | grep -q 'FAIL'; then
+              echo "frozen gate: named host-only skip (corpus absent in fresh clone) — accepted"
+              exit 0
+            fi
+            echo "gates failed (rc=$rc)" >&2
+            exit 1
+          fi
       - name: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,6 +67,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.sbom.json
+      - name: provenance attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-checksums: dist/checksums.txt
       - name: cosign attest digest
         env:
           CGO_IMAGE_DIGEST: ${{ secrets.CGO_IMAGE_DIGEST }}

@@ -37,7 +37,7 @@ archives:
   - id: default
     # archive unique : cgo-<os>-<arch> contient cgo + meteolink + kit/
     formats: [tar.gz]
-    name_template: "cgo-{{ .Os }}-{{ .Arch }}"
+    name_template: "cgo-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     files:
       - LICENSE
       - README.md
