@@ -107,6 +107,57 @@ func TestShaperFqCodelRootFallbackError(t *testing.T) {
 	}
 }
 
+// I1 : échec d'attachement enfant = erreur nommée, jamais un passage muet
+// (l'ancien code rendait nil avec un enfant jamais attaché).
+// T5 : tbf parent 1: réussit, attach fq_codel enfant échoue → erreur ; 2 appels.
+func TestShaperFqCodelChildAttachFailParentPath(t *testing.T) {
+	r := &scriptRunner{script: []error{nil, errors.New("attach fail")}}
+	err := ApplyShaper(r, "e-srv", model.FqCodel, 20, 0)
+	if err == nil {
+		t.Fatal("child attach failure must return an error")
+	}
+	if len(r.calls) != 2 {
+		t.Fatalf("want 2 calls (tbf parent, fq_codel child), got %d: %v", len(r.calls), r.calls)
+	}
+}
+
+// T6 : tbf parent échoue, tbf racine réussit, attach fq_codel 1:1 échoue → erreur ; 3 appels.
+func TestShaperFqCodelChildAttachFailRootPath(t *testing.T) {
+	r := &scriptRunner{script: []error{errors.New("Cannot find specified qdisc"), nil, errors.New("attach fail")}}
+	err := ApplyShaper(r, "e-srv", model.FqCodel, 20, 0)
+	if err == nil {
+		t.Fatal("child attach failure after root fallback must return an error")
+	}
+	if len(r.calls) != 3 {
+		t.Fatalf("want 3 calls, got %d: %v", len(r.calls), r.calls)
+	}
+	if third := strings.Join(r.calls[2], " "); !strings.Contains(third, "parent 1:1") {
+		t.Fatalf("third call is not the 1:1 child attach: %v", r.calls[2])
+	}
+}
+
+// M3 — tc-tbf(8) : burst = max(1514, ceil(rate octets/s / HZ)).
+func TestTbfBurstBytes(t *testing.T) {
+	// 0.5 : plancher MTU (rate/HZ < 1514 o) ; 10.31 : ceil 12887.5 → 12888,
+	// jamais arrondi vers le bas. (L'exemple « 10.3 → 1288 » du review était
+	// un 10× slip : 10.3 Mbit/s = 1 287 500 o/s ÷ 100 = 12875, exact.)
+	for _, c := range []struct {
+		rate float64
+		want int
+	}{
+		{0.5, 1514},
+		{10.3, 12875},
+		{10.31, 12888},
+		{20, 25000},
+		{100, 125000},
+		{1000, 1250000},
+	} {
+		if got := tbfBurstBytes(c.rate); got != c.want {
+			t.Fatalf("tbfBurstBytes(%v) = %d, want %d", c.rate, got, c.want)
+		}
+	}
+}
+
 func TestApplyNetemLossOmittedWhenZero(t *testing.T) {
 	r := &FakeRunner{}
 	if err := ApplyNetem(r, "veth-c", 100, 15, 0.5); err != nil {

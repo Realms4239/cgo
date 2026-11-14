@@ -136,7 +136,7 @@ func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64
 		out, err := r.Run(tbfParentArgs...)
 		if err == nil {
 			if _, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "10:1", "handle", "20:"}, fq...)...); err != nil {
-				return fmt.Errorf("shaper fq_codel %s: attach sous tbf parent 1:: %v", iface, err)
+				return fmt.Errorf("shaper fq_codel %s: attach sous tbf parent 1: %v", iface, err)
 			}
 			return nil
 		}
@@ -145,7 +145,7 @@ func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64
 			return fmt.Errorf("shaper tbf %s: parent: %v (%s) ; root: %v (%s)", iface, err, oneLine(out), err2, oneLine(out2))
 		}
 		if _, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "20:"}, fq...)...); err != nil {
-			return fmt.Errorf("shaper fq_codel %s: attach sous tbf root 1:: %v", iface, err)
+			return fmt.Errorf("shaper fq_codel %s: attach sous tbf root 1: %v", iface, err)
 		}
 		return nil
 	default: // pfifo_fast cell: tbf as child of netem

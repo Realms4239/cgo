@@ -7,8 +7,8 @@
 # Voir docs/deploy.md (sudoers.d/cgo-network) et kit/testbed.sh.
 #
 # Surface acceptée (jamais plus) :
-#   tc [-s] qdisc del dev <IF> root
-#   tc [-s] qdisc show dev <IF>
+#   tc [-j] [-s] qdisc del dev <IF> root
+#   tc [-j] [-s] qdisc show dev <IF>
 #   tc qdisc replace dev <IF> (root|parent <H>) handle <H> (cake|tbf|netem|fq_codel) …
 #        cake     bandwidth <RATE> rtt <TIME> [ingress | ack-filter nat diffserv4 triple-isolate]
 #        tbf      rate <RATE> burst <INT-OCTETS|SIZE> latency <TIME>
@@ -86,9 +86,18 @@ valid_cidr() {
 
 # ------------------------------------------------ tc ---------------------------
 run_tc() {
-  local args=("$@")
-  local opt_s=0
-  if [[ "${args[0]:-}" == "-s" ]]; then opt_s=1; shift; fi
+  local opt_s=0 opt_j=0
+  local lead=()
+  while [[ "${1:-}" == -? ]]; do
+    case "${1}" in
+      -s) opt_s=1 ;;
+      -j) opt_j=1 ;;
+      *)  refuse "${1:-}" ;;
+    esac
+    shift
+  done
+  (( opt_j )) && lead+=(-j)
+  (( opt_s )) && lead+=(-s)
   case "${1:-}" in
     qdisc)
       shift
@@ -99,14 +108,14 @@ run_tc() {
           valid_if "${2:-}"
           [[ "${3:-}" == "root" ]] || refuse "${3:-}"
           [[ $# -eq 3 ]] || refuse "$*"
-          if (( opt_s )); then exec tc -s qdisc del dev "$2" root; else exec tc qdisc del dev "$2" root; fi
+          exec tc "${lead[@]}" qdisc del dev "$2" root
           ;;
         show)
           shift
           [[ "${1:-}" == "dev" ]] || refuse "${1:-}"
           valid_if "${2:-}"
           [[ $# -eq 2 ]] || refuse "$*"
-          if (( opt_s )); then exec tc -s qdisc show dev "$2"; else exec tc qdisc show dev "$2"; fi
+          exec tc "${lead[@]}" qdisc show dev "$2"
           ;;
         replace)
           shift
@@ -140,7 +149,7 @@ run_tc() {
                 extra=(ack-filter nat diffserv4 triple-isolate); shift 4
               fi
               [[ $# -eq 0 ]] || refuse "$*"
-              exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" cake bandwidth "$bw" rtt "$rtt" "${extra[@]}"
+              exec tc "${lead[@]}" qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" cake bandwidth "$bw" rtt "$rtt" "${extra[@]}"
               ;;
             tbf)
               [[ "${1:-}" == "rate" ]] || refuse "${1:-}"
@@ -150,7 +159,7 @@ run_tc() {
               [[ "${1:-}" == "latency" ]] || refuse "${1:-}"
               valid_time "${2:-}"; local latency="$2"; shift 2
               [[ $# -eq 0 ]] || refuse "$*"
-              exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" tbf rate "$rate" burst "$burst" latency "$latency"
+              exec tc "${lead[@]}" qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" tbf rate "$rate" burst "$burst" latency "$latency"
               ;;
             netem)
               [[ "${1:-}" == "delay" ]] || refuse "${1:-}"
@@ -172,11 +181,11 @@ run_tc() {
                 valid_name "${2:-}"; dist=(distribution "$2"); shift 2
               fi
               [[ $# -eq 0 ]] || refuse "$*"
-              exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" netem delay "$dly" "$jit" "${loss[@]}" "${dist[@]}"
+              exec tc "${lead[@]}" qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" netem delay "$dly" "$jit" "${loss[@]}" "${dist[@]}"
               ;;
             fq_codel)
               if [[ $# -eq 0 ]]; then
-                exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" fq_codel
+                exec tc "${lead[@]}" qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" fq_codel
               fi
               [[ "${1:-}" == "target" ]] || refuse "${1:-}"
               valid_time "${2:-}"; local target="$2"; shift 2
@@ -189,7 +198,7 @@ run_tc() {
               [[ "${1:-}" == "flows" ]] || refuse "${1:-}"
               valid_num "${2:-}"; local flows="$2"; shift 2
               [[ $# -eq 0 ]] || refuse "$*"
-              exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" fq_codel target "$target" interval "$interval" limit "$limit" quantum "$quantum" flows "$flows"
+              exec tc "${lead[@]}" qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" fq_codel target "$target" interval "$interval" limit "$limit" quantum "$quantum" flows "$flows"
               ;;
             *)
               refuse "$qdisc"
@@ -211,7 +220,7 @@ run_tc() {
           [[ "${3:-}" == "parent" ]] || refuse "${3:-}"
           valid_handle "${4:-}"
           [[ $# -eq 4 ]] || refuse "$*"
-          exec tc filter show dev "$2" parent "$4"
+          exec tc "${lead[@]}" filter show dev "$2" parent "$4"
           ;;
         *)
           refuse "${1:-}"
