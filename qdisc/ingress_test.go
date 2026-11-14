@@ -69,10 +69,10 @@ func TestApplyIngressShaperFqCodelHasNoCakeIngress(t *testing.T) {
 	}
 	first := strings.Join(f.Calls[0], " ")
 	second := strings.Join(f.Calls[1], " ")
-	if !strings.Contains(first, "root handle 1: tbf rate 20mbit") {
+	if !strings.Contains(first, "root handle 1: tbf rate 20mbit burst 25000") {
 		t.Fatalf("tbf is not the root shaper: %s", first)
 	}
-	if second != "qdisc replace dev ifb0 parent 1:1 handle 10: fq_codel" {
+	if second != "qdisc replace dev ifb0 parent 1:1 handle 10: fq_codel target 5ms interval 100ms limit 10240 quantum 1514 flows 1024" {
 		t.Fatalf("fq_codel args: %s", second)
 	}
 	for _, c := range f.Calls {
@@ -90,7 +90,7 @@ func TestApplyIngressShaperPfifoIsTbfRoot(t *testing.T) {
 	if len(f.Calls) != 1 {
 		t.Fatalf("pfifo baseline is one tbf, got %v", f.Calls)
 	}
-	if got := strings.Join(f.Calls[0], " "); !strings.Contains(got, "tbf rate 20mbit") {
+	if got := strings.Join(f.Calls[0], " "); !strings.Contains(got, "tbf rate 20mbit burst 25000") {
 		t.Fatalf("pfifo has no tbf: %s", got)
 	}
 }

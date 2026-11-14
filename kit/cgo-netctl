@@ -10,8 +10,8 @@
 #   tc [-s] qdisc del dev <IF> root
 #   tc [-s] qdisc show dev <IF>
 #   tc qdisc replace dev <IF> (root|parent <H>) handle <H> (cake|tbf|netem|fq_codel) …
-#        cake     bandwidth <RATE> rtt <TIME> [ingress]
-#        tbf      rate <RATE> burst <SIZE> latency <TIME>
+#        cake     bandwidth <RATE> rtt <TIME> [ingress | ack-filter nat diffserv4 triple-isolate]
+#        tbf      rate <RATE> burst <INT-OCTETS|SIZE> latency <TIME>
 #        netem    delay <TIME> <TIME> [loss <PCT> | loss gemodel <F> <F> <F> <F>] [distribution <NOM>]
 #        fq_codel [target <TIME> interval <TIME> limit <N> quantum <N> flows <N>]
 #   tc filter show dev <IF> parent <H>
@@ -45,10 +45,10 @@ IFRE='^[a-zA-Z0-9_-]{1,15}$'
 NUMRE='^[0-9]+$'
 NAME_RE='^[A-Za-z0-9_-]{1,32}$'          # distribution netem (p.ex. P2)
 RATE_RE='^[0-9]+(\.[0-9]+)?mbit$'        # bandwidth / rate
-SIZE_RE='^[0-9]+(kbit|mbit)$'            # burst 256kbit
+SIZE_RE='^[0-9]+(kbit|mbit)?$'         # burst : octets nus (tc-tbf) ou kbit/mbit historique
 TIME_RE='^[0-9]+(\.[0-9]+)?(us|ms|s)$'   # rtt, delay, latency, target…
 PCT_RE='^[0-9]+(\.[0-9]+)?%$'            # loss 3%
-FLOAT_RE='^[0-9]+(\.[0-9]+)?$'           # loss gemodel a b c d
+FLOAT_RE='^[0-9]+(\.[0-9]+)?%?$'        # loss gemodel a b c d — émis en % depuis la correction GE
 HANDLE_RE='^[0-9a-f]+:[0-9]*$'           # 1: 10: 20: ffff:
 PARENT_RE='^[0-9a-f]+:[0-9]+$'           # 1:1 10:1
 ENVPATH_RE='^/[A-Za-z0-9_./-]+$'
@@ -134,6 +134,11 @@ run_tc() {
               valid_time "${2:-}"; local rtt="$2"; shift 2
               local extra=()
               if [[ "${1:-}" == "ingress" ]]; then extra=(ingress); shift; fi
+              # drapeaux de sortie du banc (e-srv/e-wan) : émis par le Go, validés ici en séquence fixe
+              if [[ "${1:-}" == "ack-filter" ]]; then
+                [[ ${#extra[@]} -eq 0 && "${2:-}" == "nat" && "${3:-}" == "diffserv4" && "${4:-}" == "triple-isolate" ]] || refuse "$*"
+                extra=(ack-filter nat diffserv4 triple-isolate); shift 4
+              fi
               [[ $# -eq 0 ]] || refuse "$*"
               exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" cake bandwidth "$bw" rtt "$rtt" "${extra[@]}"
               ;;

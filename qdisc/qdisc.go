@@ -14,6 +14,7 @@ package qdisc
 
 import (
 	"fmt"
+	"math"
 	"os/exec"
 	"strings"
 
@@ -91,65 +92,67 @@ func ApplyNetem(r TCRunner, iface string, delayMs, jitterMs, lossPct float64) er
 	return ApplyNetemPhysics(r, iface, delayMs, jitterMs, lossPct, nil)
 }
 
+// tbfBurstBytes — tc-tbf(8) : le tampon minimal vaut rate/HZ et un burst trop
+// petit est rejeté (perte malgré capacité disponible). Dénominateur
+// conservateur HZ=100 (couvre HZ=250/1000) ; émis en octets.
+func tbfBurstBytes(rateMbit float64) int {
+	b := int(math.Ceil(rateMbit * 1e6 / 8 / 100))
+	if b < 1514 {
+		b = 1514
+	}
+	return b
+}
+
 // ApplyShaper configure capacité + AQM sur le saut de façonnage, empilé enfant
-// du netem 1: pour que délai et débit touchent la même sortie.
+// du netem 1: pour que débit et AQM touchent la même sortie.
 // Si le parent 1: n'existe pas (veth-s sans netem), repli sur la racine.
 // Les sorties tc des tentatives sont conservées dans l'erreur : un "exit
 // status 2" nu a déjà coûté une demi-journée de diagnostic aveugle.
 func ApplyShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64) error {
-	cakeArgs := func(parent ...string) []string {
-		return append(append([]string{"qdisc", "replace", "dev", iface}, parent...),
-			"handle", "10:", "cake", "bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs))
-	}
-	cakeRootArgs := func() []string {
-		return []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "cake",
-			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs)}
-	}
-	tbfArgs := func(parent ...string) []string {
-		return append(append([]string{"qdisc", "replace", "dev", iface}, parent...),
-			"handle", "10:", "tbf", "rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")
-	}
-	tbfRootArgs := func() []string {
-		return []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
-			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms"}
-	}
+	burst := fmt.Sprintf("%d", tbfBurstBytes(capMbps))
+	cakeParentArgs := []string{"qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "cake",
+		"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs),
+		"ack-filter", "nat", "diffserv4", "triple-isolate"}
+	cakeRootArgs := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "cake",
+		"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs),
+		"ack-filter", "nat", "diffserv4", "triple-isolate"}
+	tbfParentArgs := []string{"qdisc", "replace", "dev", iface, "parent", "1:", "handle", "10:", "tbf",
+		"rate", mbps(capMbps), "burst", burst, "latency", "400ms"}
+	tbfRootArgs := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
+		"rate", mbps(capMbps), "burst", burst, "latency", "400ms"}
+	fq := strings.Fields(fqCoDelString(iface)) // source unique des params RFC 8290
 	switch q {
 	case model.Cake:
-		if out, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:"}, "handle", "10:", "cake",
-			"bandwidth", mbps(capMbps), "rtt", fmt.Sprintf("%gms", rttMs))...); err == nil {
-			return nil
-		} else {
-			_ = cakeArgs
-			if out2, err2 := r.Run(cakeRootArgs()...); err2 != nil {
-				return fmt.Errorf("shaper cake %s: parent: %v (%s) ; root: %v (%s)", iface, err, oneLine(out), err2, oneLine(out2))
-			}
-			return nil
-		}
-	case model.FqCodel:
-		fq := strings.Fields(fqCoDelString(iface)) // source unique des params RFC 8290
-		if out, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:"}, "handle", "10:", "tbf",
-			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")...); err != nil {
-			if out2, err2 := r.Run(tbfRootArgs()...); err2 != nil {
-				return fmt.Errorf("shaper tbf %s: parent: %v (%s) ; root: %v (%s)", iface, err, oneLine(out), err2, oneLine(out2))
-			}
-			_ = tbfArgs
-			return nil
-		}
-		_, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "10:1", "handle", "20:"}, fq...)...)
+		out, err := r.Run(cakeParentArgs...)
 		if err == nil {
 			return nil
 		}
-		// fallback: tbf was at root 1:, so fq_codel parent is 1:1
-		_, err = r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "20:"}, fq...)...)
-		return err
-	default: // pfifo_fast cell: tbf as child of netem
-		if _, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:"}, "handle", "10:", "tbf",
-			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")...); err == nil {
-			return nil
-		} else {
-			_ = tbfArgs
+		out2, err2 := r.Run(cakeRootArgs...)
+		if err2 != nil {
+			return fmt.Errorf("shaper cake %s: parent: %v (%s) ; root: %v (%s)", iface, err, oneLine(out), err2, oneLine(out2))
 		}
-		_, err := r.Run(tbfRootArgs()...)
+		return nil
+	case model.FqCodel:
+		out, err := r.Run(tbfParentArgs...)
+		if err == nil {
+			if _, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "10:1", "handle", "20:"}, fq...)...); err != nil {
+				return fmt.Errorf("shaper fq_codel %s: attach sous tbf parent 1:: %v", iface, err)
+			}
+			return nil
+		}
+		out2, err2 := r.Run(tbfRootArgs...)
+		if err2 != nil {
+			return fmt.Errorf("shaper tbf %s: parent: %v (%s) ; root: %v (%s)", iface, err, oneLine(out), err2, oneLine(out2))
+		}
+		if _, err := r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "20:"}, fq...)...); err != nil {
+			return fmt.Errorf("shaper fq_codel %s: attach sous tbf root 1:: %v", iface, err)
+		}
+		return nil
+	default: // pfifo_fast cell: tbf as child of netem
+		if _, err := r.Run(tbfParentArgs...); err == nil {
+			return nil
+		}
+		_, err := r.Run(tbfRootArgs...)
 		return err
 	}
 }

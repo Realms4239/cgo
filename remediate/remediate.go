@@ -34,7 +34,8 @@ type Link struct {
 	// Overhead is per-packet link-layer overhead in bytes (e.g. 38 for
 	// Ethernet+VLAN, 0 for unknown). CAKE subtracts it from the shaper.
 	Overhead int
-	// MTU of the path, used for burst sizing. 0 means "use 1500".
+	// MTU of the path. Retained for API compatibility: burst sizing is now
+	// rate-derived (tc-tbf(8), see tbfBurstBytes), no longer MTU-based.
 	MTU int
 }
 
@@ -100,19 +101,13 @@ func (l Link) Validate() error {
 	return nil
 }
 
-func (l Link) mtu() int {
-	if l.MTU > 0 {
-		return l.MTU
-	}
-	return 1500
-}
-
-// burstBytes sizes a token-bucket burst at roughly one MTU of buffering, which
-// is the smallest burst that does not throttle a single full-sized segment.
-func (l Link) burstBytes() int {
-	b := l.mtu()
-	if b < 1500 {
-		b = 1500
+// tbfBurstBytes — tc-tbf(8) : le tampon minimal vaut rate/HZ et un burst trop
+// petit est rejeté (perte malgré capacité disponible). Dénominateur
+// conservateur HZ=100 (couvre HZ=250/1000) ; émis en octets.
+func tbfBurstBytes(rateMbit float64) int {
+	b := int(math.Ceil(rateMbit * 1e6 / 8 / 100))
+	if b < 1514 {
+		b = 1514
 	}
 	return b
 }
@@ -167,20 +162,23 @@ func LinuxTC(l Link, qdisc string) ([]string, error) {
 
 	case QdiscFqCodel:
 		// fq_codel has no shaper of its own: tbf provides the rate, fq_codel
-		// provides the AQM underneath it. burst is one MTU; latency caps the
-		// queue at 400 ms so tbf cannot itself become the bufferbloat.
-		burst := fmt.Sprintf("%d", l.burstBytes())
+		// provides the AQM underneath it. burst is rate-derived (tc-tbf(8):
+		// rate/HZ, see tbfBurstBytes); latency caps the queue at 400 ms so
+		// tbf cannot itself become the bufferbloat. fq_codel params are
+		// pinned to the bench's RFC 8290 values: the recipe must reproduce
+		// the cell the campaign measured.
+		burst := fmt.Sprintf("%d", tbfBurstBytes(l.shapedRate()))
 		return []string{
 			clean,
 			fmt.Sprintf("tc qdisc replace dev %s root handle 1: tbf rate %s burst %s latency 400ms",
 				dev, rate(l.shapedRate()), burst),
-			fmt.Sprintf("tc qdisc replace dev %s parent 1:1 handle 10: fq_codel", dev),
+			fmt.Sprintf("tc qdisc replace dev %s parent 1:1 handle 10: fq_codel target 5ms interval 100ms limit 10240 quantum 1514 flows 1024", dev),
 		}, nil
 
 	case QdiscPfifo:
 		// Baseline only. Emitted so a before/after pair is reproducible, not as
 		// a recommendation: pfifo_fast has no AQM and will bufferbloat.
-		burst := fmt.Sprintf("%d", l.burstBytes())
+		burst := fmt.Sprintf("%d", tbfBurstBytes(l.shapedRate()))
 		return []string{
 			clean,
 			fmt.Sprintf("tc qdisc replace dev %s root handle 1: tbf rate %s burst %s latency 400ms",
@@ -239,7 +237,7 @@ func LinuxTCIngress(l Link, qdisc string) ([]string, error) {
 		return append(base, strings.Join(args, " ")), nil
 
 	case QdiscFqCodel:
-		burst := fmt.Sprintf("%d", l.burstBytes())
+		burst := fmt.Sprintf("%d", tbfBurstBytes(l.shapedRate()))
 		return append(base,
 			fmt.Sprintf("tc qdisc replace dev %s root handle 1: tbf rate %s burst %s latency 400ms",
 				IngressIFB, rate(l.shapedRate()), burst),
@@ -247,7 +245,7 @@ func LinuxTCIngress(l Link, qdisc string) ([]string, error) {
 		), nil
 
 	case QdiscPfifo:
-		burst := fmt.Sprintf("%d", l.burstBytes())
+		burst := fmt.Sprintf("%d", tbfBurstBytes(l.shapedRate()))
 		return append(base,
 			fmt.Sprintf("tc qdisc replace dev %s root handle 1: tbf rate %s burst %s latency 400ms",
 				IngressIFB, rate(l.shapedRate()), burst),

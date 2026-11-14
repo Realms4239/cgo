@@ -27,6 +27,7 @@ func (c NsCommand) Run(prog string, args ...string) ([]byte, error) {
 // been redirected into this device by the bench; an ingress qdisc itself can
 // filter and redirect but cannot build the queue an AQM needs.
 func ApplyIngressShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs float64) error {
+	burst := fmt.Sprintf("%d", tbfBurstBytes(capMbps))
 	switch q {
 	case model.Cake:
 		out, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "cake",
@@ -37,18 +38,19 @@ func ApplyIngressShaper(r TCRunner, iface string, q model.Qdisc, capMbps, rttMs 
 		return nil
 	case model.FqCodel:
 		out, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
-			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")
+			"rate", mbps(capMbps), "burst", burst, "latency", "400ms")
 		if err != nil {
 			return fmt.Errorf("shaper ingress tbf %s: %v (%s)", iface, err, oneLine(out))
 		}
-		out, err = r.Run("qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "10:", "fq_codel")
+		fq := strings.Fields(fqCoDelString(iface)) // mêmes params RFC 8290 que le banc
+		out, err = r.Run(append([]string{"qdisc", "replace", "dev", iface, "parent", "1:1", "handle", "10:"}, fq...)...)
 		if err != nil {
 			return fmt.Errorf("shaper ingress fq_codel %s: %v (%s)", iface, err, oneLine(out))
 		}
 		return nil
 	default:
 		out, err := r.Run("qdisc", "replace", "dev", iface, "root", "handle", "1:", "tbf",
-			"rate", mbps(capMbps), "burst", "256kbit", "latency", "400ms")
+			"rate", mbps(capMbps), "burst", burst, "latency", "400ms")
 		if err != nil {
 			return fmt.Errorf("shaper ingress tbf %s: %v (%s)", iface, err, oneLine(out))
 		}
