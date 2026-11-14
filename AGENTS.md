@@ -88,6 +88,29 @@ Destructive actions, a live bench run, a merge to `main`, a secret exposure, a
 frozen-data change, a new dependency, or a scope that grew. Ask before acting,
 not after.
 
+## WEBSERVER (sadcnwp) access
+
+Every interaction with the sadcnwp production host goes through the operator's
+`C:\WEBSERVER` toolbox — never through ad-hoc ssh from an agent session:
+
+- Read first: `C:\WEBSERVER\safe-read-write-admin-guide.md` (the harness, the
+  rungs R0–R3, the token rules, measured host facts). Password source:
+  `C:\cgo\mdp.txt` — read it into the command's environment, never print it,
+  never copy it into this repo, never type it into a file.
+- R0 only by default: classify with `safe_read.py --file`, stop on any refusal,
+  `--run` one pass, keep the evidence file and its sha256 sidecar. On this host
+  `safe_read.py` needs `-X utf8` (console ANSI page mangles UTF-8 otherwise);
+  patching the tool is a human decision, not an agent fix.
+- `ftp2` compromise: out of scope until the operator rewrites the standing
+  2026-10-27 direction. Any change to that direction lands as a new checkpoint
+  entry, never as an edit in place.
+- R2/R3 (writes, LXD starts, bridges, tc, sudo): only with a same-day named
+  token in `C:\WEBSERVER\APPROVED-*.md`, a rollback line, and a same-day
+  rehearsal. No token → no connection that can write.
+- Production load is real: schedule bench windows only in a quiet window the
+  operator names. Evidence copied into this repo keeps the tool's redactions
+  and sidecar.
+
 ## FAST TOOLS — standing arsenal (ingested 2026-11-14)
 
 Source: `FINAL PLAN/FAST TOOLs.md` (ingested 2026-11-14). Read it before

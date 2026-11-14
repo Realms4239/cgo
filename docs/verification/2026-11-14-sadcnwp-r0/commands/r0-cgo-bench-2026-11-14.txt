@@ -1,0 +1,28 @@
+# R0 — 2026-11-14 — CGO bench feasibility (B): LXD/snap state, KVM ACL, BTF, headroom.
+# Scope: read LXD/snap state, /dev/kvm permissions+ACL, BTF presence, load, memory,
+# storage. Nothing started/installed/signalled; the ftp2 miner and production untouched.
+whoami
+id
+hostname
+uptime
+nproc
+lscpu
+free -h
+df -h /home
+ls -la /dev/kvm
+lsmod
+ls /sys/class/iommu
+ls -la /sys/kernel/btf
+file /sys/kernel/btf/vmlinux
+systemctl is-active lxd snap.lxd.daemon docker
+systemctl status lxd --no-pager -l
+systemctl status docker --no-pager -l
+ls /snap
+ls /var/snap
+ls /var/snap/lxd
+ls /var/snap/lxd/current
+ls /var/lib/snapd/snaps
+ip -br link
+findmnt /sys/fs/cgroup
+cat /proc/filesystems
+ps -eo user,pcpu,args --sort=-pcpu

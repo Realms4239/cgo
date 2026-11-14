@@ -1,0 +1,2228 @@
+# sadcnwp read window, 20261114-103541 UTC
+# host sadc@41.207.49.27:9922
+
+$ whoami
+sadc
+exit=0
+
+$ id
+uid=1000(sadc) gid=1000(sadc) groups=1000(sadc),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),108(lxd),991(docker)
+exit=0
+
+$ hostname
+sadcnwp-server
+exit=0
+
+$ uptime
+ 13:35:31 up 43 days, 38 min,  6 users,  load average: 42.28, 41.99, 42.00
+exit=0
+
+$ nproc
+80
+exit=0
+
+$ lscpu
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           46 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  80
+On-line CPU(s) list:                     0-79
+Vendor ID:                               GenuineIntel
+Model name:                              Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz
+CPU family:                              6
+Model:                                   85
+Thread(s) per core:                      2
+Core(s) per socket:                      20
+Socket(s):                               2
+Stepping:                                7
+BogoMIPS:                                4200.00
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 cdp_l3 intel_ppin ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm mpx rdt_a avx512f avx512dq rdseed adx smap clflushopt clwb intel_pt avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local dtherm ida arat pln pts vnmi pku ospke avx512_vnni md_clear flush_l1d arch_capabilities ibpb_exit_to_user
+Virtualization:                          VT-x
+L1d cache:                               1.3 MiB (40 instances)
+L1i cache:                               1.3 MiB (40 instances)
+L2 cache:                                40 MiB (40 instances)
+L3 cache:                                55 MiB (2 instances)
+NUMA node(s):                            2
+NUMA node0 CPU(s):                       0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78
+NUMA node1 CPU(s):                       1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79
+Vulnerability Gather data sampling:      Mitigation; Microcode
+Vulnerability Indirect target selection: Mitigation; Aligned branch/return thunks
+Vulnerability Itlb multihit:             KVM: Mitigation: VMX disabled
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Mitigation; Enhanced IBRS
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI SW loop, KVM SW loop
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Mitigation; TSX disabled
+Vulnerability Vmscape:                   Mitigation; IBPB before exit to userspace
+exit=0
+
+$ free -h
+               total        used        free      shared  buff/cache   available
+Mem:            62Gi        17Gi       2.0Gi       122Mi        43Gi        44Gi
+Swap:           99Gi       365Mi        99Gi
+exit=0
+
+$ df -h /home
+Filesystem                           Size  Used Avail Use% Mounted on
+/dev/mapper/ubuntu--vg-ubuntu--home  590G  386G  175G  69% /home
+exit=0
+
+$ ls -la /dev/kvm
+crw-rw----+ 1 root kvm 10, 232 Nov 14 06:44 /dev/kvm
+exit=0
+
+$ lsmod
+Module                  Size  Used by
+nf_conntrack_netlink    61440  0
+veth                   45056  0
+bridge                425984  0
+stp                    12288  1 bridge
+llc                    16384  2 bridge,stp
+xfrm_user              61440  1
+xfrm_algo              16384  1 xfrm_user
+xt_set                 20480  0
+ip_set                 61440  1 xt_set
+overlay               212992  10
+zfs                  6602752  0
+spl                   180224  1 zfs
+vhost_vsock            24576  0
+vmw_vsock_virtio_transport_common    57344  1 vhost_vsock
+vhost                  69632  1 vhost_vsock
+vhost_iotlb            16384  1 vhost
+vsock                  61440  2 vmw_vsock_virtio_transport_common,vhost_vsock
+unix_diag              12288  0
+udp_diag               12288  0
+cpuid                  12288  0
+xt_recent              24576  0
+tcp_diag               12288  0
+inet_diag              28672  2 tcp_diag,udp_diag
+tls                   155648  0
+nft_reject_inet        12288  1
+nft_reject             12288  1 nft_reject_inet
+xt_connmark            12288  6
+xt_mark                12288  2
+snd_seq_dummy          12288  0
+snd_hrtimer            12288  1
+snd_seq_midi           24576  0
+snd_seq_midi_event     16384  1 snd_seq_midi
+snd_rawmidi            57344  1 snd_seq_midi
+snd_seq               118784  9 snd_seq_midi,snd_seq_midi_event,snd_seq_dummy
+snd_seq_device         16384  3 snd_seq,snd_seq_midi,snd_rawmidi
+snd_timer              49152  2 snd_seq,snd_hrtimer
+snd                   143360  6 snd_seq,snd_seq_device,snd_timer,snd_rawmidi
+soundcore              16384  1 snd
+qrtr                   53248  2
+cfg80211             1368064  0
+ip6t_REJECT            12288  1
+nf_reject_ipv6         24576  2 nft_reject_inet,ip6t_REJECT
+xt_hl                  12288  22
+ip6t_rt                16384  3
+ipt_REJECT             12288  1
+nf_reject_ipv4         12288  2 nft_reject_inet,ipt_REJECT
+xt_LOG                 16384  8
+nf_log_syslog          20480  8
+xt_multiport           16384  6
+xt_comment             12288  6
+nft_limit              16384  11
+xt_limit               12288  0
+xt_addrtype            12288  8
+nft_chain_nat          12288  26
+xt_MASQUERADE          16384  11
+xt_nat                 12288  57
+nf_nat                 61440  3 xt_nat,nft_chain_nat,xt_MASQUERADE
+xt_tcpudp              16384  60
+xt_conntrack           12288  30
+nf_conntrack          200704  6 xt_conntrack,nf_nat,xt_nat,nf_conntrack_netlink,xt_connmark,xt_MASQUERADE
+nf_defrag_ipv6         24576  1 nf_conntrack
+nf_defrag_ipv4         12288  1 nf_conntrack
+nft_compat             20480  221
+nf_tables             380928  2734 nft_compat,nft_reject_inet,nft_chain_nat,nft_limit,nft_reject
+binfmt_misc            24576  1
+xfs                  2371584  1
+intel_rapl_msr         20480  0
+intel_rapl_common      40960  1 intel_rapl_msr
+intel_uncore_frequency    16384  0
+intel_uncore_frequency_common    16384  1 intel_uncore_frequency
+isst_if_common         24576  0
+skx_edac               20480  0
+skx_edac_common        24576  1 skx_edac
+nfit                   81920  1 skx_edac_common
+x86_pkg_temp_thermal    20480  0
+ipmi_ssif              45056  0
+intel_powerclamp       24576  0
+coretemp               24576  0
+kvm_intel             487424  0
+kvm                  1404928  1 kvm_intel
+cmdlinepart            12288  0
+spi_nor               167936  0
+irqbypass              12288  1 kvm
+mtd                    98304  3 spi_nor,cmdlinepart
+rapl                   20480  0
+dell_smbios            32768  0
+mgag200                73728  1
+dcdbas                 20480  1 dell_smbios
+dell_wmi_descriptor    16384  1 dell_smbios
+intel_cstate           24576  0
+wmi_bmof               12288  0
+i2c_algo_bit           16384  1 mgag200
+mei_me                 53248  0
+i2c_i801               36864  0
+spi_intel_pci          12288  0
+spi_intel              32768  1 spi_intel_pci
+i2c_smbus              16384  1 i2c_i801
+lpc_ich                32768  0
+mei                   172032  1 mei_me
+intel_pch_thermal      20480  0
+acpi_power_meter       20480  0
+ipmi_si                86016  1
+acpi_ipmi              24576  1 acpi_power_meter
+ipmi_devintf           16384  0
+input_leds             12288  0
+ipmi_msghandler        94208  4 ipmi_devintf,ipmi_si,acpi_ipmi,ipmi_ssif
+mac_hid                12288  0
+sch_fq_codel           24576  43
+dm_multipath           45056  0
+msr                    12288  0
+parport_pc             53248  0
+ppdev                  24576  0
+lp                     28672  0
+parport                73728  3 parport_pc,lp,ppdev
+efi_pstore             12288  0
+nfnetlink              20480  6 nft_compat,nf_conntrack_netlink,nf_tables,ip_set
+dmi_sysfs              24576  0
+ip_tables              32768  0
+x_tables               65536  19 xt_conntrack,nft_compat,xt_LOG,xt_multiport,xt_tcpudp,xt_addrtype,xt_recent,xt_nat,ip6t_rt,xt_comment,xt_set,ipt_REJECT,xt_connmark,ip_tables,xt_limit,xt_hl,xt_MASQUERADE,ip6t_REJECT,xt_mark
+autofs4                57344  2
+btrfs                2060288  0
+blake2b_generic        24576  0
+raid10                 77824  0
+raid456               196608  0
+async_raid6_recov      20480  1 raid456
+async_memcpy           16384  2 raid456,async_raid6_recov
+async_pq               20480  2 raid456,async_raid6_recov
+async_xor              16384  3 async_pq,raid456,async_raid6_recov
+async_tx               16384  5 async_pq,async_memcpy,async_xor,raid456,async_raid6_recov
+xor                    20480  2 async_xor,btrfs
+raid6_pq              126976  4 async_pq,btrfs,raid456,async_raid6_recov
+libcrc32c              12288  6 nf_conntrack,nf_nat,btrfs,nf_tables,xfs,raid456
+raid1                  61440  0
+raid0                  24576  0
+hid_generic            12288  0
+usbhid                 77824  0
+hid                   180224  2 usbhid,hid_generic
+crct10dif_pclmul       12288  1
+crc32_pclmul           12288  0
+polyval_clmulni        12288  0
+polyval_generic        12288  1 polyval_clmulni
+ghash_clmulni_intel    16384  0
+sha256_ssse3           32768  0
+sha1_ssse3             32768  0
+bnxt_en               421888  0
+megaraid_sas          225280  5
+ahci                   49152  0
+xhci_pci               24576  0
+libahci                53248  1 ahci
+xhci_pci_renesas       20480  1 xhci_pci
+wmi                    28672  3 wmi_bmof,dell_smbios,dell_wmi_descriptor
+aesni_intel           356352  0
+crypto_simd            16384  1 aesni_intel
+cryptd                 24576  2 crypto_simd,ghash_clmulni_intel
+exit=0
+
+$ ls /sys/class/iommu
+dmar4
+dmar7
+exit=0
+
+$ ls -la /sys/kernel/btf
+total 0
+drwxr-xr-x  2 root root       0 Nov 11 10:03 .
+drwxr-xr-x 16 root root       0 Nov 11 10:03 ..
+-r--r--r--  1 root root    2337 Nov 11 10:03 acpi_ipmi
+-r--r--r--  1 root root    1697 Nov 11 10:03 acpi_power_meter
+-r--r--r--  1 root root    3361 Nov 11 10:03 aesni_intel
+-r--r--r--  1 root root    7258 Nov 11 10:03 ahci
+-r--r--r--  1 root root     451 Nov 11 10:03 async_memcpy
+-r--r--r--  1 root root    1109 Nov 11 10:03 async_pq
+-r--r--r--  1 root root    1143 Nov 11 10:03 async_raid6_recov
+-r--r--r--  1 root root     771 Nov 11 10:03 async_tx
+-r--r--r--  1 root root     928 Nov 11 10:03 async_xor
+-r--r--r--  1 root root    7104 Nov 11 10:03 autofs4
+-r--r--r--  1 root root    1040 Nov 11 10:03 binfmt_misc
+-r--r--r--  1 root root    1352 Nov 11 10:03 blake2b_generic
+-r--r--r--  1 root root  114521 Nov 11 10:03 bnxt_en
+-r--r--r--  1 root root   64785 Nov 11 10:03 bridge
+-r--r--r--  1 root root  265838 Nov 11 10:03 btrfs
+-r--r--r--  1 root root  292451 Nov 11 10:03 cfg80211
+-r--r--r--  1 root root    4609 Nov 11 10:03 cmdlinepart
+-r--r--r--  1 root root    1509 Nov 11 10:03 coretemp
+-r--r--r--  1 root root     365 Nov 11 10:03 cpuid
+-r--r--r--  1 root root     409 Nov 11 10:03 crc32_pclmul
+-r--r--r--  1 root root     161 Nov 11 10:03 crct10dif_pclmul
+-r--r--r--  1 root root    3685 Nov 11 10:03 cryptd
+-r--r--r--  1 root root    1319 Nov 11 10:03 crypto_simd
+-r--r--r--  1 root root    1681 Nov 11 10:03 dcdbas
+-r--r--r--  1 root root    3352 Nov 11 10:03 dell_smbios
+-r--r--r--  1 root root    1003 Nov 11 10:03 dell_wmi_descriptor
+-r--r--r--  1 root root    2722 Nov 11 10:03 dmi_sysfs
+-r--r--r--  1 root root    4298 Nov 11 10:03 dm_multipath
+-r--r--r--  1 root root     352 Nov 11 10:03 efi_pstore
+-r--r--r--  1 root root     658 Nov 11 10:03 ghash_clmulni_intel
+-r--r--r--  1 root root    8554 Nov 11 10:03 hid
+-r--r--r--  1 root root     324 Nov 11 10:03 hid_generic
+-r--r--r--  1 root root     871 Nov 11 10:03 i2c_algo_bit
+-r--r--r--  1 root root    2389 Nov 11 10:03 i2c_i801
+-r--r--r--  1 root root     534 Nov 11 10:03 i2c_smbus
+-r--r--r--  1 root root    5063 Nov 11 10:03 inet_diag
+-r--r--r--  1 root root     583 Nov 11 10:03 input_leds
+-r--r--r--  1 root root    1334 Nov 11 10:03 intel_cstate
+-r--r--r--  1 root root     740 Nov 11 10:03 intel_pch_thermal
+-r--r--r--  1 root root    1151 Nov 11 10:03 intel_powerclamp
+-r--r--r--  1 root root    5111 Nov 11 10:03 intel_rapl_common
+-r--r--r--  1 root root    2768 Nov 11 10:03 intel_rapl_msr
+-r--r--r--  1 root root    1067 Nov 11 10:03 intel_uncore_frequency
+-r--r--r--  1 root root    1583 Nov 11 10:03 intel_uncore_frequency_common
+-r--r--r--  1 root root    2647 Nov 11 10:03 ip6t_REJECT
+-r--r--r--  1 root root    2035 Nov 11 10:03 ip6t_rt
+-r--r--r--  1 root root    2787 Nov 11 10:03 ipmi_devintf
+-r--r--r--  1 root root   12358 Nov 11 10:03 ipmi_msghandler
+-r--r--r--  1 root root   11764 Nov 11 10:03 ipmi_si
+-r--r--r--  1 root root    5019 Nov 11 10:03 ipmi_ssif
+-r--r--r--  1 root root   14299 Nov 11 10:03 ip_set
+-r--r--r--  1 root root    6413 Nov 11 10:03 ip_tables
+-r--r--r--  1 root root    2635 Nov 11 10:03 ipt_REJECT
+-r--r--r--  1 root root     936 Nov 11 10:03 irqbypass
+-r--r--r--  1 root root    2071 Nov 11 10:03 isst_if_common
+-r--r--r--  1 root root  181188 Nov 11 10:03 kvm
+-r--r--r--  1 root root   54327 Nov 11 10:03 kvm_intel
+-r--r--r--  1 root root    8620 Nov 11 10:03 libahci
+-r--r--r--  1 root root     177 Nov 11 10:03 libcrc32c
+-r--r--r--  1 root root    1084 Nov 11 10:03 llc
+-r--r--r--  1 root root    4691 Nov 11 10:03 lp
+-r--r--r--  1 root root    3002 Nov 11 10:03 lpc_ich
+-r--r--r--  1 root root     259 Nov 11 10:03 mac_hid
+-r--r--r--  1 root root   60909 Nov 11 10:03 megaraid_sas
+-r--r--r--  1 root root   24347 Nov 11 10:03 mei
+-r--r--r--  1 root root    7682 Nov 11 10:03 mei_me
+-r--r--r--  1 root root    5726 Nov 11 10:03 mgag200
+-r--r--r--  1 root root     511 Nov 11 10:03 msr
+-r--r--r--  1 root root   13869 Nov 11 10:03 mtd
+-r--r--r--  1 root root   27069 Nov 11 10:03 nf_conntrack
+-r--r--r--  1 root root   13461 Nov 11 10:03 nf_conntrack_netlink
+-r--r--r--  1 root root     258 Nov 11 10:03 nf_defrag_ipv4
+-r--r--r--  1 root root    1472 Nov 11 10:03 nf_defrag_ipv6
+-r--r--r--  1 root root   13062 Nov 11 10:03 nfit
+-r--r--r--  1 root root    1207 Nov 11 10:03 nf_log_syslog
+-r--r--r--  1 root root    7932 Nov 11 10:03 nf_nat
+-r--r--r--  1 root root    2565 Nov 11 10:03 nfnetlink
+-r--r--r--  1 root root     694 Nov 11 10:03 nf_reject_ipv4
+-r--r--r--  1 root root     687 Nov 11 10:03 nf_reject_ipv6
+-r--r--r--  1 root root   63007 Nov 11 10:03 nf_tables
+-r--r--r--  1 root root     918 Nov 11 10:03 nft_chain_nat
+-r--r--r--  1 root root   11444 Nov 11 10:03 nft_compat
+-r--r--r--  1 root root    6737 Nov 11 10:03 nft_limit
+-r--r--r--  1 root root    4654 Nov 11 10:03 nft_reject
+-r--r--r--  1 root root    4364 Nov 11 10:03 nft_reject_inet
+-r--r--r--  1 root root   20683 Nov 11 10:03 overlay
+-r--r--r--  1 root root    8133 Nov 11 10:03 parport
+-r--r--r--  1 root root    7942 Nov 11 10:03 parport_pc
+-r--r--r--  1 root root     470 Nov 11 10:03 polyval_clmulni
+-r--r--r--  1 root root     594 Nov 11 10:03 polyval_generic
+-r--r--r--  1 root root    4474 Nov 11 10:03 ppdev
+-r--r--r--  1 root root    6459 Nov 11 10:03 qrtr
+-r--r--r--  1 root root     982 Nov 11 10:03 raid0
+-r--r--r--  1 root root    4221 Nov 11 10:03 raid1
+-r--r--r--  1 root root    5672 Nov 11 10:03 raid10
+-r--r--r--  1 root root   22042 Nov 11 10:03 raid456
+-r--r--r--  1 root root    2798 Nov 11 10:03 raid6_pq
+-r--r--r--  1 root root    1343 Nov 11 10:03 rapl
+-r--r--r--  1 root root    3454 Nov 11 10:03 sch_fq_codel
+-r--r--r--  1 root root     844 Nov 11 10:03 sha1_ssse3
+-r--r--r--  1 root root     937 Nov 11 10:03 sha256_ssse3
+-r--r--r--  1 root root    3078 Nov 11 10:03 skx_edac
+-r--r--r--  1 root root    3705 Nov 11 10:03 skx_edac_common
+-r--r--r--  1 root root   20779 Nov 11 10:03 snd
+-r--r--r--  1 root root    2303 Nov 11 10:03 snd_hrtimer
+-r--r--r--  1 root root   10222 Nov 11 10:03 snd_rawmidi
+-r--r--r--  1 root root   31564 Nov 11 10:03 snd_seq
+-r--r--r--  1 root root    3846 Nov 11 10:03 snd_seq_device
+-r--r--r--  1 root root    4871 Nov 11 10:03 snd_seq_dummy
+-r--r--r--  1 root root    7571 Nov 11 10:03 snd_seq_midi
+-r--r--r--  1 root root    2712 Nov 11 10:03 snd_seq_midi_event
+-r--r--r--  1 root root   10850 Nov 11 10:03 snd_timer
+-r--r--r--  1 root root     832 Nov 11 10:03 soundcore
+-r--r--r--  1 root root    5693 Nov 11 10:03 spi_intel
+-r--r--r--  1 root root     469 Nov 11 10:03 spi_intel_pci
+-r--r--r--  1 root root   20665 Nov 11 10:03 spi_nor
+-r--r--r--  1 root root     757 Nov 11 10:03 stp
+-r--r--r--  1 root root    2443 Nov 11 10:03 tcp_diag
+-r--r--r--  1 root root   15692 Nov 11 10:03 tls
+-r--r--r--  1 root root    1743 Nov 11 10:03 udp_diag
+-r--r--r--  1 root root    1078 Nov 11 10:03 unix_diag
+-r--r--r--  1 root root    6318 Nov 11 10:03 usbhid
+-r--r--r--  1 root root    3257 Nov 11 10:03 veth
+-r--r--r--  1 root root    8882 Nov 11 10:03 vhost
+-r--r--r--  1 root root    1112 Nov 11 10:03 vhost_iotlb
+-r--r--r--  1 root root    7857 Nov 11 10:03 vhost_vsock
+-r--r--r--  1 root root 6101415 Nov 11 10:03 vmlinux
+-r--r--r--  1 root root   10458 Nov 11 10:03 vmw_vsock_virtio_transport_common
+-r--r--r--  1 root root    6371 Nov 11 10:03 vsock
+-r--r--r--  1 root root    2840 Nov 11 10:03 wmi
+-r--r--r--  1 root root     760 Nov 11 10:03 wmi_bmof
+-r--r--r--  1 root root     657 Nov 11 10:03 x86_pkg_temp_thermal
+-r--r--r--  1 root root    1598 Nov 11 10:03 xfrm_algo
+-r--r--r--  1 root root    7299 Nov 11 10:03 xfrm_user
+-r--r--r--  1 root root  364162 Nov 11 10:03 xfs
+-r--r--r--  1 root root     639 Nov 11 10:03 xhci_pci
+-r--r--r--  1 root root     500 Nov 11 10:03 xhci_pci_renesas
+-r--r--r--  1 root root    1340 Nov 11 10:03 xor
+-r--r--r--  1 root root    8411 Nov 11 10:03 x_tables
+-r--r--r--  1 root root    2691 Nov 11 10:03 xt_addrtype
+-r--r--r--  1 root root    1777 Nov 11 10:03 xt_comment
+-r--r--r--  1 root root    3087 Nov 11 10:03 xt_connmark
+-r--r--r--  1 root root    3633 Nov 11 10:03 xt_conntrack
+-r--r--r--  1 root root    2092 Nov 11 10:03 xt_hl
+-r--r--r--  1 root root    2360 Nov 11 10:03 xt_limit
+-r--r--r--  1 root root    1965 Nov 11 10:03 xt_LOG
+-r--r--r--  1 root root    2016 Nov 11 10:03 xt_mark
+-r--r--r--  1 root root    2349 Nov 11 10:03 xt_MASQUERADE
+-r--r--r--  1 root root    2707 Nov 11 10:03 xt_multiport
+-r--r--r--  1 root root    2716 Nov 11 10:03 xt_nat
+-r--r--r--  1 root root    3383 Nov 11 10:03 xt_recent
+-r--r--r--  1 root root    7112 Nov 11 10:03 xt_set
+-r--r--r--  1 root root    2429 Nov 11 10:03 xt_tcpudp
+exit=0
+
+$ file /sys/kernel/btf/vmlinux
+/sys/kernel/btf/vmlinux: data
+exit=0
+
+$ systemctl is-active lxd snap.lxd.daemon docker
+inactive
+inactive
+active
+exit=0
+
+$ systemctl status lxd --no-pager -l
+(no stdout)
+stderr:
+Unit lxd.service could not be found.
+exit=4
+
+$ systemctl status docker --no-pager -l
+● docker.service - Docker Application Container Engine
+     Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled; preset: enabled)
+     Active: active (running) since Fri 2026-10-30 11:23:38 EAT; 2 weeks 1 day ago
+TriggeredBy: ● docker.socket
+       Docs: https://docs.docker.com
+   Main PID: 2677444 (dockerd)
+      Tasks: 178
+     Memory: 555.5M (peak: 625.1M swap: 4.0K swap peak: 4.0K)
+        CPU: 1h 26min 55.659s
+     CGroup: /system.slice/docker.service
+             ├─1058552 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 25 -container-ip [redacted host] -container-port 25 -use-listen-fd
+             ├─1058626 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 587 -container-ip [redacted host] -container-port 587 -use-listen-fd
+             ├─1059130 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 31024 -container-ip [redacted host] -container-port 31024 -use-listen-fd
+             ├─1059182 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 993 -container-ip [redacted host] -container-port 31993 -use-listen-fd
+             ├─1059235 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 4190 -container-ip [redacted host] -container-port 34190 -use-listen-fd
+             ├─1115342 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 3306 -container-ip [redacted host] -container-port 3306 -use-listen-fd
+             ├─1559250 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 9200 -container-ip 172.19.0.2 -container-port 9200 -use-listen-fd
+             ├─1808233 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18092 -container-ip 172.19.0.5 -container-port 1514 -use-listen-fd
+             ├─1833300 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18443 -container-ip [redacted host] -container-port 18443 -use-listen-fd
+             ├─2033453 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18091 -container-ip 172.19.0.4 -container-port 9000 -use-listen-fd
+             ├─2607452 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18095 -container-ip 172.19.0.6 -container-port 8088 -use-listen-fd
+             ├─2677444 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+             └─2771526 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18080 -container-ip [redacted host] -container-port 80 -use-listen-fd
+
+Nov 14 13:34:58 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:34:58.590500532+03:00" level=warning msg="Health check for container 7146da684719fec2500560a5612a11b6e35842bb9f2525668ca32a0be0479378 error: OCI runtime exec failed: exec failed: unable to start container process: error executing setns process: exit status 1; runc init error(s): nsexec-0[1875009]: unable to spawn stage-1: Resource temporarily unavailable"
+Nov 14 13:35:08 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:08.656686536+03:00" level=error msg="copy stream failed" error="reading from a closed fifo" stream=stderr
+Nov 14 13:35:08 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:08.656698162+03:00" level=error msg="copy stream failed" error="reading from a closed fifo" stream=stdout
+Nov 14 13:35:08 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:08.659860390+03:00" level=warning msg="Health check for container 7146da684719fec2500560a5612a11b6e35842bb9f2525668ca32a0be0479378 error: OCI runtime exec failed: exec failed: unable to start container process: error executing setns process: exit status 1; runc init error(s): nsexec-0[1882829]: unable to spawn stage-1: Resource temporarily unavailable"
+Nov 14 13:35:18 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:18.726409777+03:00" level=error msg="copy stream failed" error="reading from a closed fifo" stream=stderr
+Nov 14 13:35:18 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:18.726410913+03:00" level=error msg="copy stream failed" error="reading from a closed fifo" stream=stdout
+Nov 14 13:35:18 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:18.729670157+03:00" level=warning msg="Health check for container 7146da684719fec2500560a5612a11b6e35842bb9f2525668ca32a0be0479378 error: OCI runtime exec failed: exec failed: unable to start container process: error executing setns process: exit status 1; runc init error(s): nsexec-0[1890392]: unable to spawn stage-1: Resource temporarily unavailable"
+Nov 14 13:35:28 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:28.794854416+03:00" level=error msg="copy stream failed" error="reading from a closed fifo" stream=stderr
+Nov 14 13:35:28 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:28.794895303+03:00" level=error msg="copy stream failed" error="reading from a closed fifo" stream=stdout
+Nov 14 13:35:28 sadcnwp-server dockerd[2677444]: time="2026-11-14T13:35:28.797278501+03:00" level=warning msg="Health check for container 7146da684719fec2500560a5612a11b6e35842bb9f2525668ca32a0be0479378 error: OCI runtime exec failed: exec failed: unable to start container process: error executing setns process: exit status 1; runc init error(s): nsexec-0[1897892]: unable to spawn stage-1: Resource temporarily unavailable"
+exit=0
+
+$ ls /snap
+bare
+bin
+certbot
+code
+core
+core18
+core20
+core22
+core24
+firefox
+firmware-updater
+gnome-42-2204
+gnome-46-2404
+gtk-common-themes
+lxd
+mesa-2404
+README
+serve
+snapd
+snapd-desktop-integration
+snap-store
+thunderbird
+exit=0
+
+$ ls /var/snap
+bare
+certbot
+code
+core
+core18
+core20
+core22
+core24
+firefox
+firmware-updater
+gnome-42-2204
+gnome-46-2404
+gtk-common-themes
+lxd
+mesa-2404
+serve
+snapd
+snapd-desktop-integration
+snap-store
+thunderbird
+exit=0
+
+$ ls /var/snap/lxd
+40953
+41263
+common
+current
+exit=0
+
+$ ls /var/snap/lxd/current
+(no stdout)
+exit=0
+
+$ ls /var/lib/snapd/snaps
+bare_5.snap
+certbot_5911.snap
+certbot_5940.snap
+code_278.snap
+code_280.snap
+core_17284.snap
+core_17292.snap
+core18_2999.snap
+core18_3084.snap
+core20_2866.snap
+core20_2922.snap
+core22_2955.snap
+core22_2987.snap
+core24_2124.snap
+core24_2307.snap
+firefox_9113.snap
+firefox_9171.snap
+firmware-updater_258.snap
+firmware-updater_262.snap
+gnome-42-2204_247.snap
+gnome-42-2204_263.snap
+gnome-46-2404_164.snap
+gnome-46-2404_177.snap
+gtk-common-themes_1535.snap
+lxd_40953.snap
+lxd_41263.snap
+mesa-2404_1165.snap
+mesa-2404_1839.snap
+partial
+serve_170.snap
+snapd_28254.snap
+snapd_28332.snap
+snapd-desktop-integration_387.snap
+snapd-desktop-integration_391.snap
+snap-store_1447.snap
+snap-store_1468.snap
+thunderbird_1294.snap
+thunderbird_1312.snap
+exit=0
+
+$ ip -br link
+lo               UNKNOWN        00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> 
+br-266d142c59a8  DOWN           d6:f5:00:92:6e:67 <NO-CARRIER,BROADCAST,MULTICAST,UP> 
+eno1np0          UP             f4:02:70:a5:79:fa <BROADCAST,MULTICAST,UP,LOWER_UP> 
+eno2np1          UP             f4:02:70:a5:79:fb <BROADCAST,MULTICAST,UP,LOWER_UP> 
+tun0             UNKNOWN        <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> 
+docker0          DOWN           62:9b:2b:73:59:fb <NO-CARRIER,BROADCAST,MULTICAST,UP> 
+br-62fce27c37fe  DOWN           be:34:2c:73:e7:0f <NO-CARRIER,BROADCAST,MULTICAST,UP> 
+vetha8866b0@if2  UP             52:85:3e:11:a3:d8 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+vethe2a575f@if2  UP             de:ed:8b:d3:05:23 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+veth5f28b3c@if2  UP             fe:88:6f:12:50:da <BROADCAST,MULTICAST,UP,LOWER_UP> 
+tailscale0       UNKNOWN        <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> 
+br-b39b1dbba778  UP             7e:a8:9c:5a:bc:07 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+veth23d7093@if2  UP             c2:f8:32:b8:d4:10 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+veth3b77c49@if2  UP             ce:b0:e1:4c:00:71 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+veth7f56efd@if2  UP             ce:58:a7:91:64:8b <BROADCAST,MULTICAST,UP,LOWER_UP> 
+veth6879b5d@if2  UP             52:a6:d1:0d:ba:27 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+veth6e85348@if2  UP             b6:4e:a8:14:69:8d <BROADCAST,MULTICAST,UP,LOWER_UP> 
+br-e0de15109455  UP             8e:7c:4e:16:11:63 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+veth3c759ba@if2  UP             66:8d:28:4b:4c:86 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+veth7f22402@if2  UP             a6:36:83:89:9f:cb <BROADCAST,MULTICAST,UP,LOWER_UP>
+exit=0
+
+$ findmnt /sys/fs/cgroup
+TARGET         SOURCE  FSTYPE  OPTIONS
+/sys/fs/cgroup cgroup2 cgroup2 rw,nosuid,nodev,noexec,relatime
+exit=0
+
+$ cat /proc/filesystems
+nodev	sysfs
+nodev	tmpfs
+nodev	bdev
+nodev	proc
+nodev	cgroup
+nodev	cgroup2
+nodev	cpuset
+nodev	devtmpfs
+nodev	configfs
+nodev	debugfs
+nodev	tracefs
+nodev	securityfs
+nodev	sockfs
+nodev	bpf
+nodev	pipefs
+nodev	ramfs
+nodev	hugetlbfs
+nodev	devpts
+	ext3
+	ext2
+	ext4
+	squashfs
+	vfat
+nodev	ecryptfs
+	fuseblk
+nodev	fuse
+nodev	fusectl
+nodev	efivarfs
+nodev	mqueue
+nodev	resctrl
+nodev	pstore
+	btrfs
+nodev	autofs
+	xfs
+nodev	binfmt_misc
+nodev	zfs
+nodev	overlay
+exit=0
+
+$ ps -eo user,pcpu,args --sort=-pcpu
+USER     %CPU COMMAND
+ftp2     3958 -bash
+sadc      700 ps -eo user,pcpu,args --sort=-pcpu
+wrf      23.5 /bin/bash /home/wrf/SERVEUR_WEB/PROD_FAO/Prod_FAO.sh -13.462995 48.609171 Diana Ambanja Maherivaratra Ankigny
+wrf      22.5 /bin/bash /home/wrf/SERVEUR_WEB/PROD_FAO/Prod_FAO.sh 49.665517?  Sambava Antsahavaribe Antsahavaribe -14.02499
+root      8.3 sshd: sadc [priv]
+root      4.4 mongod --wiredTigerCacheSizeGB 1 --bind_ip_all
+wrf       3.4 /usr/libexec/tracker-miner-fs-3
+1100      2.5 /opt/java/openjdk/bin/java -Dlog4j2.formatMsgNoLookups=true -Djdk.tls.acknowledgeCloseNotify=true -XX:+UnlockExperimentalVMOptions -XX:-OmitStackTraceInFastThrow -XX:+UseG1GC -server -Xms2g -Xmx2g -jar -Dlog4j.configurationFile=/usr/share/graylog/config/log4j2.xml -Dgraylog2.installation_source=docker /usr/share/graylog/graylog.jar server -f /usr/share/graylog/config/graylog.conf
+sadc      1.2 /usr/share/opensearch/jdk/bin/java -Xshare:auto -Dopensearch.networkaddress.cache.ttl=60 -Dopensearch.networkaddress.cache.negative.ttl=10 -XX:+AlwaysPreTouch -Xss1m -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Djna.nosys=true -XX:-OmitStackTraceInFastThrow -XX:+ShowCodeDetailsInExceptionMessages -Dio.netty.noUnsafe=true -Dio.netty.noKeySetOptimization=true -Dio.netty.recycler.maxCapacityPerThread=0 -Dio.netty.allocator.numDirectArenas=0 -Dlog4j.shutdownHookEnabled=false -Dlog4j2.disable.jmx=true -Djava.security.manager=allow -Djava.locale.providers=SPI,COMPAT -Xms1g -Xmx1g -XX:+UseG1GC -XX:G1ReservePercent=25 -XX:InitiatingHeapOccupancyPercent=30 -Djava.io.tmpdir=/tmp/opensearch-14110079206192261771 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=data -XX:ErrorFile=logs/hs_err_pid%p.log -Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m -Djava.security.manager=allow --add-modules=jdk.incubator.vector -Djava.util.concurrent.ForkJoinPool.common.threadFactory=org.opensearch.secure_sm.SecuredForkJoinWorkerThreadFactory -Dclk.tck=100 -Djdk.attach.allowAttachSelf=true -Djava.security.policy=/usr/share/opensearch/config/opensearch-performance-analyzer/opensearch_security.policy --add-opens=jdk.attach/sun.tools.attach=ALL-UNNAMED -Dopensearch.cgroups.hierarchy.override=/ -Xms1g -Xmx1g -XX:MaxDirectMemorySize=536870912 -Dopensearch.path.home=/usr/share/opensearch -Dopensearch.path.conf=/usr/share/opensearch/config -Dopensearch.distribution.type=tar -Dopensearch.bundled_jdk=true -cp /usr/share/opensearch/lib/* org.opensearch.bootstrap.OpenSearch -Ediscovery.seed_hosts=opensearch -Eplugins.security.disabled=true -Enode.name=os1 -Ebootstrap.memory_lock=true -Epath.repo=/snapshots -Ecluster.name=lab -Ecluster.initial_master_nodes=os1
+root      0.7 /usr/local/Eaton/IntelligentPowerProtector/Eaton-IPP -service
+root      0.7 /usr/local/Eaton/IntelligentPowerProtector/Eaton-IPP -service
+root      0.7 /usr/sbin/NetworkManager --no-daemon
+root      0.4 /usr/bin/containerd
+root      0.4 node /home/soff/SMS/dist/main.js
+root      0.3 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+wrf       0.3 /usr/bin/gnome-shell
+root      0.3 node /home/soff/STAGE-API/dist/main.js
+root      0.2 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 7146da684719fec2500560a5612a11b6e35842bb9f2525668ca32a0be0479378 -address /run/containerd/containerd.sock
+wrf       0.2 /usr/bin/nautilus --gapplication-service
+root      0.2 node /home/soff/subdomain-server/server.js
+root      0.2 /opt/teamviewer/tv_bin/teamviewerd -d
+root      0.2 [rcu_preempt]
+systemd+  0.1 mariadbd
+root      0.1 /usr/bin/python3 /usr/bin/fail2ban-server -xf start
+message+  0.0 @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+root      0.0 PM2 v7.0.1: God Daemon (/root/.pm2)
+root      0.0 /usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 6cc7dcd2e2adf5589ca99751f8fe568d86f0f44ea25865d4b089b576dbbb38cd -address /run/containerd/containerd.sock
+root      0.0 /usr/lib/systemd/systemd --system --deserialize=133 maybe-ubiquity
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id d9abad231a65f0776d3a57a0b964a721ac884b80ea0b8a5b6d8c71d1fac7f936 -address /run/containerd/containerd.sock
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id daf5d0e0b29cb6064a1ced4e7dd7f9c996411ad6698a5896ea8f2d608b5e90b0 -address /run/containerd/containerd.sock
+systemd+  0.0 /usr/lib/systemd/systemd-oomd
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 16a32698ea36f27991462db4a1bb50fb60aec505dd4e97db6a0fba1f04c2e579 -address /run/containerd/containerd.sock
+root      0.0 [ksoftirqd/40]
+wrf       0.0 /usr/lib/systemd/systemd --user --deserialize=138
+root      0.0 [kworker/40:1-rcu_par_gp]
+root      0.0 [kworker/u162:2-events_unbound]
+systemd+  0.0 /usr/lib/systemd/systemd-resolved
+root      0.0 [kworker/60:1-rcu_gp]
+root      0.0 [kworker/u160:0-bnxt_pf_wq]
+wrf       0.0 /bin/bash /home/wrf/SERVEUR_WEB/PROD_FAO/Main_FCST_FAO.sh
+root      0.0 [kworker/51:1-inet_frag_wq]
+root      0.0 /snap/snapd/current/usr/lib/snapd/snapd
+root      0.0 [kworker/u162:4-writeback]
+root      0.0 [kworker/41:0-events]
+root      0.0 [kworker/59:2-events]
+root      0.0 [kworker/51:2-rcu_par_gp]
+root      0.0 [kworker/61:2-rcu_gp]
+root      0.0 [kworker/42:1-events]
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id c016840cd460a6c25ebdc165ea85594a0d54559c19044aa2d1c67f19e1c154b3 -address /run/containerd/containerd.sock
+root      0.0 [kworker/42:0-rcu_par_gp]
+root      0.0 [kworker/63:0-events]
+root      0.0 [kworker/77:0-events]
+root      0.0 [kworker/40:2-rcu_par_gp]
+root      0.0 [kworker/79:2-events]
+root      0.0 [kworker/43:1-events]
+root      0.0 [kworker/55:0-events]
+root      0.0 [kworker/62:2-events]
+root      0.0 [kworker/47:0-events]
+root      0.0 [kworker/57:1-rcu_par_gp]
+root      0.0 [kworker/64:2-rcu_gp]
+root      0.0 [kworker/u162:1-flush-252:0]
+root      0.0 [kworker/69:1-events]
+root      0.0 /usr/lib/systemd/systemd-journald
+root      0.0 [kworker/73:0-events]
+root      0.0 [kworker/49:0-cgroup_free]
+root      0.0 [kworker/69:0-cgroup_free]
+root      0.0 [kworker/65:1-cgroup_free]
+root      0.0 [kworker/55:2-events]
+root      0.0 [kworker/74:2-events]
+root      0.0 [kworker/71:0-events]
+root      0.0 [kworker/65:0-rcu_par_gp]
+root      0.0 /usr/local/bin/vector
+root      0.0 [ksoftirqd/41]
+root      0.0 [kworker/72:2-events]
+root      0.0 [kworker/67:0-events]
+root      0.0 [kworker/61:1-rcu_par_gp]
+root      0.0 [kworker/56:1-rcu_par_gp]
+root      0.0 [kworker/54:0-rcu_par_gp]
+root      0.0 [kworker/41:2-rcu_gp]
+root      0.0 [kcompactd1]
+authelia  0.0 /usr/bin/authelia --config /etc/authelia/configuration.yml
+root      0.0 /usr/bin/python3 /usr/bin/supervisord -c /etc/supervisord.conf
+root      0.0 [kworker/75:1-events]
+root      0.0 [kworker/63:2-rcu_par_gp]
+root      0.0 [kworker/75:0-events]
+root      0.0 [kworker/44:2-events]
+root      0.0 [kworker/58:1-rcu_par_gp]
+root      0.0 [kworker/70:1-rcu_par_gp]
+root      0.0 [kworker/48:0-events]
+root      0.0 [kworker/65:2-events]
+root      0.0 [kworker/45:1-rcu_gp]
+root      0.0 [kworker/46:2-events]
+root      0.0 [kworker/53:2-events]
+root      0.0 [kworker/52:1-events]
+root      0.0 /bin/sh /usr/local/Eaton/IntelligentPowerProtector/bin/mc2_wd.sh
+root      0.0 [kworker/46:0-rcu_par_gp]
+root      0.0 [kworker/44:0-cgroup_free]
+root      0.0 [kworker/76:1-rcu_par_gp]
+root      0.0 [kworker/53:1-cgroup_free]
+root      0.0 [kworker/40:0-events]
+root      0.0 [kworker/78:1-events]
+root      0.0 [kworker/50:2-cgroup_free]
+root      0.0 [kworker/67:2-rcu_par_gp]
+root      0.0 /usr/lib/systemd/systemd-logind
+sadc      0.0 python3 -X utf8 /home/sadc/disanalyzer-lab/deploy/receiver/receiver.py
+polkitd   0.0 /usr/lib/polkit-1/polkitd --no-debug
+root      0.0 [kworker/79:0-rcu_par_gp]
+root      0.0 [kworker/56:2-rcu_gp]
+root      0.0 [kworker/50:1-rcu_par_gp]
+root      0.0 [kworker/43:2-rcu_par_gp]
+wrf       0.0 /usr/local/Eaton/IntelligentPowerProtector/mc2 -systray
+root      0.0 [kworker/66:0-rcu_par_gp]
+root      0.0 [kworker/68:1-events]
+root      0.0 [kworker/72:0-rcu_par_gp]
+root      0.0 [kworker/45:0-events]
+root      0.0 [kworker/49:2-events]
+root      0.0 python3 /receiver/receiver.py
+root      0.0 [kworker/47:2-rcu_par_gp]
+root      0.0 [kworker/64:0-events]
+root      0.0 [kworker/57:2-events]
+root      0.0 [kcompactd0]
+root      0.0 [ksoftirqd/42]
+root      0.0 [kworker/68:2-rcu_par_gp]
+root      0.0 [kworker/70:2-events]
+postgres  0.0 /usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql/16/main -c config_file=/etc/postgresql/16/main/postgresql.conf
+root      0.0 [kworker/73:1-rcu_par_gp]
+root      0.0 [kworker/52:0-events]
+postgres  0.0 postgres: 16/main: station station 192.168.10.137(46772) idle
+root      0.0 [kworker/58:0-events]
+systemd+  0.0 /bff
+root      0.0 [kworker/46:1-events]
+root      0.0 [kworker/u161:1-flush-252:0]
+root      0.0 [kworker/78:2-rcu_par_gp]
+root      0.0 [kworker/48:1-cgroup_free]
+root      0.0 /usr/libexec/accounts-daemon
+root      0.0 [kworker/74:0-rcu_par_gp]
+root      0.0 [kworker/76:0-events]
+root      0.0 [ksoftirqd/43]
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 67bb6911a65ad9fb2ac8103dafd86f2aa1f4d52f1b31f59e2bee635be5919810 -address /run/containerd/containerd.sock
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id ddda794159cb3276d275e7417fbf8ee23c6390e6a7c0477e9de57e7b12761a74 -address /run/containerd/containerd.sock
+wrf       0.0 /bin/bash /home/wrf/SERVEUR_WEB/PROD_FAO/Main_FCST_FAO.sh
+root      0.0 [kworker/60:0-rcu_par_gp]
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id f5aebb42aa7074b5afffad729cd077fa15c8d0c16ae9154cb8df5194be821924 -address /run/containerd/containerd.sock
+wrf       0.0 /bin/bash /home/wrf/SERVEUR_WEB/PROD_FAO/Main_FCST_FAO.sh
+root      0.0 [kworker/0:2-events]
+root      0.0 [khugepaged]
+wrf       0.0 /usr/libexec/gsd-housekeeping
+root      0.0 /usr/bin/containerd-shim-runc-v2 -namespace moby -id a5092aa7a5482ebb66f5557169c8e7c8c7086dc9a776578f8def98fdf97106d9 -address /run/containerd/containerd.sock
+postgres  0.0 postgres: 16/main: walwriter 
+root      0.0 [kworker/51:0-events]
+root      0.0 [kworker/u161:2-flush-252:0]
+root      0.0 [ksoftirqd/44]
+root      0.0 [kworker/66:1-cgroup_free]
+root      0.0 [kworker/54:1-events]
+ntpsec    0.0 /usr/sbin/ntpd -p /run/ntpd.pid -c /etc/ntpsec/ntp.conf -g -N -u ntpsec:ntpsec
+root      0.0 [kworker/u161:0-events_power_efficient]
+root      0.0 /usr/libexec/fwupd/fwupd
+root      0.0 [kworker/72:1-rcu_par_gp]
+root      0.0 [kworker/64:1-rcu_par_gp]
+syslog    0.0 /usr/sbin/rsyslogd -n -iNONE
+root      0.0 /usr/sbin/vsftpd /etc/vsftpd.conf
+root      0.0 /sbin/multipathd -d -s
+root      0.0 [kworker/49:1-rcu_par_gp]
+root      0.0 [jbd2/dm-0-8]
+root      0.0 [jbd2/dm-1-8]
+postgres  0.0 postgres: 16/main: stage-station stage-station 127.0.0.1(44840) idle
+root      0.0 [kworker/u161:3-events_power_efficient]
+root      0.0 [kworker/u160:1-bnxt_pf_wq]
+root      0.0 [ksoftirqd/45]
+wrf       0.0 /usr/libexec/gvfs-udisks2-volume-monitor
+root      0.0 [migration/40]
+root      0.0 apache2 -DFOREGROUND
+root      0.0 [kworker/73:2-rcu_gp]
+root      0.0 [ksoftirqd/46]
+sadc      0.0 /usr/lib/systemd/systemd --user
+root      0.0 [kworker/77:2-rcu_par_gp]
+wrf       0.0 /usr/libexec/gvfs-afc-volume-monitor
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18080 -container-ip [redacted host] -container-port 80 -use-listen-fd
+root      0.0 [kworker/68:0-rcu_par_gp]
+systemd+  0.0 smtpd -n submission -t inet -u -o stress= -s 2
+root      0.0 [migration/42]
+root      0.0 [ksoftirqd/48]
+wrf       0.0 /usr/libexec/goa-identity-service
+sadc      0.0 /usr/bin/tini -- /dovecot/sbin/dovecot -F
+root      0.0 [kworker/36:1-events]
+root      0.0 [ksoftirqd/47]
+root      0.0 [kworker/26:2-events]
+root      0.0 [kworker/6:2-events]
+root      0.0 /tini -- /bin/sh -c /scripts/run.sh
+root      0.0 [kworker/u161:4-events_power_efficient]
+root      0.0 [kworker/4:0-events]
+root      0.0 [ksoftirqd/50]
+root      0.0 [kworker/59:0-rcu_gp]
+1100      0.0 tini -- /docker-entrypoint.sh server
+root      0.0 [kworker/71:1-rcu_par_gp]
+root      0.0 [kworker/38:2-events]
+root      0.0 [ksoftirqd/52]
+root      0.0 [ksoftirqd/49]
+root      0.0 /usr/bin/anydesk --service
+root      0.0 [migration/44]
+root      0.0 [kworker/16:1-events]
+root      0.0 [ksoftirqd/54]
+root      0.0 /usr/libexec/udisks2/udisksd
+root      0.0 [kworker/32:1-events]
+root      0.0 [kworker/28:2-mm_percpu_wq]
+root      0.0 [ksoftirqd/51]
+root      0.0 [kworker/66:2-rcu_par_gp]
+root      0.0 [ksoftirqd/56]
+root      0.0 [kworker/55:1-rcu_par_gp]
+root      0.0 [ksoftirqd/78]
+root      0.0 [kworker/12:2-events]
+root      0.0 [ksoftirqd/58]
+wrf       0.0 /usr/bin/update-notifier
+root      0.0 [ksoftirqd/62]
+root      0.0 [ksoftirqd/60]
+root      0.0 [ksoftirqd/53]
+root      0.0 [ksoftirqd/70]
+root      0.0 [ksoftirqd/79]
+root      0.0 [kworker/26:0-rcu_par_gp]
+root      0.0 [ksoftirqd/66]
+root      0.0 [ksoftirqd/64]
+root      0.0 [migration/41]
+root      0.0 [ksoftirqd/74]
+root      0.0 [ksoftirqd/76]
+root      0.0 [ksoftirqd/68]
+root      0.0 [ksoftirqd/55]
+root      0.0 [ksoftirqd/72]
+wrf       0.0 /usr/libexec/xdg-desktop-portal
+root      0.0 [migration/46]
+root      0.0 [ksoftirqd/57]
+root      0.0 [ksoftirqd/63]
+root      0.0 [ksoftirqd/59]
+root      0.0 [ksoftirqd/0]
+root      0.0 [ksoftirqd/71]
+root      0.0 [ksoftirqd/61]
+root      0.0 [ksoftirqd/69]
+root      0.0 [ksoftirqd/73]
+root      0.0 [ksoftirqd/67]
+soff      0.0 PM2 v7.0.1: God Daemon (/home/soff/.pm2)
+root      0.0 [ksoftirqd/75]
+root      0.0 [kworker/8:1-events]
+root      0.0 [ksoftirqd/65]
+root      0.0 [ksoftirqd/77]
+root      0.0 [kworker/2:2-events]
+root      0.0 [migration/43]
+root      0.0 [kworker/30:0-events]
+root      0.0 [migration/48]
+root      0.0 [kworker/20:1-mm_percpu_wq]
+root      0.0 [kworker/21:1-events]
+node_ex+  0.0 /usr/local/bin/node_exporter
+postgres  0.0 /usr/lib/postgresql/14/bin/postgres -D /var/lib/postgresql/14/main -c config_file=/etc/postgresql/14/main/postgresql.conf
+root      0.0 [kworker/35:1-events]
+root      0.0 [kworker/27:0-events]
+root      0.0 [arc_reap]
+root      0.0 [migration/50]
+root      0.0 [migration/45]
+root      0.0 [kworker/34:2-mm_percpu_wq]
+root      0.0 [migration/52]
+root      0.0 [arc_evict]
+soff      0.0 /usr/lib/systemd/systemd --user --deserialize=25
+root      0.0 [migration/47]
+root      0.0 [migration/54]
+rtkit     0.0 /usr/libexec/rtkit-daemon
+root      0.0 [kworker/1:1-events]
+root      0.0 [migration/56]
+root      0.0 [migration/78]
+wrf       0.0 /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+postgres  0.0 postgres: 16/main: autovacuum launcher 
+root      0.0 [migration/58]
+root      0.0 [dbuf_evict]
+root      0.0 [migration/62]
+root      0.0 [migration/60]
+root      0.0 [kworker/37:2-events]
+root      0.0 [migration/49]
+root      0.0 [migration/70]
+root      0.0 [migration/66]
+postgres  0.0 postgres: 16/main: checkpointer 
+root      0.0 [migration/64]
+root      0.0 [migration/68]
+root      0.0 [migration/76]
+root      0.0 [migration/72]
+root      0.0 [l2arc_feed]
+root      0.0 [migration/74]
+root      0.0 [migration/51]
+postgres  0.0 postgres: 16/main: background writer 
+wrf       0.0 /usr/bin/python3 /usr/lib/ubuntu-release-upgrader/check-new-release-gtk
+root      0.0 [migration/53]
+root      0.0 [kworker/24:1-mm_percpu_wq]
+root      0.0 [migration/55]
+root      0.0 [kworker/22:2-events]
+root      0.0 [migration/57]
+root      0.0 [migration/63]
+root      0.0 [migration/59]
+root      0.0 [migration/61]
+root      0.0 [migration/71]
+root      0.0 /usr/libexec/upowerd
+root      0.0 [migration/67]
+root      0.0 [migration/65]
+root      0.0 [migration/69]
+root      0.0 [kworker/39:0-events]
+wrf       0.0 /usr/libexec/xdg-desktop-portal-gnome
+root      0.0 [migration/79]
+root      0.0 [migration/73]
+root      0.0 [kworker/3:0-events]
+root      0.0 [migration/75]
+wrf       0.0 /usr/libexec/xdg-desktop-portal-gtk
+root      0.0 [migration/77]
+sadc      0.0 /usr/bin/wireplumber
+avahi     0.0 avahi-daemon: running [sadcnwp-server.local]
+root      0.0 [kworker/10:0-events]
+root      0.0 [kworker/14:2-events]
+wrf       0.0 /usr/libexec/gsd-xsettings
+wrf       0.0 /bin/bash /home/wrf/SERVEUR_WEB/PROD_FAO/Main_FCST_FAO.sh
+root      0.0 [kworker/21:0-rcu_gp]
+colord    0.0 /usr/libexec/colord
+root      0.0 [kworker/17:0-events]
+root      0.0 [kworker/5:1-events]
+root      0.0 [kworker/31:0-events]
+root      0.0 [kworker/19:0-events]
+root      0.0 [kworker/18:0-events]
+root      0.0 [kworker/13:2-events]
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 /usr/sbin/ModemManager
+root      0.0 [xfsaild/dm-3]
+root      0.0 [kworker/9:1-events]
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [kworker/33:2-events]
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [kworker/15:2-events]
+root      0.0 /usr/sbin/cron -f -P
+root      0.0 [mongosh mongodb] <defunct>
+postgres  0.0 postgres: 14/main: background writer 
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [kworker/11:1-events]
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+wrf       0.0 python -u start_forecasting.py
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [kworker/7:0-events]
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 rsyslogd -n -f /tmp/rsyslog.conf
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+wrf       0.0 /usr/bin/Xwayland :0 -rootless -noreset -accessx -core -auth /run/user/1001/.mutter-Xwaylandauth.XDDBW3 -listenfd 4 -listenfd 5 -displayfd 6 -initfd 7 -byteswappedclients
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [kswapd0]
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [kworker/25:0-events]
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 /usr/lib/postfix/sbin/master -s
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 /usr/lib/systemd/systemd-udevd
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+sadc      0.0 /snap/snapd-desktop-integration/391/usr/bin/user-session-helper /snap/snapd-desktop-integration/391/usr/bin/snapd-desktop-integration
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+postgres  0.0 postgres: 14/main: walwriter 
+postgres  0.0 postgres: 14/main: stats collector 
+root      0.0 /usr/libexec/power-profiles-daemon
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+systemd+  0.0 /usr/lib/systemd/systemd-networkd
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [mongosh mongodb] <defunct>
+root      0.0 [kswapd1]
+postgres  0.0 postgres: 14/main: autovacuum launcher 
+root      0.0 [mongosh mongodb] <defunct>
+nobody    0.0 /usr/sbin/openvpn --status /run/openvpn-server/status-server.log --status-version 2 --suppress-timestamps --config server.conf
+root      0.0 [kworker/11:2-rcu_gp]
+root      0.0 [kworker/29:0-rcu_gp]
+root      0.0 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+root      0.0 [kthreadd]
+root      0.0 /usr/sbin/wpa_supplicant -u -s -O DIR=/run/wpa_supplicant GROUP=netdev
+gnome-r+  0.0 /usr/libexec/gnome-remote-desktop-daemon --system
+cups-br+  0.0 /usr/sbin/cups-browsed
+root      0.0 [khungtaskd]
+systemd+  0.0 pickup -l -t unix -u
+wrf       0.0 /usr/libexec/gsd-color
+root      0.0 /usr/sbin/spice-vdagentd
+root      0.0 [mongosh] <defunct>
+root      0.0 [mongosh] <defunct>
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+root      0.0 /usr/libexec/switcheroo-control
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+soff      0.0 /snap/snapd-desktop-integration/391/usr/bin/user-session-helper /snap/snapd-desktop-integration/391/usr/bin/snapd-desktop-integration
+root      0.0 [migration/2]
+root      0.0 [migration/4]
+root      0.0 [kworker/29:2-events]
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+root      0.0 [migration/3]
+root      0.0 [migration/1]
+root      0.0 [migration/0]
+root      0.0 [migration/6]
+root      0.0 [migration/8]
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+root      0.0 [migration/12]
+root      0.0 [migration/10]
+root      0.0 [migration/7]
+root      0.0 [migration/5]
+wrf       0.0 /usr/libexec/gvfsd-trash --spawner :1.20 /org/gtk/gvfs/exec_spaw/0
+root      0.0 [migration/18]
+root      0.0 [migration/14]
+root      0.0 [migration/16]
+www-data  0.0 apache2 -DFOREGROUND
+munge     0.0 /usr/sbin/munged
+wrf       0.0 /usr/libexec/gnome-session-binary --systemd-service --session=ubuntu
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18091 -container-ip 172.19.0.4 -container-port 9000 -use-listen-fd
+root      0.0 [migration/11]
+root      0.0 [migration/9]
+root      0.0 [migration/26]
+root      0.0 [migration/13]
+root      0.0 [migration/30]
+root      0.0 [migration/28]
+root      0.0 [migration/34]
+root      0.0 [migration/24]
+root      0.0 [migration/36]
+root      0.0 [migration/22]
+root      0.0 [migration/32]
+root      0.0 [migration/38]
+root      0.0 [migration/20]
+root      0.0 [migration/23]
+sadc      0.0 /dovecot/sbin/dovecot -F
+root      0.0 [migration/25]
+root      0.0 [migration/21]
+root      0.0 [migration/27]
+root      0.0 [migration/19]
+root      0.0 [migration/15]
+root      0.0 [migration/35]
+www-data  0.0 apache2 -DFOREGROUND
+root      0.0 [migration/33]
+root      0.0 [migration/39]
+root      0.0 [migration/17]
+root      0.0 [migration/37]
+root      0.0 [migration/31]
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+root      0.0 nginx: master process /usr/sbin/nginx -g daemon on; master_process on;
+www-data  0.0 nginx: worker process
+root      0.0 [migration/29]
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18443 -container-ip [redacted host] -container-port 18443 -use-listen-fd
+root      0.0 /usr/sbin/cron -f
+wrf       0.0 /usr/libexec/gsd-power
+wrf       0.0 /usr/libexec/evolution-data-server/evolution-alarm-notify
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 587 -container-ip [redacted host] -container-port 587 -use-listen-fd
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18092 -container-ip 172.19.0.5 -container-port 1514 -use-listen-fd
+wrf       0.0 /usr/libexec/gsd-sharing
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 4190 -container-ip [redacted host] -container-port 34190 -use-listen-fd
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 31024 -container-ip [redacted host] -container-port 31024 -use-listen-fd
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 3306 -container-ip [redacted host] -container-port 3306 -use-listen-fd
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 993 -container-ip [redacted host] -container-port 31993 -use-listen-fd
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 25 -container-ip [redacted host] -container-port 25 -use-listen-fd
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 9200 -container-ip 172.19.0.2 -container-port 9200 -use-listen-fd
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+root      0.0 /usr/sbin/cupsd -l
+root      0.0 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18095 -container-ip 172.19.0.6 -container-port 8088 -use-listen-fd
+sadc      0.0 dovecot/stats
+wrf       0.0 /snap/snapd-desktop-integration/391/usr/bin/snapd-desktop-integration
+root      0.0 [kworker/23:1-mm_percpu_wq]
+sadc      0.0 dovecot/auth
+root      0.0 [kworker/79:1H-kblockd]
+root      0.0 [kworker/76:1H-kblockd]
+root      0.0 [kworker/78:1H-kblockd]
+wrf       0.0 /usr/libexec/ibus-extension-gtk3
+root      0.0 [kworker/52:1H-kblockd]
+root      0.0 [kworker/50:1H-kblockd]
+root      0.0 [kworker/54:1H-kblockd]
+root      0.0 [kworker/48:1H-kblockd]
+root      0.0 [kworker/71:1H-kblockd]
+root      0.0 [kworker/70:1H-kblockd]
+root      0.0 [kworker/74:0H-kblockd]
+root      0.0 [kworker/62:1H-kblockd]
+root      0.0 [kworker/58:1H-kblockd]
+root      0.0 [kworker/66:1H-kblockd]
+root      0.0 [kworker/72:0H-kblockd]
+root      0.0 [kworker/68:1H-kblockd]
+root      0.0 [kworker/56:1H-kblockd]
+root      0.0 [kworker/64:1H-kblockd]
+root      0.0 [kworker/60:1H-kblockd]
+root      0.0 [kworker/46:1H-kblockd]
+wrf       0.0 /usr/libexec/gsd-media-keys
+soff      0.0 /usr/bin/wireplumber
+root      0.0 [kworker/44:1H-kblockd]
+root      0.0 [kworker/42:1H-kblockd]
+root      0.0 [kworker/47:1H-kblockd]
+www-data  0.0 apache2 -DFOREGROUND
+root      0.0 [kworker/51:1H-kblockd]
+root      0.0 [kworker/49:1H-kblockd]
+root      0.0 [kworker/45:1H-kblockd]
+root      0.0 [kworker/77:1H-kblockd]
+root      0.0 [kworker/43:1H-kblockd]
+root      0.0 [kworker/65:1H-kblockd]
+root      0.0 [kworker/53:1H-kblockd]
+root      0.0 [kworker/40:1H-kblockd]
+root      0.0 [kworker/75:1H-kblockd]
+root      0.0 [kworker/59:1H-kblockd]
+root      0.0 [kworker/55:1H-kblockd]
+root      0.0 [kworker/63:1H-kblockd]
+wrf       0.0 /usr/libexec/evolution-calendar-factory
+root      0.0 [kworker/73:1H-kblockd]
+root      0.0 [kworker/61:1H-kblockd]
+root      0.0 [kworker/69:1H-kblockd]
+root      0.0 [kworker/57:0H-kblockd]
+root      0.0 [kworker/67:1H-kblockd]
+www-data  0.0 apache2 -DFOREGROUND
+root      0.0 [kworker/41:1H-kblockd]
+wrf       0.0 /usr/bin/wireplumber
+wrf       0.0 /usr/libexec/evolution-addressbook-factory
+root      0.0 [ksoftirqd/1]
+systemd+  0.0 qmgr -l -t unix -u
+wrf       0.0 /usr/libexec/goa-daemon
+wrf       0.0 /usr/libexec/gsd-printer
+www-data  0.0 nginx: worker process
+kernoops  0.0 /usr/sbin/kerneloops
+kernoops  0.0 /usr/sbin/kerneloops --test
+www-data  0.0 apache2 -DFOREGROUND
+systemd+  0.0 tlsmgr -l -t unix -u
+www-data  0.0 apache2 -DFOREGROUND
+sadc      0.0 dovecot/anvil
+wrf       0.0 /usr/libexec/gsd-rfkill
+www-data  0.0 apache2 -DFOREGROUND
+sadc      0.0 dovecot/config
+root      0.0 [ksoftirqd/2]
+www-data  0.0 apache2 -DFOREGROUND
+root      0.0 /usr/sbin/gdm3
+postgres  0.0 postgres: 16/main: logical replication launcher 
+postgres  0.0 postgres: 14/main: logical replication launcher 
+sadc      0.0 dovecot/log
+root      0.0 [ksoftirqd/3]
+root      0.0 [ksoftirqd/4]
+wrf       0.0 /usr/libexec/gvfsd-recent --spawner :1.20 /org/gtk/gvfs/exec_spaw/1
+wrf       0.0 /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/run/user/1001/at-spi/bus
+root      0.0 [ksoftirqd/5]
+root      0.0 [ksoftirqd/6]
+root      0.0 [ksoftirqd/7]
+sadc      0.0 /usr/bin/pipewire-pulse
+sadc      0.0 /usr/bin/pipewire
+root      0.0 [ksoftirqd/9]
+root      0.0 [ksoftirqd/11]
+root      0.0 [ksoftirqd/8]
+root      0.0 [ksoftirqd/13]
+root      0.0 [ksoftirqd/10]
+root      0.0 [ksoftirqd/15]
+wrf       0.0 /snap/snapd-desktop-integration/391/usr/bin/user-session-helper /snap/snapd-desktop-integration/391/usr/bin/snapd-desktop-integration
+root      0.0 [ksoftirqd/17]
+root      0.0 [ksoftirqd/19]
+wrf       0.0 /usr/libexec/gsd-disk-utility-notify
+root      0.0 [ksoftirqd/12]
+root      0.0 [ksoftirqd/23]
+root      0.0 [ksoftirqd/27]
+root      0.0 [ksoftirqd/31]
+www-data  0.0 apache2 -DFOREGROUND
+root      0.0 [ksoftirqd/14]
+root      0.0 [ksoftirqd/21]
+root      0.0 [ksoftirqd/29]
+root      0.0 [ksoftirqd/16]
+root      0.0 [ksoftirqd/25]
+root      0.0 [ksoftirqd/35]
+root      0.0 [ksoftirqd/26]
+root      0.0 [ksoftirqd/37]
+root      0.0 [ksoftirqd/18]
+sadc      0.0 /usr/libexec/xdg-document-portal
+sadc      0.0 /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+sadc      0.0 /usr/bin/pipewire -c filter-chain.conf
+root      0.0 [ksoftirqd/33]
+root      0.0 [ksoftirqd/20]
+root      0.0 [ksoftirqd/22]
+wrf       0.0 /usr/libexec/gsd-print-notifications
+root      0.0 [ksoftirqd/39]
+wrf       0.0 /usr/libexec/mutter-x11-frames
+wrf       0.0 /usr/libexec/evolution-source-registry
+root      0.0 [ksoftirqd/24]
+root      0.0 [ksoftirqd/28]
+root      0.0 [ksoftirqd/30]
+root      0.0 [ksoftirqd/32]
+root      0.0 [ksoftirqd/34]
+root      0.0 [ksoftirqd/38]
+wrf       0.0 /usr/bin/ibus-daemon --panel disable
+root      0.0 [ksoftirqd/36]
+sadc      0.0 /usr/libexec/xdg-permission-store
+wrf       0.0 /usr/libexec/ibus-x11
+soff      0.0 /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+wrf       0.0 /usr/libexec/xdg-document-portal
+wrf       0.0 /usr/libexec/gsd-wacom
+wrf       0.0 /usr/libexec/gsd-keyboard
+wrf       0.0 /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.Shell.Notifications
+wrf       0.0 /usr/bin/pipewire-pulse
+wrf       0.0 /usr/bin/gnome-keyring-daemon --foreground --components=pkcs11,secrets --control-directory=/run/user/1001/keyring
+wrf       0.0 /usr/bin/pipewire
+wrf       0.0 /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.ScreenSaver
+root      0.0 gdm-session-worker [pam/gdm-password]
+soff      0.0 /usr/libexec/xdg-document-portal
+root      0.0 /bin/sh /usr/lib/postfix/sbin/postfix-script start-fg
+wrf       0.0 /usr/libexec/gvfsd
+root      0.0 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+root      0.0 lxcfs /var/snap/lxd/common/var/lib/lxcfs -p /var/snap/lxd/common/lxcfs.pid
+wrf       0.0 /usr/libexec/ibus-engine-simple
+wrf       0.0 /usr/libexec/gnome-shell-calendar-server
+wrf       0.0 /usr/libexec/dconf-service
+wrf       0.0 /usr/libexec/ibus-portal
+wrf       0.0 /usr/libexec/gnome-session-binary --session=ubuntu
+root      0.0 [scsi_eh_14]
+root      0.0 [kauditd]
+soff      0.0 /usr/bin/pipewire
+soff      0.0 /usr/bin/pipewire-pulse
+wrf       0.0 /usr/libexec/gvfs-mtp-volume-monitor
+wrf       0.0 /usr/libexec/gvfs-gphoto2-volume-monitor
+root      0.0 [kworker/25:1H-kblockd]
+wrf       0.0 /usr/libexec/gvfs-goa-volume-monitor
+wrf       0.0 /usr/libexec/gsd-sound
+root      0.0 [jbd2/sda2-8]
+root      0.0 [kworker/32:1H-kblockd]
+root      0.0 [kworker/7:0H-kblockd]
+root      0.0 [spl_kmem_cache]
+soff      0.0 /usr/bin/pipewire -c filter-chain.conf
+wrf       0.0 /usr/libexec/gvfsd-metadata
+wrf       0.0 /usr/libexec/gsd-screensaver-proxy
+wrf       0.0 /usr/libexec/gsd-smartcard
+wrf       0.0 /usr/libexec/gsd-a11y-settings
+wrf       0.0 /usr/libexec/gsd-datetime
+wrf       0.0 /usr/libexec/at-spi2-registryd --use-gnome-session
+wrf       0.0 /usr/libexec/at-spi-bus-launcher --launch-immediately
+wrf       0.0 /usr/libexec/xdg-permission-store
+wrf       0.0 /usr/bin/pipewire -c filter-chain.conf
+soff      0.0 /usr/libexec/xdg-permission-store
+root      0.0 [scsi_eh_9]
+root      0.0 [kworker/9:1H-kblockd]
+root      0.0 [scsi_eh_6]
+root      0.0 [kworker/23:1H-kblockd]
+root      0.0 [kworker/2:1H-kblockd]
+root      0.0 [kworker/1:1H-kblockd]
+root      0.0 [pool_workqueue_release]
+root      0.0 [kworker/R-rcu_g]
+root      0.0 [kworker/R-rcu_p]
+root      0.0 [kworker/R-slub_]
+root      0.0 [kworker/R-netns]
+root      0.0 [kworker/0:0H-events_highpri]
+root      0.0 [kworker/R-mm_pe]
+root      0.0 [rcu_tasks_kthread]
+root      0.0 [rcu_tasks_rude_kthread]
+root      0.0 [rcu_tasks_trace_kthread]
+root      0.0 [idle_inject/0]
+root      0.0 [cpuhp/0]
+root      0.0 [cpuhp/1]
+root      0.0 [idle_inject/1]
+root      0.0 [kworker/1:0H-events_highpri]
+root      0.0 [cpuhp/2]
+root      0.0 [idle_inject/2]
+root      0.0 [kworker/2:0H-events_highpri]
+root      0.0 [cpuhp/3]
+root      0.0 [idle_inject/3]
+root      0.0 [kworker/3:0H-events_highpri]
+root      0.0 [cpuhp/4]
+root      0.0 [idle_inject/4]
+root      0.0 [kworker/4:0H-events_highpri]
+root      0.0 [cpuhp/5]
+root      0.0 [idle_inject/5]
+root      0.0 [kworker/5:0H-events_highpri]
+root      0.0 [cpuhp/6]
+root      0.0 [idle_inject/6]
+root      0.0 [kworker/6:0H-events_highpri]
+root      0.0 [cpuhp/7]
+root      0.0 [idle_inject/7]
+root      0.0 [cpuhp/8]
+root      0.0 [idle_inject/8]
+root      0.0 [kworker/8:0H-events_highpri]
+root      0.0 [cpuhp/9]
+root      0.0 [idle_inject/9]
+root      0.0 [kworker/9:0H-events_highpri]
+root      0.0 [cpuhp/10]
+root      0.0 [idle_inject/10]
+root      0.0 [kworker/10:0H-events_highpri]
+root      0.0 [cpuhp/11]
+root      0.0 [idle_inject/11]
+root      0.0 [kworker/11:0H-events_highpri]
+root      0.0 [cpuhp/12]
+root      0.0 [idle_inject/12]
+root      0.0 [kworker/12:0H-events_highpri]
+root      0.0 [cpuhp/13]
+root      0.0 [idle_inject/13]
+root      0.0 [kworker/13:0H-events_highpri]
+root      0.0 [cpuhp/14]
+root      0.0 [idle_inject/14]
+root      0.0 [kworker/14:0H-events_highpri]
+root      0.0 [cpuhp/15]
+root      0.0 [idle_inject/15]
+root      0.0 [kworker/15:0H-events_highpri]
+root      0.0 [cpuhp/16]
+root      0.0 [idle_inject/16]
+root      0.0 [kworker/16:0H-events_highpri]
+root      0.0 [cpuhp/17]
+root      0.0 [idle_inject/17]
+root      0.0 [kworker/17:0H-events_highpri]
+root      0.0 [cpuhp/18]
+root      0.0 [idle_inject/18]
+root      0.0 [kworker/18:0H-events_highpri]
+root      0.0 [cpuhp/19]
+root      0.0 [idle_inject/19]
+root      0.0 [kworker/19:0H-events_highpri]
+root      0.0 [cpuhp/20]
+root      0.0 [idle_inject/20]
+root      0.0 [kworker/20:0H-events_highpri]
+root      0.0 [cpuhp/21]
+root      0.0 [idle_inject/21]
+root      0.0 [kworker/21:0H-kblockd]
+root      0.0 [cpuhp/22]
+root      0.0 [idle_inject/22]
+root      0.0 [kworker/22:0H-events_highpri]
+root      0.0 [cpuhp/23]
+root      0.0 [idle_inject/23]
+root      0.0 [kworker/23:0H-events_highpri]
+root      0.0 [cpuhp/24]
+root      0.0 [idle_inject/24]
+root      0.0 [kworker/24:0H-events_highpri]
+root      0.0 [cpuhp/25]
+root      0.0 [idle_inject/25]
+root      0.0 [kworker/25:0H-events_highpri]
+root      0.0 [cpuhp/26]
+root      0.0 [idle_inject/26]
+root      0.0 [kworker/26:0H-events_highpri]
+root      0.0 [cpuhp/27]
+root      0.0 [idle_inject/27]
+root      0.0 [kworker/27:0H-events_highpri]
+root      0.0 [cpuhp/28]
+root      0.0 [idle_inject/28]
+root      0.0 [kworker/28:0H-events_highpri]
+root      0.0 [cpuhp/29]
+root      0.0 [idle_inject/29]
+root      0.0 [kworker/29:0H-events_highpri]
+root      0.0 [cpuhp/30]
+root      0.0 [idle_inject/30]
+root      0.0 [kworker/30:0H-events_highpri]
+root      0.0 [cpuhp/31]
+root      0.0 [idle_inject/31]
+root      0.0 [kworker/31:0H-events_highpri]
+root      0.0 [cpuhp/32]
+root      0.0 [idle_inject/32]
+root      0.0 [cpuhp/33]
+root      0.0 [idle_inject/33]
+root      0.0 [kworker/33:0H-events_highpri]
+root      0.0 [cpuhp/34]
+root      0.0 [idle_inject/34]
+root      0.0 [kworker/34:0H-events_highpri]
+root      0.0 [cpuhp/35]
+root      0.0 [idle_inject/35]
+root      0.0 [kworker/35:0H-events_highpri]
+root      0.0 [cpuhp/36]
+root      0.0 [idle_inject/36]
+root      0.0 [kworker/36:0H-events_highpri]
+root      0.0 [cpuhp/37]
+root      0.0 [idle_inject/37]
+root      0.0 [kworker/37:0H-events_highpri]
+root      0.0 [cpuhp/38]
+root      0.0 [idle_inject/38]
+root      0.0 [kworker/38:0H-events_highpri]
+root      0.0 [cpuhp/39]
+root      0.0 [idle_inject/39]
+root      0.0 [kworker/39:0H-events_highpri]
+root      0.0 [cpuhp/40]
+root      0.0 [idle_inject/40]
+root      0.0 [kworker/40:0H-events_highpri]
+root      0.0 [cpuhp/41]
+root      0.0 [idle_inject/41]
+root      0.0 [kworker/41:0H-events_highpri]
+root      0.0 [cpuhp/42]
+root      0.0 [idle_inject/42]
+root      0.0 [kworker/42:0H-events_highpri]
+root      0.0 [cpuhp/43]
+root      0.0 [idle_inject/43]
+root      0.0 [kworker/43:0H-events_highpri]
+root      0.0 [cpuhp/44]
+root      0.0 [idle_inject/44]
+root      0.0 [kworker/44:0H-events_highpri]
+root      0.0 [cpuhp/45]
+root      0.0 [idle_inject/45]
+root      0.0 [kworker/45:0H-events_highpri]
+root      0.0 [cpuhp/46]
+root      0.0 [idle_inject/46]
+root      0.0 [kworker/46:0H-events_highpri]
+root      0.0 [cpuhp/47]
+root      0.0 [idle_inject/47]
+root      0.0 [kworker/47:0H-events_highpri]
+root      0.0 [cpuhp/48]
+root      0.0 [idle_inject/48]
+root      0.0 [kworker/48:0H-events_highpri]
+root      0.0 [cpuhp/49]
+root      0.0 [idle_inject/49]
+root      0.0 [kworker/49:0H-events_highpri]
+root      0.0 [cpuhp/50]
+root      0.0 [idle_inject/50]
+root      0.0 [kworker/50:0H-events_highpri]
+root      0.0 [cpuhp/51]
+root      0.0 [idle_inject/51]
+root      0.0 [kworker/51:0H-events_highpri]
+root      0.0 [cpuhp/52]
+root      0.0 [idle_inject/52]
+root      0.0 [kworker/52:0H-events_highpri]
+root      0.0 [cpuhp/53]
+root      0.0 [idle_inject/53]
+root      0.0 [kworker/53:0H-events_highpri]
+root      0.0 [cpuhp/54]
+root      0.0 [idle_inject/54]
+root      0.0 [kworker/54:0H-events_highpri]
+root      0.0 [cpuhp/55]
+root      0.0 [idle_inject/55]
+root      0.0 [kworker/55:0H-events_highpri]
+root      0.0 [cpuhp/56]
+root      0.0 [idle_inject/56]
+root      0.0 [kworker/56:0H-events_highpri]
+root      0.0 [cpuhp/57]
+root      0.0 [idle_inject/57]
+root      0.0 [cpuhp/58]
+root      0.0 [idle_inject/58]
+root      0.0 [kworker/58:0H-events_highpri]
+root      0.0 [cpuhp/59]
+root      0.0 [idle_inject/59]
+root      0.0 [kworker/59:0H-events_highpri]
+root      0.0 [cpuhp/60]
+root      0.0 [idle_inject/60]
+root      0.0 [kworker/60:0H-events_highpri]
+root      0.0 [cpuhp/61]
+root      0.0 [idle_inject/61]
+root      0.0 [kworker/61:0H-events_highpri]
+root      0.0 [cpuhp/62]
+root      0.0 [idle_inject/62]
+root      0.0 [kworker/62:0H-events_highpri]
+root      0.0 [cpuhp/63]
+root      0.0 [idle_inject/63]
+root      0.0 [kworker/63:0H-events_highpri]
+root      0.0 [cpuhp/64]
+root      0.0 [idle_inject/64]
+root      0.0 [kworker/64:0H-events_highpri]
+root      0.0 [cpuhp/65]
+root      0.0 [idle_inject/65]
+root      0.0 [kworker/65:0H-events_highpri]
+root      0.0 [cpuhp/66]
+root      0.0 [idle_inject/66]
+root      0.0 [kworker/66:0H-events_highpri]
+root      0.0 [cpuhp/67]
+root      0.0 [idle_inject/67]
+root      0.0 [kworker/67:0H-events_highpri]
+root      0.0 [cpuhp/68]
+root      0.0 [idle_inject/68]
+root      0.0 [kworker/68:0H-events_highpri]
+root      0.0 [cpuhp/69]
+root      0.0 [idle_inject/69]
+root      0.0 [kworker/69:0H-events_highpri]
+root      0.0 [cpuhp/70]
+root      0.0 [idle_inject/70]
+root      0.0 [kworker/70:0H-events_highpri]
+root      0.0 [cpuhp/71]
+root      0.0 [idle_inject/71]
+root      0.0 [kworker/71:0H-events_highpri]
+root      0.0 [cpuhp/72]
+root      0.0 [idle_inject/72]
+root      0.0 [cpuhp/73]
+root      0.0 [idle_inject/73]
+root      0.0 [kworker/73:0H-events_highpri]
+root      0.0 [cpuhp/74]
+root      0.0 [idle_inject/74]
+root      0.0 [cpuhp/75]
+root      0.0 [idle_inject/75]
+root      0.0 [kworker/75:0H-events_highpri]
+root      0.0 [cpuhp/76]
+root      0.0 [idle_inject/76]
+root      0.0 [kworker/76:0H-events_highpri]
+root      0.0 [cpuhp/77]
+root      0.0 [idle_inject/77]
+root      0.0 [kworker/77:0H-events_highpri]
+root      0.0 [cpuhp/78]
+root      0.0 [idle_inject/78]
+root      0.0 [kworker/78:0H-events_highpri]
+root      0.0 [cpuhp/79]
+root      0.0 [idle_inject/79]
+root      0.0 [kworker/79:0H-events_highpri]
+root      0.0 [kdevtmpfs]
+root      0.0 [kworker/R-inet_]
+root      0.0 [oom_reaper]
+root      0.0 [kworker/R-write]
+root      0.0 [ksmd]
+root      0.0 [kworker/R-kinte]
+root      0.0 [kworker/R-kbloc]
+root      0.0 [kworker/R-blkcg]
+root      0.0 [irq/9-acpi]
+root      0.0 [kworker/R-tpm_d]
+root      0.0 [kworker/R-ata_s]
+root      0.0 [kworker/R-md]
+root      0.0 [kworker/R-md_bi]
+root      0.0 [kworker/R-edac-]
+root      0.0 [kworker/R-devfr]
+root      0.0 [watchdogd]
+root      0.0 [kworker/R-quota]
+root      0.0 [kworker/0:1H-kblockd]
+root      0.0 [ecryptfs-kthread]
+root      0.0 [kworker/R-kthro]
+root      0.0 [kworker/R-acpi_]
+root      0.0 [kworker/R-mld]
+root      0.0 [kworker/22:1H-kblockd]
+root      0.0 [kworker/R-ipv6_]
+root      0.0 [kworker/R-kstrp]
+root      0.0 [kworker/u163:0]
+root      0.0 [kworker/u164:0]
+root      0.0 [kworker/u165:0]
+root      0.0 [kworker/R-crypt]
+root      0.0 [kworker/R-charg]
+root      0.0 [kworker/72:1H]
+root      0.0 [kworker/74:1H]
+root      0.0 [kworker/38:1H-kblockd]
+root      0.0 [kworker/34:1H-kblockd]
+root      0.0 [kworker/4:1H-kblockd]
+root      0.0 [kworker/28:1H-kblockd]
+root      0.0 [kworker/26:1H-kblockd]
+root      0.0 [kworker/24:1H-kblockd]
+root      0.0 [kworker/30:1H-kblockd]
+root      0.0 [kworker/18:1H-kblockd]
+root      0.0 [kworker/12:1H-kblockd]
+root      0.0 [kworker/14:1H-kblockd]
+root      0.0 [kworker/6:1H-kblockd]
+root      0.0 [kworker/8:1H-kblockd]
+root      0.0 [kworker/10:1H-kblockd]
+root      0.0 [kworker/16:1H-kblockd]
+root      0.0 [kworker/36:1H-kblockd]
+root      0.0 [kworker/20:1H-kblockd]
+root      0.0 [kworker/3:1H-kblockd]
+root      0.0 [kworker/5:1H-kblockd]
+root      0.0 [kworker/15:1H-kblockd]
+root      0.0 [scsi_eh_0]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [kworker/13:1H-kblockd]
+root      0.0 [kworker/39:1H-kblockd]
+root      0.0 [kworker/17:1H-kblockd]
+root      0.0 [kworker/27:1H-kblockd]
+root      0.0 [kworker/31:1H-kblockd]
+root      0.0 [kworker/33:1H-kblockd]
+root      0.0 [kworker/37:1H-kblockd]
+root      0.0 [kworker/35:1H-kblockd]
+root      0.0 [scsi_eh_1]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [scsi_eh_2]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [scsi_eh_3]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [kworker/R-bnxt_]
+root      0.0 [scsi_eh_4]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [scsi_eh_5]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [kworker/11:1H-kblockd]
+root      0.0 [scsi_eh_7]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [scsi_eh_8]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [scsi_eh_10]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [scsi_eh_11]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [scsi_eh_12]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [scsi_eh_13]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [kworker/R-scsi_]
+root      0.0 [kworker/R-poll_]
+root      0.0 [kworker/R-kdmfl]
+root      0.0 [kworker/R-kdmfl]
+root      0.0 [kworker/R-kdmfl]
+root      0.0 [kworker/R-kdmfl]
+root      0.0 [kworker/R-raid5]
+root      0.0 [kworker/57:1H]
+root      0.0 [kworker/21:1H]
+root      0.0 [kworker/R-ext4-]
+root      0.0 [kworker/19:1H-kblockd]
+root      0.0 [kworker/29:1H-kblockd]
+root      0.0 [kworker/7:1H]
+root      0.0 [kworker/R-kmpat]
+root      0.0 [kworker/R-kmpat]
+root      0.0 [kworker/R-ipmi-]
+root      0.0 [kworker/R-nfit]
+root      0.0 [kworker/R-ext4-]
+root      0.0 [kworker/R-ext4-]
+root      0.0 [kworker/R-xfsal]
+root      0.0 [kworker/R-xfs_m]
+root      0.0 [kworker/R-xfs-b]
+root      0.0 [kworker/R-xfs-c]
+root      0.0 [kworker/R-xfs-r]
+root      0.0 [kworker/R-xfs-b]
+root      0.0 [kworker/R-xfs-i]
+root      0.0 [kworker/R-xfs-l]
+root      0.0 [kworker/R-xfs-c]
+root      0.0 [kworker/R-cfg80]
+wrf       0.0 (sd-pam)
+wrf       0.0 /usr/libexec/gdm-wayland-session env GNOME_SHELL_SESSION_MODE=ubuntu /usr/bin/gnome-session --session=ubuntu
+root      0.0 fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1001/doc
+wrf       0.0 /usr/libexec/gcr-ssh-agent --base-dir /run/user/1001/gcr
+wrf       0.0 /usr/libexec/gnome-session-ctl --monitor
+wrf       0.0 /usr/libexec/gvfsd-fuse /run/user/1001/gvfs -f
+wrf       0.0 /usr/libexec/ibus-memconf
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/1:2-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/25:1]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/39:1-rcu_par_gp]
+root      0.0 [kworker/27:1-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+sadc      0.0 (sd-pam)
+root      0.0 fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1000/doc
+root      0.0 [kworker/R-tls-s]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/3:2]
+root      0.0 [kworker/23:2]
+root      0.0 [kworker/17:1-rcu_par_gp]
+root      0.0 [kworker/31:1-rcu_par_gp]
+root      0.0 [kworker/4:2-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/19:1-rcu_par_gp]
+root      0.0 [kworker/18:2]
+root      0.0 [kworker/35:2]
+root      0.0 [kworker/24:0-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 /bin/sh -c /scripts/run.sh
+sadc      0.0 dovecot/submission-login
+sadc      0.0 dovecot/managesieve-login
+root      0.0 [grep] <defunct>
+systemd+  0.0 /bin/sh /scripts/opendkim.sh
+root      0.0 /bin/sh /scripts/rspamd.sh
+systemd+  0.0 sleep infinity
+root      0.0 sleep infinity
+root      0.0 [kworker/13:1-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+www-data  0.0 apache2 -DFOREGROUND
+root      0.0 [grep] <defunct>
+sadc      0.0 dovecot/imap-login
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/10:1-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/2:1]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/59:1-rcu_par_gp]
+root      0.0 [kworker/69:2]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 mongosh --quiet mongodb://mongodb:27017/graylog --eval db.adminCommand("ping").ok
+root      0.0 grep 1
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/62:0-rcu_par_gp]
+root      0.0 [kworker/79:1]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/33:1]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/7:2]
+root      0.0 /usr/sbin/CRON -f -P
+wrf       0.0 /bin/sh -c /home/wrf/SERVEUR_WEB/PROD_FAO/Main_FCST_FAO.sh >> /home/wrf/SERVEUR_WEB/LOGS/cron_FAO_gfs-00Z.log 2>&1
+root      0.0 [kworker/u160:2]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/48:2]
+root      0.0 [kworker/0:0-rcu_par_gp]
+root      0.0 [kworker/1:0-events]
+root      0.0 [kworker/74:1-rcu_par_gp]
+root      0.0 [kworker/37:1]
+root      0.0 [kworker/67:1-rcu_par_gp]
+root      0.0 [kworker/42:2-cgroup_free]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/56:0-events]
+root      0.0 [kworker/20:0]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/44:1]
+root      0.0 [kworker/45:2]
+root      0.0 [kworker/50:0-events]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/63:1]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/78:0]
+root      0.0 [kworker/70:0-rcu_par_gp]
+root      0.0 [kworker/52:2]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/71:2-rcu_par_gp]
+root      0.0 [kworker/57:0-rcu_par_gp]
+root      0.0 [kworker/62:1-rcu_par_gp]
+root      0.0 [kworker/47:1-cgroup_free]
+root      0.0 [kworker/53:0]
+root      0.0 [kworker/61:0-events]
+root      0.0 [kworker/77:1]
+root      0.0 [kworker/76:2]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/43:0-events]
+root      0.0 [kworker/60:2-events]
+root      0.0 [grep] <defunct>
+root      0.0 sleep 5
+root      0.0 [kworker/54:2-rcu_par_gp]
+sadc      0.0 sshd: sadc@notty
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/16:2-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/32:0H]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/14:1]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/8:2-rcu_par_gp]
+root      0.0 [kworker/5:2-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/R-dio/d]
+root      0.0 [spl_system_task]
+root      0.0 [spl_delay_taskq]
+root      0.0 [spl_dynamic_tas]
+root      0.0 [zvol]
+root      0.0 [arc_prune]
+root      0.0 [dbu_evict]
+root      0.0 [z_vdev_file]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/6:0-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/30:1-rcu_par_gp]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [kworker/37:0-rcu_par_gp]
+avahi     0.0 avahi-daemon: chroot helper
+root      0.0 [kworker/36:0]
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+www-data  0.0 nginx: worker process
+root      0.0 [psimon]
+postgres  0.0 postgres: 14/main: checkpointer 
+root      0.0 [psimon]
+root      0.0 /usr/sbin/CRON -f -P
+wrf       0.0 /bin/sh -c /home/wrf/SERVEUR_WEB/PROD_FAO/Main_FCST_FAO.sh >> /home/wrf/SERVEUR_WEB/LOGS/cron_FAO_gfs-00Z.log 2>&1
+root      0.0 [kworker/0:1-rcu_par_gp]
+root      0.0 [kworker/12:0]
+root      0.0 [kworker/15:1-rcu_par_gp]
+root      0.0 [kworker/9:2-rcu_par_gp]
+soff      0.0 (sd-pam)
+root      0.0 fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1006/doc
+root      0.0 [kworker/28:0-rcu_par_gp]
+root      0.0 [kworker/32:2]
+root      0.0 [kworker/22:0-rcu_par_gp]
+root      0.0 [kworker/38:1-rcu_par_gp]
+root      0.0 [kworker/34:0]
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+root      0.0 [grep] <defunct>
+exit=0
