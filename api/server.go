@@ -18,6 +18,7 @@ import (
 
 	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/capabilities"
+	"github.com/Realms4239/cgo/exporter"
 	"github.com/Realms4239/cgo/figures"
 	"github.com/Realms4239/cgo/metrics"
 	"github.com/Realms4239/cgo/model"
@@ -335,6 +336,8 @@ func readValidMetric(cell, metric, direction string) ([]float64, int) {
 // partagées entre server.go et server_audit.go.
 type Server struct {
 	deps    Deps
+	started time.Time
+	kernel  probe.KernelSourceInfo
 	hub     *Hub
 	audit   *auditSession
 	shape   *shapeState
@@ -364,8 +367,10 @@ func NewServer(d Deps) *Server {
 		next = snap
 	}
 	s := &Server{
-		deps:  d,
-		hub:   NewHub(),
+		deps:    d,
+		started: time.Now(),
+		kernel:  probe.KernelSource(),
+		hub:     NewHub(),
 		audit: &auditSession{},
 		shape: &shapeState{},
 		snap:  snap,
@@ -400,9 +405,7 @@ func (s *Server) registerHealth(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "version": s.deps.Version, "mode": s.deps.Mode, "telemetry": probe.KernelSource()})
 	})
-	mux.HandleFunc("GET /metrics", handleMetrics(func() map[string]string {
-		return map[string]string{"version": s.deps.Version}
-	}))
+	mux.Handle("GET /metrics", exporter.Handler(s.metricsSamples))
 	// capacités du banc : le client rend les files et contrôles que cet hôte
 	// expose réellement, sans recopier de liste.
 	mux.HandleFunc("GET /api/capabilities", func(w http.ResponseWriter, _ *http.Request) {

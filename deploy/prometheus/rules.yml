@@ -1,27 +1,21 @@
 groups:
   - name: cgo-slo
     rules:
-      # Limitées aux métriques effectivement émises par /metrics
-      # (pkg/api/metrics.go) : les anciennes règles cgo_cap_deadline_ok_pct
-      # et cgo_cap_sla_breach (jamais émises) ont été retirées.
-      - alert: CGO_cap_sla_unmeasured
-        expr: cgo_cap_sla_measured == 0
+      # Seules les séries réellement émises par api/metrics.go sont citées ici.
+      # Les anciennes règles (cgo_cap_sla_measured, cgo_audit_load_measured_total,
+      # cgo_iface_valid) portaient sur des drapeaux codés en dur à 0 : retirées,
+      # pas silencieuses — une série absente n'est jamais un zéro.
+      - alert: CGO_metrics_absent
+        expr: absent(cgo_build_info)
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "CAP SLA not measured - deadline objective unevaluated"
-      - alert: CGO_probe_dead
-        expr: rate(cgo_audit_load_measured_total[5m]) == 0
+          summary: "No CGO /metrics scrape - service down or unobserved"
+      - alert: CGO_kernel_telemetry_degraded
+        expr: cgo_kernel_source_info{source="tcpinfo"} == 1
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "No measured load in 10m - probes may be dead"
-      - alert: CGO_iface_invalid
-        expr: cgo_iface_valid == 0
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Interface sampling invalid - numerics must be ignored"
+          summary: "Kernel telemetry degraded to tcpinfo - eBPF unavailable"

@@ -68,6 +68,13 @@ func (h *Hub) Close() {
 	h.closeOnce.Do(func() { close(h.done) })
 }
 
+// Subscribers — nombre d'abonnés SSE vivants (série mesurée de /metrics).
+func (h *Hub) Subscribers() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.subs)
+}
+
 // Publish sérialise un instantané, encode en delta les clés structurelles et diffuse.
 var structuralKeys = []string{"profile", "qdisc", "cc", "repetition", "event_id", "phase"}
 
