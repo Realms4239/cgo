@@ -10,4 +10,4 @@ if [ "$main" = 1 ] && [ "${CGO_ALLOW_MAIN:-}" != "1" ]; then
   echo "pre-push: push to main refused; merge is a user decision (set CGO_ALLOW_MAIN=1 to override)" >&2
   exit 1
 fi
-python tools/verify.py
+sh .githooks/run-gates.sh

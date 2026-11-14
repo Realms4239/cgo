@@ -27,7 +27,7 @@ before acting. The artifact wins over the entry's prose.
 - Exit 0 = every gate passed. Exit 1 = a named gate failed. Exit 2 = a gate
   could not run; **2 is not green**, and the skipped gate is named.
 - The targets exist since slice 9 Phase B. On a host without `make`, run
-  `python tools/verify.py` with the same flags and say so; never report a
+  `sh .githooks/run-gates.sh` with the same flags and say so; never report a
   missing prerequisite as passed.
 
 ## Never touch
@@ -125,15 +125,18 @@ when a number in it applies here, the rule applies here.
 
 **Honesty clause.**
 - Faster never means weaker: a swap ships with before/after timings and zero
-  gate relaxation. The FAST TOOLS proposal to port `tools/verify.py` to a
-  compiled `cgo verify` is a plan-level decision to be taken by the human
-  through the plan — an agent must never land it unilaterally. The exit
-  0/1/2 contract, named gates, `-count=1`, and the frozen corpus are outside
-  this arsenal's authority.
-- Perf lanes are queued plan items, not self-granted licences: synctest for
-  pkg/audit and pkg/api time tests; happy-dom split for DOM tests; native
-  ICMP probing; rtnetlink-backed qdisc reads; the gate-runner port (plan tier
-  only). Until a lane lands through the plan it does not exist here.
+  gate relaxation, and nothing here is self-certified — the verifier re-runs
+  the command. The gate runner is a compiled Go command (`cmd/gates`, landed
+  2026-11-14 by direct mandate); Python survives only inside the frozen-corpus
+  audit (`book/tools/audit-archive.py`) and for analysis. The exit 0/1/2
+  contract, named gates, `-count=1`, and the frozen corpus are outside this
+  arsenal's authority.
+- Perf lanes apply directly under the standing 2026-11-14 mandate (they are
+  not plan-gated): gate-runner port done; `synctest` for pkg/audit and pkg/api
+  time tests; happy-dom split for DOM tests; native ICMP probing; rtnetlink-backed
+  qdisc reads; parallel provenance-keyed corpus aggregation. Each lands as its
+  own measured commit with the suite green after it. Any lane may be declined by
+  the human; none may be landed without before/after timings in the report.
 - Live bench, cap-40 purge, force-push, and any eBPF/live measurement stay
   human-gated regardless of what the arsenal would make possible. Speed
   applies to iteration, never to release decisions.

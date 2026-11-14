@@ -18,18 +18,18 @@ figures: build
 	./bin/cgo figures
 
 verify:
-	python tools/verify.py
+	sh .githooks/run-gates.sh
 
 verify-fast:
-	python tools/verify.py --fast
+	sh .githooks/run-gates.sh --fast
 
 verify-selftest:
-	python tools/verify.py --selftest
+	sh .githooks/run-gates.sh --selftest
 
 hooks:
 	git config core.hooksPath .githooks
 	chmod +x .githooks/pre-commit .githooks/pre-push 2>/dev/null || true
-	python tools/verify.py --list
+	sh .githooks/run-gates.sh --list
 
 frontend:
 	cd $(FRONTEND) && bun run build

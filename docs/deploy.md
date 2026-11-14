@@ -247,7 +247,7 @@ puis `metrics`, `qdisc`, `results`, `figures` — ordre topologique) :
    ```bash
    go mod download github.com/Realms4239/cgo/model
    go test ./...
-   python tools/verify.py
+   sh .githooks/run-gates.sh
    ```
    Le consommateur doit résoudre le module publié, pas le chemin local.
    Tant qu'un `replace` survit, le cutover n'est pas terminé.
