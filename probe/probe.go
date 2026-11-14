@@ -91,7 +91,7 @@ func parsePingLine(line string) (float64, bool) {
 // SmallClient — client HTTP du petit objet : transport marqué DSCP EF
 // (Linux/banc). Client partagé, pas de fuite par sonde.
 func SmallClient() *http.Client {
-	once.Do(func() { markedClient = &http.Client{Timeout: 2 * time.Second, Transport: smallMarkedTransport()} })
+	onceClient.Do(func() { markedClient = &http.Client{Timeout: 2 * time.Second, Transport: sharedMarkedTransport()} })
 	return markedClient
 }
 
@@ -99,18 +99,29 @@ func SmallClient() *http.Client {
 // 2 s, mortel sur VSAT (16 Ko à travers netem 600 ms + perte : complétion
 // > 2 s → G2 échoue par construction, pas par le lien). Le banc connaît le
 // RTT du profil : max(2 s, 4×delay) donne au satellite la marge qu'il
-// mérite sans dépayser les profils rapides. Rend un client NEUF : à
-// réserver au banc, pas à l'audit (le client partagé y reste).
+// mérite sans dépayser les profils rapides. Le timeout vit sur http.Client —
+// le transport marqué est partagé une fois pour toutes (pas de churn de
+// Transport, pas de handshake refait par sonde).
 func SmallClientTimeout(timeout time.Duration) *http.Client {
-	return &http.Client{Timeout: timeout, Transport: smallMarkedTransport()}
+	return &http.Client{Timeout: timeout, Transport: sharedMarkedTransport()}
 }
 
 var (
-	once         sync.Once
-	markedClient *http.Client
+	onceClient      sync.Once
+	onceTransport   sync.Once
+	markedClient    *http.Client
+	markedTransport *http.Transport
 )
 
-func smallMarkedTransport() *http.Transport {
+// sharedMarkedTransport — UN transport marqué DSCP EF pour toute la durée de
+// vie du processus. Le timeout est côté Client, jamais Transport : il peut
+// varier sans casser la réutilisation des connexions.
+func sharedMarkedTransport() *http.Transport {
+	onceTransport.Do(func() { markedTransport = cloneMarkedTransport() })
+	return markedTransport
+}
+
+func cloneMarkedTransport() *http.Transport {
 	base := http.DefaultTransport.(*http.Transport).Clone()
 	base.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return dialSmallMarked(ctx, addr)

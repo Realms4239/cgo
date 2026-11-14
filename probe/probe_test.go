@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestParsePing(t *testing.T) {
@@ -54,5 +55,19 @@ func TestSmallObjectTimesCompletion(t *testing.T) {
 	ms, err := SmallObject(context.Background(), srv.Client(), srv.URL)
 	if err != nil || ms <= 0 {
 		t.Fatalf("ms=%v err=%v", ms, err)
+	}
+}
+
+func TestSmallClientTimeoutsShareMarkedTransport(t *testing.T) {
+	c1 := SmallClientTimeout(5 * time.Second)
+	c2 := SmallClientTimeout(9 * time.Second)
+	if c1.Transport != c2.Transport {
+		t.Fatal("calibrated timeouts must share the marked transport (no per-sample transport churn)")
+	}
+	if SmallClient().Transport != c1.Transport {
+		t.Fatal("SmallClient must share the same marked transport")
+	}
+	if c1.Timeout != 5*time.Second || c2.Timeout != 9*time.Second {
+		t.Fatal("timeout is client-side and must stay calibrated per call")
 	}
 }
