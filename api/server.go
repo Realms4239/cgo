@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -378,6 +379,7 @@ func NewServer(d Deps) *Server {
 	}
 	mux := http.NewServeMux()
 	s.registerHealth(mux)
+	s.registerAuth(mux)
 	s.registerCost(mux)
 	s.registerState(mux)
 	s.registerEdge(mux)
@@ -395,9 +397,56 @@ func NewServer(d Deps) *Server {
 	return s
 }
 
-// ServeHTTP — le serveur EST son handler.
+// ServeHTTP — le serveur EST son handler. Toute route /api/* exige Bearer ou
+// cookie de session, sauf la sonde de vie et la connexion ; le mux re-vérifie
+// les mutations via requireAuth (défense en profondeur).
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	p := r.URL.Path
+	if strings.HasPrefix(p, "/api/") && p != "/api/health" && p != "/api/login" && p != "/api/logout" {
+		if !authenticated(r) {
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			writeErr(w, r, "authentification requise", http.StatusUnauthorized)
+			return
+		}
+	}
 	s.mux.ServeHTTP(w, r)
+}
+
+// registerAuth — connexion navigateur : login pose un cookie de session
+// HttpOnly (jamais le token dans le corps), logout l'efface. Anonymes par
+// construction ; requireAuth n'enveloppe pas ces deux routes.
+func (s *Server) registerAuth(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Token string `json:"token"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+			writeErr(w, r, "bad json", http.StatusBadRequest)
+			return
+		}
+		secret := os.Getenv("CGO_API_TOKEN")
+		// comparaison à temps constant ; refus générique, jamais le token affiché
+		if secret == "" || subtle.ConstantTimeCompare([]byte(body.Token), []byte(secret)) != 1 {
+			writeErr(w, r, "authentification refusée", http.StatusUnauthorized)
+			return
+		}
+		secure := r.TLS != nil
+		w.Header().Set("Set-Cookie", (&http.Cookie{
+			Name: sessionCookie, Value: sessionToken(secret),
+			Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode,
+			Secure: secure, MaxAge: 86400,
+		}).String())
+		writeJSON(w, map[string]any{"ok": true})
+	})
+	mux.HandleFunc("POST /api/logout", func(w http.ResponseWriter, r *http.Request) {
+		secure := r.TLS != nil
+		w.Header().Set("Set-Cookie", (&http.Cookie{
+			Name: sessionCookie, Value: "",
+			Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode,
+			Secure: secure, MaxAge: -1,
+		}).String())
+		writeJSON(w, map[string]any{"ok": true})
+	})
 }
 
 // registerHealth — un seul site d'enregistrement par domaine.
