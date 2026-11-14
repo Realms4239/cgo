@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it, beforeEach } from 'vitest'
 import { compareAudits, loadAuditPair, loadLastSummary, saveLastSummary, summaryOf, type AuditSummary } from './auditSummary'
 import type { AuditReport } from './types'

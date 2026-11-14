@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 // La carte de remédiation : deux directions mesurées, la plateforme que le
 // rapport porte, et un texte copié qui ne contient que ce qui a été mesuré.
 import { describe, expect, it } from 'vitest'

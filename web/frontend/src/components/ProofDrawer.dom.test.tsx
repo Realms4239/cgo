@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 // Le tiroir de preuve : deux onglets, la commande exacte d'un côté, les
 // empreintes de l'autre. Les fixtures portent les champs que le moteur scelle.
 import { beforeEach, describe, expect, it } from 'vitest'

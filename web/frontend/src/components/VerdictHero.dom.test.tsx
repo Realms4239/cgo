@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 // Le hero est le premier consommateur du verdict du moteur. Ces tests figent la
 // seule règle qui compte ici : le mot et la phrase viennent de Go ; l'interface
 // ne classe rien, ne re-formate rien, n'invente rien, et ne montre jamais une
