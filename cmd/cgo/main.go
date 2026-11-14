@@ -64,7 +64,12 @@ func main() {
 		tlsOn := fs.Bool("tls", true, "HTTPS avec le certificat local meteolink.dev (false = HTTP brut, VM/systemd)")
 		httpAddr := fs.String("http-addr", "127.0.0.1:9080", "redirection HTTP→HTTPS (vide = désactivée)")
 		mode := fs.String("mode", "auto", "observe | full | auto (défaut: OS décide — Windows observe, Linux complet)")
+		expose := fs.Bool("expose", false, "autorise l'écoute hors loopback (exige CGO_API_TOKEN ou /etc/cgo/auth.token)")
 		_ = fs.Parse(os.Args[2:])
+		if err := checkExposure(*addr, *expose, os.Getenv, authTokenFile); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		if err := runServer(ctx, *addr, doctor.Mode(*mode), *tlsOn, *httpAddr); err != nil {
@@ -102,6 +107,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, "service: systemd nécessite Linux")
 			os.Exit(1)
 		}
+		// Unité par défaut : boucle-retour + TLS. Le jeton vit dans
+		// /etc/cgo/auth.token (généré si absent, 0600 root:root) et est injecté
+		// via EnvironmentFile — jamais en ligne dans l'unité (world-readable).
+		// Le '-' initial ignore un fichier manquant : le défaut loopback+TLS
+		// n'exige pas de jeton, le service démarre quand même.
+		if err := ensureAuthTokenFile(authTokenFile); err != nil {
+			fmt.Fprintf(os.Stderr, "service: jeton non généré (%v) — l'unité restera sans EnvironmentFile ; relancez en root pour l'activer\n", err)
+		} else {
+			fmt.Println("service: /etc/cgo/auth.token prêt (0600 root:root)")
+		}
 		const unit = `[Unit]
 Description=Meteolink — banc d'audit et de comparaison AQM/BBR
 After=network-online.target
@@ -111,7 +126,10 @@ Wants=network-online.target
 StateDirectory=cgo
 WorkingDirectory=/var/lib/cgo
 Environment=CGO_DATA_DIR=/var/lib/cgo
-		ExecStart=/usr/local/bin/cgo --serve --addr 0.0.0.0:9090 --tls=false --http-addr=
+# Jeton API — CGO_API_TOKEN=<hex> dans /etc/cgo/auth.token (0600 root:root).
+# Généré par 'cgo service install' si absent. JAMAIS en ligne ici.
+EnvironmentFile=-/etc/cgo/auth.token
+ExecStart=/usr/local/bin/cgo --serve --addr 127.0.0.1:9090 --tls=true --http-addr=
 Restart=on-failure
 RestartSec=3
 
@@ -124,6 +142,7 @@ WantedBy=multi-user.target
 		}
 		fmt.Println("service: /etc/systemd/system/meteolink.service écrit — puis:")
 		fmt.Println("  systemctl daemon-reload && systemctl enable --now meteolink")
+		fmt.Println("  exposition : loopback+TLS par défaut — accès distant via tunnel SSH ou proxy (docs/deploy.md)")
 	case "figures":
 		if err := figures.Generate(results.RunsRoot(), results.FiguresRoot()); err != nil {
 			fmt.Fprintln(os.Stderr, "figures:", err)
@@ -376,8 +395,10 @@ func printAuditSummary(rep *audit.Report) {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--tls=false] [--http-addr 127.0.0.1:9080] [--mode observe|full|auto]
+	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--tls=false] [--expose] [--http-addr 127.0.0.1:9080] [--mode observe|full|auto]
        env: CGO_IFACE=<iface> CGO_IFACE_SOURCE=twin|prod|unknown   # débit interface 10 Hz
+       env: CGO_API_TOKEN=<token>            # exigé pour --expose hors loopback (ou /etc/cgo/auth.token, 0600)
+       écoute hors loopback refusée sans --expose + token (exit 2) — 127.0.0.1 reste le défaut dev
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify
