@@ -9,6 +9,8 @@ require (
 	golang.org/x/sys v0.36.0
 )
 
+require github.com/Realms4239/cgo/exporter v0.1.0 // indirect
+
 require (
 	fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
