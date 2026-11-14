@@ -15,7 +15,7 @@ import type { AuditReport, AuditVerdictLevel } from '../lib/types'
 import { capsla, measured, report as sealedReport, verdict } from '../lib/auditFixtures'
 
 function read(p: string): string {
-  for (const q of [p, `../${p}`, `../../${p}`, `C:/cgo/${p}`]) {
+  for (const q of [p, `../${p}`, `../../${p}`]) {
     try { return readFileSync(q, 'utf8') } catch { /* tente suivante */ }
   }
   return readFileSync(p, 'utf8')

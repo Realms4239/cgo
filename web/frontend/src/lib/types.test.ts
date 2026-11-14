@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 
 function read(p: string): string {
-  for (const q of [p, `../${p}`, `../../${p}`, `C:/cgo/${p}`]) {
+  for (const q of [p, `../${p}`, `../../${p}`]) {
     try { return readFileSync(q, 'utf8') } catch { }
   }
   return readFileSync(p, 'utf8')

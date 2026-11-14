@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 function readLive(): string {
-  const cands = ['web/frontend/src/views/LiveView.tsx','src/views/LiveView.tsx','C:/cgo/.worktrees/m6-perfect/web/frontend/src/views/LiveView.tsx']
+  const cands = ['web/frontend/src/views/LiveView.tsx','src/views/LiveView.tsx']
   for (const p of cands) try { return readFileSync(p,'utf8') } catch {}
   return readFileSync('web/frontend/src/views/LiveView.tsx','utf8')
 }
