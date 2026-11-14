@@ -96,3 +96,29 @@ not silently absorbed: the triage below is the complete, reproducible 2026-11-14
    itself states the directory is meant to stay untracked.
 4. No product marker was implemented or deleted, so the six-gate suite is expected green;
    the gates re-run for this task, and the exit code is recorded in the task report.
+
+## Addendum — controller re-census with the audit's broader pattern (2026-11-14)
+
+The 2026-11-13 census (37 product / 33 in pkg/cmd/web) counted more than literal
+markers: placeholder/stub/test-stub classes. Re-run against HEAD with
+`grep -niE 'placeholder|stub|xxx|todo'` over `pkg cmd web kit internal tools`
+(+ `Makefile` excluded as gate tooling):
+
+- **UI `placeholder=` attributes** — legitimate HTML input hints
+  (`web/frontend/src/views/LiveView.tsx`, `BenchConfig.tsx`, `AuditDeclare.tsx`,
+  `SettingsDrawer.tsx`, `CommandPalette.tsx`). Not debt.
+- **Gate/test fixtures** — `cmd/gates/main.go` (self-test placeholder string),
+  `web/frontend/src/lib/*.test.ts` (`vi.stubGlobal`), `web/frontend/embed.go`
+  (comment naming the refusal), `kit/test-overhaul.sh` (historical guard),
+  `kit/test-fresh-clone.sh` (comment). Not product debt.
+- **`cmd/cgo/stubs.go:3`** — tombstone comment ("stubs retirés") describing
+  retired stubs; file is referenced by nothing else and can be deleted in a
+  future pass — kept, deletion is not in this task's scope.
+- **Zero actionable markers** — the census class of debt is empty at `9989b4a`.
+- `cmd/cgo/main.go:414` (`audit-XXXX` help text) — trivial doc-note, WIP-dirty
+  file, ledgered already (PART A run).
+
+Verdict: the 37-item audit census predates the 2026-11-13/14 dead-surface
+deletions (`cmd/cgo-gui/`, `api/frontend/`, dead fonts) and the stub-removal
+sweep; no product TODO/FIXME/HACK debt remains open in this tree at the audit's
+own bar of "real markers in product paths".
