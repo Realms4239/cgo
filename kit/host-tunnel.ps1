@@ -36,6 +36,9 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $LogFile = Join-Path $PSScriptRoot ("host-tunnel-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".log")
 try { Start-Transcript -Path $LogFile -Append | Out-Null } catch { }
 
+# Dotted-quad IPv4 stricte : 4 octets 0-255, rien d'autre.
+$script:IPv4 = '(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(?:\.(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}'
+
 function Step($t) { Write-Host ""; Write-Host ">> $t" -ForegroundColor Cyan }
 function Ok($t) { Write-Host "  [OK] $t" -ForegroundColor Green }
 function Info($t) { Write-Host "  [..] $t" -ForegroundColor Yellow }
@@ -162,15 +165,15 @@ if ($Hypervisor -eq "virtualbox" -and ($NicMode -eq "nat" -or $NicMode -eq "inco
   $GuestIP = ""
   if ($Hypervisor -eq "virtualbox") {
     $g = & $VBoxManage guestproperty get $VmRegName "/VirtualBox/GuestInfo/Net/0/V4/IP" 2>&1 | Out-String
-    if ($g -match "Value:\s*([0-9.]+)") { $GuestIP = $Matches[1] }
+    if ($g -match "Value:\s*($script:IPv4)") { $GuestIP = $Matches[1] }
   } else {
     $g = & $VmRun -T ws getGuestIPAddress $VmPath 2>&1 | Out-String
-    if ($g -match "([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)") { $GuestIP = $Matches[1] }
+    if ($g -match "($script:IPv4)") { $GuestIP = $Matches[1] }
   }
   if ($GuestIP -eq "") {
     Write-Host "  IP non resolue (VM eteinte ou additions absentes)."
     $GuestIP = Read-Host "  IP invitee (console VM : ip -br addr)"
-    if ($GuestIP -notmatch "^[0-9.]+$") { Die "IP invalide" }
+    if ($GuestIP -notmatch "^$script:IPv4$") { Die "IP invalide" }
   }
   Ok "acces direct : $GuestIP"
   $SshTarget = $GuestIP; $SshPortEff = 22
@@ -180,7 +183,7 @@ Step "3/7 — nom stable (hosts)"
 $HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
 $line = "$SshTarget meteolink.dev  # cgo — tableau de bord (host-tunnel)"
 $raw = Get-Content $HostsPath -Raw -ErrorAction SilentlyContinue
-if ($raw -match "(?m)^[0-9.]+\s+meteolink\.dev(\s|$)") {
+if ($raw -match "(?m)^$script:IPv4\s+meteolink\.dev(\s|$)") {
   $raw = ($raw -split "`n" | Where-Object { $_ -notmatch "meteolink\.dev" }) -join "`n"
 }
 if ($PSCmdlet.ShouldProcess($HostsPath, "ajouter $line")) {

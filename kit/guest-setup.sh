@@ -57,6 +57,33 @@ ME="${USER:-$(id -un 2>/dev/null || echo unknown)}"
 MISS=0
 chk() { if eval "$2"; then ok "$1"; else warn "$1 — MANQUANT"; MISS=$((MISS+1)); fi }
 
+# Tar-Slip — valide l'archive AVANT toute extraction : chaque membre doit
+# être un FICHIER RÉGULIER, sans chemin absolu (« /… », « C:… »), sans
+# composant « .. ». Liens symboliques/durs, périphériques, répertoires →
+# refus. Toute incohérence = mort AVANT d'avoir touché l'arbre.
+validate_tarball() {
+  local tb="$1" name type count=0
+  # 1) types : seule la permission « - » (fichier régulier) est acceptée
+  while IFS= read -r type; do
+    [ -z "$type" ] && continue
+    if [ "$type" != "-" ]; then
+      fail "archive refusée : membre non régulier (type « $type ») — liens/périphériques interdits : $tb"
+    fi
+  done < <(tar -tzvf "$tb" 2>/dev/null | awk '{print substr($1,1,1)}')
+  # 2) noms : relatifs, pas de « .. », pas d'absolu ni de lecteur Windows
+  while IFS= read -r name; do
+    [ -z "$name" ] && continue
+    count=$((count+1))
+    case "$name" in
+      /*|[A-Za-z]:*|[A-Za-z]:\\*) fail "archive refusée : chemin absolu : $name";;
+    esac
+    case "/$name/" in
+      */../*) fail "archive refusée : composant « .. » : $name";;
+    esac
+  done < <(tar -tzf "$tb" 2>/dev/null)
+  [ "$count" -gt 0 ] || fail "archive refusée : aucun membre lisible : $tb"
+}
+
 # --check : audit lecture seule, zéro mutation. Sortie 0 = prêt, 1 = manque.
 do_check() {
   step "audit (lecture seule)"
@@ -66,7 +93,7 @@ do_check() {
   chk "sshd actif" "systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null"
   chk "port 22 en écoute" "ss -ltn 2>/dev/null | grep -q ':22 '"
   chk "binaire $PROJECT/cgo-linux" '[ -x "$PROJECT/cgo-linux" ]'
-  chk "sudoers cgo-network (tc/ip sans mot de passe)" '! sudo -n ip link show lo 2>&1 | grep -qi password'
+  chk "sudoers cgo-network (cgo-netctl sans mot de passe)" 'sudo -n /usr/local/bin/cgo-netctl ip link show lo >/dev/null 2>&1'
   chk "banc de mesure (small :8081)" 'curl -fsS -m2 http://10.200.0.1:8081/small -o /dev/null 2>/dev/null'
   chk "dashboard :$PORT sain (TLS)" "curl -fsS -m 2 -k \"https://127.0.0.1:$PORT/api/health\" 2>/dev/null | grep -q '\"ok\":true'"
   if [ "$MISS" = "0" ]; then ok "PRÊT — rien à faire"; else warn "$MISS point(s) à corriger — relancez sans --check"; fi
@@ -76,7 +103,7 @@ do_check() {
 
 step "0/6 — réseau et droits"
 if have_net; then ok "internet joignable"; else warn "HORS-LIGNE : les installations apt seront sautées, le reste continue"; fi
-if [ "$(id -u)" = "0" ]; then SUDO=""; ok "root direct"; elif sudo -n ip link show lo 2>&1 | grep -qi "password"; then SUDO="sudo"; warn "sudo demandera le mot de passe (normal)"; else SUDO="sudo -n"; ok "sudo sans mot de passe"; fi
+if [ "$(id -u)" = "0" ]; then SUDO=""; ok "root direct"; elif sudo -n true 2>/dev/null; then SUDO="sudo -n"; ok "sudo sans mot de passe (note : NOPASSWD large requis pour apt/ufw, cgo-netctl ne couvre pas ces outils)"; else SUDO="sudo"; warn "sudo demandera le mot de passe (normal)"; fi
 
 step "1/6 — paquets (openssh-server, outils invité)"
 if have_net && command -v apt-get >/dev/null 2>&1; then
@@ -134,7 +161,9 @@ mkdir -p "$PROJECT" || fail "création $PROJECT impossible"
 cd "$PROJECT" || fail "cd $PROJECT impossible"
 if [ -n "$TARBALL" ]; then
   [ -f "$TARBALL" ] || fail "tarball introuvable : $TARBALL"
-  tar xzf "$TARBALL" ./cgo 2>/dev/null || tar xzf "$TARBALL" -C "$PROJECT" --strip-components=0
+  validate_tarball "$TARBALL"
+  # --no-same-owner/--no-same-permissions : l'archive ne décide ni uid ni mode
+  tar xzf "$TARBALL" -C "$PROJECT" --strip-components=0 --no-same-owner --no-same-permissions || fail "extraction refusée : $TARBALL"
   ok "extrait depuis $TARBALL"
 fi
 if [ -f cgo-linux.new ]; then

@@ -16,7 +16,9 @@ if ($GwIp -match '^10\.0\.2\.') {
   Write-Host "      port-forward (cgo.exe kit ensure), pas une adresse hôte."
   exit 3
 }
-if ($GwIp -notmatch '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)[0-9.]+\.[0-9]+$') {
+# Dotted-quad IPv4 stricte : 4 octets 0-255.
+$oct = '(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+if ($GwIp -notmatch "^(10\.$oct\.$oct\.$oct|172\.(1[6-9]|2[0-9]|3[01])\.$oct\.$oct|192\.168\.$oct\.$oct)$") {
   Write-Host "  [X] REFUS : $GwIp n'est pas une IPv4 privée valide." -ForegroundColor Red
   exit 3
 }
