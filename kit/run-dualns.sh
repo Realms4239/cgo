@@ -13,8 +13,11 @@
 #    run-dualns.sh down            tout retirer
 #  Options: --bin PATH (défaut $CGO_BIN ou ~/cgo/cgo-linux)
 #           --ingress on|off (façonnage descendant IFB, opt-in)
+#           CGO_SHAPE_MODE=ingress|egress (défaut quand --ingress absent ;
+#           le drapeau gagne sur l'env, l'env résolue est ré-exportée pour la
+#           campagne et la topologie posée est écrite dans $CGO_TOPOLOGY_JSON)
 # ============================================================================
-set -uo pipefail
+set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BIN="${CGO_BIN:-$HOME/cgo/cgo-linux}"
 CMD="${1:-up}"; shift 2>/dev/null || true
@@ -30,6 +33,24 @@ case "$INGRESS" in
   ""|on|off) ;;
   *) echo "ingress must be on|off" >&2; exit 2;;
 esac
+# I1 — mode de façonnage résolu UNE fois, partagé par le banc et la campagne :
+# un mode qui diffère entre les deux fait mesurer un chemin non façonné en le
+# croyant façonné — défaut de classe fraude, refusé par construction ici.
+SHAPE_MODE=""
+case "${CGO_SHAPE_MODE:-}" in
+  ""|ingress|egress) ;;
+  *) echo "[!] CGO_SHAPE_MODE must be ingress|egress (got: ${CGO_SHAPE_MODE})" >&2; exit 2;;
+esac
+case "$INGRESS" in
+  "")   SHAPE_MODE="${CGO_SHAPE_MODE:-}";;
+  on)   SHAPE_MODE="ingress";;
+  off)  SHAPE_MODE="egress";;
+esac
+case "$SHAPE_MODE" in
+  ingress) BENCH_INGRESS_ARGS="--ingress on";;
+  egress)  BENCH_INGRESS_ARGS="--ingress off";;
+  *)       BENCH_INGRESS_ARGS="";; # env absente : défaut du banc (egress)
+esac
 [ -x "$BIN" ] || { echo "[!] binaire introuvable: $BIN (compilez: go build -o $BIN ./cmd/cgo)" >&2; exit 1; }
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -38,11 +59,20 @@ fi
 
 case "$CMD" in
   up|serve)
-    if [ -n "$INGRESS" ]; then
-      "$HERE/cgo-bench-dualns.sh" up --ingress "$INGRESS" || exit 1
-    else
-      "$HERE/cgo-bench-dualns.sh" up || exit 1
+    if [ -n "$SHAPE_MODE" ]; then
+      export CGO_SHAPE_MODE="$SHAPE_MODE"
     fi
+    # $BENCH_INGRESS_ARGS non quoté : découpage voulu ("--ingress on|off").
+    "$HERE/cgo-bench-dualns.sh" up $BENCH_INGRESS_ARGS || exit 1
+    # I1 — topologie réellement bâtie, lue en préflight par CheckBenchTopology
+    # (pkg/campagne) : un désaccord ingress/egress refuse la cellule AVANT
+    # toute mutation tc. Débit/délai/perte : défauts littéraux du banc
+    # (cgo-bench-dualns.sh n'expose pas ces réglages en env — flags seuls).
+    TOPO="${CGO_TOPOLOGY_JSON:-/tmp/cgo-dualns-topology.json}"
+    IFB_JSON=null
+    if [ "$SHAPE_MODE" = "ingress" ]; then IFB_JSON='"ifb0"'; fi
+    printf '{"shape_mode":"%s","rate_mbit":20,"delay_ms":100,"loss_pct":0,"namespaces":["ns_client","ns_wan_emulator","ns_edge_router","ns_server"],"ifb":%s,"written_at":"%s"}\n' \
+      "${SHAPE_MODE:-egress}" "$IFB_JSON" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$TOPO"
     # puits : petit objet + masse, DANS ns_server — jamais dans le routeur
     # (un puits à l'edge court-circuiterait le shaper : 193 Mbit/s à travers
     # un plafond de 20, vu en prod).
@@ -63,9 +93,30 @@ case "$CMD" in
       "$BIN" --serve --tls=false --http-addr=
     ;;
   down)
+    # T1 — le dashboard (serve) et le puits survivent au `bench down` :
+    # tués explicitement. Marqueur `--serve .*--http-addr=` (option HTTP
+    # vide du serveur embarqué) pour ne jamais viser un autre process cgo.
+    pkill -f '.*--serve .*--http-addr=' 2>/dev/null || true
     pkill -f "testbedsrv -http 10.30.0.2" 2>/dev/null || true
     "$HERE/cgo-bench-dualns.sh" down
-    echo "[run-dualns] down"
+    # Échec fermé : affirmer un teardown propre sans preuve = faux succès.
+    orphans=""
+    for ns in ns_client ns_wan_emulator ns_edge_router ns_server; do
+      if ip netns list 2>/dev/null | grep -qw "$ns"; then
+        orphans="$orphans netns:$ns"
+      fi
+    done
+    if pgrep -f "testbedsrv -http 10.30.0.2" >/dev/null 2>&1; then
+      orphans="$orphans proc:testbedsrv"
+    fi
+    if pgrep -f '.*--serve .*--http-addr=' >/dev/null 2>&1; then
+      orphans="$orphans proc:dashboard"
+    fi
+    if [ -n "$orphans" ]; then
+      echo "[!] orphelins survivants au down :$orphans" >&2
+      exit 1
+    fi
+    echo "[run-dualns] down — 0 orphelin (netns, puits, dashboard)"
     ;;
   *)
     echo "usage: $0 up|serve|down [--bin PATH] [--ingress on|off]" >&2; exit 2;;

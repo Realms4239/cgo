@@ -17,7 +17,7 @@
 #  Usage (as the bench user, not via `sudo bash`):
 #    kit/stress_testbed.sh [--flows 4] [--baseline 5] [--charge 15] [--recup 5] [--keep]
 # ============================================================================
-set -uo pipefail
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="${CGO_BIN:-$HOME/cgo/cgo-linux}"
@@ -43,6 +43,15 @@ while [ $# -gt 0 ]; do
 done
 case "$FLOWS" in ''|*[!0-9]*) echo "[!] --flows must be 1–8" >&2; exit 2;; esac
 [ "$FLOWS" -ge 1 ] && [ "$FLOWS" -le 8 ] || { echo "[!] --flows must be 1–8" >&2; exit 2; }
+# T2 — durées numériques validées comme --flows : une durée non numérique
+# pousserait l'env CGO_*_SEC à une valeur absurde (ou vide) sans erreur.
+validate_secs() { # $1=option, $2=valeur
+  case "$2" in ''|*[!0-9]*) echo "[!] $1 must be a decimal integer (0–3600)" >&2; exit 2;; esac
+  [ "$2" -ge 0 ] && [ "$2" -le 3600 ] || { echo "[!] $1 must be 0–3600" >&2; exit 2; }
+}
+validate_secs --baseline "$BASE"
+validate_secs --charge "$CHARGE"
+validate_secs --recup "$RECUP"
 
 log() { echo "[stress] $*"; }
 die() { echo "[!] $*" >&2; exit 1; }
@@ -81,9 +90,11 @@ for spec in "veth-c:" "veth-s:cgo-srv"; do
   it="${spec%%:*}"; ns="${spec##*:}"
   for feat in tcp-segmentation-offload generic-segmentation-offload generic-receive-offload; do
     if [ -n "$ns" ]; then
-      line=$(sudo -n ip netns exec "$ns" ethtool -k "$it" 2>/dev/null | grep -m1 "^${feat}:")
+      # `|| true` : sous set -e, un grep sans match dans $() tuerait le
+      # script avant le die explicite ci-dessous.
+      line=$(sudo -n ip netns exec "$ns" ethtool -k "$it" 2>/dev/null | grep -m1 "^${feat}:" || true)
     else
-      line=$(sudo -n ethtool -k "$it" 2>/dev/null | grep -m1 "^${feat}:")
+      line=$(sudo -n ethtool -k "$it" 2>/dev/null | grep -m1 "^${feat}:" || true)
     fi
     case "$line" in
       *": off"*) ;;

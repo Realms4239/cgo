@@ -20,7 +20,10 @@ func TestLinuxTCIngressCake(t *testing.T) {
 	for _, want := range []string{
 		"tc qdisc del dev wan0 ingress",
 		"tc qdisc del dev ifb0 root",
-		"modprobe ifb",
+		"modprobe ifb 2>/dev/null || true",
+		"modprobe sch_ingress 2>/dev/null || true",
+		"modprobe act_mirred 2>/dev/null || true",
+		"modprobe cls_matchall 2>/dev/null || true",
 		"ip link add ifb0 type ifb",
 		"ip link set ifb0 up",
 		"tc qdisc add dev wan0 handle ffff: ingress",
@@ -33,6 +36,9 @@ func TestLinuxTCIngressCake(t *testing.T) {
 	}
 	if strings.Contains(joined, "ack-filter") {
 		t.Fatalf("ack-filter is meaningless on a download data stream:\n%s", joined)
+	}
+	if strings.Contains(joined, "modprobe ifb sch_ingress") {
+		t.Fatalf("modprobe takes ONE module; trailing names become its parameters and are never loaded:\n%s", joined)
 	}
 	if strings.Contains(joined, "triple-isolate") {
 		t.Fatalf("production ingress must use dual-dsthost, not the campaign default:\n%s", joined)

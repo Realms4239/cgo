@@ -45,6 +45,14 @@ func burstGEOrNull(profileID, channelModel string) *qdisc.GEModel {
 // seul sens ferait d'un run « symétrique » un lien asymétrique en secret.
 // Reset d'abord : une cellule périmée peut avoir laissé une racine étrangère.
 func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
+	// I1 — échec fermé AVANT toute mutation tc : si le banc a bâti l'ingress
+	// et que la campagne croit être en egress (ou l'inverse), la cellule est
+	// refusée ici — applyPhysics est le PREMIER point de mutation du run.
+	if d.Bench == "dualns" {
+		if err := CheckBenchTopology(d.ShapeMode); err != nil {
+			return err
+		}
+	}
 	ifaces := append([]string{d.CliIf}, d.PhysicsIfaces...)
 	switch d.DelayModel {
 	case "", "scalar":

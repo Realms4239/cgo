@@ -198,7 +198,12 @@ func ingressSetup(dev string) []string {
 	return []string{
 		fmt.Sprintf("tc qdisc del dev %s ingress 2>/dev/null || true", dev),
 		fmt.Sprintf("tc qdisc del dev %s root 2>/dev/null || true", IngressIFB),
-		"modprobe ifb sch_ingress act_mirred cls_matchall 2>/dev/null || true",
+		// modprobe ne prend qu'UN module : les noms suivants passeraient en
+		// PARAMÈTRES du premier et ne seraient jamais chargés.
+		"modprobe ifb 2>/dev/null || true",
+		"modprobe sch_ingress 2>/dev/null || true",
+		"modprobe act_mirred 2>/dev/null || true",
+		"modprobe cls_matchall 2>/dev/null || true",
 		fmt.Sprintf("ip link add %s type ifb 2>/dev/null || true", IngressIFB),
 		fmt.Sprintf("ip link set %s up", IngressIFB),
 		fmt.Sprintf("tc qdisc add dev %s handle ffff: ingress", dev),
