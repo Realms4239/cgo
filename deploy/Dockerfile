@@ -1,15 +1,19 @@
+# Build multi-étape : le clone git ne contient pas bin/cgo (gitignored) —
+# l'image se construit de la source, jamais depuis un artefact local.
+FROM golang:1.25-bookworm AS build
+WORKDIR /src
+ARG VERSION=dev
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /cgo ./cmd/cgo
+
 FROM scratch
 ARG VERSION=dev
 ARG REVISION=dev
-COPY bin/cgo /cgo
-# Étiquettes OCI de provenance (SLSA L1 : quoi a construit quoi, depuis
-# quel commit) — le digest de l'image publié doit correspondre à ces
-# valeurs. Jamais de tag mutable :latest ; l'image se tire par digest
-# (voir deploy/docker-compose.yml + docs/deploy.md § Chaîne
-# d'approvisionnement).
-# Le corpus gelé vit ici : CGO_DATA_DIR épingle la racine pour TOUT le flux
-# (runs, figures, link_audit.csv, artefacts d'audit, profils, calibrations).
 ENV CGO_DATA_DIR=/data
+COPY --from=build --chown=1000:1000 /cgo /cgo
+COPY --chown=1000:1000 deploy/data /data
 WORKDIR /data
 VOLUME /data
 LABEL org.opencontainers.image.title="cgo" \
@@ -19,4 +23,11 @@ LABEL org.opencontainers.image.title="cgo" \
       org.opencontainers.image.source="https://github.com/Realms4239/cgo" \
       org.opencontainers.image.licenses="MIT"
 EXPOSE 9090
+
+# Non-root: /data appartient à 1000:1000 et le volume nommé préserve
+# l'uid. scratch ne peut binder les ports < 1024 (non-root sans NET_BIND_SERVICE) ;
+# 9090 est hors privilège. Pour le façonnage (CAP_NET_ADMIN) : --cap-add au
+# run, jamais dans l'image. scratch n'emporte pas de racines CA : cgo sert son
+# propre TLS ; la confiance sortante (kit tls) épingle par SPKI.
+USER 1000:1000
 ENTRYPOINT ["/cgo", "--serve"]

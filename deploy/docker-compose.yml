@@ -22,6 +22,10 @@ services:
     environment:
       - CGO_API_TOKEN=${CGO_API_TOKEN:?set}
     working_dir: /data
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - cgo-data:/data
     restart: unless-stopped

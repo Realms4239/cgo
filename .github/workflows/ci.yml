@@ -53,6 +53,15 @@ jobs:
       - name: vitest
         run: bun x vitest run
 
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build
+        run: docker build --build-arg VERSION=ci -t cgo-ci .
+      - name: smoke (version)
+        run: docker run --rm --entrypoint /cgo cgo-ci version
+
   fresh-clone:
     runs-on: ubuntu-latest
     steps:
