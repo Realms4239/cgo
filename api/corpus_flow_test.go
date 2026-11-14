@@ -66,3 +66,46 @@ func TestPinnedCorpusServesDashboard(t *testing.T) {
 		t.Fatalf("/api/quarantine = %d", code)
 	}
 }
+
+// TestResultsETagRoundtrip — le corpus gelé ne change pas : l'ETag doit être
+// stable entre deux appels, et un If-None-Match joignant ce tag doit passer
+// en 304 (le client n'a pas à re-transférer la même réponse).
+func TestResultsETagRoundtrip(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CGO_DATA_DIR", dir)
+	if _, _, err := results.SeedRunsFor(results.RunsRoot()); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(New(Deps{}))
+	defer srv.Close()
+
+	get := func(ifNoneMatch string) (int, string) {
+		t.Helper()
+		req, _ := http.NewRequest("GET", srv.URL+"/api/results", nil)
+		if ifNoneMatch != "" {
+			req.Header.Set("If-None-Match", ifNoneMatch)
+		}
+		resp, err := srv.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+		return resp.StatusCode, resp.Header.Get("ETag")
+	}
+
+	code, etag := get("")
+	if code != http.StatusOK {
+		t.Fatalf("want 200, got %d", code)
+	}
+	if etag == "" {
+		t.Fatal("ETag manquant sur /api/results")
+	}
+	code304, etag2 := get(etag)
+	if code304 != http.StatusNotModified {
+		t.Fatalf("If-None-Match %q → 304 attendu, eu %d", etag, code304)
+	}
+	if etag2 != etag {
+		t.Fatalf("ETag instable sur corpus gelé : %q puis %q", etag, etag2)
+	}
+}

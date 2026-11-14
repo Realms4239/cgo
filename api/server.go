@@ -706,6 +706,16 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
+		// ETag = empreinte du corpus (taille+mtime) — stable tant que le gel
+		// est gelé ; un If-None-Match joignant ce tag tranche en 304.
+		if fp := results.Fingerprint(results.RunsRoot(), run); fp != "" {
+			etag := `"` + fp + `"`
+			w.Header().Set("ETag", etag)
+			if r.Header.Get("If-None-Match") == etag {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+		}
 		groups, _ := results.Scan(results.RunsRoot(), run)
 		if len(groups) == 0 {
 			writeJSON(w, map[string]any{"available": false, "groups": []any{}, "reason": "résultats disponibles après gel (jalon M2)"})

@@ -1,10 +1,16 @@
 package results
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Realms4239/cgo/metrics"
 )
@@ -62,9 +68,43 @@ func runIDs(set map[string]bool) []string {
 	return out
 }
 
+var (
+	scanCacheMu  sync.Mutex
+	scanCacheKey string
+	scanCacheVal []Group
+)
+
+// scanFingerprint — clé de cache : emprunte (taille, mtime) de chaque CSV du
+// corpus. Change dès qu'un fichier bouge/part/apparaît ; stable sinon.
+func scanFingerprint(files []string) string {
+	sort.Strings(files)
+	h := sha256.New()
+	for _, f := range files {
+		if st, err := os.Stat(f); err == nil {
+			fmt.Fprintf(h, "%s|%d|%d;", f, st.Size(), st.ModTime().UnixNano())
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))[:16]
+}
+
+// Fingerprint — la même clé, exposée pour l'ETag /api/results.
+func Fingerprint(dataDir, runFilter string) string {
+	pattern := filepath.Join(dataDir, "*", "aqm_eval.csv")
+	if runFilter != "" {
+		pattern = filepath.Join(dataDir, runFilter, "aqm_eval.csv")
+	}
+	files, _ := filepath.Glob(pattern)
+	if len(files) == 0 {
+		return ""
+	}
+	return scanFingerprint(files)
+}
+
+// Scan — mémoïsée tant que le corpus est statique (taille+mtime). Un
+// /api/results coûtait ~140–300 ms de parse+stats par appel ; après le
+// premier appel, ~zéro. Le filtre est dans la clé ; l'invalidation est
+// conservatrice (aucune écriture sans changer un stat de fichier).
 func Scan(dataDir, runFilter string) ([]Group, error) {
-	// Le filtre est un élément de chemin simple — même règle que le reste
-	// du corpus (ValidRunID). Un filtre hôte (« ../… ») lirait hors données.
 	if runFilter != "" && !ValidRunID(runFilter) {
 		return nil, ErrInvalidRunID
 	}
@@ -76,6 +116,25 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 	if len(files) == 0 {
 		return nil, nil
 	}
+	key := dataDir + "|" + runFilter + "|" + scanFingerprint(files)
+	scanCacheMu.Lock()
+	if key == scanCacheKey {
+		v := scanCacheVal
+		scanCacheMu.Unlock()
+		return v, nil
+	}
+	scanCacheMu.Unlock()
+	out, err := scanUncached(dataDir, runFilter, files)
+	if err == nil {
+		scanCacheMu.Lock()
+		scanCacheKey, scanCacheVal = key, out
+		scanCacheMu.Unlock()
+	}
+	return out, err
+}
+
+// scanUncached — le vrai parse+stats (pas de cache ; benchmark + Scan).
+func scanUncached(dataDir, runFilter string, files []string) ([]Group, error) {
 	type bucket struct {
 		rtts, smalls, goodputs, deadlines, wasteds, costs []float64
 		vSmalls, vDeadlines                               []float64 // valid-only
@@ -85,32 +144,63 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		profile, qdisc, cc, direction                     string
 		runs                                              map[string]bool
 	}
+	type indexes struct {
+		prof, qdisc, cc, rtt, small, good, dead, waste, cost, gate, dir int
+	}
+	type parsedRun struct {
+		f      string
+		header []string
+		rows   [][]string
+		ix     indexes
+		ok     bool
+	}
+	// Parse parallèle des CSV (ordre de glob réintroduit au pliage — zéro
+	// drift) : chaque worker interprète son fichier sans état partagé.
+	parsed := make([]parsedRun, len(files))
+	{
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, runtime.NumCPU())
+		for i, f := range files {
+			// run-smoke* = fixture de test du pipeline, pas une mesure : exclue
+			// du corpus publié (parité avec extract-stats.js — sinon sa ligne
+			// valid factice fait médiane à elle seule côté UI/rapport/figures)
+			if strings.HasPrefix(filepath.Base(filepath.Dir(f)), "run-smoke") {
+				continue
+			}
+			wg.Add(1)
+			sem <- struct{}{}
+			go func(i int, f string) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				// schémas 17/18/19 colonnes, chaque fichier porte son en-tête.
+				header, rows, err := ReadAQM(f)
+				if err != nil {
+					return
+				}
+				ix := indexes{
+					prof: ColIndex(header, "profile"), qdisc: ColIndex(header, "qdisc"), cc: ColIndex(header, "cc"),
+					rtt: ColIndex(header, "rtt_p95_ms"), small: ColIndex(header, "small_p95_ms"),
+					good: ColIndex(header, "bulk_goodput_mbps"), dead: ColIndex(header, "deadline_ok_pct"),
+					waste: ColIndex(header, "wasted_bytes"), cost: ColIndex(header, "cost_ar_per_h"),
+					gate: ColIndex(header, "gate_status"), dir: ColIndex(header, "direction"),
+				}
+				if ix.prof < 0 || ix.qdisc < 0 || ix.cc < 0 {
+					return
+				}
+				parsed[i] = parsedRun{f: f, header: header, rows: rows, ix: ix, ok: true}
+			}(i, f)
+		}
+		wg.Wait()
+	}
 	buckets := map[string]*bucket{}
-	for _, f := range files {
-		// run-smoke* = fixture de test du pipeline, pas une mesure : exclue
-		// du corpus publié (parité avec extract-stats.js — sinon sa ligne
-		// valid factice fait médiane à elle seule côté UI/rapport/figures)
-		if strings.HasPrefix(filepath.Base(filepath.Dir(f)), "run-smoke") {
+	for _, p := range parsed {
+		if !p.ok {
 			continue
 		}
-		// schémas 17/18/19 colonnes (insertions qdi_ms puis voip_r), chaque
-		// fichier porte son en-tête. Plus aucun index positionnel.
-		header, rows, err := ReadAQM(f)
-		if err != nil {
-			continue
-		}
-		iProf, iQdisc, iCC := ColIndex(header, "profile"), ColIndex(header, "qdisc"), ColIndex(header, "cc")
-		if iProf < 0 || iQdisc < 0 || iCC < 0 {
-			continue
-		}
-		iRTT := ColIndex(header, "rtt_p95_ms")
-		iSmall := ColIndex(header, "small_p95_ms")
-		iGood := ColIndex(header, "bulk_goodput_mbps")
-		iDead := ColIndex(header, "deadline_ok_pct")
-		iWaste := ColIndex(header, "wasted_bytes")
-		iCost := ColIndex(header, "cost_ar_per_h")
-		iGate := ColIndex(header, "gate_status")
-		iDir := ColIndex(header, "direction")
+		f, rows := p.f, p.rows
+		iProf, iQdisc, iCC := p.ix.prof, p.ix.qdisc, p.ix.cc
+		iRTT, iSmall, iGood, iDead := p.ix.rtt, p.ix.small, p.ix.good, p.ix.dead
+		iWaste, iCost, iGate, iDir := p.ix.waste, p.ix.cost, p.ix.gate, p.ix.dir
 		get := func(r []string, i int) string {
 			if i < 0 || i >= len(r) {
 				return ""
@@ -166,8 +256,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			add(&b.costs, get(r, iCost))
 		}
 	}
-	var out []Group
-	for _, b := range buckets {
+	summarizeBucket := func(b *bucket) Group {
 		rs := metrics.Summarize(b.rtts)
 		ss := metrics.Summarize(b.smalls)
 		gs := metrics.Summarize(b.goodputs)
@@ -177,7 +266,7 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 		vq1, _, vq3 := metrics.Quartiles(b.vSmalls)
 		vlo, vhi := metrics.BootstrapMedianCI95(b.vSmalls, 10000, 42)
 		dlo, dhi := metrics.BootstrapMedianCI95(b.vDeadlines, 10000, 42)
-		out = append(out, Group{
+		return Group{
 			Profile: b.profile, Qdisc: b.qdisc, CC: b.cc, Direction: b.direction,
 			Count: b.count, Quarantined: b.quarantined, Degraded: b.degraded,
 			RTTp95Median: rs.Median, RTTp95IQR: [2]float64{rs.IQRLow, rs.IQRHigh},
@@ -188,8 +277,29 @@ func Scan(dataDir, runFilter string) ([]Group, error) {
 			DeadlineValidN: len(b.vDeadlines), DeadlineValidMedian: metrics.Median(b.vDeadlines),
 			DeadlineValidCI95: [2]float64{dlo, dhi},
 			Runs:              runIDs(b.runs),
-		})
+		}
 	}
+	// Résumé par cellule : les deux bootstraps 10 000 × 35 groupes sont la
+	// hot path (~150–250 ms sur 4 cœurs). Chaque cellule est indépendante
+	// (LCG seedé, sort final) → parallélisation sans drift de résultat.
+	keys := make([]string, 0, len(buckets))
+	for k := range buckets {
+		keys = append(keys, k)
+	}
+	out := make([]Group, len(keys))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, runtime.NumCPU())
+	for i, k := range keys {
+		b := buckets[k]
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int, b *bucket) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			out[i] = summarizeBucket(b)
+		}(i, b)
+	}
+	wg.Wait()
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Profile != out[j].Profile {
 			return out[i].Profile < out[j].Profile
