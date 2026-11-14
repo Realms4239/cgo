@@ -374,7 +374,7 @@ as "not runnable here"; do not claim it passed.
 
 | Slice | Spec | Plan | Status | Depends on | Next action / blocker |
 |---|---|---|---|---|---|
-| Final route | `2026-11-14-final-route-design.md` | `2026-11-14-final-route.md` | **Approved; execution started** | all prior slices | Phase 0 trunk repair. Human gates: PAT purge, cilium/ebpf dep, sadcnwp R2 tokens, merge/release. BBRv3 live BLOCKED (no rebootable kernel). |
+| Final route | `2026-11-14-final-route-design.md` | `2026-11-14-final-route.md` | **Approved; execution started** | all prior slices | Phase 0 trunk repair. Task 0.1 done (disk shortfall named: 4.1 GB vs ≥10 GB target); Task 0.2 blocked on R0 token (human); Task 0.3 done (`c4d8325`, `2f6f9ba`, reviewed); Task 0.4 done (`04258f3`..`3ef0fb5`, reviewed APPROVE_WITH_FINDINGS); WP0.2 reconciliation map committed as `docs/verification/2026-11-14-main-reconciliation.md`; Task 0.7 in progress. Phase 0 not exited (gates `-count=1` pending 0.7; cap-40 blocked 0.5; title 2 sign-off pending 0.6; fresh-clone proof pending 1.3 CI). Human gates: PAT purge, cilium/ebpf dep, sadcnwp R2 tokens, merge/release. BBRv3 live BLOCKED (no rebootable kernel). |
 
 The final route closes the deferred/blocked rows: it repairs the `main`
 multi-module trunk (stub SPA, facade `/metrics`, unwired duplicates), remediates

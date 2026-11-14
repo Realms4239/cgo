@@ -198,7 +198,7 @@ def gate_tests():
     dirs = [ROOT, *(ROOT / s for s in ("results", "api"))]
     for cwd in dirs:
         tag = "" if cwd == ROOT else cwd.name + " "
-        for label, args, timeout in (("go vet", [go, "vet", "./..."], 300), ("go test", [go, "test", "./..."], 600)):
+        for label, args, timeout in (("go vet", [go, "vet", "./..."], 300), ("go test", [go, "test", "./...", "-count=1"], 600)):
             try:
                 p = _proc(args, timeout, cwd=cwd)
             except subprocess.TimeoutExpired:
@@ -387,6 +387,8 @@ def prove_hygiene():
 # — links : AGENTS.md, registres et index pointent des fichiers réels -----
 LINK_FILES = ("AGENTS.md", "docs/VERIFY.md", "docs/CHECKPOINTS.md", "docs/ERRORS.md",
               "docs/superpowers/plans/README.md")
+# Références historiques nommées, jamais un motif général — data/ non suivi sauf data/runs/; api/frontend supprimé par c4d8325 (Task 0.3).
+HISTORICAL_ABSENT = ("data/audits", "data/link_audit.csv", "data/profiles.json", "api/frontend")
 def link_candidates(text, root):
     for token in re.findall(r"`([^`\n]+)`", text):
         tok = token.strip()
@@ -421,9 +423,11 @@ def gate_links():
     index = ROOT / "docs/superpowers/plans/README.md"
     bad = missing_links(ROOT, LINK_FILES) + [
         (index.name, tok) for tok in missing_plan_links(index.read_text(encoding="utf-8", errors="replace"))]
+    allowed = [t for s, t in bad if t in HISTORICAL_ABSENT]
+    bad = [item for item in bad if item[1] not in HISTORICAL_ABSENT]
     if bad:
         return Result("links", FAIL, f"{len(bad)} missing path(s):\n" + "\n".join(f"{s}: {t}" for s, t in bad[:20]))
-    return Result("links", PASS, f"{len(LINK_FILES)} documents scanned; plan and spec links resolve")
+    return Result("links", PASS, f"{len(LINK_FILES)} documents scanned; plan and spec links resolve; {len(set(allowed))} named historical absent-path allowance(s)")
 def prove_links():
     tmp = Path(tempfile.mkdtemp(prefix="cgo-links-"))
     try:
@@ -473,6 +477,7 @@ def staged_paths():
         return []
 def main(argv=None):
     parser = argparse.ArgumentParser(description="CGO six-gate verifier")
+    parser.add_argument("--strict", action="store_true", help="SKIP counts as failure (exit 1)")
     parser.add_argument("--fast", action="store_true", help="all gates except tests")
     parser.add_argument("--staged", action="store_true", help="select gates from staged paths")
     parser.add_argument("--only", action="append", metavar="NAME", help="named gate (repeatable)")
@@ -516,6 +521,7 @@ def main(argv=None):
     failed = sum(r.status == FAIL for r in results)
     skipped = sum(r.status == SKIP for r in results)
     print(f"\n{len(results) - failed - skipped} passed, {failed} failed, {skipped} not run")
+    if args.strict and skipped: print(f"strict: {skipped} gate(s) not run count as failure"); return 1
     return verdict(results)
 
 if __name__ == "__main__":

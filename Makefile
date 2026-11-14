@@ -1,7 +1,7 @@
 GO ?= go
 FRONTEND := web/frontend
 
-.PHONY: build test vet test-real figures frontend clean verify verify-fast verify-selftest hooks
+.PHONY: build test vet figures frontend clean verify verify-fast verify-selftest hooks
 
 build: frontend
 	$(GO) build -o bin/cgo$(shell go env GOEXE) ./cmd/cgo
@@ -13,10 +13,6 @@ test:
 
 vet:
 	$(GO) vet ./...
-
-# Real gates (tc/netem/BBR) — run INSIDE the VM only.
-test-real:
-	$(GO) test -tags=real ./qdisc/... ./pkg/campagne/...
 
 figures: build
 	./bin/cgo figures
@@ -56,4 +52,7 @@ bpf: $(BPF_DIR)/vmlinux.h
 	sha256sum $(BPF_DIR)/bpf_probe.o | cut -d' ' -f1 > $(BPF_DIR)/bpf_probe.o.sha256
 
 bpf-check:
-	@cd $(BPF_DIR) && test "$$(sha256sum bpf_probe.o | cut -d' ' -f1)" = "$$(cat bpf_probe.o.sha256)"
+	@cd $(BPF_DIR) && if [ ! -f bpf_probe.o ] || [ ! -f bpf_probe.o.sha256 ]; then \
+		printf '%s\n' "bpf-check: SKIP — prébuilt absent (make bpf sur l'hôte Linux 6.8; CI: Task 3.2)"; \
+		exit 2; \
+	fi && test "$$(sha256sum bpf_probe.o | cut -d' ' -f1)" = "$$(cat bpf_probe.o.sha256)"
