@@ -53,9 +53,11 @@ func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
 	default:
 		return fmt.Errorf("delay_model %q invalide (scalar|dist)", d.DelayModel)
 	}
+	// prof.DelayMs est un RTT DE CHEMIN (corpus : P2 = 100 ms) : chaque saut
+	// netem porte la MOITIÉ, sinon le RTT mesuré vaut 2× le profil.
 	for _, ifc := range ifaces {
 		_, _ = d.TC.Run("qdisc", "del", "dev", ifc, "root")
-		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, prof.DelayMs, prof.JitterMs, prof.LossPct, ge); err != nil {
+		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, prof.DelayMs/2, prof.JitterMs, prof.LossPct, ge); err != nil {
 			return fmt.Errorf("netem %s: %w", ifc, err)
 		}
 	}
@@ -72,6 +74,12 @@ func applyPhysicsDist(d *Deps, prof model.Profile, ge *qdisc.GEModel, ifaces []s
 	}
 	if d.Bench != "dualns" {
 		return fmt.Errorf("delay_model dist: banc dualns requis (banc %q)", d.Bench)
+	}
+	// Échec fermé : le buffer TC_LIB_DIR d'iproute2 est limité — au-delà de
+	// 128 octets (budget de composant de chemin du dépôt), tc ne peut pas
+	// charger la .dist et le run mesurerait un lien sans trace en silence.
+	if len(d.CalibrationDir) >= 128 {
+		return fmt.Errorf("delay_model dist: répertoire de calibration %d octets — TC_LIB_DIR doit rester < 128, tc ne peut pas charger la .dist (%q)", len(d.CalibrationDir), d.CalibrationDir)
 	}
 	if d.CalibrationDir == "" {
 		return fmt.Errorf("delay_model dist: répertoire de calibration vide (CGO_CALIBRATION_DIR)")

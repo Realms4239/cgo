@@ -2,6 +2,7 @@ package campagne
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -242,6 +243,22 @@ func TestApplyPhysicsDistFailsClosed(t *testing.T) {
 		if len(f.Calls) != 0 {
 			t.Fatalf("%s : tc appelé avant l'échec : %v", tc.name, f.Calls)
 		}
+	}
+}
+
+func TestApplyPhysicsDistTClibDirTooLong(t *testing.T) {
+	// Échec fermé : au-delà de 128 octets, le buffer TC_LIB_DIR d'iproute2
+	// ne peut pas charger la .dist — refusé AVANT tout appel tc.
+	dir := t.TempDir() + string(filepath.Separator) + strings.Repeat("a", 140)
+	f := &qdisc.FakeRunner{}
+	d := Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: dir}
+	if err := applyPhysics(&d, model.Profiles["P2"], nil); err == nil {
+		t.Fatal("TC_LIB_DIR ≥ 128 doit être refusé")
+	} else if !strings.Contains(err.Error(), "TC_LIB_DIR") {
+		t.Fatalf("erreur attendue TC_LIB_DIR : %v", err)
+	}
+	if len(f.Calls) != 0 {
+		t.Fatalf("tc appelé malgré l'échec fermé : %v", f.Calls)
 	}
 }
 

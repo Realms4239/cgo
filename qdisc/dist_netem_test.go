@@ -37,8 +37,22 @@ func TestApplyNetemDistributionWithGE(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join(f.Calls[0], " ")
-	if !strings.Contains(joined, "loss gemodel 0.002 0.1 0.5 0.001") || !strings.Contains(joined, "distribution P3") {
+	if !strings.Contains(joined, "loss gemodel 0.2% 10% 50% 0.1%") || !strings.Contains(joined, "distribution P3") {
 		t.Fatalf("gemodel + distribution attendus : %v", f.Calls[0])
+	}
+}
+
+func TestApplyNetemDistributionRejectsNonBareName(t *testing.T) {
+	// Défense en profondeur : tc charge la .dist DANS TC_LIB_DIR — un nom
+	// de chemin ou de traversée serait chargé en dehors, ou refusé en silence.
+	for _, dist := range []string{"../P2", "sub/P2", `sub\P2`, ".."} {
+		f := &FakeRunner{}
+		if err := ApplyNetemDistribution(f, "w-edge", 50, 1, 0, nil, dist); err == nil {
+			t.Fatalf("nom %q accepté", dist)
+		}
+		if len(f.Calls) != 0 {
+			t.Fatalf("tc appelé pour un nom non nu %q : %v", dist, f.Calls)
+		}
 	}
 }
 

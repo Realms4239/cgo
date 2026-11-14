@@ -1,6 +1,9 @@
 package qdisc
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // GEModel — chaîne de Markov à 2 états de netem (Gilbert-Elliott), dans la
 // sémantique de l'article des implémenteurs (Carry & Briscoe, « Definition
@@ -63,6 +66,12 @@ func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct
 	if dist == "" {
 		return fmt.Errorf("netem dist %s: nom de distribution vide", iface)
 	}
+	// Défense en profondeur à la frontière tc : dist provient de prof.ID en
+	// production — un nom de fichier (pas un chemin) garantit que tc charge
+	// dans TC_LIB_DIR, jamais en dehors.
+	if strings.ContainsAny(dist, `/\`) || strings.Contains(dist, "..") {
+		return fmt.Errorf("netem dist %s: nom de distribution non nu %q (fichier simple attendu)", iface, dist)
+	}
 	if jitterMs <= 0 {
 		return fmt.Errorf("netem dist %s: jitter %.6g ≤ 0 (tc exige delay+jitter)", iface, jitterMs)
 	}
@@ -76,11 +85,14 @@ func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64
 	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
 		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs)}
 	if ge != nil {
+		// iproute2 tc_util.c parse_percent fait strtod(v)/100 sans condition
+		// (q_netem.c gemodel inclus) : netem veut des POURCENTAGES, pas des
+		// fractions — émettre 0.001 en brut sous-injecte la perte de 100×.
 		args = append(args, "loss", "gemodel",
-			fmt.Sprintf("%g", ge.GoodToBad),
-			fmt.Sprintf("%g", ge.BadToGood),
-			fmt.Sprintf("%g", ge.LossBad),
-			fmt.Sprintf("%g", ge.LossGood))
+			fmt.Sprintf("%g%%", ge.GoodToBad*100),
+			fmt.Sprintf("%g%%", ge.BadToGood*100),
+			fmt.Sprintf("%g%%", ge.LossBad*100),
+			fmt.Sprintf("%g%%", ge.LossGood*100))
 	} else if lossPct > 0 {
 		args = append(args, "loss", fmt.Sprintf("%g%%", lossPct))
 	}

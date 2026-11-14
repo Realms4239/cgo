@@ -48,7 +48,7 @@ func TestApplyNetemGEFourArguments(t *testing.T) {
 	if idx < 0 || len(call) != idx+5 {
 		t.Fatalf("gemodel doit recevoir EXACTEMENT 4 args : %v", call)
 	}
-	want := []string{"0.001", "0.1", "0.5", "0.0005"}
+	want := []string{"0.1%", "10%", "50%", "0.05%"}
 	for i, w := range want {
 		if call[idx+1+i] != w {
 			t.Fatalf("arg %d = %q, want %q (ordre p, r, 1-h, 1-k)", i+1, call[idx+1+i], w)
@@ -76,10 +76,10 @@ func TestApplyNetemPhysicsBursty(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join(f.Calls[0], " ")
-	if !strings.Contains(joined, "loss gemodel 0.002 0.1 0.5 0.001") {
+	if !strings.Contains(joined, "loss gemodel 0.2% 10% 50% 0.1%") {
 		t.Fatalf("gemodel 4 args attendu : %v", f.Calls[0])
 	}
-	if strings.Contains(joined, "1%") {
+	if strings.Contains(joined, "loss 1%") {
 		t.Fatalf("perte uniforme ne doit pas accompagner gemodel : %v", f.Calls[0])
 	}
 }
