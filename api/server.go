@@ -346,6 +346,7 @@ type Server struct {
 	snap    func() any
 	next    func() any
 	mux     *http.ServeMux
+	rl      *rateLimiter
 }
 
 // New — l'interface publique ne change pas : Deps dedans, Handler dehors.
@@ -376,6 +377,7 @@ func NewServer(d Deps) *Server {
 		shape: &shapeState{},
 		snap:  snap,
 		next:  next,
+		rl:    newRateLimiter(),
 	}
 	mux := http.NewServeMux()
 	s.registerHealth(mux)
@@ -397,10 +399,16 @@ func NewServer(d Deps) *Server {
 	return s
 }
 
-// ServeHTTP — le serveur EST son handler. Toute route /api/* exige Bearer ou
-// cookie de session, sauf la sonde de vie et la connexion ; le mux re-vérifie
-// les mutations via requireAuth (défense en profondeur).
+// ServeHTTP — le serveur EST son handler. Ordre : limite de débit par IP sur
+// les POST (429), puis toute route /api/* exige Bearer ou cookie de session,
+// sauf la sonde de vie et la connexion ; le mux re-vérifie les mutations via
+// requireAuth (défense en profondeur).
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost && !s.rl.allow(clientIP(r)) {
+		w.Header().Set("Retry-After", "1")
+		writeErr(w, r, "trop de requêtes — réessayez dans 1 s", http.StatusTooManyRequests)
+		return
+	}
 	p := r.URL.Path
 	if strings.HasPrefix(p, "/api/") && p != "/api/health" && p != "/api/login" && p != "/api/logout" {
 		if !authenticated(r) {
