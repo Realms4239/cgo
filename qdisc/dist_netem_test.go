@@ -44,11 +44,11 @@ func TestApplyNetemDistributionWithGE(t *testing.T) {
 
 func TestNsTCArgsCarriesEnv(t *testing.T) {
 	got := nsTCArgs("ns_wan_emulator", []string{"TC_LIB_DIR=/tmp/cal"}, []string{"qdisc", "show"})
-	want := []string{"env", "TC_LIB_DIR=/tmp/cal", "ip", "netns", "exec", "ns_wan_emulator", "tc", "qdisc", "show"}
+	want := []string{"-n", "/usr/local/bin/cgo-netctl", "--env", "TC_LIB_DIR=/tmp/cal", "ip", "netns", "exec", "ns_wan_emulator", "--", "tc", "qdisc", "show"}
 	if strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Fatalf("args = %v, want %v", got, want)
 	}
-	if plain := nsTCArgs("ns", nil, []string{"qdisc"}); strings.Join(plain, " ") != "ip netns exec ns tc qdisc" {
+	if plain := nsTCArgs("ns", nil, []string{"qdisc"}); strings.Join(plain, " ") != "-n /usr/local/bin/cgo-netctl ip netns exec ns -- tc qdisc" {
 		t.Fatalf("sans env = %v", plain)
 	}
 }

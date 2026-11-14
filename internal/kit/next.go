@@ -258,11 +258,14 @@ func GatherNextVer(c *Config, wantVer string) []NextStep {
 
 	// 11. banc de mesure (campagnes) — DERNIER : ne bloque rien après lui,
 	// mais « tout est vert » l'exige. Sans lui (VM fraîche), Démarrer gèle
-	// un run à zéro ligne. Sonde guest directe (small + sink + sudo) —
-	// sudo testé sur la SORTIE : sudo 1.9.15p5 sort 0 même en refusant -n.
+	// un run à zéro ligne. Sonde guest directe (small + sink + sudo).
+	// sudo testé sur le CODE SORTIE : la ligne NOPASSWD n'autorise que
+	// /usr/local/bin/cgo-netctl ; sudo 1.9.15p5 sort 0 même en refusant,
+	// donc le code seul de sudo -n ne suffirait pas — avec `>/dev/null 2>&1 &&`
+	// le composé échoue franchement si le wrapper est absent ou refusé.
 	if !stepOK(steps, "cle") {
 		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "attente", Detail: "clé d'abord"})
-	} else if out, err := sshExecAs(c, effHost, effPort, "curl -fsS -m3 http://10.200.0.1:8081/small -o /dev/null && timeout 1 bash -c '</dev/tcp/10.200.0.1/5201' && ! sudo -n ip netns list 2>&1 | grep -qi password && echo PLANE_OK"); err == nil && strings.Contains(out, "PLANE_OK") {
+	} else if out, err := sshExecAs(c, effHost, effPort, "curl -fsS -m3 http://10.200.0.1:8081/small -o /dev/null && timeout 1 bash -c '</dev/tcp/10.200.0.1/5201' && sudo -n /usr/local/bin/cgo-netctl ip netns list >/dev/null 2>&1 && echo PLANE_OK"); err == nil && strings.Contains(out, "PLANE_OK") {
 		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "ok", Detail: "small + bulk + sudo — campagnes possibles"})
 	} else {
 		push(NextStep{ID: "banc", Label: "Banc de mesure", State: "ko",

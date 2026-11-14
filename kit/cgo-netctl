@@ -1,0 +1,485 @@
+#!/bin/bash
+# cgo-netctl — wrapper sudo NOPASSWD du banc CGO (Linux/VM).
+# Liste blanche DURE : tout argument hors portée → exit 2 avec
+#   refusé : hors portée cgo-netctl : <arg>
+# Pas de shell générique : pas de tee, pas de bash -c, pas de wildcard.
+# Chaque exec est positional, validé, sans métacaractère de shell.
+# Voir docs/deploy.md (sudoers.d/cgo-network) et kit/testbed.sh.
+#
+# Surface acceptée (jamais plus) :
+#   tc [-s] qdisc del dev <IF> root
+#   tc [-s] qdisc show dev <IF>
+#   tc qdisc replace dev <IF> (root|parent <H>) handle <H> (cake|tbf|netem|fq_codel) …
+#        cake     bandwidth <RATE> rtt <TIME> [ingress]
+#        tbf      rate <RATE> burst <SIZE> latency <TIME>
+#        netem    delay <TIME> <TIME> [loss <PCT> | loss gemodel <F> <F> <F> <F>] [distribution <NOM>]
+#        fq_codel [target <TIME> interval <TIME> limit <N> quantum <N> flows <N>]
+#   tc filter show dev <IF> parent <H>
+#   ip [-o] link show [dev] <IF>
+#   ip link del <IF>
+#   ip link add <IF> type veth peer name <PEER>
+#   ip link set dev <IF> (up|down|netns <NS>|master <IF>)
+#   ip addr show dev <IF>
+#   ip addr add <CIDR> dev <IF>
+#   ip route show dev <IF>
+#   ip route get <IPv4>
+#   ip route replace <CIDR> dev <IF> scope link src <IPv4> [initcwnd N] [initrwnd N]
+#   ip netns list | ip netns add <NS> | ip netns del <NS>
+#   ip netns exec <NS> -- <sous-commande>   (ré-entrant : la sous-commande est
+#       validée par CE script en profondeur 1 ; exec imbriqué et srv-kill interdits)
+#   ethtool -k <IF>
+#   ethtool -K <IF> (tso|gso|gro) (on|off) [… paires …]
+#   modprobe sch_netem|sch_fq_codel|sch_cake|tcp_bbr   (exactement ces modules)
+#   srv-start <NS>  (forme fixe : lance /usr/local/bin/cgo-testbedsrv dans le
+#                    netns — argv figé, objet pinned root-owned ; jamais NOPASSWD pour un binaire utilisateur)
+#   srv-kill <NS>   (forme fixe : pkill -f 'testbedsrv --http' dans le netns)
+# Global : --env TC_LIB_DIR=<chemin absolu> en tête (lecture .dist netem).
+set -euo pipefail
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+DEPTH=0   # 0 = top-level ; 1 = dans un netns exec (exec imbriqué / srv-kill interdits)
+
+# IFNAMSIZ=16 ; le banc utilise des noms tiretés (veth-c, m-host) — le
+# hyphen est ajouté au motif du brief, sinon le banc est refusé par la garde.
+IFRE='^[a-zA-Z0-9_-]{1,15}$'
+NUMRE='^[0-9]+$'
+NAME_RE='^[A-Za-z0-9_-]{1,32}$'          # distribution netem (p.ex. P2)
+RATE_RE='^[0-9]+(\.[0-9]+)?mbit$'        # bandwidth / rate
+SIZE_RE='^[0-9]+(kbit|mbit)$'            # burst 256kbit
+TIME_RE='^[0-9]+(\.[0-9]+)?(us|ms|s)$'   # rtt, delay, latency, target…
+PCT_RE='^[0-9]+(\.[0-9]+)?%$'            # loss 3%
+FLOAT_RE='^[0-9]+(\.[0-9]+)?$'           # loss gemodel a b c d
+HANDLE_RE='^[0-9a-f]+:[0-9]*$'           # 1: 10: 20: ffff:
+PARENT_RE='^[0-9a-f]+:[0-9]+$'           # 1:1 10:1
+ENVPATH_RE='^/[A-Za-z0-9_./-]+$'
+
+refuse() { echo "refusé : hors portée cgo-netctl : $1" >&2; exit 2; }
+usage()  { echo "usage: cgo-netctl [--env TC_LIB_DIR=/abs/path] <tc|ip|ethtool|modprobe|srv-kill> …" >&2; exit 2; }
+
+valid_if()    { [[ "$1" =~ $IFRE ]] || refuse "$1"; }
+valid_num()   { [[ "$1" =~ $NUMRE ]] || refuse "$1"; }
+valid_handle(){ [[ "$1" =~ $HANDLE_RE ]] || refuse "$1"; }
+valid_parent(){ [[ "$1" =~ $PARENT_RE || "$1" =~ $HANDLE_RE ]] || refuse "$1"; }
+valid_rate()  { [[ "$1" =~ $RATE_RE ]] || refuse "$1"; }
+valid_size()  { [[ "$1" =~ $SIZE_RE ]] || refuse "$1"; }
+valid_time()  { [[ "$1" =~ $TIME_RE ]] || refuse "$1"; }
+valid_pct()   { [[ "$1" =~ $PCT_RE ]] || refuse "$1"
+                # plafond 100 % — au-delà, tc laisserait passer et ferait perdre la mesure
+                awk -v p="${1%\%}" 'BEGIN{exit !((p+0) <= 100)}' || refuse "$1"; }
+valid_float() { [[ "$1" =~ $FLOAT_RE ]] || refuse "$1"; }
+valid_name()  { [[ "$1" =~ $NAME_RE ]] || refuse "$1"; }
+
+valid_ipv4() {
+  [[ "$1" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] || refuse "$1"
+  local o
+  for o in "${BASH_REMATCH[@]:1}"; do
+    (( 10#$o <= 255 )) || refuse "$1"
+  done
+}
+
+valid_cidr() {
+  local addr="${1%/*}" prefix="${1#*/}"
+  valid_ipv4 "$addr"
+  [[ "$prefix" =~ ^[0-9]{1,2}$ ]] || refuse "$1"
+  (( 10#$prefix <= 32 )) || refuse "$1"
+}
+
+# ------------------------------------------------ tc ---------------------------
+run_tc() {
+  local args=("$@")
+  local opt_s=0
+  if [[ "${args[0]:-}" == "-s" ]]; then opt_s=1; shift; fi
+  case "${1:-}" in
+    qdisc)
+      shift
+      case "${1:-}" in
+        del)
+          shift
+          [[ "${1:-}" == "dev" ]] || refuse "${1:-}"
+          valid_if "${2:-}"
+          [[ "${3:-}" == "root" ]] || refuse "${3:-}"
+          [[ $# -eq 3 ]] || refuse "$*"
+          if (( opt_s )); then exec tc -s qdisc del dev "$2" root; else exec tc qdisc del dev "$2" root; fi
+          ;;
+        show)
+          shift
+          [[ "${1:-}" == "dev" ]] || refuse "${1:-}"
+          valid_if "${2:-}"
+          [[ $# -eq 2 ]] || refuse "$*"
+          if (( opt_s )); then exec tc -s qdisc show dev "$2"; else exec tc qdisc show dev "$2"; fi
+          ;;
+        replace)
+          shift
+          [[ "${1:-}" == "dev" ]] || refuse "${1:-}"
+          valid_if "${2:-}"
+          local ifname="$2"
+          local parent="" handle=""
+          shift 2
+          case "${1:-}" in
+            root)   shift ;;
+            parent) valid_parent "${2:-}"; parent="$2"; shift 2 ;;
+            *)      refuse "${1:-}" ;;
+          esac
+          [[ "${1:-}" == "handle" ]] || refuse "${1:-}"
+          valid_handle "${2:-}"; handle="$2"; shift 2
+          local qdisc="${1:-}"
+          shift
+          local parent_args=()
+          if [[ -n "$parent" ]]; then parent_args=(parent "$parent"); else parent_args=(root); fi
+          case "$qdisc" in
+            cake)
+              [[ "${1:-}" == "bandwidth" ]] || refuse "${1:-}"
+              valid_rate "${2:-}"; local bw="$2"; shift 2
+              [[ "${1:-}" == "rtt" ]] || refuse "${1:-}"
+              valid_time "${2:-}"; local rtt="$2"; shift 2
+              local extra=()
+              if [[ "${1:-}" == "ingress" ]]; then extra=(ingress); shift; fi
+              [[ $# -eq 0 ]] || refuse "$*"
+              exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" cake bandwidth "$bw" rtt "$rtt" "${extra[@]}"
+              ;;
+            tbf)
+              [[ "${1:-}" == "rate" ]] || refuse "${1:-}"
+              valid_rate "${2:-}"; local rate="$2"; shift 2
+              [[ "${1:-}" == "burst" ]] || refuse "${1:-}"
+              valid_size "${2:-}"; local burst="$2"; shift 2
+              [[ "${1:-}" == "latency" ]] || refuse "${1:-}"
+              valid_time "${2:-}"; local latency="$2"; shift 2
+              [[ $# -eq 0 ]] || refuse "$*"
+              exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" tbf rate "$rate" burst "$burst" latency "$latency"
+              ;;
+            netem)
+              [[ "${1:-}" == "delay" ]] || refuse "${1:-}"
+              valid_time "${2:-}"; local dly="$2"; shift 2
+              valid_time "${1:-}"; local jit="$1"; shift
+              local loss=()
+              if [[ "${1:-}" == "loss" ]]; then
+                shift
+                if [[ "${1:-}" == "gemodel" ]]; then
+                  shift
+                  valid_float "${1:-}"; valid_float "${2:-}"; valid_float "${3:-}"; valid_float "${4:-}"
+                  loss=(loss gemodel "$1" "$2" "$3" "$4"); shift 4
+                else
+                  valid_pct "${1:-}"; loss=(loss "$1"); shift
+                fi
+              fi
+              local dist=()
+              if [[ "${1:-}" == "distribution" ]]; then
+                valid_name "${2:-}"; dist=(distribution "$2"); shift 2
+              fi
+              [[ $# -eq 0 ]] || refuse "$*"
+              exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" netem delay "$dly" "$jit" "${loss[@]}" "${dist[@]}"
+              ;;
+            fq_codel)
+              if [[ $# -eq 0 ]]; then
+                exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" fq_codel
+              fi
+              [[ "${1:-}" == "target" ]] || refuse "${1:-}"
+              valid_time "${2:-}"; local target="$2"; shift 2
+              [[ "${1:-}" == "interval" ]] || refuse "${1:-}"
+              valid_time "${2:-}"; local interval="$2"; shift 2
+              [[ "${1:-}" == "limit" ]] || refuse "${1:-}"
+              valid_num "${2:-}"; local limit="$2"; shift 2
+              [[ "${1:-}" == "quantum" ]] || refuse "${1:-}"
+              valid_num "${2:-}"; local quantum="$2"; shift 2
+              [[ "${1:-}" == "flows" ]] || refuse "${1:-}"
+              valid_num "${2:-}"; local flows="$2"; shift 2
+              [[ $# -eq 0 ]] || refuse "$*"
+              exec tc qdisc replace dev "$ifname" "${parent_args[@]}" handle "$handle" fq_codel target "$target" interval "$interval" limit "$limit" quantum "$quantum" flows "$flows"
+              ;;
+            *)
+              refuse "$qdisc"
+              ;;
+          esac
+          ;;
+        *)
+          refuse "${1:-}"
+          ;;
+      esac
+      ;;
+    filter)
+      shift
+      case "${1:-}" in
+        show)
+          shift
+          [[ "${1:-}" == "dev" ]] || refuse "${1:-}"
+          valid_if "${2:-}"
+          [[ "${3:-}" == "parent" ]] || refuse "${3:-}"
+          valid_handle "${4:-}"
+          [[ $# -eq 4 ]] || refuse "$*"
+          exec tc filter show dev "$2" parent "$4"
+          ;;
+        *)
+          refuse "${1:-}"
+          ;;
+      esac
+      ;;
+    *)
+      refuse "${1:-}"
+      ;;
+  esac
+}
+
+# ------------------------------------------------ ip ---------------------------
+run_ip() {
+  local args=("$@")
+  local opt_o=0
+  if [[ "${args[0]:-}" == "-o" ]]; then opt_o=1; shift; fi
+  case "${1:-}" in
+    link)
+      shift
+      case "${1:-}" in
+        show)
+          shift
+          # ip [-o] link show [dev] <IF> — IF obligatoire, jamais la table entière
+          local tgt=""
+          if [[ "${1:-}" == "dev" ]]; then tgt="${2:-}"; [[ $# -eq 2 ]] || refuse "$*"; else tgt="${1:-}"; [[ $# -eq 1 ]] || refuse "$*"; fi
+          valid_if "$tgt"
+          if (( opt_o )); then exec ip -o link show dev "$tgt"; else exec ip link show dev "$tgt"; fi
+          ;;
+        del)
+          shift
+          valid_if "${1:-}"
+          [[ $# -eq 1 ]] || refuse "$*"
+          exec ip link del "$1"
+          ;;
+        add)
+          shift
+          # ip link add <IF> type veth peer name <PEER>
+          valid_if "${1:-}"
+          [[ "${2:-}" == "type" ]] || refuse "${2:-}"
+          [[ "${3:-}" == "veth" ]] || refuse "${3:-}"
+          [[ "${4:-}" == "peer" ]] || refuse "${4:-}"
+          [[ "${5:-}" == "name" ]] || refuse "${5:-}"
+          valid_if "${6:-}"
+          [[ $# -eq 6 ]] || refuse "$*"
+          exec ip link add "$1" type veth peer name "$6"
+          ;;
+        set)
+          shift
+          # ip link set dev <IF> (up|down|netns <NS>|master <IF>)
+          [[ "${1:-}" == "dev" ]] || refuse "${1:-}"
+          valid_if "${2:-}"
+          case "${3:-}" in
+            up)     [[ $# -eq 3 ]] || refuse "$*"; exec ip link set dev "$2" up ;;
+            down)   [[ $# -eq 3 ]] || refuse "$*"; exec ip link set dev "$2" down ;;
+            netns)  valid_if "${4:-}"; [[ $# -eq 4 ]] || refuse "$*"; exec ip link set dev "$2" netns "$4" ;;
+            master) valid_if "${4:-}"; [[ $# -eq 4 ]] || refuse "$*"; exec ip link set dev "$2" master "$4" ;;
+            *)      refuse "${3:-}" ;;
+          esac
+          ;;
+        *)
+          refuse "${1:-}"
+          ;;
+      esac
+      ;;
+    addr)
+      shift
+      case "${1:-}" in
+        show)
+          shift
+          [[ "${1:-}" == "dev" ]] || refuse "${1:-}"
+          valid_if "${2:-}"
+          [[ $# -eq 2 ]] || refuse "$*"
+          exec ip addr show dev "$2"
+          ;;
+        add)
+          shift
+          # ip addr add <CIDR> dev <IF>
+          valid_cidr "${1:-}"
+          [[ "${2:-}" == "dev" ]] || refuse "${2:-}"
+          valid_if "${3:-}"
+          [[ $# -eq 3 ]] || refuse "$*"
+          exec ip addr add "$1" dev "$3"
+          ;;
+        *)
+          refuse "${1:-}"
+          ;;
+      esac
+      ;;
+    route)
+      shift
+      case "${1:-}" in
+        show)
+          shift
+          [[ "${1:-}" == "dev" ]] || refuse "${1:-}"
+          valid_if "${2:-}"
+          [[ $# -eq 2 ]] || refuse "$*"
+          exec ip route show dev "$2"
+          ;;
+        get)
+          shift
+          valid_ipv4 "${1:-}"
+          [[ $# -eq 1 ]] || refuse "$*"
+          exec ip route get "$1"
+          ;;
+        replace)
+          shift
+          # ip route replace <CIDR> dev <IF> scope link src <IPv4> [initcwnd N] [initrwnd N]
+          valid_cidr "${1:-}"; local cidr="$1"
+          [[ "${2:-}" == "dev" ]] || refuse "${2:-}"
+          valid_if "${3:-}"; local dev="$3"
+          [[ "${4:-}" == "scope" ]] || refuse "${4:-}"
+          [[ "${5:-}" == "link" ]] || refuse "${5:-}"
+          [[ "${6:-}" == "src" ]] || refuse "${6:-}"
+          valid_ipv4 "${7:-}"; local src="$7"
+          shift 7
+          local extra=()
+          while [[ $# -gt 0 ]]; do
+            case "$1" in
+              initcwnd) valid_num "${2:-}"; extra+=(initcwnd "$2"); shift 2 ;;
+              initrwnd) valid_num "${2:-}"; extra+=(initrwnd "$2"); shift 2 ;;
+              *)        refuse "$1" ;;
+            esac
+          done
+          exec ip route replace "$cidr" dev "$dev" scope link src "$src" "${extra[@]}"
+          ;;
+        *)
+          refuse "${1:-}"
+          ;;
+      esac
+      ;;
+    netns)
+      shift
+      case "${1:-}" in
+        list)
+          [[ $# -eq 1 ]] || refuse "$*"
+          exec ip netns list
+          ;;
+        add)
+          shift
+          valid_if "${1:-}"
+          [[ $# -eq 1 ]] || refuse "$*"
+          exec ip netns add "$1"
+          ;;
+        del)
+          shift
+          valid_if "${1:-}"
+          [[ $# -eq 1 ]] || refuse "$*"
+          exec ip netns del "$1"
+          ;;
+        exec)
+          shift
+          # ip netns exec <NS> -- <sous-commande>
+          # ré-entrant : la sous-commande est re-validée par CE script en
+          # profondeur 1 (exec imbriqué interdit, srv-kill interdit là-bas).
+          (( DEPTH == 0 )) || refuse "exec imbriqué"
+          valid_if "${1:-}"
+          [[ "${2:-}" == "--" ]] || refuse "${2:-}"
+          local ns="$1"
+          shift 2
+          (( $# >= 1 )) || refuse "netns exec sans commande"
+          exec ip netns exec "$ns" -- "$SELF" --__depth1 "$@"
+          ;;
+        *)
+          refuse "${1:-}"
+          ;;
+      esac
+      ;;
+    *)
+      refuse "${1:-}"
+      ;;
+  esac
+}
+
+# ------------------------------------------------ ethtool ----------------------
+run_ethtool() {
+  case "${1:-}" in
+    -k)
+      shift
+      valid_if "${1:-}"
+      [[ $# -eq 1 ]] || refuse "$*"
+      exec ethtool -k "$1"
+      ;;
+    -K)
+      shift
+      valid_if "${1:-}"
+      local ifname="$1"
+      shift
+      (( $# >= 2 )) || refuse "ethtool -K sans paires feature on|off"
+      (( $# % 2 == 0 )) || refuse "paires feature on|off incomplètes : $*"
+      local pairs=()
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          tso|gso|gro)
+            case "${2:-}" in
+              on|off) pairs+=("$1" "$2"); shift 2 ;;
+              *)      refuse "${2:-}" ;;
+            esac
+            ;;
+          *)
+            refuse "$1" ;;
+        esac
+      done
+      exec ethtool -K "$ifname" "${pairs[@]}"
+      ;;
+    *)
+      refuse "${1:-}"
+      ;;
+  esac
+}
+
+# ------------------------------------------------ modprobe ---------------------
+run_modprobe() {
+  (( $# >= 1 )) || usage
+  local mod
+  for mod in "$@"; do
+    case "$mod" in
+      sch_netem|sch_fq_codel|sch_cake|tcp_bbr) ;;
+      *) refuse "$mod" ;;
+    esac
+  done
+  for mod in "$@"; do
+    modprobe "$mod" || exit $?
+  done
+  exit 0
+}
+
+# ------------------------------------------------ srv-start -------------------
+# Forme FIXE : aucun argument utilisateur influençant l'argv. Le binaire est
+# /usr/local/bin/cgo-testbedsrv (root:root 0755, posé par le bloc sudo à mot
+# de passe de testbed.sh) — exécuter un binaire à chemin contrôlable par
+# l'appelant en NOPASSWD serait une porte root pour n'importe quel processus.
+# L'objet 16 KiB est /var/lib/cgo-testbed/obj16.bin (root-owned), pas $HOME.
+run_srv_start() {
+  (( DEPTH == 0 )) || refuse "srv-start imbriqué"
+  valid_if "${1:-}"
+  [[ $# -eq 1 ]] || refuse "$*"
+  [ -x /usr/local/bin/cgo-testbedsrv ] || { echo "[!] /usr/local/bin/cgo-testbedsrv absent — relancez kit/testbed.sh up (bloc sudo à mot de passe)" >&2; exit 8; }
+  [ -r /var/lib/cgo-testbed/obj16.bin ] || { echo "[!] /var/lib/cgo-testbed/obj16.bin absent — relancez kit/testbed.sh up" >&2; exit 8; }
+  ip netns exec "$1" -- env CGO_TESTBED_OBJ=/var/lib/cgo-testbed/obj16.bin setsid nohup /usr/local/bin/cgo-testbedsrv --http 10.200.0.1:8081 --bulk 10.200.0.1:5201 </dev/null >/var/log/cgo-testbedsrv.log 2>&1 &
+  exit 0
+}
+
+# ------------------------------------------------ srv-kill ---------------------
+# Forme FIXE : termine le testbedsrv (jamais d'autre motif) — idempotent.
+run_srv_kill() {
+  (( DEPTH == 0 )) || refuse "srv-kill imbriqué"
+  valid_if "${1:-}"
+  [[ $# -eq 1 ]] || refuse "$*"
+  local rc=0
+  ip netns exec "$1" -- pkill -f 'testbedsrv --http' || rc=$?
+  (( rc == 0 || rc == 1 )) || exit "$rc"   # rc=1 : aucun processus — idempotent
+  exit 0
+}
+
+# ------------------------------------------------ main -------------------------
+while [[ "${1:-}" == "--env" || "${1:-}" == "--__depth1" ]]; do
+  if [[ "${1:-}" == "--__depth1" ]]; then DEPTH=1; shift; continue; fi
+  [[ "${2:-}" == TC_LIB_DIR=* ]] || refuse "--env ${2:-}"
+  val="${2#TC_LIB_DIR=}"
+  [[ "$val" =~ $ENVPATH_RE ]] || refuse "--env valeur $val"
+  [[ "$val" == *".."* ]] && refuse "--env valeur $val (.. interdit)"
+  export TC_LIB_DIR="$val"
+  shift 2
+done
+
+case "${1:-}" in
+  tc)        shift; run_tc "$@" ;;
+  ip)        shift; run_ip "$@" ;;
+  ethtool)   shift; run_ethtool "$@" ;;
+  modprobe)  shift; run_modprobe "$@" ;;
+  srv-start) shift; run_srv_start "$@" ;;
+  srv-kill)  shift; run_srv_kill "$@" ;;
+  "")        usage ;;
+  *)         refuse "${1:-}" ;;
+esac

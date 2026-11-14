@@ -43,6 +43,7 @@ archives:
       - README.md
       - kit/*.example
       - kit/*.sh
+      - kit/cgo-netctl
     format_overrides:
       - goos: windows
         formats: [zip]

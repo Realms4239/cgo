@@ -185,6 +185,11 @@ func (r *Runner) Package(c *Config, rest []string) int {
 	if err := addExec("kit/testbed.sh", filepath.Join(r.Root, "kit", "testbed.sh")); err != nil {
 		return fail(fmt.Errorf("testbed : %w", err))
 	}
+	// cgo-netctl : wrapper sudo NOPASSWD du banc (installé par testbed.sh
+	// up) — sans lui, le banc ne démarre pas.
+	if err := addExec("kit/cgo-netctl", filepath.Join(r.Root, "kit", "cgo-netctl")); err != nil {
+		return fail(fmt.Errorf("cgo-netctl : %w", err))
+	}
 	// host-tunnel.ps1 à la RACINE du zip (visible immédiatement) : tunnel
 	// Host->VM sans kit — forwards, hosts, clé, confiance, vérification.
 	if err := add("host-tunnel.ps1", filepath.Join(r.Root, "kit", "host-tunnel.ps1")); err != nil {
@@ -397,6 +402,10 @@ func (r *Runner) packageLinux() int {
 	// testbed.sh : le banc de mesure (veth + netns + testbedsrv) — voir zip.
 	if err := add("kit/testbed.sh", filepath.Join(r.Root, "kit", "testbed.sh"), 0755); err != nil {
 		return fail(fmt.Errorf("testbed : %w", err))
+	}
+	// cgo-netctl : wrapper sudo NOPASSWD du banc (installé par testbed.sh up).
+	if err := add("kit/cgo-netctl", filepath.Join(r.Root, "kit", "cgo-netctl"), 0755); err != nil {
+		return fail(fmt.Errorf("cgo-netctl : %w", err))
 	}
 	if err := addStr("LISEZ-MOI.txt", linuxReadme()); err != nil {
 		return fail(err)

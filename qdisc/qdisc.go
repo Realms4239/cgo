@@ -24,32 +24,43 @@ type TCRunner interface {
 	Run(args ...string) ([]byte, error)
 }
 
+// Chemin absolu épinglé : /etc/sudoers.d/cgo-network n'autorise QUE
+// /usr/local/bin/cgo-netctl (jamais tc/ip/ethtool nus — l'ancienne ligne
+// joker rendait root via `sudo ip netns exec x bash`). Tout appel Go passe
+// par ce wrapper à liste blanche ; sans lui, les cellules de campagne
+// héritent d'un « a password is required » muet.
+const cgoNetctl = "/usr/local/bin/cgo-netctl"
+
 type ExecRunner struct{}
 
+// Run — `sudo -n cgo-netctl tc …` (jamais tc nu : sudoers ne le couvre pas).
 func (ExecRunner) Run(args ...string) ([]byte, error) {
-	// la VM exige sudo pour tc (NOPASSWD dans /etc/sudoers.d/cgo-network)
-	return exec.Command("sudo", append([]string{"tc"}, args...)...).CombinedOutput()
+	return exec.Command("sudo", append([]string{"-n", cgoNetctl, "tc"}, args...)...).CombinedOutput()
 }
 
-// NsRunner runs tc inside a network namespace (ip netns exec NS tc …).
+// NsRunner runs tc inside a network namespace via cgo-netctl's ré-entrant
+// `ip netns exec --` branch (arguments re-validated inside the namespace).
 // Env porte les variables à garder à travers sudo (TC_LIB_DIR pour .dist) :
-// « sudo env VAR=… ip netns exec … tc » ne dépend pas d'env_keep.
+// « sudo -n /usr/local/bin/cgo-netctl --env TC_LIB_DIR=… ip netns exec … ».
 type NsRunner struct {
 	Ns  string
-	Env []string // paires VAR=value
+	Env []string // paires VAR=value (TC_LIB_DIR uniquement, validé par le wrapper)
 }
 
 func (r NsRunner) Run(args ...string) ([]byte, error) {
 	return exec.Command("sudo", nsTCArgs(r.Ns, r.Env, args)...).CombinedOutput()
 }
 
+// nsTCArgs — argv APRÈS `sudo` : toujours via cgo-netctl. tc nus n'ayant
+// plus droit d'accès (sudoers = wrapper seulement), la commande embarquée
+// est ré-validée dans le netns.
 func nsTCArgs(ns string, env, args []string) []string {
-	full := make([]string, 0, len(env)+len(args)+6)
-	if len(env) > 0 {
-		full = append(full, "env")
-		full = append(full, env...)
+	full := make([]string, 0, len(env)+len(args)+9)
+	full = append(full, "-n", cgoNetctl)
+	for _, kv := range env {
+		full = append(full, "--env", kv)
 	}
-	full = append(full, "ip", "netns", "exec", ns, "tc")
+	full = append(full, "ip", "netns", "exec", ns, "--", "tc")
 	return append(full, args...)
 }
 

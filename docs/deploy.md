@@ -137,6 +137,27 @@ sudo apt update && sudo apt install -y iproute2 curl bc
 sudo modprobe tcp_bbr || true
 ```
 
+Privilèges du banc (une fois, via `kit/testbed.sh up` ou à la main) — une
+seule ligne, **jamais** tc/ip/ethtool nus :
+
+```sudoers
+<utilisateur> ALL=(ALL) NOPASSWD: /usr/local/bin/cgo-netctl
+```
+
+`cgo-netctl` (`kit/cgo-netctl`, installé en `/usr/local/bin/cgo-netctl`,
+mode 0755 root) est un wrapper à liste blanche dure : toute invocation hors
+portée (`tc qdisc del/replace/show`, `ip link|addr|route|netns`,
+`ethtool -k|-K`, `modprobe sch_netem|sch_fq_codel|sch_cake|tcp_bbr`,
+`srv-start`/`srv-kill`) sort en code 2 avec `refusé : hors portée cgo-netctl`.
+`srv-start` lance un binaire ÉPINGLÉ (`/usr/local/bin/cgo-testbedsrv`,
+root-owned, argv figé — jamais un binaire à chemin contrôlable par
+l'appelant) avec l'objet 16 KiB en `/var/lib/cgo-testbed/obj16.bin`
+(root-owned). L'ancienne ligne joker (`NOPASSWD: /usr/sbin/tc, /sbin/ip, …`)
+donnait root à n'importe quel processus local — `sudo ip netns exec x bash`
+suffisait. Le (ré)install de `/usr/local/bin/cgo-testbedsrv` passe par un
+sudo **à mot de passe**, une fois ; la mise à jour du banc = relancer
+`kit/testbed.sh up`.
+
 ## 4. Recette mini-PC edge (Debian)
 
 Pour un banc fixe sur site :

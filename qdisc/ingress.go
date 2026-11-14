@@ -14,12 +14,13 @@ type IngressRunner interface {
 	Run(prog string, args ...string) ([]byte, error)
 }
 
-// NsCommand runs a command inside a network namespace.
+// NsCommand runs a command inside a network namespace via cgo-netctl's
+// ré-entrant `ip netns exec --` branch (arguments re-validated inside).
 type NsCommand struct{ Ns string }
 
 func (c NsCommand) Run(prog string, args ...string) ([]byte, error) {
-	full := append([]string{"netns", "exec", c.Ns, prog}, args...)
-	return exec.Command("sudo", append([]string{"ip"}, full...)...).CombinedOutput()
+	full := append([]string{"-n", cgoNetctl, "ip", "netns", "exec", c.Ns, "--", prog}, args...)
+	return exec.Command("sudo", full...).CombinedOutput()
 }
 
 // ApplyIngressShaper shapes an IFB at its root. The WAN ingress has already

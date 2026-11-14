@@ -5,13 +5,20 @@
 #  (shaping+aqm hop). One `cgo testbedsrv` inside the ns serves the
 #  16 KiB small object (HTTP :8081) and the bulk sink (:5201).
 #  Idempotent. Usage: testbed.sh up|down|check
+#
+#  Privilege boundary: every non-interactive privileged call goes through
+#  /usr/local/bin/cgo-netctl (NOPASSWD via /etc/sudoers.d/cgo-network) —
+#  a hard allowlist wrapper, never raw tc/ip/ethtool/modprobe. The ONLY
+#  password sudo in this script is the one-time install (wrapper + root-
+#  owned cgo-testbedsrv + object file); runtime calls are all NOPASSWD.
 # ================================================================
 set -uo pipefail
 NS=cgo-srv
 CLI=veth-c; SRV=veth-s
 CIDR=10.200.0.1/24; CIP=10.200.0.2/24
 BIN="${CGO_BIN:-$HOME/cgo/cgo-linux}"
-TBD="$HOME/cgo/testbed"
+CTL=/usr/local/bin/cgo-netctl
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Offloads are a measurement recipe, not a cosmetic setting. The frozen
 # 528-row corpus was measured with TSO/GSO/GRO ON (final220: BBR 18–19 Mbit/s);
 # changing the default now would make the archived result irreproducible.
@@ -23,9 +30,9 @@ case "$OFFLOADS" in on|off) ;; *) echo "[!] CGO_OFFLOADS must be on|off"; exit 2
 set_offloads() {
   local iface="$1" ns="$2"
   if [ -n "$ns" ]; then
-    sudo -n ip netns exec "$ns" ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS" 2>/dev/null || true
+    sudo -n "$CTL" ip netns exec "$ns" -- ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS" 2>/dev/null || true
   else
-    sudo -n ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS" 2>/dev/null || true
+    sudo -n "$CTL" ethtool -K "$iface" tso "$OFFLOADS" gso "$OFFLOADS" gro "$OFFLOADS" 2>/dev/null || true
   fi
 }
 
@@ -33,101 +40,141 @@ set_offloads() {
 offload_line() {
   local iface="$1" ns="$2" feat="$3"
   if [ -n "$ns" ]; then
-    sudo -n ip netns exec "$ns" ethtool -k "$iface" 2>/dev/null | grep -m1 "^${feat}:"
+    sudo -n "$CTL" ip netns exec "$ns" -- ethtool -k "$iface" 2>/dev/null | grep -m1 "^${feat}:"
   else
-    sudo -n ethtool -k "$iface" 2>/dev/null | grep -m1 "^${feat}:"
+    sudo -n "$CTL" ethtool -k "$iface" 2>/dev/null | grep -m1 "^${feat}:"
   fi
 }
 
 up() {
   # sudoers : le banc (veth/netns via sudo -n ci-dessous) ET les cellules
-  # de campagne (sudo tc / sudo ip non-interactifs) exigent le sudo sans
-  # mot de passe — vu en prod : VM fraîche = chaque cellule échoue et la
-  # campagne gèle ZÉRO ligne (« Démarrer → idle → rien »). Une fois pour
-  # toutes ici (console : mot de passe demandé une fois, jamais après).
+  # de campagne (qdisc via cgo-netctl) exigent le sudo sans mot de passe.
+  # UNE seule ligne — /usr/local/bin/cgo-netctl, jamais tc/ip/ethtool
+  # nus (l'ancienne ligne joker rendait root à n'importe quel processus
+  # local — `sudo ip netns exec x bash` suffisait). Le wrapper ET le
+  # serveur de banc (binaire root-owned, argv figé) sont posés par un
+  # bloc sudo À MOT DE PASSE ; ensuite tout passe par la porte NOPASSWD.
   # SUDO_USER quand lancé via `sudo bash` (sinon $USER=root = règle inutile).
   ME2="${SUDO_USER:-$USER}"
-  # sudo 1.9.15p5 (Ubuntu 24.04) sort en 0 MÊME en refusant -n (prouvé
-  # live : « a password is required », RC=0) — sonder la SORTIE, jamais
-  # le code, sinon la porte est du théâtre. Règle déjà bonne = on ne
-  # touche à rien (réécrire exigerait un mot de passe pour rien).
-  if sudo -n ip link show lo 2>&1 | grep -qi "password"; then
-    echo "[testbed] sudo sans mot de passe requis — configuration (mot de passe demandé une fois)…"
-    sudo true || { echo "[!] sudo refusé"; return 1; }
-    printf '%s ALL=(ALL) NOPASSWD: /usr/sbin/tc, /sbin/tc, /usr/sbin/ip, /sbin/ip, /usr/sbin/modprobe, /sbin/modprobe, /usr/sbin/ethtool, /sbin/ethtool\n' "$ME2" | sudo tee /etc/sudoers.d/cgo-network >/dev/null
-    sudo chmod 0440 /etc/sudoers.d/cgo-network
-    sudo visudo -c 2>/dev/null | grep -q "OK" || { echo "[!] sudoers invalide — nettoyez /etc/sudoers.d/cgo-network"; return 1; }
-    sudo -n ip link show lo 2>&1 | grep -qi "password" && { echo "[!] sudo -n toujours refusé après écriture (ouvrez une autre session ?)"; return 1; }
+  ensure_root_kit() {
+    # pose le wrapper + cgo-testbedsrv + l'objet 16 KiB, root-owned,
+    # depuis $1 (préfixe sudo libre : "" en root, "sudo" sinon).
+    local S="$1"
+    if [ ! -x "$CTL" ]; then
+      if [ -f "$SCRIPT_DIR/cgo-netctl" ]; then
+        $S install -m 0755 -o root -g root "$SCRIPT_DIR/cgo-netctl" "$CTL" || { echo "[!] installation de $CTL échouée"; return 1; }
+      else
+        echo "[!] $SCRIPT_DIR/cgo-netctl introuvable — récupérez kit/cgo-netctl du zip complet, puis relancez"; return 1
+      fi
+    fi
+    if [ ! -x /usr/local/bin/cgo-testbedsrv ]; then
+      if [ ! -f "$BIN" ]; then
+        echo "[!] $BIN introuvable — déployez d'abord le binaire (scp/cluster), puis relancez"; return 1
+      fi
+      $S install -m 0755 -o root -g root "$BIN" /usr/local/bin/cgo-testbedsrv || { echo "[!] installation de /usr/local/bin/cgo-testbedsrv échouée"; return 1; }
+    fi
+    $S install -d -m 0755 -o root -g root /var/lib/cgo-testbed || { echo "[!] /var/lib/cgo-testbed impossible"; return 1; }
+    if [ ! -f /var/lib/cgo-testbed/obj16.bin ]; then
+      $S dd if=/dev/urandom of=/var/lib/cgo-testbed/obj16.bin bs=16384 count=1 status=none || { echo "[!] objet 16 KiB impossible"; return 1; }
+    fi
+  }
+  if [ "$(id -u)" = "0" ]; then
+    ensure_root_kit "" || return 1
+    printf '%s ALL=(ALL) NOPASSWD: %s\n' "$ME2" "$CTL" > /etc/sudoers.d/cgo-network
+    chmod 0440 /etc/sudoers.d/cgo-network
+    visudo -c 2>/dev/null | grep -q "OK" || { echo "[!] sudoers invalide — nettoyez /etc/sudoers.d/cgo-network"; return 1; }
+  else
+    # sudo 1.9.15p5 (Ubuntu 24.04) sort en 0 MÊME en refusant -n (prouvé
+    # live : « a password is required », RC=0) — sonder la SORTIE, jamais
+    # le code, sinon la porte est du théâtre. Règle déjà bonne = on ne
+    # touche à rien (réécrire exigerait un mot de passe pour rien).
+    if sudo -n "$CTL" ip link show lo 2>&1 | grep -qiE "password|not found|refusé"; then
+      echo "[testbed] sudo sans mot de passe requis — configuration (mot de passe demandé une fois)…"
+      sudo true || { echo "[!] sudo refusé"; return 1; }
+      ensure_root_kit "sudo" || return 1
+      printf '%s ALL=(ALL) NOPASSWD: %s\n' "$ME2" "$CTL" | sudo tee /etc/sudoers.d/cgo-network >/dev/null
+      sudo chmod 0440 /etc/sudoers.d/cgo-network
+      sudo visudo -c 2>/dev/null | grep -q "OK" || { echo "[!] sudoers invalide — nettoyez /etc/sudoers.d/cgo-network"; return 1; }
+      sudo -n "$CTL" ip link show lo 2>&1 | grep -qiE "password|not found|refusé" && { echo "[!] sudo -n toujours refusé après écriture (ouvrez une autre session ?)"; return 1; }
+    fi
   fi
   # disciplines du banc : l'autoload échoue parfois dans le netns (vu en prod :
   # "Invalid qdisc name" sur la 1re cellule cake après boot) — preload explicite.
   # BBR est le contrôle de référence de la campagne ; il doit être présent
   # avant la première cellule, et survivre au reboot (modules-load.d).
-  sudo -n modprobe sch_netem sch_fq_codel sch_cake tcp_bbr 2>/dev/null || true
-  echo tcp_bbr | sudo -n tee /etc/modules-load.d/cgo-bbr.conf >/dev/null 2>&1 || true
+  sudo -n "$CTL" modprobe sch_netem    2>/dev/null || true
+  sudo -n "$CTL" modprobe sch_fq_codel 2>/dev/null || true
+  sudo -n "$CTL" modprobe sch_cake     2>/dev/null || true
+  sudo -n "$CTL" modprobe tcp_bbr      2>/dev/null || true
+  # modules-load.d : l'écriture n'est PAS dans la porte NOPASSWD (pas de tee
+  # dans cgo-netctl) — best-effort honnête : échec = avertissement explicite.
+  if ! printf 'tcp_bbr\n' | sudo -n tee /etc/modules-load.d/cgo-bbr.conf >/dev/null 2>&1; then
+    echo "[!] modules-load.d non écrit — BBR présent pour cette session seulement (sinon : echo tcp_bbr | sudo tee /etc/modules-load.d/cgo-bbr.conf)"
+  fi
   if ! grep -qw bbr /proc/sys/net/ipv4/tcp_allowed_congestion_control 2>/dev/null; then
     echo "[!] BBR indisponible — modprobe tcp_bbr a échoué"; return 1
   fi
-  if ! sudo ip netns list | grep -q "^$NS"; then sudo ip netns add $NS; fi
+  if ! sudo -n "$CTL" ip netns list | grep -q "^$NS"; then sudo -n "$CTL" ip netns add "$NS"; fi
   # paire veth : la créer si absente, RÉPARER si à moitié présente (reboot :
   # veth-c existe sans veth-s dans le ns — l'ancien test tout-ou-rien
   # laissait le banc cassé sans un mot).
-  if ! sudo ip link show $CLI &>/dev/null; then
+  if ! sudo -n "$CTL" ip link show $CLI &>/dev/null; then
     # veth-s orphelin dans la racine ? le supprimer avant de recréer la paire
-    if sudo ip link show $SRV &>/dev/null; then sudo ip link del $SRV 2>/dev/null || true; fi
-    sudo ip link add $CLI type veth peer name $SRV
+    if sudo -n "$CTL" ip link show $SRV &>/dev/null; then sudo -n "$CTL" ip link del $SRV 2>/dev/null || true; fi
+    sudo -n "$CTL" ip link add $CLI type veth peer name $SRV || { echo "[!] cannot create veth pair"; return 1; }
   fi
-  if ! sudo ip netns exec $NS ip link show $SRV &>/dev/null; then
+  if ! sudo -n "$CTL" ip netns exec $NS -- ip link show dev $SRV &>/dev/null; then
     # veth-s coincé dans la racine : le rentrer dans le ns (down d'abord)
-    sudo ip link set $SRV down 2>/dev/null || true
-    sudo ip link set $SRV netns $NS
+    sudo -n "$CTL" ip link set dev $SRV down 2>/dev/null || true
+    sudo -n "$CTL" ip link set dev $SRV netns $NS
   fi
   # RECETTE DES RUNS PARFAITS (prouvée camp-fin3 2026-09-11, 9/9 BBR valid) :
   # 1. qdiscs NETTOYÉS — un netem en couches/corrompu (refcnt 129, laissé par
   #    un run tué ou un double-lancement) étrangle le flux à ~1-3 Mb/s ;
   #    détruire AVANT toute campagne rend le banc à neuf.
-  sudo -n tc qdisc del dev $CLI root 2>/dev/null || true
+  sudo -n "$CTL" tc qdisc del dev $CLI root 2>/dev/null || true
   # 2. initcwnd 50 DES DEUX CÔTÉS — l'objet 16 KiB = 12 paquets > initcwnd 10
   #    par défaut : la réponse part en 2 vols → sonde small = 3×RTT (~315 ms
   #    au lieu de ~210). Volatile (perdu au reboot) → réappliqué à chaque up.
   #    APRÈS l'adressage : la route connectée doit exister, sinon change/add
   #    échoue silencieusement et le check voit une route sans initcwnd.
-  sudo -n ip route replace 10.200.0.0/24 dev $CLI scope link src "${CIP%/*}" initcwnd 50 2>/dev/null || true
-  sudo -n ip netns exec $NS ip route replace 10.200.0.0/24 dev $SRV scope link src "${CIDR%/*}" initcwnd 50 2>/dev/null || true
+  sudo -n "$CTL" ip route replace 10.200.0.0/24 dev $CLI scope link src "${CIP%/*}" initcwnd 50 2>/dev/null || true
+  sudo -n "$CTL" ip netns exec $NS -- ip route replace 10.200.0.0/24 dev $SRV scope link src "${CIDR%/*}" initcwnd 50 2>/dev/null || true
   # 3. offloads veth — recette gelée ON par défaut (final220, BBR 18-19 Mb/s),
   #    OFF pour une passe de durcissement explicite (CGO_OFFLOADS=off), où les
   #    super-paquets GSO ne doivent plus fausser le comptage des gouttes.
   #    Réglage volatil → réappliqué à chaque up.
   set_offloads "$CLI" ""
   set_offloads "$SRV" "$NS"
-  sudo ip addr show dev $CLI | grep -q "${CIP%/*}" || sudo ip addr add $CIP dev $CLI
-  sudo ip link set $CLI up
-  sudo ip netns exec $NS ip addr show dev $SRV | grep -q "${CIDR%/*}" || sudo ip netns exec $NS ip addr add $CIDR dev $SRV
-  sudo ip netns exec $NS ip link set $SRV up
-  sudo ip netns exec $NS ip link set lo up
-  mkdir -p "$TBD"
-  [ -f "$TBD/obj16.bin" ] || dd if=/dev/urandom of="$TBD/obj16.bin" bs=16384 count=1 status=none
-  sudo rm -f "$TBD/testbedsrv.log" /tmp/cgo-testbedsrv.log 2>/dev/null || true
-  sudo ip netns exec $NS pkill -f '[t]estbedsrv' 2>/dev/null || true
+  sudo -n "$CTL" ip addr show dev $CLI | grep -q "${CIP%/*}" || sudo -n "$CTL" ip addr add $CIP dev $CLI
+  sudo -n "$CTL" ip link set dev $CLI up
+  sudo -n "$CTL" ip netns exec $NS -- ip addr show dev $SRV | grep -q "${CIDR%/*}" || sudo -n "$CTL" ip netns exec $NS -- ip addr add $CIDR dev $SRV
+  sudo -n "$CTL" ip netns exec $NS -- ip link set dev $SRV up
+  sudo -n "$CTL" ip netns exec $NS -- ip link set dev lo up
+  rm -f /tmp/cgo-testbedsrv.log 2>/dev/null || true
+  sudo -n "$CTL" srv-kill $NS 2>/dev/null || true
   sleep 1
-  sudo ip netns exec $NS bash -c "CGO_TESTBED_OBJ=\"$TBD/obj16.bin\" nohup \"$BIN\" testbedsrv --http 10.200.0.1:8081 --bulk 10.200.0.1:5201 >\"$TBD/testbedsrv.log\" 2>&1 &"
+  # testbedsrv démarre via la porte NOPASSWD — argv et binaire figés par
+  # le wrapper (root-owned /usr/local/bin/cgo-testbedsrv), aucun contenu
+  # de l'appelant ne rentre dans la commande root.
+  sudo -n "$CTL" srv-start $NS || { echo "[!] lancement testbedsrv échoué"; return 1; }
   sleep 1
   check
 }
 
 down() {
-  sudo ip netns exec $NS pkill -f '[t]estbedsrv' 2>/dev/null || true
+  sudo -n "$CTL" srv-kill $NS 2>/dev/null || true
   sleep 1
-  sudo ip link del $CLI 2>/dev/null || true
-  sudo ip netns del $NS 2>/dev/null || true
-  sudo rm -f "$TBD/testbedsrv.log" /tmp/cgo-testbedsrv.log 2>/dev/null || true
-  echo "[testbed] down"
+  sudo -n "$CTL" ip link del $CLI 2>/dev/null || true
+  sudo -n "$CTL" ip netns del $NS 2>/dev/null || true
+  rm -f /tmp/cgo-testbedsrv.log 2>/dev/null || true
+  echo "[testbed] down (journal : /var/log/cgo-testbedsrv.log, root-owned)"
 }
 
 check() {
   local ok=1
-  sudo ip netns list | grep -q "^$NS" || { echo "[!] netns $NS missing"; ok=0; }
-  sudo ip link show $CLI &>/dev/null || { echo "[!] $CLI missing"; ok=0; }
+  sudo -n "$CTL" ip netns list | grep -q "^$NS" || { echo "[!] netns $NS missing"; ok=0; }
+  sudo -n "$CTL" ip link show $CLI &>/dev/null || { echo "[!] $CLI missing"; ok=0; }
   # banc sain = recette d'offloads respectée + route initcwnd 50 des deux
   # côtés + aucun qdisc résiduel sur veth-c. Le mode OFF est une passe de
   # durcissement explicite ; le défaut ON reste celui du corpus gelé.
@@ -142,9 +189,9 @@ check() {
     done
   done
   ip route get 10.200.0.2 2>/dev/null | grep -q "dev $CLI" || { echo "[!] client path does not use $CLI (route leak)"; ok=0; }
-  sudo ip netns exec $NS ip route get 10.200.0.1 2>/dev/null | grep -q "dev $SRV" || { echo "[!] server path does not use $SRV (route leak)"; ok=0; }
+  sudo -n "$CTL" ip netns exec $NS -- ip route get 10.200.0.1 2>/dev/null | grep -q "dev $SRV" || { echo "[!] server path does not use $SRV (route leak)"; ok=0; }
   ip route show | grep -q "10.200.0.0/24 dev $CLI scope link initcwnd 50" || { echo "[!] initcwnd 50 route missing (client)"; ok=0; }
-  sudo ip netns exec $NS ip route show | grep -q "10.200.0.0/24 dev $SRV scope link initcwnd 50" || { echo "[!] initcwnd 50 route missing (server)"; ok=0; }
+  sudo -n "$CTL" ip netns exec $NS -- ip route show dev $SRV | grep -q "10.200.0.0/24 dev $SRV scope link initcwnd 50" || { echo "[!] initcwnd 50 route missing (server)"; ok=0; }
   tc qdisc show dev $CLI | grep -q noqueue || { echo "[!] stale qdisc on $CLI — run: testbed.sh up"; ok=0; }
   ping -c1 -W1 10.200.0.1 >/dev/null 2>&1 || { echo "[!] ping 10.200.0.1 fails"; ok=0; }
   curl -fsS -m2 http://10.200.0.1:8081/small -o /dev/null || { echo "[!] small object fails"; ok=0; }

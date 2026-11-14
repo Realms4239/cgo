@@ -29,18 +29,28 @@ func (r *Runner) Testbed(c *Config, rest []string) int {
 		r.errf("[testbed] testbed.sh introuvable ici — ré-extrayez l'archive complète (dossier kit/)")
 		return 6
 	}
+	ctl := findKitFile(r, "cgo-netctl")
+	if ctl == "" {
+		r.errf("[testbed] cgo-netctl introuvable ici — ré-extrayez l'archive complète (dossier kit/)")
+		return 6
+	}
 	pdir := c.resolveProjectDir()
 	if pdir == "" {
 		r.errf("[testbed] dossier distant inconnu — %s", LinearGuide())
 		return 3
 	}
 	remote := pdir + "/kit/testbed.sh"
-	r.out("[testbed] envoi testbed.sh…")
+	rctl := pdir + "/kit/cgo-netctl"
+	r.out("[testbed] envoi testbed.sh + cgo-netctl…")
 	if out, _, err := c.SCPOut(local, remote); err != nil {
 		r.errf("[testbed] scp ÉCHEC : %v — %s", err, strings.TrimSpace(out))
 		return 7
 	}
-	_, _ = c.SSH("chmod +x " + shq(remote))
+	if out, _, err := c.SCPOut(ctl, rctl); err != nil {
+		r.errf("[testbed] scp cgo-netctl ÉCHEC : %v — %s", err, strings.TrimSpace(out))
+		return 7
+	}
+	_, _ = c.SSH("chmod +x " + shq(remote) + " " + shq(rctl))
 	r.out("[testbed] exécution %s sur l'invitée…", sub)
 	out, err := c.SSH("bash " + shq(remote) + " " + sub)
 	if err != nil {
