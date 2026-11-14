@@ -25,6 +25,9 @@ import (
 
 func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if d.observeBlocked(w) {
+			return
+		}
 		var body struct {
 			Site           string `json:"site"`
 			LinkType       string `json:"link_type"`
@@ -244,8 +247,11 @@ func handleAuditLive(s *auditSession) http.HandlerFunc {
 
 // Arrêt opérateur — la goroutine d'audit voit son contexte annulé,
 // n'écrit rien de partiel et journalise « annulé par l'opérateur ».
-func handleAuditStop(s *auditSession) http.HandlerFunc {
+func handleAuditStop(d Deps, s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
+		if d.observeBlocked(w) {
+			return
+		}
 		// Une seule livraison : la session retire le cancel avant l'appel, un
 		// second arrêt ne peut donc pas re-annuler quelque chose.
 		cancel, ok := s.stop()
@@ -388,8 +394,11 @@ func handleAuditList(s *auditSession) http.HandlerFunc {
 // capacity = throughput, delay = rtt_idle_p95, loss = loss_pct mesurés.
 // ?audit_id= choisit la ligne (défaut : dernière) — l'opérateur importe
 // la fibre sans relancer la pointe.
-func handleAuditToProfile() http.HandlerFunc {
+func handleAuditToProfile(d Deps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if d.observeBlocked(w) {
+			return
+		}
 		f, err := os.Open(results.LinkAuditCSV())
 		if err != nil {
 			writeErr(w, r, "aucun audit — lancez d'abord cgo audit", http.StatusNotFound)

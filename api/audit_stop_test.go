@@ -20,7 +20,7 @@ func TestAuditStopDeliversCancelOnce(t *testing.T) {
 	s.begin(cancel, 60, time.Now())
 	defer s.finish()
 
-	h := handleAuditStop(s)
+	h := handleAuditStop(Deps{}, s)
 	call := func() bool {
 		rr := httptest.NewRecorder()
 		h(rr, httptest.NewRequest("POST", "/api/audit/stop", nil))

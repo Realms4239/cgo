@@ -515,6 +515,9 @@ func (s *Server) registerCost(mux *http.ServeMux) {
 	// palier actif — le forfait où vit l'institution (les coûts affichés
 	// suivent ; inconnu = 400, pas de défaut silencieux)
 	mux.HandleFunc("POST /api/cost/tier", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if s.deps.observeBlocked(w) {
+			return
+		}
 		var body struct {
 			Tier string `json:"tier"`
 		}
@@ -728,6 +731,9 @@ func (s *Server) registerRun(mux *http.ServeMux) {
 		writeJSON(w, map[string]any{"started": true})
 	}))
 	mux.HandleFunc("POST /api/run/stop", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if s.deps.observeBlocked(w) {
+			return
+		}
 		if s.deps.StopFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
@@ -737,6 +743,9 @@ func (s *Server) registerRun(mux *http.ServeMux) {
 		writeJSON(w, map[string]any{"stopped": true})
 	}))
 	mux.HandleFunc("POST /api/run/skip", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if s.deps.observeBlocked(w) {
+			return
+		}
 		if s.deps.SkipFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
 			return
@@ -1084,6 +1093,9 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 // registerFigures — un seul site d'enregistrement par domaine.
 func (s *Server) registerFigures(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/figures/regen", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if s.deps.observeBlocked(w) {
+			return
+		}
 		if err := figures.Generate(results.RunsRoot(), results.FiguresRoot()); err != nil {
 			writeErr(w, r, err.Error(), http.StatusInternalServerError)
 			return
@@ -1159,17 +1171,20 @@ func (s *Server) registerAudit(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/audit/start", requireAuth(handleAuditStart(s.deps, s.audit)))
 	mux.HandleFunc("GET /api/audit/status", handleAuditStatus(s.audit))
 	mux.HandleFunc("GET /api/audit/live", handleAuditLive(s.audit))
-	mux.HandleFunc("POST /api/audit/stop", requireAuth(handleAuditStop(s.audit)))
+	mux.HandleFunc("POST /api/audit/stop", requireAuth(handleAuditStop(s.deps, s.audit)))
 	mux.HandleFunc("GET /api/audit/report", handleAuditReport(s.audit))
 	mux.HandleFunc("GET /api/remediate", handleRemediate(s.audit))
 	mux.HandleFunc("GET /api/audit/presets", handleAuditPresets())
 	mux.HandleFunc("GET /api/audit/list", handleAuditList(s.audit))
-	mux.HandleFunc("POST /api/audit/toprofile", requireAuth(handleAuditToProfile()))
+	mux.HandleFunc("POST /api/audit/toprofile", requireAuth(handleAuditToProfile(s.deps)))
 }
 
 // registerProfiles — un seul site d'enregistrement par domaine.
 func (s *Server) registerProfiles(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/profile/import", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if s.deps.observeBlocked(w) {
+			return
+		}
 		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		if err != nil {
 			writeErr(w, r, "bad body", http.StatusBadRequest)
@@ -1245,6 +1260,9 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 	// Suppression d'un profil importé (le référentiel P1–P4 est intouchable —
 	// refusé par profile.Delete, pas par le vide).
 	mux.HandleFunc("POST /api/profile/delete", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if s.deps.observeBlocked(w) {
+			return
+		}
 		var body struct {
 			ID string `json:"id"`
 		}
