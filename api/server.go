@@ -217,8 +217,9 @@ type Deps struct {
 	AuditDepsFn func() audit.Deps
 }
 
-// observeBlocked — les hôtes Windows observent : l'audit fonctionne, les
-// endpoints de contrôle répondent 501 avec le renvoi vers le banc. True = répondu.
+// observeBlocked — les hôtes en mode observation : l'audit et les campagnes
+// peuvent démarrer (mesure locale légitime), mais chaque route de contrôle
+// répond 501 avec le renvoi vers le banc. True = répondu.
 func (d Deps) observeBlocked(w http.ResponseWriter) bool {
 	if d.Mode != "observe" {
 		return false
