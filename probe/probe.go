@@ -123,8 +123,13 @@ func sharedMarkedTransport() *http.Transport {
 
 func cloneMarkedTransport() *http.Transport {
 	base := http.DefaultTransport.(*http.Transport).Clone()
+	// Garde SSRF en plus du marquage DSCP : la connexion part sur les IP
+	// vérifiées (voir ssrf.go). L'opt-in banc est lu À CHAQUE DIAL
+	// (CGO_ALLOW_PRIVATE_TARGETS), pas à la construction du transport :
+	// le transport est partagé process-wide et les tests posent l'env
+	// après coup — l'env est l'interrupteur banc, pas un réglage figé.
 	base.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return dialSmallMarked(ctx, addr)
+		return guardedDialContext(ctx, network, addr, AllowPrivateTargets(), dscpControl)
 	}
 	return base
 }

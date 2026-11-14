@@ -103,6 +103,34 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 		if body.BulkAddr == "" {
 			body.BulkAddr = audit.EnvOrBulk(sinks)
 		}
+		// Garde SSRF — le petit objet et le puits bulk partent du processus
+		// vers l'adresse décidée ici : loopback/RFC1918/link-local/ULA sont
+		// refusés avec une erreur nommée (403 ; opt-in banc
+		// CGO_ALLOW_PRIVATE_TARGETS=1). Un argument malformé reste un 400.
+		// Placée APRÈS la résolution des défauts : rien ne contourne la
+		// garde en omettant les champs.
+		ssrfErr := func(what string, err error) {
+			var pe *privateTargetError
+			var re *ssrfRefusedError
+			status := http.StatusForbidden
+			if err != nil && !errors.As(err, &pe) && !errors.As(err, &re) {
+				status = http.StatusBadRequest
+			}
+			recordEvent("audit", fmt.Sprintf("refusé (SSRF) — %s : %s", what, err))
+			writeErr(w, r, err.Error(), status)
+		}
+		if body.SmallURL != "" {
+			if err := guardSmallURL(r.Context(), body.SmallURL); err != nil {
+				ssrfErr("small_url", err)
+				return
+			}
+		}
+		if body.BulkAddr != "" {
+			if err := guardBulkAddr(r.Context(), body.BulkAddr); err != nil {
+				ssrfErr("bulk_addr", err)
+				return
+			}
+		}
 		if body.Iface == "" {
 			body.Iface = os.Getenv("CGO_AUDIT_IFACE")
 		}

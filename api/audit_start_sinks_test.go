@@ -73,6 +73,7 @@ func auditStartEvent(t *testing.T, srv *httptest.Server, site string) string {
 // dualns, cible, petit objet et charge portent le trio 10.30.0.2 — les
 // QUATRE sauts sur le chemin mesuré.
 func TestAuditStartSinksBenchAware(t *testing.T) {
+	t.Setenv("CGO_ALLOW_PRIVATE_TARGETS", "1") // opt-in banc : cibles 10.30.0.2
 	h := New(Deps{SinksFn: func() audit.Sinks {
 		return audit.Sinks{Mode: "dualns", Target: "10.30.0.2", SmallURL: "http://10.30.0.2:8081/small", BulkAddr: "10.30.0.2:5201"}
 	}})
@@ -106,6 +107,7 @@ func TestAuditStartSinksBenchAware(t *testing.T) {
 // et la charge ne vient que de CGO_BULK_ADDR ; la ligne du journal le dit.
 func TestAuditStartSinksExternalNoImplicitLoad(t *testing.T) {
 	t.Setenv("CGO_BULK_ADDR", "127.0.0.1:1")
+	t.Setenv("CGO_ALLOW_PRIVATE_TARGETS", "1") // loopback RFC1918-adjacent : opt-in requis
 	h := New(Deps{SinksFn: func() audit.Sinks {
 		return audit.Sinks{Mode: "external", Target: "8.8.8.8"}
 	}})

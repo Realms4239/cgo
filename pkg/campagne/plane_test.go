@@ -20,6 +20,7 @@ func TestPlaneReadyRefused(t *testing.T) {
 
 // plan vivant : httptest small + listener bulk → accepté.
 func TestPlaneReadyOK(t *testing.T) {
+	t.Setenv("CGO_ALLOW_PRIVATE_TARGETS", "1") // sonde banc = cible privée par construction
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write(make([]byte, 16384))
 	}))
