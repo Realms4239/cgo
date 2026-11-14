@@ -2,6 +2,7 @@ package probe
 
 import (
 	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
@@ -43,6 +44,27 @@ func TestBulkStatsMultiFlowLocal(t *testing.T) {
 		if b == 0 {
 			t.Fatal("un flux n'a rien transporté — la charge doit être réelle")
 		}
+	}
+}
+
+// TestBulkNStatsPropagatesSendError — une vraie panne d'écriture d'un flux
+// remonte (première erreur), avec les octets des flux quand même rendus.
+// Le faux dial rend une fin de pipe : TCPRetransBytes y échouera et
+// RetransMeasured restera false — on ne teste pas le noyau ici.
+func TestBulkNStatsPropagatesSendError(t *testing.T) {
+	dial := func(context.Context) (net.Conn, error) {
+		c, _ := net.Pipe()
+		return c, nil
+	}
+	send := func(context.Context, net.Conn) (uint64, error) {
+		return 0, errors.New("panne")
+	}
+	st, err := bulkNStats(context.Background(), dial, send, 2)
+	if err == nil {
+		t.Fatal("panne d'écriture perdue")
+	}
+	if len(st.Bytes) != 2 {
+		t.Fatalf("2 flux attendus, %d rendus", len(st.Bytes))
 	}
 }
 

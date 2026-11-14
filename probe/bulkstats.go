@@ -31,6 +31,7 @@ func bulkNStats(ctx context.Context, dial func(ctx context.Context) (net.Conn, e
 	var mu sync.Mutex
 	st := BulkStats{Bytes: make([]uint64, 0, n)}
 	oneTCP := false // au moins un socket échantillonné => measured
+	var firstErr error
 	for i := 0; i < n; i++ {
 		c, err := dial(ctx)
 		if err != nil {
@@ -39,8 +40,8 @@ func bulkNStats(ctx context.Context, dial func(ctx context.Context) (net.Conn, e
 		wg.Add(1)
 		go func(c net.Conn) {
 			defer wg.Done()
-			b, _ := send(ctx, keepConn{c}) // fermeture retenue, pas perdue
-			rb, rerr := TCPRetransBytes(c) // socket encore vivant : l'échantillon est vrai
+			b, err := send(ctx, keepConn{c}) // fermeture retenue, pas perdue
+			rb, rerr := TCPRetransBytes(c)   // socket encore vivant : l'échantillon est vrai
 			c.Close()
 			mu.Lock()
 			st.Bytes = append(st.Bytes, b)
@@ -48,12 +49,17 @@ func bulkNStats(ctx context.Context, dial func(ctx context.Context) (net.Conn, e
 			if rerr == nil {
 				oneTCP = true
 			}
+			// vraie panne d'écriture : première erreur remonte (une fin de
+			// fenêtre normale est déjà nil côté send)
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
 			mu.Unlock()
 		}(c)
 	}
 	wg.Wait()
 	st.RetransMeasured = oneTCP
-	return st, nil
+	return st, firstErr
 }
 
 // BulkSendNStats — charge MONTANTE multi-flux avec statistiques.

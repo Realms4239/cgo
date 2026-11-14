@@ -150,7 +150,7 @@ func SmallObject(ctx context.Context, client *http.Client, url string) (float64,
 	// l'échantillon ne doit pas polluer les agrégats (les appelants traitent
 	// err != nil comme échantillon absent).
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return 0, fmt.Errorf("small object %s: HTTP %d", url, resp.StatusCode)
+		return 0, fmt.Errorf("petit objet %s : statut HTTP %d", url, resp.StatusCode)
 	}
 	n, err := io.Copy(io.Discard, resp.Body)
 	if err != nil {

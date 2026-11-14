@@ -79,11 +79,12 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 					defer cancel()
 					// observabilité de fortune : ce que la source ENVOIE ;
-					// une vraie panne d'écriture se logue (fin de fenêtre
-					// normale = err nil, pas de bruit).
+					// une vraie panne d'écriture se logue seule (fin de
+					// fenêtre normale = err nil, ligne de succès simple).
 					n, err := probe.BulkSource(ctx, c) // mode source : download
 					if err != nil {
-						log.Printf("[src] download cc=%s: erreur source: %v", cc, err)
+						log.Printf("[src] download cc=%s: panne source après %d octets: %v", cc, n, err)
+						return
 					}
 					log.Printf("[src] download cc=%s: %d octets envoyés", cc, n)
 					return
