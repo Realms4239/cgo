@@ -244,9 +244,7 @@ WantedBy=multi-user.target
 		}
 		fmt.Printf("audit %s — %s %s %ds sens %s flux %d (banc %s) → %s (bulk %s)\n",
 			p.AuditID, p.LinkType, p.Site, p.Duration, p.Direction, p.Flows, sinks.Mode, p.Target, p.BulkAddr)
-		d := audit.Deps{}
-		attachKernelProbe(&d)
-		res, err := audit.Run(context.Background(), p, d)
+		res, err := audit.Run(context.Background(), p, audit.Deps{})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit:", err)
 			os.Exit(1)
