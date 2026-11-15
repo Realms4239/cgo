@@ -210,11 +210,20 @@ func loadConfig(path string, resolve bool) (*Config, error) {
 	return c, nil
 }
 
-// writeFileAtomic — écriture insécable (tmp + rename même FS) : un arrêt
-// PC/VM en pleine sauvegarde yaml/hosts ne laisse jamais un fichier tronqué
-// (config illisible = kit totalement bloqué au relancement). Tous les
-// écrivains de config passent par ici, jamais os.WriteFile direct.
+// writeFileAtomic — conservation pour les appelants historiques (dns.go,
+// yaml_atomic_test.go) : délègue à WriteFileAtomic. La version exportée est
+// celle qu'utilise campagne ; on garde la jolie ligne sans éditer les
+// fichiers hors kit.go.
 func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	return WriteFileAtomic(path, data, perm)
+}
+
+// WriteFileAtomic — écriture insécable (tmp + rename même FS, fsync du
+// fichier avant le rename) : un arrêt PC/VM en pleine sauvegarde yaml/hosts
+// ne laisse jamais un fichier tronqué (config illisible = kit totalement
+// bloqué au relancement). Tous les écrivains de config passent par ici,
+// jamais os.WriteFile direct.
+func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
@@ -233,6 +242,13 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 		os.Remove(tmpName)
 		return err
 	}
+	// fsync AVANT le rename : le contenu doit être sur le disque quand le
+	// nom bascule, sinon le lien peut survivre avec des octets fantômes.
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpName)
 		return err
@@ -240,6 +256,17 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if err := os.Rename(tmpName, path); err != nil {
 		os.Remove(tmpName)
 		return err
+	}
+	// fsync du dossier parent : le rename lui-même doit être durable.
+	// Best effort — Windows refuse le fsync sur répertoire (FlushFileBuffers)
+	// et certains FS (NFS) renvoient EINVAL ; le rename reste atomique et un
+	// kill -9 n'efface pas le page cache : on ne fait pas échouer la
+	// sauvegarde pour un journal FS indisponible.
+	if runtime.GOOS != "windows" {
+		if d, err := os.Open(filepath.Dir(path)); err == nil {
+			_ = d.Sync()
+			_ = d.Close()
+		}
 	}
 	return nil
 }
@@ -321,7 +348,7 @@ func saveConfigValue(path, key, val string) error {
 	if !found {
 		lines = append(lines, key+": \""+val+"\"")
 	}
-	return writeFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
+	return WriteFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
 // SaveSSHTarget — mémorise user/host/port/key dans la section ssh: du yaml
@@ -1287,7 +1314,7 @@ func setYAMLKey(path, key, val string) error {
 		if !isSSHKey {
 			seed = key + ": " + val + "\n"
 		}
-		return writeFileAtomic(path, []byte(seed), 0644)
+		return WriteFileAtomic(path, []byte(seed), 0644)
 	}
 	lines := strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n")
 
@@ -1298,7 +1325,7 @@ func setYAMLKey(path, key, val string) error {
 			indented := len(ln) > 0 && (ln[0] == ' ' || ln[0] == '\t')
 			if (isSSHKey && indented) || (!isSSHKey && !indented) {
 				lines[i] = strings.Repeat(" ", 2) + key + ": " + val
-				return writeFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
+				return WriteFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
 			}
 		}
 	}
@@ -1313,14 +1340,14 @@ func setYAMLKey(path, key, val string) error {
 				}
 				rest := append([]string{"  " + key + ": " + val}, lines[j:]...)
 				lines = append(lines[:j], rest...)
-				return writeFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
+				return WriteFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
 			}
 		}
 		lines = append(lines, "ssh:", "  "+key+": "+val)
 	} else {
 		lines = append(lines, key+": "+val)
 	}
-	return writeFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
+	return WriteFileAtomic(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
 // Build — porte stricte : go vet + tsc + vite + bundle + vitest.

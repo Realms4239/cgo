@@ -132,6 +132,46 @@ func TestSealedPointerIsTheFileTheWriterWrites(t *testing.T) {
 	}
 }
 
+// TestWriteArtifactsLeavesNoTmpAndParses — les artefacts scellés sont écrits
+// sans trace de fichier temporaire derrière, et le JSON produit est complet :
+// relu, il se désérialise dans un Report porteur de son audit_id.
+func TestWriteArtifactsLeavesNoTmpAndParses(t *testing.T) {
+	dir := t.TempDir()
+	res := loadedResult()
+	rep, err := BuildReport(res, testLink(), "", true, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsonPath, mdPath, err := WriteArtifacts(rep, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Dir(jsonPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".cgo-") || strings.HasSuffix(e.Name(), ".tmp") {
+			t.Fatalf("artefact temporaire retrouvé après succès : %s", e.Name())
+		}
+	}
+	b, err := os.ReadFile(jsonPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reread Report
+	if err := json.Unmarshal(b, &reread); err != nil {
+		t.Fatalf("JSON d'artefact illisible : %v", err)
+	}
+	if reread.AuditID == "" || reread.Timestamp == "" {
+		t.Fatal("rapport relu incomplet : audit_id ou timestamp vide")
+	}
+	md, err := os.ReadFile(mdPath)
+	if err != nil || len(md) == 0 {
+		t.Fatal("markdown absent ou vide")
+	}
+}
+
 // DataDir — CGO_DATA_DIR épingle la racine ; whitespace = absent ; défaut data/.
 func TestDataDirFollowsEnv(t *testing.T) {
 	t.Setenv("CGO_DATA_DIR", "")

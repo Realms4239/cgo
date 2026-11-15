@@ -205,6 +205,16 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			if rerr != nil {
 				recordEvent("audit", fmt.Sprintf("rapport impossible — %s : %s", p.Site, rerr))
 			} else {
+				// Même ordre de preuve que la CLI : la série brute d'abord
+				// (telemetry.csv), scellée, puis la ligne CSV que cet audit
+				// vient d'ajouter, scellée — artefacts seulement après les deux
+				// sceaux. Un sceau en échec est journalisé, jamais fatal.
+				telPath, terr := audit.WriteTelemetry(audit.DataDir(), res)
+				if terr != nil {
+					recordEvent("audit", fmt.Sprintf("télémetrie non écrite — %s : %s", p.Site, terr))
+				} else if err := rep.SealTelemetry(telPath); err != nil {
+					recordEvent("audit", fmt.Sprintf("sceau télémétrie impossible — %s : %s", p.Site, err))
+				}
 				if err := rep.SealSource(results.LinkAuditCSV()); err != nil {
 					recordEvent("audit", fmt.Sprintf("scellement impossible — %s : %s", p.Site, err))
 				}

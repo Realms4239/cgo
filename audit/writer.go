@@ -10,6 +10,46 @@ import (
 	"github.com/Realms4239/cgo/model"
 )
 
+// atomicWriteFile — écriture insécable (tmp + rename même FS, fsync du
+// fichier avant le rename) : une migration de schéma interrompue ne laisse
+// jamais un link_audit.csv tronqué derrière elle — les lecteurs par position
+// verrouillent au premier enregistrement, un fichier à moitié écrit casse
+// toute la reprise.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".cgo-audit-tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	return nil
+}
+
 func AppendLinkAudit(dataDir string, r *Result) error {
 	path := filepath.Join(dataDir, "link_audit.csv")
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -36,7 +76,7 @@ func AppendLinkAudit(dataDir string, r *Result) error {
 				_ = wr.Write(row)
 			}
 			wr.Flush()
-			if err := os.WriteFile(path, buf.Bytes(), 0644); err != nil {
+			if err := atomicWriteFile(path, buf.Bytes(), 0644); err != nil {
 				return err
 			}
 		}
@@ -80,5 +120,11 @@ func AppendLinkAudit(dataDir string, r *Result) error {
 		return err
 	}
 	w.Flush()
-	return w.Error()
+	if err := w.Error(); err != nil {
+		return err
+	}
+	// la ligne gelée d'abord sur le disque, le seal ensuite ailleurs : le
+	// sceau doit pouvoir prouver EXACTEMENT ce fichier — fsync explicite
+	// avant le Close différé.
+	return f.Sync()
 }

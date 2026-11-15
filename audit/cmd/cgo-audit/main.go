@@ -19,6 +19,14 @@ func main() {
 	linkType := fs.String("link-type", "5g", "link_type: fiber, 5g, 4g, vsat, other")
 	duration := fs.Int("duration", 60, "durée en secondes (60 = 10/40/10)")
 	_ = fs.Parse(os.Args[1:])
+	// Les bornes sont celles du moteur (audit/bounds.go) : on REFUSE une
+	// saisie hors bornes plutôt que de laisser le moteur raboter en silence
+	// — même contrat que le CLI principal (cmd/cgo/main.go).
+	if !audit.DurationInBounds(*duration) {
+		fmt.Fprintf(os.Stderr, "audit: --duration %d hors bornes (%d–%d s)\n",
+			*duration, audit.MinDurationSec, audit.MaxDurationSec)
+		os.Exit(2)
+	}
 
 	sinks := audit.ResolveSinks()
 	p := audit.Params{

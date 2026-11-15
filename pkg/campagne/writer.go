@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Realms4239/cgo/internal/kit"
 	"github.com/Realms4239/cgo/model"
 )
 
@@ -55,7 +56,11 @@ func OpenRun(dir string) (*Writer, error) {
 				// identité de cellule : profil/qdisc/cc/sens/rep (colonnes 3-7).
 				// La position (event_id) ne sert plus : une reprise sous-matrice
 				// renumérote et ferait sauter des cellules jamais gelées.
-				if len(parts) < 7 {
+				// Une ligne coupée en deux (arrêt PC en pleine écriture) peut
+				// porter 7+ cellules sans en porter 23 : on exige la largeur
+				// complète pour enregistrer l'identité, sinon la reprise
+				// « voit » une cellule jamais gelée et G5 la saute à tort.
+				if len(parts) < 23 {
 					continue
 				}
 				w.seen[parts[2]+"/"+parts[3]+"/"+parts[4]+"/"+parts[5]+"/"+parts[6]] = true
@@ -157,18 +162,26 @@ func (w *Writer) Append(ev model.Event) error {
 // degraded/invalid. Une configuration absente ou non-JSON est refusée : le
 // manifeste ne doit jamais porter un hash factice.
 func (w *Writer) Freeze(configJSON []byte) error {
-	if err := w.fh.Close(); err != nil {
-		return err
+	// la ligne gelée d'abord sur le disque, le manifest ensuite : le
+	// manifeste hash le fichier — il doit hash des octets durables.
+	syncErr := w.fh.Sync()
+	closeErr := w.fh.Close()
+	if syncErr != nil {
+		return syncErr
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 	if len(configJSON) == 0 || !json.Valid(configJSON) {
 		return fmt.Errorf("freeze: configuration absente ou JSON invalide")
 	}
 	cfgSum := sha256.Sum256(configJSON)
 	cfgHash := hex.EncodeToString(cfgSum[:])
-	// quarantaine
+	// quarantaine — écriture insécable : un arrêt en pleine sauvegarde ne
+	// laisse jamais un quarantine.json tronqué que le manifeste hash ensuite.
 	if len(w.quarantine) > 0 {
 		qb, _ := json.MarshalIndent(w.quarantine, "", "  ")
-		_ = os.WriteFile(filepath.Join(w.Dir, "quarantine.json"), qb, 0644)
+		_ = kit.WriteFileAtomic(filepath.Join(w.Dir, "quarantine.json"), qb, 0644)
 	}
 	type entry struct{ File, Sha256 string }
 	var files []entry
@@ -196,5 +209,5 @@ func (w *Writer) Freeze(configJSON []byte) error {
 		"config":        string(configJSON),
 		"files":         files,
 	}, "", " ")
-	return os.WriteFile(filepath.Join(w.Dir, "manifest.json"), doc, 0o644)
+	return kit.WriteFileAtomic(filepath.Join(w.Dir, "manifest.json"), doc, 0o644)
 }

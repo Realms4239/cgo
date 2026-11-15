@@ -76,7 +76,8 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 						log.Printf("[src] CC %q refusée: %v — source fermée, cellule vouée à l'échec (pas de repli cubic silencieux)", cc, err)
 						return
 					}
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+					// le puits doit survivre au plafond moteur de 600 s de l'audit
+					ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 					defer cancel()
 					// observabilité de fortune : ce que la source ENVOIE ;
 					// une vraie panne d'écriture se logue seule (fin de
@@ -89,7 +90,8 @@ func runTestbedSrv(httpAddr, bulkAddr string) error {
 					log.Printf("[src] download cc=%s: %d octets envoyés", cc, n)
 					return
 				}
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+				// le puits doit survivre au plafond moteur de 600 s de l'audit
+				ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 				defer cancel()
 				_, _ = probe.BulkReceive(ctx, c, nil) // puits : upload
 			}(conn)
