@@ -43,7 +43,7 @@ jobs:
       - name: toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 libbpf-dev bpftool
+          sudo apt-get install -y clang-18 libbpf-dev linux-tools-generic
       - name: build object (CI identity — the sha256 pin is a human decision, enforced only after pinning)
         run: |
           make bpf
@@ -79,7 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: docker build
-        run: docker build --build-arg VERSION=ci -t cgo-ci .
+        run: docker build -f deploy/Dockerfile --build-arg VERSION=ci -t cgo-ci .
       - name: smoke (version)
         run: docker run --rm --entrypoint /cgo cgo-ci version
 

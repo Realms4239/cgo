@@ -1,15 +1,27 @@
 # bpf_probe.o — artefact eBPF embarqué
 
-Objet CO-RE précompilé, commité. La VM et `go build` ne demandent ni clang,
+Objet CO-RE précompilé et embarqué : la VM et `go build` ne demandent ni clang,
 ni gcc, ni llvm, ni linux-headers.
 
 ## Statut
 
-**Source et cible de build posées le 2026-10-29. L'objet n'est pas encore
-construit : aucun hôte Linux 6.8 stable n'était joignable.** Ne pas committer
-un objet sans le `sha256sum` produit sur la cible 6.8 ; ne pas fabriquer
-l'objet ni le hash. Le reste du plan eBPF (chargeur Go, tests d'attache,
-rapport) attend cet objet.
+**Le 2026-11-12/13, l'objet a été construit sur le rehearsal VM 6.8.0-149**
+(`make bpf` → `sha256(b6de79ac365ae6697f784ace1971cd75f0b89cd067e6ebf8b2c5b45b70d2f7e3)`),
+**le chargeur Go est écrit (`loader_linux.go`, cilium/ebpf v0.19.0)**, et une
+**audit eBPF réelle a été scellée** : `audit-1794517790` (`kernel_telemetry
+source=ebpf, object_sha256 b6de79ac…`, 10/10 flux échantillonnés, 2.69 Mo
+réémis). Le 2026-11-12/13, un **audit eBPF live a été scellé** avec la
+télémétrie noyau dans le rapport (preuves :
+`docs/verification/2026-11-12-ebpf-probe-bringup/README.md`).
+
+Piège de build : sur Linux, compiler le CLI requiert `CGO_ENABLED=0`
+(sinon le `.c` de la source de l'objet est rejeté par le toolchain Go —
+comportement voulu, la .c n'est pas du Go). La Windows, le défaut est déjà
+`CGO_ENABLED=0`.
+
+Ne pas committer l'objet avant que l'acceptation live 6.8 soit vérifiée
+**et** que l'humain décide. bpf_probe.o reste hors du dépôt pour l'instant ;
+son SHA-256 consigné est le seul qui fasse foi en attendant.
 
 ## Outillage épinglé
 
@@ -21,19 +33,19 @@ rapport) attend cet objet.
 ## Construction
 
 ```sh
-sudo apt-get install -y clang-18 libbpf-dev bpftool
+sudo apt-get install -y clang-18 libbpf-dev linux-tools-generic
 make bpf
 make bpf-check
 ```
 
 `make bpf` génère `vmlinux.h` depuis le BTF du noyau courant, compile
-`bpf_probe.c` en CO-RE, puis écrit `bpf_probe.o.sha256`. `vmlinux.h` est
-gitignoré : seul l'objet est le livrable.
+`probe/bpf/src/bpf_probe.c` en CO-RE, puis écrit `bpf_probe.o.sha256`.
+`vmlinux.h` est gitignoré : seul l'objet est le livrable.
 
 ## Vérification
 
 ```sh
-readelf -S pkg/probe/bpf/bpf_probe.o | grep -E 'raw_tp|fentry|kprobe'
+readelf -S probe/bpf/bpf_probe.o | grep -E 'raw_tp|fentry|kprobe'
 ```
 
 Les sections `raw_tp/tcp_retransmit_skb`, `fentry/tcp_rcv_established`,
