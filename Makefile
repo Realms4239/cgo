@@ -40,7 +40,7 @@ clean:
 # ---- eBPF maintainer targets (Linux 6.8 build host only) ----
 BPF_DIR := probe/bpf
 BPF_CLANG ?= clang-18
-BPF_CFLAGS := -O2 -g -target bpf -D__TARGET_ARCH_x86 -Wall -Werror -I$(BPF_DIR) -I$(BPF_DIR)/src
+BPF_CFLAGS := -O2 -g -target bpf -D__TARGET_ARCH_x86 -Wall -Werror -Wno-missing-declarations -I$(BPF_DIR) -I$(BPF_DIR)/src
 
 .PHONY: bpf bpf-check
 
