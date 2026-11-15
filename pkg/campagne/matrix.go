@@ -136,8 +136,8 @@ func startMatrix(base context.Context, runID string, profiles []string, qdiscs, 
 		return nil, fmt.Errorf("cc inconnu: %s", cc)
 	}
 	for _, c := range ccs {
-		if c == string(model.BBRv3) && !capabilities.CCPresent(c) {
-			return nil, fmt.Errorf("cc bbr3 indisponible sur cet hôte : le noyau n'expose pas bbr3 (kit/install-bbr3.sh) — refus plutôt qu'exécuter un autre contrôle sous cette étiquette")
+		if c == string(model.BBRv3) && capabilities.BBRv3Token() == "" {
+			return nil, fmt.Errorf("cc bbr3 indisponible sur cet hôte : ni token bbr3, ni noyau Google BBRv3 épinglé installé (kit/install-bbr3.sh) — refus plutôt qu'exécuter un autre contrôle sous cette étiquette")
 		}
 	}
 

@@ -7,7 +7,8 @@ package capabilities
 // de paquet partagé.
 //
 // La règle du module est inchangée : DefaultCCs liste cubic/bbr toujours,
-// bbr3 seulement si le noyau l'enregistre. Restore() rend l'hôte réel.
+// bbr3 seulement si le noyau l'enregistre — token « bbr3 », ou provision
+// épinglée (le token « bbr » y EST la v3). Restore() rend l'hôte réel.
 type TestSeam struct {
 	restore func()
 }

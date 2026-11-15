@@ -22,14 +22,15 @@ func CCPresent(cc string) bool {
 }
 
 // DefaultCCs — matrice pleine : cubic et bbr (v1) toujours, bbr3 seulement
-// si le noyau l'enregistre. Une demande explicite de bbr3 reste gatée dans
-// startMatrix : l'omission silencieuse n'est permise que pour le défaut.
+// si le noyau l'enregistre — token « bbr3 » exposé, ou provision épinglée
+// (le token « bbr » y EST la v3). Une demande explicite de bbr3 reste gatée
+// dans startMatrix : l'omission silencieuse n'est permise que pour le défaut.
 func DefaultCCs() []string {
 	out := make([]string, 0, len(model.AllCC)+1)
 	for _, c := range model.AllCC {
 		out = append(out, string(c))
 	}
-	if CCPresent(string(model.BBRv3)) {
+	if BBRv3Token() != "" {
 		out = append(out, string(model.BBRv3))
 	}
 	return out

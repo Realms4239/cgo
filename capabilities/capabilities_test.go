@@ -14,7 +14,7 @@ func stubKernelRelease(t *testing.T, release string) {
 }
 
 func TestCapabilitiesReflectKernelWithoutBBRv3(t *testing.T) {
-	stubCCs(t, "cubic", "bbr")
+	stubCCs(t, "cubic", "bbr") // stubCCs écrase aussi marqueur/version : noyau « stock »
 	stubKernelRelease(t, "6.8.0-45-generic")
 	got := CapabilitiesNow()
 	if got.BBRv3 {

@@ -26,7 +26,7 @@ func SetConnCC(conn net.Conn, cc string) error {
 	}
 	var serr error
 	if err := raw.Control(func(fd uintptr) {
-		serr = syscall.SetsockoptString(int(fd), syscall.IPPROTO_TCP, tcpCongestion, cc)
+		serr = syscall.SetsockoptString(int(fd), syscall.IPPROTO_TCP, tcpCongestion, socketToken(cc))
 	}); err != nil {
 		return err
 	}

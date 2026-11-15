@@ -29,6 +29,6 @@ func CapabilitiesNow() Capabilities {
 		CCs:      DefaultCCs(),
 		KnownCCs: known,
 		Kernel:   KernelRelease(),
-		BBRv3:    CCPresent(string(model.BBRv3)),
+		BBRv3:    BBRv3Token() != "",
 	}
 }

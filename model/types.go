@@ -88,7 +88,8 @@ const (
 var AllCC = []CC{Cubic, BBR}
 
 // KnownCC — étiquettes acceptées. bbr3 reste gatée à l'exécution : une
-// demande explicite sur un noyau sans bbr3 est refusée, jamais repliée.
+// demande explicite avec « bbr3 » exposée, ou avec l'hôte provisionné en
+// noyau Google BBRv3 épinglé, est acceptée ; sinon elle est refusée, jamais repliée.
 var KnownCC = []CC{Cubic, BBR, BBRv3}
 
 // Gate G0–G7 per SPEC §2.2.

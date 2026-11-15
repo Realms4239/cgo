@@ -39,6 +39,25 @@ func TestExplicitBBRv3AcceptedWhenPresent(t *testing.T) {
 	}
 }
 
+func TestExplicitBBRv3AcceptedOnProvisionedHost(t *testing.T) {
+	// L'hôte provisionné enregistre la v3 sous « bbr » : la liste CC ne
+	// contient pas « bbr3 », c'est la provenance épinglée qui ouvre la porte.
+	defer capabilities.StubHost([]string{"cubic", "bbr"}, "")()
+	defer capabilities.StubProvisioned(pinnedMarkerJSON, "Linux version 6.13.7-g90210de4b779 #1 SMP")()
+	m, err := StartMatrixFiltered(context.Background(), []string{"P2"},
+		[]string{"cake"}, []string{"bbr3"}, 1, fastDeps(), t.TempDir())
+	if err != nil {
+		t.Fatalf("bbr3 explicite sur hôte provisionné doit être accepté : %v", err)
+	}
+	defer stopWait(t, m)
+	for i := 0; i < 40 && m.Done != m.Total; i++ {
+		time.Sleep(50 * time.Millisecond)
+	}
+	if m.Total != 1 {
+		t.Fatalf("total = %d, want 1", m.Total)
+	}
+}
+
 func TestKernelReleaseIsFrozen(t *testing.T) {
 	defer capabilities.StubHost([]string{"cubic", "bbr"}, "7.1.0-rc5-cgo-bbr3-test")()
 	cfg, err := buildMatrixConfig([]string{"P1"}, []string{"cake"}, []string{string(model.BBRv3)}, 1, Deps{})
