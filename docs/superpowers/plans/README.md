@@ -82,7 +82,7 @@ design is `docs/superpowers/specs/2026-10-25-cgo-enterprise-rebuild-design.md`.
   CGO-DEV VM is reachable through PC2 but its SSH rejects every recorded
   key/user, and PC2's WSL is 6.18 without clang/bpftool/tc. Do not call eBPF
   "verified" before the live test.
-- Evidence 2026-10-29: the CO-RE source (`probe/bpf/bpf_probe.c`),
+- Evidence 2026-10-29: the CO-RE source (`probe/bpf/src/bpf_probe.c`),
   `BUILD.md`, `vmlinux.h` ignore rule and `make bpf`/`make bpf-check` targets
   are committed. No object, loader, or hash exists; the next step is exactly
   `make bpf` on a stable Linux 6.8 host, then the Go loader/tests.

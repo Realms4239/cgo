@@ -992,6 +992,10 @@ var historicalAbsent = []string{
 	"cmd/cgo-gui",
 	"cmd/cgo-gui/fygui_linux.go", "cmd/cgo-gui/README-SEPARATE.md", "cmd/cgo-gui/verbs_parity_test.go",
 	"tools/verify.py", "tools/verify_test.py",
+	// déplacé 2026-11-15 vers probe/bpf/src/bpf_probe.c — la ligne 2026-10-29
+	// de docs/VERIFY.mdcite le chemin historique; le fichier est en WIP, hors
+	// de ce commit.
+	"probe/bpf/bpf_probe.c",
 }
 
 var backtickRx = regexp.MustCompile("`([^`\n]+)`")
