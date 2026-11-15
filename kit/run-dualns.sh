@@ -79,7 +79,9 @@ case "$CMD" in
     # puits : petit objet + masse, DANS ns_server — jamais dans le routeur
     # (un puits à l'edge court-circuiterait le shaper : 193 Mbit/s à travers
     # un plafond de 20, vu en prod).
-    $SUDO ip netns exec ns_server sh -c "nohup '$BIN' testbedsrv -http 10.30.0.2:8081 -bulk 10.30.0.2:5201 >/tmp/testbedsrv-dualns.log 2>&1 &"
+    # obj16.bin épinglé par kit/testbed.sh / cgo-netctl (16 KiB urandom, root) :
+    # sans lui le puits sert HTTP 500 sur /small et la campagne mesure du vide.
+    $SUDO ip netns exec ns_server sh -c "CGO_TESTBED_OBJ=/var/lib/cgo-testbed/obj16.bin nohup '$BIN' testbedsrv -http 10.30.0.2:8081 -bulk 10.30.0.2:5201 >/tmp/testbedsrv-dualns.log 2>&1 &"
     sleep 1
     $SUDO ip netns exec ns_client ping -c1 -W2 10.30.0.2 >/dev/null \
       || { echo "[!] puits injoignable depuis ns_client — voir /tmp/testbedsrv-dualns.log"; exit 1; }
@@ -99,8 +101,12 @@ case "$CMD" in
     # T1 — le dashboard (serve) et le puits survivent au `bench down` :
     # tués explicitement. Marqueur `--serve .*--http-addr=` (option HTTP
     # vide du serveur embarqué) pour ne jamais viser un autre process cgo.
-    pkill -f '.*--serve .*--http-addr=' 2>/dev/null || true
-    pkill -f "testbedsrv -http 10.30.0.2" 2>/dev/null || true
+    # le puits et le dashboard sont lancés par `up` sous sudo (ip netns exec
+    # via root) — le pkill doit être aussi sous sudo, sinon il ne voit ni ne
+    # tue ces processus (pgrep voit tout, kill non) : le down échouait fermé
+    # avec « orphelins survivants » à chaque run.
+    $SUDO pkill -f '.*--serve .*--http-addr=' 2>/dev/null || true
+    $SUDO pkill -f "testbedsrv -http 10.30.0.2" 2>/dev/null || true
     # Échec du bench down ne doit PAS court-circuiter la preuve 0-orphan :
     # rc capturé, vérification exécutée, verdict à la fin (C1).
     bench_rc=0

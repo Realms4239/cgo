@@ -382,7 +382,7 @@ run_ip() {
           local ns="$1"
           shift 2
           (( $# >= 1 )) || refuse "netns exec sans commande"
-          exec ip netns exec "$ns" -- "$SELF" --__depth1 "$@"
+          exec ip netns exec "$ns" "$SELF" --__depth1 "$@"
           ;;
         *)
           refuse "${1:-}"
@@ -460,7 +460,7 @@ run_srv_start() {
   [[ $# -eq 1 ]] || refuse "$*"
   [ -x /usr/local/bin/cgo-testbedsrv ] || { echo "[!] /usr/local/bin/cgo-testbedsrv absent — relancez kit/testbed.sh up (bloc sudo à mot de passe)" >&2; exit 8; }
   [ -r /var/lib/cgo-testbed/obj16.bin ] || { echo "[!] /var/lib/cgo-testbed/obj16.bin absent — relancez kit/testbed.sh up" >&2; exit 8; }
-  ip netns exec "$1" -- env CGO_TESTBED_OBJ=/var/lib/cgo-testbed/obj16.bin setsid nohup /usr/local/bin/cgo-testbedsrv --http 10.200.0.1:8081 --bulk 10.200.0.1:5201 </dev/null >/var/log/cgo-testbedsrv.log 2>&1 &
+  ip netns exec "$1" env CGO_TESTBED_OBJ=/var/lib/cgo-testbed/obj16.bin setsid nohup /usr/local/bin/cgo-testbedsrv --http 10.200.0.1:8081 --bulk 10.200.0.1:5201 </dev/null >/var/log/cgo-testbedsrv.log 2>&1 &
   exit 0
 }
 
@@ -471,7 +471,7 @@ run_srv_kill() {
   valid_if "${1:-}"
   [[ $# -eq 1 ]] || refuse "$*"
   local rc=0
-  ip netns exec "$1" -- pkill -f 'testbedsrv --http' || rc=$?
+  ip netns exec "$1" pkill -f 'testbedsrv --http' || rc=$?
   (( rc == 0 || rc == 1 )) || exit "$rc"   # rc=1 : aucun processus — idempotent
   exit 0
 }
