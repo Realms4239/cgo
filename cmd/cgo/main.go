@@ -71,6 +71,13 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
+		// même porte sur la redirection : une redirection bindée hors loopback sans --expose+token n'annule pas le contrat d'exposition
+		if strings.TrimSpace(*httpAddr) != "" {
+			if err := checkExposure(*httpAddr, *expose, os.Getenv, authTokenFile); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(2)
+			}
+		}
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		if err := runServer(ctx, *addr, doctor.Mode(*mode), *tlsOn, *httpAddr); err != nil {
@@ -237,7 +244,9 @@ WantedBy=multi-user.target
 		}
 		fmt.Printf("audit %s — %s %s %ds sens %s flux %d (banc %s) → %s (bulk %s)\n",
 			p.AuditID, p.LinkType, p.Site, p.Duration, p.Direction, p.Flows, sinks.Mode, p.Target, p.BulkAddr)
-		res, err := audit.Run(context.Background(), p, audit.Deps{})
+		d := audit.Deps{}
+		attachKernelProbe(&d)
+		res, err := audit.Run(context.Background(), p, d)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit:", err)
 			os.Exit(1)
