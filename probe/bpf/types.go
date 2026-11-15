@@ -4,6 +4,8 @@ package bpf
 type Flow struct {
 	Local          string `json:"local"`
 	Peer           string `json:"peer"`
+	LocalPort      uint16 `json:"local_port"`
+	PeerPort       uint16 `json:"peer_port"`
 	RetransPayload uint64 `json:"retrans_payload_bytes"`
 	RetransEvents  uint64 `json:"retrans_events"`
 	DropPackets    uint64 `json:"qdisc_drop_packets"`
