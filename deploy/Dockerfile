@@ -3,8 +3,7 @@
 FROM golang:1.25-bookworm AS build
 WORKDIR /src
 ARG VERSION=dev
-COPY go.mod go.sum ./
-RUN go mod download
+# les modules locaux (replace ./api etc.) sont nécessaires au `go mod` — copie de tout l'arbre, jamais un go.mod nu
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /cgo ./cmd/cgo
 

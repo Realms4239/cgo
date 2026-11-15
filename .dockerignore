@@ -1,0 +1,13 @@
+.git
+.gitmodules
+docs/
+book/
+data/
+backup/
+*.zip
+node_modules
+web/frontend/node_modules
+web/frontend/dist/*
+!web/frontend/dist/index.html
+provisioning/
+.superpowers/
