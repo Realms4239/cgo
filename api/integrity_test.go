@@ -15,9 +15,10 @@ import (
 )
 
 // Triple provenance (registre maître) : /api/integrity expose le sha256 du
-// dernier aqm_eval.csv (complet + 8 caractères) pour que le tiroir Wall + la pastille
-// Archives + le Rapport + les figures RDF portent le MÊME hash8. Chdir vers un
-// dossier temp — ne jamais polluer le dépôt.
+// CORPUS COMPLET (chaque */aqm_eval.csv trié, sha256 par fichier puis sha256
+// de la liste hex jointe) pour que le tiroir Wall + la pastille Archives + le
+// Rapport + les figures RDF portent le MÊME hash8. Chdir vers un dossier temp
+// — ne jamais polluer le dépôt.
 // TestIntegrityCounts — valid strict, degraded and quarantined sont trois
 // comptes distincts ; « valid » n'inclut jamais les lignes dégradées.
 func TestIntegrityCounts(t *testing.T) {
@@ -63,8 +64,11 @@ func TestIntegrityProvenance(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(run, "aqm_eval.csv"), []byte(csv), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// corpus à 1 fichier : sha256(hex(sha256(fichier))) — la liste jointe d'un
+	// seul élément n'ajoute pas de "\n".
 	sum := sha256.Sum256([]byte(csv))
-	full := hex.EncodeToString(sum[:])
+	listSum := sha256.Sum256([]byte(hex.EncodeToString(sum[:])))
+	full := hex.EncodeToString(listSum[:])
 
 	h := New(Deps{})
 	srv := httptest.NewServer(h)

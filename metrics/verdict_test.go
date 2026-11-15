@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+func pfloat(v float64) *float64 { return &v }
+
 func sla(pct float64, measured bool) CAPSLA {
 	return CAPSLA{Measured: measured, OKPct: pct, Breach: measured && pct < CAPBreachThresholdPct}
 }
@@ -51,6 +53,61 @@ func TestVerdictNeverGreenWithoutGrade(t *testing.T) {
 	}
 	if got.Level != VerdictNeutral {
 		t.Fatalf("niveau = %q, voulu neutral", got.Level)
+	}
+}
+
+// AssessLoadedHealth — même sémantique que l'ancien health.ts, désormais
+// dérivée une seule fois ici.
+func TestAssessLoadedHealth(t *testing.T) {
+	cases := []struct {
+		name     string
+		linkType string
+		idle     *float64
+		loaded   *float64
+		kind     string
+		bloat    float64
+		class    string
+		red      *float64
+	}{
+		{"absence d'un côté", "fiber", nil, pfloat(61), "absent", 0, "", nil},
+		{"absence de l'autre", "fiber", pfloat(20), nil, "absent", 0, "", nil},
+		{"fiber critique", "fiber", pfloat(20), pfloat(61), "critical", 41, "fiber", pfloat(30)},
+		{"fiber ok", "fiber", pfloat(20), pfloat(43), "ok", 23, "fiber", pfloat(30)},
+		{"fiber attente au seuil 0.8", "fiber", pfloat(20), pfloat(44), "attention", 24, "fiber", pfloat(30)},
+		{"fiber juste sous critical", "fiber", pfloat(20), pfloat(50), "attention", 30, "fiber", pfloat(30)},
+		{"fiber épineux (30 pile, 0.8×30=24)", "fiber", pfloat(0), pfloat(30), "attention", 30, "fiber", pfloat(30)},
+		{"fiber charge plus rapide que repos → clampé", "fiber", pfloat(50), pfloat(40), "ok", 0, "fiber", pfloat(30)},
+		{"4g critique", "4g", pfloat(100), pfloat(201), "critical", 101, "cellular", pfloat(100)},
+		{"5g même classe", "5g", pfloat(100), pfloat(201), "critical", 101, "cellular", pfloat(100)},
+		{"vsat geo", "vsat", pfloat(600), pfloat(720), "attention", 120, "geo", pfloat(150)},
+		{"leo sans seuil", "leo", pfloat(40), pfloat(240), "unconfigured", 200, "leo", nil},
+		{"p4 = leo", "p4", pfloat(40), pfloat(240), "unconfigured", 200, "leo", nil},
+		{"classe inconnue", "xdsl", pfloat(40), pfloat(240), "unconfigured", 200, "other", nil},
+		{"casse ignorée", "FIBER", pfloat(20), pfloat(61), "critical", 41, "fiber", pfloat(30)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := AssessLoadedHealth(c.linkType, c.idle, c.loaded)
+			if got.Kind != c.kind {
+				t.Fatalf("kind = %q, voulu %q", got.Kind, c.kind)
+			}
+			if c.kind == "absent" {
+				return // rien d'autre n'est rendu quand la mesure manque
+			}
+			if got.BloatMs != c.bloat {
+				t.Fatalf("bloat_ms = %v, voulu %v", got.BloatMs, c.bloat)
+			}
+			if got.LinkClass != c.class {
+				t.Fatalf("link_class = %q, voulu %q", got.LinkClass, c.class)
+			}
+			if c.red == nil {
+				if got.RedMs != nil {
+					t.Fatalf("red_ms = %v, voulu nil (unconfigured)", *got.RedMs)
+				}
+			} else if got.RedMs == nil || *got.RedMs != *c.red {
+				t.Fatalf("red_ms = %v, voulu %v", got.RedMs, *c.red)
+			}
+		})
 	}
 }
 

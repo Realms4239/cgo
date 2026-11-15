@@ -237,7 +237,7 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 func handleAuditStatus(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		running, last, rep := s.status()
-		writeJSON(w, map[string]any{"running": running, "last": last, "report": rep})
+		writeJSON(w, map[string]any{"running": running, "last": last, "report": reportWithLoadedHealth(rep)})
 	}
 }
 
@@ -311,7 +311,7 @@ func handleAuditReport(s *auditSession) http.HandlerFunc {
 			_, _ = io.WriteString(w, rep.RenderMarkdown())
 			return
 		}
-		writeJSON(w, rep)
+		writeJSON(w, reportWithLoadedHealth(rep))
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Realms4239/cgo/results"
@@ -36,19 +37,26 @@ func Generate(dataDir, outDir string) error {
 	return nil
 }
 
-// ProvenanceSHA — sha256 complet du dernier aqm_eval.csv ("" sans données).
-// Une seule dérivation pour la chaîne de triple provenance (Wall/Archives/Report).
+// ProvenanceSHA — sha256 complet du corpus ENTIER : chaque */aqm_eval.csv
+// (chemins triés) est haché en sha256, puis la liste hex triée rejointe par
+// "\n" est hachée à son tour. Une seule dérivation pour la chaîne de triple
+// provenance (Wall/Archives/Report). "" sans données.
 func ProvenanceSHA(dataDir string) string {
 	runs, _ := filepath.Glob(filepath.Join(dataDir, "*", "aqm_eval.csv"))
 	if len(runs) == 0 {
 		return ""
 	}
 	sort.Strings(runs)
-	b, err := os.ReadFile(runs[len(runs)-1])
-	if err != nil {
-		return ""
+	list := make([]string, 0, len(runs))
+	for _, f := range runs {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			return ""
+		}
+		sum := sha256.Sum256(b)
+		list = append(list, hex.EncodeToString(sum[:]))
 	}
-	sum := sha256.Sum256(b)
+	sum := sha256.Sum256([]byte(strings.Join(list, "\n")))
 	return hex.EncodeToString(sum[:])
 }
 

@@ -1,11 +1,16 @@
 package results
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// En-tête réel des runs d'aujourd'hui (23 colonnes, direction incluse) —
+// inline comme header18 : le module results n'a aucune dépendance vers model.
+const header23 = "run_id,event_id,profile,qdisc,cc,direction,repetition,rtt_p50_ms,rtt_p95_ms,qdi_ms,voip_r,jfi_pct,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,rtt_base_p50_ms,rtt_base_p95_ms,gate_status"
 
 // En-tête réel des runs gelés (18 colonnes : qdi_ms inséré en 8, pas de
 // voip_r) — chaque colonne porte une valeur distinctive pour que toute
@@ -118,6 +123,59 @@ func TestScanReadsByName(t *testing.T) {
 	if cake.Smallp95IQR != [2]float64{209.2, 209.2} {
 		t.Fatalf("cake Smallp95IQR = %v, want [209.2 209.2]", cake.Smallp95IQR)
 	}
+}
+
+// TestBestPerProfileDirection — le Best se joue dans chaque sens, jamais
+// entre eux : la meilleure cellule up et la meilleure cellule down portent
+// chacune leur drapeau, et une cellule témoin qdisc "none" ne l'obtient
+// jamais même si sa médiane est la plus basse.
+func TestBestPerProfileDirection(t *testing.T) {
+	dir := t.TempDir()
+	header := header23
+	row := func(run string, ev int, profile, qdisc, cc, direction string, small float64) string {
+		return fmt.Sprintf("%s,%d,%s,%s,%s,%s,1,90,100,12.0,88.5,95.0,%g,97.0,16.0,0,0,1000,5.0,0,80,85,valid",
+			run, ev, profile, qdisc, cc, direction, small)
+	}
+	writeRun(t, dir, "run-dir", header,
+		// up : pfifo 320 (le plus bas des up → Best up)
+		row("run-dir", 1, "P2", "pfifo_fast", "bbr", "up", 320.0),
+		row("run-dir", 2, "P2", "cake", "bbr", "up", 210.0),
+		// down : cake 400 (le plus bas des down → Best down)
+		row("run-dir", 3, "P2", "pfifo_fast", "bbr", "down", 500.0),
+		row("run-dir", 4, "P2", "cake", "bbr", "down", 400.0),
+		// témoin none : médiane la plus basse du corpus, jamais Best
+		row("run-dir", 5, "P2", "none", "bbr", "up", 100.0),
+	)
+	groups, err := Scan(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		qdisc, direction string
+		best             bool
+	}{
+		{"pfifo_fast", "up", false}, {"cake", "up", true},
+		{"pfifo_fast", "down", false}, {"cake", "down", true},
+		{"none", "up", false},
+	}
+	for _, c := range cases {
+		g := findGroupDir(groups, "P2", c.qdisc, c.direction)
+		if g == nil {
+			t.Fatalf("cellule absente P2|%s|%s", c.qdisc, c.direction)
+		}
+		if g.Best != c.best {
+			t.Fatalf("P2|%s|%s Best = %v, voulu %v (small %v)", c.qdisc, c.direction, g.Best, c.best, g.Smallp95Median)
+		}
+	}
+}
+
+func findGroupDir(groups []Group, profile, qdisc, direction string) *Group {
+	for i := range groups {
+		if groups[i].Profile == profile && groups[i].Qdisc == qdisc && groups[i].Direction == direction {
+			return &groups[i]
+		}
+	}
+	return nil
 }
 
 // TestScanMixedLayouts — l'historique mélange 17 colonnes (sans qdi_ms),

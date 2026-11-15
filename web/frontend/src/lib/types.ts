@@ -83,6 +83,16 @@ export interface AuditLive {
 //   (load_measured, drain_measured, small_measured, jfi_measured) disent ce qui a
 //   été mesuré ; les champs omitempty (remediation, economics, invocation) sont
 //   ABSENTS d'un rapport scellé avant ces champs.
+// loaded_health n'appartient pas au rapport scellé : types.gen.ts reste généré
+// et n'est pas édité. L'API (/api/audit/report, /api/audit/status) l'injecte à
+// la lecture, dérivé par le moteur Go (metrics.AssessLoadedHealth).
+// Augmentation locale de l'interface générée.
+declare module './types.gen' {
+  interface AuditMeasured {
+    loaded_health?: { kind: string; bloat_ms: number; link_class: string; red_ms: number | null }
+  }
+}
+
 export type {
   AuditReport,
   AuditMeasured,

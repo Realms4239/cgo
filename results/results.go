@@ -319,25 +319,43 @@ func scanUncached(dataDir, runFilter string, files []string) ([]Group, error) {
 		}
 		return false
 	})
-	// mark best smallest small_p95 per profile
-	bestForProfile := map[string]int{}
+	// Best par (profile,direction) : dans chaque clé, la plus petite médiane
+	// small_p95 gagne — up et down ne se disputent jamais le drapeau (même
+	// cellule, physique opposée). Une cellule qdisc "none" est un témoin de
+	// mesure, pas un réglage : jamais candidate au "Best" (le corpus gelé
+	// n'en contient pas ; la garde protège les cellules futures).
+	bestForKey := func(g Group) string { return g.Profile + "|" + g.Direction }
+	bestFor := map[string]int{}
 	bestVal := map[string]float64{}
 	for i, g := range out {
-		if v, ok := bestVal[g.Profile]; !ok || g.Smallp95Median < v {
-			bestVal[g.Profile] = g.Smallp95Median
-			bestForProfile[g.Profile] = i
+		if g.Qdisc == "none" {
+			continue
+		}
+		k := bestForKey(g)
+		if v, ok := bestVal[k]; !ok || g.Smallp95Median < v {
+			bestVal[k] = g.Smallp95Median
+			bestFor[k] = i
 		}
 	}
-	for p, idx := range bestForProfile {
-		if bestVal[p] > 0 {
+	for k, idx := range bestFor {
+		if bestVal[k] > 0 {
 			out[idx].Best = true
 		}
 	}
-	// hardware recommendation per profile best (not per row) — deduped source pkg/results/hardware.go
+	// hardware recommendation per profile best (not per row) — deduped source
+	// pkg/results/hardware.go. Épinglé ici (moteur, jamais l'interface) :
+	// constat "up" du profile, sinon le "down" si aucun up n'a de Best.
 	bestQdiscForProfile := map[string]string{}
 	for _, g := range out {
-		if g.Best {
+		if g.Best && g.Direction == "up" {
 			bestQdiscForProfile[g.Profile] = g.Qdisc
+		}
+	}
+	for _, g := range out {
+		if g.Best && g.Direction == "down" {
+			if _, ok := bestQdiscForProfile[g.Profile]; !ok {
+				bestQdiscForProfile[g.Profile] = g.Qdisc
+			}
 		}
 	}
 	for i := range out {

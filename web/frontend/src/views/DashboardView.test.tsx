@@ -16,6 +16,7 @@ const measured = {
     rtt_idle_p50_ms: 20,
     load_measured: true,
     load_attempted: true,
+    loaded_health: { kind: 'critical', bloat_ms: 58, link_class: 'fiber', red_ms: 30 },
   },
   bloat_grade: 'A',
   operator_verdict: { level: 'green', word: 'Lien stable', sentence: 'Le débit sous charge tient votre objectif.' },

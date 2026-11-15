@@ -1,6 +1,9 @@
 package metrics
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestMedianIQR(t *testing.T) {
 	if got := Median([]float64{3, 1, 2}); got != 2 {
@@ -46,6 +49,32 @@ func TestMannWhitneySeparated(t *testing.T) {
 	_, p := MannWhitneyTwoSided(a, b)
 	if p >= 0.05 {
 		t.Fatalf("p=%v want <0.05", p)
+	}
+}
+
+// Ex æquo massifs : la variance doit rétrécir via la correction t³−t sur
+// l'échantillon combiné — un p plus petit que la valeur sans correction.
+func TestMannWhitneyTieCorrection(t *testing.T) {
+	a := []float64{1, 1, 1, 1, 1}
+	b := []float64{2, 2, 2, 2, 2}
+	u, p := MannWhitneyTwoSided(a, b)
+	if u != 0 {
+		t.Fatalf("u = %v, voulu 0 (groupes parfaitement séparés)", u)
+	}
+	// valeur sans correction (formule historique), même correction de continuité
+	sdNoTie := math.Sqrt(25 * 11 / 12)
+	zNoTie := (math.Abs(0-12.5) - 0.5) / sdNoTie
+	pNoTie := math.Erfc(zNoTie / math.Sqrt2)
+	if !(p < pNoTie) {
+		t.Fatalf("p avec correction = %v, voulu < %v (sans correction)", p, pNoTie)
+	}
+	// fixture déterministe : Var = (25/6)² ⇒ z = 2.88 ⇒ p ≈ 0.00397
+	if p < 0.003 || p > 0.005 {
+		t.Fatalf("p = %v, voulu dans [0.003, 0.005]", p)
+	}
+	// tout l'échantillon ex æquo : variance corrigée nulle ⇒ p = 1 honnête
+	if _, pAll := MannWhitneyTwoSided([]float64{1, 1}, []float64{1, 1}); pAll != 1 {
+		t.Fatalf("p (tout ex æquo) = %v, voulu 1", pAll)
 	}
 }
 

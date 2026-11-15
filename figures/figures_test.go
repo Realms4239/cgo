@@ -12,7 +12,7 @@ import (
 )
 
 // Tâche 5.1 — les figures exigent des données (erreur honnête, pas de SVG vide) et
-// intègrent la provenance RDF (sha256 du dernier aqm_eval.csv + date + créateur) dans les deux SVG.
+// intègrent la provenance RDF (sha256 du corpus entier + date + créateur) dans les deux SVG.
 func TestFiguresRDF(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "figures")
@@ -50,24 +50,42 @@ func TestFiguresRDF(t *testing.T) {
 	}
 }
 
-// ProvenanceHash8 — le sha256 8 caractères du dernier aqm_eval.csv, stable
-// sur Wall/Drawer/Archives/Report (triple provenance, registre maître).
+// ProvenanceHash8 — le sha256 8 caractères du corpus entier (chaque
+// */aqm_eval.csv haché, liste hex rejointe re-hachée), stable sur
+// Wall/Drawer/Archives/Report (triple provenance, registre maître).
 func TestProvenanceHash8(t *testing.T) {
 	if h := ProvenanceHash8(filepath.Join(t.TempDir(), "empty")); h != "" {
 		t.Fatalf("no data expected empty hash, got %q", h)
 	}
-	run := filepath.Join(t.TempDir(), "runs", "run-x")
-	if err := os.MkdirAll(run, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	dataDir := filepath.Join(t.TempDir(), "runs")
 	csv := strings.Join(model.AQMEvalHeader, ",") + "\nrun-x,1,P1,pfifo_fast,bbr,1,20,22.5,46.9,100,235.1,0,0,1,11.6,12,valid\n"
-	if err := os.WriteFile(filepath.Join(run, "aqm_eval.csv"), []byte(csv), 0o644); err != nil {
+	csv2 := strings.Join(model.AQMEvalHeader, ",") + "\nrun-y,1,P1,cake,bbr,1,20,22.5,46.9,100,235.1,0,0,1,11.6,12,valid\n"
+	for _, r := range []struct{ run, body string }{{"run-x", csv}, {"run-y", csv2}} {
+		if err := os.MkdirAll(filepath.Join(dataDir, r.run), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dataDir, r.run, "aqm_eval.csv"), []byte(r.body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// attendu : chaque fichier haché (trié par chemin), liste rejointe "\n" re-hachée
+	s1 := sha256.Sum256([]byte(csv))
+	s2 := sha256.Sum256([]byte(csv2))
+	inner := hex.EncodeToString(s1[:]) + "\n" + hex.EncodeToString(s2[:]) // run-x < run-y
+	sum := sha256.Sum256([]byte(inner))
+	want := hex.EncodeToString(sum[:])[:8]
+	if h := ProvenanceHash8(dataDir); h != want {
+		t.Fatalf("hash8 = %q, want %q (corpus entier)", h, want)
+	}
+	if again := ProvenanceHash8(dataDir); again != want {
+		t.Fatalf("hash instable : %q puis %q", want, again)
+	}
+	// un octet changé dans UN run change le hash du corpus entier
+	mutated := strings.Replace(csv, "22.5", "22.6", 1)
+	if err := os.WriteFile(filepath.Join(dataDir, "run-x", "aqm_eval.csv"), []byte(mutated), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	h := ProvenanceHash8(filepath.Dir(run))
-	sum := sha256.Sum256([]byte(csv))
-	want := hex.EncodeToString(sum[:])[:8]
-	if h != want {
-		t.Fatalf("hash8 = %q, want %q", h, want)
+	if h := ProvenanceHash8(dataDir); h == want {
+		t.Fatalf("mutation d'un run invisible dans le hash du corpus")
 	}
 }

@@ -86,12 +86,15 @@ func MannWhitneyTwoSided(a, b []float64) (u, p float64) {
 		all = append(all, v{x, 1})
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].x < all[j].x })
-	var ra float64
+	var ra, sumT3mT float64 // sumT3mT = Σ(t³−t) sur les ex æquo combinés
 	i := 0
 	for i < len(all) {
 		j := i
 		for j+1 < len(all) && all[j+1].x == all[i].x {
 			j++
+		}
+		if t := float64(j - i + 1); t > 1 {
+			sumT3mT += t*t*t - t
 		}
 		avg := float64(i+1+j+1) / 2 // rangs 1-based moyens sur ex æquo
 		for k := i; k <= j; k++ {
@@ -105,10 +108,17 @@ func MannWhitneyTwoSided(a, b []float64) (u, p float64) {
 	u1 := ra - n1*(n1+1)/2
 	u = u1
 	mu := n1 * n2 / 2
-	sd := math.Sqrt(n1 * n2 * (n1 + n2 + 1) / 12)
-	if sd == 0 {
+	n := n1 + n2
+	if n <= 1 {
 		return u, 1
 	}
+	// Variance corrigée des ex æquo sur l'échantillon combiné :
+	// Var(U) = n1·n2/12 · [(N+1) − Σ(t³−t)/(N(N−1))].
+	sd2 := n1 * n2 / 12 * ((n + 1) - sumT3mT/(n*(n-1)))
+	if sd2 <= 0 {
+		return u, 1
+	}
+	sd := math.Sqrt(sd2)
 	z := (math.Abs(u1-mu) - 0.5) / sd // continuité
 	p = math.Erfc(z / math.Sqrt2)
 	return u, p

@@ -866,6 +866,9 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 				if len(xs) == 0 {
 					return 0
 				}
+				// la médiane exige l'ordre — /2 brut sur entrées non triées
+				// renvoyait une valeur arbitraire étiquetée médiane.
+				sort.Float64s(xs)
 				return xs[len(xs)/2]
 			}
 			return cellVals{SmallP95: sm(smalls), RTTp95: sm(rtts), Goodput: sm(gds)}, true
@@ -1526,6 +1529,44 @@ func crossSiteGuard(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// reportWithLoadedHealth — le rapport scellé est servi en JSON avec
+// measured.loaded_health dérivé par le moteur Go : l'interface affiche ce que
+// le moteur a conclu, elle ne recalcule rien (l'ancien health.ts est supprimé).
+// Projection de lecture : l'artefact scellé sur disque n'est pas réécrit.
+// load_measured=false ⇒ loaded_p95 n'a pas de sens ⇒ la jambe chargée passe
+// nil ⇒ kind "absent", jamais une mesure inventée depuis un zéro.
+func reportWithLoadedHealth(rep *audit.Report) any {
+	if rep == nil {
+		return nil
+	}
+	raw, err := json.Marshal(rep)
+	if err != nil {
+		log.Printf("loaded_health: marshal du rapport impossible : %v", err)
+		return rep // échec honnête : le rapport part tel quel, sans la projection
+	}
+	payload := map[string]any{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return rep
+	}
+	measured, ok := payload["measured"].(map[string]any)
+	if !ok {
+		return payload
+	}
+	var idleP50, loadedP95 *float64
+	if v, ok := measured["rtt_idle_p50_ms"].(float64); ok {
+		idleP50 = &v
+	}
+	// load_measured=false ⇒ rtt_loaded_p95_ms = 0 = non mesuré (sémantique
+	// du rapport scellé) ; la jambe chargée est alors absente pour le moteur.
+	if lm, _ := measured["load_measured"].(bool); lm {
+		if v, ok := measured["rtt_loaded_p95_ms"].(float64); ok {
+			loadedP95 = &v
+		}
+	}
+	measured["loaded_health"] = metrics.AssessLoadedHealth(rep.LinkType, idleP50, loadedP95)
+	return payload
 }
 
 // truncateUTF8 — coupe à max octets sans fendre un caractère : un site coupé

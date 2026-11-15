@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useUIStore } from '../store/ui'
 import { useAuditStore } from '../store/audit'
 import { VerdictHero } from '../components/VerdictHero'
-import { evaluateLoadedHealth } from '../lib/health'
 import { retailBound } from '../lib/dashboard'
 import { formatCostAR, groupDigits, relativeTime, asArray } from '../lib/format'
 import { loadSettings } from '../lib/settings'
@@ -28,15 +27,19 @@ type ArchiveRecord = {
   site_name?: string
 }
 
+// La santé chargée est dérivée par le moteur Go et injectée par l'API
+// (measured.loaded_health) — l'interface affiche, elle ne recalcule pas.
+// Un rapport historique sans projection rend l'état absent, comme hier.
 function healthBlock(report: import('../lib/types').AuditReport): { title: string; detail: string } {
-  const h = evaluateLoadedHealth({
-    linkType: report.link_type ?? '',
-    idleP50Ms: report.measured?.rtt_idle_p50_ms,
-    loadedP95Ms: report.measured?.rtt_loaded_p95_ms,
-  })
-  if (h.kind === 'absent') return { title: HEALTH_LABEL.absent, detail: 'la mesure manque' }
-  if (h.kind === 'unconfigured') return { title: HEALTH_LABEL.unconfigured, detail: `Δ ${Math.round(h.bloatMs)} ms — aucun seuil de classe fourni` }
-  return { title: HEALTH_LABEL[h.kind], detail: `Δ ${signed(Math.round(h.bloatMs))} ms sous charge` }
+  const h = report.measured?.loaded_health
+  if (!h || h.kind === 'absent') return { title: HEALTH_LABEL.absent, detail: 'la mesure manque' }
+  const delta = `Δ ${signed(Math.round(h.bloat_ms))} ms`
+  if (h.kind === 'unconfigured') return { title: HEALTH_LABEL.unconfigured, detail: `${delta} — aucun seuil de classe fourni` }
+  if (h.kind === 'ok' || h.kind === 'attention' || h.kind === 'critical') {
+    return { title: HEALTH_LABEL[h.kind], detail: `${delta} sous charge` }
+  }
+  // kind inconnu : jamais un titre inventé — l'absence parle.
+  return { title: HEALTH_LABEL.absent, detail: 'la mesure manque' }
 }
 
 function CapCard({ report }: { report: import('../lib/types').AuditReport | null }) {

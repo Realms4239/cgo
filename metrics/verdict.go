@@ -1,6 +1,9 @@
 package metrics
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // VerdictLevel — les quatre niveaux du langage opérateur. Le rouge garde un
 // seul niveau et deux mots, selon ce qu'il a mesuré : une mission manquée et
@@ -65,4 +68,59 @@ func AssessVerdict(in VerdictInput) Verdict {
 		return Verdict{VerdictNeutral, "Note indisponible",
 			"La charge a tourné mais l'écart de latence n'a pas pu être calculé."}
 	}
+}
+
+// LoadedHealth — verdict chargé class-aware, rendu une seule fois ici (le
+// moteur Go est la seule dérivation ; l'interface n'affiche plus qu'elle ne
+// recalcule pas).
+type LoadedHealth struct {
+	Kind     string   `json:"kind"`       // "absent"|"unconfigured"|"ok"|"attention"|"critical"
+	BloatMs  float64  `json:"bloat_ms"`   // chargé p95 − idle p50, clampé ≥ 0
+	LinkClass string  `json:"link_class"` // "fiber"|"cellular"|"geo"|"leo"|"other"
+	RedMs    *float64 `json:"red_ms"`     // nil si unconfigured (leo/other/inconnu)
+}
+
+// redBloatMs — seuil rouge par classe de lien ; nil = classe sans seuil.
+var redBloatMs = map[string]float64{
+	"fiber":    30,
+	"cellular": 100,
+	"geo":      150,
+}
+
+// AssessLoadedHealth — l'écart de latence chargé contre le seuil de sa
+// classe. Pointeurs nil → "absent" : rien n'est inventé, une mesure qui
+// manque garde son absence. leo/other/inconnu → "unconfigured" avec le
+// bloat quand même rendu.
+func AssessLoadedHealth(linkType string, idleP50Ms, loadedP95Ms *float64) LoadedHealth {
+	if idleP50Ms == nil || loadedP95Ms == nil {
+		return LoadedHealth{Kind: "absent"}
+	}
+	bloat := *loadedP95Ms - *idleP50Ms
+	if bloat < 0 {
+		bloat = 0
+	}
+	cls := "other"
+	switch strings.ToLower(linkType) {
+	case "fiber":
+		cls = "fiber"
+	case "4g", "5g":
+		cls = "cellular"
+	case "vsat":
+		cls = "geo"
+	case "leo", "p4":
+		cls = "leo"
+	}
+	red, ok := redBloatMs[cls]
+	if !ok {
+		return LoadedHealth{Kind: "unconfigured", BloatMs: bloat, LinkClass: cls}
+	}
+	kind := "ok"
+	switch {
+	case bloat > red:
+		kind = "critical"
+	case bloat >= red*0.8:
+		kind = "attention"
+	}
+	r := red
+	return LoadedHealth{Kind: kind, BloatMs: bloat, LinkClass: cls, RedMs: &r}
 }
