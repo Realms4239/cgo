@@ -997,7 +997,7 @@ var historicalAbsent = []string{
 	// de ce commit.
 	"probe/bpf/bpf_probe.c",
 	// ancien layout pré-modularisation — docs/CHECKPOINTS.md en cite le souvenir
-	"pkg/profile", "api/data/",
+	"pkg/profile", "pkg/profile/", "api/data/",
 	// docs/verification/… intentionnellement NON commités (preuves privées 2026-11-12/13, voir WIP)
 	"docs/verification/2026-11-13-dist-emulated/README.md",
 	"docs/verification/2026-11-12-ebpf-probe-bringup/README.md",
