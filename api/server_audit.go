@@ -193,8 +193,9 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			}
 			// Evidence first: the report is sealed from the row this audit
 			// appended, so the artifact and the CSV cannot drift apart.
-			if err := audit.AppendLinkAudit(results.DataRoot(), res); err != nil {
-				recordEvent("audit", fmt.Sprintf("échec écriture CSV — %s : %s", p.Site, err))
+			appendErr := audit.AppendLinkAudit(results.DataRoot(), res)
+			if appendErr != nil {
+				recordEvent("audit", fmt.Sprintf("échec écriture CSV — %s : %s", p.Site, appendErr))
 			}
 			link := remediate.Link{
 				Interface:            body.Iface,
@@ -215,7 +216,14 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 				} else if err := rep.SealTelemetry(telPath); err != nil {
 					recordEvent("audit", fmt.Sprintf("sceau télémétrie impossible — %s : %s", p.Site, err))
 				}
-				if err := rep.SealSource(results.LinkAuditCSV()); err != nil {
+				if appendErr != nil {
+					// Le sceau source prouve la ligne que CET audit a appended :
+					// CSV non écrit ⇒ le sceller serait mentir (l'artefact prétend
+					// prouver un fichier qui ne porte pas cet audit). On laisse
+					// SourceSHA256/RowFileSHA256 vides — le rapport reste scellé
+					// côté télémétrie ; les artefacts sont quand même écrits.
+					recordEvent("audit", fmt.Sprintf("sceau source sauté — %s : CSV non écrit", p.Site))
+				} else if err := rep.SealSource(results.LinkAuditCSV()); err != nil {
 					recordEvent("audit", fmt.Sprintf("scellement impossible — %s : %s", p.Site, err))
 				}
 				if _, _, err := audit.WriteArtifacts(rep, audit.DataDir()); err != nil {

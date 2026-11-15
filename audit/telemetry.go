@@ -70,7 +70,15 @@ func WriteTelemetry(baseDir string, res *Result) (string, error) {
 		})
 	}
 	w.Flush()
-	return path, w.Error()
+	if err := w.Error(); err != nil {
+		return path, err
+	}
+	// le sceau lit ce fichier ensuite : il doit être sur le disque, pas dans
+	// le page cache — fsync explicite AVANT le retour (Close reste différé).
+	if err := f.Sync(); err != nil {
+		return path, err
+	}
+	return path, nil
 }
 
 // ReadTelemetry — lecture stricte de data/audits/<id>/telemetry.csv.

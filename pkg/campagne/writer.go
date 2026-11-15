@@ -1,6 +1,7 @@
 package campagne
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -40,10 +41,33 @@ func OpenRun(dir string) (*Writer, error) {
 	w := &Writer{Dir: dir, seen: map[string]bool{}}
 	path := filepath.Join(dir, "aqm_eval.csv")
 	exists := false
+	// Réparation de queue AVANT l'O_APPEND : une ligne tronquée par l'arrêt
+	// (dernier octet ≠ '\n') n'a jamais été gelée — l'O_APPEND collerait sinon
+	// la nouvelle ligne saine contre les fragments de la déchirée (un CSV
+	// poursuivant sur la même ligne physique) et le manifeste hash ensuite des
+	// octets jamais mesurés. On tronque après le DERNIER '\n' (0 s'il n'y en
+	// a aucun — le fichier repart alors sur un en-tête neuf, exists=false).
 	if st, err := os.Stat(path); err == nil && st.Size() > 0 {
-		exists = true
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reprise: lecture impossible de %s : %w", path, err)
+		}
+		if len(data) > 0 && data[len(data)-1] != '\n' {
+			if i := bytes.LastIndexByte(data, '\n'); i >= 0 {
+				if err := os.Truncate(path, int64(i+1)); err != nil {
+					return nil, fmt.Errorf("reprise: troncature de %s : %w", path, err)
+				}
+				data = data[:i+1]
+			} else {
+				if err := os.Truncate(path, 0); err != nil {
+					return nil, fmt.Errorf("reprise: troncature de %s : %w", path, err)
+				}
+				data = nil
+			}
+		}
 		// remplir seen pour la reprise (G5) — lire les lignes existantes
-		if data, err := os.ReadFile(path); err == nil {
+		if len(data) > 0 {
+			exists = true
 			lines := splitLines(string(data))
 			for i, ln := range lines {
 				if i == 0 {
@@ -60,6 +84,9 @@ func OpenRun(dir string) (*Writer, error) {
 				// porter 7+ cellules sans en porter 23 : on exige la largeur
 				// complète pour enregistrer l'identité, sinon la reprise
 				// « voit » une cellule jamais gelée et G5 la saute à tort.
+				// Limite connue : une déchirure APRÈS la cellule 23 (dans
+				// gate_status, ~7 octets de fenêtre) se lit complète —
+				// identité (colonnes 3-7) déjà saine, fenêtre acceptée.
 				if len(parts) < 23 {
 					continue
 				}

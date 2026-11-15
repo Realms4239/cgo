@@ -57,6 +57,74 @@ func TestWriterResumeAfterUncleanClose(t *testing.T) {
 	}
 }
 
+// TestWriterResumeRepairTornTail (b2) — la reprise retire le fragment de
+// queue AVANT toute relecture : le fichier retombe sur « header\n », la
+// cellule déchirée se ré-appende, et le CSV final porte exactement 2 lignes
+// non blanches, la dernière en 23 cellules commençant par le run id de la
+// cellule déchirée.
+func TestWriterResumeRepairTornTail(t *testing.T) {
+	dir := t.TempDir()
+	ev := eventForCampagne(1, model.GatePass)
+
+	w, err := OpenRun(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Append(ev); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.fh.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// déchirer la queue SANS retour à la ligne : dernier octet ≠ '\n'
+	path := filepath.Join(dir, "aqm_eval.csv")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trimmed := bytes.TrimRight(b, "\n")
+	nl := bytes.LastIndexByte(trimmed, '\n')
+	row := trimmed[nl+1:]
+	torn := trimmed[:nl+1+len(row)/2]
+	if err := os.WriteFile(path, torn, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	w2, err := OpenRun(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w2.fh.Close()
+	if err := w2.Append(ev); err != nil {
+		t.Fatalf("la cellule déchirée doit se ré-ajouter : %v", err)
+	}
+	final, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := splitLines(string(final))
+	nonEmpty := 0
+	var last string
+	for _, ln := range lines {
+		if ln == "" {
+			continue
+		}
+		nonEmpty++
+		last = ln
+	}
+	if nonEmpty != 2 {
+		t.Fatalf("splitLines = %d lignes non blanches, want 2 (en-tête + la cellule)", nonEmpty)
+	}
+	parts := splitCSV(last)
+	if len(parts) != 23 {
+		t.Fatalf("la dernière ligne porte %d cellules, want 23", len(parts))
+	}
+	if parts[0] != ev.RunID {
+		t.Fatalf("la dernière ligne commence par %q, want %q", parts[0], ev.RunID)
+	}
+}
+
 // TestWriterResumeIgnoresTornTailRow — une ligne coupée en deux par l'arrêt
 // (largeur < 23 cellules, pas de retour à la ligne) ne pollue PAS seen :
 // la même cellule se ré-appende proprement. Avant le garde-fou, la moitié de
