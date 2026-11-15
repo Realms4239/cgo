@@ -29,3 +29,18 @@ func TestPseudonymStablePerWindow(t *testing.T) {
 		t.Fatalf("label = %d hex, want 16 (8 octets)", len(a))
 	}
 }
+
+func TestPortExcluded(t *testing.T) {
+	if !portExcluded("3333,4444", 4444) {
+		t.Fatal("port distant 4444 exclut")
+	}
+	if !portExcluded("3333,4444", 8080, 3333) {
+		t.Fatal("port local 3333 exclut")
+	}
+	if portExcluded("", 4444) {
+		t.Fatal("liste vide exclut rien")
+	}
+	if portExcluded("3333", 4444) {
+		t.Fatal("port inconnu non exclu")
+	}
+}

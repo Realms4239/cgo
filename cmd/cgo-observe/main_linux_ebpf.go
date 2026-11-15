@@ -7,6 +7,7 @@
 //
 // Compteurs cumulatifs du binaire noyau : les débits par fenêtre sont les
 // deltas d'une ligne à l'autre (analyse soustrait, jamais relègue).
+// --exclude-ports masque les flux de minage (les lignes comptent exclues).
 package main
 
 import (
@@ -28,13 +29,14 @@ import (
 )
 
 const usage = `cgo-observe — trace passive bornée
-Usage: cgo-observe --out DIR [--duration SEC] [--interval SEC]
+Usage: cgo-observe --out DIR [--duration SEC] [--interval SEC] [--exclude-ports CSV]
 Plafond dur : 172800 s (48 h). -tags ebpf_object requis.`
 
 func main() {
 	out := flag.String("out", "", "répertoire de trace (créé 0700)")
 	duration := flag.Int("duration", 60, "secondes (plafond dur 172800)")
 	interval := flag.Int("interval", 5, "secondes entre deux exports")
+	exclude := flag.String("exclude-ports", "", "CSV de ports exclus (ex. 3333,4444 — minage)")
 	flag.Parse()
 	if *out == "" {
 		fmt.Fprintln(os.Stderr, usage)
@@ -59,7 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("csv: %v", err)
 	}
-	fmt.Fprintln(f, "kind,window_unix,local_label,peer_label,retrans_payload_bytes,retrans_events,qdisc_drop_packets,qdisc_drop_bytes,srtt_us,snd_cwnd,snd_ssthresh,state,samples")
+	fmt.Fprintln(f, "kind,window_unix,local_label,peer_label,local_port,peer_port,retrans_payload_bytes,retrans_events,qdisc_drop_packets,qdisc_drop_bytes,srtt_us,snd_cwnd,snd_ssthresh,state,samples")
 
 	sess, err := bpf.Attach()
 	if err != nil {
@@ -71,7 +73,7 @@ func main() {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	deadline := time.After(time.Duration(dur) * time.Second)
 
-	rows := uint64(0)
+	rows, excluded := uint64(0), uint64(0)
 	for {
 		select {
 		case <-deadline:
@@ -84,9 +86,20 @@ func main() {
 		sum, err := sess.Summary()
 		window := time.Now().Unix()
 		if err == nil {
-			g(f, window, sum, &rows)
+			fmt.Fprintf(f, "G,%d,-,-,-,-,%d,%d,%d,%d,-,-,-,-,-\n",
+				window, sum.RetransPayload, sum.RetransEvents, sum.QdiscDrops, sum.QdiscDropBytes)
+			rows++
 			for _, fl := range sum.Flows {
-				writeFlow(f, window, fl, salt, &rows)
+				if portExcluded(*exclude, uint32(fl.LocalPort), uint32(fl.PeerPort)) {
+					excluded++
+					continue
+				}
+				fmt.Fprintf(f, "F,%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+					window, pseudonym(fl.Local, salt), pseudonym(fl.Peer, salt),
+					fl.LocalPort, fl.PeerPort,
+					fl.RetransPayload, fl.RetransEvents, fl.DropPackets, fl.DropBytes,
+					fl.SRTTus, fl.SndCwnd, fl.SndSsthresh, fl.State, fl.Samples)
+				rows++
 			}
 		} else {
 			log.Printf("synthèse: %v", err)
@@ -107,6 +120,8 @@ done:
 		"duration_s":       dur,
 		"interval_s":       *interval,
 		"rows":             rows,
+		"excluded_rows":    excluded,
+		"exclude_ports":    *exclude,
 		"attach":           sess.Attached(),
 		"flows_csv_sha256": hex.EncodeToString(sum[:]),
 	}
@@ -115,19 +130,5 @@ done:
 	}
 	mb, _ := json.MarshalIndent(manifest, "", "  ")
 	_ = os.WriteFile(filepath.Join(*out, "manifest.json"), mb, 0o600)
-	log.Printf("arrêt propre — lignes=%d manifest=%s", rows, filepath.Join(*out, "manifest.json"))
-}
-
-func g(f *os.File, window int64, sum bpf.Summary, rows *uint64) {
-	fmt.Fprintf(f, "G,%d,-,-,%d,%d,%d,%d,-,-,-,-,-\n",
-		window, sum.RetransPayload, sum.RetransEvents, sum.QdiscDrops, sum.QdiscDropBytes)
-	*rows++
-}
-
-func writeFlow(f *os.File, window int64, fl bpf.Flow, salt []byte, rows *uint64) {
-	fmt.Fprintf(f, "F,%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-		window, pseudonym(fl.Local, salt), pseudonym(fl.Peer, salt),
-		fl.RetransPayload, fl.RetransEvents, fl.DropPackets, fl.DropBytes,
-		fl.SRTTus, fl.SndCwnd, fl.SndSsthresh, fl.State, fl.Samples)
-	*rows++
+	log.Printf("arrêt propre — lignes=%d exclues=%d manifest=%s", rows, excluded, filepath.Join(*out, "manifest.json"))
 }

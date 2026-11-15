@@ -5,6 +5,8 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"strconv"
+	"strings"
 )
 
 // maxDurationSec — plafond dur du trace : 48 h. Aucun appelant ne peut
@@ -30,4 +32,25 @@ func pseudonym(ip string, salt []byte) string {
 	mac.Write([]byte(ip))
 	sum := mac.Sum(nil)
 	return hex.EncodeToString(sum[:8])
+}
+
+// portExcluded — liste CSV ("3333,4444") ; un flux est exclu si son port
+// local OU distant est dans la liste (la ligne est bidirectionnelle côté
+// socket). Liste vide = exclut rien.
+func portExcluded(csv string, ports ...uint32) bool {
+	if strings.TrimSpace(csv) == "" {
+		return false
+	}
+	deny := map[uint32]bool{}
+	for _, p := range strings.Split(csv, ",") {
+		if v, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
+			deny[uint32(v)] = true
+		}
+	}
+	for _, p := range ports {
+		if deny[p] {
+			return true
+		}
+	}
+	return false
 }
