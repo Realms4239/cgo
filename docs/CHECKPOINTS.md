@@ -3228,3 +3228,29 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Layer 1 restarted as `run-1794861247` (PID 59280), single writer, 72 cells; fresh run ID.
 - Unproven: full matrix completion, independent verifier re-run of rows 42/43, field trace
   still live until 2026-11-17T16:22:27Z. No VERIFIED row promoted by builder.
+
+## 2026-11-16T20:47Z — third root cause: run CLI target default
+
+- Symptom: relaunched Layer 1 `run-1794861247` showed `rtt 0.0ms`, gates `G[✗·····✗·]`,
+  and never committed a first cell. Clean audit from the same netns/target measured RTT 200/200 ms,
+  so reachability itself was fine — a campaign-only defect.
+- Root cause: `cmd/cgo/main.go:341` declared `--target` with default `1.1.1.1`, and
+  `cmd/cgo/runcli.go:145` unconditionally assigned it over the auto-detected target from
+  `ProdDepsDualNS` (10.30.0.2) and `ProdDeps` (10.200.0.1). The isolated bench cannot reach
+  1.1.1.1; ping returned no samples, so RTT and G0 failed silently. The sealed 24-cell corpus
+  had passed `--target` explicitly, which is why it stayed valid. Both lines date to `298939f`.
+- Fix in the working tree (NOT committed — `cmd/cgo/main.go` and `cmd/cgo/runcli.go` carry
+  pre-existing protected WIP, so an explicit-path commit would have swept it in; the accidental
+  commit was reset with `git reset --soft` and `git restore --staged`): `--target` now defaults
+  to empty and `resolvedTarget(flag, detected)` only overrides when explicitly set. A small
+  table test `cmd/cgo/target_test.go` (untracked) covers dualns, legacy and explicit cases.
+  `go test ./cmd/cgo -run TestResolvedTarget -count=1` green; gates 6/6.
+- Two invalidated campaigns (`run-1794860405`, `run-1794861247`) and a third aborted by a
+  topology check (`run-1794861873`: `no cake on e-wan`, stale `/run/netns/ns_client`) were
+  stopped by exact PID / left without data; topology restored with `run-dualns.sh up` and
+  `cgo-bench-dualns.sh check` (both rc=0). No row or corpus was sealed from any of them.
+- Valid relaunch: `run-1794862046` with explicit `--target 10.30.0.2`; live progress shows
+  RTT 400.2–404.3 ms and `G[✓·····✓·]` — target path restored. pfifo_fast/cubic at 4 flows
+  buffers ~400 ms (expected no-AQM bloat, not a defect).
+- Open, unchanged: eBPF `qdisc_drop_packets=0` vs `tc -s` 226 cake drops; `bpftool map dump
+  name globals` diagnostic staged for the first single-writer gap.
