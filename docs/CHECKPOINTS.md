@@ -3388,6 +3388,12 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   random process (few flows, short windows — high variance), possible loss bursts,
   shared bulk sink and host load ~41. Do NOT present P2 goodput as reproducible across
   runs; this needs the fixed-binary matrix and a longer loss window to resolve.
+- P4/pfifo_fast invalid cells explained by G4, not corruption: `CapDown()=CapacityMbps=100`,
+  so the down-direction floor is 1% = 1 Mbps (`pkg/campagne/campagne.go:649-655`).
+  cubic goodput 0.7–0.9 Mbps falls just below it (3 cells `invalid`), bbr 9.8 Mbps
+  passes (1 cell `valid`). RTT ~67–69 ms and deadline_ok 97.6–100% are identical in
+  both. The gate correctly flags a loss-collapsed pipe (P4 declares 0.3% netem loss);
+  do not "fix" these rows into valid.
 
 ## 2026-11-17T~23:13Z — handoff: Layer 1 at 47/72, 13 matrices armed
 
