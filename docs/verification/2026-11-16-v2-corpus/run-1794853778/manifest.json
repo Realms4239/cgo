@@ -1,0 +1,14 @@
+{
+  "config": "{\"profiles\":[{\"id\":\"P1\",\"capacity_mbps\":80,\"delay_ms\":20,\"jitter_ms\":2,\"loss_pct\":0},{\"id\":\"P2\",\"capacity_mbps\":20,\"delay_ms\":100,\"jitter_ms\":15,\"loss_pct\":0.5},{\"id\":\"P3\",\"capacity_mbps\":5,\"delay_ms\":600,\"jitter_ms\":30,\"loss_pct\":1},{\"id\":\"P4\",\"capacity_mbps\":100,\"delay_ms\":40,\"jitter_ms\":20,\"loss_pct\":0.3}],\"qdiscs\":[\"cake\"],\"ccs\":[\"cubic\",\"bbr\"],\"reps\":3,\"direction\":\"down\",\"target\":\"10.30.0.2\",\"bulk_addr\":\"10.30.0.2:5201\",\"small_url\":\"http://10.30.0.2:8081/small\",\"flows\":4,\"baseline_sec\":30,\"charge_sec\":120,\"deadline_ms\":220,\"channel_model\":\"clean\",\"bench\":\"dualns\",\"delay_model\":\"scalar\",\"kernel\":\"6.8.0-147-generic\",\"tier\":\"yas-month-4.5gb\"}",
+  "config_sha256": "d3a7cda1c9a0fe8ea6485a26d34f28644d0dddf1616d6baf66b7e3de8e4b1954",
+  "files": [
+    {
+      "File": "aqm_eval.csv",
+      "Sha256": "6adc83d9eba4295ff32d252dee2ebf59a529c7eb470b81be401ca58c78363f74"
+    },
+    {
+      "File": "valuation.json",
+      "Sha256": "104f91f485ab243bd430446b73a8a7faf3ea9d73d0ab45a1f48a1fcd81fa78a6"
+    }
+  ]
+}
