@@ -3362,12 +3362,17 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   P1 qdisc/CC combinations (p95 ~23 ms, consistent with `JitterMs=2`);
   P2 (`DelayMs=100`) → 102.0 ms (p95 123.4 ms, consistent with `JitterMs=15`).
   The bench is applying each profile's physics, not a fixed 100 ms shape.
-- Note: profile `LossPct` (P2 0.5, P3 1, P4 0.3) is an input to the VoIP R model only —
-  `cgo run` has no loss axis (see PLAN T40) and the dualns netem is loss-free. A loss
-  sweep needs a new CLI axis or a dedicated shaped window; do not infer injected loss
-  from the `LossPct` column.
+- CORRECTION (2026-11-17, live `tc -s`): my earlier statement that `LossPct` only fed the
+  VoIP model was WRONG. During P2 cells the guest showed
+  `qdisc netem 1: root ... delay 50ms 15ms loss 0.5%` on w-edge — the campaign DOES apply
+  each profile's declared loss through netem. `cgo run` has no standalone `--loss` flag
+  (PLAN T40 still holds for an arbitrary 0/0.5/1% sweep on one profile), but profile loss
+  is real injected loss. This explains the cubic collapse below.
 - P2/pfifo_fast CC tradeoff (committed cells, base RTT ~120–124 ms for both): cubic
   goodput 1.4–2.8 Mbps with loaded RTT 119–124 ms and deadline_ok 85–93.5%;
   bbr goodput 17.5–18.3 Mbps with loaded RTT 242–256 ms and deadline_ok 38–68.4%.
-  All `valid`. Reproducible kernel-level result: on an AQM-free path BBR fills the
-  queue for ~7× throughput at ~2× latency; do not read `valid` as SLA compliance.
+  All `valid`. Live `tc -s` during these cells showed netem `delay 50ms 15ms loss 0.5%`
+  (P2's declared `LossPct`) and tbf `rate 20Mbit` on e-wan — so the correct reading is:
+  on an AQM-free path WITH 0.5% loss, BBR sustains ~7× the goodput of cubic at ~2× the
+  latency (cubic's loss-based backoff collapses it to ~2.5 Mbps). Do not read `valid`
+  as SLA compliance.

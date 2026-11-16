@@ -76,10 +76,12 @@ honest measurement of bad performance — do not "fix" it into a gate failure.
 - T37 P4 (LEO) jitter-orbital sweep.
 - T38 P1 (fibre 80 Mb/s) saturation above shaper rate.
 - T39 deadline sweep 200/220/500/1000 ms on P2/cake/cubic.
-- T40 loss injection 0/0.5/1% on P2 — BLOCKED: `cgo run` has no `--loss` axis
-  (`cmd/cgo/main.go:333-345`); loss is a profile property (P4 = 0.3%). Named condition:
-  add a netem-loss axis in the campaign CLI with a fail-closed test, or change the
-  netem shape in a dedicated window. Not faked with a clean-channel run.
+- T40 loss injection 0/0.5/1% on P2 — BLOCKED as a CLEAN sweep: `cgo run` has no
+  standalone `--loss` flag (`cmd/cgo/main.go:333-345`). CORRECTION: profile `LossPct`
+  IS applied to netem by the campaign (live P2 cell showed `loss 0.5%` on w-edge), so
+  P1/P2/P3 give 0/0.5/1% — but they also differ in capacity/delay, so they cannot
+  isolate loss. Named condition: add a netem-loss axis to the CLI with a fail-closed
+  test, or shape loss in a dedicated window. Not faked by relabelling another profile.
 - T41 bursty vs clean channel (P2/P3 only per canal gate).
 - T42 seal edge-case evidence + quarantine taxonomy.
 
