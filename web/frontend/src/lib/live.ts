@@ -1,20 +1,22 @@
 // live — mutable 10 Hz ring buffers (SPEC §2.4). Not in Zustand.
+// Métriques sur Float64Array NaN-sentinel (SPEC §2.2) : jamais un 0 fabriqué.
 import type { LiveFrame } from './types'
+import { FloatRing } from './ringBuffer'
 
 export type Pt = [number, number]
 export type Ring = Pt[]
 export type IfacePt = [number, number | null]
 
 export const live = {
-  rtt50: [] as Ring,
-  rtt95: [] as Ring,
-  small: [] as Ring,
-  goodput: [] as Ring,
+  rtt50: new FloatRing(1800),
+  rtt95: new FloatRing(1800),
+  small: new FloatRing(1800),
+  goodput: new FloatRing(1800),
   // sparse SSE series — own buffer per metric (stat sparklines never borrow)
-  deadline: [] as Ring,
-  wasted: [] as Ring,
-  cost: [] as Ring,
-  drops: [] as Ring,
+  deadline: new FloatRing(1800),
+  wasted: new FloatRing(1800),
+  cost: new FloatRing(1800),
+  drops: new FloatRing(1800),
   // anneau interface séparé — 60 s à 10 Hz. clearLive ne le touche pas :
   // l'observation continue survive aux transitions de campagne.
   iface: {
@@ -38,16 +40,13 @@ export const live = {
   seq: 0, // dirty-check — incrémenté à chaque frame mesurée, les rendus ne suivent que le changement
 }
 
-function push(r: Ring, ts: number, v: number | null) {
-  if (v == null || !Number.isFinite(v)) r.push([ts, 0])
-  else r.push([ts, v])
-  if (r.length > live.max) r.shift()
+// NaN = non mesuré — les trous ne sont jamais des 0 (SPEC §2.2).
+function push(r: FloatRing, ts: number, v: number | null | undefined) {
+  r.push(ts, v != null && Number.isFinite(v) ? v : NaN)
 }
 
-function pushSparse(r: Ring, ts: number, v: number | null | undefined) {
-  if (v == null || !Number.isFinite(v)) return
-  r.push([ts, v])
-  if (r.length > live.max) r.shift()
+function pushSparse(r: FloatRing, ts: number, v: number | null | undefined) {
+  push(r, ts, v)
 }
 
 export function pushIface(f: Partial<LiveFrame>) {
@@ -96,12 +95,12 @@ export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: num
     live.phase = f.phase
     if (!live.phaseSince[f.phase]) live.phaseSince[f.phase] = ts
   }
-  push(live.rtt50, ts, f.rtt_p50_ms ?? null)
-  push(live.rtt95, ts, f.rtt_p95_ms ?? null)
-  push(live.small, ts, f.small_p95_ms ?? null)
+  push(live.rtt50, ts, f.rtt_p50_ms ?? NaN)
+  push(live.rtt95, ts, f.rtt_p95_ms ?? NaN)
+  push(live.small, ts, f.small_p95_ms ?? NaN)
   // les artefacts de compteur (reset de qdisc) n'entrent jamais dans l'anneau goodput
   const g = f.bulk_goodput_mbps
-  push(live.goodput, ts, g != null && g >= 0 && g <= 2500 ? g : null)
+  push(live.goodput, ts, g != null && g >= 0 && g <= 2500 ? g : NaN)
   // séries propres par métrique — les sparklines du bandeau ne partagent jamais
   pushSparse(live.deadline, ts, f.deadline_ok_pct)
   pushSparse(live.wasted, ts, f.wasted_bytes)
@@ -110,14 +109,14 @@ export function pushFrame(ts: number, f: { rtt_p50_ms?: number; rtt_p95_ms?: num
 }
 
 export function clearLive() {
-  live.rtt50.length = 0
-  live.rtt95.length = 0
-  live.small.length = 0
-  live.goodput.length = 0
-  live.deadline.length = 0
-  live.wasted.length = 0
-  live.cost.length = 0
-  live.drops.length = 0
+  live.rtt50.reset()
+  live.rtt95.reset()
+  live.small.reset()
+  live.goodput.reset()
+  live.deadline.reset()
+  live.wasted.reset()
+  live.cost.reset()
+  live.drops.reset()
   // live.iface reste : l'observation d'interface continue hors campagne
   live.phase = ''
   live.phaseSince = {}

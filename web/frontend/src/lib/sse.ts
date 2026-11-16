@@ -1,10 +1,15 @@
 import type { LiveFrame } from './types'
+import { createCoalescer } from './coalesce'
 import { pushFrame, pushIface, live as liveRing } from './live'
 import { useUIStore } from '../store/ui'
 
 let es: EventSource | null = null
 let last: Partial<LiveFrame> = {}
 let frameCount = 0
+// le store ne prend que la dernière valeur vue dans la fenêtre — jamais un rendu par frame
+const setLiveCoalesced = createCoalescer((patch: Partial<LiveFrame> & { phaseSince: Record<string, number> }) => {
+  useUIStore.getState().setLive(patch as LiveFrame)
+})
 export const __CGO_SSE = { lastID: 0, dropped: 0, ringLen: 0, frameCount: 0 }
 if (typeof window !== 'undefined') (window as any).__CGO_SSE = __CGO_SSE
 
@@ -53,7 +58,7 @@ export function connectSSE() {
       if (structural || frameCount % 5 === 0) {
         // pont phaseSince — l'anneau porte les bornes de phase (lib/live.ts:13),
         // le store ne les voyait jamais : le compte à rebours restait à 0/120 s
-        store.getState().setLive({ ...(data as LiveFrame), phaseSince: { ...liveRing.phaseSince } })
+        setLiveCoalesced.schedule({ ...(data as LiveFrame), phaseSince: { ...liveRing.phaseSince } })
       }
       store.getState().setConnected(true)
       store.getState().setSseStatus('connecté')
@@ -68,6 +73,7 @@ export function connectSSE() {
 }
 
 export function disconnectSSE() {
+  setLiveCoalesced.cancel()
   es?.close(); es = null
 }
 export const _frameCount = () => frameCount

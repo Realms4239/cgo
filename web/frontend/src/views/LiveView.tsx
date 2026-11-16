@@ -5,6 +5,7 @@ import EventBadge from '../components/EventBadge'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries, barSeries, chargeMarkArea, rawLineSeries, CRAFT } from '../lib/chartGrammar'
 import { live, clearLive } from '../lib/live'
+import { entries, FloatRing } from '../lib/ringBuffer'
 import { computeQDI } from '../lib/qdi'
 import { computeJFI } from '../lib/jfi'
 import { useUIStore } from '../store/ui'
@@ -205,14 +206,14 @@ export default function LiveView({ active = true }: { active?: boolean }) {
     const d = (r: [number, number][]) => r.length > 400 ? lttb(r, 400) : r
     // markArea CHARGE — une seule par graphique, pilotée par la phase.
     const charging = live.phase === 'charge'
-    const cs = charging ? live.phaseSince['charge'] ?? live.rtt95[0]?.[0] ?? Date.now() - 1000 : 0
+    const cs = charging ? live.phaseSince['charge'] ?? live.rtt95.at(0)?.[0] ?? Date.now() - 1000 : 0
     const ce = charging ? live.rtt95.at(-1)?.[0] ?? Date.now() : 0
     const ma = chargeMarkArea(cs, ce, charging)
     rtt.setData([
-      { ...craftSeries(tri.chart, 'p50', d(live.rtt50 as any), CRAFT.live), markArea: ma } as any,
-      { ...craftSeries(tri.chart, 'p95', d(live.rtt95 as any), CRAFT.ok) } as any,
+      { ...craftSeries(tri.chart, 'p50', d(entries(live.rtt50) as any), CRAFT.live), markArea: ma } as any,
+      { ...craftSeries(tri.chart, 'p95', d(entries(live.rtt95) as any), CRAFT.ok) } as any,
     ])
-    const series: ReturnType<typeof lineSeries>[] = [{ ...craftSeries(tri.chart, 'small p95', d(live.small as any), CRAFT.threshold), markArea: ma } as any]
+    const series: ReturnType<typeof lineSeries>[] = [{ ...craftSeries(tri.chart, 'small p95', d(entries(live.small) as any), CRAFT.threshold), markArea: ma } as any]
     if (locked && lockedRingRef.current.length > 1) {
       series.unshift({
         name: 'référence verrouillée', type: 'line', showSymbol: false, smooth: 0.4, smoothMonotone: 'x', sampling: 'lttb' as const,
@@ -222,7 +223,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
       } as any)
     }
     small.setData(series)
-    goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(live.goodput as any), CRAFT.bbr), markArea: ma } as any])
+    goodput.setData([{ ...craftSeries(tri.chart, 'goodput', d(entries(live.goodput) as any), CRAFT.bbr), markArea: ma } as any])
   }, rafActive && active)
 
   const banner = replayRunning ? `Replay — ${replayRunId}`
@@ -286,7 +287,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
   const costPrimary: number | null = idle ? null : liveSnap?.cost_primary_ar_per_h ?? null
   const costB2B: number | null = idle ? null : liveSnap?.cost_b2b_ar_per_h ?? null
   const deadlineOk: number | null = idle ? null : liveSnap?.deadline_ok_pct ?? null
-  const spark = (r: [number, number][]) => r.map(([, v]) => v).slice(-20)
+  const spark = (r: FloatRing) => r.slice(-20).map(([, v]) => v)
   const trendOf = (arr: number[]): 'up' | 'down' | 'flat' => {
     if (arr.length < 2) return 'flat'
     const a = arr[arr.length - 2], b = arr[arr.length - 1]
@@ -294,7 +295,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
     if (b < a * 0.95) return 'down'
     return 'flat'
   }
-  const qdiSpark = live.rtt95.slice(-20).map(([, v], i) => Math.max(0, v - (live.rtt50[i]?.[1] ?? v)))
+  const qdiSpark = (() => { const tail95 = live.rtt95.slice(-20); const back50 = live.rtt50.slice(-20); return tail95.map(([, v], i) => Math.max(0, v - (back50[i]?.[1] ?? v))) })()
 
   // médiane live de la fenêtre courante — le chiffre du comparatif
   const liveSmallMedian = (() => {
@@ -307,7 +308,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
   const lockBaseline = () => {
     if (liveSmallMedian == null) return
     const b = { ms: Math.round(liveSmallMedian * 10) / 10, at: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }
-    lockedRingRef.current = [...live.small] // freeze the ring — the hero draws it grey dashed
+    lockedRingRef.current = entries(live.small) // freeze the ring — the hero draws it grey dashed
     setLocked(b)
     try { localStorage.setItem('wall-baseline', JSON.stringify(b)) } catch { }
     useUIStore.getState().pushToast?.(`baseline verrouillée — ${b.ms} ms`, 'ok')
@@ -438,7 +439,7 @@ export default function LiveView({ active = true }: { active?: boolean }) {
   // recupEnd = chargeEnd + 30s nominal — la bande ne grandit pas avec now.
   const hasData = live.rtt95.length > 0
   const now = live.rtt95.at(-1)?.[0] ?? Date.now()
-  const t0 = live.phaseSince['baseline'] ?? live.rtt95[0]?.[0] ?? now - 1000
+  const t0 = live.phaseSince['baseline'] ?? live.rtt95.at(0)?.[0] ?? now - 1000
   const tCharge = Math.max(t0 + 1, live.phaseSince['charge'] ?? (live.phase === 'charge' ? t0 + 1 : now))
   const tRecup = Math.max(tCharge + 1, live.phaseSince['recup'] ?? (live.phase === 'recup' ? now : tCharge + 1000))
   // borne figée — la fenêtre totale de l'event (30+120+30) connue par construction

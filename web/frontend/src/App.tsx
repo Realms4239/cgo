@@ -34,6 +34,9 @@ export default function App() {
   const setMode = useUIStore(s => s.setMode)
   const live = useUIStore(s => s.live)
   const connected = useUIStore(s => s.connected)
+  // l'anneau de frames : si les 3 dernières secondes sont muettes, l'état est STALE —
+  // jamais un « LIVE » décoratif (le badge n'affirme pas ce qui n'est plus vu)
+  const liveFresh = connected && !!live?.ts && Date.now() - live.ts < 3000
   const replayRunning = useUIStore(s => s.replayRunning)
   const report = useAuditStore(s => s.report)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -138,6 +141,7 @@ export default function App() {
               role="img"
               aria-label={connected ? 'Connexion établie' : 'Hors ligne'}
             />
+            <span className="hd-pill mono" data-state={liveFresh ? 'live' : 'stale'} role="status" aria-label={liveFresh ? 'Flux live' : 'Flux figé'}>{liveFresh ? 'LIVE' : 'STALE'}</span>
             <span id="hd-state" className="mono">{live?.phase || 'au repos'}</span>
             <span className="hd-audit">dernier audit {relativeTime(report?.timestamp) || '—'}</span>
             <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>

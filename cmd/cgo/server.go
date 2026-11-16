@@ -353,6 +353,14 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      0,
 		IdleTimeout:       120 * time.Second,
+		// TCP_NODELAY dès la connexion — le Nagle buffrerait les petits frames
+		// SSE derrière des Accus tardifs et ajouterait ~40 ms de latence normale.
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			if tc, ok := c.(*net.TCPConn); ok {
+				_ = tc.SetNoDelay(true)
+			}
+			return ctx
+		},
 	}
 	var extra []*http.Server // redirection HTTP : fermés avec le principal
 	errCh := make(chan error, 1)

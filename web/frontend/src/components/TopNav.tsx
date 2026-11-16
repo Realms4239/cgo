@@ -1,4 +1,4 @@
-// Une seule navigation — quatre destinations, jamais de sous-onglets.
+// Une seule navigation — deux destinations, jamais de sous-onglets.
 import { MODES, useUIStore } from '../store/ui'
 import { preloadMode } from '../lib/preload'
 
