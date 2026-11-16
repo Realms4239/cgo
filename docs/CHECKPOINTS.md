@@ -3275,3 +3275,22 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   "latency plausible" is `RTTp95 < prof.DelayMs*10 + 200` (`pkg/campagne/campagne.go:639`);
   P1 declares `DelayMs=20` (`model/types.go:44`), so the threshold is exactly 400 ms and the
   no-AQM reps straddle it. `gate_status` measures integrity, not SLA (see PLAN reading rule).
+
+## 2026-11-17T~21:10Z — RouterOS replay controls + cross-run reproducibility
+
+- RouterOS validation WITHOUT QEMU (so the live campaign could not be contaminated):
+  local `go run ./cmd/cgo-chr --export-file <real export>` reproduced the sealed proof —
+  exit 0, `import.accepted=true`, 23/23 checks, `export_sha256=61e51573…`. Fail-closed control:
+  one edit `parent=ether1` → `parent=ether9` in a copy produced exit 1, 22/23, with exactly
+  `queue tree cgo-wan-out.parent` failing (found `ether9`). Both proofs + mutated export +
+  SHA256SUMS sealed in `docs/verification/2026-11-17-chr-replay/` (commit `b0d1e33` area).
+  Reading rule: `import.accepted=true` is NOT a compliance verdict — require exit 0 AND all
+  checks passing. The real bench audit still cannot drive CHR: `remediation_state=observation_only`,
+  reason "no interface was named" — a fresh audit with `-iface` is needed in a single-writer gap.
+- Cross-run measurement consistency (independent of any code change): at 14/72 committed cells,
+  fq_codel/bbr RTT p95 23.0 ms / small 31.8 ms and cake/cubic 22.9–22.8 / 31.0–30.7 ms
+  reproduce the sealed V2 corpus P1/cake/cubic (RTT p95 22.9 ms, small 30.8 ms, 100% deadline)
+  to within ~1 ms across different runs. pfifo_fast/cubic remains ~400 ms and
+  pfifo_fast/bbr ~49.2–49.4 ms (3/3 reps) — CC choice dominates queueing without AQM.
+- Authority: token renewed as `APPROVED-2026-11-17-exhaustive-continuation.md` (no new
+  privileges) because the 2026-11-16 token expires 23:59 UTC before the campaign completes.
