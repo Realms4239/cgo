@@ -32,6 +32,8 @@ func BuildQEMUArgs(c RunConfig) []string {
 		"-drive", "file=" + c.Image + ",format=raw,if=virtio",
 		"-netdev", "user,id=n0",
 		"-device", "virtio-net-pci,netdev=n0",
+		"-netdev", "user,id=n1",
+		"-device", "virtio-net-pci,netdev=n1",
 		"-serial", "stdio",
 		"-display", "none",
 		"-accel", accel,

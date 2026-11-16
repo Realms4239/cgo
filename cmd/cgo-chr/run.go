@@ -44,6 +44,7 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 
 	var export, transcript string
 	importErr := ""
+	var imgSHA string
 	if exportFile != "" {
 		b, err := os.ReadFile(exportFile)
 		if err != nil {
@@ -57,6 +58,10 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 			fmt.Fprintf(os.Stderr, "chr: image CHR absente (%s) — voir kit/chr/README.md\n", cfg.Image)
 			return 2
 		}
+		// l'image est hashée AVANT le démarrage : la console modifie le disque brut
+		// en cours d'exécution (premier démarrage), le hash post-boot ne prouverait
+		// rien sur le fichier épinglé.
+		imgSHA = imageHash(cfg.Image)
 		tr, err := startQEMU(cfg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "chr: %v\n", err)
@@ -68,7 +73,7 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 		export = exp
 		if err != nil {
 			p := audit.CHRProof{AuditID: rep.AuditID, ReportSHA256: audit.FileSHA256(raw),
-				CHR: audit.CHRInfo{ImageSHA256: imageHash(cfg.Image)}, Level: cfg.Level,
+				CHR: audit.CHRInfo{ImageSHA256: imgSHA}, Level: cfg.Level,
 				Accelerator: accelerator(cfg.Level),
 				Import:      audit.ImportResult{Accepted: false, Reason: err.Error()}}
 			if _, werr := audit.WriteCHRProof(outDir, p, []byte(export), []byte(transcript)); werr != nil {
@@ -90,7 +95,7 @@ func run(cfg RunConfig, reportPath, exportFile, outDir string) int {
 	}
 	p := audit.CHRProof{
 		AuditID: rep.AuditID, ReportSHA256: audit.FileSHA256(raw),
-		CHR: audit.CHRInfo{ImageSHA256: imageHash(cfg.Image)}, Level: cfg.Level,
+		CHR: audit.CHRInfo{ImageSHA256: imgSHA}, Level: cfg.Level,
 		Accelerator: accelerator(cfg.Level),
 		Import:      audit.ImportResult{Accepted: accepted, ErrorLine: importErr},
 		Checks:      checks,
