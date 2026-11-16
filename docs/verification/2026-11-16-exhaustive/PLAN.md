@@ -81,14 +81,26 @@ honest measurement of bad performance — do not "fix" it into a gate failure.
 - T42 seal edge-case evidence + quarantine taxonomy.
 
 ## Layer 5 — RouterOS validation (T43–T50)
-- T43 CHR 7.24.6 boot under QEMU on sadcnwp (image cached, sha pinned).
-- T44 import WAN remediation script; real `/export terse` diff.
-- T45 import ingress (LAN) remediation; real export diff.
-- T46 import pfifo_fast baseline script; confirm accepted + honest diff.
-- T47 negative control: refuse invalid interface name, seal `accepted:false` reason.
-- T48 repeat import twice — idempotence proof (no object stacking).
-- T49 capture serial transcripts with ANSI truth preserved.
-- T50 seal RouterOS validation matrix under docs/validation.
+- T43 CHR 7.24.6 boot under QEMU on sadcnwp — ALREADY DONE 2026-11-16 (row 71 VERIFIED,
+  23/23, image `c6abf876…`, export `61e51573…`). No new boot while the campaign is the
+  single writer; a real-audit-driven boot still needs a separate named window.
+- T44 import WAN remediation; real export — PROVEN (sealed export replayed locally 23/23).
+- T45 ingress (LAN) remediation — covered by the same 23 checks on the real export; no
+  separate ingress-only import was performed this session.
+- T46 pfifo_fast baseline script — NOT DONE; no import artifact exists.
+- T47 negative control — DONE no-QEMU: `parent=ether1`→`ether9` in a copy of the real
+  export → exit 1, 22/23, exact failed check `queue tree cgo-wan-out.parent`. Evidence in
+  `docs/verification/2026-11-17-chr-replay/`. Reading rule: `import.accepted=true` is NOT
+  a compliance verdict; require exit 0 AND all checks passing.
+- T48 repeat-import idempotence — NOT DONE (needs live CHR).
+- T49 serial transcripts — the prior seal references an ANSI transcript on the host
+  (sha `88b492d1…`) but the transfer through the safe channel is not byte-exact.
+- T50 seal matrix — partial: replay positive/negative proofs sealed under
+  `docs/verification/2026-11-17-chr-replay/`.
+- Named blocker for a REAL-audit CHR proof: `audit-1794798576` has
+  `remediation_state=observation_only` ("no interface was named"). A 45 s audit with
+  `-iface`/`-routeros-iface`/`-ros-lan` is staged in the guest (`/home/bench/eb-realrem.sh`)
+  and must run in a single-writer gap; then a live CHR boot under a separate token.
 
 ## Layer 6 — Economics, honesty, consolidation (T51–T56)
 - T51 recompute cost model from sealed Layer 1 cells (Ariary/h, no invented tariffs).
