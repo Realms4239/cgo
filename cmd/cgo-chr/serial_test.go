@@ -51,7 +51,7 @@ func (f *fakeCHR) emit(s string) {
 func (f *fakeCHR) Write(p []byte) (int, error) {
 	line := strings.TrimSpace(string(p))
 	switch {
-	case line == "admin":
+	case line == "admin" || line == "admin+t500w":
 		f.emit("\r\npassword: ")
 	case line == "":
 		f.emit("\r\n[admin@MikroTik] > ")

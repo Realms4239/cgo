@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -98,15 +99,20 @@ func drive(tr io.ReadWriteCloser, script string, timeout time.Duration) (transcr
 		all.WriteString(chunk)
 		return chunk, err
 	}
+	fmt.Fprintf(os.Stderr, "chrdbg phase: wait banner\n")
 	if _, err := read(loginRe); err != nil {
 		return all.String(), "", "", err
 	}
-	if _, err := tr.Write([]byte("admin\n")); err != nil {
+	// « +tNNNw » au login : largeur de terminal demandée (doc MikroTik) — sinon
+	// l'export terse casse les longues lignes à 80 colonnes au milieu des tokens.
+	if _, err := tr.Write([]byte("admin+t500w\n")); err != nil {
 		return all.String(), "", "", err
 	}
+	fmt.Fprintf(os.Stderr, "chrdbg phase: wait password\n")
 	if _, err := read(passRe); err != nil {
 		return all.String(), "", "", err
 	}
+	fmt.Fprintf(os.Stderr, "chrdbg phase: wrote empty password\n")
 	if _, err := tr.Write([]byte("\n")); err != nil {
 		return all.String(), "", "", err
 	}
@@ -183,14 +189,6 @@ loggedIn:
 		if errorRe.MatchString(chunk) {
 			return all.String(), "", lastErrorLine(chunk), nil
 		}
-	}
-	// agrandir la console AVANT l'export : sinon les longues lignes de la
-	// configuration sont cassées à 80 colonnes au milieu des tokens (« diff\nserv4 »)
-	// et l'analyseur lit des propriétés inexactes.
-	_, _ = tr.Write([]byte("/system console set column-count=500\n"))
-	if _, err := cons.expect(promptRe, timeout); err != nil {
-		// l'élargissement n'est pas critique : on tente l'export malgré tout
-		_ = err
 	}
 	if _, err := tr.Write([]byte("/export terse\n")); err != nil {
 		return all.String(), "", "", err
