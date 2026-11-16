@@ -3129,3 +3129,21 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - 5.4 reste partiel nommément : P1–P4 non tronqués ✓, Egress/Ingress/Both ✓, source
   « twin » étiquetée ✓ ; `.dist` Statique/Empirique attend la trace scellée (4.2),
   comparateur DGM complet non implémenté — aucune fonctionnalité inventée.
+
+## 2026-11-16T17:5xZ — SDD final review closed; gate flake root-caused
+
+- SDD final whole-branch review over 25 commits (`review-980ac0c..288917a.diff`): one Important
+  finding — the ANSI replay test never emitted ANSI (Go has no virtual dispatch on the
+  embedded `replayCHR.emit`) — plus five Minor findings booked with rulings in the ledger.
+  One fix wave (`b11bdd9`, test-only) and one scoped re-review (`review-288917a..b11bdd9.diff`):
+  finding ADDRESSED, no new Critical/Important breakage. Worktree kept: six plan tasks remain
+  BLOCKED with named conditions; the ledger stays the recovery map.
+- Intermittent gate failure root-caused: `pkg/campagne/skip_journal_test.go` relied on a fixed
+  2 s bound for `Stop → Freeze → Running=false`; Freeze writes CSV + SHA-256 manifest and can
+  exceed that on a loaded host. `f7f8c78` replaces it with condition polling (10 s bound,
+  elapsed-time message) and a 2.5 s delayed-freeze regression test. Two subsequent gate runs:
+  `6 passed, 0 failed, 0 not run` each.
+- Next plan step is NOT actionable yet: field trace self-stops 2026-11-17T16:22:27Z; STEP N
+  collection needs a same-day operator token (proposal only prepared); 4.3 full matrix needs a
+  named quiet bench window; 4.5 DSI countersign, 4.6 verifier rows and 6.7 freeze/tag/merge are
+  human-owned. Nothing claimed from the field trace before its seal.
