@@ -17,7 +17,7 @@ test('command palette — Ctrl+K ouvre, filtrage, Escape referme', async ({ page
   await page.keyboard.type('auditer')
   const items = page.locator('.palette-item')
   await expect(items).toHaveCount(1)
-  await expect(items.first()).toContainText('Auditer')
+  await expect(items.first()).toContainText('Cockpit')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog', { name: 'Palette de commandes' })).toHaveCount(0)
 })

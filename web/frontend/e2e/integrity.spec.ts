@@ -21,7 +21,7 @@ async function mockApis(page: any, integrity: Record<string, unknown>) {
 test('intégrité — la provenance gelée s’affiche avec le hash exposé', async ({ page }) => {
   await mockApis(page, { available: true, runs: 159, manifests: 159, valid: 208, degraded: 74, quarantined: 246, sha256: 'deadbeefcafe1234', hash8: 'deadbeef', updated: '2026-10-31T12:00:00Z' })
   await page.goto('/')
-  await page.getByRole('button', { name: 'Preuves & Rapports' }).click()
+  await page.getByRole('button', { name: 'Cockpit' }).click()
   await page.locator('[data-testid="corpus-details"] > summary').click()
   await expect(page.getByText('RDF — provenance scellée')).toBeVisible()
   await expect(page.locator('[data-testid="provenance-hash"]')).toContainText('deadbeefcafe1234')
@@ -30,7 +30,7 @@ test('intégrité — la provenance gelée s’affiche avec le hash exposé', as
 test('intégrité — sans sha exposé, EmptyState honnête plutôt que hint fabriqué', async ({ page }) => {
   await mockApis(page, { available: true, runs: 159, manifests: 159, valid: 208, sha256: '', hash8: '' })
   await page.goto('/')
-  await page.getByRole('button', { name: 'Preuves & Rapports' }).click()
+  await page.getByRole('button', { name: 'Cockpit' }).click()
   await page.locator('[data-testid="corpus-details"] > summary').click()
   await expect(page.getByText('RDF — provenance scellée')).toBeVisible()
   await expect(page.getByText('empreinte SHA non exposée')).toBeVisible()
@@ -39,7 +39,7 @@ test('intégrité — sans sha exposé, EmptyState honnête plutôt que hint fab
 test('banc — tri d’affichage conservé (groupes m / source c)', async ({ page }) => {
   await mockApis(page, { available: true })
   await page.goto('/')
-  await page.getByRole('button', { name: "Banc d'essai" }).click()
+  await page.getByRole('button', { name: 'Labo' }).click()
   const controls = page.locator('.display-controls')
   await expect(controls).toBeVisible()
   await expect(controls).toHaveAttribute('data-tri', /m/)

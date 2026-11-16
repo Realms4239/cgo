@@ -1,10 +1,8 @@
 import { expect, test } from '@playwright/test'
 
 const VIEWS = [
-  { label: 'Tableau de bord', selector: '#v-dashboard' },
-  { label: 'Auditer', selector: '#v-audit' },
-  { label: "Banc d'essai", selector: '#v-bench' },
-  { label: 'Preuves & Rapports', selector: '#v-evidence' },
+  { label: 'Cockpit', selector: '#v-cockpit' },
+  { label: 'Labo', selector: '#v-labo' },
 ] as const
 
 test.beforeEach(async ({ page }) => {
@@ -20,12 +18,13 @@ test.beforeEach(async ({ page }) => {
 test('typing 2 in Site does not switch modes at 890px', async ({ page }) => {
   await page.setViewportSize({ width: 890, height: 768 })
   await page.goto('/')
-  await page.getByRole('button', { name: 'Auditer' }).click()
+  await page.getByRole('button', { name: /Lancer l’audit/ }).click()
+  await expect(page.locator('[data-testid="cockpit-audit-inline"]')).toBeVisible({ timeout: 15000 })
   const site = page.getByLabel('Site')
   await expect(site).toBeVisible()
   await site.fill('site 2')
   await expect(site).toHaveValue('site 2')
-  await expect(page.getByRole('button', { name: 'Auditer' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.locator('[data-mode="cockpit"]')).toHaveAttribute('aria-current', 'page')
 })
 
 for (const viewport of [{ width: 890, height: 768 }, { width: 1920, height: 1080 }]) {

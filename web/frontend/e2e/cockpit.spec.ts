@@ -1,20 +1,17 @@
 import { expect, test } from '@playwright/test'
 
-// Contrat DU COCKPIT (4 modes) — les specs legacy data-panel= sont antérieures
-// à la refonte ; ce fichier couvre l'interface livrée.
+// Contrat DU COCKPIT (2 destinations) — shell 5.1, tests alignés.
 
-// le runner de ce poste est lourd (vidéo + trace) : on ne veut pas un
-// faux négatif de lenteur sur un rendu client.
 test.describe.configure({ timeout: 120000 })
 
-const NAV = { dashboard: 'Tableau de bord', audit: 'Auditer', bench: "Banc d'essai", evidence: 'Preuves & Rapports' }
+const NAV = { cockpit: 'Cockpit', labo: 'Labo' }
 
 async function mockApis(page: any) {
   await page.route('**/api/**', route => {
     const url = new URL(route.request().url())
     const path = url.pathname
     if (path.endsWith('/api/health')) {
-      return route.fulfill({ json: { ok: true, version: '1.3.5', mode: 'observe', telemetry: 'eBPF' } })
+      return route.fulfill({ json: { ok: true, version: '1.3.5', mode: 'observe', telemetry: { source: 'tcpinfo', reason: 'hôte non-Linux' } } })
     }
     if (path.endsWith('/api/doctor')) {
       return route.fulfill({
@@ -35,11 +32,13 @@ async function mockApis(page: any) {
     if (path.endsWith('/api/stream')) {
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: '' })
     }
+    if (path.endsWith('/api/audit/status')) return route.fulfill({ json: { running: false, report: null } })
+    if (path.endsWith('/api/audit/list')) return route.fulfill({ json: { audits: [] } })
     return route.fulfill({ json: {} })
   })
 }
 
-test('les quatre destinations existent et l\'une d\'elle est active', async ({ page }) => {
+test('les deux destinations existent et l’une d’elle est active', async ({ page }) => {
   await mockApis(page)
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   const nav = page.getByLabel('Destinations')
@@ -49,7 +48,7 @@ test('les quatre destinations existent et l\'une d\'elle est active', async ({ p
   await expect(nav.locator('button.on')).toHaveCount(1)
 })
 
-test('chaque destination s\'ouvre et reste lisible', async ({ page }) => {
+test('chaque destination s’ouvre et reste lisible', async ({ page }) => {
   await mockApis(page)
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   const nav = page.getByLabel('Destinations')
@@ -69,17 +68,16 @@ test('pas de débordement horizontal à 890, 1366 et 390', async ({ page }) => {
   }
 })
 
-test('l\'estampille du poste est lisible au pied de page', async ({ page }) => {
+test('l’estampille du poste est lisible au pied de page', async ({ page }) => {
   await mockApis(page)
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('.ft-post')).toContainText('cgo 1.3.5', { timeout: 15000 })
   await expect(page.locator('.ft-post')).toContainText('observe', { timeout: 15000 })
 })
 
-test('l\'état du poste est lisible dans les preuves', async ({ page }) => {
+test('l’état du poste est lisible dans les preuves', async ({ page }) => {
   await mockApis(page)
   await page.goto('/', { waitUntil: 'domcontentloaded' })
-  await page.getByLabel('Destinations').getByRole('button', { name: 'Preuves & Rapports' }).click()
   const card = page.getByTestId('machine-card')
   await expect(card).toBeVisible({ timeout: 15000 })
   await expect(card).toContainText('cgo 1.3.5', { timeout: 15000 })
