@@ -3388,3 +3388,22 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   random process (few flows, short windows — high variance), possible loss bursts,
   shared bulk sink and host load ~41. Do NOT present P2 goodput as reproducible across
   runs; this needs the fixed-binary matrix and a longer loss window to resolve.
+
+## 2026-11-17T~23:13Z — handoff: Layer 1 at 47/72, 13 matrices armed
+
+- `run-1794862046` (old binary) at 47/72 committed cells: P1 and P2 complete (18+18),
+  P3 pfifo_fast complete (6) and fq_codel 5/6. Base/loaded RTT track each declared
+  profile exactly (P1 20 ms, P2 100 ms, P3 600 ms => live 639 ms). All cells so far
+  `valid` except the two documented P1/pfifo_fast/cubic G3 straddles.
+- 13 single-writer matrices are staged under `C:\WEBSERVER\commands\write-eb-l*.txt`,
+  all guard-classified ALLOW and pointing at `/home/bench/eb-matrix.sh` ->
+  `/home/bench/cgo-fixed` (sha `d3219c01…`), which has the `tc -j` root-counter fix.
+  Firing order after Layer 1 exits: `l3up`, `l3both`, `l3f1`, `l3f2`, `l3f8`,
+  `l4p3d1000`, `l4p3d220`, `l4p4`, `l4bursty`, `l4d200`, `l4d500`, `l4d1000`,
+  `l4p2rep5` (repeatability for the named P2 goodput divergence).
+- Then, in a single-writer gap: `/home/bench/eb-realrem.sh` (45 s audit with
+  `-iface/-routeros-iface/-ros-lan`, eBPF object embedded) to obtain a REAL RouterOS
+  script, followed by a live CHR proof under a separate named token.
+- Authority `APPROVED-2026-11-17-exhaustive-continuation.md` expires 06:00 UTC;
+  the sequence above is tight but fits. Do not parallelise: two writers corrupted a
+  previous campaign. No row promotion, no frozen-corpus write, no field-trace touch.
