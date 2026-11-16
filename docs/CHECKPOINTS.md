@@ -3110,3 +3110,22 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   25/25 PASS en 1,6 min. Gates 6/6 et 345 vitest verts vérifiés avec ces commits.
 - Notamment non prouvé : F1–F18 de WP5.5 (liste absente du dépôt — aucun théorème ni aucune conformité revendiqués).
   Badge LIVE/STALE, Copy-RouterOS Ingress+Egress, coût Ar/h et SLA critique déjà présents.
+
+## 2026-11-16T16:2xZ — freeze-readiness + STEP N préparé (rien scellé de plus)
+
+- Field trace toujours vivante sur sadcnwp (`cgo-observe-x --duration 172800 --interval 5`,
+  PIDs 3442898/3442899), échéance 2026-11-17T16:22:27Z — ~24 h restantes. Aucun résultat
+  revendiqué, répertoire `out` root-only (R0 only).
+- Tous les audits du livre passent avec l'environnement UTF-8 du poste : archive, biblio,
+  renvois, sigles, nombres, typo, symboles (avec l'argument `book/content`), slop,
+  mise-en-page, pages, flottants. `audit-slop.py` exige `PYTHONIOENCODING=utf-8` sous
+  Windows (console cp1252) — `audit-symboles.py` exige son argument de chemin ; les deux
+  appels sans ces précautions n'étaient pas des échecs de contenu. Avertissements
+  typographiques (U+2194, π, exposants) notés, non corrigés : `book/` reste gelé.
+- `C:\WEBSERVER\r2-proposal-2026-11-17-field-trace-collection.md` — PROPOSITION SEULEMENT,
+  aucun token APPROVED. STEPN ne peut s'exécuter qu'après l'échéance et avec un token
+  signé le jour même. Aucun `rm` proposé : les artefacts restent sur l'hôte jusqu'à
+  confirmation des scellés dans le dépôt.
+- 5.4 reste partiel nommément : P1–P4 non tronqués ✓, Egress/Ingress/Both ✓, source
+  « twin » étiquetée ✓ ; `.dist` Statique/Empirique attend la trace scellée (4.2),
+  comparateur DGM complet non implémenté — aucune fonctionnalité inventée.
