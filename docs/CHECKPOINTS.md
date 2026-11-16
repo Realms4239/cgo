@@ -3366,3 +3366,8 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   `cgo run` has no loss axis (see PLAN T40) and the dualns netem is loss-free. A loss
   sweep needs a new CLI axis or a dedicated shaped window; do not infer injected loss
   from the `LossPct` column.
+- P2/pfifo_fast CC tradeoff (committed cells, base RTT ~120–124 ms for both): cubic
+  goodput 1.4–2.8 Mbps with loaded RTT 119–124 ms and deadline_ok 85–93.5%;
+  bbr goodput 17.5–18.3 Mbps with loaded RTT 242–256 ms and deadline_ok 38–68.4%.
+  All `valid`. Reproducible kernel-level result: on an AQM-free path BBR fills the
+  queue for ~7× throughput at ~2× latency; do not read `valid` as SLA compliance.
