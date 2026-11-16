@@ -48,23 +48,28 @@ func (f *replayCHR) emit(s string) {
 	f.mu.Unlock()
 }
 
-func (f *replayCHR) Write(p []byte) (int, error) {
-	line := strings.TrimSpace(string(p))
+// reply construit la réponse brute à une ligne tapée, sans l'émettre : les
+// variantes de test (colorCHR) peuvent ainsi la colorer avant émission.
+func (f *replayCHR) reply(line string) string {
 	switch {
 	case line == "admin" || line == "admin+t500w":
-		f.emit("\r\nPassword: ")
+		return "\r\nPassword: "
 	case line == "":
-		f.emit("\r\nChange your password (Ctrl-C to skip)\r\n\r\nnew password> ")
+		return "\r\nChange your password (Ctrl-C to skip)\r\n\r\nnew password> "
 	case line == "chr-test-fixture":
-		f.emit("**************************\r\nnew password> **************************\r\n\r\nrepeat new password> ")
+		return "**************************\r\nnew password> **************************\r\n\r\nrepeat new password> "
 	case strings.HasPrefix(line, "repeat-marker"):
 		// unused — the repeat confirmation arrives as a distinct Write below
-		f.emit("Password changed\r\n\r\n[admin@CHR] > ")
+		return "Password changed\r\n\r\n[admin@CHR] > "
 	case strings.HasPrefix(line, "/export"):
-		f.emit("\r\n[admin@CHR] > /export terse\r\n/queue type\r\nadd cake-rtt=25ms cake-bandwidth=19000000 cake-flowmode=triple-isolate cake-nat=yes cake-diffserv=diffserv4 cake-ack-filter=filter cake-wash=yes kind=cake name=cgo-cake\r\n/queue tree\r\nadd name=cgo-wan-out parent=ether1 max-limit=19000000 queue=cgo-cake comment=cgo-managed\r\n[admin@CHR] > ")
+		return "\r\n[admin@CHR] > /export terse\r\n/queue type\r\nadd cake-rtt=25ms cake-bandwidth=19000000 cake-flowmode=triple-isolate cake-nat=yes cake-diffserv=diffserv4 cake-ack-filter=filter cake-wash=yes kind=cake name=cgo-cake\r\n/queue tree\r\nadd name=cgo-wan-out parent=ether1 max-limit=19000000 queue=cgo-cake comment=cgo-managed\r\n[admin@CHR] > "
 	default:
-		f.emit("\r\n[admin@CHR] > " + line + "\r\n[admin@CHR] > ")
+		return "\r\n[admin@CHR] > " + line + "\r\n[admin@CHR] > "
 	}
+}
+
+func (f *replayCHR) Write(p []byte) (int, error) {
+	f.emit(f.reply(strings.TrimSpace(string(p))))
 	return len(p), nil
 }
 
@@ -84,11 +89,22 @@ type colorCHR struct{ replayCHR }
 const esc = "\x1b"
 
 func colored(s string) string {
-	return strings.ReplaceAll(s, "[admin@CHR] >", esc+"[9999B"+esc+"[K"+esc+"[m"+esc+"[36madmin"+esc+"[m@"+esc+"[m"+esc+"[32mCHR"+esc+"[m] >")
+	// Le '[' reste du TEXTE à l'intérieur des spans de couleur : stripANSI
+	// doit retrouver exactement "[admin@CHR] >" pour que promptRe matche.
+	return strings.ReplaceAll(s, "[admin@CHR] >",
+		esc+"[9999B"+esc+"[K"+esc+"[m"+"["+esc+"[36madmin"+esc+"[m@"+esc+"[m"+esc+"[32mCHR"+esc+"[m] >")
 }
 
 func (c *colorCHR) emit(s string) {
 	c.replayCHR.emit(colored(s))
+}
+
+// Write est défini sur *colorCHR (et non hérité de *replayCHR) : Go ne fait
+// pas de dispatch virtuel sur les méthodes promues, sans quoi emit coloré ne
+// serait jamais appelé.
+func (c *colorCHR) Write(p []byte) (int, error) {
+	c.emit(c.replayCHR.reply(strings.TrimSpace(string(p))))
+	return len(p), nil
 }
 
 func newColorCHR() *colorCHR {
@@ -109,6 +125,12 @@ func TestColoredPromptConsolePath(t *testing.T) {
 	}
 	if !strings.Contains(transcript, "cgo-cake") {
 		t.Fatalf("transcript coloré sans la ligne attendue\n---\n%s", transcript)
+	}
+	if !strings.Contains(transcript, "\x1b[") {
+		t.Fatalf("transcript sans séquence CSI ANSI : l'émetteur coloré n'a pas tourné\n---\n%s", transcript)
+	}
+	if !strings.Contains(stripANSI(transcript), "[admin@CHR] >") {
+		t.Fatalf("stripANSI ne restitue pas le prompt littéral\n---\n%s", stripANSI(transcript))
 	}
 }
 
