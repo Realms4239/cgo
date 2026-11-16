@@ -3197,3 +3197,34 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Gates after seal: 6/6 PASS; `PASS frozen` unchanged at 159 runs / 528 rows / 208 valid.
 - Builder pass only. Verifier confrontation pending; named confounder = passive field trace on
   the same host until 2026-11-17T16:22:27Z. No thesis figure claimed before verification.
+
+## 2026-11-16T20:34Z — exhaustive campaign Layer 0/1/2, root-cause of two defects
+
+- Operator-authorized multi-layer live bench (56-task plan `docs/verification/2026-11-16-exhaustive/PLAN.md`).
+  Host 2026-11-16, sadcnwp bench VM, same-day scoped token. Preflight: load ~41, topology up,
+  puits healthy, gates 6/6, frozen corpus 159/528/208 unchanged.
+- Defect 1 (process): a 60 s ktruth audit was launched concurrently with Layer 1. `tc -s`
+  showed netem `10ms/2ms` racing per-cell rewrites; audit RTT idle 250 ms > loaded 45.7 ms
+  (physically incoherent), SLA 78.3%, remediation not issued. Root cause = concurrent writers,
+  not qdisc. Both campaigns stopped by exact PID; no data fabricated; contaminated run labelled.
+- Defect 2 (deployment): `/home/bench/cgo` (16.3 MB, plain `go build`) has no `ebpf_object`
+  tag, so `attachKernelProbe` is the no-op from `kernel_ebpf_other.go` and the report omits
+  `kernel_telemetry` (`json:",omitempty"`). The tagged `/home/bench/cgo-ebpf` (19.1 MB,
+  object `8612f578…`) survived. Build hints in `kit/run-dualns.sh` and `kit/stress_testbed.sh`
+  corrected to `CGO_ENABLED=0 go build -tags ebpf_object` (`c05a4f8`); `kit/test-kit.sh` and
+  gates 6/6 green after.
+- Clean replay of the sealed audit (`-duration=45 -flows=1`, target 10.30.0.2), alone, with the
+  tagged binary and canonical 100ms/0% + cake 20mbit: `kernel_telemetry.source=ebpf`,
+  object `8612f578…` matches pin, `flows_seen=4/4`, grade A+, retrans 327248 B / 226 events.
+  Evidence `/home/bench/eb-clean-{report.json,tc-before.txt,tc-after.txt}`; sha sidecars in
+  `C:\WEBSERVER\evidence\20261116-2028*..2033*`.
+- Kernel-truth cross-check: independent `tc -s` counters show e-wan cake drops 227 (was 1,
+  delta 226), e-srv +3, netem drops 0. eBPF retrans events 1+225 = 226 match the cake drop
+  delta exactly — the retransmits are real shaper-drop consequences, not 0%-loss invention.
+- OPEN discrepancy (named, not hidden): `kernel_telemetry.qdisc_drop_packets` reads 0 although
+  `tc -s` sees 226 drops. `KernelTelemetryFrom` maps `sum.QdiscDrops` correctly and `Summary()`
+  sums the per-CPU global map, so the fault is in probe attribution/global read or serialization.
+  Not fixed before root cause is reproduced. Do not claim kernel-truth closure until resolved.
+- Layer 1 restarted as `run-1794861247` (PID 59280), single writer, 72 cells; fresh run ID.
+- Unproven: full matrix completion, independent verifier re-run of rows 42/43, field trace
+  still live until 2026-11-17T16:22:27Z. No VERIFIED row promoted by builder.
