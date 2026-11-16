@@ -3147,3 +3147,13 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   collection needs a same-day operator token (proposal only prepared); 4.3 full matrix needs a
   named quiet bench window; 4.5 DSI countersign, 4.6 verifier rows and 6.7 freeze/tag/merge are
   human-owned. Nothing claimed from the field trace before its seal.
+
+## 2026-11-16T18:0xZ — Phase 4 tasks 4.3/4.5/4.6 refused by named conditions
+
+- Operator approved all four requested tasks; SDD applied. 4.3 full v2 matrix cannot run
+  through the guarded channel: verbatim tool output "REFUSE sudo -n env CGO_ALLOW_PRIVATE_TARGETS=1 ip netns exec ns_client /home/bench/cgo run … (sudo outside the named set)". Adding
+  a permit is banned by the global executor constitution. Four-flow P2 matrix 8866 (6/6 valid)
+  remains the sealed builder-level evidence — not a full corpus.
+- 4.5 needs DSI countersign (external human). 4.6 needs an independent verifier (builder
+  cannot sign its own numbers). 4.7 is not a task in the plan. BLOCKED with these conditions;
+  nothing fabricated, no field-trace or frozen-corpus claim.
