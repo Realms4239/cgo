@@ -15,3 +15,11 @@
 - Provenance of fixes that made this run possible: `d8a9a38` (puits teardown + /small
   preflight), `82dbfb2` (detached launcher + stale lock rename), `e11d4cd` (run checker),
   `b5d892b` (seal boundary note), `a60778f` (replication guide).
+- **Caveat discovered 2026-11-17 (`5e00cd9`) — loss/economics columns UNUSABLE.**
+  All 24 rows have `drops=0`, `retransmissions=0`, `wasted_bytes=0`,
+  `cost_ar_per_h=0.00`: the binary of the time decoded only a nested `"stats"`
+  object from `tc -j -s`, while this iproute2 emits counters at the row root; live
+  `tc -s` on e-wan showed thousands of drops. Goodput is sender-side and valid.
+  This corpus is FROZEN and is NOT rewritten. Its 24 valid cells prove measurement
+  integrity and latency/goodput, **not zero loss and not cost**. Any cost figure must
+  use a fresh run with the fixed binary or an independent `tc -s` delta.
