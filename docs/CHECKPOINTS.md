@@ -3320,3 +3320,22 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   therefore UNUSABLE, not zero-loss proof; any cost figure must come from a fresh run
   with the fixed binary or from an independent `tc -s` delta. Row 214 was verified for
   cell validity/hash8 — not for loss or economics. This caveat must travel with the corpus.
+
+## 2026-11-17T~21:48Z — independent verifier closes rows 42/43
+
+- The independent verifier (fresh context, no builder history) re-ran 8 + 3 read-only
+  guest commands through the same-day token and moved BOTH rows from verifier-pending:
+  `docs/VERIFY.md` lines 42 and 43 now read VERIFIED, commit `13acdca` (explicit path only).
+- Row 42: `aqm_eval.csv` 7 lines, sha `f3c1c3bf…` = manifest, all 6 rows `valid`, six
+  verbatim rows byte-identical to the bench-vm README, no quarantine sidecar.
+- Row 43: report 6865 B, sha `ed1716b7…`, `source=ebpf`, object `8612f578…`,
+  `retrans_payload_bytes=351840` (=1448+350392), flows 4/4, srtt values, grade A+;
+  telemetry and row-file seals internally consistent. Clean-audit confrontation:
+  retrans 1+225=226 = `tc -s` e-wan delta 227−1=226.
+- Named limitations preserved in the status cells, not hidden: (a) live guest
+  `link_audit.csv` drifted to sha `2a654933…` from the sealed `23db39fd…` because later
+  runs rewrote the shared live file — the report stays self-consistent via embedded
+  hashes and `row_count=2`; (b) the `tc -s` before/after pair was sealed with the CLEAN
+  audit (226 events), not with the 242-event audit itself; (c) e-srv `dropped 0→3` in
+  the same files remains uninterpreted. Gates 6/6, frozen corpus unchanged.
+- Builder did not promote any row; the verifier owns these VERIFIED states.
