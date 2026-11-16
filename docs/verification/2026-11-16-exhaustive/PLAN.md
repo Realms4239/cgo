@@ -10,6 +10,11 @@ Oracle convention: each task names a command whose exit 0 = pass, 1 = failed
 check, 2 = did not run. A task that cannot run is BLOCKED with a named
 condition, never silently skipped.
 
+Reading rule: `gate_status=valid|degraded|invalid` is a MEASUREMENT-INTEGRITY
+verdict (G0 target reachable … G7 CPU not saturated, `model/types.go:98`), not
+an SLA verdict. A `valid` pfifo_fast cell with `deadline_ok_pct=20.9` is an
+honest measurement of bad performance — do not "fix" it into a gate failure.
+
 ## Layer 0 — Preflight and instrumentation (T01–T08)
 - T01 host capacity + field-trace clock (R0) — DONE 2026-11-16T20:18Z.
 - T02 bench topology up + `cgo-bench-dualns.sh check` — DONE (exit 0).
@@ -37,12 +42,17 @@ condition, never silently skipped.
   canonical 100ms/0% + cake 20mbit). The first loaded-bench attempt was contaminated and invalidated.
 - T18 read audit kernel_telemetry — DONE: source=ebpf, object `8612f578…`, flows 4/4,
   retrans 327248 B / 226 events, grade A+.
-- T19 compare tc drops with eBPF qdisc_drops — OPEN DISCREPANCY: tc e-wan cake drops +226,
-  eBPF `qdisc_drop_packets=0`. eBPF retrans 1+225=226 matches the cake drop delta exactly.
+- T19 compare tc drops with eBPF qdisc_drops — CLOSED by kernel-source root cause: Linux 6.8
+  `cake_drop()` uses plain `__qdisc_drop()` and sets no drop reason; `dev.c` frees the deferred
+  list with `tcf_get_drop_reason()` = 0, so the probe's QDISC_DROP-only filter misses all 226.
+  Documented in `probe/bpf/BUILD.md` (`ad86f15`); no object rebuild (clang banned on VM).
 - T20 interpret retrans-at-0%-loss — RESULT: real transport retransmits caused by cake overlimit
-  drops (kernel-source and tc counters agree); not 0%-loss invention. Open: probe drop counter.
-  Diagnostic `C:\WEBSERVER\commands\eb-dropdiag.stage` (live `bpftool map dump name globals`)
-  ready to run after the single-writer campaign ends.
+  drops. Independent counters agree (tc delta 226 = eBPF retrans 1+225=226); not 0%-loss
+  invention. `qdisc_drop_packets=0` is a known blind spot, never to be reported as zero loss.
+- T21-T22 clean vs loaded comparison — the loaded-bench audit was invalidated (concurrent
+  writers); only the clean audit is citable. No loaded comparison was fabricated.
+- T23 probe fix — DEFERRED with named condition: needs an object rebuild (clang on a build host,
+  not the VM) or a separate `tc -s` qstats field in the report. Not shippable from this VM.
 - T21 repeat audit in clean window after Layer 1 ends (no campaign) — pending.
 - T22 compare loaded vs clean telemetry; name confounder — pending.
 - T23 if mismatch, instrument root cause in code with a regression test — pending.
