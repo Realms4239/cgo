@@ -3314,3 +3314,9 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   valid. Do not use that run for loss or economics; do not retrofit its CSV.
 - Residual: later layers need a rebuilt guest binary to report loss/cost correctly;
   deploying one is a separate decision (no binary was replaced mid-campaign).
+- Same defect affects the SEALED V2 corpus `run-1794853778` (24/24 rows `drops=0`,
+  `retransmissions=0`, `wasted_bytes=0`, `cost_ar_per_h=0.00`, goodput nonzero). That
+  corpus is frozen evidence and MUST NOT be rewritten. Its loss/economics columns are
+  therefore UNUSABLE, not zero-loss proof; any cost figure must come from a fresh run
+  with the fixed binary or from an independent `tc -s` delta. Row 214 was verified for
+  cell validity/hash8 — not for loss or economics. This caveat must travel with the corpus.
