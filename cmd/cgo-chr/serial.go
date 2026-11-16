@@ -33,6 +33,13 @@ var (
 
 var errTimeout = errors.New("chr: délai dépassé")
 
+// ansiRe — séquences d'échappement CSI (« ESC [ 36m », « ESC [ 9999B »,
+// « ESC [ K » …). La largeur +tNNNw allume les couleurs du prompt : la
+// correspondance se fait sur le texte dénudé, le transcript reste brut.
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
+
+func stripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
+
 // console — un seul goroutine pompe octets par octets depuis la console du
 // CHR ; tous les expect() puisent dans ce même tuyau. Les octets sont rendus
 // dans l'ordre, jamais dérobés par un lecteur zombie (c'est l'implémentation
@@ -78,7 +85,7 @@ func (c *console) expect(re *regexp.Regexp, d time.Duration) (string, error) {
 		case b := <-c.bytes:
 			out.WriteByte(b)
 		case <-time.After(40 * time.Millisecond):
-			if re.MatchString(out.String()) {
+			if re.MatchString(stripANSI(out.String())) {
 				return out.String(), nil
 			}
 			if time.Since(start) > d {
@@ -123,14 +130,15 @@ func drive(tr io.ReadWriteCloser, script string, timeout time.Duration) (transcr
 		if err != nil {
 			return all.String(), "", "", err
 		}
+		bare := stripANSI(chunk)
 		switch {
-		case promptRe.MatchString(chunk):
+		case promptRe.MatchString(bare):
 			goto loggedIn
-		case licenseRe.MatchString(chunk):
+		case licenseRe.MatchString(bare):
 			if _, err := tr.Write([]byte("n\n")); err != nil {
 				return all.String(), "", "", err
 			}
-		case repeatRe.MatchString(chunk):
+		case repeatRe.MatchString(bare):
 			// l'écho masqué de notre saisie re-matche « repeat » : on ne
 			// répond qu'une fois par étape.
 			if !wroteRepeat {
@@ -139,17 +147,17 @@ func drive(tr io.ReadWriteCloser, script string, timeout time.Duration) (transcr
 				}
 				wroteRepeat = true
 			}
-		case newPassRe.MatchString(chunk):
+		case newPassRe.MatchString(bare):
 			if !wroteNew {
 				if _, err := tr.Write([]byte(throwaway + "\n")); err != nil {
 					return all.String(), "", "", err
 				}
 				wroteNew = true
 			}
-		case changedRe.MatchString(chunk):
+		case changedRe.MatchString(bare):
 			// confirmation — on consomme la ligne, le prompt suit.
-		case errorRe.MatchString(chunk):
-			return all.String(), "", "", fmt.Errorf("échec console: %s", lastErrorLine(chunk))
+		case errorRe.MatchString(bare):
+			return all.String(), "", "", fmt.Errorf("échec console: %s", lastErrorLine(bare))
 		default:
 			tail := chunk
 			if len(tail) > 120 {
@@ -182,8 +190,8 @@ loggedIn:
 		if err != nil {
 			return all.String(), "", "", err
 		}
-		if errorRe.MatchString(chunk) {
-			return all.String(), "", lastErrorLine(chunk), nil
+		if errorRe.MatchString(stripANSI(chunk)) {
+			return all.String(), "", lastErrorLine(stripANSI(chunk)), nil
 		}
 	}
 	if _, err := tr.Write([]byte("/export terse\n")); err != nil {
@@ -200,6 +208,7 @@ loggedIn:
 // cleanupExport drops the echoed command and the trailing prompt, keeping
 // only what RouterOS printed for /export.
 func cleanupExport(chunk string) string {
+	chunk = stripANSI(chunk)
 	if i := strings.Index(chunk, "\n"); i >= 0 {
 		chunk = chunk[i+1:]
 	}

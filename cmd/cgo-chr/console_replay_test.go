@@ -51,7 +51,7 @@ func (f *replayCHR) emit(s string) {
 func (f *replayCHR) Write(p []byte) (int, error) {
 	line := strings.TrimSpace(string(p))
 	switch {
-	case line == "admin":
+	case line == "admin" || line == "admin+t500w":
 		f.emit("\r\nPassword: ")
 	case line == "":
 		f.emit("\r\nChange your password (Ctrl-C to skip)\r\n\r\nnew password> ")
@@ -73,6 +73,43 @@ func (f *replayCHR) Close() error {
 	f.closed = true
 	f.mu.Unlock()
 	return nil
+}
+
+// colorCHR — le CHR avec largeur +tNNNw allume les couleurs du prompt :
+// « [admin@CHR] > » devient des séquences CSI. Le test doit prouver que le
+// moteur passe quand même. C'est exactement le cas qui a bloqué la console
+// en production (2026-11-16, 300 s de délai).
+type colorCHR struct{ replayCHR }
+
+const esc = "\x1b"
+
+func colored(s string) string {
+	return strings.ReplaceAll(s, "[admin@CHR] >", esc+"[9999B"+esc+"[K"+esc+"[m"+esc+"[36madmin"+esc+"[m@"+esc+"[m"+esc+"[32mCHR"+esc+"[m] >")
+}
+
+func (c *colorCHR) emit(s string) {
+	c.replayCHR.emit(colored(s))
+}
+
+func newColorCHR() *colorCHR {
+	f := &colorCHR{}
+	f.buf.WriteString("MikroTik RouterOS 7.24.6 (long-term)\r\n\r\nCHR Login: ")
+	return f
+}
+
+func TestColoredPromptConsolePath(t *testing.T) {
+	tr := newColorCHR()
+	script := "/queue type add name=cgo-cake kind=cake\n/queue tree add name=cgo-wan-out parent=ether1 queue=cgo-cake max-limit=19000000\n"
+	transcript, _, importErr, err := drive(tr, script, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if importErr != "" {
+		t.Fatalf("import refusé inattendu: %s", importErr)
+	}
+	if !strings.Contains(transcript, "cgo-cake") {
+		t.Fatalf("transcript coloré sans la ligne attendue\n---\n%s", transcript)
+	}
 }
 
 func TestReplayConsoleContinuationBlock(t *testing.T) {
