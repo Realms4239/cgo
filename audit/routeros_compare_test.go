@@ -87,3 +87,37 @@ func TestNormalizeROSComparesRatesSemantically(t *testing.T) {
 		}
 	}
 }
+
+func TestRouterOSDefaultAbsentIsAccepted(t *testing.T) {
+	expected := RouterOSConfig{Objects: []RouterOSObject{{
+		Section: "queue type", Name: "cgo-cake",
+		Props: map[string]string{"kind": "cake", "cake-flowmode": "triple-isolate"},
+	}}}
+	found := RouterOSConfig{Objects: []RouterOSObject{{
+		Section: "queue type", Name: "cgo-cake",
+		Props: map[string]string{"kind": "cake"}, // /export terse omet le défaut usine
+	}}}
+	checks := CompareRouterOS(expected, found)
+	for _, c := range checks {
+		if c.Name == "queue type cgo-cake.cake-flowmode" && !c.Pass {
+			t.Fatalf("absent (défaut) refusé : %+v", c)
+		}
+	}
+}
+
+func TestRouterOSNonDefaultAbsentIsRefused(t *testing.T) {
+	expected := RouterOSConfig{Objects: []RouterOSObject{{
+		Section: "queue type", Name: "cgo-cake",
+		Props: map[string]string{"cake-rtt": "25ms"},
+	}}}
+	found := RouterOSConfig{Objects: []RouterOSObject{{
+		Section: "queue type", Name: "cgo-cake",
+		Props: map[string]string{}, // 25ms n'est PAS le défaut — doit échouer
+	}}}
+	checks := CompareRouterOS(expected, found)
+	for _, c := range checks {
+		if c.Name == "queue type cgo-cake.cake-rtt" && c.Pass {
+			t.Fatalf("absent non-default accepté : %+v", c)
+		}
+	}
+}

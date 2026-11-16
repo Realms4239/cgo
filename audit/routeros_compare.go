@@ -52,6 +52,19 @@ func CompareRouterOS(expected, found RouterOSConfig) []RouterOSCheck {
 			f, ok := got[0].Props[k]
 			if !ok {
 				f = "absent"
+				// /export terse n'imprime pas les valeurs par défaut : une
+				// propriété absente est correcte si elle vaut le défaut
+				// usine RouterOS pour ce champ.
+				if def, isDef := rosDefaults[k]; isDef && normalizeROS(def) == normalizeROS(exp) {
+					f = "absent (défaut)"
+					checks = append(checks, RouterOSCheck{
+						Name:     fmt.Sprintf("%s %s.%s", want.Section, want.Name, k),
+						Expected: exp,
+						Found:    f,
+						Pass:     true,
+					})
+					continue
+				}
 			}
 			checks = append(checks, RouterOSCheck{
 				Name:     fmt.Sprintf("%s %s.%s", want.Section, want.Name, k),
@@ -67,6 +80,11 @@ func CompareRouterOS(expected, found RouterOSConfig) []RouterOSCheck {
 
 // normalizeROS absorbs RouterOS formatting noise only: quotes, boolean case
 // and a trailing ".0" on integers. It never equates two different values.
+// rosDefaults — défauts usine RouterOS non imprimés par /export terse.
+var rosDefaults = map[string]string{
+	"cake-flowmode": "triple-isolate",
+}
+
 var rateRe = regexp.MustCompile(`^([0-9]+(?:\.[0-9]+)?)\s*(k|m|g|t|p)?(bps|kbps|mbps|gbps|kbit|mbit|gbit)?$`)
 
 // normalizeROS comparaison sémantique : les débits s'égalent, quel que soit
