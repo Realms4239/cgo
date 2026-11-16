@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -99,7 +98,6 @@ func drive(tr io.ReadWriteCloser, script string, timeout time.Duration) (transcr
 		all.WriteString(chunk)
 		return chunk, err
 	}
-	fmt.Fprintf(os.Stderr, "chrdbg phase: wait banner\n")
 	if _, err := read(loginRe); err != nil {
 		return all.String(), "", "", err
 	}
@@ -108,11 +106,9 @@ func drive(tr io.ReadWriteCloser, script string, timeout time.Duration) (transcr
 	if _, err := tr.Write([]byte("admin+t500w\n")); err != nil {
 		return all.String(), "", "", err
 	}
-	fmt.Fprintf(os.Stderr, "chrdbg phase: wait password\n")
 	if _, err := read(passRe); err != nil {
 		return all.String(), "", "", err
 	}
-	fmt.Fprintf(os.Stderr, "chrdbg phase: wrote empty password\n")
 	if _, err := tr.Write([]byte("\n")); err != nil {
 		return all.String(), "", "", err
 	}
