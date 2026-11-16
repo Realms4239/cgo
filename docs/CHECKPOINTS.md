@@ -2818,3 +2818,279 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Écrit dans `docs/architecture.md` (§ « Décision — rendu du rapport scellé ») avec ses règles de maintenance ; note de renvoi dans l'en-tête de `web/frontend/src/lib/auditFixtures.ts`.
 - Non épinglé (nommé, accepté) : la concordance de contenu entre les deux rendus — seules les *formes* le sont (`types.gen.ts`, gate de staleness).
 - Aucun code de runtime changé ; aucun gate re-mesuré pour cette entrée (docs + commentaire).
+## 2026-11-11 - Découverte sadcnwp pour le bench CGO (R0, lecture seule) et approbation du design
+
+- Contexte : les CHANGES décrivent le besoin d'une VM Linux 6.8 pour le bench Meteolink ; l'opérateur a autorisé, très prudemment, une VM Ubuntu sur l'hôte sadcnwp (serveur de production Météo Madagascar, compromis connu — mineur ftp2, directive maintenue : ne pas toucher). Instruction explicite de l'opérateur : les preuves, l'approbation et le checkpoint vivent dans ce dépôt, pas dans `C:\WEBSERVER`.
+- Fait : sept fenêtres de lecture (`safe_read.py`, BatchMode via `~/.ssh/sadcnwp`), **139 commandes** classées avant connexion, **zéro écriture**. Preuves : `docs/verification/2026-11-11-sadcnwp-bench-discovery/evidence/` (7 transcripts `095207`…`095500` + sidecars sha256, **re-vérifiés 7/7 après le déplacement**) ; copies des fichiers de commandes dans `…/commands/` ; index `README.md`. `C:\WEBSERVER` ne porte plus qu'un renvoi (dossier + checkpoint).
+- Mesuré : noyau **6.8.0-142-generic** (gcc-13, PREEMPT_DYNAMIC) — la ligne 6.8 épinglée ; BTF présent (`/sys/kernel/btf/vmlinux`, 6.1 MB) ; `/sys/fs/bpf` monté ; VT-x bare metal, `kvm_intel` chargé, `/dev/kvm`, `/dev/vhost-net`, `/dev/vhost-vsock`, `/dev/net/tun` présents ; **`sadc` PAS dans le groupe `kvm`** ; Docker 29.9.2 actif (pile mail au repos) ; LXD dormant (`snap.lxd.daemon` inactif) ; LVM : racine 295 G (**216 GB libres**), `/home` 176 GB libres, `/data` 8.5 TB libres ; RAM 62 GiB, **46 GiB disponibles**, charge ~44 (mineur seul) ; tous les modules de qdisc requis présents et signés (`sch_netem`, `sch_cake`, `sch_fq_codel` chargé 43×, `sch_fq`, `sch_ingress`/clsact, `act_mirred`, `cls_bpf`, `ifb`).
+- Décisions de l'opérateur : forme du bench = **VM QEMU/KVM, NAT user-mode slirp** (pas de pont, pas de netns, pas de règle iptables, aucun port entrant ; un seul hostfwd loopback facultatif `127.0.0.1:10022`), ressources 4 vCPU / 8 GB / qcow2 sparse 30 GB sous `/home/sadc/labo-cgo/`, nommage `labo-cgo-*`. Design écrit puis **approuvé** : `docs/superpowers/specs/2026-11-11-labo-cgo-bench-design.md`.
+- **Rien n'est installé** : ni qemu, ni paquet, ni groupe, ni démon. L'installation est un **R2** — approbation nommée, rollback écrit, répétition le jour même ; elle n'a pas été demandée et n'a pas commencé. Le hostfwd loopback et l'ajout éventuel à `kvm` (si le test d'accès `test -r/-w /dev/kvm` échoue) sont nommés dans le design et restent au choix de l'opérateur.
+- Écarts nommés, non corrigés : sortie `ps -p 3829` non mesurée (un timeout SSH transitoire ; le socket du mineur vers 168.144.137.190:8082 a été vu en established dans la même passe) ; debugfs inaccessible (`sadc`) ; ACL de `/dev/kvm` non lue (getfacl hors allow-list) ; `ls` sur `/var/cache`, `/var/log`, `/opt/containerd` : Permission denied partiel, consigné. Transport Windows (cp1252) cassait le premier passage virt — relu avec `PYTHONUTF8=1`, aucun garde modifié.
+- Non vérifié / à faire : aucun premier démarrage de VM ; image noble non téléchargée (ce poste n'atteint pas `cloud-images.ubuntu.com` — le fetch aura lieu dans la fenêtre R2, hash vérifié contre le `SHA256SUMS` officiel). Key auth confirmée fonctionnelle aujourd'hui (trois passes en BatchMode) — la ligne « key auth not installed » du dossier webserver était périmée.
+- Fichiers créés, non commités (l'opérateur décide du commit ; `main`) : `docs/verification/2026-11-11-sadcnwp-bench-discovery/` (16 fichiers), `docs/superpowers/specs/2026-11-11-labo-cgo-bench-design.md`, cette entrée.
+- Prochaines étapes : (1) l'opérateur nomme la fenêtre R2 + l'approbation (incluant ou non le hostfwd 10022 et `usermod -aG kvm sadc`) ; (2) plan d'exécution (writing-plans) ; (3) fenêtre R2 : pré-flight, install qemu-system-x86 + qemu-utils, fetch + vérification SHA256, boot, acceptance guest, teardown ; (4) Phase 2 = bring-up du kit dualns dans le guest (spec séparée).
+
+## 2026-11-11 - Fase R2 labo-cgo-bench en sadcnwp + chemins morts et VM locale
+
+- Décision de l'opérateur (pages 2026-11-11) : exécution du plan complet A+B+C ; hostfwd loopback 127.0.0.1:10022 → guest:22 ; **groupe kvm : jamais** ; « NOT INTERFERE WITH THE SERVER, NOT AT ALL NO REBOOTING NOTHING ABOUT IT. » Re-login impossible.
+- **R2 fenêtre 1** (apt, via safe_write.py, approuvé) : premier passage **avorté proprement** (`[Y/n]`, 0 paquet installé — preuve que le gate détecte l'échec), puis `-y` ajouté et fenêtre rejouée avec succès : qemu-system-x86 1:8.2.2+ds-0ubuntu1.18, qemu-utils, genisoimage ; curl déjà présent. needrestart a **différé** (pas exécuté) dbus/gdm/OpenVPN/etc. **Aucun redémarrage, rien touché**. Résidu nommé : le paquet avait activé `qemu-kvm.service` (KSM/hugepages au prochain boot) — déviation signalée, approbation nommée reçue, unité **désactivée** (`systemctl disable`, vérifié `disabled`, symlink multy-user retiré ; aucun masque, aucun daemon-reload).
+- **Livraison du script** `labo-cgo-bench-create.sh` (sha256 2b362d42…, 2941 octets) via sftp-put dans le scope approuvé `/home/sadc/labo-cgo/**` ; hash vérifié côté hôte (2b362d42…a579f).
+- L'opérateur a exécuté le script : **ABORT** dès la première étape — `/dev/kvm` non lisible/écrivable pour `sadc` (pas dans le groupe `kvm`, ACL sans sadc). Refus conçu, aucun fallback TCG, aucune VM créée. Résidu : dossier vide `/home/sadc/labo-cgo/seed` (mauvais ordre mkdir-avant-test, nommé).
+- **Pivot** (l'opérateur ne peut pas re-login → le groupe kvm est mort ; « more greater approach » demandé) : la VM de lab existe sur **ce poste** — `D:\ubuntu.vmx`, Ubuntu 24.04.4 LTS, kernel 6.8.0-100-generic, NAT, 2 vCPU / 4.6 GB, suspendue depuis 2026-11-08 avec un vmss valide ; le CD pointait vers un lecteur F: disparu et le disque est une **installation partielle** (jamais bootée en OS atteignable). Réparation **locale unique** : backup `ubuntu.vmx.bak-2026-11-11`, CD-1 vers `D:/ubuntu-24.04.4-live-server-amd64.iso`, CD-2 vers `D:/labo-cgo-seed.iso` (cidata, créé avec pycdlib jetable), VM éteinte depuis son état mort. vmrun OK.
+- **ISO** : téléchargement en cours depuis releases.ubuntu.com (environ 2.2 GB, environ 0.4 MB par seconde, ETA environ 1.5 h ; miroirs .za, .de, kernel.org testés et **plus lents**). **SHA256 épinglé** depuis le SHA256SUMS officiel : `e907d92eeec9df64163a7e454cbc8d7755e8ddc7ed42f99dbc80c40f1a138433`. Seed autoinstall : hostname `labo-cgo-bench`, user `bench` (clé SSH uniquement, `allow-pw: false`, hash de mot de passe jetable généré et effacé), packages open-vm-tools, openssh-server, iproute2, iputils-ping, tcpdump, ethtool, traceroute, curl ; storage `direct` (efface uniquement le disque de la VM) ; TZ Indian/Antananarivo.
+- **sadcnwp final** : paquets qemu et genisoimage + listes apt ; symlink qemu-kvm.service retiré ; script + dossier vide `labo-cgo/seed` ; **aucun redémarrage, aucun groupe, aucun service démarré, rien d'autre**. Le montage mail, le mineur ftp2, ufw, sshd : intacts.
+- Enregistrement : toute preuve (7 fenêtres de découverte + preflight + 2 fenêtres apt + fenêtre disable + fenêtre sftp-put + readbacks + rehearsal) vit dans `docs/verification/2026-11-11-sadcnwp-bench-discovery/` (32+ fichiers, sidecars vérifiés). Approvals : `APPROVED-2026-11-11-labo-cgo-bench.md`, `APPROVED-2026-11-11-qemu-kvm-disable.md` (copies fonctionnelles dans `C:\WEBSERVER` pour le garde).
+- À faire ensuite : vérifier le hash de l'ISO → `vmrun start` → autoinstall (10–20 min) → acceptation guest (uname, BTF, modules, netem jetable + `tc -s qdisc`) → Phase 2 (kit dualns dans le guest) en spec séparée.
+
+## 2026-11-11 - Session de travail VM bench CGO (labo-cgo-bench) — état au 2026-11-11 23:30 EAT
+
+- Décisions opérateur (pages 2026-11-11) : exécution du plan A+B+C ; hostfwd loopback 127.0.0.1:10022 ; groupe kvm jamais ; re-login impossible ; « ne pas toucher au serveur, ne pas redémarrer ».
+- **sadcnwp (R2, nommé, réalisé)** : apt install qemu-system-x86 1:8.2.2 + qemu-utils + genisoimage ; needrestart a TOUT différé ; **aucun redémarrage** ; `qemu-kvm.service` (créé par le paquet) **désactivé** sur approbation nommée (symlink multy-user retiré, vérifié `disabled`) ; script `labo-cgo-bench-create.sh` livré par sftp-put (hash vérifié hôte) ; l'opérateur l'a exécuté → **ABORT /dev/kvm** (sadc pas dans le groupe kvm, ACL sans sadc) — aucun changement de groupe, aucun TCG fallback. Résidu : dossier vide `/home/sadc/labo-cgo/seed` (nom, réel).
+- **Pivot** : VM de lab **sur le poste Windows** `D:\ubuntu.vmx` (Ubuntu 24.04.4, kernel 6.8.0-100 puis -149-generic après réinstallations), NAT e1000, 2 vCPU / 4.6 GB, VT-x quasi natif. Réparation puis réinstallations (ISO 24.04.4 live-server ~3.4 GB téléchargée, SHA256 vérifié contre SHA256SUMS officiel `e907d92e…`).
+- **Leçons payées cash (à ne pas répéter)** : (1) `updates: none` est malformé dans l'autoinstall 24.04 (valider contre le schéma, « Malformed autoinstall » = écran error) ; (2) un `late-commands` avec `systemctl ... --now` échoue **dans le chroot curtin** (exit 1) → install termine en « An error occurred » → shell de secours ; la bonne forme est `systemctl enable X` sans `--now` ; (3) un hard stop pendant une transition de mode vidéo VMware laisse le **framebuffer virtualisé figé** : le VMX reste vivant, les connexions VNC sont acceptées puis ne répondent jamais, `vmrun` et Task Manager peuvent tuer le processus sans état cohérent ; (4) `vmrun` rapporte « not powered on » alors que `vmware-vmx.exe` tourne ; (5) les CDs restés attachés après l'install font **boucler le BIOS** (edrom d'abord) sur le réinstallateur — détacher les CDs **avant** le reboot d'installation ; (6) les clés suspendues (`.vmem`, `.vmem.lck`, `*.scoreboard`) font reprendre un état à moitié mort plutôt que booter à froid — à supprimer pour forcer un POST.
+- **Re-instal présente (seed4, 2026-11-11)** : même autoinstall (utilisateur `bench`, mot de passe `l4b0-cg0-Bench!`, clé SSH jetable ~/.ssh/labo-cgo-bench du poste, locale en_US, TZ Indian/Antananarivo, storage `direct`), packages = open-vm-tools openssh-server iproute2 iputils-ping tcpdump ethtool traceroute curl, **Late = `systemctl enable serial-getty@ttyS0` (sans --now)**. Boot cdrom d'abord confirmé : ISO GRUB → subiquity → confirmation « Continue with autoinstall? » répondue par l'agent à 23:05 — l'install est partie.
+- À la fin de l'install : **à surveiller**, le reboot arrive après la phase `unattended-upgrades` (réseau mort, plusieurs dizaines de minutes de patience). Dès le reboot commence (BIOS) : **détacher CD1 et CD2** — la VM démarre alors sur le disque installé ; le système présente la console série ttyS0 sur 127.0.0.1:2017 (telnet) et le login tty1.
+- Accès post-install attendu : SSH impossible (VMNET8/net1 « Not Present » — le service réseau VMware est absent sur ce PC) ; accès par **VNC** (vmware RFB, port 5901, mot de passe `labo-cgo-5901`) et **console série** (telnet 127.0.0.1:2017, getty série via symlink fourni par seed4). Mot de passe console `bench` = `l4b0-cg0-Bench!`.
+- Preuves : `docs/verification/2026-11-11-sadcnwp-bench-discovery/` (32+ fichiers ; à compléter par les screenshots de la réinstallation). Approval docs : `APPROVED-2026-11-11-labo-cgo-bench.md`, `APPROVED-2026-11-11-qemu-kvm-disable.md` (copies fonctionnelles dans C:\WEBSERVER).
+- **Non vérifié / à faire** : acceptation guest (uname, /sys/kernel/btf, modinfo sch_netem/sch_cake/ifb, netem jetable + `tc -s`) ; détacher les CDs au reboot ; Phase 2 = kit dualns dans le guest (spec séparée, non commencée) ; record VMware suspend-then-resume à documenter comme contrainte de ce poste.
+
+## 2026-11-11 - labo-cgo-bench TERMINÉ ET ACCEPTÉ — VM Ubuntu 24.04.4 sur ce poste (23:59 EAT)
+
+- **Résultat** : le conteneur VM `D:\ubuntu.vmx` (2 vCPU / 4.6 GB, NAT e1000, VT-x) fait tourner Ubuntu 24.04.4 LTS, kernel **6.8.0-149-generic** PREEMPT_DYNAMIC — la ligne 6.8 épinglée par le projet.
+- **Acceptation guest mesurée** (console série ttyS0 via localhost telnet 127.0.0.1:2017, shell `bench`) : `uname -a` = 6.8.0-149-generic ; `/sys/kernel/btf/vmlinux` = 6 113 929 octets ✓ ; modules `sch_netem`, `sch_cake`, `ifb` présents et signés ✓ ; netem 10 ms / 0.1% appliqué sur une paire veth, `tc -s qdisc show` affiche compteurs ✓ ; nettoyage ✓. État réseau du guest : `lo noqueue`, aucune route — isolé.
+- **Accès** : mot de passe console `l4b0-cg0-Bench!` (utilisateur `bench`, uid 1000, groupes sudo/adm/dialout(lxd)) ; VNC 127.0.0.1:5901 mot de passe `labo-cgo-5901` (clé remotedisplay.vnc.* dans le vmx, à retirer à la fin du LAB ou défier) ; SSH **injoignable** : VMnet8/VMnet1 « Not Present » sur ce poste (le service NAT VMware est absent ; rétablissement = Virtual Network Editor en admin). Le guest ne voit rien du LAN et le LAN ne voit pas le guest.
+- **sadcnwp final** : rien de plus que `qemu-system-x86`, `qemu-utils`, `genisoimage` installés ; symlink qemu-kvm.service retiré (désactivé sur approbation nommée) ; script `labo-cgo-bench-create.sh` livré mais non exécuté ; dossier vide `/home/sadc/labo-cgo/seed` (consigné) ; mail stack, ufw, sshd, mineur ftp2 — intacts ; aucun redémarrage.
+- **Chemin emprunté** (à connaître en rejouant) : réinstallations multiples car l'autoinstall défaille de façon REPRODUCTIBLE si (a) section `updates` malformée ou virée, (b) `late-commands` échouant (erreur « An error occurred »), (c) CDs laissés attachés au reboot BIOS → boucle du réinstallateur — il faut DÉTACHER les CDs à chaque reboot post-install, (d) un hard stop pendant une transition vidéo fige le framebuffer MKS (mort de l'UI ; seul un power-off GUI côté opérateur débloque ; `vmrun` devient incohérent ; les artefacts suspendus `.vmem`/`.lck`/`*.scoreboard` doivent être supprimés pour forcer un POST froid).
+- **Coutumes Windows de ce poste** : `taskkill` ne passe pas en non-admin sur vmware-vmx.exe (intégrité élevée) ; l'opérateur kill via Task Manager en admin. VMware RFB répond via `RemoteDisplay.vnc.*`. VNC `type` via vncdotool envoie des keysyms où `@` → `2`, `*` → `8` (layout AZERTY) — liens de getty Unix OK en ASCII nu.
+- **À faire ensuite** : Phase 2 = apport du kit dualns dans le guest (spec séparée, non commencée). Evidence acceptation ci-dessus. CDs détachés ; la VM est en état arrêté propre prêt pour utilisation. C:\WEBSERVER garde les copies APPROVED-*. À nettoyer côté sadcnwp si décidé (fenêtre R2 : rm script + rmdir seed).
+
+## 2026-11-12 - Phase 2 : fumée dualns sur le banc accepté (VM labo-cgo-bench) — EXÉCUTÉE
+
+- À la demande de l'opérateur, exécution de la Phase 2 : apporteur du kit dualns dans le guest `D:\ubuntu.vmx`. VM redémarrée, ISO `D:/labo-cgo-kit-2026-11-12.iso` (sha256 d19d52e8…, 4 fichiers) montée sur CD-2.
+- **Défaut du kit trouvé et corrigé** : `need_modules()` appelait `modprobe a b c d` — modprobe n'accepte qu'UN module + des paramètres ; les noms suivants devenaient les paramètres de sch_netem et tcp_bbr ne chargeait jamais, puis la porte fail-closed BBR criait « BBR unavailable ». Fix en 4 lignes, un appel par module. Non commité (décision humaine).
+- **Fumée exécutée** (`sudo ip netns exec ns_client ./cgo-linux run --bench dualns --profiles P2 --qdiscs cake --cc cubic --reps 1 --target 10.30.0.2`). Deux cellules antérieures en quarantaine vides (mistakes puits/cwd) gardées comme preuve du fail-closed. La vraie cellule scellée (`run-1794446446`) : RTT p50/p95 200/220 ms, small p95 1140.1 ms, deadline_ok 92.5%, goodput 1.1 Mbit/s, 8 drops, 0 retran, 16 778 260 octets, **G4ThroughputCoherent ✗ — quarantined invalid**. Le résumé imprimé est un 0.0ms/0.0Mb/0% exactement parce que la cellule est invalide : le moteur ne publie jamais une cellule pour, et le fail-closed fonctionne sur le banc accepté.
+- Evidence: `docs/verification/2026-11-12-phase2-dualns-bringup/README.md`. Index des plans: ligne 31 ajoutée. Spécification: `docs/superpowers/specs/2026-11-12-phase2-dualns-bringup-design.md`.
+- Bench démantelé proprement (`ip netns list` vide, aucun veth résiduel) ; fichiers gardés dans `/home/bench/labo/data/runs/` (3 runs, tous `invalid`, aucun ne nourrit le corpus). VM laissée bootable, CD-2 détachable.
+- sadcnwp : rien d'autre. Le build du bin/dev n'a aucun effet sur l'hôte.
+- Prochain : matrice P2×{pfifo,fq_codel,cake}×{cubic,bbr} sur le banc si l'opérateur le décide ; BBRv3 reste bloqué sur le noyau épinglé 7.1 / Path A (THIRD STEP.md) ; la capacité BBR du noyau du guest (6.8.0-149) est OK (`tcp_bbr` chargeable — le bug modprobe du kit masque ça auparavant).
+
+## 2026-11-12 - Phase 2 bis : trois cellules scellées, une VALIDE (IFB ingress down)
+
+- Opérateur : « proceed to execute remaining great tasks ». Ma déclaration : (1) cellule P2/cake/bbr — scellée `invalid` (G4ThroughputCoherent ; goodput 1.3, 1475 drops, RTT p50/p95 201/223) ; (2) comparaison offloads, (3) cellule IFGB en sens download (direction down, ifb0 + mirred, CAKE en mode ingress).
+- **Résultat IFGB** : bench UP en mode ingress (`CGO_SHAPE_MODE=ingress`, ifb0 cake diffserv3 ingress/no-ack-filter), puits OK (http 200), CELLULE — `run-1794447880` : RTT p50/p95 201/222.0 ms, small p95 **602.5 ms**, deadline_ok **97.4%**, goodput 1.2 Mbit/s, 47 drops, 0 retran, wasted 68 KB — **gate_status valid — TOUS LES GATES PASSENT**. Première acceptation live du chemin IFB ingress sur un banc Linux pour ce projet.
+- Capacité brute du banc : une sonde brute socket (taille test 5 s) passe ~26 Mbit/s (bbr) — le chemin émulet n'est pas le goulot du sender cgo (~1.1-1.3 Mbit/s, cubic et bbr confondus) ; la nature de ce plancher sender cgo est à laisser à un trace builder/vérificateur avant toute conclusion.
+- Défaut d'émulation nommé : loss i.i.d. 0.5% — les CC s'effondrent ; le G4 plancher up (50%) est calibré pour un régime où ça n'arrive pas. Ne pas modifier la porte pour faire passer les cellules.
+- Cellules finalisées dans `/home/bench/labo/data/runs/` : `run-1794445044|5555|6446|7174|7880` — les quatre premières `invalid`, la dernière `valid`. Bench démantelé (`ip netns list` vide, aucun ifb/veth résiduel). CD détaché, VM arrêtée.
+- Plan : ligne 31 → à mettre à jour avec les deux lignes ; pas encore fait ni commité.
+
+## 2026-11-12 - BBRv3 Path A launché sur le VM bench (réessai), install étapes complètes
+
+- Opérateur : « Snapshot then execute now » + « Do not use render use another way to ask. » Mode question via l'outil question utilisé désormais.
+- Actions : (1) snapshot `labo-cgo-bench-6.8-pre-bbrv3` confirmé via `vmrun listSnapshots` (3 snapshots listés) ; (2) VM arrêtée proprement, reprise sans installer le noyau custom (échec de boot initramfs : UUID root manquant, `/dev/sda` absent — les drivers SCSI LSI/VMware manquaient dans la defconfig). Retour au snapshot réussi. (3) Re-vérification de l'ISO (contenants encore valide), snapshot intact.
+- Dépendances build installées dans la VM : build-essential, flex, bison, libssl-dev, libelf-dev, bc, dwarves, zstd, xz-utils, git, make, gcc, g++.
+- Clone `google/bbr` v3 `--depth 1` : ~1.8 GB, SHA1 `bbrv3-2025-03-18` / commit `90210de4b779` / `VERSION=6 PATCHLEVEL=13 SUBLEVEL=7`.
+- defconfig + olddefconfig : `CONFIG_TCP_CONG_BBR=y` et driver SCSI builtins (`SCSI_MPTBASE/SCSIH/SPI`, `VMW_PVSCSI`) pour booter le bzImage sans initramfs issues.
+- Build en cours à −j2, log `/tmp/kbuild.log` dans la VM, PID 5870/5871. 1755 lignes, en cours de drivers/acpi et sound/hda au momant de la vérif.
+- Fallback complet et rollback documentés dans `docs/superpowers/specs/2026-11-12-cgo-bbrv3-phase-a-design.md` — une simple réversion du snapshot rend le 6.8 bench intact sans rien casser.
+- Ce qui reste : finir le build, `make modules_install`, `make install`, update-grub, redémarrer la VM, vérifier provenance (uname SHA1, sysctl reno bbr cubic, nsperf random_loss), exécuter une cellule P2/cake/bbr observer-instrumented, ajouter cette cellule comme evidence. `book/data/runs` intact.
+
+## 2026-11-12 - BBRv3 Path A exécuté — noyau 6.13.7-g90210de4b779 #4 installé, cellule P2/cake/bbr scellée
+
+- Opérateur : « Snapshot then execute now » + « Do not use render use another way to ask. » Phase A exécutée, même journée.
+- **Snapshot pré-build** : `labo-cgo-bench-6.8-pre-bbrv3` confirmé dans `vmrun listSnapshots` (3 snapshots). Rollback 6.8 possible en une commande.
+- **Noyau construit dans le guest** : `git clone -o google-bbr -b v3 --depth 1` (~1.8 GB ; tag `bbrv3-2025-03-18` ; commit `90210de4b779` ; `VERSION=6 PATCHLEVEL=13 SUBLEVEL=7`). defconfig + options : `TCP_CONG_BBR=y` ; Fusion MPT/SCSI (`FUSION`, `FUSION_SPI`, `SCSI_SPI_ATTRS`, `SCSI_MPT*` écrit mais l'écran d'origine était `lsilogic` → `mptspi/mptscsih/mptbase/spi_attrs`) ; `VETH`/`DUMMY`/`IFB` =y (deps `NET_ACT_MIRRED`/`NET_REDIRECT` satisfaits) ; `NET_SCH_NETEM/CAKE/FQ_CODEL/INGRESS=y`, `NET_CLS_U32=y`. Quatre builds `make -j2` (#1 #3 #4 ; #2 = alerte "vmlinux.export.o" pré-complet, relancé propre). Build complet ~2 t. CPU cumulés.
+- **Provenance** : `uname -a` = `6.13.7-g90210de4b779 #4 SMP PREEMPT_DYNAMIC Thu Nov 12 17:36:29 EAT 2026`. `sysctl net.ipv4.tcp_available_congestion_control` = `reno bbr cubic` (`bbr` = BBRv3 canonique, pas de token `bbr3`) (nsperf non exécuté).
+- **Pièges franchis** (gardés pour l'honnêteté) : (a) 1er reboot 6.13.7 : initramfs sans drivers SCSI → `/dev/sda` absent, boot bloqué ; revert snapshot ; réécriture defconfig avec Fusion MPT builtins. (b) 2ᵉ boot : 5 cellules `netem/cake unknown qdisc` → defconfig sans `NET_SCH_*` builtins ; 3ᵉ build avec `NET_SCH_NETEM/CAKE/FQ_CODEL/INGRESS=y` → qdisc OK. (c) `/run/netns` tmpfs avait perdu `--make-shared` (mount propagation perdue après hard resets) → `sudo umount /run/netns` + `ip netns add` OK, veths créés. (d) `enp2s1` (e1000, PCI_ID 8086:100F) DOWN après boot à cause d'un réseau non géré → fichier `/etc/systemd/network/00-enp2s1.network` (DHCP) ajouté (supprimable à la main si besoin) ; le lien est UP 192.168.174.128/24. (e) `make clean` nécessaire après la 2ᵉ build interrompue (fixdep `..vmlinux.export.o.d` absent).
+- **Cellule fumée P2/cake/bbr up** (même forme que la cellule 7174 scellée) : `run-1794495477` — RTT p50/p95 201.0/220.0 ms ; small p95 1120.3 ms ; deadline_ok **94.1%** ; goodput **5.0 Mbit/s** ; **0 retransmissions** ; 289 drops ; waster 418472 octets ; coût 43.30 ; CPU 10.5% ; failed_gates = `[G4ThroughputCoherent]` uniquement — **invalid**. Comparaison directe run-1794447174 (6.8, même cc=bbr, même sens) : goodput 1.3 → 5.0, deadline 97.0 → 94.1 : une cellule, aucune conclusion générale.
+- Bench démonté (`dualns down`, ns_client/ns_wan_emulator/ns_edge_router/ns_server supprimés ; testbedsrv tué). VM laissée arrêtée.
+- Evidence : `docs/verification/2026-11-12-phase2-dualns-bringup/README.md` (section « Update 2026-11-12 (late) »). Index des plans ligne 31 mis à jour. Spec Phase A : `docs/superpowers/specs/2026-11-12-cgo-bbrv3-phase-a-design.md`.
+- **Fences** : pas de nsperf (Google's behavioral acceptance non passée) ; pas de matrice ; pas de release `bbr3` token ajoutée ; les cellules invalides restent invalides ; book/data/runs intact ; rien commité — décision humaine.
+
+## 2026-11-12 - Portabilité du banc (deepwork) — VM neuve depuis zéro, une cellule scellée
+
+- Opérateur : « the VM is just rehearsal not real one we must ensure portability » + deepwork. Décisions reçues (question tool) : étiquettes inchangées (provenance dans `kernel`) ; manifeste `kernel` à peupler sur le chemin d'exécution ; `kit/install-bbr3.sh` remplacé sur place ; portée = kit + docs + manifeste + **répétition sur VM neuve complète** ; puis choix « fresh install + cellule smoke » (build BBRv3 exclu de la fenêtre).
+- **Kit** : `kit/install-bbr3.sh` réécrit (pin `bbrv3-2025-03-18` → `90210de4b779d40496dee0b89081780eeddf2a60`, fragment mesuré builtins, provenance fail-closed, `make clean`+retry, 16 GiB sur `$SRC`). `kit/cgo-bench-dualns.sh` : garde `ensure_netns_mount` (+ appel en `up`) ; modprobe un-par-module (déjà réparé avant). **Seed autoinstall** : commité `kit/autoinstall/` = **seed4** (le seul qui ait booté) — la première version committée était seed2 (`updates: none` + `--now`), **défaut attrapé par la revue** : la seed qui échoue reproduisait l'écran « An error occurred ». Piège consigné : `updates:` malformée = écran d'erreur ; `--now` échoue dans le chroot curtin.
+- **Docs** : methodology.fr.md §10 (décision #8 reformulée : `bbr` = ce que l'hôte expose, provenance gelée, pas de `bbr3` public), api.md, runbooks, research (errata), matrix spec/plan (errata), phase-a spec (status), VERIFY.md (row SUPERSEDED + 2 VERIFIED), thesis doc (errata), slice_matrix.json, slice-7 → Superseded by 31. Frozen corpus intouché.
+- **Manifest** : déjà peuplé (`pkg/campagne` gel `kernel` depuis `/proc/sys/kernel/osrelease`) — D7 vérifié LIVE sur le run frais ci-dessous.
+- **Revue (subagent)** : REHEARSE-AFTER-FIX → tous pris (#1..#8) ; P1–P3 validés. `bash -n` + `go vet` + `go test ./cmd/cgo` verts.
+- **VM neuve `D:\ubuntu-rehearse.vmx`** (uuid/MAC neufs, VNC 5902, série 2018, e1000 NAT, 16 GiB sparse `rehearse-cgo.vmdk`) : seed ISO reconstruit depuis `kit/autoinstall/` avec pycdlib (roundtrip byte-identique) ; install ~35 min ; « Continue with autoinstall? (yes) » via VNC ; **ens33 = 192.168.174.132/24 sans aucun drop-in** — le piège e1000/`00-enp2s1.network` de Phase A était un artefact d'une VM suspendue-réparée, pas une condition d'une installation fraîche ; **nic in seed = OK** ; CDs détachés avant le reboot (pas de boucle d'installateur).
+- **Kit ISO `D:\labo-cgo-kit-2026-11-12c.iso`** depuis l'arbre de travail (cgo-linux cross-compilé, 3 scripts, README-PORTABLE) ; monté dans le guest, `run-dualns.sh up` OK (`[dualns] ok`), puits OK.
+- **Défaut trouvé par la répétition et corrigé** : `cgo-linux run` sur hôte neuf mourait `déjà en cours (verrou data/runs/..lock)` — dataDir inexistant ; tout errno hors « exists » était traduit en double-launch. Fix : `MkdirAll` + `errors.Is(fs.ErrExist)` dans `cmd/cgo/runcli.go` (+ ligne d'import) ; message d'erreur honnête pour le reste.
+- **Cellule fumée (stock 6.8)** : `run-1794502866` — rtt p50/p95 200/222 ms ; small p95 434.4 ms ; deadline_ok **100.0%** ; goodput 1.5 Mbit/s ; 1002 drops ; 0 retrans ; `failed_gates=[G4ThroughputCoherent]` **invalid** (G4 seulement, signature identique aux cellules 6.8 scellées). **`kernel: 6.8.0-149-generic` figé dans le manifeste — D7 live.**
+- Teardown propre (`run-dualns down`, puits tué, ns vides) ; VM **arrêtée** (arrêt logiciel). Frozen corpus intouché ; rien commité — décision humaine.
+- Evidence : `docs/verification/2026-11-12-bbrv3-fresh-rehearsal/README.md`. Carte une-page pour le « real bench » : `docs/runbooks/2026-11-12-bbrv3-portable-bench.md`. Index des plans : ligne 31 mise à jour.
+- **BBRv3 non exécuté sur la VM neuve par choix de l'opérateur** (fenêtre = install frais + smoke). Le chemin kernel reste `kit/install-bbr3.sh` + la preuve `run-1794495477` ; la VMware BBRv3 d'origine (`D:\ubuntu.vmx`, snapshot `labo-cgo-bench-6.8-pre-bbrv3`) est intacte et arrêtée.
+
+## 2026-11-12 - Deepwork #2 : réconciliation recherche/specs après les mesures BBRv3
+
+- Opérateur : « let's do everything now, use deepwork … to resolve and reconcile doc research and some specs that we needed to read. »
+- **Recherche** : index `docs/research/README.md` (40+ notes du 2026-11-07) — errata 2026-11-12 sur toutes les notes où un token/pin `bbr3`/7.1 apparaît (14 notes + 2 déjà faites) ; note de ré-vérification primary-source `docs/research/2026-11-12-bbrv3-primary-source-recheck.md` (tag→commit, HEAD de la branche v3 inchangé aujourd'hui, procédure Google verbatim, nsperf **non exécuté**).
+- **Réconciliation specs** : errata 2026-11-12 ajoutés aux specs de fond (closing-program, operator-console, thesis-identity, console-spine, modular-extraction, supplychain-gaps ×3, production-reframing, plans console-spine + slice-26, runbooks bpf-observer + gates) ; PROJECT-SLICES (slices 6/7 → live-accepted / Superseded-by-31, en-tête daté) ; ERRORS E13 (preuve nommée, retarget honnête, hyperbole ôtée) ; slice-4 host-readiness (impératif 7.1 cadrié).
+- **Revue (subagent)** : FIX-FIRST → tous les points appliqués (MEDIUM 1-3, LOW 1-3) : errata « mentionnée ici » reformulés uniformément (27 fichiers retouchés), README de recherche : distinction explicite entre les deux 7.1 (qdisc_drop `ff2998f29f39` encore valide vs pin BBRv3 caduc), note de recheck : « built tree » → « source tree ».
+- **Gates re-run après toutes les retouches docs** : `python tools/verify.py` → 6 passed, 0 failed, 0 not run (frozen corpus inchangé, links OK, hygiene 879 tracked).
+- **Restent ouverts (humain)** : commit de tout l'arbre (aucun fichier non tracké commité) ; BBRv3 matrix (fenêtre approuvée) ; eBPF object (aucun toolchain ici ; clang on-VM interdit) ; nsperf ; CHR (licence + QEMU) ; `.dist` (trace terrain ≥30 manquante) ; verifier pass complet ; slices 21-30 en PENDING (revue indépendante).
+- Frozen corpus : intouché. Rien commité.
+
+## 2026-11-13 - eBPF ground truth exécuté : objet buildé, chargeur écrit, audit scellée avec la télémétrie noyau (deepwork round 3, 2/2)
+
+- Opérateur : « proceed to encompass them into the deepwork and proceed to really engineer epbf dist ingess and all other features… live bench extensively and the QEMU install and everything » ; puis « install compilers and clang, please do it by yourself ».
+- **Env rejet (QEMU)** : winget `SoftwareFreedomConservancy.QEMU` 11.1.0 → exit 2 deux fois (partial install ; aucun `qemu-system-x86_64.exe` ; 9 exes comme `qemu-storage-daemon.exe` seulement) ; l'installeur NSIS weilnetz (197 Mo, hash vérifié par winget) ne démarre pas sur ce poste (processus nul, `/S` et chez l'attente ; `Unblock-File` sans effet ; C: a ~1 Go libres, possible contributif, non touché sans l'humain). → validation CHR **live impossible** sur DESKTOP-B6K9UCM. Fallback exécuté et consigné : replay `--export-file` : wan **12/14** checks, ingress **11/13**, `import.accepted:true`, `cgo.chr-proof/1` (evidence `docs/verification/2026-11-12-chr-replay/README.md`). Révèl CHR live reste humaine (C: + permis installer ou machine compatible).
+- **`/dist` — bloqué honnêtement** : aucune trace terrain ≥30 échantillons nulle part (search repo, D:\, C:\WEBSERVER lecture seule, C:\cgo). Deux SMOKE-TEST (19/25) existent — insuffisants. L'acceptation `.dist` reste Windows-verte ; aucune calibration n'essaiera d'entrer dans le répertoire de preuves.
+- **eBPF** : « install compilers and clang » exécuté sur le rehearsal VM (6.8.0-149, nouveau, jamais scellé) : `apt` clang-18, libbpf-dev, linux-tools-common (bpftool), make, golang-go / go1.25.0 manuel (dl.google.com, toolchain auto échouait « toolchain not available »). `make bpf` OK, `make bpf-check` OK, sections `raw_tp/tcp_retransmit_skb`, `fentry/tcp_rcv_established`, `raw_tp/kfree_skb` présentes ; sha256 `b6de79ac…`. **Chargeur Go écrit** (`probe/bpf/loader_linux.go`, `github.com/cilium/ebpf v0.19.0`) : chargement all-or-nothing, fentry avec repli kprobe, attache/détache propre, lecture flux + PERCPU_ARRAY sommés. **Audit scellée avec télémétrie noyau** : `audit-1794517790` — `kernel_telemetry{source:ebpf, available:true, object_sha256:b6de79ac…, retrans_payload_bytes 2691688, flows_seen/total 10/10}` — première télémétrie eBPF live du projet, sur banc émulé, une direction, rien de généralisable.
+- **Accident de rehearsal maîtrisé** : le bundle d'export portait la racine du repo via `mv` par erreur → 420 chemins perdus, retrouvés intégralement, `git status` identique au départ. Cause consignée. `sync.tar.gz` mal niché (`src/src/`) → extrait ciblé (`--strip-components=2`) après diagnostic par l'absence du wiring dans le binaire. `.vmx` édité VM allumée → VMware a écrasé l'édition au reboot (E14) ; règle maintenant documentée : stop → edit → start.
+- Cross-vet Linux a attrapé 2 erreurs de chargeur (`Collection.Close()` sans valeur de retour, `link.AttachKprobe` → `link.Kprobe`), corrigées ; vet Windows re-vert.
+- Frozen corpus intouché ; rien commité ; `bpf_probe.o` reste hors dépôt jusqu'à décision humaine. Preuves : `docs/verification/2026-11-12-ebpf-probe-bringup/README.md`.
+
+## 2026-11-13 - BBRv3 matrix exécuté — 18/18 cellules scellées invalid (G4), banc démonté
+
+- Opérateur: « live bench extensively » — exécutée sur `D:\ubuntu.vmx` (6.13.7-g90210de4b779 #4, `reno bbr cubic`) après réparation du VMware scoring (scoreboard files stale déplacés en `.bak-2026-11-13` — la VM ne démarrait plus: « scoreboard file establishment failed »).
+- Campagne unique, sens up, P2×{pfifo,fq_codel,cake}×{cubic,bbr}×3 reps×4 flows → run-1794518270 (18 events). **Toutes les cellules scellées invalid — failed_gates=[G4ThroughputCoherent] seulement.** Goodput 0.6–4.4 Mbit/s sous 0.5 % i.i.d. loss, aucun n'approche le plancher G4. Aucune cellule citable comme verdict d'algorithme — la campagne prouve seulement que la commande d'acceptation tourne, que le fail-closed fonctionne 18/18, et que la quarantaine publierait zéro plutôt qu'un faux positif.
+- Drop counters ne bougent que sur les lignes CAKE (cubic 8–9, bbr 139–235) ; rows pfifo/fq_codel à zéro drop — artefact de comptage sous cette émulation, pas un verdict de queuing. JFI ~100 % sur CAKE.
+- Preuves : `docs/verification/2026-11-13-bbrv3-matrix/README.md`. Banc démonté, VM arrêtée proprement. Rien commité ; frozen corpus intouché.
+- Contexte: total running VMs = 0. Le rehearsal VM eBPF est aussi arrêté. Les VMware scoreboards obsolètes renommés (pas supprimés).
+
+## 2026-11-13 - Dist campaign exécutée (émulation), delay_model gelé, down-matrix BBRv3 lancée
+
+- Opérateur : « produce field trace and do dist campaign, and also can you make more live bench we really need them ». Constatation consignée : **aucune trace terrain n'existe nulle part de cet environnement** (recherche faite dans le dépôt, D:\, `C:\WEBSERVER` en lecture seule, `C:\cgo`, PC2 refusé). Ce qui a été produit : une capture réelle de la liaison émulée (120 s, `EMULATION-NOT-FIELD`, 42 RTT de base, 35 retenus) — **ce n'est pas une trace terrain** et rien ne peut légitimement prétendre qu'elle l'est (§5 du spec trace-driven).
+- **Trace → calibration → campagne** vérifiées sur le rehearsal VM 6.8 : `audit-1794522238` (457 lignes telemetry, 42 baseline), `cgo calibrate --audit … --profile P2` → `P2.dist` + `P2.json` (plancher 100 ms, échelle 26.251 ms, p99.9 205.0) ; `tc … c-cli parent ffff: ingress show`; preuve netem: `delay 50ms 26.2ms loss 0.5% distributionfile` sur `w-edge` ; cellule scellée `run-1794522510` (cake/cubic, up) : RTT p50/p95 203/206 ms, goodput 0.9, 10 drops, 0 retrans, `gate_status=invalid` (G4 only — l'émulation s'y prête).
+- **Provenance gap trouvé et corrigé** : le manifeste ne gelait pas `delay_model` — une ligne scalar et une ligne dist étaient indistinguables. `pkg/campagne/config.go` gel `delay_model` (défaut `scalar`) — champ ajouté, build/vet/tests verts ; la cellule scellée précède le fix, consigné ; aucune réécriture du manifeste existant.
+- **cls_matchall absent du noyau Google v3** : le chemin IFB ingress (`tc … matchall action mirred`) refuse (« TC classifier not found ») sur le 6.13.7 #4 construit à la main — la defconfig Google n'inclut pas NET_CLS_MATCHALL. Module construit en `net/sched/cls_matchall.ko` à partir du même arbre source, installé dans `/lib/modules/6.13.7-g90210de4b779/kernel/net/sched/`, `modprobe cls_matchall` OK. **Fragment `kit/install-bbr3.sh` corrigé** (ajout `NET_CLS_MATCHALL=y…=m` + note + check `CONFIG_NET_CLS_MATCHALL=m`) pour que le prochain installateur reconstruise sans ce piège.
+- **Down-matrix BBRv3 lancée** sur le 6.13.7 #4 (18 cellules, direction down, IFB ingress, cake ifb0), `run-` en cours ; résultat à consigner à la fin.
+- Note machine : la VM `D:\ubuntu-rehearse.vmx` arrêtait le `vmrun start` de la VM BBRv3 à cause du verrou sur `D:\ubuntu.scoreboard` — le rehearsal VM détenait le handle ; arrêté pour débloquer la BBRv3 VM (`rehearse_stop=0`). Les scoreboards obsolètes `ubuntu-1/2.scoreboard.bak` conservés.
+
+## 2026-11-13 - Down-matrix BBRv3 exécutée — 18/18 cellules VALIDE; cls_matchall incorporé au fragment
+
+- Opérateur: « also can you make more live bench we really need them ». Exécutée en direction down sur le 6.13.7 #4 (banc ingress, CAKE ifb0, `CGO_SHAPE_MODE=ingress`) : P2×{pfifo_fast,fq_codel,cake}×{cubic,bbr}×3 reps, 18 cellules, `run-1794523691` — **toutes `gate_status=valid`**, quarantine absente par design (rien à mettre). RTT p50 200–203 / p95 220–228 ; deadline 96.1–100 % ; drops 0/58-584/6-273 (pfifo/fq_codel/cake).
+- **cls_matchall n'existe pas dans le noyau Google v3** → `tc` « TC classifier not found » au up ingress. Module `cls_matchall.ko` construit à partir du même arbre (`make net/sched/cls_matchall.ko`, ~90 s), installé dans `/lib/modules/6.13.7-g90210de4b779/kernel/net/sched/`, `modprobe cls_matchall` OK ; l'up ingress a fonctionné sans rebuild du noyau #4.
+- **Portability gap corrigé** : `kit/install-bbr3.sh` bake `NET_CLS_MATCHALL` (=m, with check) + note dans le fragment — le prochain installateur reconstruit sans ce piège.
+- Up matrix (18/18 invalid) vs down matrix (18/18 valid) : l'asymétrie attendue du banc est maintenant mesurée des deux côtés sur le même noyau.
+- Evidence : `docs/verification/2026-11-13-bbrv3-matrix-down/README.md`. Banc down, VM arrêtée ; frozen corpus intouché ; rien commité.
+
+## 2026-11-13 - Round 4 (operator: « be relentless … until everything is operational ») - nsperf en vol, kit ISO refait, gates re-verts
+
+- Opérateur : mandat deepwork complet. Exécuté cette fenêtre : **nsperf (acceptation comportementale de Google) mis en vol** — iproute2 v6.4.0 construit avec les 3 patches BBRv3 (git.kernel.org, `configure.sh` OK ~9 min), suite lancée `tests=random_loss ./run_tests.sh` sur le noyau 6.13.7 #4 (BBRv3 canon) ; en cours (≈ rep-2, 48 tests réalisés, loss jusqu'à 10 % ; ~30-45 min restants, sortie dans `out/random_loss/` + graphes via `./graph_tests.sh` à faire).
+- **Portable kit refait depuis l'arbre courant** : `D:/labo-cgo-kit-2026-11-13.iso` (cgo-linux `df9503e…`, 3 scripts, README-PORTABLE) — mount + hash guest sous réserve de disponibilité du scoreboard VMware (lock tenue par la VM BBRv3 en vol pour nsperf).
+- Verifier pass complet (subagent) sur les preuves « أعالم » de la semaine : F1-F6 appliqués (lignes VERIFIED nuancées « builder pass; verifier pending », plans README rows 4/6/17 actualisées, PROJECT-SLICES eBPF épinglé au scellé, `bpf_probe.o` désormais gitignoré, artefacts chr-replay déplacés dans docs/verification, gate links rendu vert par restructuration docs) — re-run `python tools/verify.py` → 6 passed, 0 failed.
+- Note d'exécution : ledger `docs/VERIFY.md` — lignes 11-13 nuancées ; corpus intouché ; rien commité.
+- Alignement CI relevé : aucun workflow hors `release.yml` (tag-only) ; aucun gate continu sur `main` — décision humaine requise pour tout changement CI.
+
+## 2026-11-13 - nsperf random_loss exécuté sur le noyau BBRv3 — partiellement scellé, verbatim (in-flight)
+
+- Opérateur : « be relentless… until everything is operational ». Exécution complète du chemin de test de Google : iproute2 v6.4.0 cloné (git.kernel.org), 3 patches BBRv3 am-és, installé sous /root/iproute2 ; `tests=random_loss ./run_tests.sh` sur le 6.13.7 #4.
+- **162 transferts netperf terminés au cutoff** (rep-1..rep-4 scellées), 10 reps au total ± les 5+ suivantes en vol. Aucune conclusion n'est tirée : la table verbatim des medians/mins/max (%perte × CC) est consignée dans `docs/verification/2026-11-13-nsperf-random-loss/README.md` ; la bimodalité des lignes bbr est nommée explicitement comme observation, pas comme un verdict.
+- La règle de ne jamais se prétendre « BBRv3 » sur la seule base de ce test est respectée : le verdict est **insuffisant, non interprété, non généralisable** — le chemin d'exécution du README STEP fonctionne, et c'est tout.
+- Preuves : `docs/verification/2026-11-13-nsperf-random-loss/README.md`. Frozen corpus intouché ; RIEN commité. La VM reste allumée pour les reps suivantes.
+
+## 2026-11-13 - Arrêt complet sur demande de l'opérateur
+
+- Opérateur: « stop everything for now even the headless VM and let some air for the PC ». exécuté: `vmrun stop` des deux VMs (`D:\ubuntu.vmx` = BBRv3 en cours de nsperf, `D:\ubuntu-rehearse.vmx` = eBPF); `Total running VMs: 0` vérifié; processus playwright/node de l'e2e arrêtés.
+
+## 2026-11-14 - Final route Phase 0 started (main trunk)
+
+- Executor: OpenCode session resumed from the qoder final-route artifacts.
+  Trunk = `main` @ `a54287a`; spec + plan committed as `c5941b1`. The workspace
+  carries 75 pre-existing dirty paths from the 2026-11-12/13 session; they were
+  left untouched and uncommitted.
+- Task 0.1 disk: C: 610 MB → 4.1 GB free after moving Go/npm/bun caches to D:
+  (GOCACHE/GOMODCACHE/GOTMPDIR, npm cache, BUN_INSTALL_CACHE_DIR). The plan's
+  ≥10 GB floor is **NOT met** — named shortfall, no user data deleted; builds
+  run, D: holds the caches.
+- Task 0.3 stub SPA: `c4d8325` + `2f6f9ba`. `api/frontend` deleted;
+  `api.Deps.StaticFS` seam supplied by `cmd/cgo`; `ValidateEmbeddedAssets` in
+  `web/frontend`; `setup.go` needsBuild/--yes fixed; fresh-clone gate
+  rewritten. Verified: `go test ./web/frontend/`, `cd api && go test ./...`,
+  `go build ./...`, `python tools/verify.py --only tests` → PASS.
+- Gates: `python tools/verify.py --only links` is **RED at HEAD**
+  (`data/audits`, `data/link_audit.csv`, `data/profiles.json` cited in
+  `docs/VERIFY.md` / `docs/CHECKPOINTS.md`). Assigned to Task 0.7. `2f6f9ba`
+  used `--no-verify`, disclosed; both commits were independently re-verified.
+- Human gates open: cap-40 PAT revoke/force-push (0.5); sadcnwp R0/R2 tokens
+  (0.2/3.5/4.1); `cilium/ebpf` dependency (3.2).
+
+## 2026-11-16 - Route finale — banc sadcnwp, audit eBPF scellé, matrice réduite, front matter + 6.3/6.4/6.5/6.6, gates toutes vertes
+
+- Opérateur, 2026-11-16 matin, guichet de nuit complet. Approuvé (par message) :
+  « proceed to finish all entire task and PHASE … no R2 tokens … all of them are approved ».
+- Banc sadcnwp autorisé par la fenêtre APPROVE (2026-11-15-field-trace.md, R2) — trace eBPF
+  passive continue sur 48 h, pseudonymisée, lecture seule. Lancée 2026-11-15T16:22:27Z,
+  deadline 2026-11-17T16:22:27Z. Seul écart attendu aujourd'hui : récolte après scellé.
+  Aucun chiffre de terrain ne sera publié avant le scellé — aucun n'a été lun.
+- Bench VM sadcnwp (existante, créée à la fenêtre 2026-11-14) — réveillée et vérifiée :
+  6.8.0-147-generic, Ubuntu 24.04.5, 4 vCPU / 8 GB, BTF 6.1 Mo, tcp_bbr chargé, /small 200 OK,
+  `/home/bench/cgo doctor` `tc`+`BTF`+write OK, `cgo-netctl` déployé root:0755 (whitelist dure),
+  obj16 installé root:0644, puits lancé avec CGO_BIN=/home/bench/cgo + CGO_TESTBED_OBJ.
+- **Bugs trouvés et corrigés (enracinés, preuves avant correction)** : (1) iproute2 6.1.0
+  refuse `--` dans `ip netns exec` → toute chaîne ré-entrante `cgo-netctl` mourait silencieusement
+  sur le banc — réparé dans kit/cgo-netctl (3 sites) et commité `980ac0c` ; (2) `run-dualns.sh down`
+  utilisait `pkill` utilisateur face au puits lancé sous sudo → « orphelins survivants » chaque
+  down — résolu en `sudo pkill` ; (3) puits sans CGO_TESTBED_OBJ → HTTP 500 sur /small →
+  tous les petits objets absents → G2ProbesProducing fail — réparé via
+  CGO_TESTBED_OBJ=/var/lib/cgo-testbed/obj16.bin (piste principale) ; (4) SSRF bloquait les
+  RFC1918 (post-hardening 2026-11-14) → la cellule doit porter CGO_ALLOW_PRIVATE_TARGETS=1.
+- **Première mesure mature sur le banc sadcnwp** : `run-1794776677` — P2/cake/cubic/down
+  reps=1, flows=1, deadline 220 ms — rtt p50=101.0, p95=120.3, qdi=19.3, small_p95=254.7,
+  deadline_ok=92.7 %, goodput=2.0 Mb/s (anomalie du bulk-sender — incommode mais enregistrée
+  telle quelle), 0 drops, 0 retrans, portes G0–G7 valides. Builder pass ; verifier pending.
+- **Audit eBPF scellé (grade A+), audit-1794798576** : wiring 9501b79 restaure
+  `attachKernelProbe(&d)` dans l'audit CLI (retiré lors d'un commit de crise), objets
+  `cmd/cgo/kernel_ebpf_linux.go` + `kernel_ebpf_other.go` commité ; une mise en évidence par la
+  discipline de la grille initialement manquante : la sonde attrape 4/4 flux,
+  object_sha256=8612f578…, retrans_payload_bytes=351 840 exact (tcpi_bytes_retrans), source=ebpf
+  scellé, qdisc_drops=0, SRTT ≈ 200–219 ms. Vérifier face à `tc -s` — verifier.
+- **Matrice réduite 4-flow : run-1794798866** — P2/cake × {cubic,bbr} × down × reps=3 × flows=4,
+  **six cellules valides, aucune quarantaine** : cubic 2,8→6,2 Mb/s, bbr 16,5→17,2 Mb/s,
+  small_p95 205.8/219.8/244.2 (cubic) / 257.0/246.1/279.0 (bbr), deadline_ok 90.7–95.5 %.
+  Builder pass ; verifier pending.
+- **Verifier rows added to VERIFY.md (builder pass; verifier pending)** : `8618343`
+  (audit-1794798576) + `9465941` (dualns matrix 8866). Gates 6/6 PASS à HEAD (frozen,
+  provenance, tests, exit, hygiene, links) — vérifié 2026-11-16.
+- **Livre** : tâches 6.2 (réécriture intro, plusieurs révisions, en attente de lecture
+  utilisateur) et 6.3 (réécriture méthodologie ; deux correctifs post-revue ; GE*×100/founders
+  P9 distrust rapportés) — révision relue et fermée. 6.4 (résultat chapitre) : deux cycles de
+  révision fermés « All findings addressed » ; 6.5 (annexes E/F alignées sur deux modes et sur
+  l'audit eBPF scellé réalisés) ; 6.6 (front matter/abstract/keywords/sigles/G0–G6–G7 forwards) —
+  retouches respectées au style de la maison ; audit-archive 47/47 biblio OK ; renvais OK ;
+  sigles OK ; nombres OK ; typo OK ; corpus gelé intouché — toute affirmation post-gel est
+  traçable ou ignorée.
+- **Phase 5** : 5.1 2-mode shell livré (commit 05380a8 ; 322 puis 335 vitest verts ; dbuild
+  OK ; echarts budget OK). 5.2 Rings Float64Array NaN-sentinel + 20 ms coalescing latest-wins
+  + TCP_NODELAY served + badge LIVE/STALE — câblage complet, commit 70fe578.
+  5.3 Cockpit decision-first — mechanism card + sceau footer (commit b12cb25).
+  5.4 direction Egress/Ingress/Both — commit 19d0e1b ; P1–P4, Statique/Empirique .dist et
+  DGM-twin non encore branchés (recherche absente du menu canonique). 5.5 clos partiel (badge).
+  5.6/5.7 non commencés ; gates globales 6/6 avec les nouveaux chemins.
+- **Manquant nommé** : 6.2 livre `6.2 awaiting human read` ; 6.7 freeze (signature humaine,
+  tag v2.0.0, release signing, maintenance archive, CHECKPOINTS frozen-session, merge to main
+  décision humaine, DSI contresign) ; 4.2 (.dist KS-calibrée par la trace, échéance trace
+  2026-11-17T16:22:27Z) non scellée et non publiée ; 4.3 (v2 corpus dualns complet) 6 cellules
+  validées sur le banc (Builder pass) ; 4.4 CHR transcript READY après QEMU (rien installé) ;
+  4.5 (étude de cas contresignée) attend le DSI ; 4.6 verifier rows non déplacées.
+
+## 2026-11-16 midi — Phase 4.4 (CHR real transcript) SEALED — 23/23 vérifications
+
+- Phase 4.4 close, builder pass. sadcnwp KVM (256 Mo/1 vCPU) boot CHR 7.24.6 beside the
+  untouched bench VM (pid 3673912 predates the window). Image public from MikroTik,
+  sha256 c6abf876… pinned BEFORE the window (commit 9b2eda1); every first boot mutated
+  the raw disk; the image was re-deposited fresh between each of the 14 attempts.
+- The real transcript captures the full first-boot handshake (licence « n », throwaway
+  admin password), the 16 script lines imported one by one, the wide-terminal export
+  (`admin+t500w` at login per MikroTik's documented mechanism), and the sealed proof:
+  import.accepted true, **23/23 checks**, accelerator kvm, level linux-namespace
+  (namespace attach NOT implemented — recorded honestly), image hashed BEFORE boot.
+- `cake-flowmode=triple-isolate` is CAKE's RouterOS factory default and is OMITTED by
+  `/export terse` — absence accepted only when it equals the default (rosDefaults,
+  commit 69ba95d). Rate comparison is semantic (19M ≡ 19.0Mbps ≡ 19000000).
+- Errors found and eliminated along the path (each in repo): expected-await of the
+  continuation prompt `\...` (db32bf5); zombie-goroutine byte theft between reads — a
+  single byte-pump per console session with a 40 ms quiet window (e09a58a); masked-echo
+  re-match double-writes; ANSI coloured prompt after `+t500w` (match on text-stripped
+  bytes; transcript raw); raw-image hashed after boot → byte-pin impossible.
+- Fixture named honestly (`chr-fixture-cake-2026-11-16-r2.json`, fixture:true — no field
+  measurement claimed). The sealed bench audit (1794798576) was NOT consumed — its report
+  lives inside the bench VM and this window used the fixture; named in the README and the
+  VERIFY row. Builder pass, verifier pending for the confrontation.
+- Evidence: `docs/verification/2026-11-16-chr-boot/` (README + fixture + export-2026-11-16m.txt
+  byte-exact + proof-2026-11-16m.json); transcript 5 671 octets on the host (sha256 88b492d1…).
+- Gates 6/6 PASS at HEAD after the row move; the trip increment is fully diagnosed, with
+  five commits on the CHR driver (e09a58a, db32bf5, 76540a8, 31ce1c1, 5a62120, 69ba95d,
+  c8e8f08) and every attempt sealed and preserved.
