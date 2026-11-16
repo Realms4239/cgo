@@ -61,6 +61,7 @@ export interface CampaignOptions {
   channel_model: ChannelModel
   deadline_ms: number
   target: string
+  direction: 'down' | 'up' | 'both'
 }
 
 export async function startCampaign(opts: CampaignOptions): Promise<void> {
