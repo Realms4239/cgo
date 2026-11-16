@@ -21,3 +21,8 @@ grep -q 'sudo -n env CGO_ALLOW_PRIVATE_TARGETS=1' kit/v2-matrix-run.sh || { echo
 grep -q 'mv "$DATA/.${RUN_ID}.lock"' kit/v2-matrix-run.sh || { echo "FAIL v2 stale-lock rename absent"; fail=1; }
 grep -q 'pgrep -f .cgo run --bench dualns.' kit/v2-matrix-run.sh || { echo "FAIL v2 single-writer guard absent"; fail=1; }
 grep -q 'setsid nohup' kit/v2-matrix-run.sh || { echo "FAIL v2 launcher not detached"; fail=1; }
+
+# V2 evidence checker : manifeste requis, 4 profils, statut de porte explicite.
+grep -q 'manifest' kit/check-v2-run.sh || { echo "FAIL v2 checker missing manifest guard"; fail=1; }
+grep -q 'valid|degraded|invalid' kit/check-v2-run.sh || { echo "FAIL v2 checker gate vocabulary absent"; fail=1; }
+grep -q 'P1 P2 P3 P4' kit/check-v2-run.sh || { echo "FAIL v2 checker profiles absent"; fail=1; }
