@@ -72,7 +72,7 @@ trap cleanup EXIT INT TERM
 
 [ "$(uname -s)" = Linux ] || die "Linux only"
 command -v ethtool >/dev/null || die "ethtool missing (apt install ethtool)"
-[ -x "$BIN" ] || die "binary $BIN missing — build: go build -o cgo-linux ./cmd/cgo"
+[ -x "$BIN" ] || die "binary $BIN missing — build: CGO_ENABLED=0 go build -tags ebpf_object -o $BIN ./cmd/cgo (without the tag, kernel telemetry is silently absent)"
 [ -f "$ROOT/kit/testbed.sh" ] || die "kit/testbed.sh missing"
 
 if [ -r /proc/sys/fs/file-nr ]; then

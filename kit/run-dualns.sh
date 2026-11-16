@@ -51,7 +51,7 @@ case "$SHAPE_MODE" in
   egress)  BENCH_INGRESS_ARGS="--ingress off";;
   *)       BENCH_INGRESS_ARGS="";; # env absente : défaut du banc (egress)
 esac
-[ -x "$BIN" ] || { echo "[!] binaire introuvable: $BIN (compilez: go build -o $BIN ./cmd/cgo)" >&2; exit 1; }
+[ -x "$BIN" ] || { echo "[!] binaire introuvable: $BIN (compilez: CGO_ENABLED=0 go build -tags ebpf_object -o $BIN ./cmd/cgo — sans l'étiquette, la télémétrie noyau est silencieusement absente)" >&2; exit 1; }
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
   if sudo -n true 2>/dev/null; then SUDO="sudo -n"; else echo "[!] root ou sudo NOPASSWD requis" >&2; exit 1; fi
