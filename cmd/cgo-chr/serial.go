@@ -169,6 +169,12 @@ loggedIn:
 		if _, err := tr.Write([]byte(line + "\n")); err != nil {
 			return all.String(), "", "", err
 		}
+		if strings.HasSuffix(line, "\\") {
+			// bloc à continuation (« ligne \ ») : la console imprime une
+			// invite « \... » — aucun prompt ne vient ici. La réponse
+			// arrive à la fin du bloc (ligne sans antislash final).
+			continue
+		}
 		chunk, err := cons.expect(promptRe, timeout)
 		all.WriteString(chunk)
 		if err != nil {

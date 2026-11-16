@@ -75,6 +75,23 @@ func (f *replayCHR) Close() error {
 	return nil
 }
 
+func TestReplayConsoleContinuationBlock(t *testing.T) {
+	tr := newReplayCHR()
+	script := "/queue type add name=cgo-cake kind=cake \\\n    cake-bandwidth=19000000 cake-rtt=25ms \\\n    cake-flowmode=triple-isolate cake-wash=yes\n"
+	transcript, _, importErr, err := drive(tr, script, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if importErr != "" {
+		t.Fatalf("import refusé inattendu: %s", importErr)
+	}
+	for _, want := range []string{"cake-bandwidth", "cake-flowmode", "cake-wash"} {
+		if !strings.Contains(transcript, want) {
+			t.Fatalf("transcript sans %q\n---\n%s", want, transcript)
+		}
+	}
+}
+
 func TestReplayConsoleCadenceFullLineDelivery(t *testing.T) {
 	tr := newReplayCHR()
 	script := "/queue tree remove [find where comment=\"cgo-managed\"]\n/queue type add name=cgo-cake kind=cake\n"
