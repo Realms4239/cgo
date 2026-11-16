@@ -26,3 +26,8 @@ grep -q 'setsid nohup' kit/v2-matrix-run.sh || { echo "FAIL v2 launcher not deta
 grep -q 'manifest' kit/check-v2-run.sh || { echo "FAIL v2 checker missing manifest guard"; fail=1; }
 grep -q 'valid|degraded|invalid' kit/check-v2-run.sh || { echo "FAIL v2 checker gate vocabulary absent"; fail=1; }
 grep -q 'P1 P2 P3 P4' kit/check-v2-run.sh || { echo "FAIL v2 checker profiles absent"; fail=1; }
+
+# V2 seal : exact cell count + house hash8 convention, no frozen-corpus write.
+grep -q 'rows.*-eq 24' kit/seal-v2-run.sh || { echo "FAIL v2 seal cell-count guard absent"; fail=1; }
+grep -q 'hash8' kit/seal-v2-run.sh || { echo "FAIL v2 seal hash8 absent"; fail=1; }
+grep -q 'book/data/runs' kit/seal-v2-run.sh || { echo "FAIL v2 seal frozen-corpus boundary note absent"; fail=1; }
