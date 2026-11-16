@@ -69,6 +69,10 @@ honest measurement of bad performance — do not "fix" it into a gate failure.
 - T32 capture `tc -s` per sweep for drops.
 - T33 seal direction/flow evidence.
 - T34 checkpoint.
+- T34b P2 goodput repeatability (staged `write-eb-l4p2rep5.txt`): 5 reps of
+  P2/cake/{cubic,bbr}, fixed binary, to resolve the live-vs-sealed goodput divergence
+  named in CHECKPOINTS 2026-11-17T22:4xZ. Named confounders: random 0.5% loss, bursty
+  loss, shared sink, host load. Do not conclude until this matrix runs.
 
 ## Layer 4 — Profile edge cases (T35–T42)
 - T35 P3 (VSAT 600 ms) qdisc comparison with deadline 1000 ms (not 220).
