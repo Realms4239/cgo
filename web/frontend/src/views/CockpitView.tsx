@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAuditStore } from '../store/audit'
 import { VerdictHero } from '../components/VerdictHero'
 import { retailBound } from '../lib/dashboard'
+import { qualityWord } from '../lib/dashboard'
 import { formatCostAR, groupDigits, relativeTime, asArray } from '../lib/format'
 import { loadSettings } from '../lib/settings'
 import IntegriteView from './IntegriteView'
@@ -65,6 +66,45 @@ function PreuvesPanel() {
       <IntegriteView embedded active />
       <AuditReportsPanel />
     </section>
+  )
+}
+
+function hash8(sha?: string): string {
+  return sha && sha.length >= 8 ? sha.slice(0, 8) : '—'
+}
+
+function MechanismCard({ report }: { report: import('../lib/types').AuditReport }) {
+  const m = report.measured
+  const idle = typeof m?.rtt_idle_p50_ms === 'number' ? m.rtt_idle_p50_ms : undefined
+  const loaded = typeof m?.rtt_loaded_p95_ms === 'number' ? m.rtt_loaded_p95_ms : undefined
+  const delta = (idle != null && loaded != null && loaded >= idle) ? loaded - idle : undefined
+  const load = m?.load_measured
+  return (
+    <details className="mechanism" data-testid="cockpit-mechanism">
+      <summary><span>Le mécanisme derrière ce verdict — seuls des faits scellés sont cités</span></summary>
+      <ul className="mechanism-list">
+        <li><b>Note du moteur.</b> {report.bloat_grade ? `Le rapport est noté ${report.bloat_grade} — ${qualityWord(report.bloat_grade)}.` : 'Pas de note sur ce rapport.'}</li>
+        <li><b>Delta sous charge.</b> {idle != null && loaded != null ? `Le délai sous charge vient à ${loaded.toFixed(0)} ms contre ${idle.toFixed(0)} ms au repos — un écart de ${(delta ?? 0).toFixed(0)} ms imputable à l’attente, pas à la technologie d’accès.` : 'Charge non mesurée — aucun delta ne peut être affirmé.'}</li>
+        <li><b>Pourquoi ce verdict.</b> {report.bloat_verdict || 'Le moteur ne rend pas de phrase pour ce rapport.'}</li>
+        <li><b>À l’échéance.</b> {report.cap_sla?.measured ? `${report.cap_sla.ok_pct?.toFixed(0) ?? '—'} % de requêtes respectent l’objectif de ${report.cap_sla.target_pct ?? '—'} % — échéance ${report.cap_sla?.deadline_ms} ms.` : 'Échéance non mesurée.'}</li>
+        {load ? null : <li><b>Prudence.</b> La charge n’a pas été mesurée ; tout delta affiché ailleurs reste indicatif.</li>}
+      </ul>
+    </details>
+  )
+}
+
+function SealFooter({ report }: { report: import('../lib/types').AuditReport }) {
+  const prov = report.provenance
+  const telemetry = report.kernel_telemetry
+  return (
+    <footer className="dash-seal" data-testid="cockpit-seal" aria-label="Sceau du rapport">
+      <span className="dash-seal-item">sceau <b>{hash8(prov?.source_sha256)}</b></span>
+      <span className="dash-seal-item">rapport <b>{report.audit_id}</b></span>
+      {telemetry?.source ? (
+        <span className="dash-seal-item">télémétrie <b>{telemetry.source === 'ebpf' ? 'eBPF' : telemetry.source}</b>{telemetry.object_sha256 ? <> · objet <b>{hash8(telemetry.object_sha256)}</b></> : null}</span>
+      ) : null}
+      <span className="dash-seal-item">scellé <b>{report.timestamp?.slice(0, 16).replace('T', ' ') || '—'}</b></span>
+    </footer>
   )
 }
 
@@ -179,7 +219,9 @@ export default function CockpitView() {
           <p className="dash-card-kicker">Détail contractuel</p>
           <p className="dash-card-detail">{report?.economics?.disclaimer || 'Scénarios contractuels, pas des mesures.'} {report.economics?.primary ? `Scénario principal : ${cost.num} ${cost.unit}.` : ''}</p>
         </section>
+        <MechanismCard report={report} />
         <PreuvesPanel />
+        <SealFooter report={report} />
         {auditOpen ? <InlineAudit onClose={() => setAuditOpen(false)} /> : null}
       </section>
     </div>

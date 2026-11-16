@@ -956,3 +956,14 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .syn-hero > .verdict { min-width: 0; width: 100%; padding: var(--sp-2) 0 var(--sp-3); }
 .syn-hero p { color: var(--text-muted); font-size: var(--fs-body); margin: var(--sp-1) 0 0; max-width: 62ch; }
 .syn-read { color: var(--text-muted); font-size: var(--fs-body); line-height: 1.6; max-width: 70ch; margin: 0; }
+/* Cockpit : git — mécanisme + pied de sceau (phase 5.3/5.5) */
+.mechanism { border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface-card); padding: 0; overflow: hidden; }
+.mechanism summary { cursor: pointer; padding: 14px 18px; font-family: var(--font-mono); font-size: var(--fs-micro); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); list-style: none; display: flex; align-items: center; gap: 12px; }
+.mechanism summary:focus-visible { outline: 2px solid var(--t-ok); }
+.mechanism summary::before { content: '+'; color: var(--t-ok); font-weight: 700; }
+.mechanism[open] summary::before { content: '—'; }
+.mechanism-list { margin: 0; padding: 6px 18px 16px; display: flex; flex-direction: column; gap: 10px; }
+.mechanism-list li { font-size: var(--fs-body); color: var(--text-body); line-height: 1.5; }
+.mechanism-list b { color: var(--text-primary); }
+.dash-seal { display: flex; flex-wrap: wrap; gap: 18px; padding: 14px 18px; border-top: 1px solid var(--hairline); font-family: var(--font-mono); font-size: var(--fs-tag); color: var(--text-muted); }
+.dash-seal-item b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
