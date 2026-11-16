@@ -5,7 +5,7 @@
   down, 4 flows, deadline 220 ms. No quarantine sidecar: no cell was invalid.
 - Own anchor (separate from frozen corpus): `hash8 = 6adc83d9`
   (`aqm_eval.csv` SHA-256 `6adc83d9eba4295ff32d252dee2ebf59a529c7eb470b81be401ca58c78363f74`).
-- Manifest SHA-256 `db777e73447bb38f1b17d78f8017464a22be269247fa8059` (verbatim from guest).
+- Manifest SHA-256 `db777e73447bb38f1b17d78dd05eecacc4c0479e8017464a22be269247fa8059` (verbatim from guest).
 - Verified locally with the committed gates: `bash kit/check-v2-run.sh … 24` (OK) and
   `bash kit/seal-v2-run.sh …` (OK). `make`-equivalent gates 6/6 after the seal.
 - Frozen corpus `book/data/runs` untouched: still 159 runs / 528 rows / 208 valid,
