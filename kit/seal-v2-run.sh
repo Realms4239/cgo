@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # seal-v2-run.sh — assemble the seal manifest for a completed v2 run.
-# Reads only; never writes the frozen corpus. The operator/agent still has to
+# Reads only; never writes book/data/runs (the frozen corpus). The operator still has to
 # copy the guest artifacts into docs/verification/2026-11-16-v2-corpus/ via the
 # safe channel and commit them explicitly.
 set -euo pipefail
