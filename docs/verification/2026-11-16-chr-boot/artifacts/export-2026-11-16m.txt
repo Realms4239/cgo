@@ -1,0 +1,14 @@
+# 2026-11-16 10:11:26 by RouterOS 7.24.6
+# system id = +CSPWSWASPN
+#
+/interface ethernet set [ find default-name=ether1 ] disable-running-check=no
+/interface ethernet set [ find default-name=ether2 ] disable-running-check=no
+/queue type add cake-ack-filter=filter cake-bandwidth=19.0Mbps cake-diffserv=diffserv4 cake-nat=yes cake-rtt=25ms cake-wash=yes kind=cake name=cgo-cake
+/queue type add cake-bandwidth=19.0Mbps cake-diffserv=diffserv4 cake-flowmode=dual-dsthost cake-nat=yes cake-rtt=25ms cake-wash=yes kind=cake name=cgoingress-cake
+/queue tree
+# CAKE type with bandwidth setting detected, configure traffic limits within queue itself
+add comment=cgo-managed max-limit=19M name=cgo-wan-out parent=ether1 queue=cgo-cake
+/queue tree
+# CAKE type with bandwidth setting detected, configure traffic limits within queue itself
+add comment=cgo-managed-ingress max-limit=19M name=cgoingress-lan-in parent=ether2 queue=cgoingress-cake
+/ip dhcp-client add interface=ether1 name=client1

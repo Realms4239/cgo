@@ -1,0 +1,157 @@
+{
+  "schema": "cgo.chr-proof/1",
+  "audit_id": "chr-fixture-cake-2026-11-16-r2",
+  "report_sha256": "5c7eb9ab0f463ead8f6e87b9b1f1c5ed4b042bf39e8d7ccd89b1e8b7454e112f",
+  "chr": {
+    "version": "",
+    "arch": "",
+    "image_sha256": "c6abf87622c5bdbd86f7b5730c8e83f86f2335ee2fbe97d008da176ffbf97878"
+  },
+  "level": "linux-namespace",
+  "accelerator": "kvm",
+  "import": {
+    "accepted": true
+  },
+  "checks": [
+    {
+      "name": "queue tree cgo-wan-out.comment",
+      "expected": "cgo-managed",
+      "found": "cgo-managed",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgo-wan-out.max-limit",
+      "expected": "19000000",
+      "found": "19M",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgo-wan-out.parent",
+      "expected": "ether1",
+      "found": "ether1",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgo-wan-out.queue",
+      "expected": "cgo-cake",
+      "found": "cgo-cake",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.comment",
+      "expected": "cgo-managed-ingress",
+      "found": "cgo-managed-ingress",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.max-limit",
+      "expected": "19000000",
+      "found": "19M",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.parent",
+      "expected": "ether2",
+      "found": "ether2",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.queue",
+      "expected": "cgoingress-cake",
+      "found": "cgoingress-cake",
+      "pass": true
+    },
+    {
+      "name": "queue type cgo-cake.cake-ack-filter",
+      "expected": "filter",
+      "found": "filter",
+      "pass": true
+    },
+    {
+      "name": "queue type cgo-cake.cake-bandwidth",
+      "expected": "19000000",
+      "found": "19.0Mbps",
+      "pass": true
+    },
+    {
+      "name": "queue type cgo-cake.cake-diffserv",
+      "expected": "diffserv4",
+      "found": "diffserv4",
+      "pass": true
+    },
+    {
+      "name": "queue type cgo-cake.cake-flowmode",
+      "expected": "triple-isolate",
+      "found": "absent (défaut)",
+      "pass": true
+    },
+    {
+      "name": "queue type cgo-cake.cake-nat",
+      "expected": "yes",
+      "found": "yes",
+      "pass": true
+    },
+    {
+      "name": "queue type cgo-cake.cake-rtt",
+      "expected": "25ms",
+      "found": "25ms",
+      "pass": true
+    },
+    {
+      "name": "queue type cgo-cake.cake-wash",
+      "expected": "yes",
+      "found": "yes",
+      "pass": true
+    },
+    {
+      "name": "queue type cgo-cake.kind",
+      "expected": "cake",
+      "found": "cake",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-bandwidth",
+      "expected": "19000000",
+      "found": "19.0Mbps",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-diffserv",
+      "expected": "diffserv4",
+      "found": "diffserv4",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-flowmode",
+      "expected": "dual-dsthost",
+      "found": "dual-dsthost",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-nat",
+      "expected": "yes",
+      "found": "yes",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-rtt",
+      "expected": "25ms",
+      "found": "25ms",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-wash",
+      "expected": "yes",
+      "found": "yes",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.kind",
+      "expected": "cake",
+      "found": "cake",
+      "pass": true
+    }
+  ],
+  "export_sha256": "61e5157394e458cfee30e15774b0cfe4da2bd287cf3e4751704615e2976a1a80",
+  "transcript_sha256": "88b492d1f1cc749d0b6f667c51c8087ed8ed6d5c077be78a54a092b5823a18bf"
+}

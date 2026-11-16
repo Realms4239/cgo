@@ -1,0 +1,15 @@
+{
+  "audit_id": "chr-fixture-cake-2026-11-16-r2",
+  "emulation": false,
+  "fixture": true,
+  "remediation": {
+    "qdisc": "cake",
+    "reason": "fixture — vérification RouterOS 7, aucune mesure réelle revendiquée ; interfaces = défauts CHR ether1/ether2",
+    "routeros": "# CGO remediation - RouterOS v7+\n# Requires RouterOS \u003e= 7.10 for kind=cake. Verify with: /system resource print\n# Sized from a measured 20.00 Mbit/s bottleneck and 25 ms idle RTT.\n# Shaped at 95% of measured rate (19000000 bit/s) to stay below the real bottleneck.\n# Idempotent: removes its own objects before recreating them.\n\n/queue tree remove [find where comment=\"cgo-managed\"]\n/queue type remove [find where name~\"^cgo-\"]\n\n/queue type add name=cgo-cake kind=cake \\\n    cake-bandwidth=19000000 cake-rtt=25ms \\\n    cake-flowmode=triple-isolate cake-nat=yes cake-diffserv=diffserv4 \\\n    cake-ack-filter=filter cake-wash=yes\n\n/queue tree add name=cgo-wan-out parent=ether1 max-limit=19000000 \\\n    queue=cgo-cake comment=\"cgo-managed\"\n",
+    "routeros_ingress": "# CGO download remediation - RouterOS v7+\n# RouterOS has no IFB. This is a queue tree on the LAN/private\n# interface, which is where download traffic egresses toward clients.\n# It shapes the same direction at a different point than the Linux IFB.\n# Requires RouterOS \u003e= 7.10 for kind=cake. Verify with: /system resource print\n# Sized from a measured 20.00 Mbit/s bottleneck and 25 ms idle RTT.\n# Shaped at 95% of measured rate (19000000 bit/s) to stay below the real bottleneck.\n# Idempotent: removes its own objects before recreating them.\n\n/queue tree remove [find where comment=\"cgo-managed-ingress\"]\n/queue type remove [find where name~\"^cgoingress-\"]\n\n# No ack-filter: a download data stream is not an ACK stream.\n\n/queue type add name=cgoingress-cake kind=cake \\\n    cake-bandwidth=19000000 cake-rtt=25ms \\\n    cake-flowmode=dual-dsthost cake-nat=yes cake-diffserv=diffserv4 \\\n    cake-wash=yes\n\n/queue tree add name=cgoingress-lan-in parent=ether2 max-limit=19000000 \\\n    queue=cgoingress-cake comment=\"cgo-managed-ingress\"\n",
+    "routeros_lan_assumed": false,
+    "routeros_lan_iface": "ether2",
+    "routeros_wan_iface": "ether1"
+  },
+  "schema": "cgo.chr-fixture/1"
+}
