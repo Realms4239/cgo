@@ -3381,3 +3381,10 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   `run-1794853778` P1/cake median 22.9 ms (6 cells). P2 live fq_codel 120.4 ms (3 cells)
   vs sealed P2/cake 119.5 ms (6 cells): 0.9 ms apart. Sealed P3/cake 639.2 ms and
   P4/cake 67.1 ms remain the reference until this matrix reaches those profiles.
+- OPEN CROSS-RUN DIVERGENCE (goodput only, not hidden): sealed `run-1794853778` P2/cake
+  cubic 2.4–4.9 Mbps and bbr 16.2–17.3 Mbps (6 cells); live `run-1794862046` P2/cake
+  cubic 0.6–1.0 Mbps and bbr 15.2 / 1.0 / 1.0 Mbps. RTT p95 (120–121 ms) and
+  deadline_ok (86–95%) DO match across runs. Named confounders: 0.5% netem loss is a
+  random process (few flows, short windows — high variance), possible loss bursts,
+  shared bulk sink and host load ~41. Do NOT present P2 goodput as reproducible across
+  runs; this needs the fixed-binary matrix and a longer loss window to resolve.
