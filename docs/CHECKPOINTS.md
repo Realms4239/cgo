@@ -3270,3 +3270,8 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   needed. Any future report must state the limitation instead of claiming zero drops.
 - Layer 1 `run-1794862046` continues single-writer; first committed row honestly `invalid`
   (pfifo_fast/cubic, small p95 402 ms, deadline_ok 11%), second cell in recup with all gates ✓.
+- Valid/invalid variance explained, not a defect: the first three P1/pfifo_fast/cubic reps
+  committed `invalid, valid, invalid` with RTT p95 402.9 / 392.3 / 416.2 ms. G3
+  "latency plausible" is `RTTp95 < prof.DelayMs*10 + 200` (`pkg/campagne/campagne.go:639`);
+  P1 declares `DelayMs=20` (`model/types.go:44`), so the threshold is exactly 400 ms and the
+  no-AQM reps straddle it. `gate_status` measures integrity, not SLA (see PLAN reading rule).
