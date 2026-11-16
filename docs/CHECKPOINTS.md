@@ -3354,3 +3354,15 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   drops/retransmissions/cost; `run-1794862046` keeps its documented zero-column caveat.
 - No new host capability, no permit change, no field-trace touch. Authority:
   `APPROVED-2026-11-17-exhaustive-continuation.md`.
+
+## 2026-11-17T~21:56Z — profile-delay oracle from the live matrix
+
+- `rtt_base_p50_ms` of committed `run-1794862046` cells tracks the declared profile
+  delay (`model/types.go:43-47`): P1 (`DelayMs=20`) → 20.0–20.5 ms across all five
+  P1 qdisc/CC combinations (p95 ~23 ms, consistent with `JitterMs=2`);
+  P2 (`DelayMs=100`) → 102.0 ms (p95 123.4 ms, consistent with `JitterMs=15`).
+  The bench is applying each profile's physics, not a fixed 100 ms shape.
+- Note: profile `LossPct` (P2 0.5, P3 1, P4 0.3) is an input to the VoIP R model only —
+  `cgo run` has no loss axis (see PLAN T40) and the dualns netem is loss-free. A loss
+  sweep needs a new CLI axis or a dedicated shaped window; do not infer injected loss
+  from the `LossPct` column.
