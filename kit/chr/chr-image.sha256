@@ -1,4 +1,7 @@
 # Image CHR attendue par le wrapper. Le fichier vit sous kit/chr/cache/
-# (gitignoré). Remplacer la ligne ci-dessous par le nom et le SHA-256 de
-# l'image réellement téléchargée, puis laisser le script refuser toute autre.
+# (gitignoré) sur le poste, et sous /home/sadc/labo-cgo/chr/ sur l'hôte de banc.
+# sha256 calculé puis vérifié par le wrapper — toute autre image est refusée.
+# Téléchargée 2026-11-16 depuis download.mikrotik.com (URL publique, licence CHR
+# acceptée par l'opérateur — saut d'interface gratuit).
 # <nom-image>.img  <sha256>
+chr-7.24.6.img  c6abf87622c5bdbd86f7b5730c8e83f86f2335ee2fbe97d008da176ffbf97878
