@@ -69,3 +69,21 @@ func TestCompareDuplicateObjectFails(t *testing.T) {
 		t.Fatal("duplicate object not reported")
 	}
 }
+
+func TestNormalizeROSComparesRatesSemantically(t *testing.T) {
+	pairs := [][2]string{
+		{"19000000", "19M"},
+		{"19000000", "19.0Mbps"},
+		{"19000000", "19.000000Mbps"},
+		{"19000000", "19m"},
+		{"25000", "25k"},
+		{"25ms", "25ms"},
+		{"cake", "CAKE"},
+		{"ether1", "ether1"},
+	}
+	for _, p := range pairs {
+		if normalizeROS(p[0]) != normalizeROS(p[1]) {
+			t.Fatalf("normalizeROS(%q) != normalizeROS(%q)", p[0], p[1])
+		}
+	}
+}

@@ -2,7 +2,9 @@ package audit
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -65,9 +67,30 @@ func CompareRouterOS(expected, found RouterOSConfig) []RouterOSCheck {
 
 // normalizeROS absorbs RouterOS formatting noise only: quotes, boolean case
 // and a trailing ".0" on integers. It never equates two different values.
+var rateRe = regexp.MustCompile(`^([0-9]+(?:\.[0-9]+)?)\s*(k|m|g|t|p)?(bps|kbps|mbps|gbps|kbit|mbit|gbit)?$`)
+
+// normalizeROS comparaison sémantique : les débits s'égalent, quel que soit
+// le format d'affichage (« 19000000 » ≡ « 19.0Mbps » ≡ « 19M ») ; les autres
+// chaînes se comparent textuellement.
 func normalizeROS(v string) string {
 	v = strings.Trim(strings.TrimSpace(v), `"`)
 	v = strings.ToLower(v)
 	v = strings.TrimSuffix(v, ".0")
+	if m := rateRe.FindStringSubmatch(v); m != nil {
+		x, _ := strconv.ParseFloat(m[1], 64)
+		switch m[2] {
+		case "k":
+			x *= 1e3
+		case "m":
+			x *= 1e6
+		case "g":
+			x *= 1e9
+		case "t":
+			x *= 1e12
+		case "p":
+			x *= 1e15
+		}
+		return strconv.FormatFloat(x, 'f', -1, 64)
+	}
 	return v
 }

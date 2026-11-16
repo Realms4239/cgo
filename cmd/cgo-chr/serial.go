@@ -184,6 +184,14 @@ loggedIn:
 			return all.String(), "", lastErrorLine(chunk), nil
 		}
 	}
+	// agrandir la console AVANT l'export : sinon les longues lignes de la
+	// configuration sont cassées à 80 colonnes au milieu des tokens (« diff\nserv4 »)
+	// et l'analyseur lit des propriétés inexactes.
+	_, _ = tr.Write([]byte("/system console set column-count=500\n"))
+	if _, err := cons.expect(promptRe, timeout); err != nil {
+		// l'élargissement n'est pas critique : on tente l'export malgré tout
+		_ = err
+	}
 	if _, err := tr.Write([]byte("/export terse\n")); err != nil {
 		return all.String(), "", "", err
 	}
