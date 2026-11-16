@@ -31,6 +31,45 @@ func TestDecodeStatsMixedRows(t *testing.T) {
 	}
 }
 
+// TestDecodeStatsRootCountersLiveShape — forme REELLE de `tc -j -s` sur le
+// banc sadcnwp (Ubuntu 24.04, iproute2 ≥ 6.x) : les compteurs sont à la
+// racine de la ligne, pas dans un objet "stats". Capture du 2026-11-16 :
+// `dropped 19588` en texte correspondait à `"drops":19588` en JSON, mais
+// l'ancien decodeur ne lisait que `stats.dropped` -> 0 partout (drops,
+// wasted_bytes, coût). Régression : une cellule cake à 19 588 drops doit
+// les rapporter exactement.
+func TestDecodeStatsRootCountersLiveShape(t *testing.T) {
+	out := []byte(`[{"kind":"cake","handle":"1:","root":true,"refcnt":5,
+      "bytes":348051838,"packets":230591,"drops":19588,"overlimits":700137,
+      "requeues":0,"backlog":7570,"qlen":5,"memory_used":677618}]`)
+	stats, err := decodeStats(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stats) != 1 {
+		t.Fatalf("want 1 row, got %d: %+v", len(stats), stats)
+	}
+	want := Stats{Kind: "cake", Handle: "1:", Bytes: 348051838,
+		Packets: 230591, Drops: 19588, Overlimits: 700137, Backlog: 7570}
+	if stats[0] != want {
+		t.Fatalf("root counters lost: got %+v, want %+v", stats[0], want)
+	}
+}
+
+// Les deux formes peuvent cohabiter : la racine l'emporte quand elle est
+// renseignée, l'objet imbriqué ne comble que les champs absents.
+func TestDecodeStatsRootWinsOverNestedFallback(t *testing.T) {
+	out := []byte(`[{"kind":"cake","handle":"1:","drops":19588,
+      "stats":{"bytes":777,"packets":9,"dropped":3,"overlimits":0,"backlog":0}}]`)
+	stats, err := decodeStats(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stats) != 1 || stats[0].Drops != 19588 || stats[0].Bytes != 777 {
+		t.Fatalf("root should win, nested should fill: %+v", stats)
+	}
+}
+
 // pfifo_fast est invisible dans `tc -j qdisc` (tc-pfifo_fast(8)) : tableau
 // vide attendu, zéro ligne, pas d'erreur.
 func TestDecodeStatsEmptyArrayIsZeroRows(t *testing.T) {
