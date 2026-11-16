@@ -3294,3 +3294,23 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   pfifo_fast/bbr ~49.2–49.4 ms (3/3 reps) — CC choice dominates queueing without AQM.
 - Authority: token renewed as `APPROVED-2026-11-17-exhaustive-continuation.md` (no new
   privileges) because the 2026-11-16 token expires 23:59 UTC before the campaign completes.
+
+## 2026-11-17T~21:35Z — fourth root cause: tc -j counter schema (live data loss)
+
+- Symptom: every committed cell of `run-1794862046` reported `drops=0`,
+  `retransmissions=0`, `wasted_bytes=0`, `cost_ar_per_h=0.00`, including cake cells —
+  while live `tc -s` on e-wan showed `dropped 13421`, then 19588.
+- Root cause: real `tc -j -s` (Ubuntu 24.04, iproute2 ≥ 6.x) emits counters at the
+  TOP LEVEL of each row (`{"kind":"cake","drops":19588,"bytes":348051838,...}`),
+  but `qdisc/stats.go` decoded only a nested `"stats"` object. The committed test
+  fixtures used that same wrong nested shape, so the defect was invisible in CI.
+- Fix: `qdisc/stats.go` now decodes both shapes (root wins, nested fills gaps);
+  two regression tests use the exact captured live JSON (`5e00cd9`).
+  `go test ./... -run TestDecodeStats -count=1` in module qdisc green; gates 6/6.
+- Impact on the running campaign (honest): the deployed guest binary predates the fix,
+  so `drops`, `retransmissions`, `wasted_bytes`, `cost_ar_per_h` of `run-1794862046`
+  are INVALID (structurally zero, not measured). RTT, small p95, deadline_ok, goodput
+  (computed sender-side at `pkg/campagne/campagne.go:630`), CPU and gate_status remain
+  valid. Do not use that run for loss or economics; do not retrofit its CSV.
+- Residual: later layers need a rebuilt guest binary to report loss/cost correctly;
+  deploying one is a separate decision (no binary was replaced mid-campaign).
