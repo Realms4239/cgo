@@ -3254,3 +3254,19 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   buffers ~400 ms (expected no-AQM bloat, not a defect).
 - Open, unchanged: eBPF `qdisc_drop_packets=0` vs `tc -s` 226 cake drops; `bpftool map dump
   name globals` diagnostic staged for the first single-writer gap.
+
+## 2026-11-16T21:0xZ — qdisc-drop discrepancy root-caused (no rebuild needed)
+
+- The open gap is CLOSED by kernel-source analysis, not by a probe fix:
+  `net/sched/sch_cake.c` v6.8 `cake_drop()` calls plain `__qdisc_drop()` (l. 1551) and never
+  sets a drop reason; ACK-filter drops use `consume_skb()` (l. 1794). `net/core/dev.c` v6.8
+  (l. 3788-3790) frees the deferred list with `kfree_skb_list_reason(to_free,
+  tcf_get_drop_reason(to_free))`, so the tracepoint sees reason 0 (`SKB_NOT_DROPPED_YET`).
+  The probe's `reason != SKB_DROP_REASON_QDISC_DROP` filter discards all 226 cake drops.
+- Consequence: `qdisc_drop_packets=0` is a known blind spot of the reason-based probe on
+  6.8 cake, not evidence of zero loss. The independent counters still agree on the causal
+  chain (tc cake delta 226 = eBPF retrans 1+225=226). Recorded with citations in
+  `probe/bpf/BUILD.md` (`ad86f15`). No object rebuild (clang banned on VM); no bpftool run
+  needed. Any future report must state the limitation instead of claiming zero drops.
+- Layer 1 `run-1794862046` continues single-writer; first committed row honestly `invalid`
+  (pfifo_fast/cubic, small p95 402 ms, deadline_ok 11%), second cell in recup with all gates ✓.
