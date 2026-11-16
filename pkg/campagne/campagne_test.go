@@ -35,14 +35,20 @@ func fastDeps() Deps {
 // stopWait annule la matrice et attend la fin du gel : les defers passent
 // avant le nettoyage de t.TempDir(), et Windows refuse de supprimer un
 // fichier encore ouvert (E5). La borne expirée est signalée, pas avalée.
+// Le gel écrit le CSV + le manifeste (sha256 par fichier) : sur un hôte
+// chargé, cette E/S a déjà dépassé 2 s (flake observé dans la porte tests).
+// On attend la CONDITION, pas un délai fixe, avec une borne large et le
+// temps réellement écoulé dans le message.
 func stopWait(t *testing.T, m *Matrix) {
 	t.Helper()
 	m.Stop()
-	for i := 0; i < 200 && m.IsRunning(); i++ {
+	start := time.Now()
+	deadline := start.Add(10 * time.Second)
+	for m.IsRunning() && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	if m.IsRunning() {
-		t.Errorf("matrice encore en cours 2 s après Stop : t.TempDir() court après Freeze")
+		t.Errorf("matrice encore en cours après %v (Stop → Freeze) : t.TempDir() court après Freeze", time.Since(start))
 	}
 }
 
@@ -393,5 +399,28 @@ func TestRunEventCounterResetClamped(t *testing.T) {
 	}
 	if got.BulkGoodputMbps < 19 || got.BulkGoodputMbps > 21 {
 		t.Fatalf("goodput = %v, want ~20 (sender side, rx reset ignored)", got.BulkGoodputMbps)
+	}
+}
+
+// TestStopWaitToleratesSlowFreeze — verrouille le contrat du helper : un gel
+// qui dépasse 2 s sur un hôte chargé ne doit PAS faire échouer le test (le
+// flake observé dans la porte tests). Le délai simulé reste sous la borne.
+func TestStopWaitToleratesSlowFreeze(t *testing.T) {
+	m := &Matrix{Running: true}
+	m.cancel = func() {
+		go func() {
+			time.Sleep(2500 * time.Millisecond)
+			m.mu.Lock()
+			m.Running = false
+			m.mu.Unlock()
+		}()
+	}
+	start := time.Now()
+	stopWait(t, m)
+	if elapsed := time.Since(start); elapsed < 2500*time.Millisecond {
+		t.Fatalf("stopWait est revenu avant la fin du gel simulé: %v", elapsed)
+	}
+	if m.IsRunning() {
+		t.Fatal("matrice toujours en cours après stopWait")
 	}
 }
