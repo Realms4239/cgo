@@ -3177,3 +3177,23 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Honest limits: matrix not yet complete; no anchor/hash8 or quarantine sidecar sealed until all
   24 cells are read back and assessed. Builder pass only; verifier pending. No field-trace
   figure claimed (trace still live until 2026-11-17T16:22:27Z).
+
+## 2026-11-16T19:5xZ — V2 corpus SEALED — 24/24 cells valid, own anchor 6adc83d9
+
+- Full dualns matrix `run-1794853778` completed on the operator-approved sadcnwp bench VM:
+  P1–P4 × cake × {cubic,bbr} × down × reps=3 × flows=4 = 24 cells, ALL `gate_status=valid`,
+  no quarantine sidecar (no invalid cell). Verified locally with committed gates
+  `kit/check-v2-run.sh` and `kit/seal-v2-run.sh`; sealed evidence committed in
+  `docs/verification/2026-11-16-v2-corpus/run-1794853778/` with hash8 `6adc83d9`.
+- Three real bench defects found during the run and fixed in repo so a replicated bench/VM
+  inherits them: stale puits holding ns_server before teardown (`d8a9a38`); /small not checked
+  so a 500 answer silently produced a "valid" 0.0 ms cell (`d8a9a38`); detached launcher missing
+  sudo -n and stale `.run-<id>.lock` blocking resume (`82dbfb2`, lock renamed with `mv`, never
+  deleted — `rm` is banned). Runbook (`f76b431`), checker (`e11d4cd`), seal script (`afbbe57`,
+  `b5d892b`), replication guide (`a60778f`) and machine-readable matrix definition committed.
+- Authority: operator chat 2026-11-16 ("I am the mastermind … authorize to bend the rules");
+  all sadcnwp traffic stayed inside C:\WEBSERVER with a same-day scoped token. No edit to
+  safe_write.py, no wildcard permit, no field-trace change, no frozen-corpus write.
+- Gates after seal: 6/6 PASS; `PASS frozen` unchanged at 159 runs / 528 rows / 208 valid.
+- Builder pass only. Verifier confrontation pending; named confounder = passive field trace on
+  the same host until 2026-11-17T16:22:27Z. No thesis figure claimed before verification.
