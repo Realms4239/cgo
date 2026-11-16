@@ -1,0 +1,27 @@
+{
+  "audit_id": "audit-sync-0001",
+  "timestamp": "2026-11-16T10:00:00Z",
+  "site": "Site de vérification sync",
+  "link_type": "fiber",
+  "provider": "yas",
+  "bloat_grade": "A",
+  "operator_verdict": { "level": "green", "word": "Lien stable", "sentence": "Le débit sous charge tient votre objectif." },
+  "measured": {
+    "rtt_idle_p50_ms": 20,
+    "rtt_idle_p95_ms": 34,
+    "rtt_loaded_p50_ms": 58,
+    "rtt_loaded_p95_ms": 78,
+    "bloat_delta_ms": 44,
+    "qdi_ms": 38,
+    "throughput_mbps": 84.4,
+    "loss_pct": 0.0,
+    "load_measured": true,
+    "load_attempted": true,
+    "direction": "down",
+    "flow_count": 4
+  },
+  "cap_sla": { "measured": true, "ok_pct": 99.1, "target_pct": 95, "deadline_ms": 220, "breach": false },
+  "provenance": { "source_sha256": "deadbeefcafe1234567890abcdef0123456789abc" },
+  "remediation_state": "observation_only",
+  "remediation_available": false
+}

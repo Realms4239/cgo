@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ArmButton } from './ArmButton'
 import { createPortal } from 'react-dom'
 import { useModalFocus } from '../lib/modalFocus'
 import { DEFAULTS, loadSettings, saveSettings, type Settings } from '../lib/settings'
@@ -84,7 +85,7 @@ export default function SettingsDrawer({ onClose }: { onClose: () => void }) {
           <span className="mono settings-desc">le forfait où vit l'institution — tous les coûts affichés suivent</span>
         </div>
         <div className="form-row settings-actions">
-          <button className="btn btn-primary" onClick={apply}>ENREGISTRER</button>
+          <ArmButton label="ENREGISTRER" confirmLabel="CONFIRMER ?" onConfirm={apply} />
           <button className="btn" onClick={() => setS({ ...DEFAULTS })}>DÉFAUTS</button>
           <button className="btn" onClick={onClose}>ANNULER</button>
         </div>

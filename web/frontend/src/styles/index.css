@@ -967,3 +967,14 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .mechanism-list b { color: var(--text-primary); }
 .dash-seal { display: flex; flex-wrap: wrap; gap: 18px; padding: 14px 18px; border-top: 1px solid var(--hairline); font-family: var(--font-mono); font-size: var(--fs-tag); color: var(--text-muted); }
 .dash-seal-item b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+
+/* forced-colors: Windows high-contrast carries contrast — never paint our own fill over system intent */
+@media (forced-colors: active) {
+  .btn, .topnav-btn, .c-input, .phase-step, .data-table, .archive-row {
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
+  :focus-visible { outline: 2px solid Highlight; }
+  .c-badge, .hd-pill { border: 1px solid CanvasText; }
+}

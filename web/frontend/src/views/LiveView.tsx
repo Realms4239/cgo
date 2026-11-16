@@ -5,6 +5,7 @@ import EventBadge from '../components/EventBadge'
 import { echarts } from '../lib/echarts'
 import { baseOption, lineSeries, barSeries, chargeMarkArea, rawLineSeries, CRAFT } from '../lib/chartGrammar'
 import { live, clearLive } from '../lib/live'
+import { ArmButton } from '../components/ArmButton'
 import { entries, FloatRing } from '../lib/ringBuffer'
 import { computeQDI } from '../lib/qdi'
 import { computeJFI } from '../lib/jfi'
@@ -633,9 +634,12 @@ export default function LiveView({ active = true }: { active?: boolean }) {
               {([{ value: 'cubic', label: 'classique' }, { value: 'bbr', label: 'régulée' }] as const).map(c => (
                 <button key={c.value} className="btn edge-btn" aria-pressed={burstCc === c.value} onClick={() => setBurstCc(c.value)}>{c.label}</button>
               ))}
-              <button className="btn btn-primary edge-btn" onClick={runBurst} disabled={bursting || !!liveSnap?.running}>
-                {bursting ? `essai ${plainCc(burstCc)}…` : `TESTER ${plainCc(burstCc).toUpperCase()}`}
-              </button>
+              <ArmButton
+                label={bursting ? `essai ${plainCc(burstCc)}…` : `TESTER ${plainCc(burstCc).toUpperCase()}`}
+                confirmLabel={`CONFIRMER BURST`}
+                onConfirm={runBurst}
+                disabled={bursting || !!liveSnap?.running}
+              />
             </div>
           </section>
         </div>

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -113,5 +114,32 @@ func TestAuditHTTPSealsTelemetryAndSource(t *testing.T) {
 		if st.Size() == 0 {
 			t.Fatalf("fichier attendu vide : %s", want)
 		}
+	}
+}
+
+// GET /api/audit/report sans identifiant — une archive vide répond 200 +
+// available:false (maison), pas un 404 qui pollue la console du dashboard.
+func TestHandleAuditReportEmptyArchiveReturns200AvailableFalse(t *testing.T) {
+	h := New(Deps{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/api/audit/report")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	buf, _ := io.ReadAll(resp.Body)
+	var body map[string]any
+	if err := json.Unmarshal(buf, &body); err != nil {
+		t.Fatal(err)
+	}
+	if v, ok := body["available"]; !ok || v != false {
+		t.Fatalf("available must be false, got %v (body=%s)", v, buf)
+	}
+	if _, ok := body["reason"]; !ok {
+		t.Fatalf("reason missing: %s", buf)
 	}
 }

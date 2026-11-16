@@ -43,7 +43,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   // l'estampille du poste : build, mode, source de télémétrie — la preuve se
   // dépose toujours, donc le build qui l'a produite doit rester lisible.
-  const [health, setHealth] = useState<{ version?: string; mode?: string; telemetry?: string } | null>(null)
+  const [health, setHealth] = useState<{ version?: string; mode?: string; telemetry?: { source?: string; reason?: string } | string } | null>(null)
   // une destination lourde ne se monte qu'à la première visite, puis reste.
   const [mounted, setMounted] = useState<Partial<Record<ModeId, boolean>>>({ cockpit: true })
 
@@ -164,7 +164,7 @@ export default function App() {
           <span id="ft-prov">source : {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
           {health ? (
             <span className="ft-post mono" title="build, mode et source de télémétrie de ce poste">
-              poste : cgo {health.version || '—'} · {health.mode || '—'} · télémétrie {health.telemetry || '—'}
+              poste : cgo {health.version || '—'} · {health.mode || '—'} · télémétrie {typeof health.telemetry === 'object' && health.telemetry ? (health.telemetry.source ?? '—') : (health.telemetry || '—')}
             </span>
           ) : null}
           <span className="ft-brand mono">Meteolink</span>

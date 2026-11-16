@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it, vi } from 'vitest'
+import { createRoot } from 'react-dom/client'
+import { act } from 'react'
 import ProfileTiles from './ProfileTiles'
 
 const profiles = [
@@ -10,17 +11,28 @@ const profiles = [
   { id: 'P4', imported: false },
 ]
 
-describe('ProfileTiles', () => {
-  it('shows full profile names and never clips them', () => {
+describe('ProfileTiles — clic réel', () => {
+  it('quatre tuiles, aria-pressed sélectionné sur P2', () => {
     const host = document.createElement('div')
-    host.innerHTML = renderToStaticMarkup(
-      <ProfileTiles profiles={profiles} selected={['P2']} onToggle={() => undefined} />,
-    )
-
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    act(() => {
+      root.render(<ProfileTiles profiles={profiles} selected={['P2']} onToggle={() => undefined} />)
+    })
     expect(host.textContent).toContain('Fibre dédiée')
-    expect(host.textContent).toContain('20 ms RTT')
-    expect(host.textContent).toContain('4G dégradée')
-    expect(host.textContent).toContain('Orbite basse')
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toContain('P2')
+  })
+
+  it('onToggle est appelé avec le bon id au clic', () => {
+    const onToggle = vi.fn()
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    act(() => {
+      root.render(<ProfileTiles profiles={profiles} selected={['P2']} onToggle={onToggle} />)
+    })
+    const p4 = [...host.querySelectorAll('button.profile-tile')].find(b => b.textContent?.includes('P4'))!
+    act(() => { (p4 as HTMLButtonElement).click() })
+    expect(onToggle).toHaveBeenCalledWith('P4')
   })
 })

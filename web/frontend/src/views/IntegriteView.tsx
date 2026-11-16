@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ArmButton } from '../components/ArmButton'
 import { startReplay, stopReplay } from '../lib/replay'
 import { useUIStore } from '../store/ui'
 import { EmptyState } from '../components/ui/EmptyState'
@@ -21,7 +22,7 @@ type Integrity = {
 // l'état du poste : le build qui a produit les preuves, et ce que la machine
 // sait faire encore. Sans cela l'opérateur doit ouvrir un terminal.
 type Machine = {
-  version?: string; mode?: string; telemetry?: string
+  version?: string; mode?: string; telemetry?: { source?: string; reason?: string } | string
   checks?: { name: string; status: string; detail: string }[]
 }
 
@@ -103,7 +104,7 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
     <section className="card int-post" aria-label="État du poste" data-testid="machine-card">
       <div className="card-head">Le poste</div>
       <p className="mono int-post-id">
-        cgo {machine.version || '—'} · mode {machine.mode || '—'} · télémétrie {machine.telemetry || '—'}
+        cgo {machine.version || '—'} · mode {machine.mode || '—'} · télémétrie {typeof machine.telemetry === 'object' && machine.telemetry ? (machine.telemetry.source ?? '—') : (machine.telemetry || '—')}
       </p>
       <ul className="int-post-checks">
         {(machine.checks || []).map(c => (
@@ -316,7 +317,7 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
         <div className="card-head">Figures</div>
         <p className="mono muted int-fig-note">Générées par <span className="mono int-fig-code">make figures</span> depuis les CSV archivés.</p>
         <div className="int-fig-actions">
-          <button className="btn btn-primary" onClick={regen}>Régénérer</button>
+          <ArmButton label="Régénérer" confirmLabel="CONFIRMER ?" onConfirm={regen} />
           <span className="mono muted">{regenOk ? '✓ disponible' : ''}</span>
         </div>
         {regenOk && (

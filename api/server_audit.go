@@ -315,6 +315,13 @@ func handleAuditStop(d Deps, s *auditSession) http.HandlerFunc {
 func handleAuditReport(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimSpace(r.URL.Query().Get("audit_id"))
+		// pas d'identifiant : lecture « est-ce qu'il y a un rapport ? » — 200 +
+		// available:false, comme /api/integrity et /api/doctor ; le 404 est réservé
+		// à un identifiant nommé qui n'existe pas.
+		if id == "" && s.reportFor("") == nil {
+			writeJSON(w, map[string]any{"available": false, "reason": "aucun rapport d'audit — lancez cgo audit"})
+			return
+		}
 		rep := s.reportFor(id)
 		if rep == nil {
 			archived, ok := resolveArchivedReport(s, id)
