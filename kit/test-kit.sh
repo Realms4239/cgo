@@ -15,3 +15,9 @@ test -f internal/vm/vm.go || { echo "FAIL internal/vm manquant"; fail=1; }
 grep -q "pkill -f 'testbedsrv -http 10.30.0.2'" kit/cgo-bench-dualns.sh || { echo "FAIL puits not killed before netns del"; fail=1; }
 grep -q 'curl -fsS -o /dev/null http://10.30.0.2:8081/small' kit/run-dualns.sh || { echo "FAIL puits /small preflight absent"; fail=1; }
 grep -q 'CGO_TESTBED_OBJ=/var/lib/cgo-testbed/obj16.bin' kit/run-dualns.sh || { echo "FAIL obj16 pin absent from run-dualns"; fail=1; }
+
+# V2 launcher : sudo (netns root), renommage du lock (jamais rm), détachement.
+grep -q 'sudo -n env CGO_ALLOW_PRIVATE_TARGETS=1' kit/v2-matrix-run.sh || { echo "FAIL v2 launcher missing sudo"; fail=1; }
+grep -q 'mv "$DATA/.${RUN_ID}.lock"' kit/v2-matrix-run.sh || { echo "FAIL v2 stale-lock rename absent"; fail=1; }
+grep -q 'pgrep -f .cgo run --bench dualns.' kit/v2-matrix-run.sh || { echo "FAIL v2 single-writer guard absent"; fail=1; }
+grep -q 'setsid nohup' kit/v2-matrix-run.sh || { echo "FAIL v2 launcher not detached"; fail=1; }
