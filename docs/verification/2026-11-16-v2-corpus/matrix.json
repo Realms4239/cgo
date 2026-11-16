@@ -1,0 +1,33 @@
+{
+  "schema": "cgo.v2-matrix/1",
+  "run_id": "run-1794853778",
+  "bench": "dualns",
+  "anchor": "separate-from-frozen-corpus",
+  "frozen_corpus": "book/data/runs — NEVER written by this run",
+  "parameters": {
+    "profiles": ["P1", "P2", "P3", "P4"],
+    "qdiscs": ["cake"],
+    "cc": ["cubic", "bbr"],
+    "direction": "down",
+    "flows": 4,
+    "reps": 3,
+    "deadline_ms": 220,
+    "target": "10.30.0.2",
+    "shape_mode": "egress",
+    "topology": "netem 100ms/0% on w-edge; CAKE 20Mbit on e-srv+e-wan"
+  },
+  "cell_grid": ["P1/cake/cubic", "P1/cake/bbr", "P2/cake/cubic", "P2/cake/bbr", "P3/cake/cubic", "P3/cake/bbr", "P4/cake/cubic", "P4/cake/bbr"],
+  "cells_per_grid": 3,
+  "expected_cells": 24,
+  "evidence": {
+    "guest_csv": "/home/bench/bench-data/run-1794853778/aqm_eval.csv",
+    "guest_manifest": "/home/bench/bench-data/run-1794853778/manifest.json",
+    "gate_values": ["valid", "degraded", "invalid"],
+    "quarantine_sidecar": "required at seal if any cell invalid"
+  },
+  "honesty": {
+    "status": "builder-pass-in-progress",
+    "verifier": "pending — builder cannot certify its own numbers",
+    "field_trace_confounder": "passive trace live until 2026-11-17T16:22:27Z during these campaigns — name at verification"
+  }
+}
