@@ -3094,3 +3094,19 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Gates 6/6 PASS at HEAD after the row move; the trip increment is fully diagnosed, with
   five commits on the CHR driver (e09a58a, db32bf5, 76540a8, 31ce1c1, 5a62120, 69ba95d,
   c8e8f08) and every attempt sealed and preserved.
+
+## 2026-11-16 soir — Phase 5.7 real tests — 25/25 e2e verts (mode calme, zéro retry)
+
+- React interaction tests via react-dom/client + happy-dom (aucune nouvelle dépendance) :
+  ArmButton arme/confirme/désarme, CommandPalette filtre et Escape, ProfileTiles clique.
+  TUI↔web — une fixture de verdict partagée, lue octet pour octet par les deux harnais.
+  SSE déterministe — synctest, horloge virtuelle : pas de sleep réel dans la cadence 10 Hz.
+- Playwright unmocked : le binaire cgo réel sert la SPA embarquée + /api depuis book/data/runs,
+  sans aucun mock ; 390/890/1920 sans débordement, corpus réel 159/208/74/246, zéro erreur
+  console. Deux bugs réels trouvés puis corrigés : health.telemetry objet rendu comme enfant
+  React (erreur #31, 2 composants) et /api/audit/report vide en 404 → 200 available:false.
+- 5 specs legacy alignées sur le shell 2 destinations ; webServer Playwright = binaire cgo
+  (vite preview coupait les connexions en pleine suite). PW_QUIET=1 : 1 worker, 0 retry,
+  25/25 PASS en 1,6 min. Gates 6/6 et 345 vitest verts vérifiés avec ces commits.
+- Nomément non prouvé : F1–F18 de WP5.5 (liste absente du dépôt — aucuntheorem revendiqué).
+  Badge LIVE/STALE, Copy-RouterOS Ingress+Egress, coût Ar/h et SLA critique déjà présents.
