@@ -70,6 +70,26 @@ fi
 log() { echo "[dualns] $*"; }
 die() { echo "[!] $*" >&2; exit 1; }
 
+# Sur les noyaux faits main (mesuré 2026-11-12, 6.13.7 labo-cgo-bench), le
+# tmpfs /run/netns perd la propriété "shared" après plusieurs resets : alors
+# "ip netns add" échoue avec « mount --make-shared /run/netns failed:
+# Operation not permitted ». On ne touche à rien si la propagation est déjà
+# shared ; sinon on umount le tmpfs VIDE (aucun pin de namespace actif —
+# `down` a déjà supprimé les ns) pour qu'ip netns le recrée proprement.
+ensure_netns_mount() {
+  local prop
+  prop=$(findmnt -n -o PROPAGATION /run/netns 2>/dev/null || true)
+  case "$prop" in
+    *shared*) return 0 ;;
+  esac
+  # umount seulement s'il est monté et VIDE (aucun pin actif — `down` a
+  # supprimé les ns) : ip netns recrée alors le tmpfs partagé tout seul.
+  if findmnt -n /run/netns >/dev/null 2>&1 && [ -z "$(ls -A /run/netns 2>/dev/null)" ]; then
+    $SUDO umount /run/netns 2>/dev/null || true
+    log "netns: /run/netns sans propagation partagée → umount (recréé au prochain ip netns add)"
+  fi
+}
+
 set_offloads() {
   local ns="$1" iface="$2"
   case "$OFFLOADS" in
@@ -93,18 +113,32 @@ check_offloads() {
 }
 
 need_modules() {
-  $SUDO modprobe sch_netem sch_cake sch_fq_codel tcp_bbr 2>/dev/null || true
+  # modprobe takes ONE module plus parameters; a single multi-name call
+  # passes the trailing names as parameters of the FIRST module, so the
+  # later modules never load. One invocation per module.
+  for m in sch_netem sch_cake sch_fq_codel; do
+    $SUDO modprobe "$m" 2>/dev/null || true
+  done
+  $SUDO modprobe tcp_bbr 2>/dev/null || true
   # BBR is the campaign's reference congestion control; without it the bulk
   # flow cannot fill a high-RTT pipe and no standing queue ever forms.
   if ! grep -qw bbr /proc/sys/net/ipv4/tcp_allowed_congestion_control 2>/dev/null; then
     die "BBR unavailable — modprobe tcp_bbr failed (install linux-modules-extra)"
   fi
   if [ "$INGRESS" = "on" ]; then
-    $SUDO modprobe ifb sch_ingress act_mirred cls_matchall 2>/dev/null || true
+    for m in ifb sch_ingress act_mirred cls_matchall; do
+      $SUDO modprobe "$m" 2>/dev/null || true
+    done
   fi
 }
 
 down() {
+  # Le puits vit DANS ns_server : le tuer AVANT de supprimer les namespaces,
+  # sinon il retient le mount pin (/run/netns/ns_server) et la prochaine
+  # création échoue « Cannot create namespace file ... File exists ». Vu sur
+  # le banc sadcnwp 2026-11-16 : la campagne repassait `up` en préflight,
+  # l'ancien puits retenait ns_server, et la cellule partait en G1/G2/G4.
+  $SUDO pkill -f 'testbedsrv -http 10.30.0.2' 2>/dev/null || true
   $SUDO ip link del m-host 2>/dev/null || true
   for ns in "$NS_CLIENT" "$NS_WAN" "$NS_EDGE" "$NS_SRV"; do
     $SUDO ip netns del "$ns" 2>/dev/null || true
@@ -115,6 +149,7 @@ down() {
 up() {
   need_modules
   down >/dev/null 2>&1 || true
+  ensure_netns_mount
 
   for ns in "$NS_CLIENT" "$NS_WAN" "$NS_EDGE" "$NS_SRV"; do
     $SUDO ip netns add "$ns" || die "cannot create $ns"

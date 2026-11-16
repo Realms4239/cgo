@@ -85,6 +85,9 @@ case "$CMD" in
     sleep 1
     $SUDO ip netns exec ns_client ping -c1 -W2 10.30.0.2 >/dev/null \
       || { echo "[!] puits injoignable depuis ns_client — voir /tmp/testbedsrv-dualns.log"; exit 1; }
+    # /small prouve l'objet 16 KiB épinglé : sans lui le puits répond 500 et
+    # la campagne mesure du vide (G1/G2/G4 rouges — vu sur sadcnwp 2026-11-16).
+    $SUDO ip netns exec ns_client curl -fsS -o /dev/null http://10.30.0.2:8081/small
     if [ "$CMD" = "up" ]; then
       echo "[run-dualns] banc + puits prêts — dashboard: $0 serve · campagne: $BIN run --bench dualns"
       exit 0

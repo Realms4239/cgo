@@ -7,3 +7,11 @@ grep -q "check-bundle" internal/kit/kit.go || { echo "FAIL check-bundle guard ab
 grep -q "vitest" internal/kit/kit.go || { echo "FAIL vitest gate absent"; fail=1; }
 test -f internal/vm/vm.go || { echo "FAIL internal/vm manquant"; fail=1; }
 [ "$fail" -eq 0 ] && echo "PASS test-kit" || exit 1
+
+# V2 bench robustness (sadcnwp 2026-11-16) : le puits vit dans ns_server.
+# Sans pkill AVANT ip netns del, l'ancien puits retient le pin et le prochain
+# `up` échoue « Cannot create namespace file ... File exists ». Sans le check
+# /small, la campagne enregistre une cellule « valid » qui mesure du vide.
+grep -q "pkill -f 'testbedsrv -http 10.30.0.2'" kit/cgo-bench-dualns.sh || { echo "FAIL puits not killed before netns del"; fail=1; }
+grep -q 'curl -fsS -o /dev/null http://10.30.0.2:8081/small' kit/run-dualns.sh || { echo "FAIL puits /small preflight absent"; fail=1; }
+grep -q 'CGO_TESTBED_OBJ=/var/lib/cgo-testbed/obj16.bin' kit/run-dualns.sh || { echo "FAIL obj16 pin absent from run-dualns"; fail=1; }
