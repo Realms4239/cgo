@@ -3339,3 +3339,18 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   audit (226 events), not with the 242-event audit itself; (c) e-srv `dropped 0→3` in
   the same files remains uninterpreted. Gates 6/6, frozen corpus unchanged.
 - Builder did not promote any row; the verifier owns these VERIFIED states.
+
+## 2026-11-17T~21:52Z — corrected binary staged for later layers (no mid-campaign swap)
+
+- Cross-compiled locally: `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags ebpf_object
+  -o cgo-fixed-linux ./cmd/cgo` (exit 0, 19 004 038 B). Contains the `tc -j` root-counter
+  fix (`5e00cd9`), the build-hint fix and the target fix; embeds the pinned eBPF object.
+- Deployed through the safe channel to a NEW path `/home/bench/cgo-fixed`
+  (sha256 `d3219c0199188e1144023a89801ed7dc2836c4dd666f54f08d205eb41475e283`,
+  0755, smoke `--help` exits 2 with usage as expected). The running campaign's
+  `/home/bench/cgo` (sha `89999ffa…`, 16 331 116 B) was NOT touched — no mid-campaign swap.
+- `kit`-style generic launcher `/home/bench/eb-matrix.sh` now points at `cgo-fixed`
+  and still passes `--target 10.30.0.2` explicitly. Later layers will report real
+  drops/retransmissions/cost; `run-1794862046` keeps its documented zero-column caveat.
+- No new host capability, no permit change, no field-trace touch. Authority:
+  `APPROVED-2026-11-17-exhaustive-continuation.md`.
