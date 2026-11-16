@@ -21,8 +21,10 @@ condition, never silently skipped.
 - T08 confirm no second campaign writer before each launch — enforced by kit script.
 
 ## Layer 1 — Full qdisc/CC matrix (T09–T16)
-- T09 launch `run-1794860405`: P1–P4 × {pfifo_fast,fq_codel,cake} × {cubic,bbr} × down × 4 flows × reps 3 = 72 cells — RUNNING (pid 57361).
-- T10 poll CSV until 73 lines (header + 72) — pending.
+- T09 launch 72-cell sweep — first two attempts (`run-1794860405`, `run-1794861247`) INVALIDATED:
+  concurrent-audit contamination, then the `run` CLI default target 1.1.1.1 (rtt 0.0, gates failed).
+  Both stopped by exact PID; no data fabricated. Relaunched with explicit `--target 10.30.0.2`.
+- T10 poll CSV until 73 lines (header + 72) — pending on the valid relaunch.
 - T11 assert all 72 rows have explicit gate_status — pending.
 - T12 classify valid/degraded/invalid per qdisc × CC — pending.
 - T13 investigate any invalid cell root cause before touching data — pending.
@@ -31,10 +33,16 @@ condition, never silently skipped.
 - T16 checkpoint + builder-pass row (verifier pending) — pending.
 
 ## Layer 2 — Kernel truth differential (T17–T24)
-- T17 fresh 60 s audit with eBPF attach + `tc -s` before/after — RUNNING (pid 57720; loaded-bench audit, label as such).
-- T18 read audit kernel_telemetry (source, object sha, retrans bytes/events, flows, drops) — pending.
-- T19 compare tc drops with eBPF qdisc_drops — pending.
-- T20 interpret 242 retrans-at-0%-loss: shaper vs transport vs instrument — pending.
+- T17 fresh audit with eBPF attach + `tc -s` before/after — DONE clean (alone, tagged binary,
+  canonical 100ms/0% + cake 20mbit). The first loaded-bench attempt was contaminated and invalidated.
+- T18 read audit kernel_telemetry — DONE: source=ebpf, object `8612f578…`, flows 4/4,
+  retrans 327248 B / 226 events, grade A+.
+- T19 compare tc drops with eBPF qdisc_drops — OPEN DISCREPANCY: tc e-wan cake drops +226,
+  eBPF `qdisc_drop_packets=0`. eBPF retrans 1+225=226 matches the cake drop delta exactly.
+- T20 interpret retrans-at-0%-loss — RESULT: real transport retransmits caused by cake overlimit
+  drops (kernel-source and tc counters agree); not 0%-loss invention. Open: probe drop counter.
+  Diagnostic `C:\WEBSERVER\commands\eb-dropdiag.stage` (live `bpftool map dump name globals`)
+  ready to run after the single-writer campaign ends.
 - T21 repeat audit in clean window after Layer 1 ends (no campaign) — pending.
 - T22 compare loaded vs clean telemetry; name confounder — pending.
 - T23 if mismatch, instrument root cause in code with a regression test — pending.
