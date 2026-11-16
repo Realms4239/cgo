@@ -3376,3 +3376,8 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   on an AQM-free path WITH 0.5% loss, BBR sustains ~7× the goodput of cubic at ~2× the
   latency (cubic's loss-based backoff collapses it to ~2.5 Mbps). Do not read `valid`
   as SLA compliance.
+- Cross-run reproducibility (independent campaigns, same bench): live `run-1794862046`
+  P1/cake median `rtt_p95_ms` = **22.9 ms** (6 cells) — exactly the sealed V2 corpus
+  `run-1794853778` P1/cake median 22.9 ms (6 cells). P2 live fq_codel 120.4 ms (3 cells)
+  vs sealed P2/cake 119.5 ms (6 cells): 0.9 ms apart. Sealed P3/cake 639.2 ms and
+  P4/cake 67.1 ms remain the reference until this matrix reaches those profiles.
