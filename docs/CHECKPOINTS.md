@@ -3108,5 +3108,5 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - 5 specs legacy alignées sur le shell 2 destinations ; webServer Playwright = binaire cgo
   (vite preview coupait les connexions en pleine suite). PW_QUIET=1 : 1 worker, 0 retry,
   25/25 PASS en 1,6 min. Gates 6/6 et 345 vitest verts vérifiés avec ces commits.
-- Nomément non prouvé : F1–F18 de WP5.5 (liste absente du dépôt — aucun théorème ni aucune conformité revendiqués).
+- Notamment non prouvé : F1–F18 de WP5.5 (liste absente du dépôt — aucun théorème ni aucune conformité revendiqués).
   Badge LIVE/STALE, Copy-RouterOS Ingress+Egress, coût Ar/h et SLA critique déjà présents.
