@@ -3,12 +3,10 @@ import type { LiveFrame } from '../lib/types';
 import type { BenchStage } from '../lib/bench';
 import { preloadMode } from '../lib/preload';
 
-// Une seule taxonomie de navigation : quatre destinations, aucune imbriquée.
+// Une seule taxonomie de navigation : deux destinations, aucune imbriquée.
 export const MODES = [
-  { id: 'dashboard', label: 'Tableau de bord', key: '1' },
-  { id: 'audit', label: 'Auditer', key: '2' },
-  { id: 'bench', label: "Banc d'essai", key: '3' },
-  { id: 'evidence', label: 'Preuves & Rapports', key: '4' },
+  { id: 'cockpit', label: 'Cockpit', key: '1' },
+  { id: 'labo', label: 'Labo', key: '2' },
 ] as const;
 
 export type ModeId = (typeof MODES)[number]['id'];
@@ -38,7 +36,7 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   // le chunk de la destination part dès que l'opérateur demande le mode —
   // clavier, palette ou clic, pas seulement au survol du rail.
-  mode: 'dashboard', setMode: (mode) => { preloadMode(mode); set({ mode }) },
+  mode: 'cockpit', setMode: (mode) => { preloadMode(mode); set({ mode }) },
   benchStage: 'config', setBenchStage: (benchStage) => set({ benchStage }),
   live: null, setLive: (live) => set({ live }),
   connected: false, setConnected: (connected) => set({ connected }),

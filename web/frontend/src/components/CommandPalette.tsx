@@ -12,10 +12,8 @@ import { prefersReducedMotion, EASE } from '../lib/anime'
 // Les verbes restent trouvable : ils vivent dans un alias de recherche caché,
 // pas dans une seconde ligne cliquable.
 const ALIAS: Record<string, string> = {
-  dashboard: 'tableau de bord etat du lien reel derniere mesure',
-  audit: 'auditer auditer le lien reel lancer un audit mesure du lien',
-  bench: "banc d'essai ouvrir le banc campagne matrix simuler simulation",
-  evidence: 'preuves rapports voir les preuves et rapports corpus manifestes replay figures',
+  cockpit: 'cockpit tableau de bord verdict constat preuve rapport final auditer le lien reel audit derniere mesure',
+  labo: "labo banc d'essai laboratoire campagne matrix simuler simulation",
 }
 
 // fold — uniquement pour la RECHERCHE : « auditer le lien reel » et

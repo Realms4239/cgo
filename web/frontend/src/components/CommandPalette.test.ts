@@ -8,7 +8,7 @@ import { paletteItems } from './CommandPalette'
 describe('palette de commandes', () => {
   it('une seule entrée par destination', () => {
     const all = paletteItems('')
-    expect(all.map((i) => i.mode).sort()).toEqual(['audit', 'bench', 'dashboard', 'evidence'])
+    expect(all.map((i) => i.mode).sort()).toEqual(['cockpit', 'labo'])
     expect(new Set(all.map((i) => i.mode)).size).toBe(all.length)
   })
 
@@ -21,11 +21,11 @@ describe('palette de commandes', () => {
   })
 
   it('les verbes du vieux QUICK retrouvent toujours leur destination', () => {
-    // L'alias de recherche remplace la ligne dupliquée : « rapports » doit mener
-    // à Preuves & Rapports, « ouvrir le banc » au banc, sans seconde ligne.
-    expect(paletteItems('rapports').map((i) => i.mode)).toEqual(['evidence'])
-    expect(paletteItems("ouvrir le banc").map((i) => i.mode)).toEqual(['bench'])
-    expect(paletteItems('auditer le lien réel').map((i) => i.mode)).toEqual(['audit'])
+    // L'alias de recherche remplace la ligne dupliquée : « preuve » mène au
+    // Cockpit (verdict + preuves en ligne), « banc » au Labo.
+    expect(paletteItems('preuve').map((i) => i.mode)).toEqual(['cockpit'])
+    expect(paletteItems('labo').map((i) => i.mode)).toEqual(['labo'])
+    expect(paletteItems('auditer le lien réel').map((i) => i.mode)).toEqual(['cockpit'])
   })
 
   it('une recherche sans correspondance ne rend rien, pas un repli', () => {

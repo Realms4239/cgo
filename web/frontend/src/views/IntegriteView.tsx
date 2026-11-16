@@ -218,7 +218,7 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
               <td className="int-td-run"><span title={b.run} className="int-run-id">{b.run}</span></td><td>{b.rows}</td><td>{b.valid}</td><td>{b.degraded ?? 0}</td><td>{b.quarantined}</td>
               <td><a href={`/api/results?run=${b.run}`} target="_blank" rel="noreferrer" className="int-link">résultats</a></td>
               <td>{b.rows > 0 ? (
-                <button className="btn btn-primary int-replay" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setBenchStage('observe'); setMode('bench') }}>Rejouer</button>
+                <button className="btn btn-primary int-replay" data-testid="run-rejouer" onClick={()=>{ startReplay(b.run); setBenchStage('observe'); setMode('labo') }}>Rejouer</button>
               ) : (
                 <span className="mono data-missing" title="aucune ligne archivée — rien à rejouer">non rejouable</span>
               )}</td>
@@ -359,14 +359,14 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
           <div className="int-replay-row">
             <span className="mono muted">replay actif — voir l'observation du banc</span>
             <button className="btn int-replay-stop" onClick={()=>stopReplay()}>Arrêter</button>
-            <button className="btn btn-primary" onClick={()=>{ setBenchStage('observe'); setMode('bench') }}>Voir l'observation</button>
+            <button className="btn btn-primary" onClick={()=>{ setBenchStage('observe'); setMode('labo') }}>Voir l'observation</button>
           </div>
         ) : replayRuns.length===0 ? <p className="mono muted">aucun run à rejouer</p> :
           <ul className="int-replay-list">
             {replayRuns.map(id=>(
               <li key={id} className="int-replay-item">
                 <span title={id} className="int-replay-id">{id}</span>
-                <button className="btn btn-primary int-replay" onClick={()=>{ startReplay(id); setBenchStage('observe'); setMode('bench')}}>Rejouer</button>
+                <button className="btn btn-primary int-replay" onClick={()=>{ startReplay(id); setBenchStage('observe'); setMode('labo')}}>Rejouer</button>
               </li>
             ))}
           </ul>

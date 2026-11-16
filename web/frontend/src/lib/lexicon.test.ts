@@ -5,10 +5,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
-import DashboardView from '../views/DashboardView'
+import CockpitView from '../views/CockpitView'
 import AuditView from '../views/AuditView'
-import BenchView from '../views/BenchView'
-import EvidenceView from '../views/EvidenceView'
+import LaboView from '../views/LaboView'
 
 const REPORT = vi.hoisted(() => ({
   audit_id: 'audit-lexicon',
@@ -71,10 +70,9 @@ vi.mock('../store/audit', () => {
 })
 
 const SURFACES: { name: string; render: () => string }[] = [
-  { name: 'tableau de bord', render: () => renderToStaticMarkup(createElement(DashboardView)) },
-  { name: 'auditer', render: () => renderToStaticMarkup(createElement(AuditView)) },
-  { name: 'banc', render: () => renderToStaticMarkup(createElement(BenchView)) },
-  { name: 'preuves', render: () => renderToStaticMarkup(createElement(EvidenceView)) },
+  { name: 'cockpit', render: () => renderToStaticMarkup(createElement(CockpitView)) },
+  { name: 'audit inline', render: () => renderToStaticMarkup(createElement(AuditView)) },
+  { name: 'labo', render: () => renderToStaticMarkup(createElement(LaboView)) },
 ]
 
 const BANNED: { label: string; pattern: RegExp }[] = [

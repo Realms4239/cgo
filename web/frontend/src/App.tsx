@@ -7,7 +7,7 @@ import { animateViewEnter } from './lib/anime'
 import { isTextEntryTarget } from './lib/modalFocus'
 import { stageAfterCampaign, stageAfterReplay } from './lib/bench'
 import { relativeTime } from './lib/format'
-import DashboardView from './views/DashboardView'
+import CockpitView from './views/CockpitView'
 import Toasts from './components/Toasts'
 import FlashBanner from './components/FlashBanner'
 import SettingsDrawer from './components/SettingsDrawer'
@@ -18,17 +18,14 @@ import QuickActionsPrompt from './components/QuickActionsPrompt'
 import CommandPalette from './components/CommandPalette'
 import MeteolinkWordmark from './components/MeteolinkWordmark'
 
-// Seule la destination d'atterrissage est dans le premier rendu : le banc
-// porte ECharts, l'audit et les preuves portent leurs propres panneaux.
-const BenchView = lazy(() => import('./views/BenchView'))
-const AuditView = lazy(() => import('./views/AuditView'))
-const EvidenceView = lazy(() => import('./views/EvidenceView'))
+// Seule la destination d'atterrissage est dans le premier rendu : le Labo porte ECharts.
+const LaboView = lazy(() => import('./views/LaboView'))
 
 function ViewFallback({ label }: { label: string }) {
   return <div className="card mode-loading mono muted">{label}</div>
 }
 
-function BenchFallback() {
+function LaboFallback() {
   return <ViewFallback label="Chargement du banc d'essai…" />
 }
 
@@ -45,7 +42,7 @@ export default function App() {
   // dépose toujours, donc le build qui l'a produite doit rester lisible.
   const [health, setHealth] = useState<{ version?: string; mode?: string; telemetry?: string } | null>(null)
   // une destination lourde ne se monte qu'à la première visite, puis reste.
-  const [mounted, setMounted] = useState<Partial<Record<ModeId, boolean>>>({ dashboard: true })
+  const [mounted, setMounted] = useState<Partial<Record<ModeId, boolean>>>({ cockpit: true })
 
   useEffect(() => {
     setMounted(m => (m[mode] ? m : { ...m, [mode]: true }))
@@ -148,23 +145,13 @@ export default function App() {
         </header>
 
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-        {live?.running && mode === 'bench' ? <QuickActionsPrompt /> : null}
+        {live?.running && mode === 'labo' ? <QuickActionsPrompt /> : null}
 
         <main id="main" tabIndex={-1} className="layout-shell">
-          <section id="v-dashboard" className="view" hidden={mode !== 'dashboard'}><DashboardView /></section>
-          {mounted.audit ? (
-            <section id="v-audit" className="view" hidden={mode !== 'audit'}>
-              <Suspense fallback={<ViewFallback label="Chargement de l’audit…" />}><AuditView /></Suspense>
-            </section>
-          ) : null}
-          {mounted.bench ? (
-            <section id="v-bench" className="view" hidden={mode !== 'bench'}>
-              <Suspense fallback={<BenchFallback />}><BenchView /></Suspense>
-            </section>
-          ) : null}
-          {mounted.evidence ? (
-            <section id="v-evidence" className="view" hidden={mode !== 'evidence'}>
-              <Suspense fallback={<ViewFallback label="Chargement des preuves…" />}><EvidenceView /></Suspense>
+          <section id="v-cockpit" className="view" hidden={mode !== 'cockpit'}><CockpitView /></section>
+          {mounted.labo ? (
+            <section id="v-labo" className="view" hidden={mode !== 'labo'}>
+              <Suspense fallback={<LaboFallback />}><LaboView /></Suspense>
             </section>
           ) : null}
         </main>

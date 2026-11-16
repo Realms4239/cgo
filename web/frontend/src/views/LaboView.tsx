@@ -11,10 +11,10 @@ import { useBenchStore } from '../store/bench'
 import { useModeActive } from '../lib/hooks'
 import { scrollToId as goTo } from '../lib/scroll'
 
-export default function BenchView() {
+export default function LaboView() {
   const stage = useUIStore(s => s.benchStage)
   const setStage = useUIStore(s => s.setBenchStage)
-  const active = useModeActive('bench')
+  const active = useModeActive('labo')
   const running = useUIStore(s => !!s.live?.running)
   const replay = useUIStore(s => s.replayRunning)
   const research = useBenchStore(s => s.research)

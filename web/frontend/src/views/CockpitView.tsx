@@ -1,12 +1,14 @@
 // Tableau de bord — cockpit 2–3–3 : santé, alertes, coût, puis une action.
 // Aucune donnée personnelle n’est inventée : l’absence garde ses mots, le constat reste consultable.
 import { useEffect, useState } from 'react'
-import { useUIStore } from '../store/ui'
 import { useAuditStore } from '../store/audit'
 import { VerdictHero } from '../components/VerdictHero'
 import { retailBound } from '../lib/dashboard'
 import { formatCostAR, groupDigits, relativeTime, asArray } from '../lib/format'
 import { loadSettings } from '../lib/settings'
+import IntegriteView from './IntegriteView'
+import AuditReportsPanel from '../components/AuditReportsPanel'
+import AuditView from './AuditView'
 
 const signed = (v: number) => `${v > 0 ? '+' : ''}${v}`
 
@@ -56,12 +58,34 @@ function CapCard({ report }: { report: import('../lib/types').AuditReport | null
   )
 }
 
-export default function DashboardView() {
-  const setMode = useUIStore(s => s.setMode)
+function PreuvesPanel() {
+  return (
+    <section className="card dash-card layout-span-12 preuves-panel" data-testid="cockpit-preuves">
+      <p className="dash-card-kicker">Preuves &amp; Rapports</p>
+      <IntegriteView embedded active />
+      <AuditReportsPanel />
+    </section>
+  )
+}
+
+function InlineAudit({ onClose }: { onClose: () => void }) {
+  return (
+    <section className="inline-audit" aria-label="audit inline" data-testid="cockpit-audit-inline">
+      <div className="inline-audit-bar">
+        <p className="dash-card-kicker">Audit du lien</p>
+        <button className="btn btn-mini" onClick={onClose}>FERMER</button>
+      </div>
+      <AuditView />
+    </section>
+  )
+}
+
+export default function CockpitView() {
   const report = useAuditStore(s => s.report)
   const showReport = useAuditStore(s => s.showReport)
   const settings = loadSettings()
   const [archives, setArchives] = useState<ArchiveRecord[] | null>(null)
+  const [auditOpen, setAuditOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/audit/list')
@@ -71,8 +95,7 @@ export default function DashboardView() {
   }, [])
 
   if (!report) {
-    const hasArchives = archives != null && archives.length > 0
-    return (
+      return (
       <div className="syn dash dash-absent-page">
         <section className="layout-grid dash-absent-grid">
           <div className="layout-span-7 state-card state-absent" data-testid="dash-absent">
@@ -80,8 +103,8 @@ export default function DashboardView() {
             <h1>Ce site n’a pas encore été mesuré</h1>
             <p>L’audit de 60 secondes mesure la latence au repos puis sous charge; il prouve ou échoue, rien entre les deux.</p>
             <div className="layout-action">
-              <button className="btn btn-primary" onClick={() => setMode('audit')}>Lancer l’audit de 60 secondes</button>
-              {hasArchives ? <button className="btn" onClick={() => setMode('evidence')}>Voir un rapport archivé</button> : null}
+              <button className="btn btn-primary" onClick={() => setAuditOpen(true)}>Lancer l’audit de 60 secondes</button>
+              <button className="btn" onClick={() => setAuditOpen(true)}>Voir un rapport archivé</button>
             </div>
           </div>
           <aside className="layout-span-5 state-card state-explain" aria-label="Ce que l’audit établit">
@@ -94,6 +117,8 @@ export default function DashboardView() {
             <p className="dash-card-detail">Aucune valeur n’est inventée avant ces mesures; les preuves archivées restent disponibles dans Preuves &amp; Rapports.</p>
           </aside>
         </section>
+        <PreuvesPanel />
+        {auditOpen ? <InlineAudit onClose={() => setAuditOpen(false)} /> : null}
       </div>
     )
   }
@@ -135,7 +160,7 @@ export default function DashboardView() {
           <p className="dash-card-kicker">Action recommandée</p>
           <p className="dash-action-title">{actionIsSafe ? 'Appliquer le réglage recommandé.' : 'Observer d’abord — aucun réglage n’est prêt.'}</p>
           <p className="dash-card-detail">{actionIsSafe ? 'La mesure supporte le réglage, pas une promesse.' : 'La charge ne permet pas de transformer cette mesure en commande réseau.'}</p>
-          <button className="btn btn-primary" onClick={() => { showReport(); setMode('audit') }}>Voir le constat</button>
+          <button className="btn btn-primary" onClick={() => { showReport(); setAuditOpen(true) }}>Voir le constat</button>
         </section>
 
         <section className="card dash-recent layout-span-4" data-testid="dash-recent">
@@ -144,7 +169,7 @@ export default function DashboardView() {
             {rows.slice(0, 4).map((row, index) => (
               <li key={row.audit_id || `${row.site}-${index}`}>
                 <span>{row.site || 'Site'} · {row.timestamp?.slice(0, 10) || '—'}</span>
-                <button className="btn btn-mini" onClick={() => { showReport(); setMode('audit') }}>Ouvrir</button>
+                <button className="btn btn-mini" onClick={() => { showReport(); setAuditOpen(true) }}>Ouvrir</button>
               </li>
             ))}
           </ul>
@@ -154,6 +179,8 @@ export default function DashboardView() {
           <p className="dash-card-kicker">Détail contractuel</p>
           <p className="dash-card-detail">{report?.economics?.disclaimer || 'Scénarios contractuels, pas des mesures.'} {report.economics?.primary ? `Scénario principal : ${cost.num} ${cost.unit}.` : ''}</p>
         </section>
+        <PreuvesPanel />
+        {auditOpen ? <InlineAudit onClose={() => setAuditOpen(false)} /> : null}
       </section>
     </div>
   )

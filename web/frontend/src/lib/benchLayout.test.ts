@@ -10,7 +10,7 @@ const read = (p: string): string => readFileSync(join(SRC, p), 'utf8')
 
 describe('banc d’essai linéaire', () => {
   it('trois sections nommées, aucune taxonomie imbriquée', () => {
-    const b = read('views/BenchView.tsx')
+    const b = read('views/LaboView.tsx')
     for (const id of ['bench-config', 'bench-observe', 'bench-results']) {
       expect(b, `section ${id}`).toContain(`id="${id}"`)
     }
@@ -43,26 +43,24 @@ describe('banc d’essai linéaire', () => {
   })
 
   it('l’affichage vit dans Observer, pas dans le chrome global', () => {
-    const b = read('views/BenchView.tsx')
+    const b = read('views/LaboView.tsx')
     expect(b).toContain('<DisplayControls />')
     const app = read('App.tsx')
     expect(app).not.toContain('DisplayControls')
   })
 
   it('hors destination, le mur ne se re-rend plus au rythme du SSE', () => {
-    expect(read('views/BenchView.tsx')).toContain('active={active}')
+    expect(read('views/LaboView.tsx')).toContain('active={active}')
     expect(read('views/LiveView.tsx')).toContain('rafActive && active')
     expect(read('views/LiveView.tsx')).toContain('active ? s.live : null')
     expect(read('views/ResultatsView.tsx')).toContain('active && !!s.live?.running')
     expect(read('views/IntegriteView.tsx')).toContain('if (!active) return')
   })
 
-  it('les trois destinations différées se chargent à la demande', () => {
+  it('le Labo différé se charge à la demande', () => {
     const app = read('App.tsx')
-    for (const view of ['BenchView', 'AuditView', 'EvidenceView']) {
-      expect(app, view).toContain(`lazy(() => import('./views/${view}'))`)
-      expect(app, `${view} hors du premier rendu`).not.toContain(`import ${view} from './views/${view}'`)
-    }
+    expect(app).toContain(`lazy(() => import('./views/LaboView'))`)
+    expect(app).not.toContain(`import LaboView from './views/LaboView'`)
     expect(app).toContain('<Suspense')
     const nav = read('components/TopNav.tsx')
     expect(nav).toContain('preloadMode(m.id)')
@@ -83,7 +81,7 @@ describe('banc d’essai linéaire', () => {
   })
 
   it('ouvrir les résultats reste hors du geste : transition, puis saut', () => {
-    const b = read('views/BenchView.tsx')
+    const b = read('views/LaboView.tsx')
     // le montage de la matrice + TradeSpace est la tâche la plus chère de la
     // page : il ne doit plus se payer dans le task du clic.
     expect(b).toContain('import { startTransition')

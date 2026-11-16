@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import DashboardView from './DashboardView'
+import CockpitView from './CockpitView'
 import type { AuditReport } from '../lib/types'
 
 const measured = {
@@ -40,7 +40,7 @@ vi.mock('../store/ui', () => ({
 }))
 
 function markup(): string {
-  return renderToStaticMarkup(<DashboardView />)
+  return renderToStaticMarkup(<CockpitView />)
 }
 
 beforeEach(() => {
@@ -48,7 +48,7 @@ beforeEach(() => {
   uiState = { setMode: vi.fn() }
 })
 
-describe('DashboardView absent', () => {
+describe('CockpitView absent', () => {
   it('renders one CTA and no fake zero', () => {
     const html = markup()
     expect(html).toContain('data-testid="dash-absent"')
@@ -57,7 +57,7 @@ describe('DashboardView absent', () => {
   })
 })
 
-describe('DashboardView measured', () => {
+describe('CockpitView measured', () => {
   beforeEach(() => {
     auditState = { report: measured, previous: null, showReport: vi.fn() }
   })
