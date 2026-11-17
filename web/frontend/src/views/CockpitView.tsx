@@ -82,7 +82,7 @@ function MechanismCard({ report }: { report: import('../lib/types').AuditReport 
   const load = m?.load_measured
   return (
     <details className="mechanism" data-testid="cockpit-mechanism">
-      <summary><span>Le mécanisme derrière ce verdict — seuls des faits scellés sont cités</span></summary>
+      <summary><span>Le mécanisme derrière ce verdict</span></summary>
       <ul className="mechanism-list">
         <li><b>Note du moteur.</b> {report.bloat_grade ? `Le rapport est noté ${report.bloat_grade} — ${qualityWord(report.bloat_grade)}.` : 'Pas de note sur ce rapport.'}</li>
         <li><b>Allongement sous charge.</b> {idle != null && loaded != null ? `Le délai sous charge vient à ${loaded.toFixed(0)} ms contre ${idle.toFixed(0)} ms au repos — un écart de ${(delta ?? 0).toFixed(0)} ms dû à l’attente dans les files, pas à la technologie d’accès.` : 'Charge non mesurée — aucun écart ne peut être affirmé.'}</li>
