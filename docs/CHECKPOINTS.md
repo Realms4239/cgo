@@ -3466,3 +3466,18 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Clean relaunch l3f1 `run-1794877413` (P2/cake/{cubic,bbr}/down, flows 1) shows
   real RTT 116–123 ms in its log — contamination gone. Lesson: verify the guard
   pattern against the ACTUAL binary name before trusting single-writer claims.
+
+## 2026-11-17T02:08Z — Layer 3 clean sweeps complete
+
+- Clean, single-writer, 6/6 cells each, all with the fixed binary (real loss/cost):
+  `l3up` `run-1794875529` (P2/cake/up), `l3f1` `run-1794877413` (1 flow),
+  `l3f2` `run-1794878770` (2 flows), `l3f8` `run-1794880033` (8 flows).
+  `l3both` is NOT citable: its two attempts were contaminated by overlapping
+  writers before the guard was fixed; 1 partial cell remains in
+  `run-1794877014` and must be marked BLOCKED, not used. Named condition to close:
+  re-run `both` after the guard fix, in a verified single-writer window.
+- All launches used the sequence: `run-dualns.sh up --ingress off` → `cgo-bench-dualns.sh
+  check` (both rc 0) → `eb-matrix.sh <prefix> ...`. The launcher's guard now uses
+  `pgrep -f 'run --bench dualns'`, matching both `cgo` and `cgo-fixed`.
+- Layer 4a launched: `l4p3d1000` = P3 (600 ms VSAT) at a 1000 ms operator deadline,
+  `run-1794881292` (P3/cake/{cubic,bbr}, down, flows 4, reps 3).
