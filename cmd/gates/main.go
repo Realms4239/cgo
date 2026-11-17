@@ -825,9 +825,16 @@ var keyRx = regexp.MustCompile(`-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----`
 var tokenRx = regexp.MustCompile(`ghp_[A-Za-z0-9]{30,}|github[_-]?pat|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-`)
 var netRx = regexp.MustCompile(`\b100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.\d{1,3}\.\d{1,3}\b`)
 
-// Deux adresses nommées volontairement dans AGENTS.md et les registres
-// append-only : on ne réécrit pas l'historique. Toute autre échoue.
-var allowedAddresses = map[string]bool{"100.114.101.13": true, "100.72.251.32": true}
+// Adresses nommées volontairement dans AGENTS.md, les registres append-only et
+// le corpus C:\END : on ne réécrit pas l'historique. Toute autre échoue.
+// 100.64.0.0 et 100.64.0.1 sont des littéraux de documentation (exemples SSRF),
+// approuvés le 2026-11-18 comme faux positifs pour les miroirs verbatim MUSTREAD.
+var allowedAddresses = map[string]bool{
+	"100.114.101.13": true,
+	"100.72.251.32":  true,
+	"100.64.0.0":     true,
+	"100.64.0.1":     true,
+}
 var allowedArtifacts = map[string]bool{"results/runs-frozen.tar.gz": true} // //go:embed : le build en dépend
 
 // 18 archives suivies avant la règle « backup/ jamais commité » : dette nommée,
