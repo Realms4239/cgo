@@ -106,10 +106,12 @@ honest measurement of bad performance — do not "fix" it into a gate failure.
   (sha `88b492d1…`) but the transfer through the safe channel is not byte-exact.
 - T50 seal matrix — partial: replay positive/negative proofs sealed under
   `docs/verification/2026-11-17-chr-replay/`.
-- Named blocker for a REAL-audit CHR proof: `audit-1794798576` has
-  `remediation_state=observation_only` ("no interface was named"). A 45 s audit with
-  `-iface`/`-routeros-iface`/`-ros-lan` is staged in the guest (`/home/bench/eb-realrem.sh`)
-  and must run in a single-writer gap; then a live CHR boot under a separate token.
+- REAL-audit CHR proof — DONE 2026-11-17T07:26Z: `audit-1794898684` from the fixed
+  binary with `-iface/-routeros-iface/-ros-lan` produced a real RouterOS LAN script;
+  live CHR 7.24.6 accepted it with 11/11 checks (export `91d67458…`). Evidence in
+  `docs/verification/2026-11-17-chr-real-audit/`. Residual: LAN/ingress only
+  (down-direction audit); the WAN claim still rests on the earlier fixture seal.
+- T43/T44/T47 now have both fixture and real-audit evidence. T46/T48 remain undone.
 
 ## Layer 6 — Economics, honesty, consolidation (T51–T56)
 - T51 recompute cost model from sealed Layer 1 cells (Ariary/h, no invented tariffs).
