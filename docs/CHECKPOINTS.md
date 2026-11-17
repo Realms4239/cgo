@@ -3497,6 +3497,6 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   presenting any deadline_ok figure as an improvement.
 
 
-## 2026-11-17T07:26Z / 07:57Z / 11:36Z — consolidations récentes
+## 2026-11-17T07:26Z / 07:57Z / 11:36Z / 12:20Z — consolidations récentes
 
 - Détails et preuves : `docs/verification/2026-11-17-api-bootstrap/README.md`.

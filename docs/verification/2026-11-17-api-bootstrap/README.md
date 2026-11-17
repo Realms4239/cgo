@@ -91,3 +91,27 @@ Ces sections vivaient dans `docs/CHECKPOINTS.md` jusqu'à ce que ce dernier atte
 - Clean relaunch l3f1 `run-1794877413` (P2/cake/{cubic,bbr}/down, flows 1) shows
   real RTT 116–123 ms in its log — contamination gone. Lesson: verify the guard
   pattern against the ACTUAL binary name before trusting single-writer claims.
+
+## 2026-11-17T12:20Z — compression sur le lien de l'opérateur
+
+- MESURÉ AVANT : aucune réponse ne portait `Content-Encoding`. JS 380 262 o,
+  CSS 77 373 o, `/api/integrity` 14 822 o, aucun `Cache-Control` sur `/assets/`.
+- CAUSE : le serveur embarqué (`api.New` → `http.FileServer(http.FS(StaticFS))`)
+  sert la SPA et les JSON en clair. Sur un lien contraint (le sujet même du
+  produit), c'est le coût dominant après le bootstrap.
+- FIX : `api/compression.go` — gzip des réponses compressibles (`/assets/`,
+  `/api/` hors flux, `/`), `Vary: Accept-Encoding`, `Content-Length` supprimé
+  au `WriteHeader` (le `FileServer` le calculait sur le brut), `Cache-Control:
+  public, max-age=31536000, immutable` sur les fichiers hachés. SSE exclus
+  (`/api/stream`, `/api/replay/stream`) pour ne pas mettre le 10 Hz en tampon ;
+  woff2/images déjà compressés exclus.
+- MESURÉ APRÈS (mêmes fichiers, curl + navigateur) : JS **121 963 o** (÷3,1),
+  CSS **14 291 o** (÷5,4), intégrité **1 889 o** (÷7,8). `Content-Encoding:
+  gzip` et `Vary` présents ; `/assets/` immuable ; SSE sans compression.
+  Round-trip JSON vérifié (`{"mode":"observe","ok":true,...}`).
+- E2E : 25/25. Un test était intermittent (`getByText(/Campagne/i).first()`
+  attrapait un `<dt>campagnes archivées</dt>` masqué du cockpit) — 1 échec/3
+  avant correction, 3/3 après avoir scopé le sélecteur à `#v-labo:not([hidden])`.
+  Ce n'était PAS une régression de la compression.
+- VÉRIFIÉ après le dernier edit : gates 6/6, suite API complète verte,
+  347 tests vitest, 25/25 Playwright (Edge via `PWCHROMIUM`), bundle 354,7 Ko gz.
