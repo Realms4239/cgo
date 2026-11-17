@@ -3481,3 +3481,9 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   `pgrep -f 'run --bench dualns'`, matching both `cgo` and `cgo-fixed`.
 - Layer 4a launched: `l4p3d1000` = P3 (600 ms VSAT) at a 1000 ms operator deadline,
   `run-1794881292` (P3/cake/{cubic,bbr}, down, flows 4, reps 3).
+- Flow-count result from the clean Layer-3 sweeps (medians, fixed binary, real
+  counters): 1 flow → drops 1343, cost 201.2 Ar/h, goodput 9.8 Mbps; 2 flows →
+  2647 / 396.6 / 10.1; 8 flows → 5561.5 / 833.4 / 13.9. RTT p95 stays 120–121 ms
+  in all three. Independent kernel truth: cake bounds latency while loss and its
+  cost grow monotonically with offered load. Up direction (l3up) 19.5 Mbps,
+  3840.5 drops, 575.5 Ar/h. These are the FIRST non-zero economics figures.
