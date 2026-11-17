@@ -87,12 +87,8 @@ func buildIntegrity() map[string]any {
 		runIDs = append(runIDs, filepath.Base(p))
 	}
 	// run-<unix> : l'ordre lexical inverse est l'ordre chronologique inverse.
-	for i, j := 0, len(breakdown)-1; i < j; i, j = i+1, j-1 {
-		breakdown[i], breakdown[j] = breakdown[j], breakdown[i]
-	}
-	for i, j := 0, len(runIDs)-1; i < j; i, j = i+1, j-1 {
-		runIDs[i], runIDs[j] = runIDs[j], runIDs[i]
-	}
+	reverse(breakdown)
+	reverse(runIDs)
 	updated := ""
 	if files, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*", "aqm_eval.csv")); len(files) > 0 {
 		sort.Strings(files)
@@ -110,6 +106,12 @@ func buildIntegrity() map[string]any {
 		"valid": valid, "degraded": degraded, "quarantined": quarantined,
 		"run_ids": runIDs, "breakdown": breakdown, "updated": updated,
 		"sha256": sha, "hash8": hash8,
+	}
+}
+
+func reverse[T any](s []T) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
 	}
 }
 

@@ -35,15 +35,16 @@ type ArchiveRecord = {
 // (measured.loaded_health) — l'interface affiche, elle ne recalcule pas.
 // Un rapport historique sans projection rend l'état absent, comme hier.
 function healthBlock(report: import('../lib/types').AuditReport): { title: string; detail: string } {
+  const absent = { title: HEALTH_LABEL.absent, detail: 'la mesure manque' }
   const h = report.measured?.loaded_health
-  if (!h || h.kind === 'absent') return { title: HEALTH_LABEL.absent, detail: 'la mesure manque' }
+  if (!h || h.kind === 'absent') return absent
   const delta = `Δ ${signed(Math.round(h.bloat_ms))} ms`
   if (h.kind === 'unconfigured') return { title: HEALTH_LABEL.unconfigured, detail: `${delta} — aucun seuil de classe fourni` }
   if (h.kind === 'ok' || h.kind === 'attention' || h.kind === 'critical') {
     return { title: HEALTH_LABEL[h.kind], detail: `${delta} sous charge` }
   }
   // kind inconnu : jamais un titre inventé — l'absence parle.
-  return { title: HEALTH_LABEL.absent, detail: 'la mesure manque' }
+  return absent
 }
 
 function CapCard({ report }: { report: import('../lib/types').AuditReport | null }) {
