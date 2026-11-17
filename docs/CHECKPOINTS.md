@@ -3413,3 +3413,17 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Authority `APPROVED-2026-11-17-exhaustive-continuation.md` expires 06:00 UTC;
   the sequence above is tight but fits. Do not parallelise: two writers corrupted a
   previous campaign. No row promotion, no frozen-corpus write, no field-trace touch.
+
+## 2026-11-17T00:30Z — Layer 1 COMPLETE 72/72, Layer 3a launched
+
+- `run-1794862046` committed all 72 cells (header + 72 lines), single writer, no
+  restart after the target fix. Distribution: P1 6 pfifo (2 invalid G3 straddles) +
+  6 fq_codel + 6 cake; P2 6+6+6 all valid; P3 6+6+6 all valid; P4 pfifo 3 invalid
+  (G4 1 Mbps floor, loss-collapsed cubic) + 3 valid, fq_codel 3+3, cake 1+5.
+  Loss/economics columns remain invalid (old binary, pre-`5e00cd9`) — see caveat.
+- Layer 3a launched immediately after the writer freed: `l3up` = P2/cake/
+  {cubic,bbr} × direction=up × reps 3 × flows 4 × deadline 220, run `run-1794875441`,
+  PID 126233, using `/home/bench/cgo-fixed` (sha `d3219c01…`). First committed
+  cells must show NONZERO `drops` where tc sees drops — that is the live oracle for
+  the `tc -j` root-counter fix (`5e00cd9`). If still zero, stop and root-cause.
+- Token `APPROVED-2026-11-17-exhaustive-continuation.md` valid until 06:00 UTC.
