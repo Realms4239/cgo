@@ -17,6 +17,17 @@ import (
 	"github.com/Realms4239/cgo/results"
 )
 
+// resolvedTarget — un --target absent ne doit pas écraser la cible détectée
+// du banc : la valeur par défaut 1.1.1.1 (avant 2026-11-16) cassait le ping
+// en dualns (10.30.0.2) et en legacy (10.200.0.1) sans autre signal qu'un
+// rtt à 0,0 ms.
+func resolvedTarget(flagTarget, detected string) string {
+	if flagTarget == "" {
+		return detected
+	}
+	return flagTarget
+}
+
 // runCLI — campagne en ligne de commande : la même matrice que le dashboard,
 // imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
 // (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
@@ -112,7 +123,7 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 	deps.Bench = bench
 	deps.ChannelModel = channelModel
 	deps.Direction = direction
-	deps.Target = target
+	deps.Target = resolvedTarget(target, deps.Target)
 	deps.DeadlineMs = float64(deadlineMs)
 	if flows < 1 || flows > 8 {
 		fmt.Fprintln(os.Stderr, "run: --flows doit être 1–8")

@@ -338,7 +338,7 @@ WantedBy=multi-user.target
 		reps := fs.Int("reps", 3, "répétitions par cellule (1–5)")
 		flows := fs.Int("flows", 4, "flux de charge concurrents (1–8 ; 1 = régime historique gelé)")
 		deadline := fs.Int("deadline", 1000, "objectif small p95 en ms (200–5000)")
-		target := fs.String("target", "1.1.1.1", "cible de mesure")
+		target := fs.String("target", "", "cible de mesure (vide : cible du banc — 10.200.0.1 legacy, 10.30.0.2 dualns)")
 		dataDir := fs.String("data", results.RunsRoot(), "répertoire des runs gelés")
 		runID := fs.String("run-id", "", "reprendre ce run (cellules déjà gelées sautées)")
 		bench := fs.String("bench", "", "banc : legacy (reproduction corpus) | dualns (production, défaut CGO_BENCH)")
