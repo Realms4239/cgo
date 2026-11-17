@@ -1,0 +1,11 @@
+# 2026-11-17 07:21:30 by RouterOS 7.24.6
+# system id = T32hJ0eBo/G
+#
+/interface ethernet set [ find default-name=ether1 ] disable-running-check=no
+/interface ethernet set [ find default-name=ether2 ] disable-running-check=no
+/queue type add cake-bandwidth=16.6Mbps cake-diffserv=diffserv4 cake-flowmode=dual-dsthost cake-nat=yes cake-rtt=200ms cake-wash=yes kind=cake name=cgoingress-cake
+/queue tree
+# CAKE type with bandwidth setting detected, configure traffic limits within queue itself
+add comment=cgo-managed-ingress max-limit=16648496 name=cgoingress-lan-in parent=ether2 queue=cgoingress-cake
+/ip dhcp-client add interface=ether1 name=client1
+exit=0
