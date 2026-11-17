@@ -10,6 +10,7 @@ import { CardHead } from './ui/CardHead'
 import { useUIStore } from '../store/ui'
 import { auditCitation } from '../lib/citation'
 import { asArray } from '../lib/format'
+import { auditList } from '../lib/auditList'
 import type { AuditReport } from '../lib/types'
 
 export function AuditReportsView({
@@ -99,7 +100,7 @@ export default function AuditReportsPanel() {
   const load = () => {
     setError(null)
     setRows(null)
-    fetchTimed('/api/audit/list')
+    auditList()
       .then(j => setRows(asArray<ArchiveRow>(j.audits)))
       .catch(() => { setRows([]); setError('liste des rapports indisponible — vérifiez que le service tourne, puis réessayez') })
   }

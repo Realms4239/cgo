@@ -22,7 +22,7 @@ await page.addInitScript(() => {
 })
 const t0 = Date.now()
 await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 30000 })
-await page.waitForSelector('#v-dashboard:not([hidden]) h1', { timeout: 15000 })
+await page.waitForSelector('#v-cockpit:not([hidden]) h1', { timeout: 15000 })
 const shellMs = Date.now() - t0
 const nav = await page.evaluate(() => {
   const n = performance.getEntriesByType('navigation')[0]
@@ -41,8 +41,10 @@ const lcp = await page.evaluate(() => new Promise(resolve => {
 }))
 const cls = await page.evaluate(() => Math.round((window.__CLS || 0) * 1000) / 1000)
 const t1 = Date.now()
-await page.click('button[data-mode="bench"]')
-await page.waitForSelector('#bench-config', { timeout: 15000 })
+// Le banc s'appelle désormais « labo » et sa vue est montée à la demande
+// (Suspense + chunk différé) — mesurer l'ouverture réelle, pas un sélecteur mort.
+await page.click('button[data-mode="labo"]')
+await page.waitForSelector('#v-labo:not([hidden])', { timeout: 15000 })
 const benchMs = Date.now() - t1
 const mem = await page.evaluate(() => performance.memory?.usedJSHeapSize ?? null)
 console.log(JSON.stringify({ shellMs, benchMs, lcpMs: lcp, dclMs: nav.dcl, loadMs: nav.load, cls, resources: nav.resources, heapBytes: mem, errors }, null, 2))

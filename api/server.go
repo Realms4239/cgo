@@ -344,6 +344,7 @@ type Server struct {
 	audit   *auditSession
 	shape   *shapeState
 	compare compareCache
+	corpus  corpusCache
 	snap    func() any
 	next    func() any
 	mux     *http.ServeMux
@@ -353,6 +354,11 @@ type Server struct {
 // New — l'interface publique ne change pas : Deps dedans, Handler dehors.
 func New(d Deps) Handler {
 	s := NewServer(d)
+	// Le cockpit demande integrity + results dès son premier rendu. Payer le
+	// scan du corpus ici, avant d'exposer /api/health, évite le pic de 3,3 s
+	// au premier clic opérateur (mesuré 2026-11-17). Les tests utilisent
+	// NewServer directement et ne paient pas ce démarrage.
+	s.warmCaches()
 	return Handler{Handler: securityHeaders(crossSiteGuard(s)), hubClose: func() { s.hub.Close() }}
 }
 
@@ -374,11 +380,11 @@ func NewServer(d Deps) *Server {
 		started: time.Now(),
 		kernel:  probe.KernelSource(),
 		hub:     NewHub(),
-		audit: &auditSession{},
-		shape: &shapeState{},
-		snap:  snap,
-		next:  next,
-		rl:    newRateLimiter(),
+		audit:   &auditSession{},
+		shape:   &shapeState{},
+		snap:    snap,
+		next:    next,
+		rl:      newRateLimiter(),
 	}
 	mux := http.NewServeMux()
 	s.registerHealth(mux)
@@ -716,17 +722,17 @@ func (s *Server) registerRun(mux *http.ServeMux) {
 		// est validée même sur les hôtes sans moteur câblé. La règle vit dans le
 		// module runreq — une règle, un verdict, aucun double registre.
 		req := runreq.CampaignRequest{
-				RunID: opts.RunID, Profiles: opts.Profiles, Qdiscs: opts.Qdiscs,
-				CCs: opts.CCs, Reps: opts.Reps, Flows: opts.Flows, DeadlineMs: opts.DeadlineMs,
-				Bench: opts.Bench, Direction: opts.Direction, ChannelModel: opts.ChannelModel, Target: opts.Target,
+			RunID: opts.RunID, Profiles: opts.Profiles, Qdiscs: opts.Qdiscs,
+			CCs: opts.CCs, Reps: opts.Reps, Flows: opts.Flows, DeadlineMs: opts.DeadlineMs,
+			Bench: opts.Bench, Direction: opts.Direction, ChannelModel: opts.ChannelModel, Target: opts.Target,
 		}
 		if errs := req.ValidateAll(); len(errs) > 0 {
-				msgs := make([]string, 0, len(errs))
-				for _, e := range errs {
-					msgs = append(msgs, e.Error())
-				}
-				writeErr(w, r, strings.Join(msgs, " ; "), http.StatusBadRequest)
-				return
+			msgs := make([]string, 0, len(errs))
+			for _, e := range errs {
+				msgs = append(msgs, e.Error())
+			}
+			writeErr(w, r, strings.Join(msgs, " ; "), http.StatusBadRequest)
+			return
 		}
 		if s.deps.StartFn == nil {
 			writeErr(w, r, "run engine not wired on this host", http.StatusServiceUnavailable)
@@ -940,58 +946,18 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 		s.compare.Unlock()
 		writeJSON(w, out)
 	})
-	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, _ *http.Request) {
-		runs, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*"))
-		sort.Strings(runs)
-		valid, degraded, quarantined := 0, 0, 0
-		manifests := 0
-		var runIDs []string
-		type runBreak struct {
-			Run         string `json:"run"`
-			Rows        int    `json:"rows"`
-			Valid       int    `json:"valid"`
-			Degraded    int    `json:"degraded"`
-			Quarantined int    `json:"quarantined"`
-		}
-		breakdown := []runBreak{}
-		for _, p := range runs {
-			if st, err := os.Stat(filepath.Join(p, "manifest.json")); err == nil && !st.IsDir() {
-				manifests++
-			}
-			gs, _ := results.Scan(results.RunsRoot(), filepath.Base(p))
-			b := runBreak{Run: filepath.Base(p)}
-			for _, g := range gs {
-				strict := g.Count - g.Quarantined - g.Degraded
-				valid += strict
-				degraded += g.Degraded
-				quarantined += g.Quarantined
-				b.Rows += g.Count
-				b.Valid += strict
-				b.Degraded += g.Degraded
-				b.Quarantined += g.Quarantined
-			}
-			breakdown = append(breakdown, b)
-			runIDs = append(runIDs, filepath.Base(p))
-		}
-		// récents d'abord (run-<unix> : l'ordre lexical inverse = chronologique inverse)
-		for i, j := 0, len(breakdown)-1; i < j; i, j = i+1, j-1 {
-			breakdown[i], breakdown[j] = breakdown[j], breakdown[i]
-		}
-		for i, j := 0, len(runIDs)-1; i < j; i, j = i+1, j-1 {
-			runIDs[i], runIDs[j] = runIDs[j], runIDs[i]
-		}
-		updated := ""
-		if files, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*", "aqm_eval.csv")); len(files) > 0 {
-			sort.Strings(files)
-			if st, err := os.Stat(files[len(files)-1]); err == nil {
-				updated = st.ModTime().UTC().Format(time.RFC3339)
+	mux.HandleFunc("GET /api/integrity", func(w http.ResponseWriter, r *http.Request) {
+		payload := s.integrityPayload()
+		if fp := corpusStamp(); fp != "" {
+			eTag := `"` + fp + `"`
+			w.Header().Set("ETag", eTag)
+			w.Header().Set("Cache-Control", "no-cache")
+			if r.Header.Get("If-None-Match") == eTag {
+				w.WriteHeader(http.StatusNotModified)
+				return
 			}
 		}
-		if len(runs) == 0 {
-			writeJSON(w, map[string]any{"available": false, "reason": "intégrité disponible après gel (jalon M2)"})
-			return
-		}
-		writeJSON(w, map[string]any{"available": true, "runs": len(runs), "manifests": manifests, "valid": valid, "degraded": degraded, "quarantined": quarantined, "run_ids": runIDs, "breakdown": breakdown, "updated": updated, "sha256": figures.ProvenanceSHA(results.RunsRoot()), "hash8": figures.ProvenanceHash8(results.RunsRoot())})
+		writeJSON(w, payload)
 	})
 	mux.HandleFunc("GET /api/report/export", func(w http.ResponseWriter, r *http.Request) {
 		fmtParam := r.URL.Query().Get("format")

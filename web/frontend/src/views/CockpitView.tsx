@@ -7,6 +7,7 @@ import { retailBound } from '../lib/dashboard'
 import { qualityWord } from '../lib/dashboard'
 import { formatCostAR, groupDigits, relativeTime, asArray } from '../lib/format'
 import { loadSettings } from '../lib/settings'
+import { auditList } from '../lib/auditList'
 import IntegriteView from './IntegriteView'
 import AuditReportsPanel from '../components/AuditReportsPanel'
 import AuditView from './AuditView'
@@ -84,7 +85,7 @@ function MechanismCard({ report }: { report: import('../lib/types').AuditReport 
       <summary><span>Le mécanisme derrière ce verdict — seuls des faits scellés sont cités</span></summary>
       <ul className="mechanism-list">
         <li><b>Note du moteur.</b> {report.bloat_grade ? `Le rapport est noté ${report.bloat_grade} — ${qualityWord(report.bloat_grade)}.` : 'Pas de note sur ce rapport.'}</li>
-        <li><b>Delta sous charge.</b> {idle != null && loaded != null ? `Le délai sous charge vient à ${loaded.toFixed(0)} ms contre ${idle.toFixed(0)} ms au repos — un écart de ${(delta ?? 0).toFixed(0)} ms imputable à l’attente, pas à la technologie d’accès.` : 'Charge non mesurée — aucun delta ne peut être affirmé.'}</li>
+        <li><b>Allongement sous charge.</b> {idle != null && loaded != null ? `Le délai sous charge vient à ${loaded.toFixed(0)} ms contre ${idle.toFixed(0)} ms au repos — un écart de ${(delta ?? 0).toFixed(0)} ms dû à l’attente dans les files, pas à la technologie d’accès.` : 'Charge non mesurée — aucun écart ne peut être affirmé.'}</li>
         <li><b>Pourquoi ce verdict.</b> {report.bloat_verdict || 'Le moteur ne rend pas de phrase pour ce rapport.'}</li>
         <li><b>À l’échéance.</b> {report.cap_sla?.measured ? `${report.cap_sla.ok_pct?.toFixed(0) ?? '—'} % de requêtes respectent l’objectif de ${report.cap_sla.target_pct ?? '—'} % — échéance ${report.cap_sla?.deadline_ms} ms.` : 'Échéance non mesurée.'}</li>
         {load ? null : <li><b>Prudence.</b> La charge n’a pas été mesurée ; tout delta affiché ailleurs reste indicatif.</li>}
@@ -128,8 +129,7 @@ export default function CockpitView() {
   const [auditOpen, setAuditOpen] = useState(false)
 
   useEffect(() => {
-    fetch('/api/audit/list')
-      .then(r => r.json())
+    auditList()
       .then(j => setArchives(asArray<ArchiveRecord>(j.audits).slice(0, 5)))
       .catch(() => setArchives([]))
   }, [])
@@ -189,7 +189,7 @@ export default function CockpitView() {
         </section>
 
         <section className="card dash-card layout-span-4 dash-alerts" data-testid="dash-alerts">
-          <p className="dash-card-kicker">Alertes à l’heure</p>
+          <p className="dash-card-kicker">Respect de l’échéance</p>
           <p className="dash-card-value">{okPct != null ? <>{okPct.toFixed(1)}<small> %</small></> : 'Mesure absente'}</p>
           <p className="dash-card-detail">{target != null ? `objectif ${target} %` : 'l’objectif manque'}</p>
         </section>

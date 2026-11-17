@@ -37,7 +37,7 @@ const RANKS = [
   { key: 'small_p95_median', label: 'Délai sous charge', dir: 'down' as const, unit: 'ms', term: 'small_p95' },
   { key: 'rtt_p95_median', label: 'Latence', dir: 'down' as const, unit: 'ms', term: 'rtt_p95' },
   { key: 'goodput_median', label: 'Débit utile', dir: 'up' as const, unit: 'Mbit/s', term: 'bulk_goodput' },
-  { key: 'deadline_median', label: "Alertes à l'heure", dir: 'up' as const, unit: '%', term: 'deadline_ok' },
+  { key: 'deadline_median', label: "Respect de l'échéance", dir: 'up' as const, unit: '%', term: 'deadline_ok' },
   { key: 'cost', label: 'Perte financière', dir: 'down' as const, unit: 'Ar/h', term: 'cost_ar_per_h' },
 ]
 
@@ -71,7 +71,7 @@ const TSPACE: { key: TSpaceKey; label: string; unit: string; dir: 'down' | 'up' 
   { key: 'small', label: 'Délai sous charge', unit: 'ms', dir: 'down' },
   { key: 'rtt', label: 'Latence', unit: 'ms', dir: 'down' },
   { key: 'goodput', label: 'Débit utile', unit: 'Mb/s', dir: 'up' },
-  { key: 'deadline', label: "Alertes à l'heure", unit: '%', dir: 'up' },
+  { key: 'deadline', label: "Respect de l'échéance", unit: '%', dir: 'up' },
   { key: 'cost', label: 'Perte financière', unit: 'Ar/h', dir: 'down' },
   { key: 'indice', label: 'indice LIEN', unit: '/100', dir: 'up' },
 ]
@@ -446,7 +446,7 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
       ci: () => null,
     },
     {
-      key: 'deadline', rankKey: 'deadline_median', label: "Alertes à l'heure", unit: '%', dir: 'up',
+      key: 'deadline', rankKey: 'deadline_median', label: "Respect de l'échéance", unit: '%', dir: 'up',
       tip: 'Part des sondes arrivées à temps — plus haut = mieux',
       get: g => { const v = g.deadline_median ?? g.deadline_ok_pct; return typeof v === 'number' && v >= 0 ? v : null },
       ci: () => null,
@@ -854,7 +854,7 @@ export default function ResultatsView({ embedded = false, active = true }: { emb
                       { label: 'Délai sous charge', q: comp.small, color: 'var(--t-threshold)' },
                       { label: 'Latence', q: comp.rtt, color: 'var(--t-live)' },
                       { label: 'Débit utile', q: comp.goodput, color: 'var(--t-bbr)' },
-                      { label: "Alertes à l'heure", q: comp.deadline, color: 'var(--t-ok)' },
+                      { label: "Respect de l'échéance", q: comp.deadline, color: 'var(--t-ok)' },
                       { label: 'Perte financière', q: comp.cost, color: 'var(--t-neutral)' },
                     ]
                     return (
