@@ -3504,3 +3504,8 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - Together with the earlier profile oracle (P1 20 ms, P3 600 ms) and the eBPF-vs-`tc`
   226-event confrontation, this closes the physics side of kernel truth for the
   down path: shaping, delay, jitter and injected loss are real, not labels.
+- P2/cake/cubic deadline sweep (3 cells each, fixed binary): 200 ms → deadline_ok
+  74.8–82.6%; 500 ms → 98.2–100%; 1000 ms → 100%. RTT p95 120–122 ms and small
+  p95 209–307 ms are statistically the same in all three. The operator deadline
+  knob changes only the SLA reading, never the measured physics — validate before
+  presenting any deadline_ok figure as an improvement.
