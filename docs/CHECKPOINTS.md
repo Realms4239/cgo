@@ -3427,3 +3427,15 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   cells must show NONZERO `drops` where tc sees drops — that is the live oracle for
   the `tc -j` root-counter fix (`5e00cd9`). If still zero, stop and root-cause.
 - Token `APPROVED-2026-11-17-exhaustive-continuation.md` valid until 06:00 UTC.
+- First Layer-3a launch (`run-1794875441`) was refused by the same post-campaign
+  topology defect seen earlier (`no cake on e-wan`, stale `ns_client`). Fixed by
+  restoring with `run-dualns.sh up` (rc 0) and adding that step to the generic
+  `eb-matrix.sh` launcher, then relaunched as `run-1794875529` (PID 127012).
+- **LIVE ORACLE PASSED for the `tc -j` fix:** first committed cell of
+  `run-1794875529` (P2/cake/cubic/up) reports `drops=10`,
+  `wasted_bytes=14480` (= 10 × 1448), `cost_ar_per_h=1.50` — non-zero and
+  internally consistent. The same matrix with the old binary reported 0/0/0.00
+  for 72 cells. Loss and economics are now measurable.
+- That cell is `invalid` for an honest reason: in `up` direction G4's floor is
+  50% of `CapUp` = 10 Mbps (`pkg/campagne/campagne.go:649-655`) and loss-limited
+  cubic reached 8.3 Mbps. RTT 121.5 ms, small 258.5 ms, deadline comparable.
