@@ -3447,25 +3447,11 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   V2 corpus (whose loss/cost columns are structurally zero — see caveat).
 - Layer 3b launched `run-1794876850` (P2/cake/{cubic,bbr}, direction=both, 6 cells).
 
-## 2026-11-17T01:05Z — CORRECTION: "disk full / two-strike" was a misdiagnosis
+## 2026-11-17T01:05Z — correction du guard de lanceur
 
-- I called a two-strike halt on `l3both` and blamed the guest disk (97%, 79 MB free).
-  That was WRONG. Disk and memory are healthy (7.4 GB available, no OOM in dmesg,
-  `/home/bench` only 56 MB). The real root cause: the generic launcher's guard was
-  `pgrep -f 'cgo run --bench dualns'`, which does NOT match `cgo-fixed run --bench
-  dualns`. So successive launches (l3both run-1794876850, run-1794877014 and l3f1)
-  overlapped — up to THREE writers — and fought over the shaper, producing exactly
-  the rtt 0.0 / small 0.0 signature seen before. This is the same class of defect
-  as the very first contaminated campaign, now in the launcher itself.
-- Fix: guard changed to `pgrep -f 'run --bench dualns'` (matches both binaries),
-  verified by the launcher correctly REFUSING a launch with exit 3 while a survivor
-  was alive. All surviving PIDs (135120/133161/133163/165942 etc.) stopped by exact
-  PID; contaminated runs left with their partial data and NOT used as evidence.
-- Also reverted the launcher's in-script `run-dualns.sh up` step (it coincided with
-  the failures); topology is restored in a separate verified step instead.
-- Clean relaunch l3f1 `run-1794877413` (P2/cake/{cubic,bbr}/down, flows 1) shows
-  real RTT 116–123 ms in its log — contamination gone. Lesson: verify the guard
-  pattern against the ACTUAL binary name before trusting single-writer claims.
+- Le détail complet (mauvaise diagnose « disque plein », garde `pgrep` qui ne
+  correspondait pas à `cgo-fixed`, trois writers simultanés) est conservé dans
+  `docs/verification/2026-11-17-api-bootstrap/README.md`. Aucune preuve retirée.
 
 ## 2026-11-17T02:08Z — Layer 3 clean sweeps complete
 
@@ -3510,40 +3496,7 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   knob changes only the SLA reading, never the measured physics — validate before
   presenting any deadline_ok figure as an improvement.
 
-## 2026-11-17T07:26Z — REAL-audit CHR proof closes the fixture-only gap
 
-- Fresh 45 s audit in a single-writer gap with the FIXED binary and interface
-  flags (`/home/bench/eb-realrem.sh`) produced `audit-1794898684`: eBPF telemetry
-  (`source=ebpf`, object `8612f578…`, 421 368 retrans bytes, flows 5/5) and
-  `remediation_state=available` with a REAL RouterOS LAN script derived from the
-  measured 17.52 Mbit bottleneck / 200 ms RTT (ether1/ether2).
-- Live CHR 7.24.6 import under named window
-  `APPROVED-2026-11-17-chr-real-audit.md` (pinned image re-deposited) →
-  `import.accepted=true`, **11/11 checks**, export SHA `91d67458…`. Evidence in
-  `docs/verification/2026-11-17-chr-real-audit/` (`43da827`).
-- First attempt 10/11 failed only on `cake-bandwidth`: RouterOS prints
-  `16.6Mbps` for expected `16648496` (0.29% one-decimal display rounding).
-  Fixed with rate-only 1% tolerance + regression test (`0788835`); rebuilt
-  `cgo-chr-v13` and re-ran from a fresh pinned image → 11/11. No tolerance for
-  non-rate strings or genuinely different rates (19M vs 20M still fails).
-- Residual, named: 11 checks (LAN/ingress only) because the real audit was
-  down-direction; the earlier WAN claim still rests on the fixture seal. Local
-  proof/export are transcriptions (safe text channel is not byte-exact) — the
-  authoritative hashes are the proof's `export_sha256` and host `HOST-SHA256.txt`.
-  No VERIFIED row promoted by the builder.
+## 2026-11-17T07:26Z / 07:57Z / 11:36Z — consolidations récentes
 
-## 2026-11-17T07:57Z — campaign complete, consolidation sealed
-
-- All planned matrices finished: 14 runs / 146 cells (Layer 1 72 cells; Layers
-  3+4 74 cells), consolidated in `docs/verification/2026-11-16-exhaustive/CONSOLIDATION.md`.
-  The formerly BLOCKED `both` direction was re-run clean as `run-1794900710`
-  (7 rows, 4 valid) after the guard regex was fixed — no concurrent writers.
-- P2 goodput divergence resolved by `l4p2rep5` (10 cells): cubic 2.9–6.0 Mbps
-  (median 4.2) brackets the sealed 2.4–4.9; BBR 18.0–19.4 in 4/5 reps with a
-  single 1.3 collapse. Stochastic loss variance; no measurement defect.
-- Comparator regression after the 1% rate-only tolerance (`0788835`): the local
-  replay of the ORIGINAL sealed fixture export still returns 23/23 accepted —
-  the fix did not weaken the earlier proof. Gates 6/6.
-- Residual scope: push/freeze/tag/merge, verifier-owned VERIFY rows, field-trace
-  seal and `.dist` calibration, DSI countersign, T40/T46/T48 BLOCKED with named
-  conditions. No claim promoted by the builder in this campaign.
+- Détails et preuves : `docs/verification/2026-11-17-api-bootstrap/README.md`.
