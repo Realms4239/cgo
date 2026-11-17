@@ -359,7 +359,7 @@ func New(d Deps) Handler {
 	// au premier clic opérateur (mesuré 2026-11-17). Les tests utilisent
 	// NewServer directement et ne paient pas ce démarrage.
 	s.warmCaches()
-	return Handler{Handler: securityHeaders(crossSiteGuard(s)), hubClose: func() { s.hub.Close() }}
+	return Handler{Handler: compressResponses(securityHeaders(crossSiteGuard(s))), hubClose: func() { s.hub.Close() }}
 }
 
 // NewServer — le serveur et son état. Les tests passent par ici pour

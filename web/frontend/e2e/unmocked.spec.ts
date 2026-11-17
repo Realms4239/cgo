@@ -108,7 +108,9 @@ test('unmocked — aucune erreur console ou pageerror sur le chemin complet', as
   await page.goto(`${BASE()}/`, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('main#main')).toBeVisible({ timeout: 20000 })
   await page.getByRole('button', { name: /Labo/i }).first().click()
-  await expect(page.getByText(/Configurer|Instruments|Campagne/i).first()).toBeVisible({ timeout: 20000 })
+  // Scope à la vue Labo visible : le cockpit masqué contient un <dt>campagnes
+  // archivées</dt> qui correspondait au motif et rendait le test intermittent.
+  await expect(page.locator('#v-labo:not([hidden])').getByText(/Configurer|Instruments|Campagne/i).first()).toBeVisible({ timeout: 20000 })
   await page.getByRole('button', { name: /Cockpit/i }).first().click()
   await expect(page.locator('[data-testid="cockpit-preuves"]')).toBeVisible({ timeout: 20000 })
   expect(errors).toEqual([])
