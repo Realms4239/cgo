@@ -3531,3 +3531,19 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   proof/export are transcriptions (safe text channel is not byte-exact) — the
   authoritative hashes are the proof's `export_sha256` and host `HOST-SHA256.txt`.
   No VERIFIED row promoted by the builder.
+
+## 2026-11-17T07:57Z — campaign complete, consolidation sealed
+
+- All planned matrices finished: 14 runs / 146 cells (Layer 1 72 cells; Layers
+  3+4 74 cells), consolidated in `docs/verification/2026-11-16-exhaustive/CONSOLIDATION.md`.
+  The formerly BLOCKED `both` direction was re-run clean as `run-1794900710`
+  (7 rows, 4 valid) after the guard regex was fixed — no concurrent writers.
+- P2 goodput divergence resolved by `l4p2rep5` (10 cells): cubic 2.9–6.0 Mbps
+  (median 4.2) brackets the sealed 2.4–4.9; BBR 18.0–19.4 in 4/5 reps with a
+  single 1.3 collapse. Stochastic loss variance; no measurement defect.
+- Comparator regression after the 1% rate-only tolerance (`0788835`): the local
+  replay of the ORIGINAL sealed fixture export still returns 23/23 accepted —
+  the fix did not weaken the earlier proof. Gates 6/6.
+- Residual scope: push/freeze/tag/merge, verifier-owned VERIFY rows, field-trace
+  seal and `.dist` calibration, DSI countersign, T40/T46/T48 BLOCKED with named
+  conditions. No claim promoted by the builder in this campaign.
