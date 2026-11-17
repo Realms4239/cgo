@@ -3509,3 +3509,25 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   p95 209–307 ms are statistically the same in all three. The operator deadline
   knob changes only the SLA reading, never the measured physics — validate before
   presenting any deadline_ok figure as an improvement.
+
+## 2026-11-17T07:26Z — REAL-audit CHR proof closes the fixture-only gap
+
+- Fresh 45 s audit in a single-writer gap with the FIXED binary and interface
+  flags (`/home/bench/eb-realrem.sh`) produced `audit-1794898684`: eBPF telemetry
+  (`source=ebpf`, object `8612f578…`, 421 368 retrans bytes, flows 5/5) and
+  `remediation_state=available` with a REAL RouterOS LAN script derived from the
+  measured 17.52 Mbit bottleneck / 200 ms RTT (ether1/ether2).
+- Live CHR 7.24.6 import under named window
+  `APPROVED-2026-11-17-chr-real-audit.md` (pinned image re-deposited) →
+  `import.accepted=true`, **11/11 checks**, export SHA `91d67458…`. Evidence in
+  `docs/verification/2026-11-17-chr-real-audit/` (`43da827`).
+- First attempt 10/11 failed only on `cake-bandwidth`: RouterOS prints
+  `16.6Mbps` for expected `16648496` (0.29% one-decimal display rounding).
+  Fixed with rate-only 1% tolerance + regression test (`0788835`); rebuilt
+  `cgo-chr-v13` and re-ran from a fresh pinned image → 11/11. No tolerance for
+  non-rate strings or genuinely different rates (19M vs 20M still fails).
+- Residual, named: 11 checks (LAN/ingress only) because the real audit was
+  down-direction; the earlier WAN claim still rests on the fixture seal. Local
+  proof/export are transcriptions (safe text channel is not byte-exact) — the
+  authoritative hashes are the proof's `export_sha256` and host `HOST-SHA256.txt`.
+  No VERIFIED row promoted by the builder.
