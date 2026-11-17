@@ -88,6 +88,33 @@ func TestNormalizeROSComparesRatesSemantically(t *testing.T) {
 	}
 }
 
+// TestRouterOSRateDisplayRounding — CHR 7.24.6 arrondit son export à une
+// décimale en Mbps : un script réel demandant 16648496 bit/s s'imprime
+// « 16.6Mbps ». La tolérance de 1 % doit accepter l'écart d'affichage, sans
+// jamais confondre deux débits réellement différents.
+func TestRouterOSRateDisplayRounding(t *testing.T) {
+	ok := [][2]string{
+		{"16648496", "16.6Mbps"}, // cas réel audit-1794898684 / CHR 2026-11-17
+		{"19000000", "19M"},
+		{"19000000", "19.0Mbps"},
+	}
+	for _, p := range ok {
+		if !rosValuesEqual(p[0], p[1]) {
+			t.Errorf("rosValuesEqual(%q,%q) = false, want true", p[0], p[1])
+		}
+	}
+	bad := [][2]string{
+		{"19000000", "20M"},     // vrai écart de configuration
+		{"16648496", "cgoingress-cake"}, // chaîne non-débit
+		{"25ms", "26ms"},
+	}
+	for _, p := range bad {
+		if rosValuesEqual(p[0], p[1]) {
+			t.Errorf("rosValuesEqual(%q,%q) = true, want false", p[0], p[1])
+		}
+	}
+}
+
 func TestRouterOSDefaultAbsentIsAccepted(t *testing.T) {
 	expected := RouterOSConfig{Objects: []RouterOSObject{{
 		Section: "queue type", Name: "cgo-cake",

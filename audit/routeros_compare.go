@@ -70,7 +70,7 @@ func CompareRouterOS(expected, found RouterOSConfig) []RouterOSCheck {
 				Name:     fmt.Sprintf("%s %s.%s", want.Section, want.Name, k),
 				Expected: exp,
 				Found:    f,
-				Pass:     ok && normalizeROS(exp) == normalizeROS(f),
+				Pass:     ok && rosValuesEqual(exp, f),
 			})
 		}
 	}
@@ -86,6 +86,34 @@ var rosDefaults = map[string]string{
 }
 
 var rateRe = regexp.MustCompile(`^([0-9]+(?:\.[0-9]+)?)\s*(k|m|g|t|p)?(bps|kbps|mbps|gbps|kbit|mbit|gbit)?$`)
+
+// rosValuesEqual — égalité sémantique avec tolérance de 1 % SUR LES DÉBITS
+// seulement. RouterOS arrondit son /export terse à une décimale en Mbps :
+// 16648496 bit/s s'imprime « 16.6Mbps » (écart d'affichage 0,29 %), sans que
+// la configuration importée soit fausse. La tolérance ne s'applique qu'aux
+// deux chaînes qui se parses comme un débit ; 19M vs 20M reste un échec.
+func rosValuesEqual(expected, found string) bool {
+	a, b := normalizeROS(expected), normalizeROS(found)
+	if a == b {
+		return true
+	}
+	am, bm := rateRe.FindStringSubmatch(a), rateRe.FindStringSubmatch(b)
+	if am == nil || bm == nil {
+		return false
+	}
+	x, _ := strconv.ParseFloat(am[1], 64)
+	y, _ := strconv.ParseFloat(bm[1], 64)
+	// Les deux sont déjà normalisés en bit/s par normalizeROS.
+	d := x - y
+	if d < 0 {
+		d = -d
+	}
+	limit := x
+	if y > limit {
+		limit = y
+	}
+	return limit > 0 && d <= 0.01*limit
+}
 
 // normalizeROS comparaison sémantique : les débits s'égalent, quel que soit
 // le format d'affichage (« 19000000 » ≡ « 19.0Mbps » ≡ « 19M ») ; les autres
