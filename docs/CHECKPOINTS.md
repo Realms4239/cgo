@@ -3446,3 +3446,23 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   First real cost figures in the campaign; they are NOT comparable to the sealed
   V2 corpus (whose loss/cost columns are structurally zero — see caveat).
 - Layer 3b launched `run-1794876850` (P2/cake/{cubic,bbr}, direction=both, 6 cells).
+
+## 2026-11-17T01:05Z — CORRECTION: "disk full / two-strike" was a misdiagnosis
+
+- I called a two-strike halt on `l3both` and blamed the guest disk (97%, 79 MB free).
+  That was WRONG. Disk and memory are healthy (7.4 GB available, no OOM in dmesg,
+  `/home/bench` only 56 MB). The real root cause: the generic launcher's guard was
+  `pgrep -f 'cgo run --bench dualns'`, which does NOT match `cgo-fixed run --bench
+  dualns`. So successive launches (l3both run-1794876850, run-1794877014 and l3f1)
+  overlapped — up to THREE writers — and fought over the shaper, producing exactly
+  the rtt 0.0 / small 0.0 signature seen before. This is the same class of defect
+  as the very first contaminated campaign, now in the launcher itself.
+- Fix: guard changed to `pgrep -f 'run --bench dualns'` (matches both binaries),
+  verified by the launcher correctly REFUSING a launch with exit 3 while a survivor
+  was alive. All surviving PIDs (135120/133161/133163/165942 etc.) stopped by exact
+  PID; contaminated runs left with their partial data and NOT used as evidence.
+- Also reverted the launcher's in-script `run-dualns.sh up` step (it coincided with
+  the failures); topology is restored in a separate verified step instead.
+- Clean relaunch l3f1 `run-1794877413` (P2/cake/{cubic,bbr}/down, flows 1) shows
+  real RTT 116–123 ms in its log — contamination gone. Lesson: verify the guard
+  pattern against the ACTUAL binary name before trusting single-writer claims.
