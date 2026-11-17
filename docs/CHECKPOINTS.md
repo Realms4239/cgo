@@ -3439,3 +3439,10 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 - That cell is `invalid` for an honest reason: in `up` direction G4's floor is
   50% of `CapUp` = 10 Mbps (`pkg/campagne/campagne.go:649-655`) and loss-limited
   cubic reached 8.3 Mbps. RTT 121.5 ms, small 258.5 ms, deadline comparable.
+- Layer 3a COMPLETE (`run-1794875529`, 6/6 cells, P2/cake/up, fixed binary):
+  cubic `invalid` (3 cells, drops 9–17, wasted 13–25 kB, cost 1.3–2.5 Ar/h —
+  G4 up-floor 10 Mbps not reached); bbr `valid` (3 cells, drops 7664–11802,
+  wasted 11–17 MB, cost 1148.5–1768.5 Ar/h, goodput ~19.5 Mbps, deadline 91%).
+  First real cost figures in the campaign; they are NOT comparable to the sealed
+  V2 corpus (whose loss/cost columns are structurally zero — see caveat).
+- Layer 3b launched `run-1794876850` (P2/cake/{cubic,bbr}, direction=both, 6 cells).
