@@ -3492,3 +3492,15 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   `l4p3d220` (220 ms) deadline_ok **0.0%**, small p95 1349–1672 ms, RTT ~640 ms
   in both. A physically impossible SLA target yields 0% compliance but still a
   sound measurement — reaffirms that `gate_status` is integrity, not SLA.
+
+## 2026-11-17T06:02Z — measurement-physics oracle (live kernel vs declared profile)
+
+- Read-only snapshot during a P2/cake matrix: declared profile (`model/types.go:44`)
+  `P2{20 Mbit, 100 ms, 15 ms jitter, 0.5% loss}` vs live kernel:
+  `netem 1: root ... delay 50ms 15ms loss 0.5%` on w-edge (one-way 50 ms => RTT 100 ms),
+  `cake 1: root ... bandwidth 20Mbit ... rtt 100ms` on e-wan. Measured base RTT
+  p50 98.4–102.0 ms, p95 119.4–121.4 ms across three `l4d200` cells. All four
+  declared parameters are instantiated in the kernel and visible in the measurement.
+- Together with the earlier profile oracle (P1 20 ms, P3 600 ms) and the eBPF-vs-`tc`
+  226-event confrontation, this closes the physics side of kernel truth for the
+  down path: shaping, delay, jitter and injected loss are real, not labels.
