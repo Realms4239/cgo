@@ -3487,3 +3487,8 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
   in all three. Independent kernel truth: cake bounds latency while loss and its
   cost grow monotonically with offered load. Up direction (l3up) 19.5 Mbps,
   3840.5 drops, 575.5 Ar/h. These are the FIRST non-zero economics figures.
+- P3 deadline contrast (both matrices 6/6 `valid`, fixed binary):
+  `l4p3d1000` (1000 ms) deadline_ok 75.0–80.8%, small p95 1516–1570 ms;
+  `l4p3d220` (220 ms) deadline_ok **0.0%**, small p95 1349–1672 ms, RTT ~640 ms
+  in both. A physically impossible SLA target yields 0% compliance but still a
+  sound measurement — reaffirms that `gate_status` is integrity, not SLA.
