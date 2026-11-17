@@ -1,5 +1,22 @@
 # CGO — agent operating card
 
+## CGO Core Directive (MUSTREAD)
+
+`docs/MUSTREAD/INDEX.md` is the canonical source of direction for this project.
+Where this card conflicts with the MUSTREAD pack, MUSTREAD governs; the sections
+below are retained as subordinate operating detail. Operator-level constitution
+bans cannot be waived by a project document.
+
+### Precedence
+
+| Conflict | Resolution |
+|---|---|
+| Corpus forbids `CHECKPOINTS.md`/`VERIFY.md` edits outside the final chunk | Wins; the existing checkpoint cadence becomes subordinate, files stay untouched by chunk work |
+| Chunk 6 uses `git add -A` | Cannot be waived by a project document; the commit task stays, staging becomes explicit paths |
+| Chunk 0 deletes `cmd/gates` | Directive stands, but a replacement for the six-gate runner must exist before removal — no gate tampering |
+| Canonical title, 2 modes, version `2.0.0` | Locked; present repo values are labelled historical, not deleted |
+| Corpus `pkg/...` paths | Kept verbatim; the INDEX path-binding note gives this repo's real paths |
+
 ## What this repository is
 
 CGO (Meteolink) is a Go service and React dashboard that measure a constrained
