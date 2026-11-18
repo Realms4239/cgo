@@ -22,7 +22,7 @@ function read(p: string): string {
 
 describe('tui', () => {
   it('meteolink top exists', () => {
-    const s = read('cmd/meteolink/main.go')
+    const s = read('cmd/cgo/main.go')
     expect(s).toContain('top')
   })
 })
