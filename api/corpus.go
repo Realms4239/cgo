@@ -1,6 +1,9 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -101,11 +104,19 @@ func buildIntegrity() map[string]any {
 	if len(sha) >= 8 {
 		hash8 = sha[:8]
 	}
+	// Vérification des manifestes : lecture seule, aucun fichier du corpus gelé
+	// n'est modifié. Un manifeste absent ou un hash divergant dégrade l'état.
+	ok, statuses := verifyRunManifests()
+	integrityStatus := "verified"
+	if !ok {
+		integrityStatus = "degraded"
+	}
 	return map[string]any{
 		"available": true, "runs": len(runs), "manifests": manifests,
 		"valid": valid, "degraded": degraded, "quarantined": quarantined,
 		"run_ids": runIDs, "breakdown": breakdown, "updated": updated,
 		"sha256": sha, "hash8": hash8,
+		"ok": ok, "integrity": integrityStatus, "manifest_statuses": statuses,
 	}
 }
 
@@ -113,6 +124,58 @@ func reverse[T any](s []T) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
+}
+
+// manifestFile — une entrée de manifest.json, forme réelle du corpus gelé.
+type manifestFile struct {
+	File   string `json:"File"`
+	SHA256 string `json:"Sha256"`
+}
+
+type runManifest struct {
+	Files []manifestFile `json:"files"`
+}
+
+// verifyRunManifests — lecture seule : chaque fichier déclaré doit exister et
+// son SHA-256 doit correspondre. Un run sans manifest est signalé, pas ignoré.
+func verifyRunManifests() (bool, []map[string]any) {
+	runs, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*"))
+	sort.Strings(runs)
+	statuses := []map[string]any{}
+	ok := true
+	for _, p := range runs {
+		st := map[string]any{"run": filepath.Base(p), "status": "verified"}
+		data, err := os.ReadFile(filepath.Join(p, "manifest.json"))
+		if err != nil {
+			st["status"] = "no_manifest"
+			ok = false
+			statuses = append(statuses, st)
+			continue
+		}
+		var m runManifest
+		if err := json.Unmarshal(data, &m); err != nil {
+			st["status"] = "invalid_manifest"
+			ok = false
+			statuses = append(statuses, st)
+			continue
+		}
+		for _, f := range m.Files {
+			body, err := os.ReadFile(filepath.Join(p, f.File))
+			if err != nil {
+				st["status"] = "missing_file"
+				ok = false
+				break
+			}
+			h := sha256.Sum256(body)
+			if hex.EncodeToString(h[:]) != f.SHA256 {
+				st["status"] = "hash_mismatch"
+				ok = false
+				break
+			}
+		}
+		statuses = append(statuses, st)
+	}
+	return ok, statuses
 }
 
 // warmCaches — paie une fois le coût du corpus au démarrage du serveur réel,
