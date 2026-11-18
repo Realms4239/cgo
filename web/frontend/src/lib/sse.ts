@@ -1,6 +1,7 @@
 import type { LiveFrame } from './types'
 import { createCoalescer } from './coalesce'
 import { pushFrame, pushIface, live as liveRing } from './live'
+import { pushLiveFrame, pushLiveEvent, MILESTONE_KINDS } from './liveRings'
 import { useUIStore } from '../store/ui'
 
 let es: EventSource | null = null
@@ -25,6 +26,13 @@ export function connectSSE() {
   // le serveur limite le replay aux 5 dernières frames sans Last-Event-ID;
   // le navigateur renvoie Last-Event-ID à la reconnexion (retry:2000)
   es = new EventSource('/api/stream')
+  // jalon de domaine → anneau d'événements, un listener par type (jamais de 0 fabriqué)
+  for (const kind of MILESTONE_KINDS) {
+    es.addEventListener(kind, (ev) => {
+      try { pushLiveEvent(kind, JSON.parse((ev as MessageEvent).data)) }
+      catch { /* événement illisible : ignoré, jamais un 0 fabriqué */ }
+    })
+  }
   const store = useUIStore
 
   es.onmessage = (ev) => {
@@ -45,6 +53,8 @@ export function connectSSE() {
         }
         if (data[k] !== undefined) (last as any)[k] = data[k]
       }
+      // pont anneau typé : le HUD lit l'anneau, pas le store (absence = NaN).
+      pushLiveFrame(data)
       // frontière de vérité: les frames idle ne mesurent rien — jamais de 0 fabriqué.
       // En course, les frames tout-zéro sont des trous de pompe, pas des mesures — ignorer.
       // Les frames surveillance (surveil) et burst sont des mesures avec
