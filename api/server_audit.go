@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -22,6 +23,10 @@ import (
 	"github.com/Realms4239/cgo/profile"
 	"github.com/Realms4239/cgo/remediate"
 )
+
+var ifaceRx = regexp.MustCompile(`^[a-zA-Z0-9_.-]{1,15}$`)
+
+func validIface(name string) bool { return ifaceRx.MatchString(name) }
 
 func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -347,6 +352,12 @@ func handleAuditReport(s *auditSession) http.HandlerFunc {
 func handleRemediate(s *auditSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
+		for _, key := range []string{"iface", "routeros_iface", "routeros_lan"} {
+			if v := strings.TrimSpace(q.Get(key)); v != "" && !validIface(v) {
+				writeErr(w, r, "nom d'interface invalide : "+v, http.StatusBadRequest)
+				return
+			}
+		}
 		id := strings.TrimSpace(q.Get("audit_id"))
 		rep := s.reportFor(id)
 		if rep == nil {

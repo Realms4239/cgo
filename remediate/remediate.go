@@ -11,6 +11,7 @@ package remediate
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 )
 
@@ -81,8 +82,20 @@ func (e ErrUnmeasured) Error() string {
 	return fmt.Sprintf("remediate: %s is not measured (%s)", e.Field, e.Why)
 }
 
+// ifaceRx — nom d'interface Linux strict (IFNAMSIZ) : ni espace, ni métacaractère
+// shell, ni séparateur de chemin. Le script de remédiation est collé dans un
+// routeur de production : un nom hostile ne doit jamais atteindre le générateur.
+var ifaceRx = regexp.MustCompile(`^[a-zA-Z0-9_.-]{1,15}$`)
+
+func validIface(name string) bool { return ifaceRx.MatchString(name) }
+
 // Validate refuses to build a remediation from unmeasured or impossible values.
 func (l Link) Validate() error {
+	for _, name := range []string{l.Interface, l.RouterOSInterface, l.RouterOSLanInterface} {
+		if name != "" && !validIface(name) {
+			return fmt.Errorf("nom d'interface invalide %q", name)
+		}
+	}
 	if l.Interface == "" && l.RouterOSInterface == "" && l.RouterOSLanInterface == "" {
 		return ErrUnmeasured{"interface", "no egress device named"}
 	}

@@ -295,3 +295,30 @@ func TestRouterOSEmitsOnlyValidKinds(t *testing.T) {
 		}
 	}
 }
+
+func TestLinkValidateRejectsInvalidInterfaceNames(t *testing.T) {
+	hostile := []string{
+		"eth0;id", "eth0 ls", "eth0|id", "eth0&id", "eth0$id",
+		"eth0`id`", "eth0'id", "eth0\"id", "eth0/id", "eth0\nid", "abcdefghijklmnop",
+	}
+	for _, name := range hostile {
+		link := Link{Interface: name, CapacityMbps: 20, RTTms: 100}
+		if err := link.Validate(); err == nil {
+			t.Errorf("Validate accepted interface %q, want rejection", name)
+		}
+	}
+	for _, name := range []string{"eth0", "ifb0", "ether1-wan", "bridge"} {
+		link := Link{Interface: name, CapacityMbps: 20, RTTms: 100}
+		if err := link.Validate(); err != nil {
+			t.Errorf("Validate rejected valid interface %q: %v", name, err)
+		}
+	}
+	ros := Link{RouterOSInterface: "ether1;ifb0", CapacityMbps: 20, RTTms: 100}
+	if err := ros.Validate(); err == nil {
+		t.Error("Validate accepted hostile RouterOSInterface")
+	}
+	lan := Link{RouterOSLanInterface: "../etc/passwd", CapacityMbps: 20, RTTms: 100}
+	if err := lan.Validate(); err == nil {
+		t.Error("Validate accepted hostile RouterOSLanInterface")
+	}
+}
