@@ -6,15 +6,14 @@ import (
 	"context"
 	"net"
 	"syscall"
-	"time"
 )
 
 const tcpCongestion = 0x0d
 
 func DialWithCC(ctx context.Context, addr, cc string) (net.Conn, error) {
-	d := &net.Dialer{Timeout: 5 * time.Second}
+	var control func(network, address string, c syscall.RawConn) error
 	if cc != "" {
-		d.Control = func(_, _ string, c syscall.RawConn) error {
+		control = func(_, _ string, c syscall.RawConn) error {
 			var serr error
 			if err := c.Control(func(fd uintptr) {
 				serr = syscall.SetsockoptString(int(fd), syscall.IPPROTO_TCP, tcpCongestion, socketToken(cc))
@@ -24,5 +23,5 @@ func DialWithCC(ctx context.Context, addr, cc string) (net.Conn, error) {
 			return serr
 		}
 	}
-	return d.DialContext(ctx, "tcp", addr)
+	return guardedDialContext(ctx, "tcp", addr, AllowPrivateTargets(), control)
 }

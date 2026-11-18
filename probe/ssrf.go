@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"syscall"
@@ -38,37 +39,63 @@ func (e *PrivateTargetError) Error() string {
 	return fmt.Sprintf("cible privée refusée (%s) : %s — hors portée sans CGO_ALLOW_PRIVATE_TARGETS=1", e.Range, e.IP)
 }
 
-// blockedIP — (plage nommée, true) si ip est privée/spéciale. To4() écarte
-// d'abord les formes IPv4-littérales-dans-un-tunnel (::ffff:10.0.0.1 ≡ 10.0.0.1).
-func blockedIP(ip net.IP) (string, bool) {
-	if ip.IsLoopback() {
-		return "loopback", true
-	}
-	if ip.IsUnspecified() {
-		return "non spécifié", true
-	}
-	if ip4 := ip.To4(); ip4 != nil {
-		switch {
-		case ip4[0] == 10:
-			return "RFC1918 (10.0.0.0/8)", true
-		case ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31:
-			return "RFC1918 (172.16.0.0/12)", true
-		case ip4[0] == 192 && ip4[1] == 168:
-			return "RFC1918 (192.168.0.0/16)", true
-		case ip4[0] == 169 && ip4[1] == 254:
-			return "link-local (169.254.0.0/16)", true
+var blockedPrefixes = []netip.Prefix{
+	netip.MustParsePrefix("0.0.0.0/8"), netip.MustParsePrefix("10.0.0.0/8"),
+	netip.MustParsePrefix("100.64.0.0/10"), netip.MustParsePrefix("127.0.0.0/8"),
+	netip.MustParsePrefix("169.254.0.0/16"), netip.MustParsePrefix("172.16.0.0/12"),
+	netip.MustParsePrefix("192.0.0.0/24"), netip.MustParsePrefix("192.0.2.0/24"),
+	netip.MustParsePrefix("192.168.0.0/16"), netip.MustParsePrefix("198.18.0.0/15"),
+	netip.MustParsePrefix("198.51.100.0/24"), netip.MustParsePrefix("203.0.113.0/24"),
+	netip.MustParsePrefix("224.0.0.0/4"), netip.MustParsePrefix("240.0.0.0/4"),
+	netip.MustParsePrefix("255.255.255.255/32"),
+	netip.MustParsePrefix("::/128"), netip.MustParsePrefix("::1/128"),
+	netip.MustParsePrefix("100::/64"), netip.MustParsePrefix("2001:db8::/32"),
+	netip.MustParsePrefix("fc00::/7"), netip.MustParsePrefix("fe80::/10"),
+	netip.MustParsePrefix("fec0::/10"), netip.MustParsePrefix("ff00::/8"),
+}
+
+// IsBlockedAddr — garde unique : Unmap() d'abord, donc ::ffff:127.0.0.1 est
+// bien le loopback v4. Aucune adresse non publique ne sort de ce predicate.
+func IsBlockedAddr(addr netip.Addr) bool {
+	a := addr.Unmap()
+	for _, p := range blockedPrefixes {
+		if p.Contains(a) {
+			return true
 		}
-		return "", false
 	}
-	ip6 := ip.To16()
-	if ip6 == nil {
-		return "", false // forme non reconnue : laissé au dialer (erreur franche)
+	return false
+}
+
+// dialControl — re-valide l'IP exacte au moment du connect (TOCTOU) avant de
+// déléguer au contrôle appelant (marquage DSCP / congruence TCP).
+func dialControl(allowPrivate bool, control func(network, address string, c syscall.RawConn) error) func(string, string, syscall.RawConn) error {
+	return func(network, address string, c syscall.RawConn) error {
+		ap, err := netip.ParseAddrPort(address)
+		if err != nil {
+			return fmt.Errorf("adresse de connexion %q illisible — refusée : %w", address, err)
+		}
+		if !allowPrivate && IsBlockedAddr(ap.Addr()) {
+			return &PrivateTargetError{Host: ap.Addr().String(), IP: ap.Addr().String(), Range: "plage réservée/non publique"}
+		}
+		if control != nil {
+			return control(network, address, c)
+		}
+		return nil
 	}
-	if ip6[0] == 0xfe && ip6[1]&0xc0 == 0x80 { // fe80::/10 (fe8x–febx)
-		return "link-local (fe80::/10)", true
+}
+
+// blockedIP — adapte la garde netip aux appelants net.IP existants (nom de
+// plage générique). La décision de blocage vient uniquement de IsBlockedAddr.
+func blockedIP(ip net.IP) (string, bool) {
+	if ip == nil {
+		return "adresse absente", true
 	}
-	if ip6[0]&0xfe == 0xfc { // fc00::/7
-		return "ULA (fc00::/7)", true
+	a, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return "forme non reconnue", true
+	}
+	if IsBlockedAddr(a) {
+		return "plage réservée ou non publique", true
 	}
 	return "", false
 }
@@ -141,7 +168,7 @@ func guardedDialContext(ctx context.Context, network, addr string, allowPrivate 
 			return nil, &PrivateTargetError{Host: host, IP: ip.String(), Range: r}
 		}
 	}
-	d := &net.Dialer{Timeout: 5 * time.Second, Control: control}
+	d := &net.Dialer{Timeout: 5 * time.Second, Control: dialControl(allowPrivate, control)}
 	var lastErr error
 	for _, ip := range ips {
 		conn, err := d.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))

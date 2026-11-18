@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
+	"syscall"
 	"testing"
 )
 
@@ -147,4 +149,83 @@ func TestGuardedDialOptInLoopback(t *testing.T) {
 		t.Fatalf("dial opt-in refusé : %v", err)
 	}
 	_ = c.Close()
+}
+
+func TestIsBlockedAddrCoversCorpusRanges(t *testing.T) {
+	blocked := []string{
+		"0.0.0.1", "10.0.0.1", "100.64.0.1", "127.0.0.1", "169.254.169.254",
+		"172.16.0.1", "192.0.0.1", "192.0.2.1", "192.168.1.1", "198.18.0.1",
+		"198.51.100.1", "203.0.113.1", "224.0.0.1", "240.0.0.1", "255.255.255.255",
+		"::", "::1", "100::1", "2001:db8::1", "fc00::1", "fe80::1", "fec0::1", "ff00::1",
+		"::ffff:127.0.0.1", "::ffff:100.64.0.1",
+	}
+	for _, s := range blocked {
+		a, err := netip.ParseAddr(s)
+		if err != nil {
+			t.Fatalf("ParseAddr(%q): %v", s, err)
+		}
+		if !IsBlockedAddr(a) {
+			t.Errorf("IsBlockedAddr(%q) = false, want true", s)
+		}
+	}
+	for _, s := range []string{"8.8.8.8", "1.1.1.1", "2001:4860:4860::8888"} {
+		a := netip.MustParseAddr(s)
+		if IsBlockedAddr(a) {
+			t.Errorf("IsBlockedAddr(%q) = true, want false", s)
+		}
+	}
+}
+
+func TestGuardedDialRejectsReservedAtConnectTime(t *testing.T) {
+	for _, addr := range []string{
+		"100.64.0.1:5201", "169.254.169.254:80", "[2001:db8::1]:80", "[::ffff:127.0.0.1]:80",
+	} {
+		c, err := guardedDialContext(context.Background(), "tcp", addr, false, nil)
+		if err == nil {
+			c.Close()
+			t.Errorf("guardedDialContext(%q) returned a connection, want refusal", addr)
+			continue
+		}
+		var refused *PrivateTargetError
+		if !errors.As(err, &refused) {
+			t.Errorf("guardedDialContext(%q) error %v, want *PrivateTargetError", addr, err)
+		}
+	}
+}
+
+func TestDialControlRejectsReservedAtConnect(t *testing.T) {
+	for _, address := range []string{
+		"100.64.0.1:5201", "169.254.169.254:80", "[2001:db8::1]:80", "[::ffff:127.0.0.1]:80",
+	} {
+		err := dialControl(false, nil)("tcp", address, nil)
+		var refused *PrivateTargetError
+		if !errors.As(err, &refused) {
+			t.Errorf("dialControl(false)(%q) error %v, want *PrivateTargetError", address, err)
+		}
+	}
+	if err := dialControl(false, nil)("tcp", "not-an-address", nil); err == nil {
+		t.Error("dialControl accepted an unparseable address")
+	}
+
+	sentinel := errors.New("delegate called")
+	called := false
+	err := dialControl(true, func(network, address string, c syscall.RawConn) error {
+		called = true
+		if network != "tcp" || address != "8.8.8.8:53" {
+			t.Errorf("delegate got (%q, %q), want (tcp, 8.8.8.8:53)", network, address)
+		}
+		return sentinel
+	})("tcp", "8.8.8.8:53", nil)
+	if !called || !errors.Is(err, sentinel) {
+		t.Errorf("delegate not invoked or error not propagated: called=%v err=%v", called, err)
+	}
+
+	called = false
+	_ = dialControl(false, func(network, address string, c syscall.RawConn) error {
+		called = true
+		return nil
+	})("tcp", "100.64.0.1:5201", nil)
+	if called {
+		t.Error("delegate invoked for a blocked address")
+	}
 }
