@@ -286,9 +286,6 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 	// ne publie pas un chemin approximatif.
 	rep.Artifact = ArtifactPointer(res.AuditID)
 
-	if res.KernelSample != nil {
-		rep.KernelTelemetry = KernelTelemetryFrom(*res.KernelSample)
-	}
 	loadMeasured := res.ThroughputMbps > 0 && res.BloatGrade != ""
 	loadMeasuredDown := res.ThroughputDownMbps > 0
 	rep.Measured = Measured{
