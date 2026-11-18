@@ -1461,14 +1461,16 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/quarantine/summary", func(w http.ResponseWriter, _ *http.Request) {
 		files, _ := filepath.Glob(filepath.Join(results.RunsRoot(), "*", "aqm_eval.csv"))
 		var total, low, high, zero, g3 int
+		var malformedRows int // lignes avec plus de champs que l'en-tête
 		for _, f := range files {
 			if strings.HasPrefix(filepath.Base(filepath.Dir(f)), "run-smoke") {
 				continue
 			}
-			header, rows, err := results.ReadAQM(f)
+			header, rows, malformed, err := results.ReadAQMDetailed(f)
 			if err != nil {
 				continue
 			}
+			malformedRows += malformed
 			iProf := results.ColIndex(header, "profile")
 			iGood := results.ColIndex(header, "bulk_goodput_mbps")
 			iRTT := results.ColIndex(header, "rtt_p95_ms")
@@ -1516,7 +1518,8 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 		writeJSON(w, map[string]any{
 			"total_invalid": total, "g4_low": low, "g4_high": high,
 			"empty_probes": zero, "g3_implausible": g3,
-			"note": "catégories non-exclusives ; G4 = porte de régime (Mathis), pas de qualité",
+			"malformed_rows": malformedRows,
+			"note":           "catégories non-exclusives ; G4 = porte de régime (Mathis), pas de qualité",
 		})
 	})
 	mux.HandleFunc("GET /api/events", func(w http.ResponseWriter, _ *http.Request) {

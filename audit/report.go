@@ -832,19 +832,19 @@ func WriteArtifacts(rep *Report, baseDir string) (jsonPath, mdPath string, err e
 	md := []byte(rep.RenderMarkdown())
 	jsonPath = filepath.Join(dir, ReportArtifactName)
 	mdPath = filepath.Join(dir, ReportMarkdownName)
-	if err := os.WriteFile(jsonPath, js, 0644); err != nil {
+	if err := atomicWriteFile(jsonPath, js, 0644); err != nil {
 		return "", "", err
 	}
-	if err := os.WriteFile(mdPath, md, 0644); err != nil {
+	if err := atomicWriteFile(mdPath, md, 0644); err != nil {
 		return "", "", err
 	}
 	if err := os.MkdirAll(baseDir, 0755); err != nil {
 		return "", "", err
 	}
-	if err := os.WriteFile(filepath.Join(baseDir, "audit_report.json"), js, 0644); err != nil {
+	if err := atomicWriteFile(filepath.Join(baseDir, "audit_report.json"), js, 0644); err != nil {
 		return "", "", err
 	}
-	if err := os.WriteFile(filepath.Join(baseDir, "audit_report.md"), md, 0644); err != nil {
+	if err := atomicWriteFile(filepath.Join(baseDir, "audit_report.md"), md, 0644); err != nil {
 		return "", "", err
 	}
 	return jsonPath, mdPath, nil

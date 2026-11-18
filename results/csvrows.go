@@ -44,6 +44,22 @@ func ReadAQM(path string) (header []string, rows [][]string, err error) {
 	return header, rows, nil
 }
 
+// ReadAQMDetailed — comme ReadAQM mais compte les lignes portant PLUS de
+// champs que l'en-tête. Les lignes courtes sont tolérées : schéma historique
+// où un champ absent signifie « absent », non « malformé ».
+func ReadAQMDetailed(path string) (header []string, rows [][]string, malformed int, err error) {
+	header, rows, err = ReadAQM(path)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	for _, row := range rows {
+		if len(row) > len(header) {
+			malformed++
+		}
+	}
+	return header, rows, malformed, nil
+}
+
 // ColIndex rend l'index de la colonne nommée dans l'en-tête, -1 si absente
 // (schéma historique sans cette colonne).
 func ColIndex(header []string, name string) int {
