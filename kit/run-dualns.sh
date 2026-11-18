@@ -71,10 +71,12 @@ case "$CMD" in
     TOPO="${CGO_TOPOLOGY_JSON:-/tmp/cgo-dualns-topology.json}"
     IFB_JSON=null
     if [ "$SHAPE_MODE" = "ingress" ]; then IFB_JSON='"ifb0"'; fi
+    IFB_ACTIVE=false
+    if [ "$SHAPE_MODE" = "ingress" ]; then IFB_ACTIVE=true; fi
     # Écriture atomique : tmp puis mv (même fs), jamais un JSON à moitié
     # écrit qu'un preflight pourrait lire (M3).
-    printf '{"shape_mode":"%s","rate_mbit":20,"delay_ms":100,"loss_pct":0,"namespaces":["ns_client","ns_wan_emulator","ns_edge_router","ns_server"],"ifb":%s,"written_at":"%s"}\n' \
-      "${SHAPE_MODE:-egress}" "$IFB_JSON" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$TOPO.tmp"
+    printf '{"shape_mode":"%s","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"loss_pct":0,"ifb_active":%s,"namespaces":["ns_client","ns_wan_emulator","ns_edge_router","ns_server"],"ifb":%s,"written_at":"%s"}\n' \
+      "${SHAPE_MODE:-egress}" "$IFB_ACTIVE" "$IFB_JSON" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$TOPO.tmp"
     mv "$TOPO.tmp" "$TOPO"
     # puits : petit objet + masse, DANS ns_server — jamais dans le routeur
     # (un puits à l'edge court-circuiterait le shaper : 193 Mbit/s à travers

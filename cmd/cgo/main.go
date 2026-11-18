@@ -362,10 +362,20 @@ WantedBy=multi-user.target
 		target := fs.String("target", "", "cible de mesure (vide : cible du banc — 10.200.0.1 legacy, 10.30.0.2 dualns)")
 		dataDir := fs.String("data", results.RunsRoot(), "répertoire des runs gelés")
 		runID := fs.String("run-id", "", "reprendre ce run (cellules déjà gelées sautées)")
-		bench := fs.String("bench", "", "banc : legacy (reproduction corpus) | dualns (production, défaut CGO_BENCH)")
+		bench := fs.String("bench", "dualns", "banc : dualns (défaut, production) | legacy (reproduction du corpus)")
+		legacyBench := fs.Bool("legacy-bench", false, "force le banc legacy (reproduction du corpus) — défaut dualns")
 		channelModel := fs.String("channel-model", envDefault("CGO_CHANNEL_MODEL", "clean"), "canal : clean | bursty (P2/P3 seulement — refus sinon ; défaut CGO_CHANNEL_MODEL)")
 		_ = fs.Parse(os.Args[2:])
-		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *flows, *target, *direction, *dataDir, *runID, *bench, *channelModel); code != 0 {
+		benchValue := *bench
+		if *legacyBench {
+			benchValue = "legacy"
+		} else if benchValue == "dualns" {
+			// défaut : un CGO_BENCH explicite reprend la main (runCLI ne voit plus de vide)
+			if env := os.Getenv("CGO_BENCH"); env != "" {
+				benchValue = env
+			}
+		}
+		if code := runCLI(*profiles, *qdiscs, *ccs, *reps, *deadline, *flows, *target, *direction, *dataDir, *runID, benchValue, *channelModel); code != 0 {
 			os.Exit(code)
 		}
 	case "calibrate":

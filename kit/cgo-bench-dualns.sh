@@ -49,6 +49,9 @@ DELAY_MS=100
 LOSS_PCT=0
 RATE_MBIT=20
 RTT_MS=100
+# One RTT convention: DELAY_MS is the TOTAL path RTT. Each shaped hop gets
+# half, one-way — two hops then reproduce the profile's RTT, not twice it.
+HOP_DELAY_MS=$(( DELAY_MS / 2 ))
 # Hardening default: veth offloads off so GSO super-packets cannot hide drops
 # from CAKE. The legacy frozen campaign (kit/testbed.sh) keeps its own ON
 # recipe; this bench is the explicit offload-clean comparison.
@@ -230,12 +233,12 @@ up() {
   # here, netem's internal FIFO would become the bottleneck queue and the
   # whole point of the split would be lost.
   $SUDO ip netns exec "$NS_WAN" tc qdisc replace dev w-edge root netem \
-    delay "${DELAY_MS}ms" loss "${LOSS_PCT}%"
+    delay "${HOP_DELAY_MS}ms" loss "${LOSS_PCT}%"
   # Download propagation: server -> edge -> wan -> client egresses c-wan.
   # Without this second netem, only upload sees delay/loss and a "symmetric"
   # dual-ns run would silently measure an asymmetric link.
   $SUDO ip netns exec "$NS_WAN" tc qdisc replace dev c-wan root netem \
-    delay "${DELAY_MS}ms" loss "${LOSS_PCT}%"
+    delay "${HOP_DELAY_MS}ms" loss "${LOSS_PCT}%"
 
   if [ "$INGRESS" = "on" ]; then
     if ! $SUDO ip netns exec "$NS_CLIENT" ip link show ifb0 >/dev/null 2>&1; then
@@ -283,9 +286,9 @@ up() {
   done
 
   if [ "$INGRESS" = "on" ]; then
-    log "up — netem ${DELAY_MS}ms/${LOSS_PCT}% on w-edge+c-wan ($NS_WAN); cake ${RATE_MBIT}mbit on e-srv + ifb0 ingress ($NS_CLIENT); e-wan unshaped"
+    log "up — netem ${HOP_DELAY_MS}ms/${LOSS_PCT}% per hop on w-edge+c-wan ($NS_WAN) = ${DELAY_MS}ms total RTT; cake ${RATE_MBIT}mbit on e-srv + ifb0 ingress ($NS_CLIENT); e-wan unshaped"
   else
-    log "up — netem ${DELAY_MS}ms/${LOSS_PCT}% on w-edge ($NS_WAN); cake ${RATE_MBIT}mbit on e-srv+e-wan ($NS_EDGE)"
+    log "up — netem ${HOP_DELAY_MS}ms/${LOSS_PCT}% per hop on w-edge+c-wan ($NS_WAN) = ${DELAY_MS}ms total RTT; cake ${RATE_MBIT}mbit on e-srv+e-wan ($NS_EDGE)"
   fi
   check
 }
@@ -416,6 +419,9 @@ while [ $# -gt 0 ]; do
     *) echo "unknown option: $1" >&2; exit 2;;
   esac
 done
+# Recompute after flag parsing: --delay overrides DELAY_MS above, and the
+# per-hop half must follow it or the two hops stop reproducing the total RTT.
+HOP_DELAY_MS=$(( DELAY_MS / 2 ))
 
 case "$INGRESS" in
   on|off) ;;

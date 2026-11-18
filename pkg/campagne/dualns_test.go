@@ -172,9 +172,11 @@ func writeDistCalibration(t *testing.T, dir, profile string, delay float64) {
 }
 
 func TestApplyPhysicsDistMeasuredHop(t *testing.T) {
-	// hermétique : jamais la topologie réelle de /tmp (le banc du labo peut
-	// y avoir laissé un mode ingress qui ferait échouer ce test à tort).
-	t.Setenv("CGO_TOPOLOGY_JSON", filepath.Join(t.TempDir(), "topology-absent.json"))
+	// hermétique : topologie valide dans un répertoire temporaire — jamais la
+	// topologie réelle de /tmp (contrat désormais fermé, fichier absent refusé).
+	topoPath := filepath.Join(t.TempDir(), "topology.json")
+	t.Setenv("CGO_TOPOLOGY_JSON", topoPath)
+	writeTopo(t, topoPath, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
 	dir := t.TempDir()
 	writeDistCalibration(t, dir, "P2", 100)
 	f := &qdisc.FakeRunner{}
@@ -204,7 +206,9 @@ func TestApplyPhysicsDistMeasuredHop(t *testing.T) {
 }
 
 func TestApplyPhysicsDistDownUsesDownlinkHop(t *testing.T) {
-	t.Setenv("CGO_TOPOLOGY_JSON", filepath.Join(t.TempDir(), "topology-absent.json"))
+	topoPath := filepath.Join(t.TempDir(), "topology.json")
+	t.Setenv("CGO_TOPOLOGY_JSON", topoPath)
+	writeTopo(t, topoPath, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
 	dir := t.TempDir()
 	writeDistCalibration(t, dir, "P2", 100)
 	f := &qdisc.FakeRunner{}
@@ -254,7 +258,9 @@ func TestApplyPhysicsDistFailsClosed(t *testing.T) {
 func TestApplyPhysicsDistTClibDirTooLong(t *testing.T) {
 	// Échec fermé : au-delà de 128 octets, le buffer TC_LIB_DIR d'iproute2
 	// ne peut pas charger la .dist — refusé AVANT tout appel tc.
-	t.Setenv("CGO_TOPOLOGY_JSON", filepath.Join(t.TempDir(), "topology-absent.json"))
+	topoPath := filepath.Join(t.TempDir(), "topology.json")
+	t.Setenv("CGO_TOPOLOGY_JSON", topoPath)
+	writeTopo(t, topoPath, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
 	dir := t.TempDir() + string(filepath.Separator) + strings.Repeat("a", 140)
 	f := &qdisc.FakeRunner{}
 	d := Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: dir}

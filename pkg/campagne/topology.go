@@ -10,19 +10,26 @@ import (
 // `up`/`serve` réussi, surchargé par CGO_TOPOLOGY_JSON.
 const defaultTopologyPath = "/tmp/cgo-dualns-topology.json"
 
-// benchTopology est la portion du fichier topologie qui nous concerne :
-// le mode de façonnage que le banc a réellement posé (IFB ingress ou egress).
+// benchTopology est le contrat écrit par le banc après un `up`/`serve` réussi :
+// façonnage réellement posé (IFB ingress ou egress) et physique déclarée.
+// CheckBenchTopology vérifie le contrat complet ; champ manquant ou incohérent
+// ⇒ échec fermé.
 type benchTopology struct {
-	ShapeMode string `json:"shape_mode"`
+	ShapeMode string  `json:"shape_mode"`
+	RTTMode   string  `json:"rtt_mode"`
+	DelayMs   float64 `json:"delay_ms"`
+	RateMbps  float64 `json:"rate_mbps"`
+	IFBActive bool    `json:"ifb_active"`
 }
 
-// CheckBenchTopology refuse une cellule dont le mode de façonnage contredit
-// la topologie que le banc a réellement construite : banc ingress + campagne
-// egress (ou l'inverse) fait mesurer un chemin non façonné en le croyant
-// façonné — fraude de mesure, refusée par construction. expected vide ⇒
-// egress (défaut de la couche Go). Un fichier ABSENT (banc plus ancien) reste
-// légal : nil. Un fichier présent mais illisible, invalide ou sans
-// shape_mode est un échec fermé.
+// CheckBenchTopology refuse une cellule dont la topologie contredit le contrat
+// du banc : façonnage (IFB ingress ou egress), convention RTT (per_hop_half),
+// délai et débit positifs, cohérence ifb_active/direction. Banc ingress +
+// campagne egress (ou l'inverse) fait mesurer un chemin non façonné en le
+// croyant façonné — fraude de mesure, refusée par construction. expected vide ⇒
+// egress (défaut de la couche Go). Un fichier ABSENT est désormais un échec
+// fermé : on ne peut certifier la topologie d'un banc plus ancien. Tout fichier
+// présent mais illisible, invalide ou incomplet est également refusé.
 func CheckBenchTopology(expected string) error {
 	if expected == "" {
 		expected = "egress"
@@ -34,7 +41,7 @@ func CheckBenchTopology(expected string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil // pas de fichier topologie : rien à contredire
+			return fmt.Errorf("topologie banc absente (%s): fail closed", path)
 		}
 		return fmt.Errorf("topologie banc illisible (%s): %w", path, err)
 	}
@@ -49,6 +56,17 @@ func CheckBenchTopology(expected string) error {
 	}
 	if topo.ShapeMode != expected {
 		return fmt.Errorf("façonnage contradictoire : banc %s, campagne %s — cellule refusée (la campagne mesurerait un chemin non façonné en le croyant façonné)", topo.ShapeMode, expected)
+	}
+	// Le contrat physique est vérifié après l'accord de façonnage, pour
+	// conserver le message de contradiction explicite ci-dessus.
+	if topo.RTTMode != "per_hop_half" {
+		return fmt.Errorf("topologie banc (%s): rtt_mode %q invalide (per_hop_half requis)", path, topo.RTTMode)
+	}
+	if !(topo.DelayMs > 0) || !(topo.RateMbps > 0) {
+		return fmt.Errorf("topologie banc (%s): delay_ms et rate_mbps doivent être > 0", path)
+	}
+	if topo.IFBActive != (expected == "ingress") {
+		return fmt.Errorf("topologie banc (%s): ifb_active=%v contredit la direction %q", path, topo.IFBActive, expected)
 	}
 	return nil
 }

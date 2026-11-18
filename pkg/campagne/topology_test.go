@@ -23,23 +23,23 @@ func writeTopo(t *testing.T, path, content string) {
 	}
 }
 
-func TestCheckBenchTopologyAbsentFileIsLegal(t *testing.T) {
+func TestCheckBenchTopologyAbsentFileFailsClosed(t *testing.T) {
 	topoEnv(t) // chemin inexistant dans un répertoire temporaire
-	if err := CheckBenchTopology("ingress"); err != nil {
-		t.Fatalf("fichier absent doit rester légal : %v", err)
+	if err := CheckBenchTopology("ingress"); err == nil {
+		t.Fatal("missing bench topology must fail closed")
 	}
-	if err := CheckBenchTopology(""); err != nil {
-		t.Fatalf("attendu vide ⇒ egress normalisé : %v", err)
+	if err := CheckBenchTopology(""); err == nil {
+		t.Fatal("missing bench topology must fail closed for the default direction too")
 	}
 }
 
 func TestCheckBenchTopologyMatch(t *testing.T) {
 	p := topoEnv(t)
-	writeTopo(t, p, `{"shape_mode":"ingress","rate_mbit":20}`)
+	writeTopo(t, p, `{"shape_mode":"ingress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":true}`)
 	if err := CheckBenchTopology("ingress"); err != nil {
 		t.Fatalf("accord ingress doit passer : %v", err)
 	}
-	writeTopo(t, p, `{"shape_mode":"egress"}`)
+	writeTopo(t, p, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
 	if err := CheckBenchTopology("egress"); err != nil {
 		t.Fatalf("accord egress doit passer : %v", err)
 	}
@@ -51,7 +51,7 @@ func TestCheckBenchTopologyMatch(t *testing.T) {
 
 func TestCheckBenchTopologyMismatchRefused(t *testing.T) {
 	p := topoEnv(t)
-	writeTopo(t, p, `{"shape_mode":"ingress"}`)
+	writeTopo(t, p, `{"shape_mode":"ingress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":true}`)
 	err := CheckBenchTopology("egress")
 	if err == nil {
 		t.Fatal("banc ingress + campagne egress doit être refusé")
@@ -59,7 +59,7 @@ func TestCheckBenchTopologyMismatchRefused(t *testing.T) {
 	if !strings.Contains(err.Error(), "ingress") || !strings.Contains(err.Error(), "egress") {
 		t.Fatalf("l'erreur doit nommer les DEUX modes : %v", err)
 	}
-	writeTopo(t, p, `{"shape_mode":"egress"}`)
+	writeTopo(t, p, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
 	if err := CheckBenchTopology("ingress"); err == nil {
 		t.Fatal("banc egress + campagne ingress doit être refusé")
 	}
@@ -78,5 +78,27 @@ func TestCheckBenchTopologyMissingShapeModeRefused(t *testing.T) {
 	writeTopo(t, p, `{"rate_mbit":20}`)
 	if err := CheckBenchTopology("egress"); err == nil {
 		t.Fatal("shape_mode absent doit être refusé (échec fermé)")
+	}
+}
+
+func TestCheckBenchTopologyContractFieldsRefused(t *testing.T) {
+	p := topoEnv(t)
+	cases := []struct {
+		name, topo, expected string
+	}{
+		{"rtt_mode invalide", `{"shape_mode":"egress","rtt_mode":"scalar","delay_ms":100,"rate_mbps":20,"ifb_active":false}`, "egress"},
+		{"rtt_mode absent", `{"shape_mode":"egress","delay_ms":100,"rate_mbps":20,"ifb_active":false}`, "egress"},
+		{"delay_ms nul", `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":0,"rate_mbps":20,"ifb_active":false}`, "egress"},
+		{"rate_mbps absent", `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"ifb_active":false}`, "egress"},
+		{"ifb_active contredit ingress", `{"shape_mode":"ingress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`, "ingress"},
+		{"ifb_active contredit egress", `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":true}`, "egress"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			writeTopo(t, p, tc.topo)
+			if err := CheckBenchTopology(tc.expected); err == nil {
+				t.Fatal("contrat invalide doit être refusé (échec fermé)")
+			}
+		})
 	}
 }

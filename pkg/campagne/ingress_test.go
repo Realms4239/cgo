@@ -70,6 +70,8 @@ func TestRunEventIngressPreflightFailsBeforeMutation(t *testing.T) {
 }
 
 func TestRunEventIngressShapesIFBAndCleans(t *testing.T) {
+	p := topoEnv(t)
+	writeTopo(t, p, `{"shape_mode":"ingress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":true}`)
 	f := &qdisc.FakeRunner{}
 	d := ingressDeps(func() error { return nil }, f)
 	d.TC = f
@@ -94,6 +96,8 @@ func TestRunEventIngressShapesIFBAndCleans(t *testing.T) {
 }
 
 func TestRunEventEgressDoesNotUseIngress(t *testing.T) {
+	p := topoEnv(t)
+	writeTopo(t, p, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
 	f := &qdisc.FakeRunner{}
 	d := fastDeps()
 	d.TC = f

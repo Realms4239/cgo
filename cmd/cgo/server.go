@@ -176,13 +176,14 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 			}
 		}
 		// provenance — même échelle que runCLI : choix API → CGO_BENCH →
-		// legacy. dualns est direction-aware (le shaper change de sens).
+		// dualns (défaut) ; legacy reste explicite via CGO_BENCH=legacy.
+		// dualns est direction-aware (le shaper change de sens).
 		bench := o.Bench
 		if bench == "" {
 			bench = os.Getenv("CGO_BENCH")
 		}
 		if bench == "" {
-			bench = "legacy"
+			bench = "dualns"
 		}
 		deps := campagne.ProdDeps()
 		if bench == "dualns" {
