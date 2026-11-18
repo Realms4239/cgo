@@ -228,7 +228,7 @@ func TestApplyPhysicsDistDownUsesDownlinkHop(t *testing.T) {
 }
 
 func TestApplyPhysicsDistFailsClosed(t *testing.T) {
-	t.Setenv("CGO_TOPOLOGY_JSON", filepath.Join(t.TempDir(), "topology-absent.json"))
+	writeTopo(t, topoEnv(t), `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
 	dir := t.TempDir()
 	writeDistCalibration(t, dir, "P2", 100)
 	stale := model.Profiles["P2"]
