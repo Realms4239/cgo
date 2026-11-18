@@ -138,6 +138,15 @@ func SumDrops(stats []Stats) uint64 {
 	return total
 }
 
+// SumDropsMeasured — like SumDrops, but says whether a scrape actually happened.
+// Un snapshot vide ne doit jamais devenir un 0 mesuré dans un rapport scellé.
+func SumDropsMeasured(stats []Stats) (uint64, bool) {
+	if len(stats) == 0 {
+		return 0, false
+	}
+	return SumDrops(stats), true
+}
+
 // SumBytes rend les octets par le compteur du qdisc feuille.
 // Shaper empilé sur la même sortie: netem 1: parent de tbf 10: / cake 10:
 // avec fq_codel 20: enfant du tbf. Les mêmes paquets sont comptés à chaque
@@ -149,4 +158,12 @@ func SumBytes(stats []Stats) uint64 {
 	}
 	// Feuille seule; somme par couche si l'heuristique se trompe sur un qdisc exotique.
 	return stats[len(stats)-1].Bytes
+}
+
+// SumBytesMeasured — même contrat que SumDropsMeasured pour le compteur feuille.
+func SumBytesMeasured(stats []Stats) (uint64, bool) {
+	if len(stats) == 0 {
+		return 0, false
+	}
+	return SumBytes(stats), true
 }

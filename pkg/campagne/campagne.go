@@ -154,6 +154,17 @@ func cpuGate(cpu float64) *bool {
 	return &ok
 }
 
+// statsUnmeasured — vrai dès qu'une extrémité n'a pas de scrape tc. Un snapshot
+// vide ne doit jamais devenir un zéro mesuré dans un rapport scellé.
+func statsUnmeasured(dropsOK, bytesOK bool) bool {
+	return !dropsOK || !bytesOK
+}
+
+// appendStatsFailureGate — porte JSON seule (jamais CSV : schéma 23 col gelé).
+func appendStatsFailureGate(failed []string) []string {
+	return append(failed, "G8StatsMeasured")
+}
+
 type qdiscRunner interface {
 	Run(args ...string) ([]byte, error)
 }
@@ -386,6 +397,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// le hub 10 Hz porte rtt/small/goodput/drops PENDANT la fenêtre — pas seulement
 	// aux frontières de phase (les courbes restaient à 0 en plein charge avant).
 	startDrops, startBytes := uint64(0), uint64(0)
+	var startDropsOK, startBytesOK bool
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
 		startDrops, startBytes = qdisc.SumDrops(sts), qdisc.SumBytes(sts)
@@ -492,7 +504,8 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// re-baseline des compteurs tc -s au début de la charge — le delta drops/goodput est propre à la charge
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
-		startDrops, startBytes = qdisc.SumDrops(sts), qdisc.SumBytes(sts)
+		startDrops, startDropsOK = qdisc.SumDropsMeasured(sts)
+		startBytes, startBytesOK = qdisc.SumBytesMeasured(sts)
 		liveLastBytes, liveLastT = startBytes, d.Now()
 	}
 
@@ -591,21 +604,28 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// goodput : préférer le delta côté récepteur de tc -s aux octets côté émetteur
 	goodput := float64(bulkBytes) * 8 / 1e6 / chargeDur
 	rxBytes := uint64(0)
+	statsInvalid := false
 	if d.StatsFn != nil {
 		sts := d.StatsFn()
-		endDrops := qdisc.SumDrops(sts)
-		endBytes := qdisc.SumBytes(sts)
-		// les compteurs tc repartent de zéro si le qdisc est remplacé en
-		// cours de cellule — un delta négatif (wrap uint64) invaliderait la
-		// cellule à tort (même garde int64 que publishLive)
-		if dd := int64(endDrops) - int64(startDrops); dd > 0 {
-			ev.Drops = uint64(dd)
-		}
-		if db := int64(endBytes) - int64(startBytes); db > 0 {
-			rxBytes = uint64(db)
-		}
-		if rxBytes > 0 {
-			goodput = float64(rxBytes) * 8 / 1e6 / chargeDur
+		endDrops, dropsOK := qdisc.SumDropsMeasured(sts)
+		endBytes, bytesOK := qdisc.SumBytesMeasured(sts)
+		if statsUnmeasured(dropsOK, bytesOK) || statsUnmeasured(startDropsOK, startBytesOK) {
+			// scrape absente à une extrémité : ne pas inventer un delta mesuré
+			// (ev.Drops / rxBytes restent à leur valeur existante, jamais zéro).
+			statsInvalid = true
+		} else {
+			// les compteurs tc repartent de zéro si le qdisc est remplacé en
+			// cours de cellule — un delta négatif (wrap uint64) invaliderait la
+			// cellule à tort (même garde int64 que publishLive)
+			if dd := int64(endDrops) - int64(startDrops); dd > 0 {
+				ev.Drops = uint64(dd)
+			}
+			if db := int64(endBytes) - int64(startBytes); db > 0 {
+				rxBytes = uint64(db)
+			}
+			if rxBytes > 0 {
+				goodput = float64(rxBytes) * 8 / 1e6 / chargeDur
+			}
 		}
 	}
 	// octets transportés de la cellule (JSON seul) : récepteur si instrumenté,
@@ -697,6 +717,10 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 				status = model.GateInvalid
 			}
 		}
+	}
+	if statsInvalid {
+		ev.FailedGates = appendStatsFailureGate(ev.FailedGates)
+		status = model.GateInvalid
 	}
 	ev.GateStatus = status
 	return ev, nil
