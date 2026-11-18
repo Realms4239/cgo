@@ -47,12 +47,12 @@ func TestEnsureLocalCert(t *testing.T) {
 	c := parseLocalTestCert(t, cf)
 	found := false
 	for _, n := range c.DNSNames {
-		if n == "meteolink.dev" {
+		if n == "localhost" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("SAN meteolink.dev absent : %v", c.DNSNames)
+		t.Fatalf("SAN localhost absent : %v", c.DNSNames)
 	}
 	if !c.IPAddresses[0].Equal(net.ParseIP("127.0.0.1")) {
 		t.Fatalf("IP SAN inattendues : %v", c.IPAddresses)
@@ -104,20 +104,20 @@ func TestLocalCertPoolTrust(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := cert.Verify(x509.VerifyOptions{Roots: pool, DNSName: "meteolink.dev", CurrentTime: time.Now()}); err != nil {
-		t.Fatalf("le pool local ne valide pas meteolink.dev : %v", err)
+	if _, err := cert.Verify(x509.VerifyOptions{Roots: pool, DNSName: "localhost", CurrentTime: time.Now()}); err != nil {
+		t.Fatalf("le pool local ne valide pas localhost : %v", err)
 	}
 }
 
 func TestRedirectHTTPS(t *testing.T) {
-	h := redirectHTTPS("meteolink.dev:9090")
+	h := redirectHTTPS("127.0.0.1:9090")
 	req := httptest.NewRequest("GET", "http://127.0.0.1:9080/api/health", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusTemporaryRedirect {
 		t.Fatalf("code %d, attendu 307", rec.Code)
 	}
-	want := "https://meteolink.dev:9090/api/health"
+	want := "https://127.0.0.1:9090/api/health"
 	if loc := rec.Header().Get("Location"); loc != want {
 		t.Fatalf("Location %q, attendu %q", loc, want)
 	}

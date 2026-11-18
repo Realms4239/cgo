@@ -1,6 +1,6 @@
 // Meteolink (binaire cgo) — commandes principales:
 //
-//	cgo --serve                          dashboard + API (https://meteolink.dev:9090 par défaut, certificat local auto-signé)
+//	cgo --serve                          dashboard + API (https://127.0.0.1:9090 par défaut, certificat local auto-signé)
 //	cgo setup                            wizard première installation (tout guidé)
 //	cgo kit <action>                     moteur de déploiement (doctor, scan, ensure, deploy…)
 //	cgo audit --link-type T --site S --duration N
@@ -59,10 +59,10 @@ func main() {
 		fs := flag.NewFlagSet("serve", flag.ExitOnError)
 		def := os.Getenv("CGO_DASHBOARD__ADDR")
 		if def == "" {
-			def = "meteolink.dev:9090" // interface canonique (hosts → 127.0.0.1) ; --tls=false + 0.0.0.0 pour la VM
+			def = "127.0.0.1:9090" // interface canonique en loopback ; --tls=false + 0.0.0.0 pour la VM
 		}
 		addr := fs.String("addr", def, "listen address")
-		tlsOn := fs.Bool("tls", true, "HTTPS avec le certificat local meteolink.dev (false = HTTP brut, VM/systemd)")
+		tlsOn := fs.Bool("tls", true, "HTTPS avec le certificat local (SAN localhost/127.0.0.1) (false = HTTP brut, VM/systemd)")
 		httpAddr := fs.String("http-addr", "127.0.0.1:9080", "redirection HTTP→HTTPS (vide = désactivée)")
 		mode := fs.String("mode", "auto", "observe | full | auto (défaut: OS décide — Windows observe, Linux complet)")
 		expose := fs.Bool("expose", false, "autorise l'écoute hors loopback (exige CGO_API_TOKEN ou /etc/cgo/auth.token)")

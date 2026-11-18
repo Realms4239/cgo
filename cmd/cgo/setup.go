@@ -184,27 +184,6 @@ func runSetup(args []string) int {
 		step(5, "Configuration VM (sans VM — sauté)")
 	}
 
-	// 6 — DNS local (requis : meteolink.dev est l'adresse canonique HTTPS)
-	step(6, "DNS local")
-	if confirm("Ajouter meteolink.dev/meteolink.vm au hosts local ?") {
-		// portable : .dev → local, .vm → IP découverte ou auto
-		addHosts("meteolink.dev", "127.0.0.1")
-		vmIP := ""
-		for _, v := range vm.ScanVMs(false) {
-			if p := vm.Primary(); p != nil {
-				if ip := p.GuestIP(v); ip != "" {
-					vmIP = ip
-					break
-				}
-			}
-		}
-		if vmIP == "" {
-			vmIP = "auto"
-		}
-		addHosts("meteolink.vm", vmIP)
-		fmt.Println("(sous Windows : relancez en Admin si permission refusée — kit/setup-meteolink-dev.bat)")
-	}
-
 	// 7 — docteur + récap
 	step(7, "Vérification")
 	doctor.Print()
@@ -212,7 +191,7 @@ func runSetup(args []string) int {
 	next := ask("Lancer [dashboard] (cgo --serve), [tui], ou [quitter] ?", "dashboard")
 	switch strings.ToLower(next) {
 	case "dashboard", "d":
-		fmt.Println("→ lancez ensuite : cgo --serve  (https://meteolink.dev:9090, certificat local auto-signé : accepter une fois dans le navigateur)")
+		fmt.Println("→ lancez ensuite : cgo --serve  (https://127.0.0.1:9090, certificat local auto-signé : accepter une fois dans le navigateur)")
 		return 0
 	case "tui", "t":
 		fmt.Println("→ cgo tui")

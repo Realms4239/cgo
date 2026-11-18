@@ -1,4 +1,5 @@
-# Meteolink [![version](https://img.shields.io/badge/version-1.3.5-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
+# Meteolink [![version](https://img.shields.io/badge/version-2.0.0-rc.1-blue)](VERSION) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![go](https://img.shields.io/badge/go-1.25-%2300ADD8)](go.mod)
+**Optimisation temps réel de la qualité de service des liens d’accès contraints : une architecture d’observabilité eBPF et de régulation AQM/BBR à preuves scellées pour les flux critiques de Météo Madagascar**
 
 ## Qu'est-ce que c'est ?
 

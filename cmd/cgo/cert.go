@@ -1,10 +1,10 @@
 package main
 
-// Certificat local auto-signé — meteolink.dev en HTTPS par défaut.
+// Certificat local auto-signé — localhost / 127.0.0.1 en HTTPS par défaut.
 //
-// .dev est préchargé HSTS : les navigateurs refusent le HTTP sur
-// meteolink.dev. Au premier --serve, un certificat ECDSA P-256 auto-signé
-// (10 ans, SANs meteolink.dev / meteolink.vm / localhost / 127.0.0.1 / ::1)
+// Boucle locale uniquement : aucun nom public, aucun fichier hosts à
+// modifier. Au premier --serve, un certificat ECDSA P-256 auto-signé
+// (10 ans, SANs localhost / 127.0.0.1 / ::1)
 // est généré dans le dossier config utilisateur, puis réutilisé.
 // Stdlib uniquement, zéro dépendance, zéro réseau.
 //
@@ -27,7 +27,7 @@ import (
 )
 
 // localCertDNS — noms couverts par le certificat local.
-var localCertDNS = []string{"meteolink.dev", "meteolink.vm", "localhost"}
+var localCertDNS = []string{"localhost"}
 
 // localCertValidity — régénère si expiry dans moins de 30 jours.
 const localCertValidity = 30 * 24 * time.Hour
@@ -65,7 +65,7 @@ func ensureLocalCertIn(dir string) (certFile, keyFile string, err error) {
 	return certFile, keyFile, nil
 }
 
-// validLocalCert — cert + clé lisibles, SAN meteolink.dev présent,
+// validLocalCert — cert + clé lisibles, SAN localhost présent,
 // expiration au-delà de 30 jours.
 func validLocalCert(certFile, keyFile string) bool {
 	craw, err := os.ReadFile(certFile)
@@ -89,7 +89,7 @@ func validLocalCert(certFile, keyFile string) bool {
 		return false
 	}
 	for _, n := range cert.DNSNames {
-		if n == "meteolink.dev" {
+		if n == "localhost" {
 			return true
 		}
 	}
@@ -108,7 +108,7 @@ func generateLocalCert(certFile, keyFile string) error {
 	now := time.Now()
 	tmpl := x509.Certificate{
 		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: "meteolink.dev", Organization: []string{"meteolink local"}},
+		Subject:      pkix.Name{CommonName: "localhost", Organization: []string{"meteolink local"}},
 		NotBefore:    now.Add(-time.Hour),
 		NotAfter:     now.AddDate(10, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,

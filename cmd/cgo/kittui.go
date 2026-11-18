@@ -240,7 +240,7 @@ func (m modelKT) items() []ktItem {
 			{id: "netinfo", label: "Réseau invité", hint: "adresses + routes live"},
 			m.nicToggle(),
 			{id: "logs", label: "Journal (40 lignes)", hint: ""},
-			{id: "dns", label: "Mapper meteolink.dev", hint: "admin requis"},
+			{id: "dns", label: "DNS (désactivé — loopback)", hint: "admin requis"},
 			{id: "tls", label: "Confiance HTTPS", hint: "admin requis"},
 			{id: "verify", label: "Vérifier intégrité", hint: "SHA-256 sur la VM"},
 			{id: "backup", label: "Rapatrier runs", hint: "./backup"},

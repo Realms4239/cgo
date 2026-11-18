@@ -89,12 +89,12 @@ type modelTUI struct {
 func initialModelTUI() modelTUI {
 	api := os.Getenv("CGO_API")
 	if api == "" {
-		api = "https://meteolink.dev:9090"
+		api = "https://127.0.0.1:9090"
 	}
 	return modelTUI{apiURL: api}
 }
 
-// apiTransport — HTTPS : racines système + certificat local meteolink.dev
+// apiTransport — HTTPS : racines système + certificat local
 // (auto-signé accepté, pas de skip-verify). HTTP : transport standard.
 var (
 	httpsTransportOnce sync.Once

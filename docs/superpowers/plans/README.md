@@ -1,6 +1,6 @@
 # CGO — plan and specification index
 
-*Last updated: 2026-11-12 · Branch: `main` (worktree) · slice 31 added*
+*Last updated: 2026-11-18 · Branch: main (worktree) · Chunk 0 reset*
 *Canonical execution direction: `docs/MUSTREAD/INDEX.md` (CGO directive wins on conflict).*
 
 This is the single index for every CGO rebuild plan. A **spec** is the design

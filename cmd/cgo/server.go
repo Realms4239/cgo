@@ -51,7 +51,7 @@ func envSampler(getenv func(string) string, goos string) *iface.Sampler {
 
 // runServer démarre le tableau de bord + l'API avec le cœur de campagne.
 // mode: "full" (Linux bench/edge) or "observe" (Windows workstation).
-// tlsOn: HTTPS avec le certificat local meteolink.dev (défaut) ; false =
+// tlsOn: HTTPS avec le certificat local (localhost/127.0.0.1, défaut) ; false =
 // HTTP brut (VM, systemd). httpAddr: redirection HTTP→HTTPS ("" = off).
 func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr string) error {
 	// Le SPA réel doit être dans le binaire : un index sans bundle sert une
@@ -369,15 +369,9 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 		if err != nil {
 			return err
 		}
-		// Listen explicite (pas ListenAndServeTLS direct) : en cas d'échec
-		// sur meteolink.dev, on explique le hosts au lieu d'une erreur brute.
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
-			hint := ""
-			if host, _, herr := net.SplitHostPort(addr); herr == nil && host == "meteolink.dev" {
-				hint = " — ajoutez « 127.0.0.1 meteolink.dev » au fichier hosts (cgo setup le propose)"
-			}
-			return fmt.Errorf("écoute %q impossible%s : %w", addr, hint, err)
+			return fmt.Errorf("écoute %q impossible : %w", addr, err)
 		}
 		if httpAddr != "" {
 			redir := &http.Server{Addr: httpAddr, Handler: redirectHTTPS(addr), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 120 * time.Second}
@@ -387,10 +381,10 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 					errCh <- err
 				}
 			}()
-			log.Printf("cgo redirect http://%s → https (meteolink.dev)", httpAddr)
+			log.Printf("cgo redirect http://%s → https (127.0.0.1)", httpAddr)
 		}
 		go func() { errCh <- srv.ServeTLS(ln, certFile, keyFile) }()
-		log.Printf("cgo dashboard on https://%s (certificat local meteolink.dev)", addr)
+		log.Printf("cgo dashboard on https://%s (certificat local)", addr)
 	} else {
 		go func() { errCh <- srv.ListenAndServe() }()
 		log.Printf("cgo dashboard on http://%s (HTTP brut, VM/systemd)", addr)
@@ -411,14 +405,14 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 	}
 }
 
-// redirectHTTPS renvoie tout vers https://meteolink.dev:<port> + chemin.
+// redirectHTTPS renvoie tout vers https://127.0.0.1:<port> + chemin.
 // Le nom canonique plutôt que l'hôte demandé : un seul nom, un seul cert.
 func redirectHTTPS(tlsAddr string) http.Handler {
 	port := "9090"
 	if _, p, err := net.SplitHostPort(tlsAddr); err == nil && p != "" {
 		port = p
 	}
-	target := "https://meteolink.dev:" + port
+	target := "https://127.0.0.1:" + port
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, target+r.URL.RequestURI(), http.StatusTemporaryRedirect)
 	})

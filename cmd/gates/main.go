@@ -998,6 +998,8 @@ var linkFiles = []string{"AGENTS.md", "docs/VERIFY.md", "docs/CHECKPOINTS.md", "
 var historicalAbsent = []string{
 	"data/audits", "data/link_audit.csv", "data/profiles.json", "api/frontend",
 	"cmd/cgo-gui",
+	// 2026-11-18: approbation humaine — docs/VERIFY.md préserve la preuve historique (cmd/meteolink supprimé en Chunk 0).
+	"cmd/meteolink",
 	"cmd/cgo-gui/fygui_linux.go", "cmd/cgo-gui/README-SEPARATE.md", "cmd/cgo-gui/verbs_parity_test.go",
 	"tools/verify.py", "tools/verify_test.py",
 	// déplacé 2026-11-15 vers probe/bpf/src/bpf_probe.c — la ligne 2026-10-29

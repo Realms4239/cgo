@@ -14,7 +14,7 @@
 
 | Endpoint | Méthode | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| `/api/health` | GET | — | `{"ok": true, "version": "1.3.5", "mode": "full\|observe\|\"\"}` | — |
+| `/api/health` | GET | — | `{"ok": true, "version": "2.0.0-rc.1", "mode": "full\|observe\|\"\"}` | — |
 | `/api/doctor` | GET | — | `{"mode", "checks": [{name, status: ok\|warn\|fail, detail}]}` — mêmes capacités que `cgo doctor` (os, tc, cap_net_admin, bbr, ping) | — |
 | `/api/state` | GET | — | snapshot courant (`GetSnap`) ; `{"running": false}` si non câblé | — |
 | `/api/diagnostics` | GET | — | `{"hub":"ok","time":"<RFC3339 UTC>"}` | — |
@@ -70,7 +70,10 @@ renvoie le dernier échantillon sans avancer la fenêtre.
 
 `cc=bbr3` n'est accepté que si `/proc/sys/net/ipv4/tcp_available_congestion_control`
 expose exactement le token `bbr3` ; sinon `400` avec le chemin
-`kit/install-bbr3.sh`, jamais un repli silencieux. `bbr` reste BBRv1.
+`kit/install-bbr3.sh`, jamais un repli silencieux. Aucun noyau public n'expose
+ce token à ce jour : sur l'arbre Google `bbr` v3 (6.13.7), `bbr` **est** BBRv3 —
+l'étiquette nomme ce que l'hôte expose, et le manifeste fige `kernel` pour
+séparer les deux mondes.
 
 ## Intégrité, rapport, figures
 

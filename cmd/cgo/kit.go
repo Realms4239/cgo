@@ -32,7 +32,7 @@ actions :
   deploy    build + ensure + cross-compile linux + scp + install + health
   svc       pilote le dashboard distant : start|stop|restart|status
   testbed   banc de mesure invité : check (défaut, audit) | up (pose) | down (retire)
-  dns       mappe meteolink.dev vers la VM (hosts local, lien stable)
+  dns       réservé — le hosts n'est plus modifié (127.0.0.1 par défaut)
   tls       confiance du certificat dashboard (empreintes + confirmation + vérif HTTPS)
   tls-uninstall retire la confiance (magasin local) — confirmation requise
   shipcheck porte d'embarquement release : DNS→TCP→TLS→cert→health→confiance

@@ -20,22 +20,10 @@ builds:
       - windows_amd64
     ldflags:
       - -s -w -X main.version={{.Version}}
-  # le wrapper meteolink re-exécute cgo — gardé comme binaire séparé pour
-  # la compat npm/scripts existants. Pas de -X main.version : ce main
-  # n'a pas de var version (le linker refuserait).
-  - id: meteolink
-    main: ./cmd/meteolink
-    binary: meteolink
-    targets:
-      - linux_amd64
-      - linux_arm64
-      - windows_amd64
-    ldflags:
-      - -s -w
 
 archives:
   - id: default
-    # archive unique : cgo-<os>-<arch> contient cgo + meteolink + kit/
+    # archive unique : cgo-<os>-<arch> contient cgo + kit/
     formats: [tar.gz]
     name_template: "cgo-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
     files:
@@ -106,7 +94,6 @@ release:
     ## Meteolink {{ .Version }}
 
     - `cgo` — le binaire unique : dashboard + API + `cgo setup` + `cgo kit` + `cgo run` + `cgo tui`
-    - `meteolink` — alias de compatibilité (re-exécute cgo)
     - `dist/*.sbom.json` — SBOM CycloneDX par archive (et par module pur en CI)
     - `checksums.txt` + `checksums.txt.sigstore.json` — somme SHA-256 signée cosign (SLSA L2)
     - `digests.txt` — digests OCI signés, épinglés jamais `:latest`
