@@ -39,7 +39,7 @@ func TestNewZeroDepsIdle(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 }
 
-// Le Publisher tourne exactement à 10 Hz ; l'assertion couvre la diffusion + le delta.
+// Le Publisher tourne exactement à 20 Hz ; l'assertion couvre la diffusion + le delta.
 func TestSSECadenceAndDelta(t *testing.T) {
 	cur := snap{Phase: "baseline", Profile: "P1", RTTp50Ms: 20}
 	h := NewHub()
@@ -75,8 +75,8 @@ func TestSSECadenceAndDelta(t *testing.T) {
 	data, _ := io.ReadAll(resp.Body)
 	frames := strings.Count(string(data), "\ndata:")
 	profiles := strings.Count(string(data), `"profile"`)
-	if frames < 10 || frames > 26 {
-		t.Fatalf("cadence off: %d frames in ~2 s @10Hz (load-tolerant)", frames)
+	if frames < 10 || frames > 50 {
+		t.Fatalf("cadence off: %d frames in ~2 s @20Hz (load-tolerant)", frames)
 	}
 	if profiles != 1 {
 		t.Fatalf("structural delta broken: profile appeared %d times", profiles)

@@ -11,14 +11,20 @@ import (
 	"time"
 )
 
-const frameHz = 10
+const frameHz = 20
 
-// Hub diffuse des instantanés à 10 Hz avec champs structurels compressés en
-// delta, rejeu Last-Event-ID (anneau 2048) et événements backpressure nommés.
+// ringCap — taille fixe de l'anneau : 4096 frames soit ~205 s à 20 Hz.
+// Un tableau statique évite le décalage O(n) de l'ancienne tranche glissante.
+const ringCap = 4096
+
+// Hub diffuse des instantanés à 20 Hz avec champs structurels compressés en
+// delta, rejeu Last-Event-ID (anneau 4096) et événements backpressure nommés.
 type Hub struct {
 	mu        sync.Mutex
 	lastID    uint64
-	ring      []frame // cap 2048
+	ring      [ringCap]frame // anneau O(1) : head/count modulo ringCap
+	head      int            // prochaine position d'écriture
+	count     int            // nombre de frames valides dans l'anneau
 	subs      map[*sub]struct{}
 	last      map[string]any // last structural values for delta
 	lastFull  string         // full snapshot json (structural included) for fresh-client sync
@@ -43,7 +49,7 @@ func NewHub() *Hub {
 	return h
 }
 
-// Serve démarre la boucle de diffusion 10 Hz sur le fournisseur d'instantanés.
+// Serve démarre la boucle de diffusion 20 Hz sur le fournisseur d'instantanés.
 func (h *Hub) Serve(next func() any) {
 	if h.ticker != nil {
 		return
@@ -112,9 +118,10 @@ func (h *Hub) Publish(snap any) {
 	}
 	h.lastID++
 	f := frame{id: h.lastID, raw: string(raw)}
-	h.ring = append(h.ring, f)
-	if len(h.ring) > 2048 {
-		h.ring = h.ring[1:]
+	h.ring[h.head] = f
+	h.head = (h.head + 1) % ringCap
+	if h.count < ringCap {
+		h.count++
 	}
 	payload := "id: " + strconv.FormatUint(f.id, 10) + "\ndata: " + f.raw + "\n\n"
 	for s := range h.subs {
@@ -128,6 +135,22 @@ func (h *Hub) Publish(snap any) {
 			}
 		}
 	}
+}
+
+// replayFrom — frames encore présents dans l'anneau, du plus ancien au plus
+// récent, en commençant à id >= from. Ignorer les IDs périmés évite de
+// rejouer des deltas dont la base structurelle a été évincée.
+func (h *Hub) replayFrom(from uint64) []string {
+	out := make([]string, 0, h.count)
+	start := (h.head - h.count + ringCap) % ringCap
+	for i := 0; i < h.count; i++ {
+		f := h.ring[(start+i)%ringCap]
+		if f.id < from {
+			continue
+		}
+		out = append(out, "id: "+strconv.FormatUint(f.id, 10)+"\ndata: "+f.raw+"\n\n")
+	}
+	return out
 }
 
 // SSE gère GET /api/stream : rejeu puis direct.
@@ -154,37 +177,32 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 	// Section atomique : le comptage et l'insertion sont sous le même verrou
 	// (le test-puis-insertion en deux temps laissait passer > 64 abonnés en
 	// rafale). L'anneau est copié ici, le rejeu s'écrit hors verrou.
-	var from int
+	var replay []string
 	lastEventID := r.Header.Get("Last-Event-ID")
 	stale := false
 	if lastEventID != "" {
 		if id, err := strconv.ParseUint(lastEventID, 10, 64); err == nil {
-			for i := len(h.ring) - 1; i >= 0; i-- {
-				if h.ring[i].id <= id {
-					from = i + 1
-					break
+			if h.count > 0 {
+				start := (h.head - h.count + ringCap) % ringCap
+				// ID antérieur au début de l'anneau (rotation) : le client a raté
+				// la base structurelle des deltas — resynchroniser sur le frame
+				// complet, sinon son état reste corrompu.
+				if id < h.ring[start].id {
+					stale = true
 				}
 			}
-			// ID antérieur au début de l'anneau (rotation) : le client a raté
-			// la base structurelle des deltas — resynchroniser sur le frame
-			// complet, sinon son état reste corrompu.
-			if from == 0 && len(h.ring) > 0 {
-				stale = true
-			}
+			replay = h.replayFrom(id + 1)
 		} else {
 			lastEventID = "" // ID illisible ⇒ traiter comme client frais
 		}
 	} else {
-		// Sans Last-Event-ID : rejeu limité aux 5 derniers frames pour éviter une
-		// tempête de 2048 frames (2 s de retard avec 20). 5 = 0,5 s de préchauffage,
-		// donne un frame récent mais pas un arriéré de 2 secondes.
-		if len(h.ring) > 5 {
-			from = len(h.ring) - 5
+		// Sans Last-Event-ID : 5 derniers frames seulement (0,25 s à 20 Hz).
+		if h.count > 5 {
+			start := (h.head - h.count + ringCap) % ringCap
+			replay = h.replayFrom(h.ring[(start+h.count-5)%ringCap].id)
+		} else {
+			replay = h.replayFrom(0)
 		}
-	}
-	replay := make([]string, 0, len(h.ring)-from)
-	for _, f := range h.ring[from:] {
-		replay = append(replay, "id: "+strconv.FormatUint(f.id, 10)+"\ndata: "+f.raw+"\n\n")
 	}
 	lastFull := h.lastFull
 	s := &sub{ch: make(chan string, 16)}

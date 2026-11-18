@@ -13,13 +13,13 @@ import (
 )
 
 // TestSSEStaleIDResync — un client qui revient avec un Last-Event-ID antérieur
-// à l'anneau (rotation des 2048 frames) doit recevoir le frame complet de
+// à l'anneau (rotation des 4096 frames) doit recevoir le frame complet de
 // resynchronisation : sans lui, les deltas rejoués référencent une base
 // structurelle jamais reçue (état client corrompu).
 func TestSSEStaleIDResync(t *testing.T) {
 	h := NewHub()
 	snap := map[string]any{"phase": "charge", "profile": "P1", "rtt_p95_ms": 100.0}
-	for i := 0; i < 2050; i++ {
+	for i := 0; i < ringCap+2; i++ { // 4098 > 4096 : id 1 est évincé, le client est bien périmé
 		h.Publish(snap)
 	}
 	mux := http.NewServeMux()
