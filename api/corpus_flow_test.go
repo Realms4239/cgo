@@ -15,6 +15,7 @@ import (
 // aucun réseau et sans audit sous la main. Un trou de câblage (une seule
 // route qui retournerait encore « ./data » relatif) ferait échouer ce test.
 func TestPinnedCorpusServesDashboard(t *testing.T) {
+	withDevNoAuth(t)
 	dir := t.TempDir()
 	t.Setenv("CGO_DATA_DIR", dir)
 	seeded, _, err := results.SeedRunsFor(results.RunsRoot())
@@ -71,6 +72,7 @@ func TestPinnedCorpusServesDashboard(t *testing.T) {
 // stable entre deux appels, et un If-None-Match joignant ce tag doit passer
 // en 304 (le client n'a pas à re-transférer la même réponse).
 func TestResultsETagRoundtrip(t *testing.T) {
+	withDevNoAuth(t)
 	dir := t.TempDir()
 	t.Setenv("CGO_DATA_DIR", dir)
 	if _, _, err := results.SeedRunsFor(results.RunsRoot()); err != nil {

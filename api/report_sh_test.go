@@ -12,6 +12,7 @@ import (
 // meilleure cellule gelée devient une recette tc complète et rejouable
 // (reset, netem aux conditions du profil, shaper), pas une ligne isolée.
 func TestReportExportSh(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	writeCSVRun(t, dir, "run-sh", header18,
 		"run-sh,1,P2,pfifo_fast,bbr,1,111,168,57,328.2,60.2,18.2,443,5,641464,66.40,0.0,valid",

@@ -14,6 +14,7 @@ import (
 // constante : bbr3 n'est annoncé que si le noyau l'expose, mais reste un
 // libellé connu pour que le refus vienne du moteur avec le chemin d'install.
 func TestCapabilitiesEndpoint(t *testing.T) {
+	withDevNoAuth(t)
 	srv := httptest.NewServer(New(Deps{}))
 	defer srv.Close()
 

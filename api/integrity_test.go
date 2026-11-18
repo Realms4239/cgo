@@ -22,6 +22,7 @@ import (
 // TestIntegrityCounts — valid strict, degraded and quarantined sont trois
 // comptes distincts ; « valid » n'inclut jamais les lignes dégradées.
 func TestIntegrityCounts(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	writeCSVRun(t, dir, "run-counts", header18,
 		"run-counts,1,P2,cake,bbr,1,100,114,14,209.2,98.1,18.1,81,0,117288,12.10,0.0,valid",
@@ -46,6 +47,7 @@ func TestIntegrityCounts(t *testing.T) {
 }
 
 func TestIntegrityProvenance(t *testing.T) {
+	withDevNoAuth(t)
 	dir := t.TempDir()
 	old, err := os.Getwd()
 	if err != nil {

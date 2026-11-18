@@ -73,6 +73,7 @@ func auditStartEvent(t *testing.T, srv *httptest.Server, site string) string {
 // dualns, cible, petit objet et charge portent le trio 10.30.0.2 — les
 // QUATRE sauts sur le chemin mesuré.
 func TestAuditStartSinksBenchAware(t *testing.T) {
+	withDevNoAuth(t)
 	t.Setenv("CGO_ALLOW_PRIVATE_TARGETS", "1") // opt-in banc : cibles 10.30.0.2
 	h := New(Deps{SinksFn: func() audit.Sinks {
 		return audit.Sinks{Mode: "dualns", Target: "10.30.0.2", SmallURL: "http://10.30.0.2:8081/small", BulkAddr: "10.30.0.2:5201"}
@@ -106,6 +107,7 @@ func TestAuditStartSinksBenchAware(t *testing.T) {
 // reste VIDE (jamais de charge implicite — un A+ sans charge est un mensonge)
 // et la charge ne vient que de CGO_BULK_ADDR ; la ligne du journal le dit.
 func TestAuditStartSinksExternalNoImplicitLoad(t *testing.T) {
+	withDevNoAuth(t)
 	t.Setenv("CGO_BULK_ADDR", "127.0.0.1:1")
 	t.Setenv("CGO_ALLOW_PRIVATE_TARGETS", "1") // loopback RFC1918-adjacent : opt-in requis
 	h := New(Deps{SinksFn: func() audit.Sinks {
@@ -146,6 +148,7 @@ func TestAuditStartSinksExternalNoImplicitLoad(t *testing.T) {
 // invalide, flux hors bornes, cible trop longue. Ces refus passent AVANT la
 // porte « audit déjà en cours » (la validation ne dépend pas de l'état).
 func TestAuditStartValidation400(t *testing.T) {
+	withDevNoAuth(t)
 	srv := httptest.NewServer(New(Deps{}))
 	defer srv.Close()
 

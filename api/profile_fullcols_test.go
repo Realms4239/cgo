@@ -13,6 +13,7 @@ import (
 // Gilbert-Elliott aux positions 5..9 ; réponse GET /api/profiles les
 // expose (sinon l'import UI/API écrit des champs que personne ne lit).
 func TestProfileImportFullColumns(t *testing.T) {
+	withDevNoAuth(t)
 	dir := t.TempDir()
 	old, _ := os.Getwd()
 	if err := os.Chdir(dir); err != nil {

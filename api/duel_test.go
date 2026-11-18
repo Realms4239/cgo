@@ -32,6 +32,7 @@ func itoa(i int) string     { return strconv.Itoa(i) }
 func ftoa(f float64) string { return strconv.FormatFloat(f, 'f', 1, 64) }
 
 func TestDuelPicksBestAndBaseWithGuardrail(t *testing.T) {
+	withDevNoAuth(t)
 	dir := t.TempDir()
 	runsRoot := filepath.Join(dir, "runs")
 	if err := os.MkdirAll(runsRoot, 0o755); err != nil {
@@ -68,6 +69,7 @@ func TestDuelPicksBestAndBaseWithGuardrail(t *testing.T) {
 }
 
 func TestDuelRefusesUnknownProfile(t *testing.T) {
+	withDevNoAuth(t)
 	srv := httptest.NewServer(New(Deps{}))
 	defer srv.Close()
 	resp, err := srv.Client().Get(srv.URL + "/api/duel?profile=../../etc")

@@ -14,6 +14,7 @@ import (
 // se retrouve ici, jamais de nombre recopié), avec la provenance de
 // chaque valeur : devis opérateur marqué quoted, disclaimer verbatim.
 func TestCostEnterpriseCatalog(t *testing.T) {
+	withDevNoAuth(t)
 	srv := httptest.NewServer(New(Deps{}))
 	defer srv.Close()
 

@@ -20,6 +20,7 @@ type snap struct {
 // {"running":false} pour /api/state et le fournisseur du hub 10 Hz —
 // vide honnête (frontière de vérité : les frames idle ne portent aucune mesure).
 func TestNewZeroDepsIdle(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
 	defer srv.Close()

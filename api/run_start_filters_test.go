@@ -16,15 +16,13 @@ import (
 // sans moteur câblé : prévention §6), paire filtrée ensemble, matrice
 // pleine quand les deux sont absents.
 func TestRunStartSubmatrixFilters(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{StartFn: func(o RunOpts) error { return nil }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
 	post := func(body string) int {
-		resp, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(body))
-		if err != nil {
-			t.Fatal(err)
-		}
+		resp := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(body))
 		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 		return resp.StatusCode
@@ -57,15 +55,13 @@ func TestRunStartSubmatrixFilters(t *testing.T) {
 // disponibilité : bbr3 atteint le moteur, qui le refuse avec le chemin
 // d'installation si le noyau ne l'expose pas (jamais un repli silencieux).
 func TestRunStartAcceptsBBRv3Label(t *testing.T) {
+	withDevNoAuth(t)
 	var got RunOpts
 	srv := httptest.NewServer(New(Deps{StartFn: func(o RunOpts) error { got = o; return nil }}))
 	defer srv.Close()
 
-	resp, err := http.Post(srv.URL+"/api/run/start", "application/json",
+	resp := postConfirmed(t, srv.URL+"/api/run/start",
 		strings.NewReader(`{"profiles":["P2"],"qdiscs":["cake"],"ccs":["bbr3"],"reps":1}`))
-	if err != nil {
-		t.Fatal(err)
-	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -79,16 +75,14 @@ func TestRunStartAcceptsBBRv3Label(t *testing.T) {
 // TestRunOptsReachStartFn — les filtres arrivent intacts au moteur (le
 // câblage serveur les matérialise en matrice pleine quand vides).
 func TestRunOptsReachStartFn(t *testing.T) {
+	withDevNoAuth(t)
 	var got RunOpts
 	h := New(Deps{StartFn: func(o RunOpts) error { got = o; return nil }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, err := http.Post(srv.URL+"/api/run/start", "application/json",
+	resp := postConfirmed(t, srv.URL+"/api/run/start",
 		strings.NewReader(`{"profiles":["P2"],"qdiscs":["cake"],"ccs":["cubic"],"reps":2}`))
-	if err != nil {
-		t.Fatal(err)
-	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	if len(got.Qdiscs) != 1 || got.Qdiscs[0] != "cake" || len(got.CCs) != 1 || got.CCs[0] != "cubic" {
@@ -101,15 +95,13 @@ func TestRunOptsReachStartFn(t *testing.T) {
 // l'entrée (prévention §6 : le client est une indication, jamais le
 // contrat), bursty refusé hors P2/P3 AVANT la porte moteur.
 func TestRunStartProvenanceValidation(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{StartFn: func(o RunOpts) error { return nil }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
 	post := func(body string) (int, string) {
-		resp, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(body))
-		if err != nil {
-			t.Fatal(err)
-		}
+		resp := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(body))
 		b, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		return resp.StatusCode, string(b)
@@ -136,11 +128,8 @@ func TestRunStartProvenanceValidation(t *testing.T) {
 	noEngine := New(Deps{})
 	srv2 := httptest.NewServer(noEngine)
 	defer srv2.Close()
-	resp, err := http.Post(srv2.URL+"/api/run/start", "application/json",
+	resp := postConfirmed(t, srv2.URL+"/api/run/start",
 		bytes.NewBufferString(`{"profiles":["P2"],"channel_model":"bursty","reps":1}`))
-	if err != nil {
-		t.Fatal(err)
-	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusServiceUnavailable {
@@ -152,6 +141,7 @@ func TestRunStartProvenanceValidation(t *testing.T) {
 // un identifiant qui en sort (../, /, \\) ferait écrire OpenRun hors du dossier.
 // Le reste de l'API valide déjà chaque identifiant via results.ValidRunID.
 func TestRunStartRefusesEscapingRunID(t *testing.T) {
+	withDevNoAuth(t)
 	called := false
 	h := New(Deps{StartFn: func(o RunOpts) error { called = true; return nil }})
 	srv := httptest.NewServer(h)
@@ -162,10 +152,7 @@ func TestRunStartRefusesEscapingRunID(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewReader(body))
-		if err != nil {
-			t.Fatal(err)
-		}
+		resp := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewReader(body))
 		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusBadRequest {
@@ -181,16 +168,14 @@ func TestRunStartRefusesEscapingRunID(t *testing.T) {
 // canal, flux) arrive intacte au moteur ; flows absent passe tel quel (0),
 // le câblage cmd/cgo appliquant le défaut 4 (décision 6).
 func TestRunStartProvenanceReachesStartFn(t *testing.T) {
+	withDevNoAuth(t)
 	var got RunOpts
 	h := New(Deps{StartFn: func(o RunOpts) error { got = o; return nil }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, err := http.Post(srv.URL+"/api/run/start", "application/json",
+	resp := postConfirmed(t, srv.URL+"/api/run/start",
 		strings.NewReader(`{"profiles":["P2"],"channel_model":"bursty","bench":"dualns","flows":3,"reps":1}`))
-	if err != nil {
-		t.Fatal(err)
-	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	if got.ChannelModel != "bursty" || got.Bench != "dualns" || got.Flows != 3 {
@@ -201,11 +186,8 @@ func TestRunStartProvenanceReachesStartFn(t *testing.T) {
 	h2 := New(Deps{StartFn: func(o RunOpts) error { gotNoFlows = o; return nil }})
 	srv2 := httptest.NewServer(h2)
 	defer srv2.Close()
-	resp2, err := http.Post(srv2.URL+"/api/run/start", "application/json",
+	resp2 := postConfirmed(t, srv2.URL+"/api/run/start",
 		strings.NewReader(`{"profiles":["P2"],"reps":1}`))
-	if err != nil {
-		t.Fatal(err)
-	}
 	_, _ = io.Copy(io.Discard, resp2.Body)
 	resp2.Body.Close()
 	if resp2.StatusCode != http.StatusOK {

@@ -14,6 +14,7 @@ import (
 // Import de profil CSV — une ligne sans en-tête : id,capacity_mbps,delay_ms,jitter_ms,loss_pct
 // Chdir vers un dossier temp : profile.Import persiste data/profiles.json relatif au CWD — ne jamais polluer le dépôt.
 func TestProfileImportCSV(t *testing.T) {
+	withDevNoAuth(t)
 	dir := t.TempDir()
 	old, err := os.Getwd()
 	if err != nil {

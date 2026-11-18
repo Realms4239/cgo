@@ -11,6 +11,7 @@ import (
 // observation (l'hôte observe ; le banc mesure). Les quatre sites déjà
 // gardés et les neuf complétés sont épinglés par la même table.
 func TestObserveModeReturns501(t *testing.T) {
+	withDevNoAuth(t)
 	paths := []string{
 		"/api/cost/tier", "/api/burst", "/api/watch", "/api/shape",
 		"/api/run/start", "/api/run/stop", "/api/run/skip",
@@ -22,6 +23,7 @@ func TestObserveModeReturns501(t *testing.T) {
 	for _, p := range paths {
 		req := httptest.NewRequest("POST", p, strings.NewReader("{}"))
 		req.RemoteAddr = "127.0.0.1:1234"
+		req.Header.Set("X-Confirm-Action", "true")
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, req)
 		if rec.Code != http.StatusNotImplemented {
@@ -33,6 +35,7 @@ func TestObserveModeReturns501(t *testing.T) {
 // TestObserveModeDoesNotRunSideEffects — la garde précède tout : en mode
 // observe, une mutation refusée n'exécute ni moteur ni écriture.
 func TestObserveModeDoesNotRunSideEffects(t *testing.T) {
+	withDevNoAuth(t)
 	called := false
 	h := New(Deps{Mode: "observe", StopFn: func() { called = true }})
 	req := httptest.NewRequest("POST", "/api/run/stop", nil)

@@ -23,7 +23,11 @@ import (
 type reportAlias Report // évite la récursion Report.UnmarshalJSON
 
 type Report struct {
-	AuditID   string `json:"audit_id"`
+	AuditID string `json:"audit_id"`
+	// OwnerID — empreinte du jeton qui a créé le rapport. Vide sur un rapport
+	// scellé avant ce champ : lisible par tout authentifié, jamais modifiable
+	// par un simple opérateur (les gardes d'api le décident).
+	OwnerID   string `json:"owner_id"`
 	Timestamp string `json:"timestamp"`
 	Site      string `json:"site"`
 	LinkType  string `json:"link_type"`
@@ -282,6 +286,9 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 	// ne publie pas un chemin approximatif.
 	rep.Artifact = ArtifactPointer(res.AuditID)
 
+	if res.KernelSample != nil {
+		rep.KernelTelemetry = KernelTelemetryFrom(*res.KernelSample)
+	}
 	loadMeasured := res.ThroughputMbps > 0 && res.BloatGrade != ""
 	loadMeasuredDown := res.ThroughputDownMbps > 0
 	rep.Measured = Measured{

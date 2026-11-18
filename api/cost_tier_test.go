@@ -11,18 +11,33 @@ import (
 	"github.com/Realms4239/cgo/metrics"
 )
 
+// postConfirmed — POST avec la confirmation explicite exigée depuis le plan K2
+// sur les cinq routes destructives. Partagé par les tests api du paquet.
+func postConfirmed(t *testing.T, url string, body io.Reader) *http.Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Confirm-Action", "true")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
+}
+
 // TestCostTierSelect — le palier actif se choisit et s'applique : inconnu =
 // 400, connu = 200 + reflété par GET /api/cost/tiers.
 func TestCostTierSelect(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
 	post := func(body string) (int, string) {
-		resp, err := http.Post(srv.URL+"/api/cost/tier", "application/json", bytes.NewBufferString(body))
-		if err != nil {
-			t.Fatal(err)
-		}
+		resp := postConfirmed(t, srv.URL+"/api/cost/tier", bytes.NewBufferString(body))
 		defer resp.Body.Close()
 		b, _ := io.ReadAll(resp.Body)
 		return resp.StatusCode, string(b)
@@ -51,16 +66,14 @@ func TestCostTierSelect(t *testing.T) {
 // TestCostTierRefusedWhileCampaignRuns — le palier est gelé avec le run :
 // le changer en cours de campagne donnerait deux bases de coût dans le même gel.
 func TestCostTierRefusedWhileCampaignRuns(t *testing.T) {
+	withDevNoAuth(t)
 	before := metrics.ActiveTierName()
 	h := New(Deps{RunningFn: func() bool { return true }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, err := http.Post(srv.URL+"/api/cost/tier", "application/json",
+	resp := postConfirmed(t, srv.URL+"/api/cost/tier",
 		bytes.NewBufferString(`{"tier":"yas-day-1gb"}`))
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusConflict {

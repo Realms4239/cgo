@@ -16,6 +16,7 @@ import (
 // passe de hachage) et expose un ETag stable : le cockpit ne paie pas le scan
 // à chaque rendu. hash8 doit dériver du SHA complet, pas d'un second parcours.
 func TestIntegrityCachedAndTagged(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	writeCSVRun(t, dir, "run-cache", header18,
 		"run-cache,1,P2,cake,bbr,1,100,114,14,209.2,98.1,18.1,81,0,117288,12.10,0.0,valid",

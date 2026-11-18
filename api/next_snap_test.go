@@ -14,6 +14,7 @@ import (
 // GetSnap (dernier échantillon). Un poll d'état ne raccourcit jamais une
 // fenêtre SSE.
 func TestNextSnapDrivesHubAndNotState(t *testing.T) {
+	withDevNoAuth(t)
 	var hubCalls, stateCalls atomic.Int64
 	h := New(Deps{
 		GetSnap: func() any {

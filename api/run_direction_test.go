@@ -12,15 +12,13 @@ import (
 // up (défaut/vide), down, both (RRUL séquentiel). Valeur inconnue = 400
 // (validé à l'entrée même sans moteur câblé — prévention §6).
 func TestRunStartDirection(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{StartFn: func(o RunOpts) error { return nil }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
 	post := func(body string) int {
-		resp, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(body))
-		if err != nil {
-			t.Fatal(err)
-		}
+		resp := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(body))
 		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 		return resp.StatusCode

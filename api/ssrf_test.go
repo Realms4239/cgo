@@ -44,6 +44,7 @@ func ssrfDeps() Deps {
 // TestAuditStartSSRFPrivateRefused — small_url/bulk_addr vers privé → 403
 // avec erreur nommée, AVANT toute mesure (la session n'est pas armée).
 func TestAuditStartSSRFPrivateRefused(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(ssrfDeps())
 	srv := httptest.NewServer(h)
 	defer srv.Close()
@@ -73,6 +74,7 @@ func TestAuditStartSSRFPrivateRefused(t *testing.T) {
 // TestAuditStartSSRFOptInFlips — l'opt-in banc CGO_ALLOW_PRIVATE_TARGETS=1
 // rouvre le laboratoire (10.30.0.2).
 func TestAuditStartSSRFOptInFlips(t *testing.T) {
+	withDevNoAuth(t)
 	t.Setenv("CGO_ALLOW_PRIVATE_TARGETS", "1")
 	h := New(ssrfDeps())
 	srv := httptest.NewServer(h)
@@ -90,6 +92,7 @@ func TestAuditStartSSRFOptInFlips(t *testing.T) {
 // (La sonde échoue après coup si l'hôte est injoignable — l'audit le
 // consigne, ce n'est pas un 403 : le chemin d'erreur de l'audit est ignoré.)
 func TestAuditStartSSRFPublicAllowed(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(ssrfDeps())
 	srv := httptest.NewServer(h)
 	defer srv.Close()
@@ -106,6 +109,7 @@ func TestAuditStartSSRFPublicAllowed(t *testing.T) {
 // (erreur client), et un small_url vide garde le chemin existant : la
 // garde ne s'applique pas à l'absence de charge.
 func TestAuditStartSSRFArgsMalformed(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(ssrfDeps())
 	srv := httptest.NewServer(h)
 	defer srv.Close()
@@ -132,6 +136,7 @@ func TestAuditStartSSRFArgsMalformed(t *testing.T) {
 // TestAuditStartSSRFGuardRunsBeforeSideEffects — la porte est devant la
 // session : un refus n'arme pas l'audit.
 func TestAuditStartSSRFGuardRunsBeforeSideEffects(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(ssrfDeps())
 	srv := httptest.NewServer(h)
 	defer srv.Close()

@@ -13,6 +13,7 @@ import (
 // TestCompareEndpoint — MW bilatéral + Cliff valid-only, additif (anciens
 // champs /api/results intacts : testé par les suites existantes).
 func TestCompareEndpoint(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	// pfifo : latences hautes ; cake : basses, distribution disjointe.
 	pfifo := []string{
@@ -72,6 +73,7 @@ func TestCompareEndpoint(t *testing.T) {
 
 // TestQuarantineFailedGates — passthrough additif + summary live.
 func TestQuarantineFailedGates(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	writeCSVRun(t, dir, "run-q", header18,
 		"run-q,1,P2,pfifo_fast,cubic,1,100.0,124.0,24.0,213.9,98.0,2.0,81,0,117288,12.10,0.0,invalid",

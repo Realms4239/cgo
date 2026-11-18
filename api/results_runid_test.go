@@ -10,6 +10,7 @@ import (
 // (data/runs/<run>/aqm_eval.csv) : il doit être refusé comme sur run/rows et
 // replay/stream, au lieu de partir dans le chemin.
 func TestResultsRejectsUnsafeRun(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{})
 	for _, bad := range []string{"..", "../x", `..\x`, "a/b"} {
 		rr := httptest.NewRecorder()

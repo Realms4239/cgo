@@ -157,6 +157,43 @@ func TestLogoutClearsCookie(t *testing.T) {
 	}
 }
 
+// TestLegacyLogoutRevokesSessionCookie — la route historique anonyme
+// POST /api/logout révoque aussi le cookie présent côté serveur : le jeton ne
+// peut plus authentifier une requête après la déconnexion, tout en restant une
+// route anonyme (pas de 401 sans credential).
+func TestLegacyLogoutRevokesSessionCookie(t *testing.T) {
+	t.Setenv("CGO_API_TOKEN", "legacy-logout-secret")
+	h := New(Deps{})
+	token := newSessionToken()
+
+	before := httptest.NewRequest("GET", "http://example.com/api/cost/tiers", nil)
+	before.RemoteAddr = "10.9.8.7:1234"
+	before.AddCookie(&http.Cookie{Name: sessionCookie, Value: token})
+	beforeRec := httptest.NewRecorder()
+	h.ServeHTTP(beforeRec, before)
+	if beforeRec.Code != http.StatusOK {
+		t.Fatalf("cookie before logout: %d, want 200", beforeRec.Code)
+	}
+
+	out := httptest.NewRequest("POST", "http://example.com/api/logout", nil)
+	out.RemoteAddr = "10.9.8.7:1234"
+	out.AddCookie(&http.Cookie{Name: sessionCookie, Value: token})
+	outRec := httptest.NewRecorder()
+	h.ServeHTTP(outRec, out)
+	if outRec.Code != http.StatusOK {
+		t.Fatalf("anonymous logout: %d, want 200", outRec.Code)
+	}
+
+	after := httptest.NewRequest("GET", "http://example.com/api/cost/tiers", nil)
+	after.RemoteAddr = "10.9.8.7:1234"
+	after.AddCookie(&http.Cookie{Name: sessionCookie, Value: token})
+	afterRec := httptest.NewRecorder()
+	h.ServeHTTP(afterRec, after)
+	if afterRec.Code != http.StatusUnauthorized {
+		t.Fatalf("revoked cookie after legacy logout: %d, want 401", afterRec.Code)
+	}
+}
+
 // TestHealthStaysAnonymous — la sonde de vie répond sans credential, même
 // avec un token configuré et un appelant non-loopback.
 func TestHealthStaysAnonymous(t *testing.T) {
@@ -203,9 +240,11 @@ func TestMutationRequiresAuthWhenTokenSet(t *testing.T) {
 	}
 }
 
-// TestDevModeStaysAnonymousOnLoopback — mode dev (pas de token) : loopback
-// passe, non-loopback est refusé (les lectures comme les mutations).
+// TestDevModeStaysAnonymousOnLoopback — opt-in dev explicite (pas de token) :
+// loopback passe, non-loopback est refusé (les lectures comme les mutations).
 func TestDevModeStaysAnonymousOnLoopback(t *testing.T) {
+	SetDevNoAuth(true)
+	defer SetDevNoAuth(false)
 	os.Unsetenv("CGO_API_TOKEN")
 	h := New(Deps{})
 	getLoop := httptest.NewRequest("GET", "http://example.com/api/cost/tiers", nil)
@@ -236,7 +275,7 @@ func TestDevModeStaysAnonymousOnLoopback(t *testing.T) {
 func TestCookieGrantsAccessNonLoopback(t *testing.T) {
 	t.Setenv("CGO_API_TOKEN", "token-secret-abc")
 	h := New(Deps{})
-	cookie := sessionToken("token-secret-abc")
+	cookie := newSessionToken()
 	req := httptest.NewRequest("GET", "http://example.com/api/cost/tiers", nil)
 	req.RemoteAddr = "10.9.8.7:1234"
 	req.AddCookie(&http.Cookie{Name: "cgo_session", Value: cookie})

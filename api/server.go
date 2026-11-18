@@ -64,6 +64,28 @@ func readAuditReport(id string) (*audit.Report, error) {
 	return &rep, nil
 }
 
+// auditReportOwner — propriétaire du rapport visé par ?audit_id= (ou du dernier
+// rapport en mémoire, quand aucun identifiant n'est nommé). Vide pour un rapport
+// historique sans owner_id : lecture ouverte, mutation réservée à l'admin.
+func (s *Server) auditReportOwner(r *http.Request) string {
+	id := strings.TrimSpace(r.URL.Query().Get("audit_id"))
+	if rep := s.audit.reportFor(id); rep != nil {
+		return rep.OwnerID
+	}
+	if id == "" {
+		return ""
+	}
+	rep, err := readAuditReport(id)
+	if err != nil {
+		return "" // artefact absent : le handler signale lui-même le 404
+	}
+	return rep.OwnerID
+}
+
+// runOwner — les runs ne portent pas encore d'owner_id : lecture ouverte aux
+// authentifiés, mutation réservée à l'admin.
+func runOwner(*http.Request) string { return "" }
+
 // auditReportExists — le dossier d'archive de ce rapport est-il présent ?
 // Une ligne de link_audit.csv peut précéder l'archivage par dossier : sans ce
 // drapeau, le dashboard propose « OUVRIR » sur une impasse et le premier clic
@@ -215,6 +237,9 @@ type Deps struct {
 	// instantanés) ; nil ⇒ implémentations réelles. OnProgress est posé
 	// par le handler, jamais par l'injection.
 	AuditDepsFn func() audit.Deps
+	// DevNoAuth — opt-in explicite (--dev-no-auth) : sans jeton, le loopback
+	// passe sans authentification. Sans ce drapeau, fail closed.
+	DevNoAuth bool
 }
 
 // observeBlocked — les hôtes en mode observation : l'audit et les campagnes
@@ -366,6 +391,9 @@ func New(d Deps) Handler {
 // préparer un état (audit en cours, rapport présent) au lieu d'écrire
 // dans des variables de paquet.
 func NewServer(d Deps) *Server {
+	if d.DevNoAuth {
+		devNoAuth = true
+	}
 	// fournisseur nil ⇒ instantané idle — vide honnête, jamais de panic sur appel nil
 	snap := d.GetSnap
 	if snap == nil {
@@ -428,8 +456,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerAuth — connexion navigateur : login pose un cookie de session
-// HttpOnly (jamais le token dans le corps), logout l'efface. Anonymes par
-// construction ; requireAuth n'enveloppe pas ces deux routes.
+// HttpOnly (jamais le token dans le corps). /api/logout reste anonyme mais
+// révoque le cookie présent côté serveur avant de l'effacer chez le client ;
+// /api/auth/logout est protégé et fait la même chose. Les deux routes
+// historiques restent anonymes.
 func (s *Server) registerAuth(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
@@ -447,13 +477,18 @@ func (s *Server) registerAuth(mux *http.ServeMux) {
 		}
 		secure := r.TLS != nil
 		w.Header().Set("Set-Cookie", (&http.Cookie{
-			Name: sessionCookie, Value: sessionToken(secret),
+			Name: sessionCookie, Value: newSessionToken(),
 			Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode,
 			Secure: secure, MaxAge: 86400,
 		}).String())
 		writeJSON(w, map[string]any{"ok": true})
 	})
 	mux.HandleFunc("POST /api/logout", func(w http.ResponseWriter, r *http.Request) {
+		// Route anonyme : si un cookie est présent, le révoquer côté serveur
+		// avant de l'effacer — sinon un jeton volé resterait valable.
+		if c, err := r.Cookie(sessionCookie); err == nil {
+			revokeSession(c.Value)
+		}
 		secure := r.TLS != nil
 		w.Header().Set("Set-Cookie", (&http.Cookie{
 			Name: sessionCookie, Value: "",
@@ -462,6 +497,20 @@ func (s *Server) registerAuth(mux *http.ServeMux) {
 		}).String())
 		writeJSON(w, map[string]any{"ok": true})
 	})
+	// Révocation serveur : le cookie présent est retiré de la table des
+	// sessions acceptées, puis effacé côté client. Bearer reste valable.
+	mux.HandleFunc("POST /api/auth/logout", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if c, err := r.Cookie(sessionCookie); err == nil {
+			revokeSession(c.Value)
+		}
+		secure := r.TLS != nil
+		w.Header().Set("Set-Cookie", (&http.Cookie{
+			Name: sessionCookie, Value: "",
+			Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode,
+			Secure: secure, MaxAge: -1,
+		}).String())
+		writeJSON(w, map[string]any{"ok": true})
+	}))
 }
 
 // registerHealth — un seul site d'enregistrement par domaine.
@@ -529,7 +578,7 @@ func (s *Server) registerCost(mux *http.ServeMux) {
 	})
 	// palier actif — le forfait où vit l'institution (les coûts affichés
 	// suivent ; inconnu = 400, pas de défaut silencieux)
-	mux.HandleFunc("POST /api/cost/tier", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/cost/tier", requireAuth(requireConfirm(func(w http.ResponseWriter, r *http.Request) {
 		if s.deps.observeBlocked(w) {
 			return
 		}
@@ -552,11 +601,11 @@ func (s *Server) registerCost(mux *http.ServeMux) {
 		}
 		recordEvent("tarif", fmt.Sprintf("palier actif : %s", body.Tier))
 		writeJSON(w, map[string]any{"ok": true, "tier": body.Tier})
-	}))
+	})))
 	// test burst — une sonde bulk avec la CC choisie à travers le bord
 	// actuellement façonné, pendant que la surveillance veille. Refusé en
 	// cours de campagne : la matrice possède alors le shaper.
-	mux.HandleFunc("POST /api/burst", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/burst", requireAuth(requireConfirm(func(w http.ResponseWriter, r *http.Request) {
 		if s.deps.observeBlocked(w) {
 			return
 		}
@@ -603,7 +652,7 @@ func (s *Server) registerCost(mux *http.ServeMux) {
 		}
 		recordEvent("burst", fmt.Sprintf("burst %s %ds — traverse le bord façonné", body.CC, body.Seconds))
 		writeJSON(w, map[string]any{"ok": true, "cc": body.CC, "seconds": body.Seconds})
-	}))
+	})))
 }
 
 // registerState — un seul site d'enregistrement par domaine.
@@ -680,7 +729,7 @@ func (s *Server) registerEdge(mux *http.ServeMux) {
 		}
 		writeJSON(w, map[string]any{"watch": body.On})
 	}))
-	mux.HandleFunc("POST /api/shape", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/shape", requireAuth(requireConfirm(func(w http.ResponseWriter, r *http.Request) {
 		if s.deps.observeBlocked(w) {
 			return
 		}
@@ -697,12 +746,12 @@ func (s *Server) registerEdge(mux *http.ServeMux) {
 			return
 		}
 		writeJSON(w, out)
-	}))
+	})))
 }
 
 // registerRun — un seul site d'enregistrement par domaine.
 func (s *Server) registerRun(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/run/start", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/run/start", requireAuth(requireConfirm(s.requireOwnerMutate(func(w http.ResponseWriter, r *http.Request) {
 		if s.deps.observeBlocked(w) {
 			return
 		}
@@ -744,7 +793,7 @@ func (s *Server) registerRun(mux *http.ServeMux) {
 		}
 		recordEvent("campagne", fmt.Sprintf("démarrée — %s ×%d, deadline %d ms, cible %s", strings.Join(opts.Profiles, "/"), opts.Reps, opts.DeadlineMs, opts.Target))
 		writeJSON(w, map[string]any{"started": true})
-	}))
+	}, runOwner))))
 	mux.HandleFunc("POST /api/run/stop", requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if s.deps.observeBlocked(w) {
 			return
@@ -959,7 +1008,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 		}
 		writeJSON(w, payload)
 	})
-	mux.HandleFunc("GET /api/report/export", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/report/export", s.requireOwnerMutate(func(w http.ResponseWriter, r *http.Request) {
 		fmtParam := r.URL.Query().Get("format")
 		if fmtParam == "" {
 			fmtParam = "md"
@@ -1064,7 +1113,7 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 		if hash8 := figures.ProvenanceHash8(results.RunsRoot()); hash8 != "" {
 			fmt.Fprintf(w, "\nprovenance : sha256:%s · source %s/*/aqm_eval.csv · généré %s\n", hash8, filepath.ToSlash(results.RunsRoot()), time.Now().UTC().Format(time.RFC3339))
 		}
-	})
+	}, runOwner))
 
 }
 
@@ -1149,12 +1198,12 @@ func (s *Server) registerAudit(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/audit/start", requireAuth(handleAuditStart(s.deps, s.audit)))
 	mux.HandleFunc("GET /api/audit/status", handleAuditStatus(s.audit))
 	mux.HandleFunc("GET /api/audit/live", handleAuditLive(s.audit))
-	mux.HandleFunc("POST /api/audit/stop", requireAuth(handleAuditStop(s.deps, s.audit)))
-	mux.HandleFunc("GET /api/audit/report", handleAuditReport(s.audit))
-	mux.HandleFunc("GET /api/remediate", handleRemediate(s.audit))
+	mux.HandleFunc("POST /api/audit/stop", requireAuth(s.requireOwnerMutate(handleAuditStop(s.deps, s.audit), s.auditReportOwner)))
+	mux.HandleFunc("GET /api/audit/report", s.requireOwner(handleAuditReport(s.audit), s.auditReportOwner))
+	mux.HandleFunc("GET /api/remediate", s.requireOwner(handleRemediate(s.audit), s.auditReportOwner))
 	mux.HandleFunc("GET /api/audit/presets", handleAuditPresets())
 	mux.HandleFunc("GET /api/audit/list", handleAuditList(s.audit))
-	mux.HandleFunc("POST /api/audit/toprofile", requireAuth(handleAuditToProfile(s.deps)))
+	mux.HandleFunc("POST /api/audit/toprofile", requireAuth(s.requireOwnerMutate(handleAuditToProfile(s.deps), s.auditReportOwner)))
 }
 
 // registerProfiles — un seul site d'enregistrement par domaine.
@@ -1237,7 +1286,7 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 	}))
 	// Suppression d'un profil importé (le référentiel P1–P4 est intouchable —
 	// refusé par profile.Delete, pas par le vide).
-	mux.HandleFunc("POST /api/profile/delete", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/profile/delete", requireAuth(requireConfirm(func(w http.ResponseWriter, r *http.Request) {
 		if s.deps.observeBlocked(w) {
 			return
 		}
@@ -1258,7 +1307,7 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 		}
 		recordEvent("profil", fmt.Sprintf("%s supprimé (import retiré)", strings.TrimSpace(body.ID)))
 		writeJSON(w, map[string]any{"ok": true})
-	}))
+	})))
 	mux.HandleFunc("GET /api/profile/list", func(w http.ResponseWriter, _ *http.Request) {
 		profile.Load()
 		// copie sous verrou : l'encodage JSON vers un client lent ne doit pas
@@ -1312,7 +1361,7 @@ func (s *Server) registerStream(mux *http.ServeMux) {
 
 // registerCorpus — un seul site d'enregistrement par domaine.
 func (s *Server) registerCorpus(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/run/rows", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/run/rows", s.requireOwner(func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("run")
 		if id == "" || !results.ValidRunID(id) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
@@ -1342,7 +1391,7 @@ func (s *Server) registerCorpus(mux *http.ServeMux) {
 			out = append(out, m)
 		}
 		writeJSON(w, map[string]any{"run": id, "rows": out})
-	})
+	}, runOwner))
 	// Quarantaine réelle — ?run= vide est un cas légitime : tous les runs.
 	// La règle du module results borne les identifiants non vides.
 	mux.HandleFunc("GET /api/quarantine", func(w http.ResponseWriter, r *http.Request) {
@@ -1555,6 +1604,19 @@ func writeJSON(w http.ResponseWriter, v any) {
 	}
 }
 
+// requireConfirm — garde de confirmation explicite sur les POST destructifs :
+// sans X-Confirm-Action: true, la mutation est refusée avant tout effet de
+// bord. Posée à l'intérieur de requireAuth, jamais sur les routes de lecture.
+func requireConfirm(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Confirm-Action") != "true" {
+			writeErr(w, r, "confirmation requise : X-Confirm-Action: true", http.StatusBadRequest)
+			return
+		}
+		next(w, r)
+	}
+}
+
 // writeErr — erreur HTTP négociée : JSON pour les clients fetch().json()
 // du frontend, text/plain inchangé pour curl et les scripts bash.
 func writeErr(w http.ResponseWriter, r *http.Request, msg string, code int) {
@@ -1598,7 +1660,7 @@ func auditParamsFromRequest(body map[string]any) audit.Params {
 		dir = "up"
 	}
 	return audit.Params{
-		AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
+		AuditID: NewAuditID(),
 		Site:    get("site"), LinkType: get("link_type"), Provider: get("provider"),
 		Duration: num("duration", 60), Target: get("target"),
 		Direction: dir, Flows: num("flows", 4),

@@ -24,8 +24,8 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
-	"time"
 
+	"github.com/Realms4239/cgo/api"
 	"github.com/Realms4239/cgo/attest"
 	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/doctor"
@@ -66,7 +66,21 @@ func main() {
 		httpAddr := fs.String("http-addr", "127.0.0.1:9080", "redirection HTTP→HTTPS (vide = désactivée)")
 		mode := fs.String("mode", "auto", "observe | full | auto (défaut: OS décide — Windows observe, Linux complet)")
 		expose := fs.Bool("expose", false, "autorise l'écoute hors loopback (exige CGO_API_TOKEN ou /etc/cgo/auth.token)")
+		devNoAuth := fs.Bool("dev-no-auth", false, "mode dev: désactive l'authentification sur loopback uniquement (jamais avec --expose)")
 		_ = fs.Parse(os.Args[2:])
+		// Le mode dev est un opt-in explicite : jamais avec --expose, et un
+		// jeton absent fait échouer le démarrage (fail closed, exit 2) sans lui.
+		if *devNoAuth && *expose {
+			fmt.Fprintln(os.Stderr, "serve: --dev-no-auth ne peut pas être combiné avec --expose — refus (exit 2)")
+			os.Exit(2)
+		}
+		if *devNoAuth {
+			fmt.Fprintln(os.Stderr, "ATTENTION: authentification désactivée (loopback uniquement)")
+		} else if os.Getenv("CGO_API_TOKEN") == "" && !tokenFilePresent(authTokenFile) {
+			fmt.Fprintf(os.Stderr, "serve: aucun jeton configuré (CGO_API_TOKEN vide et %s absent) — fail closed (exit 2). Définissez un jeton ou passez --dev-no-auth (loopback uniquement, jamais avec --expose)\n", authTokenFile)
+			os.Exit(2)
+		}
+		api.SetDevNoAuth(*devNoAuth)
 		if err := checkExposure(*addr, *expose, os.Getenv, authTokenFile); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
@@ -234,7 +248,7 @@ WantedBy=multi-user.target
 			os.Exit(2)
 		}
 		p := audit.Params{
-			AuditID: fmt.Sprintf("audit-%d", time.Now().Unix()),
+			AuditID: api.NewAuditID(),
 			Site:    *site, LinkType: *linkType, Provider: *provider,
 			Duration: *duration, Target: *target, Direction: *direction, Flows: *flows,
 			SmallURL: *small, BulkAddr: *bulk,
@@ -281,6 +295,13 @@ WantedBy=multi-user.target
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "audit report:", err)
 			os.Exit(1)
+		}
+		// Possesseur — même règle que api.principalFrom : empreinte du jeton
+		// configuré ; sans jeton (mode dev explicite) le rapport reste non
+		// possédé, lisible mais non modifiable par un simple opérateur.
+		if token := os.Getenv("CGO_API_TOKEN"); token != "" {
+			sum := sha256.Sum256([]byte(token))
+			rep.OwnerID = hex.EncodeToString(sum[:])[:16]
 		}
 		// Double sceau : la série brute, puis la ligne CSV que l'audit vient
 		// d'ajouter — le rapport prouve les deux maillons.
@@ -410,9 +431,10 @@ func printAuditSummary(rep *audit.Report) {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--tls=false] [--expose] [--http-addr 127.0.0.1:9080] [--mode observe|full|auto]
+	fmt.Fprint(os.Stderr, `usage: cgo --serve [--addr host:port] [--tls=false] [--expose] [--dev-no-auth] [--http-addr 127.0.0.1:9080] [--mode observe|full|auto]
        env: CGO_IFACE=<iface> CGO_IFACE_SOURCE=twin|prod|unknown   # débit interface 10 Hz
-       env: CGO_API_TOKEN=<token>            # exigé pour --expose hors loopback (ou /etc/cgo/auth.token, 0600)
+       env: CGO_API_TOKEN=<token>            # jeton API (ou /etc/cgo/auth.token, 0600) ; requis sauf --dev-no-auth
+       --dev-no-auth: mode dev loopback uniquement, jamais avec --expose ; sans jeton ni drapeau, échec (exit 2)
        écoute hors loopback refusée sans --expose + token (exit 2) — 127.0.0.1 reste le défaut dev
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3

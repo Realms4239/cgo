@@ -20,6 +20,7 @@ import (
 // par un POST navigateur (CSRF) ; la lecture et les clients sans en-tête
 // (curl, CLI, tests) restent inchangés.
 func TestCrossSiteGuard(t *testing.T) {
+	withDevNoAuth(t)
 	srv := httptest.NewServer(New(Deps{}))
 	defer srv.Close()
 
@@ -117,6 +118,7 @@ func TestTruncateUTF8(t *testing.T) {
 // partir telle quelle vers le ping : elle est assainie avant le banc par
 // défaut, et l'événement d'ouverture le prouve.
 func TestAuditStartTrimsTarget(t *testing.T) {
+	withDevNoAuth(t)
 	t.Setenv("CGO_BULK_ADDR", "")
 	t.Setenv("CGO_SMALL_URL", "")
 	h := New(Deps{
@@ -174,6 +176,7 @@ func TestAuditStartTrimsTarget(t *testing.T) {
 // la goroutine détachée journalise la panne, efface le rapport de ce run et
 // rend auditRunning=false pour l'audit suivant.
 func TestAuditPanicRecovered(t *testing.T) {
+	withDevNoAuth(t)
 	t.Setenv("CGO_BULK_ADDR", "")
 	t.Setenv("CGO_SMALL_URL", "")
 	site := "panic-" + time.Now().Format("150405.000000")

@@ -59,6 +59,7 @@ func auditRows(path string) int {
 // échantillons mesurés, /api/audit/stop annule sans écrire de ligne partielle
 // et journalise un arrêt volontaire distinct d'une panne.
 func TestAuditLiveAndStop(t *testing.T) {
+	withDevNoAuth(t)
 	site := "live-stop-" + time.Now().Format("150405.000000")
 	h := New(Deps{
 		SinksFn: func() audit.Sinks {
@@ -191,6 +192,7 @@ func TestAuditLiveAndStop(t *testing.T) {
 // précédent : /start l'efface avant de lancer le nouveau, sinon un run annulé
 // ou en échec afficherait l'ancien rapport comme son résultat.
 func TestAuditStartClearsStaleReport(t *testing.T) {
+	withDevNoAuth(t)
 	site := "stale-report-" + time.Now().Format("150405.000000")
 	srv0 := NewServer(Deps{
 		SinksFn: func() audit.Sinks {

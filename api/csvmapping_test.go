@@ -48,6 +48,7 @@ func writeCSVRun(t *testing.T, dir, run, header string, rows ...string) {
 // la colonne small_p95_ms (328.2), pas qdi_ms (57.4) ; drops depuis drops
 // (443), pas deadline_ok_pct (60.2).
 func TestReplayStreamReadsByName(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	writeCSVRun(t, dir, "run-t", header18,
 		"run-t,1,P2,pfifo_fast,bbr,1,111.0,168.4,57.4,328.2,60.2,18.2,443,5,641464,66.40,0.0,valid",
@@ -78,6 +79,7 @@ func TestReplayStreamReadsByName(t *testing.T) {
 // TestReplayStreamRejectsTraversal — comme /api/run/rows : 400, pas de sortie
 // de data/runs.
 func TestReplayStreamRejectsTraversal(t *testing.T) {
+	withDevNoAuth(t)
 	chdirTemp(t)
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
@@ -100,6 +102,7 @@ func TestReplayStreamRejectsTraversal(t *testing.T) {
 // Un profil importé (PWT) porte imported=true ; nettoyé après le test pour
 // ne pas fuir dans la carte globale.
 func TestProfilesBuiltinNotImported(t *testing.T) {
+	withDevNoAuth(t)
 	chdirTemp(t) // profile.Import persiste data/profiles.json relatif au CWD
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
@@ -153,6 +156,7 @@ func TestProfilesBuiltinNotImported(t *testing.T) {
 
 // TestIntegrityBreakdown — détail par run + updated, triés du plus récent.
 func TestIntegrityBreakdown(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	writeCSVRun(t, dir, "run-a", header18,
 		"run-a,1,P2,cake,bbr,1,100,114,14,209.2,98.1,18.1,81,0,117288,12.10,0.0,valid",
@@ -183,6 +187,7 @@ func TestIntegrityBreakdown(t *testing.T) {
 
 // TestQuarantineRoute — quarantaine réelle depuis quarantine.json gelés.
 func TestQuarantineRoute(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	for _, run := range []string{"run-a", "run-b"} {
 		rd := filepath.Join(dir, "data", "runs", run)
@@ -221,6 +226,7 @@ func TestQuarantineRoute(t *testing.T) {
 // TestResultsDeltaDownCell — cellule 4 parties "P|q|cc|down" : la dérive se
 // calcule sur les lignes download, jamais mélangée à l'upload.
 func TestResultsDeltaDownCell(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	header := "run_id,event_id,profile,qdisc,cc,direction,repetition,rtt_p50_ms,rtt_p95_ms,qdi_ms,voip_r,jfi_pct,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,rtt_base_p50_ms,rtt_base_p95_ms,gate_status"
 	writeCSVRun(t, dir, "run-a", header,
@@ -256,6 +262,7 @@ func TestResultsDeltaDownCell(t *testing.T) {
 
 // TestResultsDeltaReadsByName — la dérive small_p95 se calcule sur small_p95_ms
 func TestResultsDeltaReadsByName(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	writeCSVRun(t, dir, "run-a", header18,
 		"run-a,1,P2,cake,bbr,1,140.0,150.0,50.0,300.0,90.0,10.0,20,0,100000,10.0,0.0,valid",

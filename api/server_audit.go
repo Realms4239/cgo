@@ -155,6 +155,9 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 		if body.Asymmetric != nil {
 			asymmetric = *body.Asymmetric
 		}
+		// Le propriétaire est décidé à la réception, pendant que la requête
+		// existe : la goroutine d'audit ne doit pas lire r après son retour.
+		ownerID := principalFrom(r).OperatorID
 		go func() {
 			defer func() {
 				// Une panne de dépendance ne doit pas tuer le dashboard :
@@ -211,6 +214,7 @@ func handleAuditStart(d Deps, s *auditSession) http.HandlerFunc {
 			if rerr != nil {
 				recordEvent("audit", fmt.Sprintf("rapport impossible — %s : %s", p.Site, rerr))
 			} else {
+				rep.OwnerID = ownerID
 				// Même ordre de preuve que la CLI : la série brute d'abord
 				// (telemetry.csv), scellée, puis la ligne CSV que cet audit
 				// vient d'ajouter, scellée — artefacts seulement après les deux
@@ -382,6 +386,7 @@ func handleRemediate(s *auditSession) http.HandlerFunc {
 				asym := q.Get("asymmetric") != "false"
 				rebuilt, err := audit.BuildReport(res, link, q.Get("qdisc"), asym, q.Get("cpu_constrained") == "true")
 				if err == nil {
+					rebuilt.OwnerID = rep.OwnerID // la reconstruction ne change pas le propriétaire
 					rep = rebuilt
 				}
 			}

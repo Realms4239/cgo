@@ -14,6 +14,7 @@ import (
 // Le banc façonne le bord — pas seulement un observatoire :
 // la DSI applique l'AQM à la passerelle locale et regarde le mur réagir.
 func TestShapeControl(t *testing.T) {
+	withDevNoAuth(t)
 	var mu sync.Mutex
 	var calls []string
 	h := New(Deps{
@@ -31,10 +32,7 @@ func TestShapeControl(t *testing.T) {
 	defer srv.Close()
 
 	post := func(body string) (*http.Response, string) {
-		resp, err := http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(body))
-		if err != nil {
-			t.Fatal(err)
-		}
+		resp := postConfirmed(t, srv.URL+"/api/shape", bytes.NewBufferString(body))
 		defer resp.Body.Close()
 		b, _ := io.ReadAll(resp.Body)
 		return resp, string(b)
@@ -86,6 +84,7 @@ func TestShapeControl(t *testing.T) {
 }
 
 func TestProfilesList(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
@@ -107,14 +106,12 @@ func (e *tcError) Error() string { return e.msg }
 // Durcissement — des Deps à valeur nulle doivent répondre 503, jamais paniquer
 // (le contrat du correctif GetSnap étendu aux endpoints mutatifs).
 func TestMutatingEndpointsNilGuards(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":1}`))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1"],"reps":1}`))
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("run/start nil StartFn: %d want 503", resp.StatusCode)
@@ -133,16 +130,14 @@ func TestMutatingEndpointsNilGuards(t *testing.T) {
 // Le levier de façonnage et une campagne active se disputent le même shaper — un
 // apply manuel en cours de run corrompt le façonnage de la cellule (et inversement). 409 tant qu'active.
 func TestShapeConflictWithRunningCampagne(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{
 		ShapeFn:   func(ShapeReq) error { return nil },
 		RunningFn: func() bool { return true },
 	})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
-	resp, err := http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":20}`))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := postConfirmed(t, srv.URL+"/api/shape", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":20}`))
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusConflict || !strings.Contains(string(body), "campagne") {
@@ -178,6 +173,7 @@ func TestHubSubscriberCap(t *testing.T) {
 // Q8/Q10 — le levier paramètre le lien lui-même (délai/gigue/perte) et la
 // campagne respecte la deadline + la cible de l'opérateur. Bornes côté serveur.
 func TestShapeLinkConditions(t *testing.T) {
+	withDevNoAuth(t)
 	var mu sync.Mutex
 	var last ShapeReq
 	h := New(Deps{
@@ -191,11 +187,8 @@ func TestShapeLinkConditions(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, err := http.Post(srv.URL+"/api/shape", "application/json",
+	resp := postConfirmed(t, srv.URL+"/api/shape",
 		bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":20,"delay_ms":80,"jitter_ms":5,"loss_pct":0.5}`))
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		b, _ := io.ReadAll(resp.Body)
@@ -213,10 +206,7 @@ func TestShapeLinkConditions(t *testing.T) {
 		`{"qdisc":"cake","capacity_mbps":20,"jitter_ms":101}`,
 		`{"qdisc":"cake","capacity_mbps":20,"loss_pct":11}`,
 	} {
-		r2, err := http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(bad))
-		if err != nil {
-			t.Fatal(err)
-		}
+		r2 := postConfirmed(t, srv.URL+"/api/shape", bytes.NewBufferString(bad))
 		r2.Body.Close()
 		if r2.StatusCode != http.StatusBadRequest {
 			t.Fatalf("bounds %s: %d want 400", bad, r2.StatusCode)
@@ -225,6 +215,7 @@ func TestShapeLinkConditions(t *testing.T) {
 }
 
 func TestRunOptsDeadlineTarget(t *testing.T) {
+	withDevNoAuth(t)
 	var mu sync.Mutex
 	var got *RunOpts
 	h := New(Deps{
@@ -237,11 +228,8 @@ func TestRunOptsDeadlineTarget(t *testing.T) {
 	})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
-	resp, err := http.Post(srv.URL+"/api/run/start", "application/json",
+	resp := postConfirmed(t, srv.URL+"/api/run/start",
 		bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"deadline_ms":2500,"target":"9.9.9.9"}`))
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		b, _ := io.ReadAll(resp.Body)
@@ -256,10 +244,11 @@ func TestRunOptsDeadlineTarget(t *testing.T) {
 
 // Journal — mémoire opérateur : les actions arrivent dans un anneau interrogeable.
 func TestJournal(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{ShapeFn: func(ShapeReq) error { return nil }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
-	_, _ = http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":20}`))
+	_ = postConfirmed(t, srv.URL+"/api/shape", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":20}`))
 	resp, err := http.Get(srv.URL + "/api/events")
 	if err != nil {
 		t.Fatal(err)
@@ -273,6 +262,7 @@ func TestJournal(t *testing.T) {
 
 // Vue Compare — lignes brutes par run, protégée contre le cheminement.
 func TestRunRows(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
@@ -304,22 +294,20 @@ func TestRunRows(t *testing.T) {
 // n'est jamais crue. La durée d'audit est bornée à 10–600 s ; les ids de profil inconnus
 // et les répétitions hors bornes sont refusés, pas avalés en silence dans un run vide.
 func TestValidationPrevention(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{ShapeFn: func(ShapeReq) error { return nil }})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
 	// capacité de façonnage hors bornes
-	resp, _ := http.Post(srv.URL+"/api/shape", "application/json", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":5000}`))
+	resp := postConfirmed(t, srv.URL+"/api/shape", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":5000}`))
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("capacity 5000: %d want 400", resp.StatusCode)
 	}
 
 	// id de profil inconnu → 400 avec l'id fautif
-	resp2, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1; drop","GHOST"],"reps":1}`))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp2 := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1; drop","GHOST"],"reps":1}`))
 	defer resp2.Body.Close()
 	b2, _ := io.ReadAll(resp2.Body)
 	if resp2.StatusCode != http.StatusBadRequest || !strings.Contains(string(b2), "GHOST") {
@@ -327,30 +315,21 @@ func TestValidationPrevention(t *testing.T) {
 	}
 
 	// répétitions hors bornes → 400
-	resp3, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":99}`))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp3 := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1"],"reps":99}`))
 	defer resp3.Body.Close()
 	if resp3.StatusCode != http.StatusBadRequest {
 		t.Fatalf("reps 99: %d want 400", resp3.StatusCode)
 	}
 
 	// deadline hors de la fenêtre 200–5000 → 400 (les bornes Q10 sont côté serveur)
-	resp5, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"deadline_ms":99999}`))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp5 := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"deadline_ms":99999}`))
 	defer resp5.Body.Close()
 	if resp5.StatusCode != http.StatusBadRequest {
 		t.Fatalf("deadline 99999: %d want 400", resp5.StatusCode)
 	}
 
 	// cible de plus de 64 caractères → 400
-	resp6, err := http.Post(srv.URL+"/api/run/start", "application/json", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"target":"`+strings.Repeat("a", 65)+`"}`))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp6 := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"target":"`+strings.Repeat("a", 65)+`"}`))
 	defer resp6.Body.Close()
 	if resp6.StatusCode != http.StatusBadRequest {
 		t.Fatalf("target 65 chars: %d want 400", resp6.StatusCode)
@@ -381,6 +360,7 @@ func TestValidationPrevention(t *testing.T) {
 // client demande du JSON (le frontend fait fetch().json() dessus).
 // Reproduit le bug vu en e2e : 409 text/plain -> SyntaxError côté client.
 func TestWatchConflictReturnsJSON(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{
 		Mode:      "full",
 		WatchFn:   func(bool) error { return nil },

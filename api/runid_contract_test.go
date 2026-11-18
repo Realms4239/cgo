@@ -14,6 +14,7 @@ import (
 // qu'aucun refactor ne les rabote silencieusement.
 
 func TestRunIDEndpointContract(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	header := "run_id,event_id,profile,qdisc,cc,direction,repetition,rtt_p50_ms,rtt_p95_ms,qdi_ms,voip_r,jfi_pct,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,rtt_base_p50_ms,rtt_base_p95_ms,gate_status"
 	writeCSVRun(t, dir, "run-a", header,
@@ -64,6 +65,7 @@ func TestRunIDEndpointContract(t *testing.T) {
 }
 
 func TestRunStartRejectsHostileRunID(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	_ = dir
 	h := New(Deps{})
@@ -80,6 +82,7 @@ func TestRunStartRejectsHostileRunID(t *testing.T) {
 			t.Fatal(err)
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Confirm-Action", "true")
 		resp, err := srv.Client().Do(req)
 		if err != nil {
 			t.Fatal(err)

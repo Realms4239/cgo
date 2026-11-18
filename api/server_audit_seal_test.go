@@ -23,6 +23,7 @@ import (
 // depuis le disque. CGO_DATA_DIR/chdir épinglent la racine et écartent tout
 // ./data réel du poste.
 func TestAuditHTTPSealsTelemetryAndSource(t *testing.T) {
+	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	t.Setenv("CGO_DATA_DIR", dir)
 	t.Setenv("CGO_BULK_ADDR", "")
@@ -120,6 +121,7 @@ func TestAuditHTTPSealsTelemetryAndSource(t *testing.T) {
 // GET /api/audit/report sans identifiant — une archive vide répond 200 +
 // available:false (maison), pas un 404 qui pollue la console du dashboard.
 func TestHandleAuditReportEmptyArchiveReturns200AvailableFalse(t *testing.T) {
+	withDevNoAuth(t)
 	h := New(Deps{})
 	srv := httptest.NewServer(h)
 	defer srv.Close()

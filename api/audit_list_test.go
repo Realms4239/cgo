@@ -13,6 +13,7 @@ import (
 // là où le dossier de rapport existe. Une ligne antérieure à l'archivage par
 // dossier doit être annoncée comme telle avant le clic, pas après un 404.
 func TestAuditListMarksArchivableReports(t *testing.T) {
+	withDevNoAuth(t)
 	dir := t.TempDir()
 	t.Chdir(dir)
 	if err := os.MkdirAll(filepath.Join(dir, "data", "audits", "audit-2"), 0o755); err != nil {

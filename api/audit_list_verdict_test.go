@@ -16,6 +16,7 @@ import (
 // note sans charge établie qui devient verte). Donc : verdict publié quand
 // l'artefact existe, absence sinon — jamais un verdict dérivé de la note.
 func TestAuditListCarriesTheSealedVerdict(t *testing.T) {
+	withDevNoAuth(t)
 	dir := t.TempDir()
 	t.Chdir(dir)
 	if err := os.MkdirAll(filepath.Join(dir, "data", "audits", "audit-vert"), 0o755); err != nil {
