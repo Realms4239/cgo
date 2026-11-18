@@ -3560,3 +3560,22 @@ PASS hygiene     959 tracked files clean; legacy allowlist: 18 backup archives a
 
 1 passed, 0 failed, 0 not run
 ```
+
+## 2026-11-18T06:51Z — Chunk 0 gate-exception ruling and Cap-40 check redefinition
+
+- Ruling (Chunk 0 Task 2): after the links gate failed on three historical `docs/VERIFY.md` references, the human approved adding the deleted `cmd/meteolink` path to `historicalAbsent` in `cmd/gates/main.go` with a dated comment. The alternatives — editing the frozen claim ledger or keeping the bloat — were declined. No other gate logic changed; no bypass used. Landed in `d7013bd`.
+- Ruling (Chunk 0 final review): the Cap-40 Part C check is redefined from a global token scan to `git log --all --no-textconv --oneline -- book/handoff-livrables-2026-09-02.md`, which currently returns two commits (`54d3f62`, `8c67859`). The global scan can never be empty because the gate's own token regex and selftest plus historical docs legitimately contain that literal. Plan amended in `3b429c0`.
+- Part C state: checks 2-6 PASS; check 1 BLOCKED until the human completes the file purge. Chunk 0 agent work is complete but the chunk is NOT verified.
+
+Completion proof (operator constitution, six exact labels):
+VERIFY-TASK: chunk0-rulings — canonical record of the cmd/meteolink permit and the Cap-40 check redefinition
+GIT-DIFF-STAT: docs/CHECKPOINTS.md | 19 ++++++
+TOOLS-RUN: date -u; git log --oneline -3; wc -c docs/CHECKPOINTS.md; sh .githooks/run-gates.sh --only hygiene; git diff --stat -- docs/CHECKPOINTS.md; git add docs/CHECKPOINTS.md; git commit -m "docs(checkpoint): record Chunk 0 rulings"
+EXIT-CODES: date=0, git log=0, wc=0, hygiene=0, git diff=0, git add=0, git commit=0 with hooks PASS
+REPORT-OR-ARTIFACT: hygiene PASS 956 tracked files clean; 4 named tailnet addresses; 18 backup archives; two rulings recorded; one append-only file
+RAW-TAIL:
+```
+PASS hygiene     956 tracked files clean; legacy allowlist: 18 backup archives and results/runs-frozen.tar.gz; 4 named tailnet addresses
+
+1 passed, 0 failed, 0 not run
+```
