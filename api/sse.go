@@ -17,6 +17,29 @@ const frameHz = 20
 // Un tableau statique évite le décalage O(n) de l'ancienne tranche glissante.
 const ringCap = 4096
 
+// subCap — capacité du canal de chaque abonné SSE. Au-delà, l'éviction
+// prioritaire garantit qu'un jalon n'est jamais sacrifié à un tick.
+const subCap = 32
+
+// milestoneKinds — les six jalons garantis (docs/MUSTREAD/13-chunk-3).
+var milestoneKinds = map[string]bool{
+	"CALIBRATION_BASELINE":  true,
+	"BULK_SATURATION_START": true,
+	"SLA_BREACH_220MS":      true,
+	"QDISC_DROP_BURST":      true,
+	"AQM_STABILIZED":        true,
+	"DUAL_SEAL_COMMITTED":   true,
+}
+
+func isMilestonePayload(payload string) bool {
+	for k := range milestoneKinds {
+		if strings.Contains(payload, "event: "+k) {
+			return true
+		}
+	}
+	return false
+}
+
 // Hub diffuse des instantanés à 20 Hz avec champs structurels compressés en
 // delta, rejeu Last-Event-ID (anneau 4096) et événements backpressure nommés.
 type Hub struct {
@@ -36,7 +59,7 @@ type Hub struct {
 type frame struct {
 	id   uint64
 	raw  string
-	name string // "" = metric message; "backpressure" = named
+	name string // "" = message métrique ; sinon jalon rejoué avec une ligne event:
 }
 
 type sub struct {
@@ -124,17 +147,70 @@ func (h *Hub) Publish(snap any) {
 		h.count++
 	}
 	payload := "id: " + strconv.FormatUint(f.id, 10) + "\ndata: " + f.raw + "\n\n"
+	h.deliver(payload)
+}
+
+// deliver diffuse un payload à tous les abonnés (appelé sous h.mu). Les jalons
+// sont prioritaires : sur un canal plein, ils évincent un tick périmé plutôt
+// que d'être abandonnés.
+func (h *Hub) deliver(payload string) {
+	priority := isMilestonePayload(payload)
 	for s := range h.subs {
 		select {
 		case s.ch <- payload:
+			continue
 		default:
+		}
+		if !priority {
 			s.dropped++
 			select { // ne jamais empiler plus d'une notification backpressure
 			case s.ch <- fmt.Sprintf("event: backpressure\ndata: {\"type\":\"backpressure\",\"dropped\":%d}\n\n", s.dropped):
 			default:
 			}
+			continue
+		}
+		// Jalon : évincer un tick périmé, jamais un autre jalon.
+		for i := 0; i < cap(s.ch); i++ {
+			old, ok := <-s.ch
+			if !ok {
+				break
+			}
+			if isMilestonePayload(old) {
+				s.ch <- old
+				continue
+			}
+			s.dropped++
+			break
+		}
+		select {
+		case s.ch <- payload:
+		default: // aucun tick évincable : dernier recours, signaler backpressure
+			s.dropped++
+			select {
+			case s.ch <- fmt.Sprintf("event: backpressure\ndata: {\"type\":\"backpressure\",\"dropped\":%d}\n\n", s.dropped):
+			default:
+			}
 		}
 	}
+}
+
+// PublishEvent écrit un jalon garanti dans l'anneau et le diffuse. Le nom du
+// jalon est conservé dans la frame pour le rejeu Last-Event-ID.
+func (h *Hub) PublishEvent(kind string, detail map[string]any) {
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		raw = []byte("{}")
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.lastID++
+	f := frame{id: h.lastID, raw: string(raw), name: kind}
+	h.ring[h.head] = f
+	h.head = (h.head + 1) % ringCap
+	if h.count < ringCap {
+		h.count++
+	}
+	h.deliver("event: " + kind + "\ndata: " + string(raw) + "\n\n")
 }
 
 // replayFrom — frames encore présents dans l'anneau, du plus ancien au plus
@@ -146,6 +222,10 @@ func (h *Hub) replayFrom(from uint64) []string {
 	for i := 0; i < h.count; i++ {
 		f := h.ring[(start+i)%ringCap]
 		if f.id < from {
+			continue
+		}
+		if f.name != "" { // jalon : le rejeu doit porter le nom de l'événement
+			out = append(out, "event: "+f.name+"\nid: "+strconv.FormatUint(f.id, 10)+"\ndata: "+f.raw+"\n\n")
 			continue
 		}
 		out = append(out, "id: "+strconv.FormatUint(f.id, 10)+"\ndata: "+f.raw+"\n\n")
@@ -205,7 +285,7 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	lastFull := h.lastFull
-	s := &sub{ch: make(chan string, 16)}
+	s := &sub{ch: make(chan string, subCap)}
 	h.subs[s] = struct{}{}
 	h.mu.Unlock()
 
