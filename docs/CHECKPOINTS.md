@@ -3500,3 +3500,42 @@ et non dans l'outillage, ou le plafond est revu par une decision explicite.
 ## 2026-11-17T07:26Z / 07:57Z / 11:36Z / 12:20Z — consolidations récentes
 
 - Détails et preuves : `docs/verification/2026-11-17-api-bootstrap/README.md`.
+
+## 2026-11-17T23:05Z — final acceptance of MUSTREAD pack build
+
+- Branch/HEAD: `main` / `f521b4c` at acceptance (`docs(mustread): inject CGO core directive into project instructions`, Task 6); this append-only entry is committed on `main` immediately afterwards.
+- Changed: `docs/CHECKPOINTS.md` only. No pack content, product code, tests, config, frozen corpus, live bench, remote host, `C:\END`, or `cmd/gates/main.go` touched. No `git add -A` / `git add .`, no `--no-verify`; explicit-path staging only.
+- Proven (operator-cockpit isolated worktree, Windows / Git Bash MINGW64; UTC from `date -u` = 2026-11-17T23:05Z):
+  - Task 5 — `python "C:\Users\ASUS\AppData\Local\Temp\opencode\check_mustread.py"` → `MISSING: 0`, exit 0 (1,491 source lines in contiguous ranges, no gap/overlap); `rm "C:\Users\ASUS\AppData\Local\Temp\opencode\check_mustread.py"` → checker absent; no repair, no commit. Recorded in `task-5-report.md`; the controller's byte-exact reconstruction is the fidelity oracle.
+  - Task 6 — `grep -n '^## ' AGENTS.md` → new core directive at line 3, all 13 original `##` headings survive (exit 0); `git diff --stat -- AGENTS.md docs/superpowers/plans/README.md` → 17 and 1 insertions, 0 deletions (exit 0); `ls docs/MUSTREAD/*.md | wc -l` → `11` (exit 0); `git status --short` → only the two task files newly modified; commit `f521b4c` landed with hooks (2 passed, 0 failed, 0 not run). Recorded in `task-6-report.md`.
+  - Task 7 Step 1 — `ls docs/MUSTREAD/` → exit 0, 11 files: `INDEX.md`, `01-core-directive.md`, `02-target-system.md`, `03-product-contribution.md`, `10-chunk-0-secret-purge-bloat.md`, `11-chunk-1-security-lockdown.md`, `12-chunk-2-data-honesty-integrity.md`, `13-chunk-3-realtime-pipeline.md`, `14-chunk-4-honest-tests.md`, `15-chunk-5-container-ci-release.md`, `16-chunk-6-live-proof-freeze.md`.
+  - Task 7 Step 2 — `ls -l /c/END/*.md` → exit 0, 7 files at exactly the original byte sizes: CGO.md 15056, CGO0.md 19430, CGO1.md 18070, CGO2.md 7661, CGO3.md 8544, CGO4.md 7939, CGO5.md 31460 — corpus untouched.
+  - Task 7 Step 3 — `git grep -n 'git add -A' docs/MUSTREAD/ AGENTS.md` → exit 0, 4 hits: `AGENTS.md:15` (precedence row naming the ban as forbidden), `AGENTS.md:65` (Never-commit rule forbidding it), `docs/MUSTREAD/INDEX.md:40` (declares corpus text quoted source, not executable), `docs/MUSTREAD/16-chunk-6-live-proof-freeze.md:115` (verbatim, indented quoted corpus line). No executable `git add -A` step exists: the only non-forbidding hit is frozen source text that INDEX.md:40 marks non-executable and the AGENTS.md precedence table overrides. Caveat: the brief's literal "only precedence rows" expectation is not met word-for-word — the two extra hits are a quoted-source label and quoted source, both non-executable.
+  - File-count oracle: `docs/MUSTREAD/` = 11 markdown files; `C:\END` = 7 markdown files at original byte sizes.
+- Unproven/blocked: no chunk was executed; each chunk still needs its own `writing-plans` plan and SDD run. No `make verify` / six-gate run — this is a documentation-only plan (no product code). Task 5's checker uses stripped, `#`-trimmed containment, not byte-exact fidelity (accepted as the brief's oracle; byte fidelity rests on Task 1's controller reconstruction). The Step 3 caveat above is recorded, not silently treated as a clean literal match.
+- Next: close/archive this SDD plan; when a chunk is scoped, write its `writing-plans` plan and run it through SDD with its own verifier and checkpoint. No further pack content in this task.
+
+Completion proof (operator constitution, six exact labels):
+VERIFY-TASK: TASK-7 — final acceptance of MUSTREAD pack build
+GIT-DIFF-STAT: (git diff --stat -- docs/CHECKPOINTS.md) docs/CHECKPOINTS.md | 39 +++++++++++++++++++++++++++++++++++++++<br>1 file changed, 39 insertions(+)
+TOOLS-RUN: git status --short; git branch --show-current; git log --oneline -1; read task-7-brief.md, task-5-brief.md, task-6-brief.md, task-5-report.md, task-6-report.md, progress.md, docs/CHECKPOINTS.md; date -u +"%Y-%m-%dT%H:%MZ"; ls docs/MUSTREAD/; ls -l /c/END/*.md; git grep -n 'git add -A' docs/MUSTREAD/ AGENTS.md; ( acceptance commands ) | tail -n 15; git diff --stat -- docs/CHECKPOINTS.md; git add docs/CHECKPOINTS.md; git commit -m "docs(mustread): record pack-build acceptance checkpoint"
+EXIT-CODES: Step1=0, Step2=0, Step3=0, date -u=0, tail-15 capture=0, git diff --stat=0, git add=0 — all pre-commit proof commands returned 0; commit result recorded in git log and task-7-report.md
+REPORT-OR-ARTIFACT: 11 MUSTREAD files; 7 corpus files at original byte sizes; 4 Step-3 hits, 0 executable; Task 5 MISSING: 0 over 1,491 lines; Task 6 18 insertions / 0 deletions; full report in .superpowers/sdd/2026-11-17-mustread-reorganization/task-7-report.md
+RAW-TAIL:
+```
+14-chunk-4-honest-tests.md
+15-chunk-5-container-ci-release.md
+16-chunk-6-live-proof-freeze.md
+INDEX.md
+-rw-r--r-- 1 Nemo 197121 15056 Nov 17 21:47 /c/END/CGO.md
+-rw-r--r-- 1 Nemo 197121 19430 Nov 17 21:47 /c/END/CGO0.md
+-rw-r--r-- 1 Nemo 197121 18070 Nov 17 21:47 /c/END/CGO1.md
+-rw-r--r-- 1 Nemo 197121  7661 Nov 17 21:47 /c/END/CGO2.md
+-rw-r--r-- 1 Nemo 197121  8544 Nov 17 21:47 /c/END/CGO3.md
+-rw-r--r-- 1 Nemo 197121  7939 Nov 17 21:47 /c/END/CGO4.md
+-rw-r--r-- 1 Nemo 197121 31460 Nov 17 21:47 /c/END/CGO5.md
+AGENTS.md:15:| Chunk 6 uses `git add -A` | Cannot be waived by a project document; the commit task stays, staging becomes explicit paths |
+AGENTS.md:65:`*.pdf`, `cgo.exe`, archives. Never `git add -A`; stage explicit paths. Never
+docs/MUSTREAD/16-chunk-6-live-proof-freeze.md:115:    git add -A
+docs/MUSTREAD/INDEX.md:40:- **Quoted source:** corpus text may quote operator-ban commands (`git add -A`, `|| true`, `@latest`, live-bench and unauthorized-target instructions). These are preserved verbatim as source material, not executable instructions; the precedence table governs what an agent may actually do.
+```

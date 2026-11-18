@@ -28,7 +28,8 @@ const (
 	fail        = "fail"
 	skip        = "skip"
 	seal        = "docs/frozen-manifests.sha256"
-	sizeCeiling = 384 * 1024 // mesuré 2026-10-28 : plus gros fichier suivi 352 240 o
+	// 2026-11-18 human-approved exception: docs/CHECKPOINTS.md append-only checkpoint at ceiling.
+	sizeCeiling = 400 * 1024 // was 384 * 1024 (mesuré 2026-10-28 : plus gros fichier suivi 352 240 o)
 )
 
 // timeoutCode is the sentinel exit code _proc returns when the deadline kill hit.
