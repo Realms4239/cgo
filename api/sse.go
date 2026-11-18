@@ -132,6 +132,9 @@ func (h *Hub) Publish(snap any) {
 
 // SSE gère GET /api/stream : rejeu puis direct.
 func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
+	// Certains ResponseWriter (tests, proxys) ne supportent pas la deadline :
+	// on continue sans échouer le flux pour autant.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 	fl, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "stream unsupported", http.StatusInternalServerError)

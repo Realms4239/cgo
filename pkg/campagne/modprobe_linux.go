@@ -1,6 +1,10 @@
 package campagne
 
-import "os/exec"
+import (
+	"context"
+	"os/exec"
+	"time"
+)
 
 // ensureQdiscModules précharge les disciplines du banc. Sans cela, la
 // première cellule CAKE après un boot échoue en "Invalid qdisc name"
@@ -12,6 +16,8 @@ import "os/exec"
 // comme paramètres de sch_netem (no-op silencieux).
 func ensureQdiscModules() {
 	for _, m := range []string{"sch_netem", "sch_fq_codel", "sch_cake"} {
-		_ = exec.Command("sudo", "-n", "/usr/local/bin/cgo-netctl", "modprobe", m).Run()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_ = exec.CommandContext(ctx, "sudo", "-n", "/usr/local/bin/cgo-netctl", "modprobe", m).Run()
+		cancel()
 	}
 }

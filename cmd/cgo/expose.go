@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // authTokenFile — jeton d'authentification du banc, 0600 root:root, posé par
@@ -44,12 +46,14 @@ func isLoopbackHost(host string) bool {
 	if ip := net.ParseIP(h); ip != nil {
 		return ip.IsLoopback()
 	}
-	ips, err := net.LookupIP(h)
-	if err != nil || len(ips) == 0 {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	addrs, err := (&net.Resolver{}).LookupIPAddr(ctx, h)
+	if err != nil || len(addrs) == 0 {
 		return false // nom non résolu → fail closed
 	}
-	for _, ip := range ips {
-		if !ip.IsLoopback() {
+	for _, addr := range addrs {
+		if !addr.IP.IsLoopback() {
 			return false
 		}
 	}

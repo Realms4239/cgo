@@ -345,13 +345,13 @@ func runServer(ctx context.Context, addr, mode string, tlsOn bool, httpAddr stri
 	})
 	srv := &http.Server{
 		Addr: addr, Handler: handler,
-		// WriteTimeout: 0 — SSE never terminates (le flux /api/stream et le
-		// replay tiennent des connexions longues par construction).
+		// WriteTimeout 30 s — borne les réponses ordinaires. Seuls /api/stream
+		// et /api/replay/stream dégagent leur deadline (flux longs par construction).
 		// Les en-têtes lentes ne pendent pas un slot (Slowloris) ; les lectures
 		// entières sont bornées ; les connexions oisives expirent.
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      0,
+		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		// TCP_NODELAY dès la connexion — le Nagle buffrerait les petits frames
 		// SSE derrière des Accus tardifs et ajouterait ~40 ms de latence normale.

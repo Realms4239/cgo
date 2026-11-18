@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"context"
 	"crypto/subtle"
 	"encoding/csv"
 	"encoding/json"
@@ -125,7 +127,7 @@ var schemaParams = []Param{
 	{Key: "reps", Label: "Répétitions", Min: 1, Max: 5, Default: 3, Unit: "×", Desc: "répétitions de chaque cellule profile×qdisc×CC"},
 	{Key: "deadline_ms", Label: "Deadline small p95", Min: 200, Max: 5000, Default: 1000, Unit: "ms", Step: 100, Desc: "objectif de latence qui voyage avec la campagne"},
 	{Key: "target", Label: "Cible de mesure", Max: 64, Default: "1.1.1.1", Desc: "hôte sondé par la campagne et l'audit"},
-	{Key: "audit_duration_s", Label: "Durée d'audit", Min: 10, Max: 600, Default: 30, Unit: "s", Step: 10, Desc: "durée de l'audit client-side du lien"},
+	{Key: "audit_duration_s", Label: "Durée d'audit", Min: 10, Max: 600, Default: 60, Unit: "s", Step: 10, Desc: "durée de l'audit client-side du lien"},
 	{Key: "warn_ms", Label: "Seuil dégradé", Min: 10, Max: 200, Default: 40, Unit: "ms", Step: 5, Desc: "latence au-delà de laquelle une carte passe en jaune"},
 	{Key: "crit_ms", Label: "Seuil critique", Min: 50, Max: 500, Default: 100, Unit: "ms", Step: 5, Desc: "latence au-delà de laquelle une carte passe en rouge"},
 	{Key: "ring_max", Label: "Fenêtre live", Min: 600, Max: 3600, Default: 1800, Unit: "pts", Step: 100, Desc: "profondeur d'historique du tableau live"},
@@ -1009,6 +1011,9 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 		writeJSON(w, payload)
 	})
 	mux.HandleFunc("GET /api/report/export", s.requireOwnerMutate(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		defer cancel()
+		r = r.WithContext(ctx)
 		fmtParam := r.URL.Query().Get("format")
 		if fmtParam == "" {
 			fmtParam = "md"
@@ -1120,6 +1125,9 @@ func (s *Server) registerResults(mux *http.ServeMux) {
 // registerFigures — un seul site d'enregistrement par domaine.
 func (s *Server) registerFigures(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/figures/regen", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		defer cancel()
+		r = r.WithContext(ctx)
 		if s.deps.observeBlocked(w) {
 			return
 		}
@@ -1145,11 +1153,17 @@ func (s *Server) registerReplay(mux *http.ServeMux) {
 		writeJSON(w, map[string]any{"runs": ids})
 	})
 	mux.HandleFunc("GET /api/replay/stream", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Minute)
+		defer cancel()
+		r = r.WithContext(ctx)
 		run := r.URL.Query().Get("run")
 		if run == "" || !results.ValidRunID(run) {
 			writeErr(w, r, "id de run invalide", http.StatusBadRequest)
 			return
 		}
+		// Certains ResponseWriter (tests, proxys) ne supportent pas la deadline :
+		// on continue sans échouer le flux pour autant.
+		_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 		// Lecture par NOM de colonne : small_p95_ms depuis small_p95_ms (pas
 		// qdi_ms), goodput depuis bulk_goodput_mbps (pas deadline_ok_pct).
 		header, rows, err := results.ReadAQM(filepath.Join(results.RunsRoot(), run, "aqm_eval.csv"))
@@ -1596,12 +1610,18 @@ func truncateUTF8(s string, max int) string {
 	return s[:max]
 }
 
+// writeJSON encode d'abord dans un tampon : une valeur non sérialisable (NaN)
+// ne doit jamais laisser un corps partiel avec un 200 — on répond 500 à la place.
 func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	// Jamais d'échec silencieux (un NaN donnait un 200 vide : vu en prod).
-	if err := json.NewEncoder(w).Encode(v); err != nil {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(v); err != nil {
 		log.Printf("writeJSON: %v", err)
+		http.Error(w, `{"error":"échec d'encodage JSON"}`, http.StatusInternalServerError)
+		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = buf.WriteTo(w)
 }
 
 // requireConfirm — garde de confirmation explicite sur les POST destructifs :

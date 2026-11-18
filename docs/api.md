@@ -2,6 +2,7 @@
 
 > Vérifiée contre `pkg/api/server.go`, `sse.go` et `translate.go`. Tout corps
 > JSON est limité à 1 Mio (`http.MaxBytesReader`).
+> Hors `POST /api/login` (4 KiB), tout corps JSON est limité à 1 Mio.
 > Les mutations (`POST`) refusent `403` une requête navigateur cross-site
 > (`Sec-Fetch-Site: cross-site`) ; les clients directs (curl, CLI) ne sont pas
 > concernés.

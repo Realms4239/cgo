@@ -106,6 +106,16 @@ func SmallClientTimeout(timeout time.Duration) *http.Client {
 	return &http.Client{Timeout: timeout, Transport: sharedMarkedTransport()}
 }
 
+// smallClientFloor — VSAT : jamais moins de 8 s, et au moins 4× le délai
+// du profil. Un client 2 s sur un lien 600 ms échoue G2 par construction.
+func smallClientFloor(delay time.Duration) time.Duration {
+	floor := 4 * delay
+	if floor < 8*time.Second {
+		floor = 8 * time.Second
+	}
+	return floor
+}
+
 var (
 	onceClient      sync.Once
 	onceTransport   sync.Once
