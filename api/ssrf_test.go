@@ -51,13 +51,13 @@ func TestAuditStartSSRFPrivateRefused(t *testing.T) {
 	waitAuditIdle(t, srv)
 
 	cases := []struct{ name, body, want string }{
-		{"rfc1918 small_url", `{"site":"ssrf-rfc1918","link_type":"fiber","duration":10,"small_url":"http://10.30.0.2:8081/small"}`, "RFC1918"},
-		{"link-local small_url", `{"site":"ssrf-ll","link_type":"fiber","duration":10,"small_url":"http://169.254.169.254/latest/meta-data"}`, "link-local"},
-		{"ULA small_url", `{"site":"ssrf-ula","link_type":"fiber","duration":10,"small_url":"http://[fd00::1]:8081/"}`, "ULA"},
-		{"loopback small_url", `{"site":"ssrf-lo","link_type":"fiber","duration":10,"small_url":"http://127.0.0.1:8081/small"}`, "loopback"},
-		{"mapped-ipv4 small_url", `{"site":"ssrf-mapped","link_type":"fiber","duration":10,"small_url":"http://[::ffff:10.0.0.1]/"}`, "RFC1918"},
-		{"rfc1918 bulk_addr", `{"site":"ssrf-bulk","link_type":"fiber","duration":10,"bulk_addr":"10.30.0.2:5201"}`, "RFC1918"},
-		{"link-local bulk_addr", `{"site":"ssrf-bulk-ll","link_type":"fiber","duration":10,"bulk_addr":"169.254.0.1:5201"}`, "link-local"},
+		{"rfc1918 small_url", `{"site":"ssrf-rfc1918","link_type":"fiber","duration":10,"small_url":"http://10.30.0.2:8081/small"}`, "plage réservée"},
+		{"link-local small_url", `{"site":"ssrf-ll","link_type":"fiber","duration":10,"small_url":"http://169.254.169.254/latest/meta-data"}`, "plage réservée"},
+		{"ULA small_url", `{"site":"ssrf-ula","link_type":"fiber","duration":10,"small_url":"http://[fd00::1]:8081/"}`, "plage réservée"},
+		{"loopback small_url", `{"site":"ssrf-lo","link_type":"fiber","duration":10,"small_url":"http://127.0.0.1:8081/small"}`, "plage réservée"},
+		{"mapped-ipv4 small_url", `{"site":"ssrf-mapped","link_type":"fiber","duration":10,"small_url":"http://[::ffff:10.0.0.1]/"}`, "plage réservée"},
+		{"rfc1918 bulk_addr", `{"site":"ssrf-bulk","link_type":"fiber","duration":10,"bulk_addr":"10.30.0.2:5201"}`, "plage réservée"},
+		{"link-local bulk_addr", `{"site":"ssrf-bulk-ll","link_type":"fiber","duration":10,"bulk_addr":"169.254.0.1:5201"}`, "plage réservée"},
 	}
 	for _, tc := range cases {
 		code, body := startAudit(t, srv, tc.body)
@@ -176,5 +176,34 @@ func TestGuardTables(t *testing.T) {
 		if got != wantBlocked {
 			t.Fatalf("%s : bloquée=%v, want %v (err=%v)", host, got, wantBlocked, err)
 		}
+	}
+}
+
+func TestCheckHostBlockedRangesMatchProbe(t *testing.T) {
+	for _, host := range []string{
+		"100.64.0.1", "169.254.169.254", "198.18.0.1", "::ffff:127.0.0.1", "2001:db8::1",
+	} {
+		err := checkHost(context.Background(), host, false)
+		if err == nil {
+			t.Errorf("checkHost(%q) = nil, want refusal", host)
+			continue
+		}
+		var pe *privateTargetError
+		var re *ssrfRefusedError
+		if !errors.As(err, &pe) && !errors.As(err, &re) {
+			t.Errorf("checkHost(%q) error %v, want API SSRF error type", host, err)
+		}
+	}
+}
+
+// TestGuardSmallURLRejectsUserinfo — an embedded userinfo is refused as a
+// client argument error, even when the host itself is public.
+func TestGuardSmallURLRejectsUserinfo(t *testing.T) {
+	if err := guardSmallURL(context.Background(), "http://user:pass@8.8.8.8/"); err == nil {
+		t.Fatal("URL with userinfo must be refused")
+	}
+	var ae *ssrfArgError
+	if err := guardSmallURL(context.Background(), "http://user:pass@8.8.8.8/"); !errors.As(err, &ae) {
+		t.Fatalf("userinfo error = %v, want *ssrfArgError", err)
 	}
 }

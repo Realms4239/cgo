@@ -7,17 +7,19 @@
 // Opt-in banc CGO_ALLOW_PRIVATE_TARGETS=1 : autorise les cibles privées
 // (10.30.0.2) ; sans lui, tout privé est refusé. Résolution impossible =
 // refus (fail-closed) : une cible qu'on ne peut pas prouver publique est
-// refusée. La même logique vit dans le module probe (probe/ssrf.go) —
-// dupliquée ici car le module api lie le probe PUBLIÉ, pas l'arbre local.
+// refusée. La décision de plage est déléguée à probe.GuardHost : une seule
+// table de plages, dans probe/ssrf.go, pour le banc et l'API.
 package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
-	"time"
+
+	"github.com/Realms4239/cgo/probe"
 )
 
 // privateTargetError nomme la plage refusée — jamais un repli muet (→ 403).
@@ -43,65 +45,19 @@ func (e *ssrfArgError) Error() string { return e.Why }
 
 func allowPrivateTargets() bool { return os.Getenv("CGO_ALLOW_PRIVATE_TARGETS") == "1" }
 
-// blockedIP — (plage nommée, true) si ip est privée/spéciale.
-func blockedIP(ip net.IP) (string, bool) {
-	if ip.IsLoopback() {
-		return "loopback", true
-	}
-	if ip.IsUnspecified() {
-		return "non spécifié", true
-	}
-	if ip4 := ip.To4(); ip4 != nil {
-		switch {
-		case ip4[0] == 10:
-			return "RFC1918 (10.0.0.0/8)", true
-		case ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31:
-			return "RFC1918 (172.16.0.0/12)", true
-		case ip4[0] == 192 && ip4[1] == 168:
-			return "RFC1918 (192.168.0.0/16)", true
-		case ip4[0] == 169 && ip4[1] == 254:
-			return "link-local (169.254.0.0/16)", true
-		}
-		return "", false
-	}
-	ip6 := ip.To16()
-	if ip6 == nil {
-		return "", false
-	}
-	if ip6[0] == 0xfe && ip6[1]&0xc0 == 0x80 {
-		return "link-local (fe80::/10)", true
-	}
-	if ip6[0]&0xfe == 0xfc { // fc00::/7
-		return "ULA (fc00::/7)", true
-	}
-	return "", false
-}
-
-// checkHost — IP littérale vérifiée directement ; nom résolu sous délai court,
-// fail-closed si la résolution échoue. allowPrivate ouvre l'opt-in banc.
+// checkHost — délègue la décision à probe.GuardHost (table de plages unique).
+// L'erreur probe est traduite dans les types d'erreur API pour que le handler
+// garde son mapping 403/400 ; allowPrivate ouvre l'opt-in banc.
 func checkHost(ctx context.Context, host string, allowPrivate bool) error {
 	if host == "" {
 		return &ssrfRefusedError{Why: "hôte vide — refusé"}
 	}
-	if ip := net.ParseIP(host); ip != nil {
-		if r, blocked := blockedIP(ip); blocked && !allowPrivate {
-			return &privateTargetError{IP: ip.String(), Range: r}
+	if err := probe.GuardHost(ctx, host, allowPrivate); err != nil {
+		var blocked *probe.PrivateTargetError
+		if errors.As(err, &blocked) {
+			return &privateTargetError{IP: blocked.IP, Range: blocked.Range}
 		}
-		return nil
-	}
-	rctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	ips, err := net.DefaultResolver.LookupIP(rctx, "ip", host)
-	if err != nil {
-		return &ssrfRefusedError{Why: fmt.Sprintf("résolution de %q impossible — refusé : %v", host, err)}
-	}
-	if len(ips) == 0 {
-		return &ssrfRefusedError{Why: fmt.Sprintf("résolution de %q : aucune adresse — refusé", host)}
-	}
-	for _, ip := range ips {
-		if r, blocked := blockedIP(ip); blocked && !allowPrivate {
-			return &privateTargetError{IP: ip.String(), Range: r}
-		}
+		return &ssrfRefusedError{Why: err.Error()}
 	}
 	return nil
 }
@@ -111,6 +67,11 @@ func guardSmallURL(ctx context.Context, raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return &ssrfArgError{Why: fmt.Sprintf("small_url illisible — refusée : %v", err)}
+	}
+	// Refuser l'userinfo : des identifiants embarqués déguisent l'hôte réel
+	// et peuvent induire le transport en erreur (erreur client → 400).
+	if u.User != nil {
+		return &ssrfArgError{Why: "small_url avec userinfo refusée"}
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return &ssrfArgError{Why: fmt.Sprintf("schéma %q refusé — http|https uniquement", u.Scheme)}
