@@ -30,13 +30,13 @@
 
 **Interfaces:**
 - Consumes: the operator's GitHub credentials and a writable remote.
-- Produces: zero `ghp_` commits in reachable history, verified by `git log --all -S'ghp_' --oneline`.
+- Produces: zero commits touching the leaked PAT file, verified by `git log --all --no-textconv --oneline -- book/handoff-livrables-2026-09-02.md`. Human ruling 2026-11-18: the global `-S'ghp_'` check is unsatisfiable because the gate's token regex/selftest and historical docs legitimately contain the literal; only the leaked file's history is the oracle.
 
 - [ ] **Step 1: Revoke and rotate (human)** — In GitHub UI revoke the classic `ghp_` PAT committed in `54d3f62` (`book/handoff-livrables-2026-09-02.md:23`); review Security/Actions/Releases logs from 2026-09-02 to today; save the log OUTSIDE the repo (e.g. `D:\cgo-audit-evidence\github-token-audit.txt`); rotate keys in local untracked `.env`.
 - [ ] **Step 2: Mirror backup (human)** — `git clone --mirror . /d/cgo-mirror-backup-2026-11-18.git` from `C:\cgo` in Git Bash. Confirm the directory exists before continuing.
 - [ ] **Step 3: Verify the tool (human)** — `git filter-repo --version`. If absent, install it as a human decision; do not let an agent install dependencies.
 - [ ] **Step 4: Purge (human)** — `git filter-repo --invert-paths --path book/handoff-livrables-2026-09-02.md --force`.
-- [ ] **Step 5: Verify zero hits (human)** — `git log --all -S'ghp_' --oneline`. Expected: EMPTY. Record the exact output.
+- [ ] **Step 5: Verify zero hits (human)** — `git log --all --no-textconv --oneline -- book/handoff-livrables-2026-09-02.md`. Expected: EMPTY (currently two commits: `54d3f62`, `8c67859`). Record the exact output.
 - [ ] **Step 6: Force-push (human, destructive)** — Re-add origin if stripped: `git remote add origin <YOUR_GITHUB_REMOTE_URL> 2>/dev/null || true`; then `git push origin --force --all` and `git push origin --force --tags`. Only after Step 5 is empty.
 - [ ] **Step 7: Record** — Save the command output outside the repo and report to the coordinator. Task 3's check 1 stays BLOCKED until this task reports success.
 - [ ] **Step 8: Human ruling on the frozen book** — The corpus also asks to enforce the canonical title in `book/` front matter, but `book/` is frozen evidence. Human decision: leave `book/` byte-unchanged and record the ruling outside the repo. No agent may edit `book/` for this title.
@@ -141,8 +141,8 @@ Expected: one commit; `git show --stat` lists only Chunk 0 paths. If pre-commit 
 
 - [ ] **Step 1: Cap-40 history check**
 
-Run: `git log --all -S'ghp_' --oneline`
-Expected: EMPTY **only after Task 1**. If not empty, record `BLOCKED — Task 1 incomplete` and do not claim Chunk 0 verified. Note: 20 such commits exist at plan time; no agent may rewrite history.
+Run: `git log --all --no-textconv --oneline -- book/handoff-livrables-2026-09-02.md`
+Expected: EMPTY **only after Task 1**. If not empty, record `BLOCKED — Task 1 incomplete` and do not claim Chunk 0 verified. At plan time this returns two commits (`54d3f62`, `8c67859`); the global `-S'ghp_'` form is deliberately not used — the gate's token regex/selftest and historical docs keep that literal forever. No agent may rewrite history.
 
 - [ ] **Step 2: Bloat deletion check**
 
