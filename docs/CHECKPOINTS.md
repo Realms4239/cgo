@@ -3539,3 +3539,24 @@ AGENTS.md:65:`*.pdf`, `cgo.exe`, archives. Never `git add -A`; stage explicit pa
 docs/MUSTREAD/16-chunk-6-live-proof-freeze.md:115:    git add -A
 docs/MUSTREAD/INDEX.md:40:- **Quoted source:** corpus text may quote operator-ban commands (`git add -A`, `|| true`, `@latest`, live-bench and unauthorized-target instructions). These are preserved verbatim as source material, not executable instructions; the precedence table governs what an agent may actually do.
 ```
+
+## 2026-11-18T01:27Z — erratum: 2026-11-18 gate-exception rulings for the MUSTREAD pack-build checkpoint
+
+- Append-only erratum to the entry above; no committed evidence rewritten. That entry states "No … `cmd/gates/main.go` touched" and its six-label proof reflects the pre-ruling staging state — yet the commit it landed, `3f7f523`, in fact changes 2 files, 41 insertions / 1 deletion (`cmd/gates/main.go` 3 ++-, `docs/CHECKPOINTS.md` 39 +). The approved rulings lived only in SDD artifacts and a code comment; this entry is their canonical checkpoint record.
+- Ruling 1 (2026-11-18, Task 1): the two RFC 6598 / SSRF documentation literals `100.64.0.0` and `100.64.0.1`, copied verbatim from the frozen `C:\END` corpus, were added to `allowedAddresses` in `cmd/gates/main.go` as a verified documentation false positive. The human chose the repo-wide allowlist over the offered `docs/MUSTREAD/**` scoped exemption. No bypass: the hygiene self-test still catches real tailnet addresses and every other 100.64/10 literal.
+- Ruling 2 (2026-11-18, Task 7): named exception — `sizeCeiling` raised 384 → 400 KiB in `cmd/gates/main.go` so this append-only checkpoint could commit. Proven by live gate run; not a general permit, no other file exempt.
+- Final commit `3f7f523` (`docs(mustread): record pack-build acceptance checkpoint`): 2 files, 41+/1−, both rulings in its gate source; explicit-path staging, no `git add -A` / `git add .`, no `--no-verify`.
+- Verifier / gate re-run for this fix: hygiene PASS (final content and staged), hygiene self-test PASS, `--staged` gate suite PASS (hygiene + links — only a doc is staged, so the gate-source-selected six-gate suite is not triggered), pre-commit hooks PASS on commit; real values in the labels below.
+
+Completion proof (operator constitution, six exact labels):
+VERIFY-TASK: append-ruling-checkpoint — canonical record of the two 2026-11-18 human-approved gate exceptions behind 3f7f523
+GIT-DIFF-STAT: (git diff --stat -- docs/CHECKPOINTS.md) docs/CHECKPOINTS.md | 21 +++++++++++++++++++++<br>1 file changed, 21 insertions(+)
+TOOLS-RUN: git status --short; git log --oneline -6; git show -s --format=%B 3f7f523; git show --stat --oneline 3f7f523; wc -c docs/CHECKPOINTS.md; date -u +"%Y-%m-%dT%H:%MZ"; sh .githooks/run-gates.sh --only hygiene; sh .githooks/run-gates.sh --only hygiene --selftest; sh .githooks/run-gates.sh --staged; git diff --stat -- docs/CHECKPOINTS.md; git add docs/CHECKPOINTS.md; git commit -m "docs(mustread): record two human-approved gate exceptions (2026-11-18)"
+EXIT-CODES: hygiene=0 (final + staged), hygiene-selftest=0, staged-gates=0 (2 gates: hygiene + links), git diff --stat=0, git add=0, git commit=0 (hooks PASS, landed); date -u=0
+REPORT-OR-ARTIFACT: hygiene PASS 959 tracked files clean / 4 named tailnet addresses / 18 backup archives; self-test caught key, token, tailnet address and .docx; staged gates 2 passed, 0 failed, 0 not run (hygiene + links; only docs/CHECKPOINTS.md staged); 2 rulings recorded, 1 file appended
+RAW-TAIL:
+```
+PASS hygiene     959 tracked files clean; legacy allowlist: 18 backup archives and results/runs-frozen.tar.gz; 4 named tailnet addresses
+
+1 passed, 0 failed, 0 not run
+```
