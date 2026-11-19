@@ -3579,3 +3579,39 @@ PASS hygiene     956 tracked files clean; legacy allowlist: 18 backup archives a
 
 1 passed, 0 failed, 0 not run
 ```
+
+## 2026-11-19T15:45Z — field-tuned .dist replay + CHR boot from pinned pristine image (LIVE-02)
+
+- Scope: the operator-approved authorized constrained-link audit → calibrate → replay with
+  `TC_LIB_DIR`, plus the RouterOS CHR fix. Builder pass only: no VERIFY-row promotion,
+  no push/tag/merge, no `book/` or frozen-corpus change.
+- Result 1 (`.dist`): 60 s dualns audit `audit-1795091574-1fd85cca` yielded 35 baseline
+  samples at p50 110 ms (a first 100 ms audit correctly failed the `p50 > plancher` rule;
+  one variable changed). `cgo calibrate --profile P2` sealed `P2.dist`
+  (`495ef5f3…`) + `P2.json` (`0b6c0efb…`). A bounded replay with
+  `CGO_DELAY_MODEL=dist CGO_CALIBRATION_DIR=/home/bench/dist` sealed
+  `run-dist-1795091600`, `gate_status=valid`, RTT p50/p95 110/111 ms, small p95 252.9 ms,
+  7.3 Mbit/s. Live qdisc showed `delay 50ms 2.75ms` — the calibrated scale — proving
+  `TC_LIB_DIR` actually loaded the distribution. All manifest-declared hashes recompute.
+- Result 2 (CHR): earlier BLOCKED diagnosis was correct (first boot set an admin password).
+  Pristine pinned image `c6abf876…` was found locally at `D:/chr-download/chr-7.24.6.img`;
+  re-deposited through guarded R2 windows and one bounded `cgo-chr-v13` cycle sealed
+  `proof-2026-11-19-final`: `11/11 vérifications`, `import.accepted: true`, 0 failures.
+  No pin change, no password guessing, no auth disabling.
+- A tooling slip (quoted SFTP path, then `core.autocrlf` normalising evidence blobs) was
+  caught by hash checks and corrected in `410592f`: committed blobs now equal the declared
+  hashes byte-for-byte.
+- Unproven by this checkpoint: verifier re-run (builder promoted no VERIFY row); DSI
+  countersign; v2.0.0 tag/freeze/merge; thesis PDF; field-trace-derived `.dist` (this
+  calibration used a live bench audit, not the passive trace); `TC_LIB_DIR` on a non-bench host.
+
+Completion proof (operator constitution, six exact labels):
+VERIFY-TASK: LIVE-02 — field-tuned P2 .dist calibration + TC_LIB_DIR replay; CHR boot from pinned image
+GIT-DIFF-STAT: 17 files changed, 2342 insertions(+), 1 deletion(-)
+TOOLS-RUN: cgo calibrate; bounded cgo run with CGO_DELAY_MODEL=dist; tc qdisc oracle; guarded R2 sftp-put + sha256sum + cgo-chr-v13; sha256 verification of committed blobs
+EXIT-CODES: calibrate=0, replay=0, CHR=0 (11/11), hooks=0 (2 passed each commit), sha256 -c=0
+REPORT-OR-ARTIFACT: docs/verification/2026-11-19-field-tune/README.md; docs/verification/2026-11-19-chr-verified/README.md; commits f1ca575, 2edca70, 410592f
+RAW-TAIL:
+```
+chr: preuve /home/sadc/labo-cgo/chr/proof-2026-11-19-final/proof.json · 11/11 vérifications · niveau linux-namespace
+```
