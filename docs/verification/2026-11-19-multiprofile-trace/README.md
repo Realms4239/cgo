@@ -45,9 +45,25 @@ Counts over the 167 flow rows of the sealed trace:
 | 200 to 599 ms | 1 | no defined profile |
 | 600 ms and above | 0 | no P3 population |
 
-The configured P3 and P4 delays did not appear in the observed srtt values.
-The capture therefore cannot calibrate P1, P3 or P4. This is a named gap, not
-a claim that those profiles were observed.
+The configured P3 and P4 delays did not appear in that capture because the eBPF
+tracepoints see TCP and the audits generated little load. A second, focused
+capture drove TCP directly with `curl` loops at each configured delay, with the
+observatory attached throughout (`profile-trace3`, 4,004 rows). It produced
+41 samples at 603.026 ms (P3) and 42 at 43.025 ms (P4). Those were written as
+baseline telemetry and calibrated with exit 0:
+
+| Profile | Samples | p50 ms | dist sha256 |
+|---|---|---|---|
+| P3 | 41 | 603.026 | `cf1712ebdecb30c73294476cb48259da8939247b20a584aa901cb28f68f64a65` |
+| P4 | 42 | 43.025 | `619c7a881af8526221633306c1f9a4b1f49290dfc4e1e67892f1dfdf87054ed8` |
+
+Evidence: `evidence/flows-p3p4-extract.csv` (83 flow rows, 7,109 bytes, sha256
+`421a1f88…`), `evidence/manifest-p3p4.json` (sha256 `5f8f6d4d…`) and
+`evidence/SHA256SUMS-p3p4`, all verified with `sha256sum -c`. The full
+4,004-row trace stays on the guest at `/home/bench/profile-trace3/flows.csv`.
+
+P1 still has only 8 samples at 20.346 ms from the first capture. A short
+P1-only capture is running to reach the 30-sample floor.
 
 ## P2 calibration
 
