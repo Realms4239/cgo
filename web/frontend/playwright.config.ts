@@ -25,6 +25,13 @@ export default defineConfig({
         cwd: '../..',
         url: 'http://127.0.0.1:4173/api/health',
         timeout: 120000,
+        // Auth fail-closed : sans jeton, cgo serve refuse de démarrer (exit 2).
+        // On fournit un jeton de test et une racine de données sous tmp/ pour ne
+        // jamais écrire dans le corpus suivi (book/data, data).
+        env: {
+          CGO_API_TOKEN: 'cgo-e2e-axe-test-token-32-chars-minimum',
+          CGO_DATA_DIR: 'tmp/axe-e2e-data',
+        },
         reuseExistingServer: false,
       },
 });
