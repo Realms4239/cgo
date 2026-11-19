@@ -1,0 +1,16 @@
+{
+  "attach": [
+    "raw_tp/tcp_retransmit_skb",
+    "fentry/tcp_rcv_established",
+    "raw_tp/kfree_skb"
+  ],
+  "duration_s": 900,
+  "exclude_ports": "",
+  "excluded_rows": 0,
+  "flows_csv_sha256": "ee8ce4185ea335d219fc1714e666d3da7afd17b1d880092e491e86baed2ee2e8",
+  "interval_s": 5,
+  "kind": "cgo-observe/manifest",
+  "object_sha256": "8612f5785a46390cfead383f5e5d2bcde1e33777dda10331221169cae603d17f",
+  "rows": 7513,
+  "started_unix": 1795118572
+}
