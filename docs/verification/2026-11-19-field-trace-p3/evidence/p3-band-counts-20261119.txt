@@ -1,0 +1,58 @@
+ALLOW   date -u
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^1[0-9]{5}$'
+ALLOW   wc -l
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^[6-9][0-9]{5}$'
+ALLOW   wc -l
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^[0-9]{7,}$'
+ALLOW   wc -l
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^[1-9][0-9]{5}$'
+ALLOW   wc -l
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^[2-5][0-9]{5}$'
+ALLOW   wc -l
+ALLOW   date -u
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^1[0-9]{5}$'
+ALLOW   wc -l
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^[6-9][0-9]{5}$'
+ALLOW   wc -l
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^[0-9]{7,}$'
+ALLOW   wc -l
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^[1-9][0-9]{5}$'
+ALLOW   wc -l
+ALLOW   cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv
+ALLOW   grep -E '^[2-5][0-9]{5}$'
+ALLOW   wc -l
+$ date -u
+Thu Nov 19 05:50:15 PM UTC 2026
+exit=0
+
+$ cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv | grep -E '^1[0-9]{5}$' | wc -l
+0
+exit=0
+
+$ cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv | grep -E '^[6-9][0-9]{5}$' | wc -l
+113
+exit=0
+
+$ cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv | grep -E '^[0-9]{7,}$' | wc -l
+0
+exit=0
+
+$ cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv | grep -E '^[1-9][0-9]{5}$' | wc -l
+68609
+exit=0
+
+$ cut -d, -f11 /home/sadc/labo-cgo/field-trace/out-readable/flows.csv | grep -E '^[2-5][0-9]{5}$' | wc -l
+68496
+exit=0
+
+evidence: C:\WEBSERVER\evidence\20261119-175021-read-window.txt
+sha256:   d9502a94b566ca6d4583b9aa5d4a12bc4330739d85f8946d354e7d689605bfb7
