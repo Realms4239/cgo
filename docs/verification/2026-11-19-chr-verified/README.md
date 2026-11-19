@@ -56,7 +56,10 @@ re-deposited correctly and the run above sealed on the first bounded cycle.
   `b2d3395d…`, matching the on-host declaration.
 
 Evidence: `evidence/chr-proof-readback-20261119.txt` (guarded R0 readback,
-`sha256 7e85ddce…` with sidecar) and `evidence/proof.json` (extracted, hash verified).
+`sha256 f1435d04…` with sidecar) and `evidence/proof.json` (extracted, hash verified
+against the host declaration `b2d3395d…`). Both evidence files are stored with LF
+line endings so that the committed blobs hash identically to the local files under
+this repository's `core.autocrlf=true` setting.
 The QEMU `CPUID.80000001H:ECX.svm` warning is cosmetic on this Intel host and was
 present in the 2026-11-16 proof too.
 
