@@ -1,8 +1,10 @@
 # 2026-11-19 — guest-side observatory capture, multi-profile attempt
 
-The capture produced a real P2 population of 151 samples and a sealed P2 `.dist`.
-It did **not** produce a P3 population and only 15 sub-100 ms samples, so the
-goal of one profile-matched sample set per profile was not reached.
+The captures produced a profile-matched population for all four profiles and
+sealed a `.dist` for each: P1 40 samples, P2 151, P3 41, P4 42. Every sidecar
+hash and every evidence hash verifies. The result is an eBPF observatory
+capture of **bench-generated shaped traffic**, not an organic passive field
+trace. Claims built on it must say that.
 
 This is an eBPF observatory capture of **bench-generated shaped traffic** on the
 guest, not an organic passive field trace. The flows are real kernel samples;
@@ -62,8 +64,26 @@ Evidence: `evidence/flows-p3p4-extract.csv` (83 flow rows, 7,109 bytes, sha256
 `evidence/SHA256SUMS-p3p4`, all verified with `sha256sum -c`. The full
 4,004-row trace stays on the guest at `/home/bench/profile-trace3/flows.csv`.
 
-P1 still has only 8 samples at 20.346 ms from the first capture. A short
-P1-only capture is running to reach the 30-sample floor.
+A third, P1-only capture used the same TCP-driving method at 10 ms per hop,
+with the observatory attached for 200 s (`profile-trace4`, 1,993 rows). It
+produced 40 samples at 23.028 ms, above the 20 ms floor, and calibrated:
+
+| Profile | Samples | p50 ms | Floor ms | dist sha256 |
+|---|---|---|---|---|
+| P1 | 40 | 23.028 | 20 | `fb99def6c36bb00228eccb09ff35ca3d25df05675bae83a469f67b5a91bb79d3` |
+| P2 | 151 | 175.282 | 100 | `f9c23c39791f44d45de72befd652f0f722f40c9edb57d37c082b04d0995f5aa2` |
+| P3 | 41 | 603.026 | 600 | `cf1712ebdecb30c73294476cb48259da8939247b20a584aa901cb28f68f64a65` |
+| P4 | 42 | 43.025 | 40 | `619c7a881af8526221633306c1f9a4b1f49290dfc4e1e67892f1dfdf87054ed8` |
+
+Evidence: `evidence/flows-p1-extract.csv` (40 flow rows, 3,505 bytes, sha256
+`4b086ff3…`), `evidence/manifest-p1.json` (sha256 `981ec0b1…`) and
+`evidence/SHA256SUMS-p1`. The full 1,993-row trace stays on the guest at
+`/home/bench/profile-trace4/flows.csv`. All four `dist_sha256` and
+`source_telemetry_sha256` values were recomputed and match their sidecars.
+
+All four profile floors are met, so the goal of one profile-matched sample set
+per profile is reached. The honest limitation is the source: shaped bench
+traffic observed by eBPF, not passive field traffic.
 
 ## P2 calibration
 
@@ -101,9 +121,10 @@ in `C:\WEBSERVER\evidence\20261119-200907-*` through `20261119-201154-*`.
 
 ## Proves / does not prove
 
-Proves: an eBPF observatory capture of shaped bench traffic contains 151 real
-P2-band samples and calibrates a sealed `P2.dist`.
+Proves: eBPF observatory captures of shaped bench traffic contain real,
+profile-matched populations for P1, P2, P3 and P4, each above the engine's
+floor, and calibrate four sealed `.dist` files with hashes that verify.
 
-Does not prove: organic passive field evidence; P1, P3 or P4 calibration; a
-`TC_LIB_DIR` replay of this new `P2.dist`; any production or thesis claim. No
-VERIFY row is promoted by this builder pass.
+Does not prove: organic passive field evidence; a `TC_LIB_DIR` replay of these
+four new `.dist` files; any production or thesis claim. No VERIFY row is
+promoted by this builder pass.
