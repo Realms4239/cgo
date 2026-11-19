@@ -212,3 +212,71 @@ Residuals accepted: Y — generated data under the `api` directory removed, tree
 Signature: independently verified at 2026-11-08 08:50 UTC — re-ran verify.py 6/6, TestMetrics ×5, three per-module suites, npm 321 tests and build 357.6 KB at HEAD a12e7e5, confirmed rows 83/85 PENDING, no frozen-corpus or Go-dep change, and the CGO-DEV BLOCKED record with its E8 console-key condition.
 
 | Full v2 dualns corpus — 24-cell matrix (2026-11-16) | VERIFIED (independent verifier re-ran 2026-11-16: `bash kit/check-v2-run.sh docs/verification/2026-11-16-v2-corpus/run-1794853778 24` → `[v2] OK — 24 cellules, manifeste présent, portes explicites, 4 profils`, exit 0; `bash kit/seal-v2-run.sh docs/verification/2026-11-16-v2-corpus/run-1794853778` → `hash8: 6adc83d9`, `aqm_eval_sha256: 6adc83d9…`, `cells: 24`, quarantine absent, exit 0; CSV 24 rows, all `gate_status=valid`; `sh .githooks/run-gates.sh` → `6 passed, 0 failed, 0 not run`, `PASS frozen` 159 runs / 528 rows / 208 valid; `python book/tools/audit-archive.py` → both `OK` lines; `book/` git-clean before and after. Residual: SEAL.md line 8 transcribes the manifest hash as 48 chars (24-char prefix + 24-char suffix, middle `dd05eecacc4c0479` omitted) against the computed 64-char `db777e73…`; documentation typo only — hash8 and all gates unaffected.) | sadcnwp bench VM (operator-approved live run through C:\WEBSERVER, same-day scoped token, no guard edit). `run-1794853778`: P1–P4 × cake × {cubic,bbr} × 3 reps, down, 4 flows, deadline 220 ms — **24/24 cells `gate_status=valid`**, no quarantine sidecar needed. Own anchor `hash8 6adc83d9`, separate from the frozen corpus; CSV+manifest captured verbatim under `docs/verification/2026-11-16-v2-corpus/run-1794853778/`. `kit/check-v2-run.sh … 24` and `kit/seal-v2-run.sh` green; gates 6/6 with `PASS frozen` unchanged (159 runs / 528 rows / 208 valid). Three real bench defects found and fixed in-repo (`d8a9a38`, `82dbfb2`, `e11d4cd`, `b5d892b`, `a60778f`) so a replicated VM inherits them. Named confounder: passive field trace live on the same host until 2026-11-17T16:22:27Z. Verifier must re-run and own the row. | 2026-11-16 | sadcnwp (bench VM) |
+
+## Verifier signature — 2026-11-19 field-tuned `.dist` + CHR builder pass (LIVE-02)
+
+Verifier: independent subagent in the VERIFIER role — no builder claim trusted; every
+oracle below was re-run from the committed blobs on this host.
+Host: DESKTOP-B6K9UCM (Windows 10, MINGW64), Go 1.26.5, `core.autocrlf=true`.
+Branch: `main` at `c6430e241c44d5189e1a2d4064bd8c0833196a5c` (builder commits
+`f1ca575`, `2edca70`, `410592f`, `c6430e2`). Re-run window: 2026-11-19, 17:1x UTC.
+
+| # | Command (re-run from this checkout) | Exact result | Exit |
+|---|---|---|---|
+| 1 | `sha256sum .../field-tune/calibrations/P2.dist` | `495ef5f3b10dff4e2e1c802672115452c565f4371e8e540af3cdbbf6216895bb` = P2.json `dist_sha256` | 0 |
+| 2 | `sha256sum .../field-tune/calibrations/P2.json` | `0b6c0efb3f1fb6e03d481c6c2e19942f08d64c6d1b52e7f8e3f3e7c57745fc8c` = README § Calibration | 0 |
+| 3 | `sha256sum .../run-dist-1795091600/manifest.json` | `0fff9f332382965b481c21b80ea8b86c99aec0f4feda1267283e479bae9d572f` = README § Replay | 0 |
+| 4 | `python` re-hash of `manifest['config']` | declared `74488bf26d1328cae8811547eaab11880b7d6123456e0a0152f63c7913b4c1b4` = computed, `MATCH True`; `"delay_model":"dist"` present | 0 |
+| 5 | `sha256sum .../aqm_eval.csv` | `69dc65a76c5a9f5cbc0d7445f663c965354f8084f3b80df76278dd3f5e5f7da0` = manifest `files[aqm_eval.csv].Sha256` | 0 |
+| 6 | `sha256sum .../valuation.json` | `c7e514cfd4c68b86d22f7e76279579b884b56054507f411861157c324221da04` = manifest `files[valuation.json].Sha256` | 0 |
+| 7 | CSV oracle parse of `aqm_eval.csv` | `row_count 1`; `gate_status=valid`; `rtt_p50_ms=110.0`; `rtt_p95_ms=111.0`; base `110.0/111.0`; `cake/cubic/P2` | 0 |
+| 8 | baseline sample re-derivation from source `telemetry.csv` | phases `baseline 35 / load-down 138 / drain-down 35`; baseline n=35, p50 `110.0`, p95 `111.0`, min/max `110/111` | 0 |
+| 9 | `sha256sum .../audit-1795091574-1fd85cca/telemetry.csv` | `e130dc842261bf06caebbef77ab2044141d6e7766b1e1e06d877797adbfad434` = P2.json `source_telemetry_sha256` | 0 |
+| 10 | `sha256sum .../audit-1795091574-1fd85cca/audit_report.json` | `2b021121a7212388ef8142838833004e22e4d36a18010ec343e19f06628fb474` = P2.json `source_report_sha256` | 0 |
+| 11 | `sha256sum -c chr-proof-readback-20261119.txt.sha256` | `chr-proof-readback-20261119.txt: OK` | 0 |
+| 12 | `sha256sum .../chr-verified/evidence/proof.json` | `b2d3395d3e706153326921370f425da09839076f8f814e34f2ac561099e3d754` = host declaration in CHR README | 0 |
+| 13 | `sha256sum .../evidence/chr-proof-readback-20261119.txt` | `f1435d0476648b6da186bd7de1cb300443214002a50b43f184678d447711c01d` = sidecar + CHR README | 0 |
+| 14 | regex count on CHR readback | `"pass": true` = **11**, `"pass": false` = **0**; `image_sha256=c6abf876…` present; `"accepted": true` present | 0 |
+| 15 | `git show HEAD:<p> \| sha256sum` vs `sha256sum <p>` over 8 evidence files (P2.dist, P2.json, 3 replay artifacts, proof.json, readback, sidecar) | all **MATCH** (blob = working tree), no `core.autocrlf` drift | 0 |
+| 16 | `git diff f1ca575~1..HEAD -- book/`; `git status --short -- book/` | `0` bytes; empty — frozen corpus untouched | 0 |
+| 17 | `sh .githooks/run-gates.sh` | six `PASS` lines; summary `6 passed, 0 failed, 0 not run` | 0 |
+
+Gate summary line (verbatim): `6 passed, 0 failed, 0 not run`. `make` is absent on this
+host; the repository's documented gate runner (`sh .githooks/run-gates.sh`, which builds
+and execs `cmd/gates` so exit 0/1/2 stay exact) was used — no missing prerequisite was
+reported as passed.
+
+Recomputed hashes (independent of every builder claim): P2.dist `495ef5f3…`, P2.json
+`0b6c0efb…`, manifest.json `0fff9f33…`, config string `74488bf2…`, aqm_eval.csv
+`69dc65a7…`, valuation.json `c7e514cf…`, source telemetry `e130dc84…`, source report
+`2b021121…`, proof.json `b2d3395d…`, readback `f1435d04…`. All eight committed blobs
+equal their working-tree bytes.
+
+Rows promoted: **none**. Rows left with a named condition:
+- Row 48 `.dist netem` — stays BLOCKED. The 2026-11-19 calibration came from a live bench
+  audit (35 baseline samples, re-derived above), not the passive field trace; the plan index
+  row 5 states the passive-trace-specific acceptance stays blocked and that `P2.dist` must
+  never be cited as passive field material. Condition to clear: a passive field trace ≥30
+  baseline samples matching a defined profile.
+- Row 67 `Trace-driven .dist engine … (Windows)` — stays BLOCKED. Same field-trace condition,
+  plus this verifier did not re-run the Windows engine tests or the live cell (no bench/host
+  access). Condition: passive field trace plus a human-approved verifier re-run.
+- Row 71 `RouterOS 7 configuration compliance via CHR` — stays as already VERIFIED. The
+  2026-11-19 proof's integrity is fully re-oracled here (hash chain, sidecar OK, 11/0, pinned
+  image `c6abf876…`, `import.accepted:true`), but the boot itself cannot be re-executed by
+  this verifier; the 2026-11-16 row and its limitation are unchanged.
+- Row 45 `CHR offline replay (pipeline only)` — stays as-is; the new dated boot is a separate
+  artifact and does not change this pipeline-only claim.
+
+Residuals accepted: the live `.dist` cell and CHR boot were re-oracled only at the artifact
+level (no SSH, no live bench, per constraint); the `TC_LIB_DIR` qdisc observation
+(`delay 50ms 2.75ms`) is recorded in the builder README and was not re-observable here. The
+readback's own last `sha256: 72123e1a…` line is the hash of the *original host* evidence file
+`C:\WEBSERVER\evidence\20261119-151645-read-window.txt`, not of the committed transcription
+(`f1435d04…`) — not a defect. Commit `410592f` fixed the earlier CRLF blob mismatch; this
+verifier confirms byte-identical blobs now.
+
+Signature: independently verified at `Thu Nov 19 17:16:52 UTC 2026` — all seven field-tune
+hash/sample oracles, all four CHR oracles, the eight blob-equality checks, the empty corpus
+delta, and the six gates passed; no VERIFY row was promoted because the named live/field
+conditions are outside what this verifier is permitted or able to re-run.
