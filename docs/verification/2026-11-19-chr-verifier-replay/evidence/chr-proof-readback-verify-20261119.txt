@@ -1,0 +1,114 @@
+ALLOW   date -u
+ALLOW   sha256sum /home/sadc/labo-cgo/chr/proof-verify-20261119/proof.json /home/sadc/labo-cgo/chr/proof-verify-20261119/export.txt /home/sadc/labo-cgo/chr/proof-verify-20261119/transcript.txt /home/sadc/labo-cgo/chr/chr-7.24.6.img
+ALLOW   cat /home/sadc/labo-cgo/chr/proof-verify-20261119/proof.json
+ALLOW   cat /home/sadc/labo-cgo/chr/run-verify-20261119.log
+ALLOW   date -u
+ALLOW   sha256sum /home/sadc/labo-cgo/chr/proof-verify-20261119/proof.json /home/sadc/labo-cgo/chr/proof-verify-20261119/export.txt /home/sadc/labo-cgo/chr/proof-verify-20261119/transcript.txt /home/sadc/labo-cgo/chr/chr-7.24.6.img
+ALLOW   cat /home/sadc/labo-cgo/chr/proof-verify-20261119/proof.json
+ALLOW   cat /home/sadc/labo-cgo/chr/run-verify-20261119.log
+$ date -u
+Thu Nov 19 06:03:43 PM UTC 2026
+exit=0
+
+$ sha256sum /home/sadc/labo-cgo/chr/proof-verify-20261119/proof.json /home/sadc/labo-cgo/chr/proof-verify-20261119/export.txt /home/sadc/labo-cgo/chr/proof-verify-20261119/transcript.txt /home/sadc/labo-cgo/chr/chr-7.24.6.img
+a42a02842961c229810c85d4e0631da7b54fea0b6806382ae1d35ecc840d89df  /home/sadc/labo-cgo/chr/proof-verify-20261119/proof.json
+320332ddb5f82159de6267b2f18b63846008bda8d4751b954bd564041e1e629b  /home/sadc/labo-cgo/chr/proof-verify-20261119/export.txt
+91ae304b3b0fccae4b09a8d1d30731f8aced7cb970b7e6c69b28c22409d8407d  /home/sadc/labo-cgo/chr/proof-verify-20261119/transcript.txt
+0def2965a8982612a9e7115b0edac4826bc8cf17798b2d0e6d1cf1206d72e919  /home/sadc/labo-cgo/chr/chr-7.24.6.img
+exit=0
+
+$ cat /home/sadc/labo-cgo/chr/proof-verify-20261119/proof.json
+{
+  "schema": "cgo.chr-proof/1",
+  "audit_id": "audit-1794898684",
+  "report_sha256": "fde70e0a791f1e312c496543e71ff2e0782615cdb25016fbc125aa4291261a6a",
+  "chr": {
+    "version": "",
+    "arch": "",
+    "image_sha256": "c6abf87622c5bdbd86f7b5730c8e83f86f2335ee2fbe97d008da176ffbf97878"
+  },
+  "level": "linux-namespace",
+  "accelerator": "kvm",
+  "import": {
+    "accepted": true
+  },
+  "checks": [
+    {
+      "name": "queue tree cgoingress-lan-in.comment",
+      "expected": "cgo-managed-ingress",
+      "found": "cgo-managed-ingress",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.max-limit",
+      "expected": "16648496",
+      "found": "16648496",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.parent",
+      "expected": "ether2",
+      "found": "ether2",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.queue",
+      "expected": "cgoingress-cake",
+      "found": "cgoingress-cake",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-bandwidth",
+      "expected": "16648496",
+      "found": "16.6Mbps",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-diffserv",
+      "expected": "diffserv4",
+      "found": "diffserv4",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-flowmode",
+      "expected": "dual-dsthost",
+      "found": "dual-dsthost",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-nat",
+      "expected": "yes",
+      "found": "yes",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-rtt",
+      "expected": "200ms",
+      "found": "200ms",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-wash",
+      "expected": "yes",
+      "found": "yes",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.kind",
+      "expected": "cake",
+      "found": "cake",
+      "pass": true
+    }
+  ],
+  "export_sha256": "320332ddb5f82159de6267b2f18b63846008bda8d4751b954bd564041e1e629b",
+  "transcript_sha256": "91ae304b3b0fccae4b09a8d1d30731f8aced7cb970b7e6c69b28c22409d8407d"
+}
+exit=0
+
+$ cat /home/sadc/labo-cgo/chr/run-verify-20261119.log
+qemu-system-x86_64: warning: host doesn't support requested feature: CPUID.80000001H:ECX.svm [bit 2]
+chr: preuve /home/sadc/labo-cgo/chr/proof-verify-20261119/proof.json · 11/11 vérifications · niveau linux-namespace
+exit=0
+
+evidence: C:\WEBSERVER\evidence\20261119-180345-read-window.txt
+sha256:   49a2539c940ddbd9b5b8c4644e43d1144c9883935e1062c734cde88c3800301d
