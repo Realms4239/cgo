@@ -1,0 +1,85 @@
+{
+  "schema": "cgo.chr-proof/1",
+  "audit_id": "audit-1794898684",
+  "report_sha256": "fde70e0a791f1e312c496543e71ff2e0782615cdb25016fbc125aa4291261a6a",
+  "chr": {
+    "version": "",
+    "arch": "",
+    "image_sha256": "c6abf87622c5bdbd86f7b5730c8e83f86f2335ee2fbe97d008da176ffbf97878"
+  },
+  "level": "linux-namespace",
+  "accelerator": "kvm",
+  "import": {
+    "accepted": true
+  },
+  "checks": [
+    {
+      "name": "queue tree cgoingress-lan-in.comment",
+      "expected": "cgo-managed-ingress",
+      "found": "cgo-managed-ingress",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.max-limit",
+      "expected": "16648496",
+      "found": "16648496",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.parent",
+      "expected": "ether2",
+      "found": "ether2",
+      "pass": true
+    },
+    {
+      "name": "queue tree cgoingress-lan-in.queue",
+      "expected": "cgoingress-cake",
+      "found": "cgoingress-cake",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-bandwidth",
+      "expected": "16648496",
+      "found": "16.6Mbps",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-diffserv",
+      "expected": "diffserv4",
+      "found": "diffserv4",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-flowmode",
+      "expected": "dual-dsthost",
+      "found": "dual-dsthost",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-nat",
+      "expected": "yes",
+      "found": "yes",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-rtt",
+      "expected": "200ms",
+      "found": "200ms",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.cake-wash",
+      "expected": "yes",
+      "found": "yes",
+      "pass": true
+    },
+    {
+      "name": "queue type cgoingress-cake.kind",
+      "expected": "cake",
+      "found": "cake",
+      "pass": true
+    }
+  ],
+  "export_sha256": "71a3c9df6637b909aca02d11cdb3151dce1c8a7ef7e0c3a2ce2c9ddc591ff700",
+  "transcript_sha256": "70269d129f67b6bbfdd854ec2fc9faa0f816c02577753b9048d98b5a75ad143b"
+}

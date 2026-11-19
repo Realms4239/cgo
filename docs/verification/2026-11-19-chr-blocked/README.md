@@ -1,6 +1,12 @@
 # 2026-11-19 — RouterOS CHR boot: BLOCKED (root cause confirmed)
 
-## Status
+## Status — RESOLVED later the same day
+
+This block is superseded: the pinned pristine image was found locally and one bounded
+`cgo-chr-v13` cycle sealed 11/11 checks. See `../2026-11-19-chr-verified/README.md`.
+The root-cause analysis below is retained as historical evidence.
+
+### Original blocked status
 
 BLOCKED. Named unblock condition: a pristine `chr-7.24.6.img` with SHA-256
 `c6abf87622c5bdbd86f7b5730c8e83f86f2335ee2fbe97d008da176ffbf97878` (the pin in
