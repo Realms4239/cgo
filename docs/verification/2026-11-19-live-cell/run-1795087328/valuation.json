@@ -1,0 +1,94 @@
+{
+  "labels": {
+    "flows": 4,
+    "channel_model": "clean",
+    "bench": "dualns",
+    "charge_sec": 120
+  },
+  "note": "Campagne sans type de lien déclaré — aucun primaire marqué : les cinq scénarios se lisent côte à côte.",
+  "disclaimer": "Scénarios contractuels (yas.mg 31/08/2026 ; APN 150 Ar/Go sur devis), pas des mesures : le chiffre retenu dépend du contrat du site, pas de la physique du lien.",
+  "entries": [
+    {
+      "cell": "P2/cake/cubic",
+      "bytes": 65077089,
+      "drops": 16,
+      "ratio": {
+        "ratio": 0.00035600854856922075,
+        "basis": "estimated"
+      },
+      "scenarios": [
+        {
+          "model": "A",
+          "name": "enterprise-gold-cir",
+          "ar_per_hour": 0.49445631745725105,
+          "basis": "(part réémise 0.0004) × 1 000 000 Ar/720 h",
+          "numbers": {
+            "model": "A",
+            "monthly_opex_mga": 1000000,
+            "cir_mbps": 200,
+            "retrans_ratio": 0.00035600854856922075,
+            "wasted_bytes": 23168,
+            "transport_bytes": 65077089,
+            "load_seconds": 120
+          }
+        },
+        {
+          "model": "A",
+          "name": "enterprise-platine1",
+          "ar_per_hour": 1.2361407936431277,
+          "basis": "(part réémise 0.0004) × 2 500 000 Ar/720 h",
+          "numbers": {
+            "model": "A",
+            "monthly_opex_mga": 2500000,
+            "retrans_ratio": 0.00035600854856922075,
+            "wasted_bytes": 23168,
+            "transport_bytes": 65077089,
+            "load_seconds": 120
+          }
+        },
+        {
+          "model": "B",
+          "name": "b2b-platine-bulk",
+          "ar_per_hour": 0.052677798271179195,
+          "basis": "0.02 Mo gaspillés / fenêtre 120 s × 81.38 Ar/Go",
+          "numbers": {
+            "model": "B",
+            "ar_per_gb": 81.38,
+            "retrans_ratio": 0.00035600854856922075,
+            "wasted_bytes": 23168,
+            "transport_bytes": 65077089,
+            "load_seconds": 120
+          }
+        },
+        {
+          "model": "B",
+          "name": "b2b-m2m-apn",
+          "ar_per_hour": 0.09709596633911133,
+          "basis": "0.02 Mo gaspillés / fenêtre 120 s × 150.00 Ar/Go",
+          "numbers": {
+            "model": "B",
+            "ar_per_gb": 150,
+            "retrans_ratio": 0.00035600854856922075,
+            "wasted_bytes": 23168,
+            "transport_bytes": 65077089,
+            "load_seconds": 120
+          }
+        },
+        {
+          "model": "emergency",
+          "name": "retail-outofbundle",
+          "ar_per_hour": 3.5964345932006836,
+          "basis": "hors-forfait d'urgence (Net Month 4,5 Go) — pénalité, pas un modèle d'infrastructure",
+          "numbers": {
+            "model": "emergency",
+            "ar_per_gb": 5556,
+            "retrans_ratio": 0.00035600854856922075,
+            "wasted_bytes": 23168,
+            "transport_bytes": 65077089,
+            "load_seconds": 120
+          }
+        }
+      ]
+    }
+  ]
+}

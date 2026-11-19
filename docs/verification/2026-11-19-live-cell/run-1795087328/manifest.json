@@ -1,0 +1,14 @@
+{
+ "config": "{\"profiles\":[{\"id\":\"P2\",\"capacity_mbps\":20,\"delay_ms\":100,\"jitter_ms\":15,\"loss_pct\":0.5}],\"qdiscs\":[\"cake\"],\"ccs\":[\"cubic\"],\"reps\":1,\"direction\":\"down\",\"target\":\"10.30.0.2\",\"bulk_addr\":\"10.30.0.2:5201\",\"small_url\":\"http://10.30.0.2:8081/small\",\"flows\":4,\"baseline_sec\":30,\"charge_sec\":120,\"deadline_ms\":220,\"channel_model\":\"clean\",\"bench\":\"dualns\",\"delay_model\":\"scalar\",\"kernel\":\"6.8.0-147-generic\",\"tier\":\"yas-month-4.5gb\"}",
+ "config_sha256": "eb1f3a03d8d6e96fb3ed243453bdffb3bb4250285211213a97af3c9b01ad9e47",
+ "files": [
+  {
+   "File": "aqm_eval.csv",
+   "Sha256": "92fa395b733d482ec6d070008dba588f7127fa8157f7480b84b3d11d70df1437"
+  },
+  {
+   "File": "valuation.json",
+   "Sha256": "aea722e6aa05ac3229cecd13442e400e685ba74b5f7efd21b7b9023a2d20fd1d"
+  }
+ ]
+}

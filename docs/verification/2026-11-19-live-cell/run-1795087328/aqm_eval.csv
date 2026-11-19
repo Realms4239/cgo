@@ -1,0 +1,2 @@
+run_id,event_id,profile,qdisc,cc,direction,repetition,rtt_p50_ms,rtt_p95_ms,qdi_ms,voip_r,jfi_pct,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,rtt_base_p50_ms,rtt_base_p95_ms,gate_status
+run-1795087328,1,P2,cake,cubic,down,1,101.0,122.0,21.0,91.2,65.5,253.4,92.6,4.3,16,0,23168,2.40,8.9,101.0,118.0,valid
