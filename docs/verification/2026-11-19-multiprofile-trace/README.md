@@ -73,9 +73,15 @@ This is separate from the bench-audit-derived `P2.dist` in
 
 The guest disk reached 99 percent during the first capture attempt. Apt,
 fwupd and man caches were cleared, returning 269 MB free. A scoped expansion
-of the qcow2 by 5 GB was approved and is documented in `C:\WEBSERVER`
+of the qcow2 by 5 GB was approved in `C:\WEBSERVER`
 (`PROPOSED-2026-11-19-bench-disk-expand.md` and
-`APPROVED-2026-11-19-bench-disk-expand.md`) and executed after this capture.
+`APPROVED-2026-11-19-bench-disk-expand.md`) and executed after this capture:
+rehearsal resize on a copy verified 8.5 GiB virtual size, the live overlay was
+backed up to `labo-cgo-bench.qcow2.pre-expand-20261119`, the VM was stopped with
+`kill -TERM 3673912`, the live overlay was resized to 8.5 GiB, and the VM was
+relaunched with its exact recorded command. Cloud-init grew the partition on
+boot, so the guest now reports 7.2 GB available at 29 percent use. Evidence is
+in `C:\WEBSERVER\evidence\20261119-200907-*` through `20261119-201154-*`.
 
 ## Proves / does not prove
 
