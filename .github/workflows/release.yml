@@ -39,18 +39,8 @@ jobs:
           CGO_ENABLED: "1"
         run: |
           sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libglfw3-dev xorg-dev libwayland-dev pkg-config libxkbcommon-dev
-          set +e
-          out=$(sh .githooks/run-gates.sh 2>&1); rc=$?
-          set -e
-          printf '%s\n' "$out"
-          if [ $rc -ne 0 ]; then
-            if [ $rc -eq 2 ] && printf '%s' "$out" | grep -E 'SKIP[[:space:]]+frozen' >/dev/null && ! printf '%s' "$out" | grep -q 'FAIL'; then
-              echo "frozen gate: named host-only skip (corpus absent in fresh clone) — accepted"
-              exit 0
-            fi
-            echo "gates failed (rc=$rc)" >&2
-            exit 1
-          fi
+          # --strict counts any named SKIP as failure; never rewritten to green.
+          sh .githooks/run-gates.sh --strict
       - name: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
