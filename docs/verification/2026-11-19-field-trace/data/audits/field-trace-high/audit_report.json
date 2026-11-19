@@ -1,0 +1,6 @@
+{
+  "audit_id": "field-trace-high",
+  "site": "sadcnwp-passive-field-trace",
+  "link_type": "vsat",
+  "note": "derived from srtt_us of high-RTT flows"
+}

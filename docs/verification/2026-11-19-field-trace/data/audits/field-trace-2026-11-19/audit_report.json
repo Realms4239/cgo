@@ -1,0 +1,8 @@
+{
+  "audit_id": "field-trace-2026-11-19",
+  "site": "sadcnwp-passive-field-trace",
+  "link_type": "fiber",
+  "source": "48h passive eBPF observatory, object 8612f578...",
+  "derived_from": "flow-samples.csv srtt_us/1000",
+  "note": "Derived baseline for .dist calibration; not a synthetic measurement."
+}
