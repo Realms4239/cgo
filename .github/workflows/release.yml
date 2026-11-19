@@ -20,15 +20,15 @@ jobs:
           go-version: "1.25"
       - name: install syft + cosign
         run: |
-          go install github.com/anchore/syft/cmd/syft@latest
-          go install github.com/sigstore/cosign/v2/cmd/cosign@latest
+          go install github.com/anchore/syft/cmd/syft@v1.24.0
+          go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.0
           export PATH="$PATH:$(go env GOPATH)/bin"
           echo "PATH=$PATH" >> $GITHUB_ENV
           syft version
           cosign version
       - name: install goreleaser
         run: |
-          go install github.com/goreleaser/goreleaser/v2@latest
+          go install github.com/goreleaser/goreleaser/v2@v2.11.0
           export PATH="$PATH:$(go env GOPATH)/bin"
           echo "PATH=$PATH" >> $GITHUB_ENV
           goreleaser --version
@@ -76,6 +76,6 @@ jobs:
           CGO_IMAGE_DIGEST: ${{ secrets.CGO_IMAGE_DIGEST }}
         run: |
           if [ -n "$CGO_IMAGE_DIGEST" ]; then
-            cosign attest-blob --bundle dist/digests.txt.sigstore.json --yes dist/digests.txt || true
+            cosign attest-blob --bundle dist/digests.txt.sigstore.json --yes dist/digests.txt
             echo "digest pinned: $CGO_IMAGE_DIGEST" >> $GITHUB_STEP_SUMMARY
           fi

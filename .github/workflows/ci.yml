@@ -17,20 +17,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
-      - name: gates (frozen-skip acceptance)
-        run: |
-          set +e
-          out=$(sh .githooks/run-gates.sh 2>&1); rc=$?
-          set -e
-          printf '%s\n' "$out"
-          if [ $rc -ne 0 ]; then
-            if [ $rc -eq 2 ] && printf '%s' "$out" | grep -E 'SKIP[[:space:]]+frozen' >/dev/null && ! printf '%s' "$out" | grep -q 'FAIL'; then
-              echo "frozen gate: named host-only skip (corpus absent in fresh clone) — accepted"
-              exit 0
-            fi
-            echo "gates failed (rc=$rc)" >&2
-            exit 1
-          fi
+      - name: gates
+        # --strict counts any named SKIP (e.g. frozen, corpus absent in a fresh
+        # clone) as failure; it is never rewritten to green.
+        run: sh .githooks/run-gates.sh --strict
       - name: go build
         run: go build ./...
       - name: go vet
@@ -80,8 +70,24 @@ jobs:
       - uses: actions/checkout@v4
       - name: docker build
         run: docker build -f deploy/Dockerfile --build-arg VERSION=ci -t cgo-ci .
-      - name: smoke (version)
-        run: docker run --rm --entrypoint /cgo cgo-ci version
+      - name: smoke (served container)
+        # ENTRYPOINT already is `/cgo --serve`; --expose is required by the
+        # non-loopback bind guard in cmd/cgo/expose.go (token provided below).
+        run: |
+          docker run -d --name cgo-ci-smoke -p 19090:9090 \
+            -e CGO_API_TOKEN=ci-smoke-test-token-32-chars-minimum \
+            cgo-ci --addr 0.0.0.0:9090 --tls=false --expose
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:19090/api/health && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:19090/ -o /tmp/cgo-index.html
+          grep -o '/assets/[^" ]*' /tmp/cgo-index.html | while read -r asset; do
+            curl -fsS "http://127.0.0.1:19090${asset}" > /dev/null
+          done
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:19090/api/results)
+          test "$code" = 401
+          docker rm -f cgo-ci-smoke
 
   fresh-clone:
     runs-on: ubuntu-latest
