@@ -1,0 +1,113 @@
+{
+  "audit_id": "audit-1795091574-1fd85cca",
+  "owner_id": "",
+  "timestamp": "2026-11-19T15:32:54+03:00",
+  "site": "bench-calibration",
+  "link_type": "fiber",
+  "provider": "",
+  "measured": {
+    "rtt_idle_p50_ms": 110,
+    "rtt_idle_p95_ms": 111,
+    "rtt_loaded_p50_ms": 110,
+    "rtt_loaded_p95_ms": 111,
+    "qdi_ms": 1,
+    "bloat_delta_ms": 0,
+    "drain_ms": 0,
+    "drain_measured": false,
+    "load_attempted": true,
+    "load_measured": false,
+    "throughput_mbps": 0,
+    "loss_pct": 0.9523809523809524,
+    "http_small_p95_ms": 0,
+    "small_measured": false,
+    "voip_r": 0,
+    "data_used_mb": 0,
+    "direction": "down",
+    "flow_count": 4,
+    "jfi_pct": 0,
+    "jfi_measured": false,
+    "rtt_loaded_down_p95_ms": 111,
+    "throughput_down_mbps": 0,
+    "bloat_delta_down_ms": 0,
+    "jfi_down_pct": 0,
+    "load_measured_down": false,
+    "grade_down": ""
+  },
+  "phases": {
+    "baseline_seconds": 10,
+    "load_seconds": 0.444127887,
+    "recovery_seconds": 10
+  },
+  "unavailable": [
+    {
+      "metric": "economics",
+      "reason": "économie entreprise — fenêtre de charge vide ; aucun scénario n'est chiffré plutôt qu'un zéro fabriqué"
+    },
+    {
+      "metric": "bufferbloat grade",
+      "reason": "no bulk load ran, so the loaded window was never under load; a grade here would be fabricated"
+    },
+    {
+      "metric": "throughput",
+      "reason": "no bulk sink reachable; supply -bulk host:port or install iperf3"
+    },
+    {
+      "metric": "voip_r",
+      "reason": "requires a measured headline load window; not computed from an empty headline window"
+    },
+    {
+      "metric": "http_small_p95",
+      "reason": "no small-object URL supplied; ping RTT is not a substitute for object completion time"
+    },
+    {
+      "metric": "drain_ms",
+      "reason": "audit shorter than 20 s, so no recovery window was collected; drain is not the same as zero"
+    },
+    {
+      "metric": "deadline_ok_pct",
+      "reason": "cap_deadline_ok_pct covers the fixed 220 ms operator objective; the campaign's operator-defined deadline_ok_pct stays a separate, campaign-only metric"
+    },
+    {
+      "metric": "remediation",
+      "reason": "capacity or idle RTT unmeasured; a queue config sized from a guess would be deployed blindly"
+    }
+  ],
+  "bloat_grade": "",
+  "bloat_verdict": "Bufferbloat non mesuré — aucune charge bulk exploitable.",
+  "operator_verdict": {
+    "level": "neutral",
+    "word": "Charge non établie",
+    "sentence": "Le flux saturant n'a pas pu démarrer ; la tenue sous congestion n'est pas mesurée."
+  },
+  "provenance": {
+    "source_file": "/home/bench/bench-data/link_audit.csv",
+    "source_sha256": "8587023c0ecf2a5d8c850c40da425daeffd1a46dbab20d7c492a433815ae3399",
+    "row_count": 3,
+    "telemetry_file": "/home/bench/bench-data/audits/audit-1795091574-1fd85cca/telemetry.csv",
+    "telemetry_sha256": "e130dc842261bf06caebbef77ab2044141d6e7766b1e1e06d877797adbfad434",
+    "row_file_sha256": "8587023c0ecf2a5d8c850c40da425daeffd1a46dbab20d7c492a433815ae3399"
+  },
+  "invocation": {
+    "origin": "cli",
+    "sink_mode": "external",
+    "duration_sec": 60,
+    "flows": 4,
+    "direction": "down",
+    "site": "bench-calibration",
+    "link_type": "fiber",
+    "target": "10.30.0.2",
+    "small_url": "http://10.30.0.2:8081/small",
+    "bulk_addr": "10.30.0.2:5201",
+    "replay_command": "cgo audit -site='bench-calibration' -link-type='fiber' -duration=60 -direction='down' -flows=4 -target='10.30.0.2' -small='http://10.30.0.2:8081/small' -bulk='10.30.0.2:5201'"
+  },
+  "artifact": "/home/bench/bench-data/audits/audit-1795091574-1fd85cca/audit_report.json",
+  "remediation_state": "observation_only",
+  "remediation_available": false,
+  "cap_sla": {
+    "measured": false,
+    "ok_pct": 0,
+    "breach": false,
+    "target_pct": 95,
+    "deadline_ms": 220
+  }
+}

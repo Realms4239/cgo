@@ -1,0 +1,188 @@
+{
+  "audit_id": "audit-1795091086-252026ff",
+  "owner_id": "",
+  "timestamp": "2026-11-19T15:24:46+03:00",
+  "site": "bench-calibration",
+  "link_type": "fiber",
+  "provider": "",
+  "measured": {
+    "rtt_idle_p50_ms": 100,
+    "rtt_idle_p95_ms": 101,
+    "rtt_loaded_p50_ms": 100,
+    "rtt_loaded_p95_ms": 101,
+    "qdi_ms": 1,
+    "bloat_delta_ms": 0,
+    "drain_ms": 0,
+    "drain_measured": true,
+    "load_attempted": true,
+    "load_measured": true,
+    "throughput_mbps": 18.59224590754775,
+    "loss_pct": 0,
+    "http_small_p95_ms": 134.0424,
+    "small_measured": true,
+    "voip_r": 91.866,
+    "data_used_mb": 94.133032,
+    "direction": "down",
+    "flow_count": 4,
+    "jfi_pct": 85.4268326789474,
+    "jfi_measured": true,
+    "rtt_loaded_down_p95_ms": 101,
+    "throughput_down_mbps": 18.59224590754775,
+    "bloat_delta_down_ms": 0,
+    "jfi_down_pct": 85.4268326789474,
+    "load_measured_down": true,
+    "grade_down": "A+"
+  },
+  "phases": {
+    "baseline_seconds": 10,
+    "load_seconds": 40.504211258,
+    "recovery_seconds": 10
+  },
+  "unavailable": [
+    {
+      "metric": "deadline_ok_pct",
+      "reason": "cap_deadline_ok_pct covers the fixed 220 ms operator objective; the campaign's operator-defined deadline_ok_pct stays a separate, campaign-only metric"
+    },
+    {
+      "metric": "remediation",
+      "reason": "no interface was named, so no command set could be generated"
+    }
+  ],
+  "bloat_grade": "A+",
+  "bloat_verdict": "Latence excellente sous charge : l'AQM tient les files, appel et pilotage restent nets.",
+  "operator_verdict": {
+    "level": "green",
+    "word": "Lien sain",
+    "sentence": "Sous charge, la latence reste sous l'objectif et 100.0 % des alertes passent à l'heure."
+  },
+  "provenance": {
+    "source_file": "/home/bench/bench-data/link_audit.csv",
+    "source_sha256": "5944c0cc87a0b9835c672e5caca1842e83339af90d47160b7391ce61a8fdaff4",
+    "row_count": 1,
+    "telemetry_file": "/home/bench/bench-data/audits/audit-1795091086-252026ff/telemetry.csv",
+    "telemetry_sha256": "4c1f94a687ffe1be15dc14b517534cbff9655dea1896afbe1d583c0fd892abb9",
+    "row_file_sha256": "5944c0cc87a0b9835c672e5caca1842e83339af90d47160b7391ce61a8fdaff4"
+  },
+  "invocation": {
+    "origin": "cli",
+    "sink_mode": "dualns",
+    "duration_sec": 60,
+    "flows": 4,
+    "direction": "down",
+    "site": "bench-calibration",
+    "link_type": "fiber",
+    "target": "10.30.0.2",
+    "small_url": "http://10.30.0.2:8081/small",
+    "bulk_addr": "10.30.0.2:5201",
+    "replay_command": "cgo audit -site='bench-calibration' -link-type='fiber' -duration=60 -direction='down' -flows=4 -target='10.30.0.2' -small='http://10.30.0.2:8081/small' -bulk='10.30.0.2:5201'"
+  },
+  "artifact": "/home/bench/bench-data/audits/audit-1795091086-252026ff/audit_report.json",
+  "remediation_state": "observation_only",
+  "remediation_available": false,
+  "economics": {
+    "primary_link_type": "fiber",
+    "primary": {
+      "model": "A",
+      "name": "enterprise-gold-cir",
+      "ar_per_hour": 0,
+      "basis": "(part réémise 0.0000) × 1 000 000 Ar/720 h",
+      "numbers": {
+        "model": "A",
+        "monthly_opex_mga": 1000000,
+        "cir_mbps": 200,
+        "retrans_ratio": 0,
+        "wasted_bytes": 0,
+        "transport_bytes": 94133032,
+        "load_seconds": 40.504211258
+      }
+    },
+    "scenarios": [
+      {
+        "model": "A",
+        "name": "enterprise-gold-cir",
+        "ar_per_hour": 0,
+        "basis": "(part réémise 0.0000) × 1 000 000 Ar/720 h",
+        "numbers": {
+          "model": "A",
+          "monthly_opex_mga": 1000000,
+          "cir_mbps": 200,
+          "retrans_ratio": 0,
+          "wasted_bytes": 0,
+          "transport_bytes": 94133032,
+          "load_seconds": 40.504211258
+        }
+      },
+      {
+        "model": "A",
+        "name": "enterprise-platine1",
+        "ar_per_hour": 0,
+        "basis": "(part réémise 0.0000) × 2 500 000 Ar/720 h",
+        "numbers": {
+          "model": "A",
+          "monthly_opex_mga": 2500000,
+          "retrans_ratio": 0,
+          "wasted_bytes": 0,
+          "transport_bytes": 94133032,
+          "load_seconds": 40.504211258
+        }
+      },
+      {
+        "model": "B",
+        "name": "b2b-platine-bulk",
+        "ar_per_hour": 0,
+        "basis": "0.00 Mo gaspillés / fenêtre 41 s × 81.38 Ar/Go",
+        "numbers": {
+          "model": "B",
+          "ar_per_gb": 81.38,
+          "retrans_ratio": 0,
+          "wasted_bytes": 0,
+          "transport_bytes": 94133032,
+          "load_seconds": 40.504211258
+        }
+      },
+      {
+        "model": "B",
+        "name": "b2b-m2m-apn",
+        "ar_per_hour": 0,
+        "basis": "0.00 Mo gaspillés / fenêtre 41 s × 150.00 Ar/Go",
+        "numbers": {
+          "model": "B",
+          "ar_per_gb": 150,
+          "retrans_ratio": 0,
+          "wasted_bytes": 0,
+          "transport_bytes": 94133032,
+          "load_seconds": 40.504211258
+        }
+      },
+      {
+        "model": "emergency",
+        "name": "retail-outofbundle",
+        "ar_per_hour": 0,
+        "basis": "hors-forfait d'urgence (Net Month 4,5 Go) — pénalité, pas un modèle d'infrastructure",
+        "numbers": {
+          "model": "emergency",
+          "ar_per_gb": 5556,
+          "retrans_ratio": 0,
+          "wasted_bytes": 0,
+          "transport_bytes": 94133032,
+          "load_seconds": 40.504211258
+        }
+      }
+    ],
+    "retrans_ratio": {
+      "ratio": 0,
+      "basis": "measured"
+    },
+    "wasted_bytes": 0,
+    "transported_bytes": 94133032,
+    "load_seconds": 40.504211258,
+    "disclaimer": "Scénarios contractuels (yas.mg 31/08/2026 ; APN 150 Ar/Go sur devis), pas des mesures : le chiffre retenu dépend du contrat du site, pas de la physique du lien."
+  },
+  "cap_sla": {
+    "measured": true,
+    "ok_pct": 100,
+    "breach": false,
+    "target_pct": 95,
+    "deadline_ms": 220
+  }
+}
