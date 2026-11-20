@@ -969,6 +969,247 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
 .dash-seal-item b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 
+/* ============================================================
+   PORTAIL MÉTÉO — peau institutionnelle claire.
+   Les règles du poste de mesure restent en place : elles servent aux vues
+   instrumentales. Ici, seule la présentation change — jamais une mesure,
+   jamais un verdict, jamais une date. Une seule histoire d'accent : teal.
+   ============================================================ */
+
+/* fond et coque — surface claire, pas de halo, pas de dégradé décoratif */
+body { background: var(--portal-ground); color: var(--portal-ink); }
+
+/* bandeau utilitaire — filet teal puis bande d'information réelle */
+.app-header { background: var(--portal-surface); border-bottom: 1px solid var(--portal-border); padding: 28px var(--sp-5) 0; min-height: 88px; gap: var(--sp-5); }
+.app-header::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--portal-teal); }
+.util-strip { position: absolute; top: 3px; left: 0; right: 0; height: 25px; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 0 var(--sp-5); background: var(--portal-teal-deep); color: var(--portal-surface); font: 500 var(--fs-fine) var(--font-ui); letter-spacing: var(--tracking-caps); }
+.util-strip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* mot réservé — le composant garde son repli testé, la peau le rend lisible */
+.app-header .wordmark-text {
+  color: var(--portal-ink) !important;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  filter: none !important;
+  font-size: var(--fs-head) !important;
+  letter-spacing: var(--tracking-wide) !important;
+}
+.app-header .stripe i:nth-child(1) { background: var(--portal-teal); }
+.app-header .stripe i:nth-child(2) { background: var(--portal-teal-deep); }
+.app-header .stripe i:nth-child(3) { background: var(--portal-yellow); }
+.app-header .ml-icon { color: var(--portal-teal); }
+.app-header .hd-sub { color: var(--portal-muted); }
+
+/* état de liaison — pastille sans halo,roteau d'état franc */
+.app-header .hd-right { color: var(--portal-muted); }
+.app-header .hd-conn { background: var(--portal-red); box-shadow: none; }
+.app-header .hd-conn[data-on="1"] { background: var(--portal-teal-deep); box-shadow: none; }
+.app-header .hd-pill { border-radius: 0; background: var(--portal-ground); border-color: var(--portal-border); color: var(--portal-muted); }
+.app-header .hd-pill[data-state="live"] { background: var(--portal-teal-soft, #e7f5f4); border-color: var(--portal-teal); color: var(--portal-teal-deep); }
+.app-header .hd-pill[data-state="stale"] { background: transparent; border-color: var(--portal-red); color: var(--portal-red); }
+.app-header .hd-audit { color: var(--portal-muted); }
+.app-header > button { border: 1px solid var(--portal-border); color: var(--portal-muted); min-width: 40px; min-height: 40px; }
+.app-header > button:hover { border-color: var(--portal-teal); color: var(--portal-teal-deep); }
+
+/* navigation — petites capitales, soulignement teal, aucun Indice clavier */
+.topnav { align-self: stretch; }
+.topnav-btn { min-height: 48px; padding: 0 var(--sp-4); color: var(--portal-muted); border-bottom: 3px solid transparent; font-size: var(--fs-fine); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.topnav-btn:hover { color: var(--portal-ink); }
+.topnav-btn.on, .topnav-btn.on:hover { background: transparent; border-bottom-color: var(--portal-teal); color: var(--portal-teal-deep); }
+.topnav-key { display: none; }
+
+/* cartes et modules — blanc, filet clair, liseré supérieur sobre */
+.card, .state-card { background: var(--portal-surface); border-color: var(--portal-border); color: var(--portal-ink); box-shadow: none; }
+/* états d'erreur et de flux figé — la lumière du portail tient aussi ici */
+.portal-view .state-error, .portal-view .state-stale { background: var(--portal-surface); border-color: var(--portal-border); color: var(--portal-ink); }
+.portal-view .state-error h2, .portal-view .state-stale h2 { color: var(--portal-ink); }
+.portal-view .state-error p, .portal-view .state-stale p { color: var(--portal-muted); }
+.card:hover { border-color: var(--portal-teal); box-shadow: none; }
+.dash-card-kicker, .state-kicker, .mode-head p { color: var(--portal-muted); }
+.dash-card-value, .dash-action-title, .state-card h1, .mode-head h1 { color: var(--portal-ink); letter-spacing: var(--tracking-tight); }
+.dash-card-detail, .dash-disclaimer, .audit-verdict, .syn-read { color: var(--portal-muted); }
+/* la règle historique .state-card p (0,1,1) outrangeait le survol portal (0,1,0) :
+   le module restait en #a9aeb6, soit 2,23:1 sur blanc — échec AA. */
+.state-explain p { color: var(--portal-muted); }
+.kv { border-bottom-color: var(--portal-border); color: var(--portal-muted); }
+.kv b { color: var(--portal-ink); }
+.dash-recent-list li { border-top-color: var(--portal-border); }
+.absent-steps span { color: var(--portal-teal-deep); }
+.absent-steps b { color: var(--portal-ink); }
+.absent-steps p { color: var(--portal-muted); }
+.mechanism { background: var(--portal-surface); border-color: var(--portal-border); }
+.mechanism summary { color: var(--portal-muted); }
+.mechanism summary::before { color: var(--portal-teal-deep); }
+.mechanism-list li, .mechanism-list b { color: var(--portal-muted); }
+.mechanism-list b { color: var(--portal-ink); }
+.dash-seal { border-top-color: var(--portal-border); color: var(--portal-muted); }
+.dash-seal-item b { color: var(--portal-ink); }
+
+/* commandes — même accent teal, coins francs, aucun halo */
+.btn { border-color: var(--portal-border); color: var(--portal-ink); background: var(--portal-surface); }
+.btn:hover { border-color: var(--portal-teal); color: var(--portal-teal-deep); }
+.btn-primary, .btn-primary:hover { background: var(--portal-teal-deep); border-color: var(--portal-teal-deep); color: var(--portal-surface); }
+.btn-primary:disabled { background: var(--portal-border); border-color: var(--portal-border); color: var(--portal-muted); opacity: 1; }
+.btn-danger, .btn-danger:hover { background: var(--portal-red); border-color: var(--portal-red); color: var(--portal-surface); }
+.c-input, .settings-input { background: var(--portal-surface); border-color: var(--portal-border); color: var(--portal-ink); }
+:focus-visible { outline: 2px solid var(--portal-teal-deep); outline-offset: 2px; }
+
+/* pied — même registration que l'en-tête */
+.foot-ticker { background: var(--portal-surface); border-top-color: var(--portal-border); color: var(--portal-muted); }
+.ft-brand { color: var(--portal-teal-deep); font-weight: 700; }
+
+/* bandeau de vigilance — onglet rouge honnête, jamais une alerte inventée */
+.vig-strip { display: flex; align-items: stretch; border: 1px solid var(--portal-border); background: var(--portal-surface); min-width: 0; }
+.vig-tab { display: inline-flex; align-items: center; gap: var(--sp-2); flex: none; padding: var(--sp-2) var(--sp-4); background: var(--portal-red); color: var(--portal-surface); font: 700 var(--fs-fine) var(--font-ui); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.vig-body { display: flex; align-items: center; gap: var(--sp-3); flex: 1 1 auto; min-width: 0; padding: var(--sp-2) var(--sp-4); font-size: var(--fs-fine); color: var(--portal-muted); line-height: 1.45; }
+.vig-body b { color: var(--portal-ink); font-weight: 600; }
+.vig-link { flex: none; align-self: center; margin-left: auto; padding: var(--sp-1) var(--sp-2); color: var(--portal-teal-deep); border-bottom: 1px solid var(--portal-teal); font-size: var(--fs-fine); font-weight: 600; }
+.vig-link:hover { color: var(--portal-teal); }
+@media (max-width: 640px) { .vig-strip { flex-wrap: wrap; } .vig-body { flex-basis: 100%; } .vig-link { margin-left: 0; } }
+
+/* en-tête de section — grand titre charbon, filet court teal + yellow */
+.portal-section { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-4); padding-bottom: var(--sp-3); border-bottom: 1px solid var(--portal-border); flex-wrap: wrap; }
+.portal-section h1, .portal-section h2 { margin: 0; color: var(--portal-ink); font: 600 var(--fs-title)/1.15 var(--font-ui); letter-spacing: var(--tracking-tight); }
+.portal-rule { display: block; position: relative; width: 88px; height: 3px; margin-top: var(--sp-2); background: var(--portal-teal); }
+.portal-rule::after { content: ''; position: absolute; top: 0; right: -20px; width: 20px; height: 3px; background: var(--portal-yellow); }
+.portal-section-note { color: var(--portal-muted); font-size: var(--fs-fine); }
+
+/* phases réelles de l'audit — onglets qui ouvrent du contenu, pas du décor */
+.portal-tabs { display: flex; gap: 0; flex-wrap: wrap; border-bottom: 1px solid var(--portal-border); }
+.portal-tab { min-height: 40px; padding: var(--sp-2) var(--sp-4); color: var(--portal-muted); background: transparent; border-bottom: 3px solid transparent; font: 600 var(--fs-fine) var(--font-ui); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.portal-tab:hover { color: var(--portal-ink); }
+.portal-tab[aria-selected="true"] { color: var(--portal-surface); background: var(--portal-teal-deep); border-bottom-color: var(--portal-teal); }
+.portal-phase-detail { margin: 0; padding: var(--sp-3) 0; color: var(--portal-muted); font-size: var(--fs-fine); line-height: 1.55; }
+
+/* panneau bleu — ancre visuelle, signal réel ou état vide calme */
+.portal-hero { background: var(--portal-blue); border: 1px solid var(--portal-blue); color: var(--portal-on-blue); padding: clamp(var(--sp-4), 3vw, 32px); min-height: 300px; display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.portal-hero-kicker, .portal-hero .verdict-word, .portal-hero .verdict-sentence,
+.portal-hero .verdict-fact dt, .portal-hero .verdict-fact em,
+.portal-hero .verdict-fact dd b, .portal-hero .verdict-fact dd small { color: var(--portal-on-blue); }
+.portal-hero .verdict { padding: 0; }
+.portal-hero.state-card { padding: clamp(var(--sp-4), 3vw, 32px); }
+.portal-hero.state-card h1 { color: var(--portal-on-blue); font-size: var(--fs-title); max-width: 24ch; }
+.portal-hero.state-card p { color: var(--portal-on-blue); }
+.portal-hero .btn { background: var(--portal-surface); border-color: var(--portal-surface); color: var(--portal-teal-deep); }
+.portal-hero .btn:hover { background: var(--portal-ground); color: var(--portal-teal-deep); }
+.portal-empty { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--sp-3); flex: 1; min-width: 0; }
+.portal-empty h3 { margin: 0; color: var(--portal-on-blue); font: 600 var(--fs-head)/1.2 var(--font-ui); }
+.portal-empty p { margin: 0; color: var(--portal-on-blue); line-height: 1.55; max-width: 62ch; }
+
+/* modules rangés — chaque fait sa place, liseré supérieur discret */
+.portal-modules { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--sp-4); align-items: stretch; }
+.portal-module { grid-column: span 4; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4); background: var(--portal-surface); border: 1px solid var(--portal-border); border-top: 3px solid var(--portal-teal); }
+.portal-module[data-accent="blue"] { border-top-color: var(--portal-blue); }
+.portal-module[data-accent="yellow"] { border-top-color: var(--portal-yellow); }
+.portal-module[data-accent="ink"] { border-top-color: var(--portal-ink); }
+.portal-module-wide { grid-column: 1 / -1; }
+.portal-module .dash-card-kicker { margin: 0; }
+.portal-module .dash-card-value { font-size: var(--fs-title); }
+@media (max-width: 900px) { .portal-module { grid-column: span 6; } }
+@media (max-width: 640px) { .portal-module { grid-column: 1 / -1; } }
+
+/* banc — ancres de section en onglets réels (stage), pas des faux onglets */
+.portal-anchors { display: flex; gap: 0; flex-wrap: wrap; border-bottom: 1px solid var(--portal-border); }
+.portal-anchor { min-height: 44px; padding: var(--sp-2) var(--sp-4); border-bottom: 3px solid transparent; color: var(--portal-muted); font: 600 var(--fs-fine) var(--font-ui); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.portal-anchor[aria-current="step"] { color: var(--portal-teal-deep); border-bottom-color: var(--portal-teal); }
+.portal-anchor:hover { color: var(--portal-ink); }
+.bench-section-title { font-family: var(--font-ui); font-size: var(--fs-body); color: var(--portal-ink); border-bottom-color: var(--portal-border); }
+.profile-tile { background: var(--portal-surface); border-color: var(--portal-border); color: var(--portal-ink); }
+.profile-tile[data-selected="true"] { background: var(--portal-teal-soft); border-color: var(--portal-teal); color: var(--portal-teal-deep); }
+.profile-tile-title { color: var(--portal-ink); }
+.profile-tile-spec, .profile-tile-meta { color: var(--portal-muted); }
+.portal-observe-frame { border: 1px solid var(--portal-border); border-top: 3px solid var(--portal-blue); background: var(--portal-surface); padding: var(--sp-3); min-width: 0; }
+.portal-bench-note { color: var(--portal-muted); font-size: var(--fs-fine); }
+.portal-phases { margin: var(--sp-2) 0; }
+.portal-hero .dash-iden, .portal-hero .dash-ago { color: var(--portal-on-blue); }
+.portal-section--labo { display: block; }
+.portal-section--labo .mode-head { border: 0; padding: 0; }
+.portal-section--labo::after { content: ''; display: block; width: 88px; height: 3px; margin-top: var(--sp-2); background: var(--portal-teal); }
+/* ancres du banc : mêmes onglets, pilotés par le stage réel (aucun faux onglet) */
+.bench-anchors { position: static; background: transparent; padding: 0; border: 0; }
+.bench-anchors .btn { border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--portal-muted); min-height: 44px; padding: var(--sp-2) var(--sp-4); font: 600 var(--fs-fine) var(--font-ui); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.bench-anchors .btn:hover { color: var(--portal-ink); }
+.bench-page[data-stage="config"] .bench-anchors .btn:nth-child(1),
+.bench-page[data-stage="observe"] .bench-anchors .btn:nth-child(2),
+.bench-page[data-stage="results"] .bench-anchors .btn:nth-child(3) { color: var(--portal-teal-deep); border-bottom-color: var(--portal-teal); }
+
+/* Grille nommée du cockpit — l'ordre source est l'ordre visuel : sur mobile
+   chaque zone s'empile dans l'ordre déclaré, au bureau elles se rangent en
+   deux colonnes sans jamais réordonner la lecture. */
+.portal-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); align-items: start; }
+.portal-layout > * { min-width: 0; }
+.area-vigilance { grid-area: vigilance; }
+.area-heading { grid-area: heading; }
+.area-phases { grid-area: phases; }
+.area-anchor { grid-area: anchor; }
+.area-explain { grid-area: explain; }
+.area-bulletin { grid-area: bulletin; }
+.area-facts { grid-area: facts; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); align-items: stretch; }
+.area-action { grid-area: action; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); align-items: stretch; }
+.area-detail { grid-area: detail; }
+.area-evidence { grid-area: evidence; }
+.area-station { grid-area: station; }
+.portal-layout--absent { grid-template-areas: "vigilance" "heading" "phases" "anchor" "explain" "bulletin" "evidence" "station"; }
+.portal-layout--measured { grid-template-areas: "vigilance" "heading" "phases" "anchor" "explain" "bulletin" "facts" "action" "detail" "evidence" "station"; }
+@media (min-width: 960px) {
+  .portal-layout { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .portal-layout--absent { grid-template-areas: "vigilance vigilance" "heading heading" "phases phases" "anchor explain" "bulletin bulletin" "evidence evidence" "station station"; }
+  .portal-layout--measured { grid-template-areas: "vigilance vigilance" "heading heading" "phases phases" "anchor explain" "bulletin bulletin" "facts facts" "action detail" "evidence evidence" "station station"; }
+  .area-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .area-action { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* en-tête de module — un petit onglet teal, un titre court et sombre, puis
+   le contenu. Aucune carte supplémentaire, aucune ombre, aucun dégradé. */
+.portal-module .dash-card-kicker, .portal-module-head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: 0 0 var(--sp-2); color: var(--portal-ink);
+  font: 600 var(--fs-fine) var(--font-ui);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase;
+}
+.portal-module .dash-card-kicker::before, .portal-module-head::before {
+  content: ''; flex: none; width: 3px; height: 14px; background: var(--portal-teal);
+}
+.area-explain .mechanism { border-top: 3px solid var(--portal-teal); }
+.area-explain .state-kicker { display: flex; align-items: center; gap: var(--sp-2); }
+.area-explain .state-kicker::before { content: ''; flex: none; width: 3px; height: 14px; background: var(--portal-teal); }
+
+/* bulletin du lien — la phrase du moteur puis les quatre faits du rapport */
+.portal-bulletin { gap: var(--sp-3); }
+.portal-bulletin-lede { margin: 0; color: var(--portal-ink); font: 500 var(--fs-body)/1.55 var(--font-ui); max-width: 78ch; }
+.portal-bulletin-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); margin: 0; }
+.portal-bulletin-facts > div { min-width: 0; border-top: 1px solid var(--portal-border); padding-top: var(--sp-2); }
+.portal-bulletin-facts dt { color: var(--portal-muted); font-size: var(--fs-fine); }
+.portal-bulletin-facts dd { margin: var(--sp-1) 0 0; color: var(--portal-ink); }
+.portal-bulletin-facts dd b { font-size: var(--fs-head); font-variant-numeric: tabular-nums; }
+.portal-bulletin-facts dd small { color: var(--portal-muted); }
+.portal-bulletin-facts [data-empty] dd { font-size: var(--fs-fine); color: var(--portal-muted); }
+.portal-bulletin-meta { display: flex; gap: var(--sp-4); flex-wrap: wrap; margin: 0; color: var(--portal-muted); font-size: var(--fs-fine); }
+.portal-bulletin-empty { margin: 0; color: var(--portal-muted); font-size: var(--fs-fine); }
+@media (max-width: 720px) { .portal-bulletin-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* poste — pied de page calme, après les preuves et les rapports */
+.area-station { border-top: 1px solid var(--portal-border); padding-top: var(--sp-3); }
+.portal-station-card { border: 0; border-top: 1px solid var(--portal-border); background: transparent; padding: var(--sp-3) 0; box-shadow: none; }
+
+/* barre basse mobile — même registration claire que le bureau ; la position,
+   la hauteur 56 px, les cibles 48 px et l'aria-current restent inchangés */
+@media (max-width: 700px) {
+  .topnav { background: var(--portal-surface); border-top: 1px solid var(--portal-border); }
+  .topnav-btn { color: var(--portal-muted); border-top-color: transparent; }
+  .topnav-btn.on, .topnav-btn.on:hover { color: var(--portal-teal-deep); border-top-color: transparent; border-bottom-color: var(--portal-teal); }
+}
+
+/* impression — le portail redevient papier, sans bleu ni filets colorés */
+@media print {
+  .portal-hero, .portal-module, .vig-strip { background: #fff !important; color: #111 !important; border-color: #bbb !important; }
+  .portal-hero .verdict-word, .portal-hero .verdict-sentence,
+  .portal-hero .verdict-fact dt, .portal-hero .verdict-fact em,
+  .portal-hero .verdict-fact dd b, .portal-hero .verdict-fact dd small,
+  .portal-empty h3, .portal-empty p { color: #111 !important; }
+  .portal-rule, .portal-rule::after { display: none; }
+}
+
 /* forced-colors: Windows high-contrast carries contrast — never paint our own fill over system intent */
 @media (forced-colors: active) {
   .btn, .topnav-btn, .c-input, .phase-step, .data-table, .archive-row {

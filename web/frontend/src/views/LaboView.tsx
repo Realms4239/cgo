@@ -10,12 +10,15 @@ import { useUIStore } from '../store/ui'
 import { useBenchStore } from '../store/bench'
 import { useModeActive } from '../lib/hooks'
 import { scrollToId as goTo } from '../lib/scroll'
+import VigilanceStrip from '../components/VigilanceStrip'
 
 export default function LaboView() {
   const stage = useUIStore(s => s.benchStage)
   const setStage = useUIStore(s => s.setBenchStage)
   const active = useModeActive('labo')
   const running = useUIStore(s => !!s.live?.running)
+  const connected = useUIStore(s => s.connected)
+  const liveFrame = useUIStore(s => s.live)
   const replay = useUIStore(s => s.replayRunning)
   const research = useBenchStore(s => s.research)
   const setResearch = useBenchStore(s => s.setResearch)
@@ -44,13 +47,19 @@ export default function LaboView() {
   }
 
   return (
-    <div className="panel-stack bench-page" data-stage={stage}>
-      <ModeHead
-        title="Banc d'essai"
-        sub="Une page : configurer, observer, lire."
+    <div className="panel-stack bench-page portal-view" data-stage={stage}>
+      <VigilanceStrip
+        status={running ? `${liveFrame?.phase || 'campagne'} en cours` : connected ? 'Liaison disponible' : 'Liaison en attente'}
+        detail={running ? 'Mesure en cours sur le banc d’essai.' : 'Aucune campagne en cours — aucune mesure live affichée.'}
       />
+      <div className="portal-section portal-section--labo">
+        <ModeHead
+          title="Banc d'essai"
+          sub="Une page : configurer, observer, lire."
+        />
+      </div>
 
-      <nav className="bench-anchors" aria-label="Sections du banc">
+      <nav className="bench-anchors portal-anchors" aria-label="Sections du banc">
         <button className="btn" onClick={() => { setStage('config'); goTo('bench-config') }}>CONFIGURER</button>
         <button className="btn" onClick={() => goTo('bench-observe')}>OBSERVER</button>
         <button className="btn" onClick={openResults}>RÉSULTATS</button>
@@ -67,7 +76,7 @@ export default function LaboView() {
           <DisplayControls />
         </div>
         <BenchProgress active={active} />
-        <LiveView active={active} />
+        <div className="portal-observe-frame"><LiveView active={active} /></div>
       </section>
 
       <section id="bench-results" className="bench-section" aria-labelledby="bench-results-title">

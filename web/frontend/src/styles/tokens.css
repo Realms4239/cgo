@@ -170,3 +170,22 @@ body::before {
   --state-disabled-text: var(--text-faint);
   --state-disabled-opacity: var(--disabled-opacity);
 }
+
+/* Portail institutionnel — peau claire posée sur le poste de mesure.
+   Nouveaux jetons uniquement : aucune valeur du poste n'est réécrite, aucun
+   repli palette.ts n'est déplacé. Le contraste des petits textes est visé à
+   4,5:1 ; le bleu du panneau est assombri de #0a7fc4 pour tenir le blanc AA. */
+:root {
+  --portal-ground: #f7f8f9;
+  --portal-surface: #ffffff;
+  --portal-ink: #2f3336;
+  --portal-muted: #5d666e;
+  --portal-teal: #0e8f8a;
+  --portal-teal-deep: #0a6e6a;
+  --portal-blue: #0a72b4;
+  --portal-red: #d92d20;
+  --portal-yellow: #f2b400;
+  --portal-border: #e1e6e9;
+  --portal-on-blue: #ffffff;
+  --portal-teal-soft: #e7f5f4;
+}

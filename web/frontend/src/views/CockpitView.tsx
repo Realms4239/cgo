@@ -8,11 +8,110 @@ import { qualityWord } from '../lib/dashboard'
 import { formatCostAR, groupDigits, relativeTime, asArray } from '../lib/format'
 import { loadSettings } from '../lib/settings'
 import { auditList } from '../lib/auditList'
-import IntegriteView from './IntegriteView'
+import IntegriteView, { StationCard, type Machine } from './IntegriteView'
 import AuditReportsPanel from '../components/AuditReportsPanel'
 import AuditView from './AuditView'
+import VigilanceStrip from '../components/VigilanceStrip'
+import type { AuditReport } from '../lib/types'
 
 const signed = (v: number) => `${v > 0 ? '+' : ''}${v}`
+
+// Onglets des phases réelles de l'audit. Le détail vient du rapport quand il
+// existe ; sinon il décrit la mesure à venir. Aucune valeur n'est supposée.
+const PHASES = [
+  { id: 'repos', label: 'Repos' },
+  { id: 'charge', label: 'Charge' },
+  { id: 'vidange', label: 'Vidange' },
+] as const
+
+function PhaseGuide({ report }: { report: import('../lib/types').AuditReport | null }) {
+  const [phase, setPhase] = useState<(typeof PHASES)[number]['id']>('repos')
+  const m = report?.measured
+  const detail = (() => {
+    if (phase === 'repos') {
+      return typeof m?.rtt_idle_p50_ms === 'number'
+        ? `Latence au repos relevée à ${m.rtt_idle_p50_ms} ms.`
+        : '10 s de latence de base, sans charge artificielle.'
+    }
+    if (phase === 'charge') {
+      return m?.load_measured
+        ? 'Charge effective : le débit, les pertes et le délai sous charge sont consignés dans le constat.'
+        : report
+          ? 'Charge non mesurée : aucun écart ne peut être affirmé.'
+          : '40 s de débit atteint, pertes et aggravation du délai sous charge.'
+    }
+    return report
+      ? 'La phase de retour au repos n’est pas consignée dans ce rapport.'
+      : '10 s de retour au repos, pour voir si les files se vident.'
+  })()
+  return (
+    <div className="portal-phases">
+      <div className="portal-tabs" role="tablist" aria-label="Phases de l’audit">
+        {PHASES.map(p => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            id={`phase-tab-${p.id}`}
+            aria-controls="phase-detail"
+            aria-selected={phase === p.id}
+            className="portal-tab"
+            onClick={() => setPhase(p.id)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <p className="portal-phase-detail" id="phase-detail" role="tabpanel" aria-labelledby={`phase-tab-${phase}`}>{detail}</p>
+    </div>
+  )
+}
+
+// Bulletin du lien — quatre faits lus dans le rapport scellé, jamais calculés
+// ici. Un champ absent ou sans son drapeau de mesure porte un mot, pas un zéro.
+function Bulletin({ report }: { report: AuditReport | null }) {
+  const m = report?.measured
+  const sentence = report?.operator_verdict?.sentence?.trim() || ''
+  const measured = (v: unknown, flag: boolean | undefined) =>
+    flag && typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined
+  const facts = [
+    { label: 'Petits objets', value: measured(m?.http_small_p95_ms, m?.small_measured), unit: 'ms' },
+    { label: 'Délai sous charge', value: measured(m?.rtt_loaded_p95_ms, m?.load_measured), unit: 'ms' },
+    { label: 'Équité des flux', value: measured(m?.jfi_pct, m?.jfi_measured), unit: '%' },
+    { label: 'Débit sous charge', value: measured(m?.throughput_mbps, m?.load_measured), unit: 'Mbit/s' },
+  ]
+  const hasFact = facts.some(f => f.value !== undefined)
+  return (
+    <section className="portal-module portal-module-wide area-bulletin portal-bulletin" aria-label="Bulletin du lien" data-testid="cockpit-bulletin">
+      <p className="portal-module-head">Bulletin du lien</p>
+      {!report || (!sentence && !hasFact) ? (
+        <p className="portal-bulletin-empty">Aucun bulletin — l’audit de 60 secondes le produira.</p>
+      ) : (
+        <>
+          {sentence ? <p className="portal-bulletin-lede">{sentence}</p> : null}
+          <dl className="portal-bulletin-facts">
+            {facts.map(f => (
+              <div key={f.label} data-empty={f.value === undefined || undefined}>
+                <dt>{f.label}</dt>
+                <dd>
+                  {f.value !== undefined ? (
+                    <><b className="mono">{groupDigits(f.value, f.unit === 'Mbit/s' ? 1 : 0)}</b> <small className="mono">{f.unit}</small></>
+                  ) : <span className="mono portal-bulletin-na">non renseigné</span>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {report.timestamp || report.audit_id ? (
+            <p className="portal-bulletin-meta">
+              {report.timestamp ? <span>constat du {report.timestamp.slice(0, 10)}</span> : null}
+              {report.audit_id ? <span>identifiant {report.audit_id}</span> : null}
+            </p>
+          ) : null}
+        </>
+      )}
+    </section>
+  )
+}
 
 const HEALTH_LABEL = {
   ok: 'Lien prêt',
@@ -52,7 +151,7 @@ function CapCard({ report }: { report: import('../lib/types').AuditReport | null
   const parsed = formatCostAR(cost?.ar_per_hour)
   const retail = retailBound(report)
   return (
-    <section className="card dash-card layout-span-4 dash-capacity" data-testid="dash-capacity">
+    <section className="card dash-card dash-capacity portal-module" data-testid="dash-capacity">
       <p className="dash-card-kicker">Capacité gaspillée</p>
       <p className="dash-card-value">{cost ? <>{parsed.num}<small> {parsed.unit}</small></> : 'Non chiffré'}</p>
       <p className="dash-card-detail">{cost ? `${cost.name} · estimation contractuelle` : 'le scénario contractuel manque'}</p>
@@ -61,13 +160,25 @@ function CapCard({ report }: { report: import('../lib/types').AuditReport | null
   )
 }
 
-function PreuvesPanel() {
+// Preuves, rapports et sceau d'abord ; le poste est un pied de page calme,
+// rendu dans sa propre zone de la grille avec les mêmes données /api/health.
+function PortalEvidence({ report, machine, setMachine }: {
+  report: AuditReport | null
+  machine: Machine | null
+  setMachine: (m: Machine | null) => void
+}) {
   return (
-    <section className="card dash-card layout-span-12 preuves-panel" data-testid="cockpit-preuves">
-      <p className="dash-card-kicker">Preuves &amp; Rapports</p>
-      <IntegriteView embedded active />
-      <AuditReportsPanel />
-    </section>
+    <>
+      <section className="portal-module portal-module-wide area-evidence" data-testid="cockpit-preuves" aria-label="Preuves et rapports">
+        <p className="portal-module-head">Preuves &amp; Rapports</p>
+        {report ? <SealFooter report={report} /> : null}
+        <AuditReportsPanel />
+        <IntegriteView embedded active hideStation onMachine={setMachine} />
+      </section>
+      <div className="area-station">
+        {machine ? <StationCard machine={machine} quiet /> : null}
+      </div>
+    </>
   )
 }
 
@@ -128,6 +239,7 @@ export default function CockpitView() {
   const settings = loadSettings()
   const [archives, setArchives] = useState<ArchiveRecord[] | null>(null)
   const [auditOpen, setAuditOpen] = useState(false)
+  const [machine, setMachine] = useState<Machine | null>(null)
 
   useEffect(() => {
     auditList()
@@ -136,29 +248,52 @@ export default function CockpitView() {
   }, [])
 
   if (!report) {
-      return (
-      <div className="syn dash dash-absent-page">
-        <section className="layout-grid dash-absent-grid">
-          <div className="layout-span-7 state-card state-absent" data-testid="dash-absent">
-            <p className="state-kicker">Site — mesure en attente</p>
-            <h1>Ce site n’a pas encore été mesuré</h1>
-            <p>L’audit de 60 secondes mesure la latence au repos puis sous charge; il prouve ou échoue, rien entre les deux.</p>
-            <div className="layout-action">
-              <button className="btn btn-primary" onClick={() => setAuditOpen(true)}>Lancer l’audit de 60 secondes</button>
-              <button className="btn" onClick={() => setAuditOpen(true)}>Voir un rapport archivé</button>
+    return (
+      <div className="syn dash dash-absent-page portal-view">
+        <div className="portal-layout portal-layout--absent">
+          <div className="area-vigilance">
+            <VigilanceStrip
+              status="Aucune alerte en cours"
+              detail="Aucune mesure enregistrée sur ce site — l’audit n’a pas encore été lancé."
+            />
+          </div>
+          <div className="area-heading">
+            <div className="portal-section">
+              <div>
+                <h1>Tableau de bord</h1>
+                <span className="portal-rule" aria-hidden="true" />
+              </div>
+              <span className="portal-section-note">Site — mesure en attente</span>
             </div>
           </div>
-          <aside className="layout-span-5 state-card state-explain" aria-label="Ce que l’audit établit">
-            <p className="state-kicker">Ce que l’audit établit</p>
-            <ol className="absent-steps">
-              <li><span>01</span><div><b>Repos — 10 s</b><p>latence de base, sans charge artificielle.</p></div></li>
-              <li><span>02</span><div><b>Charge — 40 s</b><p>débit atteint, pertes et aggravation du délai sous charge.</p></div></li>
-              <li><span>03</span><div><b>Vidange — 10 s</b><p>retour au repos, pour voir si les files se vident.</p></div></li>
-            </ol>
-            <p className="dash-card-detail">Aucune valeur n’est inventée avant ces mesures; les preuves archivées restent disponibles dans Preuves &amp; Rapports.</p>
-          </aside>
-        </section>
-        <PreuvesPanel />
+          <div className="area-phases"><PhaseGuide report={null} /></div>
+          <div className="area-anchor">
+            <section className="state-card state-absent portal-hero" data-testid="dash-absent">
+              <p className="state-kicker">Site — mesure en attente</p>
+              <div className="portal-empty">
+                <h3>Ce site n’a pas encore été mesuré</h3>
+                <p>L’audit de 60 secondes mesure la latence au repos puis sous charge; il prouve ou échoue, rien entre les deux.</p>
+              </div>
+              <div className="layout-action">
+                <button className="btn btn-primary" onClick={() => setAuditOpen(true)}>Lancer l’audit de 60 secondes</button>
+                <button className="btn" onClick={() => setAuditOpen(true)}>Voir un rapport archivé</button>
+              </div>
+            </section>
+          </div>
+          <div className="area-explain">
+            <aside className="state-card state-explain portal-explain" aria-label="Ce que l’audit établit">
+              <p className="state-kicker">Ce que l’audit établit</p>
+              <ol className="absent-steps">
+                <li><span>01</span><div><b>Repos — 10 s</b><p>latence de base, sans charge artificielle.</p></div></li>
+                <li><span>02</span><div><b>Charge — 40 s</b><p>débit atteint, pertes et aggravation du délai sous charge.</p></div></li>
+                <li><span>03</span><div><b>Vidange — 10 s</b><p>retour au repos, pour voir si les files se vident.</p></div></li>
+              </ol>
+              <p className="dash-card-detail">Aucune valeur n’est inventée avant ces mesures; les preuves archivées restent disponibles dans Preuves &amp; Rapports.</p>
+            </aside>
+          </div>
+          <Bulletin report={null} />
+          <PortalEvidence report={null} machine={machine} setMachine={setMachine} />
+        </div>
         {auditOpen ? <InlineAudit onClose={() => setAuditOpen(false)} /> : null}
       </div>
     )
@@ -172,59 +307,91 @@ export default function CockpitView() {
   const rows = archives ?? [{ audit_id: report.audit_id, site: report.site, link_type: report.link_type, timestamp: report.timestamp, has_report: 'true' }]
 
   return (
-    <div className="syn dash">
-      <section className="layout-grid">
-        <div className="layout-span-12 dash-overview-head">
-          <h1 className="sr-only">Tableau de bord</h1>
-          <p className="dash-iden mono">
-            {[report.site || 'Site', report.link_type || 'lien —', report.timestamp ? report.timestamp.slice(0, 16).replace('T', ' ') : ''].filter(Boolean).join(' · ')}
-            {report.timestamp ? <span className="dash-ago"> · {relativeTime(report.timestamp)}</span> : null}
-          </p>
-          <VerdictHero report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
+    <div className="syn dash portal-view">
+      <div className="portal-layout portal-layout--measured">
+        <div className="area-vigilance">
+          <VigilanceStrip
+            status={health.title}
+            detail={health.detail}
+            action={
+              <button type="button" onClick={() => { showReport(); setAuditOpen(true) }}>Consulter</button>
+            }
+          />
+        </div>
+        <div className="area-heading">
+          <div className="portal-section">
+            <div>
+              <h1>Tableau de bord</h1>
+              <span className="portal-rule" aria-hidden="true" />
+            </div>
+            <span className="portal-section-note">
+              {[report.site || 'Site', report.link_type || 'lien —'].filter(Boolean).join(' · ')}
+            </span>
+          </div>
+        </div>
+        <div className="area-phases"><PhaseGuide report={report} /></div>
+        <div className="area-anchor">
+          <div className="portal-hero dash-overview-head">
+            <h2 className="sr-only">Tableau de bord</h2>
+            <p className="dash-iden mono portal-hero-kicker">
+              {[report.site || 'Site', report.link_type || 'lien —', report.timestamp ? report.timestamp.slice(0, 16).replace('T', ' ') : ''].filter(Boolean).join(' · ')}
+              {report.timestamp ? <span className="dash-ago"> · {relativeTime(report.timestamp)}</span> : null}
+            </p>
+            <VerdictHero report={report} warnMs={settings.warnMs} critMs={settings.critMs} />
+          </div>
+        </div>
+        <div className="area-explain">
+          <MechanismCard report={report} />
+        </div>
+        <Bulletin report={report} />
+
+        <div className="area-facts">
+          <section className="card dash-card dash-gauge portal-module" data-testid="dash-gauge">
+            <p className="dash-card-kicker">Santé du lien</p>
+            <p className="dash-card-value">{health.title}</p>
+            <p className="dash-card-detail">{health.detail}</p>
+          </section>
+
+          <section className="card dash-card dash-alerts portal-module" data-testid="dash-alerts">
+            <p className="dash-card-kicker">Respect de l’échéance</p>
+            <p className="dash-card-value">{okPct != null ? <>{okPct.toFixed(1)}<small> %</small></> : 'Mesure absente'}</p>
+            <p className="dash-card-detail">{target != null ? `objectif ${target} %` : 'l’objectif manque'}</p>
+          </section>
+
+          <CapCard report={report} />
         </div>
 
-        <section className="card dash-card layout-span-4 dash-gauge" data-testid="dash-gauge">
-          <p className="dash-card-kicker">Santé du lien</p>
-          <p className="dash-card-value">{health.title}</p>
-          <p className="dash-card-detail">{health.detail}</p>
-        </section>
+        <div className="area-action">
+          <section className="card dash-action portal-module" data-testid="dash-action">
+            <p className="dash-card-kicker">Action recommandée</p>
+            <p className="dash-action-title">{actionIsSafe ? 'Appliquer le réglage recommandé.' : 'Observer d’abord — aucun réglage n’est prêt.'}</p>
+            <p className="dash-card-detail">{actionIsSafe ? 'La mesure supporte le réglage, pas une promesse.' : 'La charge ne permet pas de transformer cette mesure en commande réseau.'}</p>
+            <button className="btn btn-primary" onClick={() => { showReport(); setAuditOpen(true) }}>Voir le constat</button>
+          </section>
 
-        <section className="card dash-card layout-span-4 dash-alerts" data-testid="dash-alerts">
-          <p className="dash-card-kicker">Respect de l’échéance</p>
-          <p className="dash-card-value">{okPct != null ? <>{okPct.toFixed(1)}<small> %</small></> : 'Mesure absente'}</p>
-          <p className="dash-card-detail">{target != null ? `objectif ${target} %` : 'l’objectif manque'}</p>
-        </section>
+          <section className="card dash-recent portal-module" data-testid="dash-recent">
+            <p className="dash-card-kicker">Derniers constats</p>
+            <ul className="dash-recent-list">
+              {rows.slice(0, 4).map((row, index) => (
+                <li key={row.audit_id || `${row.site}-${index}`}>
+                  <span>{row.site || 'Site'} · {row.timestamp?.slice(0, 10) || '—'}</span>
+                  <button className="btn btn-mini" onClick={() => { showReport(); setAuditOpen(true) }}>Ouvrir</button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
 
-        <CapCard report={report} />
+        <div className="area-detail">
+          <section className="card dash-card portal-module" data-testid="dash-cost">
+            <p className="dash-card-kicker">Détail contractuel</p>
+            <p className="dash-card-detail">{report?.economics?.disclaimer || 'Scénarios contractuels, pas des mesures.'} {report.economics?.primary ? `Scénario principal : ${cost.num} ${cost.unit}.` : ''}</p>
+          </section>
+        </div>
 
-        <section className="card dash-action layout-span-8" data-testid="dash-action">
-          <p className="dash-card-kicker">Action recommandée</p>
-          <p className="dash-action-title">{actionIsSafe ? 'Appliquer le réglage recommandé.' : 'Observer d’abord — aucun réglage n’est prêt.'}</p>
-          <p className="dash-card-detail">{actionIsSafe ? 'La mesure supporte le réglage, pas une promesse.' : 'La charge ne permet pas de transformer cette mesure en commande réseau.'}</p>
-          <button className="btn btn-primary" onClick={() => { showReport(); setAuditOpen(true) }}>Voir le constat</button>
-        </section>
-
-        <section className="card dash-recent layout-span-4" data-testid="dash-recent">
-          <p className="dash-card-kicker">Derniers constats</p>
-          <ul className="dash-recent-list">
-            {rows.slice(0, 4).map((row, index) => (
-              <li key={row.audit_id || `${row.site}-${index}`}>
-                <span>{row.site || 'Site'} · {row.timestamp?.slice(0, 10) || '—'}</span>
-                <button className="btn btn-mini" onClick={() => { showReport(); setAuditOpen(true) }}>Ouvrir</button>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="card dash-card layout-span-12" data-testid="dash-cost">
-          <p className="dash-card-kicker">Détail contractuel</p>
-          <p className="dash-card-detail">{report?.economics?.disclaimer || 'Scénarios contractuels, pas des mesures.'} {report.economics?.primary ? `Scénario principal : ${cost.num} ${cost.unit}.` : ''}</p>
-        </section>
-        <MechanismCard report={report} />
-        <PreuvesPanel />
-        <SealFooter report={report} />
-        {auditOpen ? <InlineAudit onClose={() => setAuditOpen(false)} /> : null}
-      </section>
+        <PortalEvidence report={report} machine={machine} setMachine={setMachine} />
+      </div>
+      {auditOpen ? <InlineAudit onClose={() => setAuditOpen(false)} /> : null}
     </div>
   )
 }

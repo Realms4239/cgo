@@ -21,12 +21,39 @@ type Integrity = {
 
 // l'état du poste : le build qui a produit les preuves, et ce que la machine
 // sait faire encore. Sans cela l'opérateur doit ouvrir un terminal.
-type Machine = {
+export type Machine = {
   version?: string; mode?: string; telemetry?: { source?: string; reason?: string } | string
   checks?: { name: string; status: string; detail: string }[]
 }
 
-export default function IntegriteView({ embedded = false, active = true }: { embedded?: boolean; active?: boolean }) {
+// Une seule présentation du poste : la vue intégrée la place en pied de page,
+// la vue Preuves la garde dans son flux. Aucune donnée n'est refabriquée ici.
+export function StationCard({ machine, quiet = false }: { machine: Machine; quiet?: boolean }) {
+  return (
+    <section className={'card int-post' + (quiet ? ' portal-station-card' : '')} aria-label="État du poste" data-testid="machine-card">
+      <div className="card-head">Le poste</div>
+      <p className="mono int-post-id">
+        cgo {machine.version || '—'} · mode {machine.mode || '—'} · télémétrie {typeof machine.telemetry === 'object' && machine.telemetry ? (machine.telemetry.source ?? '—') : (machine.telemetry || '—')}
+      </p>
+      <ul className="int-post-checks">
+        {(machine.checks || []).map(c => (
+          <li key={c.name} className="mono int-post-check" data-status={c.status}>
+            <span className="int-post-dot" aria-hidden="true" />
+            <span className="int-post-name">{c.name}</span>
+            <span className="int-post-detail">{c.detail}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+export default function IntegriteView({ embedded = false, active = true, hideStation = false, onMachine }: {
+  embedded?: boolean
+  active?: boolean
+  hideStation?: boolean
+  onMachine?: (m: Machine | null) => void
+}) {
   const [data, setData] = useState<Integrity|null>(null)
   const [machine, setMachine] = useState<Machine|null>(null)
   const [err, setErr] = useState<string|null>(null)
@@ -72,6 +99,9 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
     fetch('/api/health').then(r=>r.json()).then(j=>setMachine(m=>({ ...(m||{}), ...j }))).catch(()=>{})
     fetch('/api/doctor').then(r=>r.json()).then(j=>setMachine(m=>({ ...(m||{}), ...j }))).catch(()=>{})
   }, [active])
+  // Le cockpit récupère l'état du poste sans refaire les deux requêtes :
+  // une seule lecture, une seule présentation, deux places possibles.
+  useEffect(()=>{ onMachine?.(machine) }, [machine, onMachine])
   useEffect(()=>{
     if (!peek) return
     setPeekGroups(null)
@@ -100,23 +130,9 @@ export default function IntegriteView({ embedded = false, active = true }: { emb
 
   // LE POSTE — visible dans TOUS les états, y compris corpus indisponible :
   // c'est précisément quand l'opérateur veut savoir quel build il regarde.
-  const post = machine && (machine.checks?.length || machine.version) ? (
-    <section className="card int-post" aria-label="État du poste" data-testid="machine-card">
-      <div className="card-head">Le poste</div>
-      <p className="mono int-post-id">
-        cgo {machine.version || '—'} · mode {machine.mode || '—'} · télémétrie {typeof machine.telemetry === 'object' && machine.telemetry ? (machine.telemetry.source ?? '—') : (machine.telemetry || '—')}
-      </p>
-      <ul className="int-post-checks">
-        {(machine.checks || []).map(c => (
-          <li key={c.name} className="mono int-post-check" data-status={c.status}>
-            <span className="int-post-dot" aria-hidden="true" />
-            <span className="int-post-name">{c.name}</span>
-            <span className="int-post-detail">{c.detail}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  ) : null
+  const post = !hideStation && machine && (machine.checks?.length || machine.version)
+    ? <StationCard machine={machine} />
+    : null
 
   if (err) return <div className="panel-stack int-stack">{post}<div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="error" hint={err} /></div></div>
   if (!data) return <div className="panel-stack int-stack">{post}<div className="card">{!embedded && <h1 className="view-title">Intégrité</h1>}<EmptyState kind="loading" hint="vérification des archives" /></div></div>
