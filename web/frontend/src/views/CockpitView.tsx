@@ -22,7 +22,7 @@ export default function CockpitView() {
   const running = useUIStore(s => !!s.live?.running)
 
   return (
-    <section className="spine-view" aria-label="Cockpit">
+    <section className="spine-view" aria-label="Synthèse">
       <AnswerBand>
         <DecisionSpine
           report={report}

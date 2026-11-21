@@ -1,9 +1,9 @@
-// L'instrument T5 doit être visible dans le vrai Cockpit, pas seulement isolé
-// dans son test de composant. Ces assertions lisent le DOM rendu de CockpitView.
+// L'instrument T5 doit être visible dans le vrai Synthèse, pas seulement isolé
+// dans son test de composant. Ces assertions lisent le DOM rendu de SynthèseView.
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import CockpitView from '../../views/CockpitView'
+import SynthèseView from '../../views/SynthèseView'
 import { objectiveMarkLine } from '../../lib/chartGrammar'
 import { instrument } from '../../lib/ringBuffer'
 
@@ -18,7 +18,7 @@ vi.mock('../../store/ui', () => ({
 }))
 
 function html(): string {
-  return renderToStaticMarkup(createElement(CockpitView) as never)
+  return renderToStaticMarkup(createElement(SynthèseView) as never)
     .replace(/&#x([0-9a-f]+);/gi, (_, c) => String.fromCodePoint(parseInt(c, 16)))
     .replace(/&#(\d+);/g, (_, c) => String.fromCodePoint(Number(c)))
 }
@@ -30,7 +30,7 @@ beforeEach(() => {
   instrument.small.clear()
 })
 
-describe('CockpitView — instrument T5 monté', () => {
+describe('SynthèseView — instrument T5 monté', () => {
   it('monte le champ à axe temporel partagé', () => {
     const out = html()
     expect(out).toContain('aria-label="Champ temporel"')

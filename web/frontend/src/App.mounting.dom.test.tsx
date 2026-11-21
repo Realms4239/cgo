@@ -75,7 +75,7 @@ describe('App — montage des deux vues', () => {
     const labo = host.querySelector('#v-labo')
     expect(labo, 'la vue Labo doit être montée').not.toBeNull()
     expect(labo!.hasAttribute('hidden'), 'Labo visible').toBe(false)
-    expect(host.querySelector('#v-cockpit')!.hasAttribute('hidden'), 'Cockpit masqué').toBe(true)
+    expect(host.querySelector('#v-cockpit')!.hasAttribute('hidden'), 'Synthèse masqué').toBe(true)
 
     await act(async () => { root.unmount() })
     host.remove()

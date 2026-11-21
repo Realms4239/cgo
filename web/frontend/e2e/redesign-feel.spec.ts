@@ -53,7 +53,7 @@ const JARGON = [
   'Une seule règle de temps', 'en attente de la première sonde',
 ];
 
-for (const mode of ['Cockpit', 'Labo'] as const) {
+for (const mode of ['Synthèse', 'Labo'] as const) {
   test(`${mode} — aucun jargon de sonde dans le texte visible`, async ({ page }) => {
     await page.goto('/');
     if (mode === 'Labo') {

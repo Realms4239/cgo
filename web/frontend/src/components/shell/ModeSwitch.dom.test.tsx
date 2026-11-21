@@ -24,7 +24,7 @@ describe('ModeSwitch', () => {
     const buttons = Array.from(host.querySelectorAll('.modeswitch-btn'))
     expect(buttons).toHaveLength(2)
     expect(Array.from(host.querySelectorAll('.modeswitch-lbl')).map(n => n.textContent))
-      .toEqual(['Cockpit', 'Labo'])
+      .toEqual(['Synthèse', 'Labo'])
     expect(buttons[0].getAttribute('aria-current')).toBe('page')
     expect(buttons[1].hasAttribute('aria-current')).toBe(false)
   })

@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
-import CockpitView from '../views/CockpitView'
+import SynthèseView from '../views/SynthèseView'
 import LaboView from '../views/LaboView'
 
 const REPORT = vi.hoisted(() => ({
@@ -69,7 +69,7 @@ vi.mock('../store/audit', () => {
 })
 
 const SURFACES: { name: string; render: () => string }[] = [
-  { name: 'cockpit', render: () => renderToStaticMarkup(createElement(CockpitView)) },
+  { name: 'cockpit', render: () => renderToStaticMarkup(createElement(SynthèseView)) },
   { name: 'labo', render: () => renderToStaticMarkup(createElement(LaboView)) },
 ]
 

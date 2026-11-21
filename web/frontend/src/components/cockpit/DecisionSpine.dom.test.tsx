@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import CockpitView from '../../views/CockpitView'
+import SynthèseView from '../../views/SynthèseView'
 import AnswerBand from './AnswerBand'
 import DecisionSpine, { selectActState } from './DecisionSpine'
 import type { AuditReport } from '../../lib/types'
@@ -53,15 +53,15 @@ beforeEach(() => {
 })
 
 describe('DecisionSpine — une seule source de vérité', () => {
-  it('CockpitView mesuré : un seul mot, rendu mot pour mot', () => {
+  it('SynthèseView mesuré : un seul mot, rendu mot pour mot', () => {
     auditState = { ...auditState, report: REPORT, stage: 'done' }
-    const host = mount(<CockpitView />)
+    const host = mount(<SynthèseView />)
     expect(host.querySelectorAll('#verdict-word')).toHaveLength(1)
     expect(host.querySelector('#verdict-word')?.textContent).toContain('Lien sain')
   })
 
   it('absence : MESURE ABSENTE en neutre, aucun chiffre fabriqué', () => {
-    const host = mount(<CockpitView />)
+    const host = mount(<SynthèseView />)
     const word = host.querySelector('#verdict-word')!
     expect(word.textContent).toContain('MESURE ABSENTE')
     expect(word.getAttribute('data-state')).toBe('absent')

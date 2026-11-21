@@ -10,7 +10,7 @@ test('service réel, bascule des deux modes, action gardée, rechargement', asyn
   expect((await health.json()).ok).toBe(true);
 
   await page.goto('/');
-  await expect(page).toHaveTitle(/Cockpit/);
+  await expect(page).toHaveTitle(/Synthèse/);
   await expect(page.locator('[data-mode="cockpit"]')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('#v-cockpit')).toBeVisible();
 
@@ -49,7 +49,7 @@ test('service réel, bascule des deux modes, action gardée, rechargement', asyn
   await page.locator('[data-mode="cockpit"]').click();
   await expect(page.locator('#v-cockpit')).toBeVisible();
   await page.reload();
-  await expect(page).toHaveTitle(/Cockpit/);
+  await expect(page).toHaveTitle(/Synthèse/);
   await expect(page.locator('[data-mode="cockpit"]')).toHaveAttribute('aria-current', 'page');
 
   await page.locator('[data-mode="labo"]').click();

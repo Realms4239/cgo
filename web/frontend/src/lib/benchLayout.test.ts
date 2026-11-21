@@ -61,9 +61,9 @@ describe('document Labo linéaire', () => {
 
   it('deux modes, laboratoire différé, sans identifiant historique', () => {
     const app = read('App.tsx')
-    expect(app).toContain("import CockpitView from './views/CockpitView'")
+    expect(app).toContain("import SynthèseView from './views/SynthèseView'")
     expect(app, 'le laboratoire reste différé').toContain("lazy(() => import('./views/LaboView'))")
-    expect(app).toContain('<CockpitView />')
+    expect(app).toContain('<SynthèseView />')
     expect(app).toContain('<LaboView />')
     expect(app).toContain('<Suspense')
     expect(app).toContain('id="v-cockpit"')

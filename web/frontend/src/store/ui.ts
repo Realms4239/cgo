@@ -6,7 +6,7 @@ import { preloadMode } from '../lib/preload';
 // Deux modes seulement : une bascule, clavier 1 et 2. Aucun identifiant
 // historique ne survit — la palette, le rail et les raccourcis lisent MODES.
 export const MODES = [
-  { id: 'cockpit', label: 'Cockpit', key: '1' },
+  { id: 'cockpit', label: 'Synthèse', key: '1' },
   { id: 'labo', label: 'Labo', key: '2' },
 ] as const;
 
