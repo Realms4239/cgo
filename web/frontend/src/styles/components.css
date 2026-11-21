@@ -387,6 +387,7 @@
   color: var(--text-muted); white-space: nowrap; }
 .labo-matrix-word[data-state="final"] { color: var(--text-body-strong); }
 .labo-matrix-sentence { margin: 0; font-size: var(--fs-fine); color: var(--text-muted); text-wrap: pretty; }
+.labo-matrix-note { margin: 0; font-size: var(--fs-micro); color: var(--text-faint); }
 .labo-matrix-table { width: 100%; border-collapse: collapse; font-size: var(--fs-fine); font-variant-numeric: tabular-nums; }
 .labo-matrix-table th, .labo-matrix-table td { min-width: 0; padding: var(--sp-1) var(--sp-2); text-align: left;
   border-bottom: 1px solid var(--hairline); overflow-wrap: anywhere; }
@@ -407,7 +408,7 @@
   font-size: var(--fs-fine); color: var(--text-body); text-wrap: pretty; }
 .labo-tl-track { position: relative; min-width: 0; height: 28px; overflow: hidden; border-block: 1px solid var(--hairline); }
 .labo-tl-band { position: absolute; inset-block: 0; border-inline: 1px solid var(--hairline-strong);
-  background: rgba(51, 51, 51, 0.03); }
+  background: var(--accent-dim); }
 .labo-tl-cursor { position: absolute; inset-block: 0; width: 1px; background: var(--text-primary); }
 .labo-tl-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-3);
   font-size: var(--fs-micro); font-variant-numeric: tabular-nums; color: var(--text-body); }

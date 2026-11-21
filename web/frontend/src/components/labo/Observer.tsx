@@ -63,6 +63,14 @@ export function EventTimeline({ events }: { events: DomainEventRing }) {
   )
 }
 
+/** Un objet live présent mais vide ne doit pas masquer les bornes réelles de l'anneau. */
+export function selectPhaseSince(
+  livePhaseSince: Record<string, number> | undefined,
+  ringPhaseSince: Record<string, number>,
+): Record<string, number> {
+  return livePhaseSince && Object.keys(livePhaseSince).length > 0 ? livePhaseSince : ringPhaseSince
+}
+
 export default function Observer({ running = false }: { running?: boolean }) {
   const caps = useCapabilities()
   const profiles = useBenchStore(s => s.profiles)
@@ -84,7 +92,7 @@ export default function Observer({ running = false }: { running?: boolean }) {
         <Matrix plan={plan} progress={progress} />
         <Gates gates={live?.gates ?? []} />
       </div>
-      <CampaignTimeline phaseSince={live?.phaseSince ?? liveRing.phaseSince} running={isRunning} />
+      <CampaignTimeline phaseSince={selectPhaseSince(live?.phaseSince, liveRing.phaseSince)} running={isRunning} />
       <div className="observer-field">
         <TimeField rings={instrument} objectiveMs={220} />
         <JournalRail events={instrument.events} running={isRunning} />

@@ -2,12 +2,15 @@
 // dans le HTML rendu, pas dans le composant. Trois vérités à prouver :
 // portes tri-states lues sur la valeur réelle (jamais sur l'index), cellules
 // absentes en « — » + mot français (jamais un zéro), et attente vs FINALE.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ReactElement } from 'react'
 import Matrix from './Matrix'
 import Gates from './Gates'
 import CampaignTimeline, { campaignBands } from './CampaignTimeline'
+import { selectPhaseSince } from './Observer'
 
 const T0 = Date.UTC(2026, 10, 21, 13, 45, 0)
 const plan = { profiles: ['P1', 'P2'], qdiscs: ['pfifo_fast', 'cake'], ccs: ['cubic', 'bbr'], reps: 2 }
@@ -43,6 +46,29 @@ describe('Portes G0–G7 — texte tri-state lu sur la mesure', () => {
     expect(host.querySelectorAll('[data-state="na"]')).toHaveLength(8)
     expect(host.textContent).not.toContain('PASS')
     expect(host.textContent).not.toContain('FAIL')
+  })
+
+  // Oracle déterministe de la trame réelle : le tableau gates tel que servi par
+  // /api/stream (campagne.go:206) est rendu token par token. Aucune campagne
+  // pilotée, aucun stub d'API : la preuve porte sur le rendu de valeurs réelles.
+  // (L'assertion e2e sur une trame réellement émise reste PARKED : voir rapport.)
+  it('une trame réelle de huit valeurs rend la séquence exacte PASS/FAIL/—', () => {
+    const frameGates: (boolean | null)[] = [true, false, null, false, true, null, null, null]
+    const host = mount(<Gates gates={frameGates} />)
+    const tokens = Array.from(host.querySelectorAll('.labo-gate-token')).map(el => el.textContent)
+    expect(tokens).toEqual(['PASS', 'FAIL', '—', 'FAIL', 'PASS', '—', '—', '—'])
+    expect(tokens.filter(t => t === 'PASS')).toHaveLength(2)
+    expect(tokens.filter(t => t === 'FAIL')).toHaveLength(2)
+  })
+
+  it('accord du nombre : « 1 évaluée », « 2 évaluées », « — non évaluées »', () => {
+    const one = mount(<Gates gates={[true, null, null, null, null, null, null, null]} />)
+    expect(one.textContent).toContain('1 évaluée')
+    expect(one.textContent).not.toContain('1 évaluées')
+    const two = mount(<Gates gates={[true, false, null, null, null, null, null, null]} />)
+    expect(two.textContent).toContain('2 évaluées')
+    const none = mount(<Gates gates={[]} />)
+    expect(none.textContent).toContain('— non évaluées')
   })
 })
 
@@ -90,6 +116,15 @@ describe('Matrice — cellules absentes et ordre serveur', () => {
     expect(rows[2].getAttribute('data-state')).toBe('en cours')
     expect(rows[2].textContent).toContain('1/2')
     expect(rows[3].getAttribute('data-state')).toBe('attente')
+    // Cellule non commencée : « — » + absence, jamais un 0/n fabriqué.
+    expect(rows[3].textContent).toContain('—')
+    expect(rows[3].textContent).toContain('non lancée')
+    expect(rows[3].textContent).not.toMatch(/\d+\s*\/\s*\d+/)
+  })
+
+  it('le compte est étiqueté comme déduit de l’avancement serveur', () => {
+    const host = mount(<Matrix plan={plan} progress={{ running: true, eventId: 5, doneEvents: 4, totalEvents: 8 }} />)
+    expect(host.textContent).toContain('n déduit de l’avancement serveur')
   })
 })
 
@@ -117,5 +152,19 @@ describe('Chronologie — une seule horloge réelle', () => {
     expect(host.textContent).toContain('10 s')
     expect(host.textContent).toContain('8 s')
     expect(host.textContent).not.toMatch(/30 s|15 s/)
+  })
+
+  it('un objet live vide ne masque pas les bornes réelles de l’anneau', () => {
+    const ring = { baseline: T0 }
+    expect(selectPhaseSince(undefined, ring)).toEqual(ring)
+    expect(selectPhaseSince({}, ring)).toEqual(ring)
+    expect(selectPhaseSince({ charge: T0 + 5000 }, ring)).toEqual({ charge: T0 + 5000 })
+  })
+
+  it('la bande de phase utilise un jeton ratifié, pas un rgba littéral', () => {
+    const sheet = readFileSync(join(process.cwd(), 'src/styles/components.css'), 'utf8')
+    const band = /\.labo-tl-band\s*\{[^}]*\}/.exec(sheet)?.[0] ?? ''
+    expect(band).toContain('var(--accent-dim)')
+    expect(band).not.toMatch(/rgba\(/)
   })
 })

@@ -18,9 +18,12 @@ const GATE_WORD: Record<GateState, string> = { pass: 'évaluée', fail: 'évalu�
 export default function Gates({ gates }: { gates: (boolean | null)[] }) {
   const states = GATE_LABELS.map((_, i) => gateState(gates[i]))
   const assessed = states.filter(s => s !== 'na').length
+  const assessedLabel = assessed
+    ? `${assessed} ${assessed === 1 ? 'évaluée' : 'évaluées'}`
+    : '— non évaluées'
   return (
     <section className="labo-gates" data-state={assessed ? 'assessed' : 'absent'}>
-      <CardHead label="Portes qualité" sub={`G0 – G7 · ${assessed || '—'} évaluées · le mot porte le résultat, jamais le rang`} />
+      <CardHead label="Portes qualité" sub={`G0 – G7 · ${assessedLabel} · le mot porte le résultat, jamais le rang`} />
       <ol className="labo-gate-list">
         {states.map((st, i) => (
           <li key={i} className="labo-gate-row" data-state={st}>

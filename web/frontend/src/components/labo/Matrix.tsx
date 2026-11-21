@@ -46,7 +46,8 @@ export function matrixCells(plan: MatrixPlan, p: CampaignProgress | null): Matri
         if (!cur) return { profile, qdisc, cc, n: null, reps, state: 'attente' as CellState }
         const state: CellState = first + reps - 1 <= cur
           ? 'terminée' : first <= cur ? 'en cours' : 'attente'
-        const n = Math.max(0, Math.min(reps, cur - first + 1))
+        // Une cellule non commencée n'a aucun compte à afficher : « — », pas 0.
+        const n = state === 'attente' ? null : Math.min(reps, cur - first + 1)
         return { profile, qdisc, cc, n, reps, state }
       })))
 }
@@ -68,6 +69,7 @@ export default function Matrix({ plan, progress }: { plan: MatrixPlan; progress:
       <CardHead label="Matrice de progression" sub={`${cells.length || '—'} combinaisons · ordre du serveur`}
         right={<span className="labo-matrix-word" data-state={phase}>{word}</span>} />
       <p className="labo-matrix-sentence">{sentence}</p>
+      {cells.length ? <p className="labo-matrix-note">n déduit de l’avancement serveur</p> : null}
       {cells.length ? (
         <table className="labo-matrix-table">
           <thead>
