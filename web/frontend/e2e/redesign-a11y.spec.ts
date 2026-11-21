@@ -110,3 +110,45 @@ test('mouvement réduit et contraste forcé restent lisibles', async ({ page }) 
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
+
+test('rail — clavier W3C et mot de progression, libellés non tronqués à 890', async ({ page }) => {
+  test.setTimeout(90000);
+  await page.setViewportSize({ width: 890, height: 512 });
+  await page.goto('/');
+  await page.locator('[data-mode="labo"]').click();
+  await expect(page.locator('.labo-view')).toBeVisible();
+
+  const steps = page.locator('.pr-step');
+  const progress = page.locator('.pr-progress');
+  await expect(progress, 'mot de progression visible').toHaveText('Étape 1 sur 4');
+
+  await steps.first().focus();
+  await expect(steps.first(), 'le focus entre sur l’étape active').toBeFocused();
+  await expect(steps.first()).toHaveAttribute('aria-current', 'step');
+
+  await page.keyboard.press('ArrowRight');
+  await expect(steps.nth(1), 'Right déplace le focus').toBeFocused();
+  await expect(steps.first(), 'activation manuelle : aria-current ne bouge qu’à Entrée')
+    .toHaveAttribute('aria-current', 'step');
+  await expect(progress).toHaveText('Étape 1 sur 4');
+
+  await page.keyboard.press('End');
+  await expect(steps.nth(3), 'Fin saute à la dernière étape').toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(steps.first(), 'Début saute à la première étape').toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(steps.nth(3), 'Left boucle de la première à la dernière').toBeFocused();
+
+  await page.keyboard.press('Enter');
+  await expect(steps.nth(3), 'Entrée active l’étape').toHaveAttribute('aria-current', 'step');
+  await expect(progress).toHaveText('Étape 4 sur 4');
+  await expect(page.locator('#chapter-preuves-title'), 'le focus rejoint le panneau').toBeFocused();
+  await expect(page.locator('#chapter-preuves')).not.toHaveAttribute('inert');
+
+  const wrapped = await page.evaluate(() => [...document.querySelectorAll('.pr-label')]
+    .every(el => getComputedStyle(el).overflowWrap !== 'normal' && el.scrollWidth <= el.clientWidth + 1));
+  expect(wrapped, 'libellés repliés sans coupure').toBe(true);
+  const overflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow, 'aucun débordement horizontal').toBeLessThanOrEqual(1);
+});

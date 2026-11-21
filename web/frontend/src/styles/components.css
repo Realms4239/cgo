@@ -224,10 +224,12 @@
 .ch-actions .btn { min-height: 44px; }
 .ch-objective { font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .pipeline-rail { min-width: 0; display: flex; flex-direction: column; flex-wrap: nowrap; align-content: start; gap: var(--sp-2); }
+.pr-progress { margin: 0; font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .pr-step { min-height: 44px; display: inline-flex; align-items: center; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); color: var(--text-body);
   text-decoration: none; font-size: var(--fs-fine); }
-.pr-step:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
+.pr-step:hover, .pr-step:focus-visible { border-color: var(--hairline-strong); color: var(--text-primary); }
+.pr-label { min-width: 0; overflow-wrap: anywhere; }
 .pr-n { color: var(--brand-teal-ink); font-size: var(--fs-micro); }
 /* Amendement §B : rail épinglé, une fenêtre, quatre panneaux côte à côte.
    Seule la translation est animée ; le mouvement réduit la rend instantanée. */
