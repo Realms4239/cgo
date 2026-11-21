@@ -38,7 +38,7 @@ for (const viewport of VIEWPORTS) {
 
 test('cibles tactiles ≥44 px et tuiles non coupées de 890 à 1920 px', async ({ page }) => {
   test.setTimeout(90000);
-  const selector = '[data-mode], .chrome-trigger, .cmd-arm, .cmd-stop, .btn-primary, .btn-danger, .modeswitch-btn';
+  const selector = '[data-mode], .chrome-trigger, .cmd-arm, .cmd-stop, .btn-primary, .btn-danger, .modeswitch-btn, .pr-step';
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
@@ -61,7 +61,9 @@ test('cibles tactiles ≥44 px et tuiles non coupées de 890 à 1920 px', async 
     const clipped = await page.evaluate(() => {
       const width = window.innerWidth;
       return [...document.querySelectorAll('.profile-tile, .mc-card')]
-        .filter(e => e.getClientRects().length)
+        // Les panneaux inactifs sont hors écran par conception : le contrôle de
+        // coupe ne porte que sur ce que l'opérateur peut réellement voir.
+        .filter(e => e.getClientRects().length && !e.closest('[inert], [aria-hidden="true"]'))
         .map(e => {
           const r = e.getBoundingClientRect();
           return { w: r.width, h: r.height, left: r.left, right: r.right, over: e.scrollWidth - e.clientWidth };
@@ -98,6 +100,12 @@ test('mouvement réduit et contraste forcé restent lisibles', async ({ page }) 
 
   await page.locator('[data-mode="labo"]').click();
   await expect(page.locator('.labo-view')).toBeVisible();
+  const slideMs = await page.evaluate(() => {
+    const track = document.querySelector('.panel-track')!;
+    const v = getComputedStyle(track).transitionDuration;
+    return parseFloat(v) * (v.includes('ms') ? 1 : 1000);
+  });
+  expect(slideMs, 'glissement instantané en mouvement réduit').toBeLessThanOrEqual(1);
   const overflow = await page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);

@@ -29,17 +29,62 @@ for (const [w, h, spineMin] of [[1280, 768, 300], [1920, 1080, 340]] as const) {
   });
 }
 
-test('labo 1280px — rail épinglé à gauche, chapitres en document séquentiel', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 768 });
+async function openLabo(page: import('@playwright/test').Page, w = 1280, h = 768) {
+  await page.setViewportSize({ width: w, height: h });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Labo' }).click();
-  await page.getByRole('heading', { name: 'Configurer' }).waitFor();
-  const g = await page.evaluate(() => {
-    const rail = document.querySelector('.pipeline-rail')!.getBoundingClientRect();
-    const chapters = [...document.querySelectorAll('.labo-chapters > section')].map(e => e.getBoundingClientRect());
-    return { railRight: rail.right, firstLeft: chapters[0]?.left,
-      stacked: chapters.length === 4 && chapters.every(c => Math.abs(c.left - chapters[0].left) < 2) };
+  await page.locator('[data-mode="labo"]').click();
+  await expect(page.locator('.labo-view')).toBeVisible();
+}
+
+for (const [w, h] of [[890, 512], [1280, 768], [1920, 1080]] as const) {
+  test(`labo ${w}px — rail épinglé à gauche, un seul panneau, aucun scroll de page`, async ({ page }) => {
+    await openLabo(page, w, h);
+    const g = await page.evaluate(() => {
+      const rail = document.querySelector('.pipeline-rail')!.getBoundingClientRect();
+      const vp = document.querySelector('.panel-viewport')!.getBoundingClientRect();
+      const panels = [...document.querySelectorAll('.panel-track > section')] as HTMLElement[];
+      const main = document.getElementById('main')!;
+      return {
+        railRight: rail.right,
+        viewportLeft: vp.left,
+        count: panels.length,
+        active: panels.filter(p => p.dataset.active === 'true').length,
+        inside: panels.filter(p => {
+          const r = p.getBoundingClientRect();
+          return r.left >= vp.left - 1 && r.right <= vp.right + 1;
+        }).length,
+        overflow: main.scrollHeight - main.clientHeight,
+      };
+    });
+    expect(g.railRight, 'le rail est à gauche du panneau').toBeLessThan(g.viewportLeft);
+    expect(g.count, 'quatre panneaux montés').toBe(4);
+    expect(g.active, 'un seul panneau actif').toBe(1);
+    expect(g.inside, 'un seul panneau dans la fenêtre').toBe(1);
+    expect(g.overflow, 'aucun scroll de page dans le labo').toBeLessThanOrEqual(1);
   });
-  expect(g.railRight, 'le rail est à gauche du document').toBeLessThan(g.firstLeft!);
-  expect(g.stacked, 'les quatre chapitres forment une séquence').toBe(true);
+}
+
+test('labo — clic du rail : glissement, panneaux inertes, focus au titre, sans scroll', async ({ page }) => {
+  await openLabo(page);
+
+  await page.getByRole('button', { name: /Comparer/ }).click();
+
+  await expect(page.locator('.pr-step').nth(2), 'l’étape courante est annoncée').toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('.panel-track'), 'translation d’un panneau entier')
+    .toHaveAttribute('style', /translateX\(-200%\)/);
+  for (const id of ['configurer', 'observer', 'preuves']) {
+    await expect(page.locator(`#chapter-${id}`), `${id} inerte`).toHaveAttribute('inert', '');
+    await expect(page.locator(`#chapter-${id}`), `${id} masqué aux lecteurs d’écran`)
+      .toHaveAttribute('aria-hidden', 'true');
+  }
+  const active = page.locator('#chapter-comparer');
+  await expect(active, 'panneau actif non inerte').not.toHaveAttribute('inert');
+  await expect(active, 'panneau actif exposé').not.toHaveAttribute('aria-hidden');
+  await expect(page.locator('#chapter-comparer-title'), 'focus sur le titre du panneau').toBeFocused();
+
+  const overflow = await page.evaluate(() => {
+    const main = document.getElementById('main')!;
+    return main.scrollHeight - main.clientHeight;
+  });
+  expect(overflow, 'aucun scroll de page après le glissement').toBeLessThanOrEqual(1);
 });

@@ -208,8 +208,8 @@
   .journal-slot .journal-rail, .journal-slot[data-open="true"] .journal-rail { display: flex; }
 }
 
-/* T6 — document Labo : en-tête épinglé, rail de lecture, chapters. */
-.labo-view { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+/* T6 + amendement §B — en-tête de commande, rail épinglé, un panneau visible. */
+.labo-view { min-width: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; gap: var(--sp-4); }
 .command-header { position: sticky; top: 0; z-index: 8; min-width: 0; padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--hairline-strong); background: var(--surface-card);
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; }
@@ -220,21 +220,19 @@
 .ch-actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .ch-actions .btn { min-height: 44px; }
 .ch-objective { font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.pipeline-rail { min-width: 0; display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.pipeline-rail { min-width: 0; display: flex; flex-direction: column; flex-wrap: nowrap; align-content: start; gap: var(--sp-2); }
 .pr-step { min-height: 44px; display: inline-flex; align-items: center; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); color: var(--text-body);
   text-decoration: none; font-size: var(--fs-fine); }
 .pr-step:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
 .pr-n { color: var(--brand-teal-ink); font-size: var(--fs-micro); }
-.labo-chapters { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
-@media (min-width: 1200px) { .labo-chapters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-/* Contrat spatial ratifié §2 : rail de lecture épinglé à gauche, document de
-   quatre chapitres à droite, en séquence (pas de grille 2-colonnes). */
-@media (min-width: 1024px) {
-  .labo-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--sp-4); align-items: start; min-width: 0; }
-  .pipeline-rail { position: sticky; top: 72px; flex-direction: column; flex-wrap: nowrap; }
-  .labo-chapters { grid-template-columns: minmax(0, 1fr) !important; }
-}
+/* Amendement §B : rail épinglé, une fenêtre, quatre panneaux côte à côte.
+   Seule la translation est animée ; le mouvement réduit la rend instantanée. */
+.labo-body { min-width: 0; min-height: 0; flex: 1; display: grid;
+  grid-template-columns: 200px minmax(0, 1fr); gap: var(--sp-4); align-items: stretch; }
+.panel-viewport { min-width: 0; min-height: 0; overflow: hidden; }
+.panel-track { display: flex; width: 100%; height: 100%; transition: transform 180ms ease-out; }
+.panel-track > .chapter { flex: 0 0 100%; width: 100%; height: 100%; min-height: 0; overflow-y: auto; }
 @media (min-width: 1600px) { .labo-body { grid-template-columns: 240px minmax(0, 1fr); } }
 
 /* Calme et respiration : une seule idée par bloc, jamais de jargon de sonde. */
@@ -243,7 +241,6 @@
   .answer-sentence, .act-sentence { max-width: 52ch; }
   .answer-facts .metric-row-values { gap: var(--sp-2); }
   .labo-view { gap: var(--sp-5); }
-  .labo-chapters { gap: 40px; }
   .chapter-title { margin-bottom: var(--sp-2); }
 }
 .chapter { min-width: 0; padding: var(--sp-4); border: 1px solid var(--hairline); background: var(--surface-card); }
