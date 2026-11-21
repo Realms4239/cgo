@@ -34,7 +34,7 @@ describe('CockpitView — instrument T5 monté', () => {
   it('monte le champ à axe temporel partagé', () => {
     const out = html()
     expect(out).toContain('aria-label="Champ temporel"')
-    expect(out).toContain('Règle temporelle partagée')
+    expect(out).toContain('Axe temps partagé')
     expect(out).toContain('Trace primaire, débit utile et interface')
   })
 
@@ -51,7 +51,7 @@ describe('CockpitView — instrument T5 monté', () => {
     expect(out).toContain('Aucun événement')
     // Le compte du rail est réel (anneau vide) et porte son libellé ; ce qui est
     // interdit, c'est un compteur fabriqué dans le corps du journal.
-    expect(out).toContain('Journal · 0 événement')
+    expect(out).toContain('Journal · aucun fait')
     expect(out).not.toMatch(/0\s* Malus|0\s* pertes/)
     expect(instrument.events.list()).toEqual([])
   })

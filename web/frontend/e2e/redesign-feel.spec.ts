@@ -47,3 +47,22 @@ test('détails finaux : lissage, focus, transitions et titres', async ({ page })
   expect(h2.size, 'titre de chapitre = échelle --fs-title').toBe('20px');
   expect(h2.wrap, 'titres équilibrés').toBe('balance');
 });
+
+const JARGON = [
+  'pas encore mesuré', 'anneau 0', 'Règle temporelle', 'DERNIERS FAITS',
+  'Une seule règle de temps', 'en attente de la première sonde',
+];
+
+for (const mode of ['Cockpit', 'Labo'] as const) {
+  test(`${mode} — aucun jargon de sonde dans le texte visible`, async ({ page }) => {
+    await page.goto('/');
+    if (mode === 'Labo') {
+      await page.getByRole('button', { name: 'Labo' }).click();
+      await page.getByRole('heading', { name: 'Configurer' }).waitFor();
+    }
+    const text = (await page.locator('main').innerText()).toLowerCase();
+    for (const term of JARGON) {
+      expect(text, `terme banni : ${term}`).not.toContain(term.toLowerCase());
+    }
+  });
+}

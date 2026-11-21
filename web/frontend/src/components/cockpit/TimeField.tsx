@@ -136,23 +136,20 @@ export default function TimeField({ rings, objectiveMs = 220 }: TimeFieldProps) 
   return (
     <section className="time-field" aria-label="Champ temporel">
       <div className="tf-header mono" role="status">
-        <span className="tf-status">{empty ? 'MESURE ABSENTE' : 'MESURE EN COURS'}</span>
-        <span className="tf-fill">anneau {rings.small.size}/{rings.small.capacity}</span>
-        <span className="tf-source">source vivant</span>
+        <span className="tf-status">{empty ? 'Aucun signal' : 'En direct'}</span>
+        <span className="tf-fill">{rings.small.size} / {rings.small.capacity} points</span>
+        <span className="tf-source">direct</span>
       </div>
       <div className="tf-plot">
         <div
           ref={boxRef} className="tf-chart" role="img"
           aria-label="Trace primaire, débit utile et interface — axe temporel partagé"
         />
-        {empty && <p className="tf-empty">en attente de la première sonde mesurée</p>}
+        {empty && <p className="tf-empty">La trace apparaîtra ici dès la première mesure.</p>}
       </div>
-      <div className="tf-ruler mono" role="img" aria-label="Règle temporelle partagée">
-        <span>Règle temporelle partagée</span>
+      <div className="tf-ruler mono" role="img" aria-label="Axe temps partagé">
+        <span>Temps</span>
         <span>objectif {objectiveMs} ms</span>
-      </div>
-      <div className="tf-footer mono">
-        <span>absence : trait interrompu, jamais zéro</span>
       </div>
     </section>
   )

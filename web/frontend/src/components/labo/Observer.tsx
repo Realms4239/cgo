@@ -9,10 +9,7 @@ import { CardHead } from '../ui/CardHead'
 export default function Observer({ running = false }: { running?: boolean }) {
   return (
     <div className="observer">
-      <CardHead
-        label="Instrument"
-        sub="Une seule règle de temps : délai sous charge, débit utile, interface"
-      />
+      <CardHead label="Instrument" sub="Latence, débit et état du lien au fil du temps." />
       <div className="observer-field">
         <TimeField rings={instrument} objectiveMs={220} />
         <JournalRail events={instrument.events} running={running} />

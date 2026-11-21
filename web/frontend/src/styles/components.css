@@ -236,6 +236,16 @@
   .labo-chapters { grid-template-columns: minmax(0, 1fr) !important; }
 }
 @media (min-width: 1600px) { .labo-body { grid-template-columns: 240px minmax(0, 1fr); } }
+
+/* Calme et respiration : une seule idée par bloc, jamais de jargon de sonde. */
+@media (min-width: 1024px) {
+  .decision-spine { gap: var(--sp-5); }
+  .answer-sentence, .act-sentence { max-width: 52ch; }
+  .answer-facts .metric-row-values { gap: var(--sp-2); }
+  .labo-view { gap: var(--sp-5); }
+  .labo-chapters { gap: 40px; }
+  .chapter-title { margin-bottom: var(--sp-2); }
+}
 .chapter { min-width: 0; padding: var(--sp-4); border: 1px solid var(--hairline); background: var(--surface-card); }
 .chapter-head { display: flex; gap: var(--sp-3); align-items: baseline; margin-bottom: var(--sp-4); }
 .chapter-n { font-size: var(--fs-title); color: var(--text-faint); }

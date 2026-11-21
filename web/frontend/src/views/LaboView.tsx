@@ -23,7 +23,7 @@ export default function LaboView() {
     : stage === 'done' && report ? 'done' : 'idle'
   const recipe = report?.site
     ? `${report.site} · ${report.link_type ?? 'lien non précisé'}`
-    : 'Lien non déclaré'
+    : 'Aucun lien déclaré'
 
   return (
     <div className="labo-view">
@@ -40,25 +40,25 @@ export default function LaboView() {
       <div className="labo-chapters">
         <Chapter
           id="configurer" n="01" title="Configurer"
-          lede="Un réglage reste une hypothèse jusqu'à sa mesure."
+          lede="Choisissez le lien à étudier."
         >
           <Configurer site={report?.site} link={report?.link_type} />
         </Chapter>
         <Chapter
           id="observer" n="02" title="Observer"
-          lede="La trace attend la première sonde ; une absence n'est jamais un zéro."
+          lede="La mesure en cours s'affiche ici."
         >
           <Observer running={running} />
         </Chapter>
         <Chapter
           id="comparer" n="03" title="Comparer"
-          lede="Deux mesures complètes seulement peuvent être comparées."
+          lede="Deux mesures sont nécessaires pour comparer."
         >
           <Comparer />
         </Chapter>
         <Chapter
           id="preuves" n="04" title="Preuves"
-          lede="Le sceau n'est dit vérifié qu'après une vérification réelle."
+          lede="Les preuves scellées apparaissent ici."
         >
           <Preuves report={report} />
         </Chapter>

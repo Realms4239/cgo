@@ -145,8 +145,8 @@ describe('DecisionSpine — Act, quatre états exclusifs', () => {
   it('inactif : invitation, déclaration et armement', () => {
     expect(selectActState({ stage: 'idle', report: null })).toEqual({ kind: 'idle' })
     const host = mount(<DecisionSpine report={null} stage="idle" actions={{ declare: () => {}, arm: () => {} }} />)
-    expect(host.textContent).toContain('DÉCLARER')
-    expect(host.textContent).toContain('ARMER')
+    expect(host.textContent).toContain('Configurer le lien')
+    expect(host.textContent).toContain('Démarrer la mesure')
     expect(host.textContent).not.toContain('ANNULER')
     expect(host.querySelector('.act-slot')?.getAttribute('data-state')).toBe('idle')
   })
@@ -159,10 +159,10 @@ describe('DecisionSpine — Act, quatre états exclusifs', () => {
     expect(host.querySelector('.act-slot')?.getAttribute('data-state')).toBe('measuring')
     expect(host.querySelector('[role="status"]')?.textContent).toContain('Mesure en cours')
     expect(host.textContent).toContain('ANNULER')
-    expect(host.textContent).not.toContain('ARMER')
+    expect(host.textContent).not.toContain('Démarrer la mesure')
     expect(host.querySelector('#verdict-word')?.textContent).toContain('MESURE ABSENTE')
     expect(host.textContent).not.toContain('Lien sain')
-    expect(host.querySelector('.answer-sentence')?.textContent).toContain('Verdict en attente')
+    expect(host.querySelector('.answer-sentence')?.textContent).toContain('Mesure en cours')
     expect(host.textContent).not.toContain('Lancez une mesure pour obtenir un verdict.')
   })
 
@@ -183,9 +183,9 @@ describe('DecisionSpine — Act, quatre états exclusifs', () => {
     expect(selectActState({ stage: 'done', report: quiet })).toEqual({ kind: 'quiet' })
     const host = mount(<DecisionSpine report={quiet} stage="done" />)
     expect(host.querySelector('.act-slot')?.getAttribute('data-state')).toBe('quiet')
-    expect(host.textContent).toContain("aucun réglage n'est proposé")
+    expect(host.textContent).toContain("Aucun réglage proposé")
     expect(host.textContent).not.toContain('VOIR LA REMÉDIATION')
-    expect(host.textContent).not.toContain('ARMER')
+    expect(host.textContent).not.toContain('Démarrer la mesure')
   })
 
   it('un échec ne présente jamais un verdict précédent comme courant', () => {

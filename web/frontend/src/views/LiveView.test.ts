@@ -27,8 +27,8 @@ describe('instrument — mesures', () => {
 
   it('au repos, le champ annonce l’absence sans zéro fabriqué', () => {
     const t = read('components/cockpit/TimeField.tsx')
-    expect(t).toContain("empty ? 'MESURE ABSENTE' : 'MESURE EN COURS'")
-    expect(t).toContain('en attente de la première sonde mesurée')
+    expect(t).toContain("empty ? 'Aucun signal' : 'En direct'")
+    expect(t).toContain('La trace apparaîtra ici dès la première mesure.')
     expect(read('lib/ringBuffer.ts')).toContain('NaN = absence (jamais 0)')
   })
 })

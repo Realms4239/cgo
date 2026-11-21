@@ -35,7 +35,7 @@ export default function JournalRail({ events, running = false }: JournalRailProp
     <aside className="journal-rail" aria-label="Journal des événements" data-tick={tick}>
       <div className="jr-head mono">
         <span>JOURNAL</span>
-        <span className="jr-live">{running ? 'EN DIRECT' : 'DERNIERS FAITS'} · {events.size}</span>
+        <span className="jr-live">{running ? 'en direct' : 'aucun fait'}{events.size > 0 ? ` · ${events.size}` : ''}</span>
       </div>
       {entries.length === 0 ? (
         <p className="jr-empty">Aucun événement</p>

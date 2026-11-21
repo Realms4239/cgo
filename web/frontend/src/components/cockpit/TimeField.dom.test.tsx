@@ -88,8 +88,9 @@ describe('TimeField — lecture au repos', () => {
   it('affiche l’objectif et le mot d’absence sans tracer de faux zéro', () => {
     const out = html(createElement(TimeField, { rings: filledRings() }))
     expect(out).toContain('objectif 220 ms')
-    expect(out).toContain('Règle temporelle partagée')
-    expect(out).toContain('trait interrompu')
+    expect(out).toContain('Axe temps partagé')
+    expect(out).toContain('En direct')
+    expect(out).toContain('points')
     expect(out).toContain('role="img"')
   })
 })

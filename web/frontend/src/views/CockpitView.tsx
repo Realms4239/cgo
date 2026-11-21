@@ -44,7 +44,7 @@ export default function CockpitView() {
         <div className="journal-slot" data-open={journalOpen ? 'true' : undefined}>
           <button type="button" className="journal-disclosure-toggle" aria-expanded={journalOpen}
             onClick={() => setJournalOpen(o => !o)}>
-            Journal · {instrument.events.size} événement{instrument.events.size > 1 ? 's' : ''}
+            Journal{instrument.events.size > 0 ? ` · ${instrument.events.size}` : ' · aucun fait'}
           </button>
           <JournalRail events={instrument.events} running={running} />
         </div>

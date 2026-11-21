@@ -43,7 +43,7 @@ const HEALTH_WORD = {
   ok: 'Lien prêt',
   attention: 'À surveiller',
   critical: 'Critique sous charge',
-  absent: 'Mesure absente',
+  absent: 'Non mesurée',
   unconfigured: 'Seuil non configuré',
 } as const
 
@@ -90,10 +90,10 @@ export default function DecisionSpine({
   const sentence = verdict
     ? verdict.sentence
     : stage === 'observing'
-      ? 'Verdict en attente — il sera rendu à la fin de la mesure.'
+      ? 'Mesure en cours. Le verdict arrivera à la fin.'
       : readableReport == null
-        ? 'Lancez une mesure pour obtenir un verdict.'
-        : 'Ce rapport ne porte pas de verdict : une absence n’est pas un feu vert.'
+        ? 'Aucune mesure pour ce lien.'
+        : 'Ce rapport ne contient pas de verdict.'
 
   const health = evaluateLoadedHealth({
     linkType: readableReport?.link_type ?? '',
@@ -108,12 +108,12 @@ export default function DecisionSpine({
   const facts = operatorFacts(readableReport, warnMs, critMs)
   const act = selectActState({ stage, report, failure })
   const actSentence = act.kind === 'idle'
-    ? 'Aucune mesure sur ce poste. Déclarez le lien, puis armez une campagne de 60 s.'
+    ? 'Prêt à mesurer ce lien pendant 60 secondes.'
     : act.kind === 'measuring'
-      ? 'La mesure est en cours : aucun verdict ne sera affiché avant la fin.'
+      ? 'Mesure en cours — le verdict viendra à la fin.'
       : act.kind === 'remediable'
-        ? 'La mesure permet d’examiner un réglage ; elle ne promet pas qu’il tiendra.'
-        : "Le constat est disponible ; aucun réglage n'est proposé."
+        ? 'Un réglage peut être examiné à partir de cette mesure.'
+        : 'Mesure terminée. Aucun réglage proposé.'
 
   return (
     <section className="decision-spine" aria-label="Décision">
@@ -127,7 +127,7 @@ export default function DecisionSpine({
       </div>
 
       <div className="health-slot">
-        <span className="health-label">Santé du lien</span>
+        <span className="health-label">Santé</span>
         <span className="health-word" data-level={health.kind}>{HEALTH_WORD[health.kind]}</span>
         {healthText ? <span className="health-detail">{healthText}</span> : null}
       </div>
@@ -142,7 +142,7 @@ export default function DecisionSpine({
                 label={f.label}
                 value={absent ? null : f.value}
                 unit={absent ? undefined : f.unit}
-                word={f.key === 'cost' ? 'non chiffré' : 'pas encore mesuré'}
+                word={f.key === 'cost' ? 'non chiffré' : 'absent'}
                 empty={absent}
               />
             )
@@ -157,8 +157,8 @@ export default function DecisionSpine({
         <div className="act-actions">
           {act.kind === 'idle' ? (
             <>
-              <button type="button" className="btn" onClick={actions?.declare}>DÉCLARER</button>
-              <button type="button" className="btn btn-primary" onClick={actions?.arm}>ARMER</button>
+              <button type="button" className="btn" onClick={actions?.declare}>Configurer le lien</button>
+              <button type="button" className="btn btn-primary" onClick={actions?.arm}>Démarrer la mesure</button>
             </>
           ) : null}
           {act.kind === 'measuring' ? (
@@ -171,8 +171,8 @@ export default function DecisionSpine({
       </div>
 
       <div className="proof-slot">
-        <InlineDisclosure label="Preuve">
-          <button type="button" className="btn" onClick={actions?.proof}>Ouvrir la preuve</button>
+        <InlineDisclosure label="Preuves">
+          <button type="button" className="btn" onClick={actions?.proof}>Voir les preuves</button>
         </InlineDisclosure>
       </div>
     </section>
