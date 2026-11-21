@@ -174,3 +174,25 @@ func TestExposeGuardRefusesUnparseableAddr(t *testing.T) {
 		t.Fatal("adresse illisible acceptée")
 	}
 }
+
+// TestRunMalformedFlagFailsClosedBeforeBench — réutilise le harnais CLI ci-dessus :
+// un drapeau mal formé ne doit pas traverser le chemin rapide --confront-out
+// pour lancer un run. Le --data= vide garantit que, même si le garde sautait,
+// runCLI refuserait avant tout accès réseau (aucun banc, aucun hôte contacté).
+func TestRunMalformedFlagFailsClosedBeforeBench(t *testing.T) {
+	bin := buildCgoBinary(t)
+	out := filepath.Join(t.TempDir(), "should-not-exist.json")
+	code, stdout, stderr := execServe(t, bin, "run", "--data=", "--confron-out", out)
+	if code != 2 {
+		t.Fatalf("exit=%d, want 2 (stdout=%q stderr=%q)", code, stdout, stderr)
+	}
+	if !strings.Contains(stderr, "flag provided but not defined") {
+		t.Fatalf("refus de parsing absent — retombée sur le chemin banc ? stderr=%q", stderr)
+	}
+	if strings.Contains(stderr, "--data vide") {
+		t.Fatalf("retombée sur runCLI (chemin banc) : stderr=%q", stderr)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("fichier de confrontation écrit sur drapeau malformé: stat=%v", err)
+	}
+}

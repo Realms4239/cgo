@@ -73,8 +73,14 @@ func loadSeal(path string) (kernelTruthSeal, error) {
 		return s, fmt.Errorf("sceau noyau illisible (%s): %w", path, err)
 	}
 	for _, k := range []string{"schema", "audit_id", "source", "retrans_events", "qdisc_drop_packets", "tc_drops_before", "tc_drops_after"} {
-		if _, ok := keys[k]; !ok {
+		v, ok := keys[k]
+		if !ok {
 			return s, fmt.Errorf("sceau noyau incomplet (%s): %s absent", path, k)
+		}
+		// null est une absence déguisée : json.Unmarshal le transformerait
+		// en zéro pour les compteurs (trou absence-never-zero). Refus fermé.
+		if string(v) == "null" {
+			return s, fmt.Errorf("sceau noyau incomplet (%s): %s est null", path, k)
 		}
 	}
 	if err := json.Unmarshal(raw, &s); err != nil {

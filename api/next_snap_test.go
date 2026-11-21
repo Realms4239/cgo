@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// Le hub 10 Hz doit lire NextSnap (échantillon frais) ; /api/state doit lire
+// Le hub 20 Hz doit lire NextSnap (échantillon frais) ; /api/state doit lire
 // GetSnap (dernier échantillon). Un poll d'état ne raccourcit jamais une
 // fenêtre SSE.
 func TestNextSnapDrivesHubAndNotState(t *testing.T) {

@@ -368,7 +368,14 @@ WantedBy=multi-user.target
 		// Confrontation eBPF vs tc -s : export depuis le sceau noyau déjà scellé
 		// (CGO_CONFRONT_INPUT). Aucun run n'est lancé ; sceau absent = échec fermé.
 		confrontOut := fs.String("confront-out", "", "écrit ebpf_vs_tc_report.json depuis le sceau noyau scellé (CGO_CONFRONT_INPUT) vers ce chemin ; aucun run lancé")
-		_ = fs.Parse(os.Args[2:])
+		if err := fs.Parse(os.Args[2:]); err != nil {
+			// Échec fermé avant le chemin rapide : un drapeau mal formé ne
+			// doit jamais retomber sur runCLI et lancer un banc. ExitOnError
+			// sort déjà ; ce contrôle verrouille le contrat si la politique
+			// d'erreur du FlagSet change un jour.
+			fmt.Fprintln(os.Stderr, "run:", err)
+			os.Exit(2)
+		}
 		if *confrontOut != "" {
 			os.Exit(runConfrontOut(*confrontOut, os.Getenv("CGO_CONFRONT_INPUT")))
 		}

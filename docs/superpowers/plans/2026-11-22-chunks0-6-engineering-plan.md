@@ -235,7 +235,7 @@ Write the verification README with commands, exit codes and hashes. If a defect 
 - Produces: a final whole-programme verdict and an honest list of what remains parked.
 
 - [ ] **Step 1:** Run all gates serially once more and capture the named results, including the recorded `links` false positive.
-- [ ] **Step 2:** Forbidden diff check: `git diff --name-only 14f2e60..HEAD`; confirm no ledger, gate, frozen, dist or dependency paths.
+- [ ] **Step 2:** Forbidden diff check: `git diff --name-only 2489e48..HEAD`; confirm no ledger, gate, frozen, dist or dependency paths. (2489e48 is the pre-programme base — parent of the first programme commit e2b0cd5.)
 - [ ] **Step 3:** Dispatch a final whole-programme reviewer over the combined diff; one fix wave + scoped re-review if Critical/Important findings.
 - [ ] **Step 4:** Append the final state to the programme ledger with commit SHAs, exit codes and the parked/unblock table. Do not merge to `main` without a fresh human decision beyond the local fast-forwards already authorized.
 

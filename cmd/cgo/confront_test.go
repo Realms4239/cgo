@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -148,5 +149,26 @@ func TestConfrontOutRejectsMissingCounters(t *testing.T) {
 	}
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatalf("fichier écrit depuis un sceau incomplet: stat=%v", err)
+	}
+}
+
+// Oracle hostile — un compteur numérique requis à null doit être refusé.
+// Une garde de présence seule laisse json.Unmarshal transformer null en 0
+// silencieusement : c'est le trou absence-never-zero. Échec fermé, aucun fichier.
+func TestConfrontOutRejectsNullRequiredCounter(t *testing.T) {
+	for _, key := range []string{"retrans_events", "qdisc_drop_packets", "tc_drops_before", "tc_drops_after"} {
+		t.Run(key, func(t *testing.T) {
+			dir := t.TempDir()
+			// Clé dupliquée : la dernière valeur (null) fait foi pour l'encodeur.
+			bad := fmt.Sprintf(`{"schema":"cgo.kernel-truth-seal/1","audit_id":"x","source":"ebpf","retrans_events":7,"qdisc_drop_packets":0,"tc_drops_before":2,"tc_drops_after":9,"%s":null}`, key)
+			in := putSeal(t, dir, bad)
+			out := filepath.Join(dir, "ebpf_vs_tc_report.json")
+			if code := runConfrontOut(out, in); code != 2 {
+				t.Fatalf("%s=null: code=%d, attendu 2", key, code)
+			}
+			if _, err := os.Stat(out); !os.IsNotExist(err) {
+				t.Fatalf("fichier écrit depuis un sceau avec %s=null: stat=%v", key, err)
+			}
+		})
 	}
 }
