@@ -52,7 +52,9 @@ interface UIState {
   pauseToasts: () => void; resumeToasts: () => void
   flash: FlashItem | null; setFlash: (f: FlashItem | null) => void
   replayRunning: boolean; replayRunId: string | null; setReplay: (running: boolean, id: string | null) => void
-  proof: { tab: ProofTab } | null; openProof: (tab: ProofTab) => void; closeProof: () => void
+  proof: { tab: ProofTab; auditId?: string } | null
+  openProof: (tab: ProofTab, auditId?: string) => void
+  closeProof: () => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -87,5 +89,9 @@ export const useUIStore = create<UIState>((set) => ({
   },
   flash: null, setFlash: (flash) => set({ flash }),
   replayRunning: false, replayRunId: null, setReplay: (replayRunning, replayRunId) => set({ replayRunning, replayRunId }),
-  proof: null, openProof: (tab) => set({ proof: { tab } }), closeProof: () => set({ proof: null }),
+  // Un dossier d'archive peut être demandé par son identifiant : le tiroir
+  // charge alors CE rapport, pas celui qui se trouve être en mémoire.
+  proof: null,
+  openProof: (tab, auditId) => set({ proof: { tab, auditId } }),
+  closeProof: () => set({ proof: null }),
 }));

@@ -1,12 +1,17 @@
 // TDD — le sceau n'est dit vérifié qu'après un acte de vérification réel :
 // réponse disponible ET empreinte complète de 64 caractères hexadécimaux.
 import type { ReactNode } from 'react'
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import SealInspector, { integrityVerified, SealBadge } from './SealInspector'
 import Preuves from './Preuves'
 import type { AuditReport } from '../../lib/types'
 import type { ArchiveRow } from '../../lib/archive'
+import { useUIStore } from '../../store/ui'
+
+;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const HASH = 'a'.repeat(64)
 const mount = (node: ReactNode): HTMLElement => {
@@ -87,5 +92,29 @@ describe('sceau — VÉRIFIÉ seulement après une vraie vérification', () => {
     expect(html).toContain('Vérifier le sceau')
     expect(html).toContain('À VÉRIFIER')
     expect(html).not.toContain('VÉRIFIÉ')
+  })
+
+  it('OUVRIR transmet l’identifiant scellé au tiroir, jamais le rapport courant', () => {
+    const sealed: ArchiveRow = {
+      audit_id: 'audit-ligne-42', site: 'Site X', has_report: 'true',
+      verdict_level: 'green', verdict_word: 'Lien sain', timestamp: '2026-10-29T08:00:00Z',
+    }
+    const before = useUIStore.getState().openProof
+    const open = vi.fn()
+    useUIStore.setState({ openProof: open })
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    try {
+      act(() => { root.render(<Preuves archiveRows={[sealed]} integrity={null} />) })
+      const btn = host.querySelector<HTMLButtonElement>('.archive-actions button')!
+      act(() => { btn.click() })
+      expect(open, 'le clic OUVRIR porte l’id de la ligne scellée')
+        .toHaveBeenCalledWith('proof', 'audit-ligne-42')
+    } finally {
+      act(() => root.unmount())
+      host.remove()
+      useUIStore.setState({ openProof: before })
+    }
   })
 })

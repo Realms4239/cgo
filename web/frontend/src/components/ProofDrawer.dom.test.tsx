@@ -4,9 +4,10 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ProofSheet, replayLine } from './ProofDrawer'
+import ProofDrawer, { ProofSheet, replayLine } from './ProofDrawer'
 import { useAuditStore } from '../store/audit'
 import { useUIStore, type ProofTab } from '../store/ui'
+import { copyText } from '../lib/clipboard'
 import type { AuditReport } from '../lib/types'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -135,6 +136,44 @@ describe('ProofDrawer', () => {
     expect(out).toContain('Aucun rapport scellé')
     expect(out).not.toContain('Pas encore mesuré')
   })
+
+  it('le tiroir retient l’identifiant du dossier demandé', () => {
+    const before = useUIStore.getState().proof
+    act(() => { useUIStore.getState().openProof('proof', 'audit-ligne-42') })
+    expect(useUIStore.getState().proof).toEqual({ tab: 'proof', auditId: 'audit-ligne-42' })
+    act(() => { useUIStore.setState({ proof: before }) })
+  })
+
+  it('un identifiant charge ce dossier, jamais le rapport courant', async () => {
+    const beforeProof = useUIStore.getState().proof
+    const beforeReport = useAuditStore.getState().report
+    useAuditStore.setState({ report: { ...report, audit_id: 'audit-courant' } })
+    useUIStore.setState({ proof: { tab: 'proof', auditId: 'audit-2026-11-02' } })
+    const originalFetch = globalThis.fetch
+    const calls: string[] = []
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      calls.push(String(input))
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(report) } as Response)
+    }) as unknown as typeof fetch
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    try {
+      await act(async () => { root.render(<ProofDrawer />) })
+      await act(async () => {})
+      expect(calls.join(' '), 'le dossier est demandé par son id')
+        .toContain('/api/audit/report?audit_id=audit-2026-11-02')
+      const drawer = document.body.querySelector('.proof-drawer')!
+      expect(drawer.innerHTML).toContain('audit_id=audit-2026-11-02')
+      expect(drawer.innerHTML).not.toContain('audit-courant')
+    } finally {
+      await act(async () => { root.unmount() })
+      host.remove()
+      useUIStore.setState({ proof: beforeProof })
+      useAuditStore.setState({ report: beforeReport })
+      globalThis.fetch = originalFetch
+    }
+  })
 })
 
 describe('ProofDrawer — copie honnête', () => {
@@ -151,6 +190,11 @@ describe('ProofDrawer — copie honnête', () => {
     vi.useRealTimers()
     if (hadOwnClipboard) Object.defineProperty(navigator, 'clipboard', ownClipboard!)
     else delete (navigator as unknown as { clipboard?: unknown }).clipboard
+  })
+
+  it('la copie rend un verdict honnête quand le presse-papiers est absent', async () => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
+    expect(await copyText('Citation', 'texte')).toBe(false)
   })
 
   it('quand le presse-papiers est absent, « Copier » dit « Copie impossible »', () => {

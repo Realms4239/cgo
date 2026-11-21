@@ -1,7 +1,7 @@
 // Le tiroir de preuve — deux lectures d'un même rapport scellé : ce qu'on
 // déploie (commande exacte, base de dimensionnement, vérification) et ce qui le
 // prouve (chiffres, sonde, empreintes). Aucun chiffre n'est recalculé ici.
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { operatorFacts } from '../lib/dashboard'
 import { directionLabel } from '../lib/auditFlow'
@@ -198,9 +198,10 @@ export interface ProofSheetProps {
   report?: AuditReport | null
   onClose?: () => void
   onTab?: (tab: ProofTab) => void
+  status?: string
 }
 
-export function ProofSheet({ tab: tabProp, report: reportProp, onClose, onTab }: ProofSheetProps = {}) {
+export function ProofSheet({ tab: tabProp, report: reportProp, onClose, onTab, status }: ProofSheetProps = {}) {
   const tab = tabProp ?? useUIStore.getState().proof?.tab ?? 'commands'
   const report = reportProp !== undefined ? reportProp : useAuditStore.getState().report
   const closeProof = onClose ?? useUIStore.getState().closeProof
@@ -250,7 +251,7 @@ export function ProofSheet({ tab: tabProp, report: reportProp, onClose, onTab }:
         <div role="tabpanel" id="proof-panel" aria-labelledby={`proof-tab-${tab}`} className="proof-panel">
           {report
             ? (tab === 'commands' ? <CommandsTab report={report} /> : <ProofTab report={report} />)
-            : <p className="mono muted">Aucun rapport scellé — lancez un audit.</p>}
+            : <p className="mono muted" role="status">{status ?? 'Aucun rapport scellé — lancez un audit.'}</p>}
         </div>
       </div>
     </div>
@@ -261,11 +262,38 @@ export default function ProofDrawer() {
   const proof = useUIStore(s => s.proof)
   const closeProof = useUIStore(s => s.closeProof)
   const openProof = useUIStore(s => s.openProof)
-  const report = useAuditStore(s => s.report)
-  return proof
-    ? createPortal(
-        <ProofSheet tab={proof.tab} report={report} onClose={closeProof} onTab={openProof} />,
-        document.body,
-      )
-    : null
+  const current = useAuditStore(s => s.report)
+  const [archived, setArchived] = useState<AuditReport | null>(null)
+  const [load, setLoad] = useState<'idle' | 'loading' | 'error'>('idle')
+
+  // Un dossier d'archive est demandé par son identifiant : on lit CE rapport
+  // via l'endpoint scellé, jamais le rapport courant par défaut.
+  useEffect(() => {
+    const id = proof?.auditId
+    if (!id) { setArchived(null); setLoad('idle'); return }
+    let alive = true
+    setLoad('loading')
+    fetch(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
+      .then(j => { if (alive) { setArchived(j as AuditReport); setLoad('idle') } })
+      .catch(() => { if (alive) { setArchived(null); setLoad('error') } })
+    return () => { alive = false }
+  }, [proof?.auditId])
+
+  if (!proof) return null
+  const status = proof.auditId
+    ? (load === 'loading' ? 'Chargement du dossier scellé…'
+      : load === 'error' ? 'Preuve manquante — dossier scellé illisible.'
+        : undefined)
+    : undefined
+  return createPortal(
+    <ProofSheet
+      tab={proof.tab}
+      report={proof.auditId ? archived : current}
+      onClose={closeProof}
+      onTab={(tab) => openProof(tab, proof.auditId)}
+      status={status}
+    />,
+    document.body,
+  )
 }

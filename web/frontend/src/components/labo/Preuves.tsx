@@ -76,7 +76,11 @@ export default function Preuves({ report, archiveRows, integrity }: PreuvesProps
           setCitation('citation impossible — le rapport ne porte pas d’identifiant')
           return
         }
-        copyText('Citation', text)
+        void copyText('Citation', text).then(ok => {
+          setCitation(ok
+            ? 'Citation copiée — dossier scellé.'
+            : 'Copie impossible — sélectionnez le texte')
+        })
       })
       .catch(() => setCitation('citation impossible — preuve indisponible'))
   }
@@ -104,7 +108,7 @@ export default function Preuves({ report, archiveRows, integrity }: PreuvesProps
         {!data?.available ? (
           <p className="archive-wait" role="status">Preuve manquante — les comptes et l'empreinte du service d'intégrité s'afficheront ici dès que le service répondra.</p>
         ) : null}
-        <ArchiveTable rows={rows ?? []} onOpen={() => openProof('proof')} onCopyCitation={cite} />
+        <ArchiveTable rows={rows ?? []} onOpen={(id) => openProof('proof', id)} onCopyCitation={cite} />
         {citation ? <p className="mono muted archive-citation" role="status">{citation}</p> : null}
       </div>
 
