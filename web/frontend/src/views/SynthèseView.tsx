@@ -16,10 +16,17 @@ export default function SynthèseView() {
   const report = useAuditStore(s => s.report)
   const stage = useAuditStore(s => s.stage)
   const failure = useAuditStore(s => s.failure)
+  const auditLive = useAuditStore(s => s.live)
   const start = useAuditStore(s => s.start)
   const stop = useAuditStore(s => s.stop)
   const setMode = useUIStore(s => s.setMode)
   const running = useUIStore(s => !!s.live?.running)
+  // §1.4 — le chiffre du bandeau en mesure vient de l'horloge réelle de l'audit.
+  const remainingSec = auditLive
+    ? auditLive.phase_remain_sec ?? (auditLive.total_sec != null && auditLive.elapsed_sec != null
+      ? auditLive.total_sec - auditLive.elapsed_sec
+      : undefined)
+    : undefined
 
   return (
     <section className="spine-view" aria-label="Synthèse">
@@ -28,6 +35,7 @@ export default function SynthèseView() {
           report={report}
           stage={stage ?? (report ? 'done' : 'idle')}
           failure={failure}
+          remainingSec={remainingSec}
           actions={{
             declare: () => setMode('labo'),
             arm: () => { void start() },

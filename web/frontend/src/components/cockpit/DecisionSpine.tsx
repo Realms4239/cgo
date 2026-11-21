@@ -2,6 +2,7 @@
 // la phrase et les faits qui les justifient. Une absence garde son mot, jamais
 // un zéro ni une couleur empruntée à un niveau non produit. Les quatre états de
 // l'Act sont exclusifs : une mesure ne se confond jamais avec un constat.
+import { useState } from 'react'
 import type { AuditStage } from '../../lib/auditFlow'
 import { operatorFacts } from '../../lib/dashboard'
 import { evaluateLoadedHealth } from '../../lib/health'
@@ -68,6 +69,7 @@ export interface DecisionSpineProps {
   failure?: { message: string } | null
   warnMs?: number
   critMs?: number
+  remainingSec?: number
   actions?: ActActions
 }
 
@@ -77,6 +79,7 @@ export default function DecisionSpine({
   failure,
   warnMs = 40,
   critMs = 100,
+  remainingSec,
   actions,
 }: DecisionSpineProps) {
   // Une mesure en cours rend le rapport précédent illisible : la même
@@ -107,6 +110,19 @@ export default function DecisionSpine({
 
   const facts = operatorFacts(readableReport, warnMs, critMs)
   const act = selectActState({ stage, report, failure })
+
+  // §1.4 — bandeau compact : un seul chiffre décisionnel. En mesure c'est le
+  // temps restant (source réelle), sinon le Δp95 signé ; absence jamais zéro.
+  const [factsOpen, setFactsOpen] = useState(false)
+  const remain = act.kind === 'measuring' && remainingSec != null && remainingSec > 0
+    ? Math.ceil(remainingSec)
+    : null
+  const delta = health.kind === 'absent' ? null : signed(Math.round(health.bloatMs))
+  const keyValue = remain != null ? `${remain}` : delta
+  const keyUnit = remain != null ? 's' : 'ms'
+  const keyLabel = remain != null ? 'reste' : 'Δ charge'
+  const statusWord = act.kind === 'measuring' ? 'Mesure en cours' : HEALTH_WORD[health.kind]
+
   const actSentence = act.kind === 'idle'
     ? 'Prêt à mesurer ce lien pendant 60 secondes.'
     : act.kind === 'measuring'
@@ -118,10 +134,34 @@ export default function DecisionSpine({
   return (
     <section className="decision-spine" aria-label="Décision">
       <div className="answer-band">
-        <h1 id="verdict-word" className="answer-word" data-state={verdict ? 'measured' : 'absent'} data-level={level}>
-          <span className="answer-dot" style={{ background: DOT[level] }} aria-hidden="true" />
-          {word}
-        </h1>
+        <div className="band-lead">
+          <h1 id="verdict-word" className="answer-word" data-state={verdict ? 'measured' : 'absent'} data-level={level}>
+            <span className="answer-dot" style={{ background: DOT[level] }} aria-hidden="true" />
+            {word}
+          </h1>
+          <div className="band-signals">
+            <span className="band-number" data-absent={keyValue == null ? 'true' : undefined}>
+              <span className="band-number-label">{keyLabel}</span>{' '}
+              {keyValue != null
+                ? <span className="band-number-value">{keyValue} <small>{keyUnit}</small></span>
+                : <span className="band-number-absent">— non mesuré</span>}
+            </span>
+            <span className="band-status" data-level={health.kind}>{statusWord}</span>
+          </div>
+        </div>
+        <div className="band-controls">
+          <button type="button" className="band-proof btn" onClick={actions?.proof}>PREUVE</button>
+          <button
+            type="button"
+            className="facts-disclosure-trigger"
+            aria-expanded={factsOpen}
+            aria-controls="answer-facts"
+            onClick={() => setFactsOpen(o => !o)}
+          >
+            <span className="facts-disclosure-mark" aria-hidden="true">{factsOpen ? '▾' : '▸'}</span>
+            4 faits
+          </button>
+        </div>
         <p className="answer-sentence">{sentence}</p>
       </div>
 
@@ -131,7 +171,7 @@ export default function DecisionSpine({
         {healthText ? <span className="health-detail">{healthText}</span> : null}
       </div>
 
-      <div className="answer-facts">
+      <div className="answer-facts" id="answer-facts" data-open={factsOpen ? 'true' : 'false'}>
         <MetricRow label="Constat">
           {facts.map(f => {
             const absent = ABSENT_VALUE.test(f.value)
