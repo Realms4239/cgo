@@ -118,7 +118,6 @@ export default function DecisionSpine({
   return (
     <section className="decision-spine" aria-label="Décision">
       <div className="answer-band">
-        <p className="answer-kicker">Réponse</p>
         <h1 id="verdict-word" className="answer-word" data-state={verdict ? 'measured' : 'absent'} data-level={level}>
           <span className="answer-dot" style={{ background: DOT[level] }} aria-hidden="true" />
           {word}

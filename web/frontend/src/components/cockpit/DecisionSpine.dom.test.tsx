@@ -60,6 +60,13 @@ describe('DecisionSpine — une seule source de vérité', () => {
     expect(host.querySelector('#verdict-word')?.textContent).toContain('Lien sain')
   })
 
+  it('aucun kicker au-dessus du verdict — un seul mot couronné', () => {
+    const host = mount(<DecisionSpine report={REPORT} />)
+    expect(host.querySelector('.answer-kicker')).toBeNull()
+    expect(host.querySelector('.answer-band')?.textContent).not.toMatch(/réponse/i)
+    expect(host.querySelectorAll('#verdict-word')).toHaveLength(1)
+  })
+
   it('absence : MESURE ABSENTE en neutre, aucun chiffre fabriqué', () => {
     const host = mount(<SynthèseView />)
     const word = host.querySelector('#verdict-word')!
