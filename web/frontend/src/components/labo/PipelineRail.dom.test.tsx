@@ -41,4 +41,19 @@ describe('PipelineRail — stepper et progression', () => {
     expect(sheet).not.toMatch(/\.pr-label\s*\{[^}]*text-overflow\s*:\s*ellipsis/)
     expect(sheet).toMatch(/\.pr-step\s*\{[^}]*min-height\s*:\s*44px/)
   })
+
+  it('l’étape courante se dit par un mot et une forme, jamais par la couleur seule', () => {
+    const steps = mount(2).querySelectorAll('.pr-step')
+    expect(steps[2]?.textContent).toContain('en cours')
+    for (const i of [0, 1, 3]) expect(steps[i]?.textContent).not.toContain('en cours')
+    expect(steps[2]?.querySelector('.pr-marker')?.getAttribute('data-current')).toBe('true')
+    for (const i of [0, 1, 3]) {
+      expect(steps[i]?.querySelector('.pr-marker')?.getAttribute('data-current')).toBe('false')
+    }
+  })
+
+  it('aucun état « fait / terminé » n’est fabriqué sur les étapes précédentes', () => {
+    const text = mount(2).textContent ?? ''
+    expect(text).not.toMatch(/terminée?|effectuée?|déjà fait|✓|✔/)
+  })
 })

@@ -37,7 +37,7 @@ export function EventTimeline({ events }: { events: DomainEventRing }) {
       {entries.length === 0 ? (
         <p className="et-empty" role="status">
           <span className="et-mark et-mark-empty" aria-hidden="true" />
-          aucun repère
+          aucun repère — les faits enregistrés pendant la mesure s'afficheront ici avec leur heure.
         </p>
       ) : (
         <ol className="et-list">

@@ -46,7 +46,7 @@ export default function Preuves({ report }: PreuvesProps) {
           <MetricCard label="Mesures écartées" value={data?.quarantined != null ? numFr(data.quarantined, 0) : '—'} />
         </div>
         {!data?.available ? (
-          <p className="archive-wait" role="status">Preuve manquante — les archives ne sont pas disponibles.</p>
+          <p className="archive-wait" role="status">Preuve manquante — les comptes et l'empreinte du service d'intégrité s'afficheront ici dès que le service répondra.</p>
         ) : null}
       </div>
 

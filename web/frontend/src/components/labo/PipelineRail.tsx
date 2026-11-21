@@ -46,8 +46,10 @@ export default function PipelineRail({ active, onSelect }: PipelineRailProps) {
           onKeyDown={e => onRailKeyDown(e, i)}
           onClick={() => onSelect(i)}
         >
+          <span className="pr-marker" aria-hidden="true" data-current={active === i ? 'true' : 'false'} />
           <span className="pr-n mono" aria-hidden="true">{c.n}</span>
           <span className="pr-label">{c.label}</span>
+          {active === i ? <span className="pr-state">en cours</span> : null}
         </button>
       ))}
     </nav>

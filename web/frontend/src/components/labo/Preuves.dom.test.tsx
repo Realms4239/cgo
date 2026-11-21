@@ -3,6 +3,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import SealInspector, { integrityVerified, SealBadge } from './SealInspector'
+import Preuves from './Preuves'
 
 const HASH = 'a'.repeat(64)
 
@@ -31,5 +32,14 @@ describe('sceau — VÉRIFIÉ seulement après une vraie vérification', () => {
     const host = document.createElement('div')
     host.innerHTML = renderToStaticMarkup(<SealInspector />)
     expect(host.textContent).not.toContain('VÉRIFIÉ')
+  })
+
+  it('preuve absente : le vide enseigne ce qui viendra, sans chiffre inventé', () => {
+    const host = document.createElement('div')
+    host.innerHTML = renderToStaticMarkup(<Preuves />)
+    const wait = host.querySelector('.archive-wait')?.textContent ?? ''
+    expect(wait).toContain('Preuve manquante')
+    expect(wait).toContain("s'afficheront ici")
+    expect(host.textContent).toContain('—')
   })
 })

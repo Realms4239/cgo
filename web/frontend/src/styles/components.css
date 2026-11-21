@@ -222,15 +222,31 @@
 .ch-state[data-state='done'] { color: var(--t-ok); }
 .ch-actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .ch-actions .btn { min-height: 44px; }
+/* Cycle d'état complet des actions de panneau, en jetons ratifiés seulement.
+   Aucun mouvement nouveau : le glissement du panneau garde ses 180 ms. */
+.labo-view .btn-primary:hover:not(:disabled) { color: var(--canvas-solid); }
+.labo-view .btn:focus-visible { outline: 1px solid var(--brand-teal-ink); outline-offset: 2px; }
+.labo-view .btn:disabled { opacity: var(--state-disabled-opacity); cursor: not-allowed;
+  background: var(--state-disabled-bg); color: var(--state-disabled-text); border-color: var(--hairline); }
 .ch-objective { font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .pipeline-rail { min-width: 0; display: flex; flex-direction: column; flex-wrap: nowrap; align-content: start; gap: var(--sp-2); }
 .pr-progress { margin: 0; font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.pr-step { min-height: 44px; display: inline-flex; align-items: center; gap: var(--sp-2);
+.pr-step { min-height: 44px; display: inline-flex; align-items: center; align-content: center; flex-wrap: wrap; gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); color: var(--text-body);
   text-decoration: none; font-size: var(--fs-fine); }
 .pr-step:hover, .pr-step:focus-visible { border-color: var(--hairline-strong); color: var(--text-primary); }
 .pr-label { min-width: 0; overflow-wrap: anywhere; }
 .pr-n { color: var(--brand-teal-ink); font-size: var(--fs-micro); }
+/* Étape courante : un mot ET une forme (losange plein) — la couleur ne porte
+   jamais seule l'information ; aucune étape passée n'est dite « faite ». */
+.pr-marker { flex: 0 0 auto; width: 8px; height: 8px; }
+.pr-marker[data-current='true'] { background: var(--brand-teal-ink); border: 1px solid var(--brand-teal-ink); transform: rotate(45deg); }
+.pr-marker[data-current='false'] { background: transparent; border: 1px solid var(--hairline-strong); }
+.pr-state { flex: 1 1 100%; margin-left: calc(8px + var(--sp-2)); color: var(--brand-teal-ink); font-size: var(--fs-micro); }
+@media (forced-colors: active) {
+  .pr-marker { border-color: CanvasText; }
+  .pr-marker[data-current='true'] { background: CanvasText; }
+}
 /* Amendement §B : rail épinglé, une fenêtre, quatre panneaux côte à côte.
    Seule la translation est animée ; le mouvement réduit la rend instantanée. */
 .labo-body { min-width: 0; min-height: 0; flex: 1; display: grid;
@@ -246,10 +262,11 @@
   .answer-sentence, .act-sentence { max-width: 52ch; }
   .answer-facts .metric-row-values { gap: var(--sp-2); }
   .labo-view { gap: var(--sp-5); }
-  .chapter-title { margin-bottom: var(--sp-2); }
 }
 .chapter { min-width: 0; padding: var(--sp-4); border: 1px solid var(--hairline); background: var(--surface-card); }
-.chapter-head { display: flex; gap: var(--sp-3); align-items: baseline; margin-bottom: var(--sp-4); }
+/* Tête de chapitre : la question suit le titre de près ; la respiration est
+   au-dessus du titre, jamais en dessous. */
+.chapter-head { display: flex; gap: var(--sp-3); align-items: baseline; padding-top: var(--sp-3); margin-bottom: var(--sp-2); }
 .chapter-n { font-size: var(--fs-title); color: var(--text-faint); }
 .chapter-heading { min-width: 0; }
 /* S5 fixe --fs-title à 20px ; le jeton incumbent a dérivé à 28px, on ne le
@@ -271,8 +288,8 @@
   transform: rotate(45deg); }
 .et-ts { color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .et-kind { color: var(--text-body-strong); overflow-wrap: anywhere; }
-.et-empty { display: inline-flex; align-items: center; gap: var(--sp-2); margin: 0;
-  font-size: var(--fs-fine); color: var(--state-empty-text); }
+.et-empty { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: var(--sp-2); margin: 0;
+  font-size: var(--fs-fine); color: var(--state-empty-text); text-wrap: pretty; }
 .et-mark-empty { background: transparent; border: 1px dashed var(--text-faint); }
 @media (forced-colors: active) {
   .et-mark { background: CanvasText; }

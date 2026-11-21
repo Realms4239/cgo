@@ -58,7 +58,7 @@ function Duel({ a, b }: { a?: RankRow | null; b?: RankRow | null }) {
   if (!both) {
     return (
       <div className="duel duel-refused" data-state="refused" role="status">
-        <p>Sélectionnez deux mesures pour les comparer. Une mesure absente ne vaut pas une mesure égale.</p>
+        <p>Sélectionnez deux mesures pour les comparer — leur écart de délai s'affichera ici. Une mesure absente ne vaut pas une mesure égale.</p>
       </div>
     )
   }
@@ -144,7 +144,7 @@ export default function Comparer({ rows, a = null, b = null }: ComparerProps) {
             <tbody>
               {ranked.length === 0 ? (
                 <tr className="rank-row rank-empty">
-                  <td colSpan={4}>Aucune mesure — le classement attend une campagne.</td>
+                  <td colSpan={4}>Aucune mesure — lancez la campagne : chaque configuration apparaîtra ici, du délai le plus court au plus long.</td>
                 </tr>
               ) : ranked.map((r, i) => (
                 <tr key={r.id} className="rank-row">

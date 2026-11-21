@@ -63,4 +63,17 @@ describe('Comparer / document Labo — TDD', () => {
     expect(host.textContent).toContain('Sélectionnez deux mesures')
     expect(host.textContent).not.toContain('égalité')
   })
+
+  it('classement vide : le vide enseigne ce qui viendra et pourquoi, sans zéro', () => {
+    const text = mount(<Comparer rows={[]} />).textContent ?? ''
+    expect(text).toContain('Aucune mesure')
+    expect(text).toContain('apparaîtra ici')
+    expect(text).not.toMatch(/\d/)
+  })
+
+  it('duel refusé : le vide nomme ce qui apparaîtra dès deux mesures', () => {
+    const duel = mount(<Comparer rows={[]} />).querySelector('.duel-refused')?.textContent ?? ''
+    expect(duel).toContain('Sélectionnez deux mesures')
+    expect(duel).toContain("s'affichera ici")
+  })
 })

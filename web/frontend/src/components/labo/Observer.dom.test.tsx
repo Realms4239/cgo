@@ -73,4 +73,15 @@ describe('EventTimeline — repères honnêtes', () => {
     ring.push({ ...e })
     expect(mount(ring).querySelectorAll('.et-event')).toHaveLength(2)
   })
+
+  it('anneau vide : le vide enseigne ce qui viendra et pourquoi, sans chiffre ni vert', () => {
+    const host = mount(ring)
+    const empty = host.querySelector('.et-empty')
+    expect(empty?.getAttribute('role')).toBe('status')
+    expect(empty?.textContent).toContain('aucun repère')
+    expect(empty?.textContent).toContain("s'afficheront ici")
+    expect(empty?.textContent).toContain('heure')
+    expect(host.querySelector('.et-mark-empty')).not.toBeNull()
+    expect(host.textContent).not.toMatch(/\d/)
+  })
 })
