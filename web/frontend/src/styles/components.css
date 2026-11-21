@@ -124,6 +124,9 @@
   .facts-disclosure-mark { font-size: var(--fs-body); line-height: 1; color: var(--text-muted); }
   .answer-sentence { display: none; }
   .health-slot, .proof-slot { display: none; }
+  /* Sous 1024 px le journal est toujours visible : le discloser serait un
+     bouton mort de 24 px. On le retire, comme en ≥1600 px où le rail est nu. */
+  .journal-disclosure-toggle { display: none; }
   .answer-facts[data-open="false"] { display: none; }
   .answer-facts[data-open="true"] { padding-top: 6px; border-top: 1px solid var(--hairline-faint); }
   .act-slot { padding-top: 8px; }
