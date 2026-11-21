@@ -212,14 +212,17 @@ main:focus { outline: none; }
   .card { padding: 12px; }
 }
 
-/* bande de confiance — 44 px, cinq faits en mots + formes */
+/* bande de confiance — ligne calme de 44 px : identité à gauche, faits au centre.
+   Une seule pastille s'allume en faute ; jamais de bandeau, jamais de 0 pour un absent. */
 footer { grid-area: ft; display: flex; align-items: center; min-width: 0; }
-.trust-strip { min-height: 44px; height: 44px; display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-4); border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 var(--fs-fine) var(--font-mono); color: var(--text-muted); overflow: hidden; }
-.trust-strip[data-abnormal="1"] { border-left: 6px solid var(--t-danger); }
-.trust-alert { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--t-danger-text); font-weight: 700; letter-spacing: var(--tracking-caps); flex: none; }
-.trust-flag { width: 8px; height: 18px; background: var(--t-danger); flex: none; }
-.trust-slots { display: flex; align-items: center; gap: var(--sp-4); min-width: 0; flex-wrap: nowrap; overflow: hidden; }
+.trust-strip { min-height: 44px; height: 44px; display: flex; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-4); border-top: 1px solid var(--hairline); background: var(--surface-soft); font: 400 var(--fs-fine) var(--font-mono); color: var(--text-muted); overflow: hidden; }
+.trust-id { display: inline-flex; align-items: baseline; gap: var(--sp-2); flex: none; color: var(--text-body); }
+.trust-brand { font-weight: 700; letter-spacing: var(--tracking-caps); }
+.trust-version { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.trust-slots { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-4); min-width: 0; flex: 1 1 auto; flex-wrap: nowrap; overflow: hidden; }
 .trust-slot { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; min-width: 0; }
+.trust-slot[data-state="absent"] { color: var(--text-faint); }
+.trust-slot[data-lit="1"] { color: var(--t-danger-text); font-weight: 700; }
 .trust-word { text-wrap: pretty; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trust-shape { width: 8px; height: 8px; flex: none; border: 1px solid currentColor; }
 .trust-shape-ring { border-radius: 50%; }
@@ -227,8 +230,9 @@ footer { grid-area: ft; display: flex; align-items: center; min-width: 0; }
 .trust-shape-triangle { width: 0; height: 0; border: 5px solid transparent; border-bottom-color: currentColor; }
 .trust-shape-diamond { transform: rotate(45deg); }
 .trust-shape-bars { border: 0; background: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 4px); }
-.trust-slot[data-slot="connection"] { color: var(--text-body); }
-.trust-strip[data-abnormal="1"] .trust-slot[data-slot="connection"] { color: var(--t-danger-text); }
+.trust-slot[data-state="absent"] .trust-shape { border-style: dashed; }
+.trust-slot[data-lit="1"] .trust-shape { border-color: var(--t-danger); background-color: var(--t-danger); }
+.trust-slot[data-lit="1"] .trust-shape-bars { background: var(--t-danger); }
 .rail-foot { margin-top: auto; padding: 8px 14px; border-top: 1px solid var(--hairline); font: 700 var(--fs-micro) var(--font-mono); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-faint); }
 .live-peek { display: flex; align-items: end; gap: 1px; height: 12px; margin: 4px 14px; opacity: 0.7; }
 .arm-progress { position: absolute; top: -4px; left: 0; width: 100%; height: 1px; background: var(--t-danger); transform-origin: left center; }
