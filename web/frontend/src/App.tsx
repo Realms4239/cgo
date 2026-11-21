@@ -7,7 +7,7 @@ import { animateViewEnter } from './lib/anime'
 import { isTextEntryTarget } from './lib/modalFocus'
 import { stageAfterCampaign, stageAfterReplay } from './lib/bench'
 import { relativeTime } from './lib/format'
-import CockpitView from './views/CockpitView'
+import SynthèseView from './views/SynthèseView'
 import Toasts from './components/Toasts'
 import FlashBanner from './components/FlashBanner'
 import SettingsDrawer from './components/SettingsDrawer'
@@ -126,7 +126,7 @@ export default function App() {
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
         <main id="main" tabIndex={-1} className="layout-shell">
-          <section id="v-cockpit" className="view" hidden={mode !== 'cockpit'}><CockpitView /></section>
+          <section id="v-cockpit" className="view" hidden={mode !== 'cockpit'}><SynthèseView /></section>
           {mounted.labo ? (
             <section id="v-labo" className="view" hidden={mode !== 'labo'}>
               <Suspense fallback={<LaboFallback />}><LaboView /></Suspense>

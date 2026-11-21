@@ -1,4 +1,4 @@
-// Cockpit : une seule lecture, épinglée sur la décision. Aucune mesure n'est
+// Synthèse : une seule lecture, épinglée sur la décision. Aucune mesure n'est
 // fabriquée ici : les créneaux attendent la source réelle et disent leur absence.
 import { useState } from 'react'
 import { useAuditStore } from '../store/audit'
@@ -10,7 +10,7 @@ import TimeField from '../components/cockpit/TimeField'
 import { instrument } from '../lib/ringBuffer'
 import { Drawer } from '../components/ui/Drawer'
 
-export default function CockpitView() {
+export default function SynthèseView() {
   const [proofOpen, setProofOpen] = useState(false)
   const [journalOpen, setJournalOpen] = useState(false)
   const report = useAuditStore(s => s.report)

@@ -101,9 +101,12 @@
   .answer-facts .metric-row-values { grid-template-columns: 1fr; gap: 0; }
   .answer-facts .state-slot { min-height: 44px; flex-direction: row; align-items: center;
     justify-content: flex-start; gap: var(--sp-2); padding: 4px 0; }
-  .answer-facts .state-label { flex: 0 0 116px; font-size: var(--fs-micro); }
-  .answer-facts .state-value { font-size: 18px; flex: none; }
-  .answer-facts .state-word { font-size: var(--fs-micro); margin-left: auto; text-align: right; }
+  /* Ces sélecteurs doivent épouser les classes réelles de StateSlot, sinon la
+     carte dense 1280 ne s'applique pas : libellé · valeur · unité, chiffres
+     tabulaires, filet 1 px discret déjà porté par .answer-facts .state-slot. */
+  .answer-facts .state-slot-label { flex: 0 0 116px; font-size: var(--fs-micro); }
+  .answer-facts .state-slot-value { font-size: 18px; flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .answer-facts .state-slot-word { font-size: var(--fs-micro); }
   .act-slot { padding-top: 6px; }
   .proof-slot { padding-top: 6px; }
 }
