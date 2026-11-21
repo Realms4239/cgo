@@ -119,7 +119,7 @@ grep -n axe-core web/frontend/package.json                     -> exit 0  (line 
 ls .github/workflows/ci.yml .github/workflows/release.yml      -> exit 0  (both present)
 git log --all --no-textconv --oneline -- book/handoff-livrables-2026-09-02.md -> exit 0 (54d3f62, 8c67859)
 grep -n "2026-11-18\|purge\|Cap.40\|Cap 40\|ghp_\|human" docs/CHECKPOINTS.md -> exit 0 (ruling at 3564-3568)
-grep -c '|' docs/research/2026-11-22-chunks0-6-gap-audit.md    -> see self-review below
+grep -c '|' docs/research/2026-11-22-chunks0-6-gap-audit.md    -> exit 0 (38; self-review in task-1-report.md)
 ```
 
 Chunks 0 and 6 were not locally testable: chunk 0 check 1 is a human history
@@ -127,5 +127,12 @@ purge (`docs/CHECKPOINTS.md:3568`: "check 1 BLOCKED until the human completes
 the file purge. Chunk 0 agent work is complete but the chunk is NOT verified";
 "no agent may rewrite history"). Chunk 6 rows are transcribed from the
 2026-11-19 readiness record; no live host, bench, sadcnwp, frozen write or
-thesis build was touched. The gate's known pre-existing `links` false positive
-was not encountered and no gate, permit or ledger was weakened.
+thesis build was touched.
+
+The brief's "record why" for the no-hooks override: the normal commit hook
+failed exit 1 on the pre-existing `links` false positive — 28 stale path
+references inside the protected `docs/VERIFY.md` and `docs/CHECKPOINTS.md`.
+No gate, permit, regex or protected ledger was edited; the `links` failure is
+a real gate result, not a skipped check. The commit was therefore made with the
+documented `core.hooksPath=C:/Users/ASUS/AppData/Local/Temp/opencode/no-hooks`
+override. The full command list and exit codes are in `task-1-report.md`.
