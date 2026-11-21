@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import LaboView from '../../views/LaboView'
-import Comparer, { rankRows, type RankRow } from './Comparer'
+import Comparer, { rankRows, sortRows, type RankRow, type SortKey, type SortDir } from './Comparer'
 
 let uiState: Record<string, unknown>
 let auditState: Record<string, unknown>
@@ -26,7 +26,7 @@ const MEASURED: RankRow = { id: 'a', label: 'Fibre', delayMs: 64, goodputMbps: 8
 const ABSENT: RankRow = { id: 'b', label: 'Satellite', delayMs: null, goodputMbps: null }
 
 beforeEach(() => {
-  uiState = { live: { running: true }, connected: true, setMode: vi.fn() }
+  uiState = { live: { running: true }, connected: true, setMode: vi.fn(), openProof: vi.fn() }
   auditState = { report: null, stage: 'observing', start: vi.fn(), stop: vi.fn() }
 })
 
@@ -75,5 +75,44 @@ describe('Comparer / document Labo — TDD', () => {
     const duel = mount(<Comparer rows={[]} />).querySelector('.duel-refused')?.textContent ?? ''
     expect(duel).toContain('Sélectionnez deux mesures')
     expect(duel).toContain("s'affichera ici")
+  })
+
+  it('un duel mesuré nomme le gagnant, porte un Δ signé et une échelle partagée', () => {
+    const slow: RankRow = { id: 's', label: 'Satellite', delayMs: 120, goodputMbps: 20 }
+    const duel = mount(<Comparer rows={[MEASURED, slow]} a={MEASURED} b={slow} />)
+      .querySelector('.duel[data-state="compared"]')!
+    const text = duel.textContent ?? ''
+    expect(text).toContain('Fibre')
+    expect(text).toContain('plus rapide')
+    expect(text).toMatch(/[+−-]\s?\d/)
+    expect(duel.querySelector('.duel-scale')).not.toBeNull()
+    expect(duel.querySelectorAll('.duel-bar')).toHaveLength(2)
+  })
+
+  it('les en-têtes du classement sont triables', () => {
+    const host = mount(<Comparer rows={[MEASURED]} />)
+    expect(host.querySelectorAll('.rank-table thead th button').length).toBeGreaterThanOrEqual(3)
+    expect(host.querySelector('.rank-table thead th[aria-sort]')).not.toBeNull()
+  })
+
+  it('un tri sur toute colonne et tout sens garde les non mesurés en dernier', () => {
+    const slow: RankRow = { id: 's', label: 'Satellite', delayMs: 120, goodputMbps: 20 }
+    const rows = [ABSENT, slow, MEASURED]
+    const keys: SortKey[] = ['delay', 'goodput', 'label']
+    const dirs: SortDir[] = ['asc', 'desc']
+    for (const key of keys) {
+      for (const dir of dirs) {
+        const ordered = sortRows(rows, key, dir)
+        expect(ordered[ordered.length - 1].id, `${key}/${dir}`).toBe('b')
+      }
+    }
+  })
+
+  it('les épingles A/B et PREUVE restent visibles même sans mesure', () => {
+    const host = mount(<Comparer rows={[]} />)
+    const pins = host.querySelector('.duel-pins')?.textContent ?? ''
+    expect(pins).toContain('A')
+    expect(pins).toContain('B')
+    expect(host.textContent).toContain('PREUVE')
   })
 })

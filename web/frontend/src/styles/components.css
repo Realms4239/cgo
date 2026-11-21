@@ -451,8 +451,40 @@
 .rank-pin[aria-pressed='true'] { border-color: var(--t-live); color: var(--brand-teal-ink); }
 .rank-table .state-slot { min-width: 8ch; }
 .rank-empty td { color: var(--text-muted); }
+/* CH3 — duel : épingles A/B toujours visibles, échelle partagée en forme et
+   mot, en-têtes de classement triables à 44 px. Aucune couleur seule. */
+.duel-pins { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  padding-bottom: var(--sp-2); border-bottom: 1px solid var(--hairline-faint); }
+.duel-pin { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0;
+  padding: var(--sp-1) var(--sp-2); border: 1px solid var(--hairline); }
+.duel-pin-key { font-weight: 700; color: var(--brand-teal-ink); }
+.duel-pin-value { min-width: 0; font-size: var(--fs-fine); color: var(--text-body); overflow-wrap: anywhere; }
+.duel-proof { min-height: 44px; margin-left: auto; }
+.duel-scale { grid-column: 1 / -1; display: grid; gap: 4px; }
+.duel-bar { display: block; height: 8px; min-width: 2px; }
+.duel-bar[data-slot='A'] { background: var(--brand-teal-ink); }
+.duel-bar[data-slot='B'] { background: transparent; border: 1px solid var(--brand-teal-ink); }
+.duel-scale-note { grid-column: 1 / -1; margin: 0; font-size: var(--fs-micro); color: var(--text-muted); }
+.duel-delta { grid-column: 1 / -1; display: flex; align-items: baseline; gap: var(--sp-2) var(--sp-3);
+  flex-wrap: wrap; margin: 0; border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
+.duel-delta b { font-variant-numeric: tabular-nums; }
+.rank-sort { min-width: 44px; min-height: 44px; padding: var(--sp-1) var(--sp-2);
+  display: inline-flex; align-items: center; gap: var(--sp-1); background: transparent;
+  color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit;
+  border: 1px solid transparent; cursor: pointer; text-align: left; }
+.rank-sort:hover { color: var(--text-primary); }
+.rank-sort-mark { font-size: var(--fs-micro); color: var(--text-muted); }
+@media (forced-colors: active) {
+  .duel-bar[data-slot='A'] { background: CanvasText; }
+  .duel-bar[data-slot='B'] { border-color: CanvasText; }
+  .duel-pin, .rank-sort { border-color: CanvasText; }
+}
+.frontier-summary { margin: 0 0 var(--sp-2); font-size: var(--fs-fine); color: var(--text-body); text-wrap: pretty; }
 .frontier-list { margin: 0; padding-left: var(--sp-4); font-size: var(--fs-fine); }
 .preuves { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.corpus-line { margin: 0; font-size: var(--fs-fine); color: var(--text-muted); overflow-wrap: anywhere; }
+.preuves-disclosures { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.archive-citation { margin: 0; font-size: var(--fs-fine); color: var(--text-muted); }
 .seal-inspector { min-width: 0; display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
 .seal-inspector .btn { min-height: 44px; }
 .seal-badge { min-height: 32px; display: inline-flex; align-items: center; padding: var(--sp-1) var(--sp-2);

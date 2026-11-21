@@ -9,6 +9,7 @@ import { StateSlot } from '../ui/StateSlot'
 import { numFr, improve } from '../../lib/format'
 import { paretoFrontier } from '../../lib/chartGrammar'
 import { profileShort } from '../../lib/profiles'
+import { useUIStore } from '../../store/ui'
 
 export interface RankRow {
   id: string
@@ -17,19 +18,46 @@ export interface RankRow {
   goodputMbps: number | null
 }
 
+export type SortKey = 'label' | 'delay' | 'goodput'
+export type SortDir = 'asc' | 'desc'
+
 const measured = (v: number | null | undefined): v is number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0
 
-/** Mesurés d'abord (du délai le plus court au plus long), absents en dernier. */
-export function rankRows(rows: RankRow[]): RankRow[] {
+/**
+ * Tri honnête : les non mesurés restent en dernier pour toute colonne et tout
+ * sens — les trier « à l'envers » les ferait passer pour les meilleurs.
+ */
+export function sortRows(rows: RankRow[], key: SortKey, dir: SortDir): RankRow[] {
+  const sign = dir === 'asc' ? 1 : -1
+  const unmeasured = (r: RankRow) => !measured(r.delayMs)
   return [...rows].sort((a, b) => {
-    const am = measured(a.delayMs)
-    const bm = measured(b.delayMs)
-    if (am !== bm) return am ? -1 : 1
-    if (!am && !bm) return a.label.localeCompare(b.label, 'fr')
-    return (a.delayMs as number) - (b.delayMs as number)
+    const au = unmeasured(a)
+    const bu = unmeasured(b)
+    if (au !== bu) return au ? 1 : -1
+    if (au && bu) return a.label.localeCompare(b.label, 'fr')
+    let cmp = 0
+    if (key === 'delay') {
+      cmp = (a.delayMs as number) - (b.delayMs as number)
+    } else if (key === 'goodput') {
+      const ag = measured(a.goodputMbps)
+      const bg = measured(b.goodputMbps)
+      if (ag !== bg) return ag ? -1 : 1
+      cmp = (a.goodputMbps as number) - (b.goodputMbps as number)
+    } else {
+      cmp = a.label.localeCompare(b.label, 'fr')
+    }
+    return cmp * sign
   })
 }
+
+/** Mesurés d'abord (du délai le plus court au plus long), absents en dernier. */
+export function rankRows(rows: RankRow[]): RankRow[] {
+  return sortRows(rows, 'delay', 'asc')
+}
+
+const signed = (v: number, digits = 1): string =>
+  `${v > 0 ? '+' : ''}${numFr(v, digits)}`
 
 interface ApiGroup {
   profile?: string
@@ -53,31 +81,73 @@ function fromApi(j: ApiResults): RankRow[] {
   })
 }
 
-function Duel({ a, b }: { a?: RankRow | null; b?: RankRow | null }) {
+function Duel({
+  a, b, onProof,
+}: {
+  a?: RankRow | null
+  b?: RankRow | null
+  onProof: () => void
+}) {
+  const pins = (
+    <div className="duel-pins" aria-label="Épingles du duel">
+      <span className="duel-pin" data-slot="A">
+        <span className="duel-pin-key mono">A</span>
+        <span className="duel-pin-value">{a ? a.label : 'référence — à choisir'}</span>
+      </span>
+      <span className="duel-pin" data-slot="B">
+        <span className="duel-pin-key mono">B</span>
+        <span className="duel-pin-value">{b ? b.label : 'candidat — à choisir'}</span>
+      </span>
+      <button type="button" className="btn duel-proof" onClick={onProof}>PREUVE</button>
+    </div>
+  )
+
   const both = !!a && !!b && measured(a.delayMs) && measured(b.delayMs)
   if (!both) {
     return (
       <div className="duel duel-refused" data-state="refused" role="status">
+        {pins}
         <p>Sélectionnez deux mesures pour les comparer — leur écart de délai s'affichera ici. Une mesure absente ne vaut pas une mesure égale.</p>
       </div>
     )
   }
-  const delta = improve(a!.delayMs as number, b!.delayMs as number, 'down')
-  const word = delta === null ? 'écart non calculable'
-    : delta === 0 ? 'résultats proches'
-      : delta > 0 ? 'le candidat est plus rapide' : 'la référence est plus rapide'
+
+  const da = a!.delayMs as number
+  const db = b!.delayMs as number
+  const scale = Math.max(da, db)
+  // Sens unique : référence − candidat, positif quand le candidat est plus
+  // rapide ; le pourcentage improve() suit le même sens (down = mieux).
+  const deltaMs = da - db
+  const deltaPct = improve(da, db, 'down')
+  const winner = deltaMs > 0 ? b! : deltaMs < 0 ? a! : null
+  const loser = winner === b! ? a! : b!
+  const word = winner
+    ? `${winner.label} est plus rapide que ${loser.label}`
+    : 'résultats proches'
+
   return (
     <div className="duel" data-state="compared">
+      {pins}
+      <div className="duel-scale" aria-hidden="true">
+        <span className="duel-bar" data-slot="A" style={{ width: `${(da / scale) * 100}%` }} />
+        <span className="duel-bar" data-slot="B" style={{ width: `${(db / scale) * 100}%` }} />
+      </div>
+      <p className="duel-scale-note">échelle commune du délai — repère {numFr(scale, 1)} ms</p>
       <div className="duel-side">
-        <span className="duel-role mono">référence</span>
+        <span className="duel-role mono">référence · A</span>
         <span className="duel-label">{a!.label}</span>
-        <span className="duel-value mono">{numFr(a!.delayMs, 1)} ms</span>
+        <span className="duel-value mono">{numFr(da, 1)} ms</span>
       </div>
       <div className="duel-side">
-        <span className="duel-role mono">candidat</span>
+        <span className="duel-role mono">candidat · B</span>
         <span className="duel-label">{b!.label}</span>
-        <span className="duel-value mono">{numFr(b!.delayMs, 1)} ms</span>
+        <span className="duel-value mono">{numFr(db, 1)} ms</span>
       </div>
+      <p className="duel-delta" data-testid="duel-delta">
+        <span>écart référence − candidat</span>
+        <b className="mono">{signed(deltaMs)}<small> ms</small></b>
+        <b className="mono">{deltaPct === null ? '—' : `${deltaPct > 0 ? '+' : ''}${deltaPct}`}<small> %</small></b>
+      </p>
       <p className="duel-word" role="status">{word}</p>
     </div>
   )
@@ -92,6 +162,8 @@ export interface ComparerProps {
 export default function Comparer({ rows, a = null, b = null }: ComparerProps) {
   const [fetched, setFetched] = useState<RankRow[]>([])
   const [duel, setDuel] = useState<{ a: RankRow | null; b: RankRow | null }>({ a, b })
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'delay', dir: 'asc' })
+  const openProof = useUIStore(s => s.openProof)
   useEffect(() => {
     let alive = true
     fetch('/api/results').then(r => r.json()).then(j => { if (alive) setFetched(fromApi(j)) }).catch(() => {})
@@ -104,7 +176,23 @@ export default function Comparer({ rows, a = null, b = null }: ComparerProps) {
   const pin = (r: RankRow) => setDuel(p =>
     (p.a && p.b) || !p.a ? { a: r, b: null } : { a: p.a, b: r })
 
-  const ranked = rankRows(rows ?? fetched)
+  const toggle = (key: SortKey) => setSort(s => ({
+    key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc',
+  }))
+  const sortAttr = (key: SortKey) =>
+    sort.key === key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'
+  const header = (key: SortKey, label: string) => (
+    <th scope="col" aria-sort={sortAttr(key)}>
+      <button type="button" className="rank-sort" onClick={() => toggle(key)}>
+        {label}
+        <span className="rank-sort-mark mono" aria-hidden="true">
+          {sort.key === key ? (sort.dir === 'asc' ? '▴' : '▾') : '↕'}
+        </span>
+      </button>
+    </th>
+  )
+
+  const ranked = sortRows(rows ?? fetched, sort.key, sort.dir)
   const pts = ranked
     .filter(r => measured(r.delayMs) && measured(r.goodputMbps))
     .map(r => ({ x: r.delayMs as number, y: r.goodputMbps as number }))
@@ -117,28 +205,20 @@ export default function Comparer({ rows, a = null, b = null }: ComparerProps) {
       </p>
 
       <div className="comparer-duel">
-        <CardHead
-          label="Duel"
-          sub="Cliquez deux lignes du classement : la première est la référence"
-          right={duel.a ? (
-            <button type="button" className="btn" onClick={() => setDuel({ a: null, b: null })}>
-              Réinitialiser
-            </button>
-          ) : undefined}
-        />
-        <Duel a={duel.a} b={duel.b} />
+        <CardHead label="Duel" sub="Cliquez deux lignes du classement : la première est la référence" />
+        <Duel a={duel.a} b={duel.b} onProof={() => openProof('proof')} />
       </div>
 
       <div className="comparer-rank">
-        <CardHead label="Classement" sub="Délai sous charge, du plus court au plus long" />
+        <CardHead label="Classement" sub="Les colonnes se trient ; les non mesurés restent en dernier" />
         <div className="rank-scroll">
           <table className="rank-table">
             <thead>
               <tr>
                 <th scope="col">Rang</th>
-                <th scope="col">Configuration</th>
-                <th scope="col" aria-sort="ascending">Délai sous charge</th>
-                <th scope="col">Débit utile</th>
+                {header('label', 'Configuration')}
+                {header('delay', 'Délai sous charge')}
+                {header('goodput', 'Débit utile')}
               </tr>
             </thead>
             <tbody>
@@ -190,13 +270,20 @@ export default function Comparer({ rows, a = null, b = null }: ComparerProps) {
 
       <InlineDisclosure label="Espace de compromis">
         {frontier.length ? (
-          <ul className="frontier-list">
-            {frontier.map(i => (
-              <li key={i} className="mono">
-                {numFr(pts[i].x, 1)} ms · {numFr(pts[i].y, 1)} Mbit/s
-              </li>
-            ))}
-          </ul>
+          <>
+            <p className="frontier-summary">
+              {frontier.length} configuration{frontier.length > 1 ? 's' : ''} sur l'enveloppe —
+              {' '}délai le plus court {numFr(Math.min(...frontier.map(i => pts[i].x)), 1)} ms,
+              {' '}débit le plus élevé {numFr(Math.max(...frontier.map(i => pts[i].y)), 1)} Mbit/s.
+            </p>
+            <ul className="frontier-list">
+              {frontier.map(i => (
+                <li key={i} className="mono">
+                  {numFr(pts[i].x, 1)} ms · {numFr(pts[i].y, 1)} Mbit/s
+                </li>
+              ))}
+            </ul>
+          </>
         ) : (
           <p className="muted">Aucun compromis calculable : il faut au moins deux mesures complètes.</p>
         )}
