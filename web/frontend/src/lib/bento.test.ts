@@ -1,17 +1,23 @@
-import { describe, it, expect } from 'vitest'
-// @ts-ignore — types node:fs inutiles sous jsdom
+// Porte « bento » retargetée T6 : le gap reste scopé à une racine nommée,
+// désormais la racine du document Labo plutôt que le mur supprimé.
+// @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
-function read(p:string){
-  for(const q of [p, p.replace('web/frontend/',''), `../${p}`, `../../${p}`]) try{ return readFileSync(q as any,'utf8' as any)}catch{}
-  return readFileSync(p as any,'utf8' as any)
-}
-describe('bento',()=>{
-  it('wall bento scoped — gap var(--gap) only on #wall',()=>{
-    const css=read('web/frontend/src/styles/index.css')
+import { join } from 'node:path'
+import { describe, it, expect } from 'vitest'
+
+const read = (p: string) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
+
+describe('bento', () => {
+  it('gap var(--gap) uniquement sur les racines de grille, jamais sur les tableaux', () => {
+    const css = read('styles/index.css')
     expect(css).toContain('#wall')
     expect(css).toContain('gap: var(--gap)')
-    // le mur est la racine panel-stack de LiveView
-    const live=read('web/frontend/src/views/LiveView.tsx')
-    expect(live).toContain('id="wall"')
+    const comp = read('styles/components.css')
+    expect(comp).toContain('.labo-chapters {')
+    expect(comp).toContain('gap: var(--gap)')
+    expect(comp, 'le tableau dense ne prend pas le gap bento').not.toContain('.rank-table { gap:')
+    const labo = read('views/LaboView.tsx')
+    expect(labo).toContain('className="labo-view"')
+    expect(labo).toContain('className="labo-chapters"')
   })
 })

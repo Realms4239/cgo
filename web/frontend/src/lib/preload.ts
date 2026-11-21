@@ -1,6 +1,7 @@
-// Le Labo est différé : le Cockpit seul entre dans le premier rendu. Le
-// préchauffage au survol/focus suit la même table que `lazy()` dans App.tsx —
-// un seul endroit nomne le chunk, donc un mode ajouté ne peut pas être oublié ici.
+// Préchauffage de la seule destination différée : le laboratoire porte
+// l'instrument (ECharts + boucle rAF). Un seul endroit nomme le chunk, donc la
+// bascule, le clavier et la palette ne peuvent pas le désynchroniser.
+// Deux modes seulement — aucun identifiant historique ici.
 import type { ModeId } from '../store/ui'
 
 const IMPORTERS: Partial<Record<ModeId, () => Promise<unknown>>> = {

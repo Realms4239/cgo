@@ -26,5 +26,5 @@ export function Provenance(props: ProvInfo & { className?: string }) {
   const state = props.state ?? 'wait';
   // lisible même sans connaître le banc : 11px (pas micro), corps (pas faint),
   // mots français — la provenance est une garantie, pas un code secret.
-  return <p className={`c-prov c-provenance ${state} ${props.className ?? ''}`.trim()} data-testid="provenance" aria-label="source de données" style={{ fontSize: 'var(--fs-tag)', color: state === 'live' ? 'var(--t-live)' : 'var(--text-body)', letterSpacing: 'var(--tracking-caps)', marginTop: 10 }}>{formatProvenance(props)}</p>;
+  return <p className={`c-prov c-provenance ${state} ${props.className ?? ''}`.trim()} data-testid="provenance" aria-label="source de données" style={{ fontSize: 'var(--fs-tag)', color: state === 'live' ? 'var(--brand-teal-ink)' : 'var(--text-body)', letterSpacing: 'var(--tracking-caps)', marginTop: 10 }}>{formatProvenance(props)}</p>;
 }

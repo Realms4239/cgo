@@ -1,15 +1,17 @@
-// @vitest-environment happy-dom
 // La carte de remédiation : deux directions mesurées, la plateforme que le
 // rapport porte, et un texte copié qui ne contient que ce qui a été mesuré.
-import { describe, expect, it } from 'vitest'
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RemediationCard, scriptOf } from './RemediationCard'
+import { useUIStore } from '../store/ui'
 import type { AuditRemediation } from '../lib/types'
-import { remediation } from '../lib/auditFixtures'
+
+;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const full: AuditRemediation = {
   qdisc: 'fq_codel',
-  reason: 'fq_codel en défaut',
   up_measured_mbps: 5.06,
   up_shaped_mbps: 4.81,
   down_measured_mbps: 18.5,
@@ -71,7 +73,7 @@ describe('RemediationCard', () => {
     const linuxOnly = text({ ...full, routeros: '', routeros_ingress: undefined })
     expect(linuxOnly).toContain('Linux tc')
     expect(linuxOnly).not.toContain('MikroTik RouterOS 7')
-    const routerosOnly = text({ ...full, linux_tc: [] })
+    const routerosOnly = text({ ...full, linux_tc: undefined })
     expect(routerosOnly).toContain('MikroTik RouterOS 7')
     expect(routerosOnly).not.toContain('Linux tc')
   })
@@ -93,9 +95,7 @@ describe('RemediationCard', () => {
 
   it('sans remédiation, la carte ne rend rien', () => {
     expect(markup(null)).toBe('')
-    // qdisc vide n'est PAS le signal — le composant se tait quand le rapport
-    // ne porte aucune plateforme (carriedPlatforms vide).
-    expect(markup(remediation({ qdisc: '', reason: '', linux_tc: [], routeros: '', routeros_ingress: undefined, linux_tc_ingress: undefined }))).toBe('')
+    expect(markup({ qdisc: '' })).toBe('')
   })
 
   it('masque la carte quand l\'état est observation_only', () => {
@@ -104,5 +104,39 @@ describe('RemediationCard', () => {
     )
     expect(html).toContain('Aucune configuration émise')
     expect(html).not.toContain('Copier la configuration')
+  })
+})
+
+describe('RemediationCard — copie honnête', () => {
+  const hadOwnClipboard = Object.prototype.hasOwnProperty.call(navigator, 'clipboard')
+  const ownClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    useUIStore.setState({ toasts: [] })
+  })
+  afterEach(() => {
+    vi.clearAllTimers()
+    useUIStore.setState({ toasts: [] })
+    vi.useRealTimers()
+    if (hadOwnClipboard) Object.defineProperty(navigator, 'clipboard', ownClipboard!)
+    else delete (navigator as unknown as { clipboard?: unknown }).clipboard
+  })
+
+  it('sans presse-papiers, « Copier la configuration » dit « Copie impossible »', () => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    act(() => { root.render(<RemediationCard remediation={full} state="available" />) })
+    const copy = Array.from(host.querySelectorAll('button'))
+      .find(b => b.textContent?.includes('Copier la configuration'))!
+    act(() => { copy.click() })
+    expect(
+      useUIStore.getState().toasts.map(t => t.msg).join(' '),
+      'un mot remplace le no-op silencieux',
+    ).toContain('Copie impossible')
+    act(() => root.unmount())
+    host.remove()
   })
 })

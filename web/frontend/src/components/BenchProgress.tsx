@@ -49,7 +49,7 @@ export default function BenchProgress({ active = true }: { active?: boolean }) {
               const cur = live?.running ? live?.event_id ?? 0 : 0
               const st = cur === 0 ? 'attente' : (cellStart + reps - 1 < cur ? 'terminée' : (cellStart <= cur ? 'en cours' : 'attente'))
               const n = Math.max(0, Math.min(reps, cur - cellStart + (st === 'en cours' ? 1 : 0)))
-              const color = st === 'terminée' ? 'var(--t-ok)' : st === 'en cours' ? 'var(--t-live)' : 'var(--text-faint)'
+              const color = st === 'terminée' ? 'var(--t-ok)' : st === 'en cours' ? 'var(--brand-teal-ink)' : 'var(--text-faint)'
               return (
                 <tr key={`${p}/${q}/${c}`}>
                   <td>{p}</td>

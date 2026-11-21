@@ -272,7 +272,7 @@ export function AuditReportCard({ report, onCopy }: {
           <p style={{ color: 'var(--text-body)' }}>{report.provenance?.telemetry_file ? 'Empreinte télémétrie absente' : 'Télémétrie absente'}</p>
         ) : null}
         <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', alignItems: 'baseline' }}>
-          <a className="mono" href={mdHref} target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-micro)', color: 'var(--t-live)' }}>rapport Markdown ↗</a>
+          <a className="mono" href={mdHref} target="_blank" rel="noreferrer" style={{ fontSize: 'var(--fs-micro)', color: 'var(--brand-teal-ink)' }}>rapport Markdown ↗</a>
           <button className="btn" disabled={proof === 'missing'} title={proof === 'missing' ? 'Citation impossible — empreinte source absente' : undefined} style={{ padding: 'var(--sp-1) var(--sp-2)' }}
             onClick={() => onCopy(auditCitation(report), 'Citation du rapport')}>CITER CE RAPPORT</button>
           {m.data_used_mb ? <Muted>données consommées par l'audit : {Number(m.data_used_mb).toFixed(2)} Mo</Muted> : null}

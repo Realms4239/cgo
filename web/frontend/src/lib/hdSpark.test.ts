@@ -1,21 +1,25 @@
-import { describe, it, expect } from 'vitest'
+// Porte « hdSpark » retargetée T6 : le délai souscharge occupe le champ complet
+// de l'instrument, avec un objectif nommé et une hauteur mesurée.
 // @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
-function read(p: string): string {
-  const cands = [p, p.replace(/^web\/frontend\//, ''), 'web/frontend/' + p.replace(/^web\/frontend\//, '')]
-  for (const c of cands) try { return readFileSync(c, 'utf8') } catch {}
-  return readFileSync(p, 'utf8')
-}
+import { join } from 'node:path'
+import { describe, it, expect } from 'vitest'
+
+const read = (p: string) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
+
 describe('hdSpark', () => {
-  it('MetricCard has sparkline 60×12', () => {
-    const s=read('web/frontend/src/components/ui/MetricCard.tsx')
+  it('MetricCard garde son sparkline 60×12', () => {
+    const s = read('components/ui/MetricCard.tsx')
     expect(s).toContain('60')
     expect(s).toContain('clipPath')
   })
-  it('Live hero small p95 full-width', () => {
-    const s=read('web/frontend/src/views/LiveView.tsx')
-    expect(s).toContain('small_p95')
-    expect(s).toContain('live-hero-card')
-    expect(read('web/frontend/src/styles/index.css')).toContain('height: 300px')
+  it('le délai sous charge occupe le champ, objectif inclus', () => {
+    const t = read('components/cockpit/TimeField.tsx')
+    expect(t).toContain("rawLineSeries('Délai sous charge'")
+    expect(t).toContain("rawLineSeries('Aller-retour sous charge'")
+    expect(t).not.toContain('p95')
+    expect(t).toContain('objectif {objectiveMs} ms')
+    const css = read('styles/components.css')
+    expect(css).toContain('.observer-field .tf-plot { height: 320px; }')
   })
 })

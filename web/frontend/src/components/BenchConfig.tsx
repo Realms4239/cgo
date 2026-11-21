@@ -34,8 +34,6 @@ export default function BenchConfig() {
   const setDeadlineMs = useBenchStore(s => s.setDeadlineMs)
   const research = useBenchStore(s => s.research)
   const setResearch = useBenchStore(s => s.setResearch)
-  const direction = useBenchStore(s => s.direction)
-  const setDirection = useBenchStore(s => s.setDirection)
 
   const [duel, setDuel] = useState<DuelPair | null>(null)
 
@@ -101,10 +99,8 @@ export default function BenchConfig() {
         setImportForm(false)
       })
       .catch(e => {
-        // e.message ici ne vaut qu'un code HTTP (« 400 ») : on le nomme.
-        const code = e instanceof Error ? e.message : ''
-        setImportMsg(`échec de l'import${code ? ` (HTTP ${code})` : ''}`)
-        pushToast(`Échec import${code ? ` (HTTP ${code})` : ''}`, 'err')
+        setImportMsg('échec : ' + e.message)
+        pushToast('Échec import : ' + e.message, 'err')
       })
   }
 
@@ -115,7 +111,6 @@ export default function BenchConfig() {
     channel_model: typeof effectiveModel
     deadline_ms: number
     target: string
-    direction: 'down' | 'up' | 'both'
   }) => {
     setMsg('démarrage…')
     try {
@@ -139,7 +134,6 @@ export default function BenchConfig() {
     channel_model: effectiveModel,
     deadline_ms: deadlineMs,
     target: loadSettings().target,
-    direction,
   })
 
   const launchDuel = () => launch({
@@ -149,7 +143,6 @@ export default function BenchConfig() {
     channel_model: 'clean',
     deadline_ms: duel?.deadline_ms ?? 220,
     target: loadSettings().target,
-    direction: 'down',
   })
 
   const stop = async () => {
@@ -240,7 +233,7 @@ export default function BenchConfig() {
                       style={{
                         padding: 'var(--sp-1) var(--sp-2)',
                         borderColor: active ? 'var(--t-live)' : 'var(--hairline)',
-                        color: active ? 'var(--t-live)' : 'var(--text-muted)',
+                        color: active ? 'var(--brand-teal-ink)' : 'var(--text-muted)',
                         background: active ? 'var(--live-dim)' : 'transparent',
                         opacity: blocked ? 'var(--disabled-opacity, 0.5)' : 1,
                         cursor: blocked ? 'not-allowed' : 'pointer',
@@ -253,33 +246,6 @@ export default function BenchConfig() {
               </div>
             </div>
             {!canal.allowed ? <div className="mono muted bench-hint" data-testid="canal-reason">{canal.reason}</div> : null}
-            <div className="form-row">
-              <label>Direction</label>
-              <div role="group" aria-label="Direction de façonnage" className="bench-pills">
-                {(['down', 'up', 'both'] as const).map(d => {
-                  const active = direction === d
-                  const label = d === 'down' ? 'Egress' : d === 'up' ? 'Ingress' : 'Both'
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      className="btn"
-                      aria-pressed={active}
-                      title={d === 'down' ? 'façonnage émission bord vers client' : d === 'up' ? 'façonnage ingress côté client (IFB)' : 'egress dans un sens et ingress mesuré dans autre sens'}
-                      onClick={() => setDirection(d)}
-                      style={{
-                        padding: 'var(--sp-1) var(--sp-2)',
-                        borderColor: active ? 'var(--t-live)' : 'var(--hairline)',
-                        color: active ? 'var(--t-live)' : 'var(--text-muted)',
-                        background: active ? 'var(--live-dim)' : 'transparent',
-                      }}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
             <div className="form-row">
               <label><Explain term="deadline">Deadline</Explain></label>
               <input className="c-input bench-num" type="number" min={200} max={5000} step={100} value={deadlineMs} onChange={e => setDeadlineMs(parseInt(e.target.value) || 220)} title="objectif small p95 — voyage avec la campagne (bornes serveur 200–5000 ms)" />

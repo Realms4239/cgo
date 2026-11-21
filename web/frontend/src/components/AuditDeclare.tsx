@@ -47,7 +47,7 @@ export function AuditDeclare() {
       style={{
         padding: 'var(--sp-1) var(--sp-2)',
         borderColor: active ? 'var(--t-live)' : 'var(--hairline)',
-        color: active ? 'var(--t-live)' : 'var(--text-muted)',
+        color: active ? 'var(--brand-teal-ink)' : 'var(--text-muted)',
         background: active ? 'var(--live-dim)' : 'transparent',
       }}
     >
@@ -75,7 +75,7 @@ export function AuditDeclare() {
 
       <div className="audit-form">
         <InlineField label="Site" error={validation.errors.site} helper={!s.site ? 'requis' : undefined}>
-          <input className="c-input" name="site" value={s.site} onChange={e => s.patch({ site: e.target.value })} />
+          <input className="c-input" name="site" value={s.site} maxLength={80} onChange={e => s.patch({ site: e.target.value.normalize('NFC') })} />
         </InlineField>
         <InlineField label="Type de lien" error={validation.errors.link_type}>
           <select className="c-input" value={s.link} onChange={e => s.patch({ link: e.target.value })}>
@@ -106,7 +106,7 @@ export function AuditDeclare() {
       {s.advanced ? (
         <div className="audit-form">
           <InlineField label="Fournisseur" helper="ex. yas — archivé avec la ligne">
-            <input className="c-input" name="audit-provider" value={s.provider} onChange={e => s.patch({ provider: e.target.value })} placeholder="yas" />
+            <input className="c-input" name="audit-provider" value={s.provider} maxLength={80} onChange={e => s.patch({ provider: e.target.value.normalize('NFC') })} placeholder="yas" />
           </InlineField>
           <InlineField label="Cible ping" helper="vide = puits du banc détecté">
             <input className="c-input" name="audit-target" value={s.target} onChange={e => s.patch({ target: e.target.value })} placeholder="détecté" />

@@ -11,7 +11,7 @@ export function MetricCard({
   unit,
   trend = 'flat',
   spark,
-  color = 'var(--t-live)',
+  color = 'var(--brand-teal-ink)',
   term,
   verdict,
   verdictLevel,

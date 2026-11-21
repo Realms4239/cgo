@@ -1,9 +1,9 @@
-import { animate, createTimeline, stagger, utils, svg, text, createDrawable, splitText, createAnimatable, cubicBezier } from 'animejs'
+import { animate, createTimeline, stagger, svg, text, createDrawable, splitText, cubicBezier } from 'animejs'
 
 // anime v4 a retiré la forme CHAÎNE 'cubicBezier(...)' (warning console,
 // easing silencieusement ignoré) — la fonction importée, une seule fois.
 const EASE = cubicBezier(0.16, 1, 0.3, 1)
-export const EASE_OUT = cubicBezier(0.4, 0, 0.2, 1)
+const EASE_OUT = cubicBezier(0.4, 0, 0.2, 1)
 export { EASE }
 
 export const prefersReducedMotion = () =>
@@ -18,67 +18,12 @@ export function animateViewEnter() {
   tl.add('.view:not([hidden])', { translateY: [8, 0], opacity: [0, 1], duration: 300, ease: EASE } as any, 0)
 }
 
-export function animateCardStagger() {
-  if (prefersReducedMotion()) return
-  const tl = createTimeline()
-  tl.add('.card', { translateY: [12, 0], opacity: [0, 1], delay: stagger(40, { start: 100 }), duration: 600, ease: EASE } as any, 0)
-}
-
-export function animateBar(el: Element) {
-  if (prefersReducedMotion()) return
-  const h = el as HTMLElement
-  h.style.transformOrigin = 'left center'
-  utils.set(h, { scaleX: 0 } as any)
-  animate(h, { scaleX: [0, 1], duration: 600, ease: EASE } as any)
-}
-
-// U6d: largeur animée par CHANGEMENT DE VALEUR (live campaign) — l'enter
-// scaleX ci-dessus reste réservé à la première peinture.
-// La largeur est posée une fois (mise en page), le CHANGEMENT est animé en
-// transform: scaleX — animer `width` déclenche un reflow par frame.
-export function animateBarWidth(el: Element, from: string, to: string) {
-  const h = el as HTMLElement
-  try {
-    h.style.width = to
-    if (prefersReducedMotion()) return
-    const fromN = parseFloat(from)
-    const toN = parseFloat(to)
-    if (!Number.isFinite(fromN) || !Number.isFinite(toN) || toN <= 0 || fromN === toN) return
-    const ratio = Math.max(0, Math.min(1, fromN / toN))
-    h.style.transformOrigin = 'left center'
-    utils.set(h, { scaleX: ratio } as any)
-    animate(h, { scaleX: 1, duration: 500, ease: EASE } as any)
-  } catch { /* la largeur reste posée : la valeur est déjà à jour */ }
-}
-
-// U6e: les lignes se réordonnent dans le DOM — pas de FLIP layout, le flash
-// vert sur la ligne remontée suffit à convey le mouvement. Nouvel entrant :
-// l'enter scaleX de sa barre fait office de fondu d'entrée.
-export function flashRowUp(el: Element) {
-  if (prefersReducedMotion()) return
-  try {
-    animate(el as HTMLElement, { backgroundColor: ['rgba(31,163,72,0.15)', 'rgba(31,163,72,0)'], duration: 800, ease: EASE } as any)
-  } catch {}
-}
-
 export function animateArmButton(el: Element) {
   if (prefersReducedMotion()) return
   const tl = createTimeline()
   tl.add(el, { scale: [0.96, 1], duration: 400, ease: 'outElastic(1, .6)' } as any, 0)
   tl.add(el, { rotate: [0.5, -0.5, 0], duration: 400, ease: 'outElastic(1, .6)' } as any, 0)
-  tl.add(el, { boxShadow: ['0 0 0 rgba(226,39,24,0)', '0 0 16px rgba(226,39,24,0.35)', '0 0 0 rgba(226,39,24,0)'], duration: 800, ease: 'linear' } as any, 0)
-}
-
-export function animateBannerPulse(el: Element) {
-  if (prefersReducedMotion()) return
-  const tl = createTimeline()
-  tl.add(el, { opacity: [0.85, 1], duration: 700, ease: 'inOut(3)' } as any, 0)
-}
-
-export function animateLiveEnter() {
-  if (prefersReducedMotion()) return
-  const tl = createTimeline()
-  tl.add('.card', { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'], duration: 700, delay: stagger(50, { start: 80 }), ease: EASE } as any, 0)
+  tl.add(el, { boxShadow: ['0 0 0 rgba(213,22,0,0)', '0 0 16px rgba(213,22,0,0.35)', '0 0 0 rgba(213,22,0,0)'], duration: 800, ease: 'linear' } as any, 0)
 }
 
 export function animatePromptEnter(el: Element) {
@@ -114,7 +59,7 @@ export function animateToasts(els: Element[]) {
   tl.add(els, { translateY: [16, 0], opacity: [0, 1], delay: stagger(20), duration: 300, ease: EASE } as any, 0)
 }
 
-// --- dense: svg/text/animatable/layout — animejs@4.5.0 ---
+// --- dense: svg/text — animejs@4.5.0, garde de source animeSvg.test.ts ---
 
 export function animateMeteolinkShimmer(el: Element) {
   if (prefersReducedMotion()) return
@@ -131,35 +76,4 @@ export function animateMeteolinkShimmer(el: Element) {
   if (chars.length) {
     animate(chars as any, { translateY: [8, 0], opacity: [0, 1], duration: 600, ease: EASE, delay: stagger(30, { grid: [4, 2], from: 'center' } as any) } as any)
   }
-}
-
-export function animateBeam(el: Element) {
-  if (prefersReducedMotion()) return
-  const line = el.querySelector('line, path') as SVGGeometryElement | null
-  if (line) {
-    const drawable = svg.createDrawable(line as any)
-    animate(drawable as any, { draw: ['0 0', '0 1', '1 1'], duration: 2000, ease: 'inOutQuad', delay: stagger(100) } as any)
-  }
-  const anim = createAnimatable(el as any, { strokeDashoffset: { duration: 800, ease: 'linear' } } as any) as any
-  void anim
-}
-
-export function animateDonut(el: Element, value: number) {
-  if (prefersReducedMotion()) return
-  const circle = el.querySelector('circle:last-of-type') as SVGGeometryElement | null
-  if (!circle) return
-  const v = Math.max(0, Math.min(1, value))
-  const drawable = svg.createDrawable(circle as any)
-  animate(drawable as any, { draw: ['0 0', '0 1'], duration: 600, ease: 'linear' } as any)
-  const anim = createAnimatable(circle as any, { strokeDasharray: { duration: 400, ease: 'out(2)' } } as any) as any
-  if (anim?.strokeDasharray) anim.strokeDasharray(`${v * 176} 176`)
-}
-
-export function animateGrid(els: Element[]) {
-  if (prefersReducedMotion() || !els.length) return
-  // timeline unique séquentielle, grille [4,2] centre → [2,3] — évite le double-time
-  const tl = createTimeline()
-  tl.add(els as any, { translateY: [12, 0], opacity: [0, 1], duration: 500, ease: EASE, delay: stagger(40, { grid: [4, 2], from: 'center' } as any) } as any, 0)
-    .add(els as any, { translateY: [8, 0], opacity: [0, 1], duration: 400, ease: EASE, delay: stagger(40, { grid: [2, 3], from: 'first' } as any) } as any, 200)
-  return () => { try { (tl as any).pause?.() } catch {} }
 }

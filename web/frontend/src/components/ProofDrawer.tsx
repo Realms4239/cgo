@@ -8,6 +8,7 @@ import { directionLabel } from '../lib/auditFlow'
 import { numFr } from '../lib/format'
 import { loadSettings } from '../lib/settings'
 import { useModalFocus } from '../lib/modalFocus'
+import { copyText } from '../lib/clipboard'
 import type { AuditRemediation, AuditReport, KernelTelemetry, RouterOSValidation } from '../lib/types'
 import { useAuditStore } from '../store/audit'
 import { useUIStore, type ProofTab } from '../store/ui'
@@ -56,13 +57,6 @@ function sensorLine(k?: KernelTelemetry): string {
   if (k.source === 'ebpf') return 'eBPF — compteurs noyau'
   if (k.source === 'tcpinfo') return `TCP_INFO — amont du noyau : ${k.reason || 'raison non consignée'}`
   return `standard — ${k.reason || 'sonde non instrumentée'}`
-}
-
-function copyText(label: string, text: string) {
-  navigator.clipboard?.writeText(text).then(
-    () => useUIStore.getState().pushToast(`${label} copié`, 'ok'),
-    () => useUIStore.getState().pushToast('Copie impossible — sélectionnez le texte', 'err'),
-  )
 }
 
 function CommandsTab({ report }: { report: AuditReport }) {

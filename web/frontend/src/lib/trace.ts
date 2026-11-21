@@ -17,6 +17,36 @@ export interface TraceGeometry {
   objectiveY: number
 }
 
+// Géométrie de l'anneau typé pour l'instrument à axe partagé. Une valeur NaN est
+// une sonde sans réponse : elle devient null et ECharts (connectNulls:false)
+// coupe le tracé. Un zéro mesuré reste 0.
+export interface RingTrace {
+  data: [number, number | null][]
+  yMax: number
+  objectiveMs: number
+}
+
+export function ringTrace(
+  ring: { series(): Float64Array; timestamps(): Float64Array },
+  deadlineMs: number,
+): RingTrace {
+  const goal = Number.isFinite(deadlineMs) && deadlineMs > 0 ? deadlineMs : 1
+  const values = ring.series()
+  const times = ring.timestamps()
+  const data: [number, number | null][] = new Array(values.length)
+  let yMax = goal
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i]
+    if (Number.isNaN(v) || !Number.isFinite(v)) {
+      data[i] = [times[i], null]
+      continue
+    }
+    data[i] = [times[i], v]
+    if (v > yMax) yMax = v
+  }
+  return { data, yMax, objectiveMs: goal }
+}
+
 const answered = (p: AuditTimelinePoint): number | null => {
   const v = p.small_p95
   return Number.isFinite(v) && v != null && v > 0 ? v : null

@@ -31,6 +31,15 @@ export const TOKEN = {
 
 export type TokenName = keyof typeof TOKEN
 
+// Le genre d'une notification désigne un jeton sémantique, jamais un hex :
+// la bascule claire (T9) est appliquée dans la feuille, pas dans les composants.
+export const KIND_TOKEN: Record<'' | 'ok' | 'err' | 'blue', TokenName> = {
+  '': 'textMuted',
+  ok: 'ok',
+  err: 'danger',
+  blue: 'live',
+}
+
 // Teinte alpha d'une couleur résolue — ECharts/SVG n'acceptent pas var().
 // N'accepte qu'un hex (tous les jetons concrets le sont).
 export function alpha(hex: string, a: number): string {
@@ -38,60 +47,51 @@ export function alpha(hex: string, a: number): string {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }
 
-// Rampe de 5 textes — les gris hors jeton y convergent (jamais une 6e teinte).
+// Rampe des gris de texte verrouillés — les gris hors jeton y convergent
+// (jamais une 4e teinte : #333333 / #5a5a5a / #6d6d6d).
 export const OFF_TOKEN_GRAYS: Record<string, TokenName> = {
-  '#f2f2f4': 'textPrimary',
-  '#d6d8dd': 'textBodyStrong',
-  '#d6dade': 'textBodyStrong',
-  '#d8dde6': 'textBodyStrong',
-  '#c3c9d1': 'textBodyStrong',
-  '#a9aeb6': 'textBody',
-  '#a8aeb7': 'textBody',
-  '#9aa0a8': 'textBody',
-  '#9aa3ad': 'neutral',
-  '#8b9099': 'textMuted',
-  '#7e838c': 'textFaint',
-  '#767b84': 'textFaint',
-  '#6b7078': 'textFaint',
+  '#333333': 'textPrimary',
+  '#5a5a5a': 'textBody',
+  '#6d6d6d': 'textMuted',
 }
 
 // Repli hors DOM — doit égaler tokens.css (assertion de test).
 export const FALLBACK = {
-  '--canvas-solid': '#0a0b0e',
-  '--surface-soft': '#0e1015',
-  '--surface-card': '#12141a',
-  '--surface-elevated': '#181b22',
-  '--hairline': '#26262a',
-  '--hairline-strong': '#3a3a40',
-  '--hairline-faint': '#141416',
-  '--text-primary': '#f2f2f4',
-  '--text-body-strong': '#d6d8dd',
-  '--text-body': '#a9aeb6',
-  '--text-muted': '#8b9099',
-  '--text-faint': '#8a8a92',
-  '--t-live': '#5ad3e3',
-  '--t-threshold': '#f4b400',
-  '--t-danger': '#e22718',
-  '--t-danger-text': '#e84a3a',
-  '--t-ok': '#1fa348',
-  '--t-bbr': '#b48ae0',
-  '--t-neutral': '#9aa3ad',
-  '--brand-1': '#0066b1',
-  '--brand-2': '#1c69d4',
-  '--brand-3': '#e22718',
-  '--chart-cake': '#1fd4a0',
-  '--chart-fq-codel': '#5ad3e3',
-  '--chart-pfifo': '#9aa3ad',
-  '--chart-cubic': '#e08a4c',
-  '--chart-bbr': '#4c9be8',
-  '--chart-bbr3': '#b48ae0',
-  '--chart-profile-1': '#5ad3e3',
-  '--chart-profile-2': '#1fa348',
-  '--chart-profile-3': '#f4b400',
-  '--chart-profile-4': '#b48ce8',
-  '--chart-profile-5': '#e2635c',
-  '--chart-profile-6': '#8b9099',
-  '--chart-on-ok': '#04120a',
+  '--canvas-solid': '#fbfbfb',
+  '--surface-soft': '#f3f3f3',
+  '--surface-card': '#ffffff',
+  '--surface-elevated': '#ffffff',
+  '--hairline': '#e8e8e8',
+  '--hairline-strong': '#c8c8c8',
+  '--hairline-faint': '#f3f3f3',
+  '--text-primary': '#333333',
+  '--text-body-strong': '#5a5a5a',
+  '--text-body': '#5a5a5a',
+  '--text-muted': '#6d6d6d',
+  '--text-faint': '#6d6d6d',
+  '--t-live': '#17938a',
+  '--t-threshold': '#806400',
+  '--t-danger': '#d51600',
+  '--t-danger-text': '#d51600',
+  '--t-ok': '#1e7a3c',
+  '--t-bbr': '#34495e',
+  '--t-neutral': '#6d6d6d',
+  '--brand-1': '#17938a',
+  '--brand-2': '#2dcc70',
+  '--brand-3': '#f4c910',
+  '--chart-cake': '#17938a',
+  '--chart-fq-codel': '#34495e',
+  '--chart-pfifo': '#6d6d6d',
+  '--chart-cubic': '#1e7a3c',
+  '--chart-bbr': '#34495e',
+  '--chart-bbr3': '#9a7400',
+  '--chart-profile-1': '#17938a',
+  '--chart-profile-2': '#1e7a3c',
+  '--chart-profile-3': '#806400',
+  '--chart-profile-4': '#34495e',
+  '--chart-profile-5': '#d51600',
+  '--chart-profile-6': '#6d6d6d',
+  '--chart-on-ok': '#ffffff',
 } as const
 
 export function cssVar(name: keyof typeof FALLBACK): string {

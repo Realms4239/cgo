@@ -3,7 +3,7 @@
 // @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
-import { TOKEN, OFF_TOKEN_GRAYS, FALLBACK, cssVar, paletteOnce, alpha } from './palette'
+import { TOKEN, OFF_TOKEN_GRAYS, FALLBACK, KIND_TOKEN, cssVar, paletteOnce, alpha } from './palette'
 
 function read(p: string): string {
   for (const cand of [p, p.replace(/^web\/frontend\//, ''), `../${p}`, `../../${p}`]) {
@@ -26,13 +26,25 @@ describe('palette — contrat', () => {
     }
   })
 
+  it('KIND_TOKEN ne désigne que des jetons — la bascule claire reste dans un seul fichier', () => {
+    for (const [kind, name] of Object.entries(KIND_TOKEN)) {
+      expect(TOKEN[name], `${kind} → ${name}`).toMatch(/^var\(--[a-z0-9-]+\)$/)
+    }
+  })
+
   it('le repli hors DOM égale tokens.css (aucune dérive silencieuse)', () => {
     const css = read('web/frontend/src/styles/tokens.css')
+    let checked = 0
     for (const [name, value] of Object.entries(FALLBACK)) {
-      const m = css.match(new RegExp(`${name}:\\s*([^;]+);`))
+      // ancrage en début de ligne : jamais une sous-chaîne d'un autre jeton
+      const m = css.match(new RegExp(`^\\s*${name}:\\s*([^;]+);`, 'm'))
       expect(m, `${name} absent de tokens.css`).not.toBeNull()
       expect(m![1].trim(), name).toBe(value)
+      checked++
     }
+    // garde anti-vide : la boucle doit avoir visité CHAQUE clé, pas un sous-ensemble.
+    expect(checked, 'chaque clé FALLBACK est comparée').toBe(Object.keys(FALLBACK).length)
+    expect(checked, 'FALLBACK n’est pas vide').toBeGreaterThan(0)
   })
 
   it('cssVar retombe sur le repli gelé hors feuille de style', () => {

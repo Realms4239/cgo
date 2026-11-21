@@ -1,27 +1,21 @@
-// @vitest-environment happy-dom
 // Le tiroir de preuve : deux onglets, la commande exacte d'un côté, les
 // empreintes de l'autre. Les fixtures portent les champs que le moteur scelle.
-import { beforeEach, describe, expect, it } from 'vitest'
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProofSheet, replayLine } from './ProofDrawer'
 import { useAuditStore } from '../store/audit'
 import { useUIStore, type ProofTab } from '../store/ui'
 import type { AuditReport } from '../lib/types'
-import {
-  capsla,
-  measured,
-  provenance,
-  remediation,
-  report as sealedReport,
-  routerosValidation,
-  verdict,
-} from '../lib/auditFixtures'
 
-const report: AuditReport = sealedReport({
+;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+const report: AuditReport = {
   audit_id: 'audit-2026-11-02',
   site: 'Département X',
   link_type: '5g',
-  measured: measured({
+  measured: {
     rtt_idle_p50_ms: 28,
     rtt_idle_p95_ms: 31,
     rtt_loaded_p50_ms: 44,
@@ -33,17 +27,17 @@ const report: AuditReport = sealedReport({
     flow_count: 4,
     direction: 'both',
     load_measured: true,
-  }),
-  provenance: provenance({
+  },
+  provenance: {
     source_file: 'data/audits/audit-2026-11-02/report.json',
     source_sha256: 'a'.repeat(64),
     telemetry_file: 'data/audits/audit-2026-11-02/telemetry.csv',
     telemetry_sha256: 'b'.repeat(64),
-  }),
+  },
   kernel_telemetry: { available: true, source: 'ebpf' },
-  cap_sla: capsla({ measured: true, ok_pct: 96.7, target_pct: 95, deadline_ms: 220 }),
-  operator_verdict: verdict({ level: 'green', word: 'Lien sain', sentence: 'Sous charge, la latence reste sous l’objectif.' }),
-  remediation: remediation({
+  cap_sla: { measured: true, ok_pct: 96.7, target_pct: 95, deadline_ms: 220 },
+  operator_verdict: { level: 'green', word: 'Lien sain', sentence: 'Sous charge, la latence reste sous l’objectif.' },
+  remediation: {
     qdisc: 'fq_codel',
     up_measured_mbps: 5.06,
     up_shaped_mbps: 4.81,
@@ -54,11 +48,9 @@ const report: AuditReport = sealedReport({
     routeros_lan_iface: 'bridge',
     routeros_lan_assumed: true,
     linux_tc: ['tc qdisc add dev eth0 root handle 1: htb'],
-  }),
-  routeros_validation: routerosValidation({
-    checks: [{ name: 'queue type', expected: 'cgo-shape', found: 'cgo-shape', pass: true }],
-  }),
-})
+  },
+  routeros_validation: { checks: [{ name: 'queue type', expected: 'cgo-shape', found: 'cgo-shape', pass: true }] },
+}
 
 function render(tab: ProofTab, r: AuditReport | null = report): string {
   useUIStore.setState({ proof: { tab } })
@@ -74,8 +66,8 @@ describe('ProofDrawer', () => {
   it('l’onglet preuve est sélectionné et porte l’empreinte source', () => {
     const html = render('proof')
     expect(html).toMatch(/id="proof-tab-proof"[^>]*aria-selected="true"/)
-    expect(html).toContain(report.provenance.source_sha256)
-    expect(html).toContain(report.provenance.telemetry_sha256)
+    expect(html).toContain(report.provenance!.source_sha256)
+    expect(html).toContain(report.provenance!.telemetry_sha256)
     const out = text(html)
     expect(out).toContain('RTT repos p50 / p95')
     expect(out).toContain('les deux sens (both)')
@@ -100,15 +92,15 @@ describe('ProofDrawer', () => {
   })
 
   it('un rapport montant seul n’a pas de bloc de réception', () => {
-    const uploadOnly = sealedReport({
+    const uploadOnly: AuditReport = {
       ...report,
-      remediation: remediation({
+      remediation: {
         qdisc: 'fq_codel',
         up_measured_mbps: 5.06,
         up_shaped_mbps: 4.81,
         routeros: '/queue type add name=cgo-shape',
-      }),
-    })
+      },
+    }
     const out = text(render('commands', uploadOnly))
     expect(out).toContain('Déploiement — envoi')
     expect(out).not.toContain('Déploiement — réception')
@@ -122,9 +114,9 @@ describe('ProofDrawer', () => {
 
   it('la ligne de rejeu ne dit jamais « appliquée »', () => {
     expect(replayLine(undefined)).toContain('aucune preuve')
-    expect(replayLine(routerosValidation({ checks: [] }))).toContain('non validée — aucune vérification')
-    expect(replayLine(routerosValidation({ checks: [{ name: 'x', expected: 'a', found: 'b', pass: false }] }))).toContain('non validée — écarts dans le rapport')
-    expect(replayLine(routerosValidation({ checks: [{ name: 'x', expected: 'a', found: 'a', pass: true }] }))).toContain('validée par rejeu')
+    expect(replayLine({ checks: [] })).toContain('non validée — aucune vérification')
+    expect(replayLine({ checks: [{ name: 'x', expected: 'a', found: 'b', pass: false }] })).toContain('non validée — écarts dans le rapport')
+    expect(replayLine({ checks: [{ name: 'x', expected: 'a', found: 'a', pass: true }] })).toContain('validée par rejeu')
     const out = text(render('commands', { ...report, routeros_validation: undefined }))
     expect(out).toContain('Rejeu RouterOS : aucune preuve')
     expect(out).not.toContain('appliquée')
@@ -142,5 +134,40 @@ describe('ProofDrawer', () => {
     const out = text(render('proof', null))
     expect(out).toContain('Aucun rapport scellé')
     expect(out).not.toContain('Pas encore mesuré')
+  })
+})
+
+describe('ProofDrawer — copie honnête', () => {
+  const hadOwnClipboard = Object.prototype.hasOwnProperty.call(navigator, 'clipboard')
+  const ownClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    useUIStore.setState({ toasts: [] })
+  })
+  afterEach(() => {
+    vi.clearAllTimers()
+    useUIStore.setState({ toasts: [] })
+    vi.useRealTimers()
+    if (hadOwnClipboard) Object.defineProperty(navigator, 'clipboard', ownClipboard!)
+    else delete (navigator as unknown as { clipboard?: unknown }).clipboard
+  })
+
+  it('quand le presse-papiers est absent, « Copier » dit « Copie impossible »', () => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    act(() => {
+      root.render(<ProofSheet tab="commands" report={report} onClose={() => {}} onTab={() => {}} />)
+    })
+    const copy = host.querySelector<HTMLButtonElement>('.proof-copy')!
+    act(() => { copy.click() })
+    expect(
+      useUIStore.getState().toasts.map(t => t.msg).join(' '),
+      'un mot remplace le no-op silencieux',
+    ).toContain('Copie impossible')
+    act(() => root.unmount())
+    host.remove()
   })
 })

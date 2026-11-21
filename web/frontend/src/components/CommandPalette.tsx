@@ -12,8 +12,8 @@ import { prefersReducedMotion, EASE } from '../lib/anime'
 // Les verbes restent trouvable : ils vivent dans un alias de recherche caché,
 // pas dans une seconde ligne cliquable.
 const ALIAS: Record<string, string> = {
-  cockpit: 'cockpit tableau de bord verdict constat preuve rapport final auditer le lien reel audit derniere mesure',
-  labo: "labo banc d'essai laboratoire campagne matrix simuler simulation",
+  cockpit: 'tableau de bord etat du lien reel derniere mesure verdict decision',
+  labo: 'laboratoire banc d essai campagne mesure observer comparer preuves rapports archives',
 }
 
 // fold — uniquement pour la RECHERCHE : « auditer le lien reel » et
@@ -27,6 +27,7 @@ const fold = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/
 // un portail et que « pas de doublon » doit être vérifié, pas espéré.
 export function paletteItems(query: string): { label: string; mode: string }[] {
   const q = fold(query.trim())
+  // Une entrée par mode de la bascule — aucune destination historique.
   return MODES.map((m) => ({
     label: m.label as string,
     mode: m.id as string,

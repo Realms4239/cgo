@@ -1,6 +1,7 @@
-/* CGO observatory tokens — LIEN instrument (docs/SPEC.md §3.3).
-   Near-black canvas, hairlines, sharp geometry; M tricolor identity-only;
-   semantic telemetry colors separate from brand. */
+/* CGO observatory tokens — instrument « papier clair » ratifié (plan 2026-11-20,
+   contrainte globale ligne 25 / docs/research/2026-11-20-design-system.md).
+   Canevas clair, hairlines, géométrie nette ; identité teal/émeraude/or/ardoise,
+   télémétrie sémantique séparée de l'identité. */
 
 @font-face { font-family: 'JetBrains Mono'; src: url('/fonts/jetbrains-mono-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'JetBrains Mono'; src: url('/fonts/jetbrains-mono-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
@@ -9,60 +10,64 @@
 :root {
   /* surfaces — console plate : fond et cartes en gris plats, aucun dégradé, aucune ombre */
   --canvas: var(--canvas-solid);
-  --canvas-solid: #0a0b0e;
+  --canvas-solid: #fbfbfb;
   --grid-gap: 16px;
-  --surface-soft: #0e1015;
-  --surface-card: #12141a;
-  --surface-elevated: #181b22;
-  --hairline: #26262a;
-  --hairline-fade: linear-gradient(90deg, transparent, #26262a 20%, #26262a 80%, transparent);
-  --hairline-strong: #3a3a40;
-  --hairline-faint: #141416;
+  --surface-soft: #f3f3f3;
+  --surface-card: #ffffff;
+  --surface-elevated: #ffffff;
+  --hairline: #e8e8e8;
+  --hairline-fade: linear-gradient(90deg, transparent, #e8e8e8 20%, #e8e8e8 80%, transparent);
+  --hairline-strong: #c8c8c8;
+  --hairline-faint: #f3f3f3;
 
-  /* text — --text-faint #8a8a92 : contraste mesuré 5,75 (canvas) / 5,37 (card) /
-     5,03 (elevated), plancher AA 4,5. Ces ratios ne sont plus recopiés à la main :
-     le garde WCAG de tokens.test.ts (« contraste des surfaces de console ») les
-     recalcule à partir des hex de la feuille à chaque suite. */
-  --text-primary: #f2f2f4;
-  --text-body-strong: #d6d8dd;
-  --text-body: #a9aeb6;
-  --text-muted: #8b9099;
-  --text-faint: #8a8a92;
+  /* text — --text-faint #6d6d6d : contraste mesuré 5,00 (canvas) / 5,17 (card et
+     elevated), plancher AA 4,5. Le gris le plus clair autorisé est #6d6d6d ;
+     #8e8e8e (3,17) et #767676 (4,39) sont rejetés. Ces ratios ne sont plus
+     recopiés à la main : le garde WCAG de tokens.test.ts (« contraste des surfaces
+     de console ») les recalcule à partir des hex de la feuille à chaque suite. */
+  --text-primary: #333333;
+  --text-body-strong: #5a5a5a;
+  --text-body: #5a5a5a;
+  --text-muted: #6d6d6d;
+  --text-faint: #6d6d6d;
 
   /* identité seule — jamais données, jamais boutons */
-  --brand-1: #0066b1;
-  --brand-2: #1c69d4;
-  --brand-3: #e22718;
+  --brand-1: #17938a; /* teal */
+  --brand-2: #2dcc70; /* émeraude — remplissage d'identité uniquement */
+  --brand-3: #f4c910; /* or — remplissage d'identité uniquement */
 
-  /* semantic telemetry — fills stay; text uses -text variant (danger 4.11/3.90→4.95/4.71) */
-  --t-live: #5ad3e3;      /* cyan — primary/live series */
-  --t-threshold: #f4b400; /* amber — thresholds/caution */
-  --t-danger: #e22718;    /* red — drops/errors/failed (fills, dots) */
-  --t-danger-text: #e84a3a; /* red — text-only on card/elevated (4.95/4.71) */
-  --t-danger-fill: #b3241a; /* red — fond PLEIN portant du texte (5.90:1 sur texte primaire) */
-  --t-ok: #1fa348;        /* green — passed/safe */
-  --t-bbr: #b48ae0;       /* violet — BBR series */
-  --t-neutral: #9aa3ad;   /* steel — neutral series */
+  /* télémétrie sémantique — les marques tiennent ≥3:1, les textes ≥4,5:1 sur
+     le canevas clair ; les teintes vives (émeraude/or) ne font jamais de trait fin. */
+  --t-live: #17938a;      /* teal — série live (marque 3,77 ; texte → --brand-teal-ink) */
+  --t-threshold: #806400; /* warn — seuils/caution (5,43 texte et marque) */
+  --t-danger: #d51600;    /* rouge — pertes/erreurs (5,15 texte, marque et fond) */
+  --t-danger-text: #d51600; /* rouge — texte seul (5,15 sur canevas) */
+  --t-danger-solid: #d51600; /* rouge — fond de commande, blanc 5,32:1 */
+  --t-ok: #1e7a3c;        /* vert — réussi/sain (5,22 texte et marque) */
+  --t-bbr: #34495e;       /* ardoise — série BBR (9,29 marque) */
+  --t-neutral: #6d6d6d;   /* neutre — série de contexte (5,00 marque) */
 
-  /* chart palette — séries catégorielles, lues par lib/palette.ts (ECharts
-     n'accepte pas var() : le canvas a besoin de valeurs concrètes) */
-  --chart-cake: #1fd4a0;
-  --chart-fq-codel: #5ad3e3;
-  --chart-pfifo: #9aa3ad;
-  --chart-cubic: #e08a4c;
-  --chart-bbr: #4c9be8;
-  --chart-bbr3: #b48ae0;
-  --chart-profile-1: #5ad3e3;
-  --chart-profile-2: #1fa348;
-  --chart-profile-3: #f4b400;
-  --chart-profile-4: #b48ce8;
-  --chart-profile-5: #e2635c;
-  --chart-profile-6: #8b9099;
-  --chart-on-ok: #04120a;
+  /* palette de graphiques — séries catégorielles, lues par lib/palette.ts
+     (ECharts n'accepte pas var() : le canvas a besoin de valeurs concrètes).
+     Toutes les marques tiennent ≥3:1 sur #fbfbfb et restent redondées par
+     forme/tirets/étiquette directe. */
+  --chart-cake: #17938a;
+  --chart-fq-codel: #34495e;
+  --chart-pfifo: #6d6d6d;
+  --chart-cubic: #1e7a3c;
+  --chart-bbr: #34495e;
+  --chart-bbr3: #9a7400;
+  --chart-profile-1: #17938a;
+  --chart-profile-2: #1e7a3c;
+  --chart-profile-3: #806400;
+  --chart-profile-4: #34495e;
+  --chart-profile-5: #d51600;
+  --chart-profile-6: #6d6d6d;
+  --chart-on-ok: #ffffff;
 
-  --live-dim: rgba(90, 211, 227, 0.12);
-  --ok-dim: rgba(31, 163, 72, 0.10);
-  --danger-dim: rgba(226, 39, 24, 0.10);
+  --live-dim: rgba(23,147,138,0.10);
+  --ok-dim: rgba(30,122,60,0.10);
+  --danger-dim: rgba(213,22,0,0.10);
 
   /* type — une seule face d'interface (Inter) ; la serif est sortie de l'app */
   --font-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
@@ -72,9 +77,9 @@
   --fs-fine: 13px;
   --fs-label: 14px;
   --fs-body: 16px;
-  --fs-title: 34px;
-  --fs-metric: 40px;
-  --fs-hero: 56px;
+  --fs-title: 28px;
+  --fs-metric: 32px;
+  --fs-hero: 40px;
 
   /* tracking — noms canoniques ; les --tt-* restent des alias CSS */
   --tracking-tight: -0.02em;
@@ -102,7 +107,7 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: url('/textures/noise.png'), repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.01) 1px, transparent 2px);
+  background-image: url('/textures/noise.png'), repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(51,51,51,0.01) 1px, transparent 2px);
   opacity: 0.015;
   mix-blend-mode: overlay;
   z-index: -1;
@@ -144,7 +149,15 @@ body::before {
   --series-1: var(--t-live);
   --series-3: var(--t-bbr);
   --accent: var(--t-neutral);
-  --accent-dim: rgba(154,163,173,0.12);
+  --accent-dim: rgba(109,109,109,0.10);
+  /* palette ratifiée — alias sémantiques (les noms canoniques restent ci-dessus) */
+  --brand-teal: var(--brand-1);
+  --brand-teal-ink: #0f6b62; /* seul teal autorisé pour du TEXTE (6,36 sur blanc) */
+  --brand-emerald: var(--brand-2);
+  --brand-gold: var(--brand-3);
+  --brand-slate: #34495e;
+  --t-ok-fill: #229b4e;   /* marque 3,58 — grands remplissages seulement */
+  --t-warn-mark: #9a7400; /* marque 4,31 — trait fin autorisé */
   /* motion alias */
   --ease-standard: var(--ease);
   /* type aliases */
@@ -169,23 +182,4 @@ body::before {
   --state-disabled-bg: var(--surface-soft);
   --state-disabled-text: var(--text-faint);
   --state-disabled-opacity: var(--disabled-opacity);
-}
-
-/* Portail institutionnel — peau claire posée sur le poste de mesure.
-   Nouveaux jetons uniquement : aucune valeur du poste n'est réécrite, aucun
-   repli palette.ts n'est déplacé. Le contraste des petits textes est visé à
-   4,5:1 ; le bleu du panneau est assombri de #0a7fc4 pour tenir le blanc AA. */
-:root {
-  --portal-ground: #f7f8f9;
-  --portal-surface: #ffffff;
-  --portal-ink: #2f3336;
-  --portal-muted: #5d666e;
-  --portal-teal: #0e8f8a;
-  --portal-teal-deep: #0a6e6a;
-  --portal-blue: #0a72b4;
-  --portal-red: #d92d20;
-  --portal-yellow: #f2b400;
-  --portal-border: #e1e6e9;
-  --portal-on-blue: #ffffff;
-  --portal-teal-soft: #e7f5f4;
 }

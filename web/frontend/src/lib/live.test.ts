@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 // @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
-import { live, pushIface, clearLive } from './live'
+import { live, pushIface, pushFrame, clearLive } from './live'
 import type { LiveFrame } from './types'
 
 function frame(ts: number, over: Partial<LiveFrame> = {}): Partial<LiveFrame> {
@@ -21,6 +21,7 @@ function frame(ts: number, over: Partial<LiveFrame> = {}): Partial<LiveFrame> {
 }
 
 beforeEach(() => {
+  clearLive()
   const r = live.iface
   r.rx.length = 0
   r.tx.length = 0
@@ -84,6 +85,15 @@ describe('pushIface', () => {
   it('pousse un frame idle sans running ni phase', () => {
     pushIface(frame(1000))
     expect(live.iface.rx.length).toBe(1)
+  })
+})
+
+describe('pushFrame — plus de zéro fabriqué', () => {
+  it('une mesure absente devient NaN, pas 0', () => {
+    pushFrame(1000, { phase: 'baseline', small_p95_ms: 30 } as any)
+    expect(live.small.at(-1)?.[1]).toBe(30)
+    expect(live.rtt50.at(-1)?.[1]).toBeNaN()
+    expect(live.rtt50.at(-1)?.[1]).not.toBe(0)
   })
 })
 

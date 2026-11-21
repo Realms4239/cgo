@@ -13,20 +13,16 @@ import FlashBanner from './components/FlashBanner'
 import SettingsDrawer from './components/SettingsDrawer'
 import ProofDrawer from './components/ProofDrawer'
 import ErrorBoundary from './components/ErrorBoundary'
-import TopNav from './components/TopNav'
-import QuickActionsPrompt from './components/QuickActionsPrompt'
 import CommandPalette from './components/CommandPalette'
-import MeteolinkWordmark from './components/MeteolinkWordmark'
+import Chrome from './components/shell/Chrome'
+import TrustStrip from './components/shell/TrustStrip'
 
-// Seule la destination d'atterrissage est dans le premier rendu : le Labo porte ECharts.
+// Seule la destination d'atterrissage est dans le premier rendu : le laboratoire
+// porte l'instrument (ECharts + boucle rAF) et ne se monte qu'à la visite.
 const LaboView = lazy(() => import('./views/LaboView'))
 
-function ViewFallback({ label }: { label: string }) {
-  return <div className="card mode-loading mono muted">{label}</div>
-}
-
 function LaboFallback() {
-  return <ViewFallback label="Chargement du banc d'essai…" />
+  return <div className="card mode-loading mono muted">Chargement du laboratoire…</div>
 }
 
 export default function App() {
@@ -34,16 +30,10 @@ export default function App() {
   const setMode = useUIStore(s => s.setMode)
   const live = useUIStore(s => s.live)
   const connected = useUIStore(s => s.connected)
-  // l'anneau de frames : si les 3 dernières secondes sont muettes, l'état est STALE —
-  // jamais un « LIVE » décoratif (le badge n'affirme pas ce qui n'est plus vu)
-  const liveFresh = connected && !!live?.ts && Date.now() - live.ts < 3000
   const replayRunning = useUIStore(s => s.replayRunning)
   const report = useAuditStore(s => s.report)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  // l'estampille du poste : build, mode, source de télémétrie — la preuve se
-  // dépose toujours, donc le build qui l'a produite doit rester lisible.
-  const [health, setHealth] = useState<{ version?: string; mode?: string; telemetry?: { source?: string; reason?: string } | string } | null>(null)
   // une destination lourde ne se monte qu'à la première visite, puis reste.
   const [mounted, setMounted] = useState<Partial<Record<ModeId, boolean>>>({ cockpit: true })
 
@@ -55,10 +45,6 @@ export default function App() {
     connectSSE()
     useAuditStore.getState().restore()
     return () => disconnectSSE()
-  }, [])
-
-  useEffect(() => {
-    fetch('/api/health').then(r => r.json()).then(j => setHealth(j)).catch(() => {})
   }, [])
 
   const isInitialMode = useRef(true)
@@ -95,6 +81,7 @@ export default function App() {
       }
       store.setBenchStage(stageAfterCampaign(store.benchStage, false))
       store.setFlash({ type: 'success', msg: 'Campagne terminée' })
+      store.pushToast('Campagne terminée', 'ok')
     }
     if (!wasRunningRef.current && running) {
       store.setBenchStage(stageAfterCampaign(store.benchStage, true))
@@ -131,25 +118,12 @@ export default function App() {
     <ErrorBoundary>
       <div id="shell">
         <a className="skip-link" href="#main">Aller au contenu</a>
-        <header className="app-header">
-          <MeteolinkWordmark />
-          <TopNav />
-          <div className="hd-right">
-            <span
-              className="hd-conn"
-              data-on={connected ? '1' : '0'}
-              role="img"
-              aria-label={connected ? 'Connexion établie' : 'Hors ligne'}
-            />
-            <span className="hd-pill mono" data-state={liveFresh ? 'live' : 'stale'} role="status" aria-label={liveFresh ? 'Flux live' : 'Flux figé'}>{liveFresh ? 'LIVE' : 'STALE'}</span>
-            <span id="hd-state" className="mono">{live?.phase || 'au repos'}</span>
-            <span className="hd-audit">dernier audit {relativeTime(report?.timestamp) || '—'}</span>
-            <button onClick={() => setSettingsOpen(true)} aria-label="Réglages" title="Réglages">⚙</button>
-          </div>
-        </header>
+        <Chrome
+          onPalette={() => setPaletteOpen(o => !o)}
+          onSettings={() => setSettingsOpen(true)}
+        />
 
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-        {live?.running && mode === 'labo' ? <QuickActionsPrompt /> : null}
 
         <main id="main" tabIndex={-1} className="layout-shell">
           <section id="v-cockpit" className="view" hidden={mode !== 'cockpit'}><CockpitView /></section>
@@ -160,15 +134,13 @@ export default function App() {
           ) : null}
         </main>
 
-        <footer className="foot-ticker">
-          <span id="ft-prov">source : {live?.profile || '—'} · {live?.qdisc || '—'} · {live?.cc || '—'}</span>
-          {health ? (
-            <span className="ft-post mono" title="build, mode et source de télémétrie de ce poste">
-              poste : cgo {health.version || '—'} · {health.mode || '—'} · télémétrie {typeof health.telemetry === 'object' && health.telemetry ? (health.telemetry.source ?? '—') : (health.telemetry || '—')}
-            </span>
-          ) : null}
-          <span className="ft-brand mono">Meteolink</span>
-        </footer>
+        <TrustStrip
+          connection={connected ? 'online' : 'offline'}
+          source={live?.profile ?? null}
+          freshness={live && Number.isFinite(new Date(live.ts).getTime()) ? relativeTime(new Date(live.ts).toISOString()) : null}
+          seal={report?.audit_id ?? null}
+          backpressure={live ? live.drops : undefined}
+        />
 
         {settingsOpen ? <SettingsDrawer onClose={() => setSettingsOpen(false)} /> : null}
         <ProofDrawer />

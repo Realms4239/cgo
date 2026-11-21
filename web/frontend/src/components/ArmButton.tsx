@@ -17,7 +17,7 @@ export function ArmButton({ label, confirmLabel = 'CONFIRMER ?', onConfirm, disa
     animateArmButton(btnRef.current)
     if (!prefersReducedMotion()) {
       animate(btnRef.current, { rotate: [0.5, -0.5, 0], duration: 400, ease: 'outElastic(1, .6)' } as any)
-      animate(btnRef.current, { boxShadow: ['0 0 0 rgba(226,39,24,0)', '0 0 16px rgba(226,39,24,0.35)', '0 0 0 rgba(226,39,24,0)'], duration: 800, ease: 'linear' } as any)
+      animate(btnRef.current, { boxShadow: ['0 0 0 rgba(213,22,0,0)', '0 0 16px rgba(213,22,0,0.35)', '0 0 0 rgba(213,22,0,0)'], duration: 800, ease: 'linear' } as any)
     }
     if (progressRef.current) {
       progressRef.current.style.transformOrigin = 'left center'
@@ -42,7 +42,7 @@ export function ArmButton({ label, confirmLabel = 'CONFIRMER ?', onConfirm, disa
             left: 0,
             width: '100%',
             height: 1,
-            background: 'var(--t-danger-fill)',
+            background: 'var(--t-danger)',
             transformOrigin: 'left center',
           }}
         />

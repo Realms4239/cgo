@@ -1,48 +1,34 @@
+// Porte « LiveView metrics » retargetée T6 : les métriques ne sont plus dans
+// une vue écran mais dans les anneaux typés et le champ qui les peint.
 // @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
-function readLive(): string {
-  const cands = ['web/frontend/src/views/LiveView.tsx','src/views/LiveView.tsx']
-  for (const p of cands) try { return readFileSync(p,'utf8') } catch {}
-  return readFileSync('web/frontend/src/views/LiveView.tsx','utf8')
-}
-describe('LiveView metrics', () => {
-  it('renders all primary metrics', () => {
-    const s = readLive()
-    expect(s).toContain('rtt_p95')
-    expect(s).toContain('small_p95')
-    expect(s).toContain('goodput')
-    expect(s).toContain('drops')
-    expect(s).toContain('QDI')
-    // étendu — toutes les métriques importantes
-    expect(s).toContain('wasted')
-    expect(s).toContain('cost')
-    expect(s).toContain('deadline')
+
+const read = (p: string) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
+
+describe('instrument — mesures', () => {
+  it('les anneaux portent le délai, le débit et l’interface', () => {
+    const s = read('lib/ringBuffer.ts')
+    for (const ring of ['small:', 'rtt50:', 'rtt95:', 'goodput:', 'ifaceRx:', 'ifaceTx:', 'events:']) {
+      expect(s, ring).toContain(ring)
+    }
   })
 
-  it('rend les coûts entreprise et B2B à côté du coût détail gelé', () => {
-    const s = readLive()
-    // trois valorisations distinctes : scénario entreprise (GOLD), B2B au
-    // volume (APN), et le coût détail historique — jamais confondues.
-    expect(s).toContain('cost_primary_ar_per_h')
-    expect(s).toContain('cost_b2b_ar_per_h')
-    expect(s).toContain('Coût détail (archive)')
-    expect(s).toContain('Coût entreprise')
-    expect(s).toContain('Coût B2B')
+  it('le champ affiche délai sous charge, débit utile et interface', () => {
+    const t = read('components/cockpit/TimeField.tsx')
+    expect(t).toContain("rawLineSeries('Délai sous charge'")
+    expect(t).toContain("rawLineSeries('Aller-retour au repos'")
+    expect(t).toContain("rawLineSeries('Aller-retour sous charge'")
+    expect(t).toContain('Débit utile')
+    expect(t).toContain('Interface RX')
+    expect(t).not.toContain('p95')
   })
 
-  it('expose le débit interface brut et distingue les deux plans', () => {
-    const s = readLive()
-    expect(s).toContain('Débit interface')
-    expect(s).toContain('chart-iface')
-    expect(s).toContain('rawLineSeries')
-    expect(s).toContain('Débit utile applicatif')
-  })
-
-  it('au repos, le mur attend la première frame mesurée', () => {
-    const s = readLive()
-    expect(s).toContain('const wallData =')
-    expect(s).toContain('const showLiveWall = showLiveSrc && wallData')
-    expect(s).toContain('{showLiveWall && (')
+  it('au repos, le champ annonce l’absence sans zéro fabriqué', () => {
+    const t = read('components/cockpit/TimeField.tsx')
+    expect(t).toContain("empty ? 'MESURE ABSENTE' : 'MESURE EN COURS'")
+    expect(t).toContain('en attente de la première sonde mesurée')
+    expect(read('lib/ringBuffer.ts')).toContain('NaN = absence (jamais 0)')
   })
 })

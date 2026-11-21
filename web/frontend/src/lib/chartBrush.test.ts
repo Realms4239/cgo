@@ -1,15 +1,19 @@
+// Porte « clean triple » retargetée T6 : l'instrument remplace le mur. Aucun
+// chrome de brush, aucune ligne d'objectif estimée par quartile.
 // @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
-function readLive(): string {
-  const cands = ['web/frontend/src/views/LiveView.tsx', 'src/views/LiveView.tsx']
-  for (const p of cands) try { return readFileSync(p, 'utf8') } catch {}
-  return readFileSync('web/frontend/src/views/LiveView.tsx', 'utf8')
-}
+
+const read = (p: string) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
+
 describe('clean triple', () => {
-  it('LiveView has per-series markArea, no vestigial brush chrome', () => {
-    const s = readLive()
-    expect(s).not.toContain('brushType')
-    expect(s).toContain('markArea')
+  it('le champ temporel n’a ni brush résiduel ni quartile inventé', () => {
+    const t = read('components/cockpit/TimeField.tsx')
+    expect(t).not.toContain('brushType')
+    expect(t).toContain('markLine: objectiveMarkLine(goal)')
+    expect(t).not.toContain('Math.floor(')
+    const g = read('lib/chartGrammar.ts')
+    expect(g).toContain('data: [{ yAxis: goal }]')
   })
 })

@@ -132,21 +132,22 @@ describe('design floor — portes source', () => {
     expect(read(join(SRC, 'styles', 'index.css'))).toMatch(/^:focus-visible\s*\{/m)
   })
 
-  it('résultats : en-têtes triables avec aria-sort, puces de sélection avec aria-pressed', () => {
-    const src = read(join(SRC, 'views', 'ResultatsView.tsx'))
+  it('classement : colonne triée annoncée, profils en bascules accessibles', () => {
+    const src = read(join(SRC, 'components', 'labo', 'Comparer.tsx'))
     expect(src, 'aria-sort sur la colonne triée').toContain('aria-sort=')
-    expect(src, 'les puces de rang/filtre sont des bascules').toContain('aria-pressed={active}')
+    const tile = read(join(SRC, 'components', 'ui', 'ProfileTile.tsx'))
+    expect(tile, 'les profils sont des bascules').toContain('aria-pressed={selected}')
   })
 
-  it('la navigation dérive de MODES et chaque destination est un lien courant accessible', () => {
-    const nav = read(join(SRC, 'components', 'TopNav.tsx'))
-    expect(nav, 'importe MODES').toContain("from '../store/ui'")
+  it('la navigation dérive de MODES et chaque mode est un lien courant accessible', () => {
+    const nav = read(join(SRC, 'components', 'shell', 'ModeSwitch.tsx'))
+    expect(nav, 'importe MODES').toContain("from '../../store/ui'")
     expect(nav, 'importe MODES').toContain('MODES')
     expect(nav, 'boucle sur MODES').toContain('MODES.map')
-    expect(nav, 'expose aria-current').toContain('aria-current={mode === m.id')
+    expect(nav, 'expose aria-current').toContain('aria-current={on ?')
     expect(nav, 'préchauffe la destination').toContain('preloadMode(m.id)')
     const app = read(join(SRC, 'App.tsx'))
-    expect(app, 'raccourcis 1–4 depuis MODES').toContain('MODES.find(m => m.key === e.key)')
+    expect(app, 'raccourcis 1–2 depuis MODES').toContain('MODES.find(m => m.key === e.key)')
   })
 
   it('l’accueil opérateur ne contient aucun des cinq blocs supprimés', () => {
@@ -157,7 +158,9 @@ describe('design floor — portes source', () => {
   })
 
   it('le rail et le bandeau ont disparu, pas seulement démontés', () => {
-    expect(existsSync(join(SRC, 'components', 'TopNav.tsx')), 'TopNav existe').toBe(true)
+    expect(existsSync(join(SRC, 'components', 'TopNav.tsx')), 'TopNav supprimé').toBe(false)
+    expect(existsSync(join(SRC, 'components', 'NavIcon.tsx')), 'NavIcon supprimé').toBe(false)
+    expect(existsSync(join(SRC, 'components', 'shell', 'ModeSwitch.tsx')), 'ModeSwitch présent').toBe(true)
     expect(existsSync(join(SRC, 'components', 'ModeRail.tsx')), 'ModeRail supprimé').toBe(false)
     expect(existsSync(join(SRC, 'components', 'StatusRibbon.tsx')), 'StatusRibbon supprimé').toBe(false)
   })

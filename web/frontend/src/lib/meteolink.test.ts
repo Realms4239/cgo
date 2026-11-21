@@ -12,8 +12,8 @@ describe('meteolink', () => {
     expect(s).toContain('METEOLINK')
     expect(s).toContain('createDrawable')
   })
-  it('top nav exists', () => {
-    const s=read('web/frontend/src/components/TopNav.tsx')
+  it('two-mode switch exists', () => {
+    const s=read('web/frontend/src/components/shell/ModeSwitch.tsx')
     expect(s).toContain('MODES.map')
     expect(s).toContain('aria-current=')
   })

@@ -1,18 +1,20 @@
-import { describe, it, expect } from 'vitest'
-// @ts-ignore — types node:fs inutiles sous jsdom
+// Porte « liveHero » retargetée T6 : l'objectif est une ligne réelle et la
+// phase vient du flux SSE, pas d'une estimation d'interface.
+// @ts-ignore — types node:fs inutiles sous jsdom.
 import { readFileSync } from 'node:fs'
-function read(p:string){
-  for(const q of [p, p.replace('web/frontend/',''), `../${p}`, `../../${p}`]) try{ return readFileSync(q as any,'utf8' as any)}catch{}
-  return readFileSync(p as any,'utf8' as any)
-}
-describe('liveHero',()=>{
-  it('hero 300 full-width — CHARGE markArea driven by live.phase, not estimated quartile',()=>{
-    const s=read('web/frontend/src/views/LiveView.tsx')
-    expect(s).toContain('live-hero-card')
-    expect(read('web/frontend/src/styles/index.css')).toContain('height: 300px')
-    expect(s).toContain('live.phase')
-    // l'anneau live porte la phase des frames SSE (couture __CGO_LIVE {ringsLen,max,phase})
-    const l=read('web/frontend/src/lib/live.ts')
-    expect(l).toContain('phase')
+import { join } from 'node:path'
+import { describe, it, expect } from 'vitest'
+
+const read = (p: string) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
+
+describe('liveHero', () => {
+  it('ligne d’objectif nommée et phase issue du flux', () => {
+    const t = read('components/cockpit/TimeField.tsx')
+    expect(t).toContain('objectiveMarkLine(goal)')
+    expect(t).toContain('objectif {objectiveMs} ms')
+    expect(read('lib/chartGrammar.ts')).toContain('chargeMarkArea')
+    const s = read('lib/sse.ts')
+    expect(s).toContain("kind: 'phase'")
+    expect(s).toContain('PHASE_FR')
   })
 })

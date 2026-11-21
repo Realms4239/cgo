@@ -8,7 +8,6 @@ import {
   type AuditStage,
 } from '../lib/auditFlow'
 import type { AuditDirection, AuditLive, AuditReport } from '../lib/types'
-import type { RequestFailure } from '../lib/viewState'
 import {
   compareAudits,
   loadAuditPair,
@@ -18,6 +17,13 @@ import {
   type AuditSummary,
 } from '../lib/auditSummary'
 import { useUIStore } from './ui'
+
+// Échec d'une requête d'audit : code, mot lisible et reprise éventuelle.
+export interface RequestFailure {
+  code: string
+  message: string
+  retry?: () => void
+}
 
 export interface AuditPreset {
   id: string

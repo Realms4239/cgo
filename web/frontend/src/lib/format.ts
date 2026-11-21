@@ -9,7 +9,7 @@ export function fmtIQR(med: number, iqr?: [number, number] | null): string {
 // improve — écart signé B vs A en % dans le SENS de la métrique (>0 =
 // B meilleur). down (latences, coût) : baisser = mieux ; up (goodput,
 // échéances) : monter = mieux. Source unique du signe/couleur des écarts
-// (table CompareView, teintes leaderboard) — le bug "goodput -3% vert
+// (duel et classement Comparer, teintes leaderboard) — le bug "goodput -3% vert
 // alors que pire" venait d'un pct brut sans direction.
 export function improve(a: number, b: number, dir: 'down' | 'up'): number | null {
   if (!Number.isFinite(a) || !Number.isFinite(b) || a === 0) return null

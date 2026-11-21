@@ -6,6 +6,7 @@ import { numFr } from '../lib/format'
 import type { AuditRemediation, AuditRemediationState } from '../lib/types'
 import { EmptyState } from './ui/EmptyState'
 import { useUIStore } from '../store/ui'
+import { copyText } from '../lib/clipboard'
 
 const PLATFORM_KEY = 'meteolink-remediation-platform'
 
@@ -100,12 +101,7 @@ export function RemediationCard({ remediation, state }: { remediation: AuditReme
     savePlatform(p)
   }
 
-  const copy = () => {
-    navigator.clipboard?.writeText(script).then(
-      () => useUIStore.getState().pushToast(`Configuration ${PLATFORM_LABEL[platform]} copiée`, 'ok'),
-      () => useUIStore.getState().pushToast('Copie impossible — sélectionnez le texte', 'err'),
-    )
-  }
+  const copy = () => copyText(`Configuration ${PLATFORM_LABEL[platform]}`, script)
 
   return (
     <section className="remediation" aria-labelledby="remediation-title">

@@ -31,7 +31,7 @@ describe('ArchiveTable', () => {
 
   it('annonce le nombre total et le statut scellé des visibles', () => {
     const html = markup(makeRows(20))
-    expect(html).toContain('archive : 20 lignes')
+    expect(html).toContain('20 entrées')
     expect(html).toContain('Valide')
   })
 
@@ -74,5 +74,14 @@ describe('ArchiveTable', () => {
     )
     expect(html).toContain('Aucun rapport')
     expect(html).not.toContain('<table')
+  })
+
+  it.each([
+    [0, '0 entrée'],
+    [1, '1 entrée'],
+    [3, '3 entrées'],
+  ])('annonce %i → « %s » dans une région aria-live', (n, word) => {
+    const html = markup(makeRows(n))
+    expect(html).toMatch(new RegExp(`<p[^>]*aria-live="polite"[^>]*>${word}</p>`))
   })
 })

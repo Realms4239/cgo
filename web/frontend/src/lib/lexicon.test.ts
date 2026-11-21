@@ -1,4 +1,4 @@
-// Porte lexicon — les quatre surfaces par défaut parlent opérateur.
+// Porte lexicon — les surfaces par défaut parlent opérateur.
 // Ce qu'il prouve : aucun mot banni n'apparaît chez l'opérateur qui ouvre
 // l'outil sans rien toucher. Ce qu'il ne prouve pas : les tiroirs et le mode
 // recherche, qui gardent leur règle dans DESIGN.md §5.
@@ -6,7 +6,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
 import CockpitView from '../views/CockpitView'
-import AuditView from '../views/AuditView'
 import LaboView from '../views/LaboView'
 
 const REPORT = vi.hoisted(() => ({
@@ -71,7 +70,6 @@ vi.mock('../store/audit', () => {
 
 const SURFACES: { name: string; render: () => string }[] = [
   { name: 'cockpit', render: () => renderToStaticMarkup(createElement(CockpitView)) },
-  { name: 'audit inline', render: () => renderToStaticMarkup(createElement(AuditView)) },
   { name: 'labo', render: () => renderToStaticMarkup(createElement(LaboView)) },
 ]
 

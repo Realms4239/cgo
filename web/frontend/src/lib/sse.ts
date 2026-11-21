@@ -1,16 +1,13 @@
 import type { LiveFrame } from './types'
-import { createCoalescer } from './coalesce'
-import { pushFrame, pushIface, live as liveRing } from './live'
-import { pushLiveFrame, pushLiveEvent, MILESTONE_KINDS } from './liveRings'
+import { pushIface, live as liveRing } from './live'
+import { instrument, type InstrumentRings } from './ringBuffer'
 import { useUIStore } from '../store/ui'
 
 let es: EventSource | null = null
 let last: Partial<LiveFrame> = {}
 let frameCount = 0
-// le store ne prend que la dernière valeur vue dans la fenêtre — jamais un rendu par frame
-const setLiveCoalesced = createCoalescer((patch: Partial<LiveFrame> & { phaseSince: Record<string, number> }) => {
-  useUIStore.getState().setLive(patch as LiveFrame)
-})
+let lastStoreSync = 0
+let lastLoggedPhase = ''
 export const __CGO_SSE = { lastID: 0, dropped: 0, ringLen: 0, frameCount: 0 }
 if (typeof window !== 'undefined') (window as any).__CGO_SSE = __CGO_SSE
 
@@ -21,18 +18,16 @@ const gatesEqual = (a: unknown, b: unknown): boolean => {
   return (a as unknown[]).every((v, i) => v === (b as unknown[])[i])
 }
 
+const PHASE_FR: Record<string, string> = {
+  baseline: 'Repos', charge: 'Charge', recup: 'Récupération',
+  surveil: 'Surveillance', burst: 'Rafale',
+}
+
 export function connectSSE() {
   if (es) return
-  // le serveur limite le replay aux 5 dernières frames sans Last-Event-ID;
+  // le serveur limite le replay aux 5 dernières frames sans Last-Event-ID ;
   // le navigateur renvoie Last-Event-ID à la reconnexion (retry:2000)
   es = new EventSource('/api/stream')
-  // jalon de domaine → anneau d'événements, un listener par type (jamais de 0 fabriqué)
-  for (const kind of MILESTONE_KINDS) {
-    es.addEventListener(kind, (ev) => {
-      try { pushLiveEvent(kind, JSON.parse((ev as MessageEvent).data)) }
-      catch { /* événement illisible : ignoré, jamais un 0 fabriqué */ }
-    })
-  }
   const store = useUIStore
 
   es.onmessage = (ev) => {
@@ -53,22 +48,25 @@ export function connectSSE() {
         }
         if (data[k] !== undefined) (last as any)[k] = data[k]
       }
-      // pont anneau typé : le HUD lit l'anneau, pas le store (absence = NaN).
-      pushLiveFrame(data)
-      // frontière de vérité: les frames idle ne mesurent rien — jamais de 0 fabriqué.
-      // En course, les frames tout-zéro sont des trous de pompe, pas des mesures — ignorer.
-      // Les frames surveillance (surveil) et burst sont des mesures avec
-      // running=false — elles doivent atteindre les anneaux, sinon le mur meurt.
-      const has = (v: unknown) => v !== undefined && v !== null
-      const measured = has(data.rtt_p50_ms) || has(data.rtt_p95_ms) || has(data.small_p95_ms) || has(data.bulk_goodput_mbps) || has(data.drops) || has(data.deadline_ok_pct) || has(data.wasted_bytes) || has(data.cost_ar_per_h)
-      if (data.ts && (data.running || data.phase === 'surveil' || data.phase === 'burst') && measured) pushFrame(data.ts, data as any)
+      // Écriture directe dans les anneaux typés : aucun rendu React par trame.
+      const pushed = ingestFrame(data)
+      __CGO_SSE.ringLen = instrument.small.size
+      if (pushed && data.phase && data.phase !== lastLoggedPhase) {
+        lastLoggedPhase = data.phase
+        instrument.events.push({
+          ts: data.ts!, kind: 'phase', label: PHASE_FR[data.phase] ?? data.phase,
+        })
+      }
       frameCount++
       __CGO_SSE.frameCount = frameCount
       if (typeof window !== 'undefined') (window as any).__CGO_SSE = __CGO_SSE
-      if (structural || frameCount % 5 === 0) {
-        // pont phaseSince — l'anneau porte les bornes de phase (lib/live.ts:13),
-        // le store ne les voyait jamais : le compte à rebours restait à 0/120 s
-        setLiveCoalesced.schedule({ ...(data as LiveFrame), phaseSince: { ...liveRing.phaseSince } })
+      // pont phaseSince — l'anneau porte les bornes de phase (lib/live.ts:13),
+      // le store ne les voyait jamais : le compte à rebours restait à 0/120 s.
+      // Sync plafonnée à 4 Hz (immédiate sur changement structurel).
+      const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      if (shouldSyncStore(nowMs, lastStoreSync, structural)) {
+        lastStoreSync = nowMs
+        store.getState().setLive({ ...(data as LiveFrame), phaseSince: { ...liveRing.phaseSince } })
       }
       store.getState().setConnected(true)
       store.getState().setSseStatus('connecté')
@@ -83,7 +81,47 @@ export function connectSSE() {
 }
 
 export function disconnectSSE() {
-  setLiveCoalesced.cancel()
   es?.close(); es = null
 }
 export const _frameCount = () => frameCount
+
+/** Sync du store au plus à 4 Hz, immédiate sur un fait structurel. */
+export function shouldSyncStore(nowMs: number, lastMs: number, structural: boolean): boolean {
+  return structural || nowMs - lastMs >= 250
+}
+
+/**
+ * Frontière de vérité : n'écrit que des trames qui mesurent réellement quelque
+ * chose. Un champ absent devient NaN (jamais 0) dans son anneau. Fonction pure
+ * à part des anneaux injectés — le test l'appelle sans EventSource ni store.
+ */
+export function ingestFrame(data: Partial<LiveFrame>, r: InstrumentRings = instrument): boolean {
+  const ts = data.ts
+  if (!ts) return false
+  const has = (v: unknown) => v !== undefined && v !== null
+  // frontière de vérité: les frames idle ne mesurent rien — jamais de 0 fabriqué.
+  // En course, les frames tout-zéro sont des trous de pompe, pas des mesures — ignorer.
+  // Les frames surveillance (surveil) et burst sont des mesures avec
+  // running=false — elles doivent atteindre les anneaux, sinon le mur meurt.
+  const measured = has(data.rtt_p50_ms) || has(data.rtt_p95_ms) || has(data.small_p95_ms)
+    || has(data.bulk_goodput_mbps) || has(data.drops) || has(data.deadline_ok_pct)
+    || has(data.wasted_bytes) || has(data.cost_ar_per_h)
+  if (!measured) return false
+  if (!(data.running || data.phase === 'surveil' || data.phase === 'burst')) return false
+  const values = [data.rtt_p50_ms, data.rtt_p95_ms, data.small_p95_ms,
+                  data.bulk_goodput_mbps, data.drops, data.deadline_ok_pct,
+                  data.wasted_bytes, data.cost_ar_per_h].filter(has)
+  if (values.length > 0 && values.every(v => v === 0)) return false
+
+  r.small.push(ts, data.small_p95_ms ?? null)
+  r.rtt50.push(ts, data.rtt_p50_ms ?? null)
+  r.rtt95.push(ts, data.rtt_p95_ms ?? null)
+  // les artefacts de compteur (reset de qdisc) n'entrent jamais dans l'anneau goodput
+  const g = data.bulk_goodput_mbps
+  r.goodput.push(ts, g != null && g >= 0 && g <= 2500 ? g : null)
+  if (data.iface_sample_ts) {
+    r.ifaceRx.push(data.iface_sample_ts, data.iface_valid ? (data.iface_rx_mbps ?? null) : null)
+    r.ifaceTx.push(data.iface_sample_ts, data.iface_valid ? (data.iface_tx_mbps ?? null) : null)
+  }
+  return true
+}

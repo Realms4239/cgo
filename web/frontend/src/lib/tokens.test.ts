@@ -11,15 +11,15 @@ function read(p: string): string {
 }
 
 describe('tokens', () => {
-  it('METEOLINK wordmark is rendered by App through its component', () => {
-    const app = read('web/frontend/src/App.tsx')
-    expect(app).toContain('MeteolinkWordmark')
+  it('METEOLINK wordmark is rendered by Chrome through its component', () => {
+    const chrome = read('web/frontend/src/components/shell/Chrome.tsx')
+    expect(chrome).toContain('MeteolinkWordmark')
     const wordmark = read('web/frontend/src/components/MeteolinkWordmark.tsx')
     expect(wordmark).toContain('METEOLINK')
   })
   it('METEOLINK wordmark has glow', () => {
     const s = read('web/frontend/src/components/MeteolinkWordmark.tsx')
-    // canonical METEOLINK uses filter drop-shadow cyan + gradient, fallback #f2f2f4 — exhaustive per DESIGN §3
+    // canonical METEOLINK uses filter drop-shadow teal + gradient, fallback #333333 — exhaustive per DESIGN §3
     expect(s).toMatch(/drop-shadow.*var\(--t-live\)/)
     expect(s).toContain('linear-gradient')
   })
@@ -46,7 +46,7 @@ describe('tokens', () => {
   it('tokens.css has hairline fading', () => {
     const css = read('web/frontend/src/styles/tokens.css')
     // le dégradé hairline est un linear-gradient à bords transparents
-    expect(css).toMatch(/linear-gradient.*transparent.*#26262a/)
+    expect(css).toMatch(/linear-gradient.*transparent.*#e8e8e8/)
   })
   it('index.css has fadeIn and card hover and nav-btn inset', () => {
     const css = read('web/frontend/src/styles/index.css')
@@ -61,15 +61,15 @@ describe('mobile 390 — navigation', () => {
     const css = read('web/frontend/src/styles/index.css')
     const m = css.match(/@media \(max-width: 899px\) \{[\s\S]*?\n\}/)
     expect(m, 'bloc media max-width:899px présent').not.toBeNull()
-    expect(m![0]).toMatch(/\.topnav-key \{[^}]*display: none/)
+    expect(m![0]).toMatch(/\.modeswitch-key \{[^}]*display: none/)
   })
 
   it('sous 700px, les quatre destinations passent en barre basse', () => {
     const css = read('web/frontend/src/styles/index.css')
     const m = css.match(/@media \(max-width: 700px\) \{[\s\S]*?\n\}/)
     expect(m, 'bloc media max-width:700px présent').not.toBeNull()
-    expect(m![0]).toMatch(/\.topnav \{[^}]*position: fixed/)
-    expect(m![0]).toMatch(/\.topnav-btn \{[^}]*min-height: 48px/)
+    expect(m![0]).toMatch(/\.modeswitch \{[^}]*position: fixed/)
+    expect(m![0]).toMatch(/\.modeswitch-btn \{[^}]*min-height: 48px/)
   })
 })
 
@@ -90,16 +90,16 @@ describe('desktop grid 890–1920', () => {
 describe('échelle opérateur', () => {
   const sheet = read('web/frontend/src/styles/tokens.css')
   it('porte l’échelle-body et bannit la serif d’interface', () => {
-    for (const [tok, px] of [['--fs-hero', '56px'], ['--fs-metric', '40px'], ['--fs-title', '34px'], ['--fs-body', '16px'], ['--fs-label', '14px'], ['--fs-fine', '13px']]) {
+    for (const [tok, px] of [['--fs-hero', '40px'], ['--fs-metric', '32px'], ['--fs-title', '28px'], ['--fs-body', '16px'], ['--fs-label', '14px'], ['--fs-fine', '13px']]) {
       expect(sheet, tok).toContain(`${tok}: ${px}`)
     }
     expect(sheet).not.toContain('Cormorant')
     expect(sheet).not.toContain('--font-display')
   })
-  it('les surfaces de console sont figées', () => {
-    expect(sheet).toContain('--canvas-solid: #0a0b0e')
-    expect(sheet).toContain('--surface-card: #12141a')
-    expect(sheet).toContain('--surface-elevated: #181b22')
+  it('les surfaces de console sont figées (papier clair ratifié)', () => {
+    expect(sheet).toContain('--canvas-solid: #fbfbfb')
+    expect(sheet).toContain('--surface-card: #ffffff')
+    expect(sheet).toContain('--surface-elevated: #ffffff')
   })
   it('une seule face : --font-ui existe et retombe sur Inter via --font-body', () => {
     // Le contrat positif de la face. Sans lui, une coquille sur la déclaration
@@ -149,6 +149,54 @@ describe('contraste des surfaces de console', () => {
     for (const surface of surfaces) {
       const bg = hexToken(surface)
       expect(ratio(faint, bg), surface).toBeLessThan(ratio(body, bg))
+    }
+  })
+})
+
+// T9 — palette « papier clair » ratifiée (plan 2026-11-20, contrainte globale
+// ligne 25). Chaque valeur est verrouillée : le test échoue en rouge contre
+// l'ancienne feuille sombre, puis doit rester vert sans assouplir l'AA.
+describe('palette claire ratifiée — valeurs verrouillées', () => {
+  const sheet = read('web/frontend/src/styles/tokens.css')
+  const token = (name: string): string => {
+    const m = sheet.match(new RegExp(`^\\s*${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`, 'm'))
+    expect(m, `${name} absent de tokens.css ou non littéral hex`).not.toBeNull()
+    return m![1].toLowerCase()
+  }
+
+  it('mappe chaque valeur du plan sur son jeton existant', () => {
+    const map: Record<string, string> = {
+      // surfaces
+      '--canvas-solid': '#fbfbfb',
+      '--surface-card': '#ffffff',
+      '--surface-soft': '#f3f3f3',
+      '--hairline': '#e8e8e8',
+      '--hairline-strong': '#c8c8c8',
+      // texte
+      '--text-primary': '#333333',
+      '--text-body': '#5a5a5a',
+      '--text-muted': '#6d6d6d',
+      // identité (teal / emerald / gold / slate)
+      '--brand-1': '#17938a',
+      '--brand-2': '#2dcc70',
+      '--brand-3': '#f4c910',
+      '--brand-teal-ink': '#0f6b62',
+      '--brand-slate': '#34495e',
+      // sémantique
+      '--t-live': '#17938a',
+      '--t-ok': '#1e7a3c',
+      '--t-ok-fill': '#229b4e',
+      '--t-threshold': '#806400',
+      '--t-warn-mark': '#9a7400',
+      '--t-danger': '#d51600',
+      '--t-neutral': '#6d6d6d',
+    }
+    for (const [name, hex] of Object.entries(map)) expect(token(name), name).toBe(hex)
+  })
+
+  it('ne laisse aucune valeur de la palette sombre dans la feuille', () => {
+    for (const dark of ['#0a0b0e', '#0e1015', '#12141a', '#181b22', '#26262a', '#3a3a40', '#f2f2f4', '#5ad3e3', '#e22718', '#1fa348', '#f4b400']) {
+      expect(sheet, dark).not.toContain(dark)
     }
   })
 })

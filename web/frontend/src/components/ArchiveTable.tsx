@@ -14,6 +14,11 @@ import { EmptyState } from './ui/EmptyState'
 export const ARCHIVE_ROW_PX = 44
 export const ARCHIVE_WINDOW_ROWS = 8
 
+// 0 et 1 prennent le singulier ; seul n>1 pluralise.
+export function entreeCount(n: number): string {
+  return `${n} entrée${n > 1 ? 's' : ''}`
+}
+
 export function ArchiveTable({
   rows,
   onOpen,
@@ -25,8 +30,15 @@ export function ArchiveTable({
 }) {
   const [scrollTop, setScrollTop] = useState(0)
 
+  const count = <p className="mono archive-count" aria-live="polite">{entreeCount(rows.length)}</p>
+
   if (rows.length === 0) {
-    return <EmptyState kind="empty" hint="Aucun rapport d'audit archivé." />
+    return (
+      <div className="archive-block">
+        {count}
+        <EmptyState kind="empty" hint="Aucun rapport d'audit archivé." />
+      </div>
+    )
   }
 
   const viewportHeight = ARCHIVE_ROW_PX * ARCHIVE_WINDOW_ROWS
@@ -45,7 +57,7 @@ export function ArchiveTable({
 
   return (
     <div className="archive-block">
-      <p className="mono archive-count" aria-live="polite">archive : {rows.length} ligne{rows.length > 1 ? 's' : ''}</p>
+      {count}
       <div
         className="archive-window"
         onScroll={onScroll}
@@ -59,7 +71,7 @@ export function ArchiveTable({
           style={{ paddingTop: `${start * ARCHIVE_ROW_PX}px`, paddingBottom: `${(rows.length - end) * ARCHIVE_ROW_PX}px` }}
         >
           <table className="data-table archive-table" aria-rowcount={rows.length}>
-            <caption className="archive-caption">Archive du lien — {rows.length} lignes</caption>
+            <caption className="archive-caption">Archive du lien — {entreeCount(rows.length)}</caption>
             <colgroup>
               <col style={{ width: '11%' }} />
               <col style={{ width: '18%' }} />

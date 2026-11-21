@@ -1,233 +1,121 @@
-// ringBuffer — anneau Float64Array pour les séries du banc.
-// NaN dans la valeur = slot non mesuré (jamais un 0 fabriqué, SPEC §2.2).
-// ts strictement croissants côté producteur ; hors bornes/ordres non triés —
-// l'anneau n'évince qu'en périphérie (LRU), jamais au milieu.
-export class FloatRing {
-  readonly capacity: number
-  private readonly ts: Float64Array
-  private readonly value: Float64Array
-  private head = 0 // index du plus ancien échantillon
-  private count = 0
+// Anneaux typés de l'instrument. La métrique est une mesure, jamais un zéro de
+// fortune : une sonde sans réponse est NaN. Le zéro mesuré reste 0. Les tableaux
+// floats et l'index de tête sont réutilisés ; aucune allocation dans le flux SSE.
+export const RING_CAPACITY = 1800
 
-  constructor(capacity = 1800) {
-    if (!Number.isFinite(capacity) || capacity < 1 || capacity % 1 !== 0) {
-      throw new RangeError(`ringBuffer: capacity invalide (${capacity})`)
-    }
-    this.capacity = capacity
-    this.ts = new Float64Array(capacity)
-    this.value = new Float64Array(capacity)
-  }
-
-  /** pousse l'échantillon (v NaN = non mesuré). O(1). */
-  push(ts: number, v: number): void {
-    const i = (this.head + this.count) % this.capacity
-    this.ts[i] = ts
-    this.value[i] = v
-    if (this.count < this.capacity) {
-      this.count += 1
-    } else {
-      this.head = (this.head + 1) % this.capacity
-    }
-  }
-
-  get length(): number { return this.count }
-
-  /** i relatif — Array.prototype.at : négatif = depuis la fin. */
-  at(i: number): [number, number] | undefined {
-    if (i < 0) i = this.count + i
-    if (i < 0 || i >= this.count) return undefined
-    const j = (this.head + i) % this.capacity
-    return [this.ts[j], this.value[j]]
-  }
-
-  latest(): [number, number] | undefined {
-    return this.count === 0 ? undefined : this.at(this.count - 1)
-  }
-
-  /** n derniers échantillons, du plus ancien au plus récent. */
-  tail(n: number): [number, number][] {
-    const take = Math.min(Math.max(n, 0), this.count)
-    const out: [number, number][] = new Array(take)
-    const start = this.count - take
-    for (let i = 0; i < take; i += 1) {
-      const j = (this.head + start + i) % this.capacity
-      out[i] = [this.ts[j], this.value[j]]
-    }
-    return out
-  }
-
-  slice(start?: number, end?: number): [number, number][] {
-    const n = this.count
-    let a = start ?? 0
-    let b = end ?? n
-    if (a < 0) a = Math.max(0, n + a); else a = Math.min(n, a)
-    if (b < 0) b = Math.max(0, n + b); else b = Math.min(n, b)
-    if (a >= b) return []
-    const out: [number, number][] = []
-    for (let i = a; i < b; i += 1) out.push(this.at(i) as [number, number])
-    return out
-  }
-
-  /** true si v n'est pas NaN — le « vu mesuré » sans rien inventer. */
-  measured(i: number): boolean {
-    const j = (this.head + i) % this.capacity
-    return Number.isFinite(this.value[j])
-  }
-
-  since(tsLo: number): [number, number][] {
-    const out: [number, number][] = []
-    for (let i = 0; i < this.count; i += 1) {
-      const j = (this.head + i) % this.capacity
-      if (this.ts[j] >= tsLo) out.push([this.ts[j], this.value[j]])
-    }
-    return out
-  }
-
-  reset(): void {
-    this.head = 0
-    this.count = 0
-    this.ts.fill(0)
-    this.value.fill(NaN)
-  }
-}
-
-/** vue itérable comme un tableau (pour .map(([, v]) => …)). */
-export function entries(r: FloatRing): [number, number][] {
-  const out: [number, number][] = new Array(r.length)
-  for (let i = 0; i < r.length; i += 1) out[i] = r.at(i) as [number, number]
-  return out
-}
-
-export interface MetricSample {
-  ts: number
-  throughputMbps: number | null
-  rttMs: number | null
-  dropsBytes: number | null
-}
-
-/** MetricSample — quatre séries préallouées ; NaN = absence, jamais un 0 inventé. */
 export class TypedMetricRing {
   readonly capacity: number
-  private readonly ts: Float64Array
-  private readonly throughputMbps: Float64Array
-  private readonly rttMs: Float64Array
-  private readonly dropsBytes: Float64Array
-  private head = 0
+  private readonly values: Float64Array
+  private readonly times: Float64Array
+  private head = 0 // prochain emplacement d'écriture
   private count = 0
-  dirty = false
+  dirty = false // posé à l'écriture, effacé par le peintre rAF
 
-  constructor(capacity = 1800) {
-    if (!Number.isFinite(capacity) || capacity < 1 || capacity % 1 !== 0) {
-      throw new RangeError(`ringBuffer: capacity invalide (${capacity})`)
-    }
+  constructor(capacity = RING_CAPACITY) {
     this.capacity = capacity
-    this.ts = new Float64Array(capacity)
-    this.throughputMbps = new Float64Array(capacity)
-    this.rttMs = new Float64Array(capacity)
-    this.dropsBytes = new Float64Array(capacity)
-    this.reset()
+    this.values = new Float64Array(capacity)
+    this.times = new Float64Array(capacity)
   }
 
-  push(s: MetricSample): void {
-    const i = (this.head + this.count) % this.capacity
-    this.ts[i] = s.ts
-    this.throughputMbps[i] = s.throughputMbps ?? NaN
-    this.rttMs[i] = s.rttMs ?? NaN
-    this.dropsBytes[i] = s.dropsBytes ?? NaN
-    if (this.count < this.capacity) this.count += 1
-    else this.head = (this.head + 1) % this.capacity
+  get size(): number {
+    return this.count
+  }
+
+  push(ts: number, v: number | null): void {
+    // Nan pour une absence, jamais 0 ; un 0 réel passe tel quel.
+    this.values[this.head] = v == null || !Number.isFinite(v) ? NaN : v
+    this.times[this.head] = ts
+    this.head = (this.head + 1) % this.capacity
+    if (this.count < this.capacity) this.count++
     this.dirty = true
   }
 
-  get length(): number { return this.count }
-
-  at(i: number): MetricSample | undefined {
-    const k = i < 0 ? this.count + i : i
-    if (k < 0 || k >= this.count) return undefined
-    const j = (this.head + k) % this.capacity
-    return {
-      ts: this.ts[j],
-      throughputMbps: this.throughputMbps[j],
-      rttMs: this.rttMs[j],
-      dropsBytes: this.dropsBytes[j],
-    }
-  }
-
-  tail(n: number): MetricSample[] {
-    const take = Math.min(Math.max(n, 0), this.count)
-    const out: MetricSample[] = new Array(take)
-    for (let i = 0; i < take; i += 1) out[i] = this.at(this.count - take + i) as MetricSample
+  private ordered(src: Float64Array): Float64Array {
+    const out = new Float64Array(this.count)
+    const start = (this.head - this.count + this.capacity) % this.capacity
+    for (let i = 0; i < this.count; i++) out[i] = src[(start + i) % this.capacity]
     return out
   }
 
-  measured(i: number, key: 'throughputMbps' | 'rttMs' | 'dropsBytes'): boolean {
-    const k = i < 0 ? this.count + i : i
-    if (k < 0 || k >= this.count) return false
-    const j = (this.head + k) % this.capacity
-    return Number.isFinite(this[key][j])
+  /** Valeurs chronologiques — NaN = absence (jamais 0). */
+  series(): Float64Array {
+    return this.ordered(this.values)
   }
 
-  markPainted(): void { this.dirty = false }
+  /** Horodatages chronologiques, alignés sur series(). */
+  timestamps(): Float64Array {
+    return this.ordered(this.times)
+  }
 
-  reset(): void {
+  /** Paires [ts, valeur|null] pour ECharts — NaN devient null et casse le tracé. */
+  pairs(): [number, number | null][] {
+    const values = this.series()
+    const times = this.timestamps()
+    const pairs: [number, number | null][] = new Array(values.length)
+    for (let i = 0; i < values.length; i++) {
+      pairs[i] = [times[i], Number.isNaN(values[i]) ? null : values[i]]
+    }
+    return pairs
+  }
+
+  clear(): void {
     this.head = 0
     this.count = 0
-    this.ts.fill(0)
-    this.throughputMbps.fill(NaN)
-    this.rttMs.fill(NaN)
-    this.dropsBytes.fill(NaN)
-    this.dirty = false
+    this.dirty = true
   }
 }
 
 export interface DomainEvent {
-  id: number
-  tsMonoMs: number
+  ts: number
   kind: string
-  severity: string
-  title: string
-  detail: string
+  label: string
+  detail?: string
 }
 
-/** DomainEvent — 100 créneaux fixes ; l'éviction retire le plus ancien en périphérie. */
 export class DomainEventRing {
-  readonly capacity = 100
-  private readonly slots: (DomainEvent | undefined)[]
-  private head = 0
-  private count = 0
+  private readonly items: DomainEvent[] = []
+  dirty = false
 
-  constructor() {
-    this.slots = new Array<DomainEvent | undefined>(this.capacity)
-  }
+  constructor(private readonly capacity = 200) {}
 
-  /** pousse l'événement ; O(1), l'ancienneté est préservée. */
   push(e: DomainEvent): void {
-    const i = (this.head + this.count) % this.capacity
-    this.slots[i] = e
-    if (this.count < this.capacity) this.count += 1
-    else this.head = (this.head + 1) % this.capacity
+    this.items.push(e)
+    if (this.items.length > this.capacity) this.items.shift()
+    this.dirty = true
   }
 
-  get length(): number { return this.count }
-
-  /** i relatif — négatif = depuis la fin. */
-  at(i: number): DomainEvent | undefined {
-    const k = i < 0 ? this.count + i : i
-    if (k < 0 || k >= this.count) return undefined
-    return this.slots[(this.head + k) % this.capacity]
+  /** Ordre chronologique (le plus récent en fin) ; copie pour ne pas exposer le stockage. */
+  list(): DomainEvent[] {
+    return this.items.slice()
   }
 
-  /** n derniers événements, du plus ancien au plus récent. */
-  tail(n: number): DomainEvent[] {
-    const take = Math.min(Math.max(n, 0), this.count)
-    const out: DomainEvent[] = new Array(take)
-    for (let i = 0; i < take; i += 1) out[i] = this.at(this.count - take + i) as DomainEvent
-    return out
+  get size(): number {
+    return this.items.length
   }
 
-  reset(): void {
-    this.head = 0
-    this.count = 0
-    this.slots.fill(undefined)
+  clear(): void {
+    this.items.length = 0
+    this.dirty = true
   }
+}
+
+export interface InstrumentRings {
+  small: TypedMetricRing
+  rtt50: TypedMetricRing
+  rtt95: TypedMetricRing
+  goodput: TypedMetricRing
+  ifaceRx: TypedMetricRing
+  ifaceTx: TypedMetricRing
+}
+
+// Une seule source pour l'instrument : le flux SSE écrit ici, les surfaces lisent
+// ici. L'anneau interface reste court (60 s à 10 Hz) comme dans lib/live.ts.
+export const instrument: InstrumentRings & { events: DomainEventRing } = {
+  small: new TypedMetricRing(),
+  rtt50: new TypedMetricRing(),
+  rtt95: new TypedMetricRing(),
+  goodput: new TypedMetricRing(),
+  ifaceRx: new TypedMetricRing(600),
+  ifaceTx: new TypedMetricRing(600),
+  events: new DomainEventRing(),
 }

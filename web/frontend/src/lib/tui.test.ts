@@ -21,8 +21,10 @@ function read(p: string): string {
 }
 
 describe('tui', () => {
-  it('meteolink top exists', () => {
-    const s = read('cmd/cgo/main.go')
-    expect(s).toContain('top')
+  it('the consolidated TUI entry point exists', () => {
+    // main retires cmd/meteolink in favour of the single cgo binary TUI.
+    const s = read('cmd/cgo/tui.go')
+    expect(s).toContain('func runTUI')
+    expect(s).toContain('tea.NewProgram')
   })
 })

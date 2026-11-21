@@ -3,7 +3,8 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { buildTrace, TRACE_HEIGHT } from './trace'
+import { buildTrace, ringTrace, TRACE_HEIGHT } from './trace'
+import { TypedMetricRing } from './ringBuffer'
 import { TraceCanvas } from '../components/TraceCanvas'
 import type { AuditTimelinePoint } from './types'
 
@@ -41,6 +42,27 @@ describe('buildTrace', () => {
     const g = buildTrace([pt(0, null), pt(1, null)], 220)
     expect(g.segments).toEqual([])
     expect(g.yMax).toBe(220)
+  })
+})
+
+describe('ringTrace — géométrie des trous de l’anneau', () => {
+  it('un NaN devient null (le tracé casse), un zéro mesuré reste 0', () => {
+    const ring = new TypedMetricRing(8)
+    ring.push(100, 30)
+    ring.push(200, null)
+    ring.push(300, 0)
+    const g = ringTrace(ring, 220)
+    expect(g.data).toEqual([[100, 30], [200, null], [300, 0]])
+    expect(g.yMax).toBeGreaterThanOrEqual(220)
+    expect(g.objectiveMs).toBe(220)
+  })
+
+  it('un objectif absent ne fabrique pas un 0 ms', () => {
+    const ring = new TypedMetricRing(8)
+    ring.push(100, 30)
+    const g = ringTrace(ring, Number.NaN)
+    expect(g.objectiveMs).toBeGreaterThan(0)
+    expect(g.yMax).toBeGreaterThan(0)
   })
 })
 

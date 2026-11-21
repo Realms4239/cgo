@@ -43,8 +43,8 @@ export function Paginate({ total, page: propsPage, pageSize, onPage }: {
       style={{
         padding: '3px 10px', fontSize: 'var(--fs-tag)', fontFamily: 'var(--font-mono)',
         border: '1px solid ' + (active ? 'var(--hairline-strong)' : 'var(--hairline)'),
-        background: active ? 'rgba(90,211,227,0.12)' : 'transparent',
-        color: active ? 'var(--t-live)' : disabled ? 'var(--text-faint)' : 'var(--text-body)',
+        background: active ? 'rgba(23,147,138,0.12)' : 'transparent',
+        color: active ? 'var(--brand-teal-ink)' : disabled ? 'var(--text-faint)' : 'var(--text-body)',
         cursor: disabled ? 'default' : 'pointer',
       }}
     >{label}</button>

@@ -4,46 +4,88 @@ import { paletteOnce, alpha } from './palette'
 // Grammaire de graphiques en ~100 lignes, pas un framework.
 // One parameterized base + craft factories (line | bar | area | scatter) —
 // toute surface ECharts de l'app passe par cette grammaire.
-// Les couleurs viennent de palette.ts (jetons CSS résolus) : aucun hex ici.
-export function baseOption(title: string, unit: string, opts?: { idle?: boolean }): EChartsOption {
+// Les couleurs viennent de palette.ts (jetons CSS résolus) : aucun hex ici,
+// sauf LIGHT qui recopie littéralement les jetons clairs ratifiés (slice 9).
+// Le canvas n'accepte pas var() : tailles de trait littérales, nommées ici pour
+// que les composants .tsx n'aient pas de chiffre nu (porte designFloor).
+export const CANVAS_FS = { axis: 10, tooltip: 11 } as const
+
+export const LIGHT = {
+  canvas: '#fbfbfb',
+  surface: '#ffffff',
+  text: '#333333',
+  textMuted: '#5a5a5a',
+  grid: '#e8e8e8',
+  live: '#0f6b62', // brand-teal-ink
+  ok: '#1e7a3c',
+  warn: '#9a7400', // warn-mark — 4,3:1 sur canevas clair
+  danger: '#d51600',
+  neutral: '#34495e',
+} as const
+
+// Ligne d'objectif RÉELLE : yAxis porte la valeur, l'étiquette la nomme.
+// Aucune ligne décorative, aucun objectif implicite.
+export function objectiveMarkLine(ms: number) {
+  const goal = Number.isFinite(ms) && ms > 0 ? ms : 1
+  return {
+    silent: true,
+    symbol: ['none', 'none'],
+    lineStyle: { color: LIGHT.warn, type: 'dashed' as const, width: 1.5 },
+    label: {
+      show: true,
+      position: 'insideEndTop' as const,
+      formatter: `objectif ${Math.round(goal)} ms`,
+      color: LIGHT.warn,
+      fontFamily: 'JetBrains Mono',
+      fontSize: 10,
+    },
+    data: [{ yAxis: goal }],
+  }
+}
+
+export function baseOption(title: string, unit: string, opts?: { idle?: boolean; light?: boolean }): EChartsOption {
   const p = paletteOnce()
+  const light = !!opts?.light
+  const c = light
+    ? { text: LIGHT.textMuted, title: LIGHT.text, subtle: LIGHT.textMuted, grid: LIGHT.grid, tick: LIGHT.neutral, faint: LIGHT.grid, surface: LIGHT.surface, live: LIGHT.live }
+    : { text: p.textMuted, title: p.textPrimary, subtle: p.textFaint, grid: p.hairline, tick: p.hairlineStrong, faint: p.hairlineFaint, surface: p.surfaceElevated, live: p.live }
   return {
     backgroundColor: 'transparent',
-    textStyle: { fontFamily: 'JetBrains Mono', fontSize: 10, color: p.textMuted },
+    textStyle: { fontFamily: 'JetBrains Mono', fontSize: 10, color: c.text },
     animation: false,
     animationDuration: 0,
     animationDurationUpdate: 0,
     // Le canvas n'accepte pas var() : nom de face littéral. La face d'interface
     // est unique (slice 20B) et la serif de titre est sortie de l'application.
-    title: { text: title, left: 8, top: 4, textStyle: { color: p.textPrimary, fontFamily: 'Inter', fontSize: 13, fontWeight: 600 } },
+    title: { text: title, left: 8, top: 4, textStyle: { color: c.title, fontFamily: 'Inter', fontSize: 13, fontWeight: 600 } },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: alpha(p.surfaceElevated, 0.92),
-      borderColor: alpha(p.textPrimary, 0.08),
+      backgroundColor: alpha(c.surface, 0.92),
+      borderColor: alpha(c.title, 0.08),
       borderWidth: 1,
       padding: [16, 20] as unknown as number,
-      extraCssText: 'backdrop-filter: blur(16px); box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06) inset; border-radius: 0;',
-      textStyle: { fontFamily: 'JetBrains Mono', fontSize: 11, color: p.textPrimary, lineHeight: 18 },
+      extraCssText: 'backdrop-filter: blur(16px); box-shadow: 0 12px 40px rgba(51,51,51,0.18), 0 0 0 1px rgba(51,51,51,0.06) inset; border-radius: 0;',
+      textStyle: { fontFamily: 'JetBrains Mono', fontSize: 11, color: c.title, lineHeight: 18 },
       axisPointer: { type: 'cross' },
     } as unknown as EChartsOption['tooltip'],
-    grid: { left: 64, right: 32, top: 48, bottom: 40, containLabel: true, backgroundColor: alpha(p.textPrimary, 0.005), borderWidth: 1, borderColor: alpha(p.textPrimary, 0.02) },
+    grid: { left: 64, right: 32, top: 48, bottom: 40, containLabel: true, backgroundColor: alpha(c.title, 0.005), borderWidth: 1, borderColor: alpha(c.title, 0.02) },
     xAxis: {
       type: 'time',
-      axisLine: { lineStyle: { width: 1.5, cap: 'round' as const, color: p.hairline } },
-      axisTick: { show: true, length: 4, lineStyle: { color: p.hairlineStrong } },
+      axisLine: { lineStyle: { width: 1.5, cap: 'round' as const, color: c.grid } },
+      axisTick: { show: true, length: 4, lineStyle: { color: c.tick } },
       minorTick: { show: true, splitNumber: 4 },
-      splitLine: { lineStyle: { type: [4, 4] as unknown as string, color: p.hairlineFaint, cap: 'round' as const } },
+      splitLine: { lineStyle: { type: [4, 4] as unknown as string, color: c.faint, cap: 'round' as const } },
       // x-labels tiennent à 390 : recouvrement masqué, 9 px, heures courtes
-      axisLabel: { color: p.textMuted, fontSize: 9, fontFamily: 'JetBrains Mono', margin: 12, hideOverlap: true, formatter: (v: number) => { const d = new Date(v); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}` } },
-      axisPointer: { type: 'shadow', shadowStyle: { color: alpha(p.live, 0.04), shadowBlur: 12 } },
+      axisLabel: { color: c.text, fontSize: 9, fontFamily: 'JetBrains Mono', margin: 12, hideOverlap: true, formatter: (v: number) => { const d = new Date(v); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}` } },
+      axisPointer: { type: 'shadow', shadowStyle: { color: alpha(c.live, 0.04), shadowBlur: 12 } },
     } as unknown as EChartsOption['xAxis'],
     yAxis: {
       type: 'value',
       name: unit,
-      nameTextStyle: { color: p.textFaint, fontSize: 10, fontFamily: 'JetBrains Mono' },
-      axisLine: { lineStyle: { width: 1.5, cap: 'round' as const, color: p.hairline } },
-      axisLabel: { color: p.textMuted, fontSize: 10, fontFamily: 'JetBrains Mono' },
-      splitLine: { lineStyle: { type: [4, 4] as unknown as string, color: p.hairlineFaint, cap: 'round' as const } },
+      nameTextStyle: { color: c.subtle, fontSize: 10, fontFamily: 'JetBrains Mono' },
+      axisLine: { lineStyle: { width: 1.5, cap: 'round' as const, color: c.grid } },
+      axisLabel: { color: c.text, fontSize: 10, fontFamily: 'JetBrains Mono' },
+      splitLine: { lineStyle: { type: [4, 4] as unknown as string, color: c.faint, cap: 'round' as const } },
     } as unknown as EChartsOption['yAxis'],
     dataZoom: [
       { type: 'inside', filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, preventDefaultMouseMove: true },
@@ -52,7 +94,7 @@ export function baseOption(title: string, unit: string, opts?: { idle?: boolean 
     // (its gradient pipeline crashed LineView/getVisualGradient mid-run)
     // filigrane seulement hors idle — il éclat dans le vide sur un graphe vide
     graphic: opts?.idle ? [] : [
-      { type: 'text', left: 'center', top: 10, style: { text: 'METEOLINK \u00B7 LIEN', fill: alpha(p.textPrimary, 0.03), font: '600 28px Inter', textAlign: 'center' }, silent: true },
+      { type: 'text', left: 'center', top: 10, style: { text: 'METEOLINK \u00B7 LIEN', fill: alpha(c.title, 0.03), font: '600 28px Inter', textAlign: 'center' }, silent: true },
       { type: 'image', left: 'center', top: 'center', style: { image: 'data:image/svg+xml;base64,PHN2Zz4=', width: 300, height: 300, opacity: 0.015 }, silent: true },
     ] as unknown as EChartsOption['graphic'],
   } as unknown as EChartsOption

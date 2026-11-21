@@ -58,7 +58,7 @@ export default function Explain({ term, children, style }: { term: string; child
               width: 280, padding: '10px 12px', zIndex: 9999,
               background: 'color-mix(in srgb, var(--canvas-solid) 97%, transparent)', border: '1px solid var(--hairline-strong)', borderRadius: 8,
               color: 'var(--text-body-strong)', fontFamily: 'var(--font-body)', fontSize: 'var(--fs-cap)', lineHeight: 1.45,
-              boxShadow: '0 12px 32px rgba(0,0,0,0.55)', display: 'block', textAlign: 'left',
+              boxShadow: '0 12px 32px rgba(51,51,51,0.18)', display: 'block', textAlign: 'left',
               whiteSpace: 'normal', pointerEvents: 'none',
             }}
           >

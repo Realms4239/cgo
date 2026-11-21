@@ -7,10 +7,9 @@ import { ArchiveTable } from './ArchiveTable'
 import type { ArchiveRow } from '../lib/archive'
 import { AuditReportCard } from './AuditReportCard'
 import { CardHead } from './ui/CardHead'
-import { useUIStore } from '../store/ui'
 import { auditCitation } from '../lib/citation'
 import { asArray } from '../lib/format'
-import { auditList } from '../lib/auditList'
+import { copyText as honestCopy } from '../lib/clipboard'
 import type { AuditReport } from '../lib/types'
 
 export function AuditReportsView({
@@ -87,20 +86,11 @@ export default function AuditReportsPanel() {
   const [citationMsg, setCitationMsg] = useState<string | null>(null)
   const wantedCitation = useRef<string | null>(null)
 
-  // Paquet absent ou lien pendu : sans délai, un `fetch` qui ne répond pas
-  // laisse `chargement…` pour toujours (constaté en e2e, 2026-11-08).
-  const fetchTimed = (url: string) => {
-    const ctl = new AbortController()
-    const timer = setTimeout(() => ctl.abort(), 3000)
-    return fetch(url, { signal: ctl.signal })
-      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
-      .finally(() => clearTimeout(timer))
-  }
-
   const load = () => {
     setError(null)
     setRows(null)
-    auditList()
+    fetch('/api/audit/list')
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(j => setRows(asArray<ArchiveRow>(j.audits)))
       .catch(() => { setRows([]); setError('liste des rapports indisponible — vérifiez que le service tourne, puis réessayez') })
   }
@@ -109,7 +99,8 @@ export default function AuditReportsPanel() {
 
   const openReport = (id: string) => {
     setMsg('chargement du rapport…')
-    fetchTimed(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
+    fetch(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(j => { setReport(j as AuditReport); setMsg('') })
       .catch(() => setMsg('rapport indisponible — réessayez'))
   }
@@ -118,7 +109,8 @@ export default function AuditReportsPanel() {
     if (wantedCitation.current === id) return
     wantedCitation.current = id
     setCitationMsg(null)
-    fetchTimed(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
+    fetch(`/api/audit/report?audit_id=${encodeURIComponent(id)}`)
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then((j: AuditReport) => {
         const text = auditCitation(j)
         if (!j.provenance?.source_sha256) {
@@ -129,21 +121,13 @@ export default function AuditReportsPanel() {
           setCitationMsg('citation impossible — le rapport ne porte pas d’identifiant')
           return
         }
-        return navigator.clipboard?.writeText(text).then(
-          () => useUIStore.getState().pushToast('Citation copiée', 'ok'),
-          () => setCitationMsg('copie impossible — sélectionnez le texte'),
-        )
+        honestCopy('Citation', text)
       })
       .catch(() => setCitationMsg('citation impossible — preuve indisponible'))
       .finally(() => { wantedCitation.current = null })
   }
 
-  const copyText = (text: string, label: string) => {
-    navigator.clipboard?.writeText(text).then(
-      () => useUIStore.getState().pushToast(`${label} copié`, 'ok'),
-      () => useUIStore.getState().pushToast('Copie impossible — sélectionnez le texte', 'err'),
-    )
-  }
+  const copyText = (text: string, label: string) => honestCopy(label, text)
 
   return (
     <AuditReportsView

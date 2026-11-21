@@ -20,7 +20,7 @@ export function PeekPopover({ rect, children }: { rect: DOMRect; children: React
         zIndex: 700,
         overflow: 'hidden',
         borderRadius: 6,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+        boxShadow: '0 8px 24px rgba(51,51,51,0.15)',
       }}
     >
       {children}

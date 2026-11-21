@@ -1,37 +1,35 @@
 import { defineConfig } from '@playwright/test';
+
+// Le serveur réel, jamais un stub : les preuves viennent du binaire Go qui
+// sert le dist embedé. Un serveur périmé sur le port est refusé, pas réutilisé.
+const PORT = 19091;
+const baseURL = process.env.AUDIT_BASE || `http://127.0.0.1:${PORT}`;
+
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30000,
-  // PW_QUIET=1 — vérité sans réessai : un seul worker, zéro retry.
-  workers: process.env.PW_QUIET === '1' ? 1 : '50%',
-  retries: process.env.PW_QUIET === '1' ? 0 : 1,
+  timeout: 90000,
+  workers: 1,
+  reporter: 'list',
   use: {
-    baseURL: process.env.AUDIT_BASE || 'http://127.0.0.1:4173',
+    baseURL,
     ignoreHTTPSErrors: true, // certificat local auto-signé (tests uniquement)
-    trace: 'on',
+    // main impose un Bearer sur /api : le harnais transmet le jeton de test,
+    // l'authentification du serveur reste intégralement active.
+    extraHTTPHeaders: process.env.CGO_API_TOKEN
+      ? { Authorization: `Bearer ${process.env.CGO_API_TOKEN}` }
+      : undefined,
+    trace: 'retain-on-failure',
     video: 'retain-on-failure',
     launchOptions: process.env.PWCHROMIUM ? { executablePath: process.env.PWCHROMIUM } : undefined,
   },
   webServer: process.env.AUDIT_BASE
     ? undefined
     : {
-        // Le binaire réel sert la SPA embarquée + /api : un seul serveur pour
-        // les specs mockées (page.route écrase /api) et l' spéc unmocked.
-        // vite preview s'est révélé instable sur ce poste (connexions coupées
-        // en pleine suite) — cgo tient, preuve : e2e/unmocked.spec.ts 5/5.
-        command: process.env.CGO_E2E_BIN
-          ? `${process.env.CGO_E2E_BIN} --serve --mode observe --addr 127.0.0.1:4173 --tls=false`
-          : 'go run ./cmd/cgo --serve --mode observe --addr 127.0.0.1:4173 --tls=false',
-        cwd: '../..',
-        url: 'http://127.0.0.1:4173/api/health',
+        command: process.platform === 'win32'
+          ? `.\\cgo-test-server.exe --serve --addr 127.0.0.1:${PORT} --tls=false --http-addr=`
+          : `./cgo-test-server --serve --addr 127.0.0.1:${PORT} --tls=false --http-addr=`,
+        url: `${baseURL}/api/health`,
         timeout: 120000,
-        // Auth fail-closed : sans jeton, cgo serve refuse de démarrer (exit 2).
-        // On fournit un jeton de test et une racine de données sous tmp/ pour ne
-        // jamais écrire dans le corpus suivi (book/data, data).
-        env: {
-          CGO_API_TOKEN: 'cgo-e2e-axe-test-token-32-chars-minimum',
-          CGO_DATA_DIR: 'tmp/axe-e2e-data',
-        },
-        reuseExistingServer: false,
+        reuseExistingServer: false, // piège du serveur périmé : jamais de dist obsolète
       },
 });

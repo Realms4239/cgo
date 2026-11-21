@@ -1,95 +1,67 @@
-// Banc d'essai — une page, trois sections progressives. Aucun sous-onglet.
-import { startTransition, useEffect, useState } from 'react'
-import BenchConfig from '../components/BenchConfig'
-import BenchProgress from '../components/BenchProgress'
-import DisplayControls from '../components/DisplayControls'
-import { ModeHead } from '../components/ModeHead'
-import LiveView from './LiveView'
-import ResultatsView from './ResultatsView'
+// Laboratoire — un seul document en quatre chapters, sous un en-tête de
+// commande épinglé. La mesure vient du moteur et des anneaux ; l'interface ne
+// fabrique ni chiffre, ni sceau, ni verdict.
+import { useAuditStore } from '../store/audit'
 import { useUIStore } from '../store/ui'
-import { useBenchStore } from '../store/bench'
-import { useModeActive } from '../lib/hooks'
-import { scrollToId as goTo } from '../lib/scroll'
-import VigilanceStrip from '../components/VigilanceStrip'
+import CommandHeader, { type CommandState } from '../components/labo/CommandHeader'
+import PipelineRail from '../components/labo/PipelineRail'
+import Chapter from '../components/labo/Chapter'
+import Configurer from '../components/labo/Configurer'
+import Observer from '../components/labo/Observer'
+import Comparer from '../components/labo/Comparer'
+import Preuves from '../components/labo/Preuves'
 
 export default function LaboView() {
-  const stage = useUIStore(s => s.benchStage)
-  const setStage = useUIStore(s => s.setBenchStage)
-  const active = useModeActive('labo')
+  const report = useAuditStore(s => s.report)
+  const stage = useAuditStore(s => s.stage)
+  const start = useAuditStore(s => s.start)
+  const stop = useAuditStore(s => s.stop)
   const running = useUIStore(s => !!s.live?.running)
-  const connected = useUIStore(s => s.connected)
-  const liveFrame = useUIStore(s => s.live)
-  const replay = useUIStore(s => s.replayRunning)
-  const research = useBenchStore(s => s.research)
-  const setResearch = useBenchStore(s => s.setResearch)
-  const [resultsOpen, setResultsOpen] = useState(research || stage === 'results')
 
-  useEffect(() => {
-    if (!running && !replay) return
-    setStage('observe')
-    goTo('bench-observe')
-  }, [running, replay, setStage])
-
-  useEffect(() => {
-    if (stage === 'results') {
-      setResearch(true)
-      setResultsOpen(true)
-    }
-  }, [stage, setResearch])
-
-  // Le montage des résultats (matrice + TradeSpace) coûte ~250 ms : hors du
-  // geste, en transition non urgente — le clic reste vif et le saut vers la
-  // section se fait avant que le corps n'enfle.
-  const openResults = () => {
-    setResearch(true)
-    startTransition(() => { setStage('results'); setResultsOpen(true) })
-    goTo('bench-results')
-  }
+  const state: CommandState = running || stage === 'observing'
+    ? 'observing'
+    : stage === 'done' && report ? 'done' : 'idle'
+  const recipe = report?.site
+    ? `${report.site} · ${report.link_type ?? 'lien non précisé'}`
+    : 'Lien non déclaré'
 
   return (
-    <div className="panel-stack bench-page portal-view" data-stage={stage}>
-      <VigilanceStrip
-        status={running ? `${liveFrame?.phase || 'campagne'} en cours` : connected ? 'Liaison disponible' : 'Liaison en attente'}
-        detail={running ? 'Mesure en cours sur le banc d’essai.' : 'Aucune campagne en cours — aucune mesure live affichée.'}
+    <div className="labo-view">
+      <CommandHeader
+        recipe={recipe}
+        state={state}
+        running={running}
+        objectiveMs={220}
+        onArm={() => { void start() }}
+        onStop={() => { void stop() }}
       />
-      <div className="portal-section portal-section--labo">
-        <ModeHead
-          title="Banc d'essai"
-          sub="Une page : configurer, observer, lire."
-        />
+      <PipelineRail />
+      <div className="labo-chapters">
+        <Chapter
+          id="configurer" n="01" title="Configurer"
+          lede="Un réglage reste une hypothèse jusqu'à sa mesure."
+        >
+          <Configurer site={report?.site} link={report?.link_type} />
+        </Chapter>
+        <Chapter
+          id="observer" n="02" title="Observer"
+          lede="La trace attend la première sonde ; une absence n'est jamais un zéro."
+        >
+          <Observer running={running} />
+        </Chapter>
+        <Chapter
+          id="comparer" n="03" title="Comparer"
+          lede="Deux mesures complètes seulement peuvent être comparées."
+        >
+          <Comparer />
+        </Chapter>
+        <Chapter
+          id="preuves" n="04" title="Preuves"
+          lede="Le sceau n'est dit vérifié qu'après une vérification réelle."
+        >
+          <Preuves report={report} />
+        </Chapter>
       </div>
-
-      <nav className="bench-anchors portal-anchors" aria-label="Sections du banc">
-        <button className="btn" onClick={() => { setStage('config'); goTo('bench-config') }}>CONFIGURER</button>
-        <button className="btn" onClick={() => goTo('bench-observe')}>OBSERVER</button>
-        <button className="btn" onClick={openResults}>RÉSULTATS</button>
-      </nav>
-
-      <section id="bench-config" className="bench-section" aria-labelledby="bench-config-title">
-        <h2 id="bench-config-title" className="bench-section-title">1 — Configurer</h2>
-        <BenchConfig />
-      </section>
-
-      <section id="bench-observe" className="bench-section" aria-labelledby="bench-observe-title">
-        <div className="bench-section-head">
-          <h2 id="bench-observe-title" className="bench-section-title">2 — Observer</h2>
-          <DisplayControls />
-        </div>
-        <BenchProgress active={active} />
-        <div className="portal-observe-frame"><LiveView active={active} /></div>
-      </section>
-
-      <section id="bench-results" className="bench-section" aria-labelledby="bench-results-title">
-        <h2 id="bench-results-title" className="bench-section-title">3 — Résultats</h2>
-        {research && resultsOpen ? (
-          <ResultatsView embedded active={active} />
-        ) : (
-          <div className="card bench-held">
-            <p className="mono muted">Les résultats s'ouvrent à la fin de la campagne, ou en cliquant sur RÉSULTATS.</p>
-            <button className="btn btn-primary" onClick={openResults}>OUVRIR LES RÉSULTATS</button>
-          </div>
-        )}
-      </section>
     </div>
   )
 }

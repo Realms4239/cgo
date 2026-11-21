@@ -6,8 +6,6 @@ import type { AuditReport } from './types'
 export function auditCitation(report: AuditReport): string {
   const id = report.audit_id?.trim()
   if (!id) return ''
-  const seal = report.provenance?.source_sha256?.trim()
-  if (!seal) return ''
 
   const site = report.site?.trim()
   const link = report.link_type?.trim()
@@ -22,6 +20,8 @@ export function auditCitation(report: AuditReport): string {
     : (dir !== '—' ? `direction ${dir} · charge non mesurée` : 'charge non mesurée')
   const tail = [details, measurement].filter(Boolean).join(', ')
   let out = tail ? `Audit CGO ${id} — ${tail}.` : `Audit CGO ${id}.`
-  out += ` Rapport scellé : source_sha256 ${seal}.`
+
+  const seal = report.provenance?.source_sha256?.trim()
+  if (seal) out += ` Rapport scellé : source_sha256 ${seal}.`
   return out
 }

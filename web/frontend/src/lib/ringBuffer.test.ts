@@ -1,77 +1,75 @@
+// Les anneaux portent la mesure, pas un zéro de fortune : une sonde muette est
+// NaN, un zéro mesuré reste 0. Les témoins ci-dessous lisent la série réelle.
 import { describe, expect, it } from 'vitest'
-import { FloatRing, entries } from './ringBuffer'
+import { TypedMetricRing, DomainEventRing } from './ringBuffer'
 
-describe('FloatRing', () => {
-  it('rejette une capacité invalide', () => {
-    expect(() => new FloatRing(0)).toThrow(RangeError)
-    expect(() => new FloatRing(1.5)).toThrow(RangeError)
+describe('TypedMetricRing — honnêteté de l’absence', () => {
+  it('push(null) garde NaN, jamais 0', () => {
+    const r = new TypedMetricRing(8)
+    r.push(1000, null)
+    expect(r.size).toBe(1)
+    expect(r.series()[0]).toBeNaN()
+    // hostile : un 0 fabriqué ferait passer ce témoin
+    expect(r.series()[0]).not.toBe(0)
   })
 
-  it('pousse et lit en ordre chronologique', () => {
-    const r = new FloatRing(3)
-    r.push(100, 1.5)
-    r.push(200, 2.5)
-    expect(r.length).toBe(2)
-    expect(r.at(0)).toEqual([100, 1.5])
-    expect(r.at(1)).toEqual([200, 2.5])
+  it('push(0) garde 0 — un zéro mesuré n’est pas une absence', () => {
+    const r = new TypedMetricRing(8)
+    r.push(1000, 0)
+    expect(r.series()[0]).toBe(0)
+    expect(Number.isNaN(r.series()[0])).toBe(false)
   })
 
-  it('évince le plus ancien à capacité pleine, O(1)', () => {
-    const r = new FloatRing(3)
-    r.push(1, 1)
-    r.push(2, 2)
-    r.push(3, 3)
-    r.push(4, 4)
-    expect(r.length).toBe(3)
-    expect(r.at(0)).toEqual([2, 2])
-    expect(r.at(2)).toEqual([4, 4])
+  it('un nombre non fini est une absence, pas un 0', () => {
+    const r = new TypedMetricRing(8)
+    r.push(1000, Number.POSITIVE_INFINITY)
+    expect(r.series()[0]).toBeNaN()
   })
 
-  it('NaN = non mesuré, jamais converti en zéro', () => {
-    const r = new FloatRing(2)
-    r.push(1, NaN)
-    r.push(2, 42)
-    expect(r.measured(0)).toBe(false)
-    expect(r.measured(1)).toBe(true)
-    expect(r.at(0)?.[1]).toBeNaN()
-    expect(r.tail(2).map(([, v]) => v)).toEqual([NaN, 42])
+  it('l’anneau déborde en conservant les capacity dernières valeurs, dans l’ordre', () => {
+    const r = new TypedMetricRing(3)
+    for (let i = 1; i <= 5; i++) r.push(i * 100, i)
+    expect(r.size).toBe(3)
+    expect(Array.from(r.series())).toEqual([3, 4, 5])
+    expect(Array.from(r.timestamps())).toEqual([300, 400, 500])
   })
 
-  it('tail borne le n et conserve la chronologie', () => {
-    const r = new FloatRing(10)
-    for (let i = 0; i < 5; i += 1) r.push(i * 100, i)
-    expect(r.tail(9999).map(([, v]) => v)).toEqual([0, 1, 2, 3, 4])
-    expect(r.tail(-1)).toEqual([])
-    expect(r.tail(2).map(([, v]) => v)).toEqual([3, 4])
+  it('le drapeau dirty est posé à chaque écriture', () => {
+    const r = new TypedMetricRing(4)
+    expect(r.dirty).toBe(false)
+    r.push(1, 10)
+    expect(r.dirty).toBe(true)
+    r.dirty = false
+    r.push(2, null)
+    expect(r.dirty).toBe(true)
   })
 
-  it('slice gère les indices négatifs comme un tableau', () => {
-    const r = new FloatRing(10)
-    for (let i = 0; i < 4; i += 1) r.push(i, i)
-    expect(r.slice(-2).map(([, v]) => v)).toEqual([2, 3])
-    expect(r.slice(1, 3).map(([, v]) => v)).toEqual([1, 2])
-    expect(r.slice(3, 1)).toEqual([])
+  it('pairs traduit NaN en null pour que connectNulls:false casse le tracé', () => {
+    const r = new TypedMetricRing(8)
+    r.push(100, 24)
+    r.push(200, null)
+    r.push(300, 0)
+    expect(r.pairs()).toEqual([[100, 24], [200, null], [300, 0]])
   })
 
-  it('since filtre par borne basse de ts', () => {
-    const r = new FloatRing(10)
-    for (let i = 0; i < 6; i += 1) r.push(i * 100, i * 10)
-    expect(r.since(250).map(([, v]) => v)).toEqual([30, 40, 50])
-    expect(r.since(0)).toHaveLength(6)
+  it('clear rend l’anneau vide et marque le changement', () => {
+    const r = new TypedMetricRing(4)
+    r.push(1, 5)
+    r.dirty = false
+    r.clear()
+    expect(r.size).toBe(0)
+    expect(r.series()).toHaveLength(0)
+    expect(r.dirty).toBe(true)
   })
+})
 
-  it('reset vide l’anneau et rend NaN partout', () => {
-    const r = new FloatRing(2)
-    r.push(1, 7)
-    r.reset()
-    expect(r.length).toBe(0)
-    expect(r.at(0)).toBeUndefined()
-  })
-
-  it('entries se comporte comme un itérable tableau pour .map(([, v]) => v)', () => {
-    const r = new FloatRing(5)
-    r.push(1, 3.5)
-    r.push(2, NaN)
-    expect(entries(r).map(([, v]) => v)).toEqual([3.5, NaN])
+describe('DomainEventRing — journal des faits', () => {
+  it('list renvoie les événements dans l’ordre, capacité bornée', () => {
+    const ring = new DomainEventRing(2)
+    ring.push({ ts: 1, kind: 'phase', label: 'Charge' })
+    ring.push({ ts: 2, kind: 'phase', label: 'Récupération' })
+    ring.push({ ts: 3, kind: 'gates', label: 'Portes fermées' })
+    expect(ring.list().map(e => e.ts)).toEqual([2, 3])
+    expect(ring.size).toBe(2)
   })
 })
