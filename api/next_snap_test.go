@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
 // Le hub 10 Hz doit lire NextSnap (échantillon frais) ; /api/state doit lire
@@ -40,7 +39,9 @@ func TestNextSnapDrivesHubAndNotState(t *testing.T) {
 		t.Fatalf("/api/state n'a pas utilisé GetSnap : %s", body)
 	}
 
-	time.Sleep(250 * time.Millisecond)
+	// A fixed sleep only hoped the hub goroutine got scheduled twice; under
+	// load it can be starved. Wait for the real counter instead (2s deadline).
+	waitForCallCount(t, func() int64 { return hubCalls.Load() }, 2, "hub NextSnap calls")
 	if got := hubCalls.Load(); got < 2 {
 		t.Fatalf("hub NextSnap calls = %d, want >= 2", got)
 	}

@@ -92,15 +92,38 @@ func TestHubCloseStopsTicks(t *testing.T) {
 	h := NewHub()
 	var calls atomic.Int32
 	h.Serve(func() any { calls.Add(1); return map[string]any{"phase": "idle"} })
-	time.Sleep(250 * time.Millisecond) // ≥ 2 ticks à 10 Hz
+	waitForCallCount(t, func() int64 { return int64(calls.Load()) }, 2, "hub tick calls")
 	n1 := calls.Load()
 	if n1 < 2 {
 		t.Fatalf("hub did not tick: %d calls", n1)
 	}
 	h.Close()
 	h.Close() // idempotent, ne panique pas
+	// L'absence de ticks ne se vérifie pas par polling : il faut une fenêtre
+	// d'observation bornée. À 20 Hz, 300 ms couvre ~6 intervalles, donc une
+	// boucle qui continuerait serait détectée (n2 > n1+1).
 	time.Sleep(300 * time.Millisecond)
 	if n2 := calls.Load(); n2 > n1+1 {
 		t.Fatalf("hub still ticking after Close: %d → %d", n1, n2)
+	}
+}
+
+// waitForCallCount polls get until the observed counter reaches want, with a
+// bounded 2s deadline (well above two 20 Hz ticks). It fails closed with the
+// counter value and the elapsed time, so a starved goroutine can never be
+// mistaken for a green timing test.
+func waitForCallCount(t *testing.T, get func() int64, want int64, what string) {
+	t.Helper()
+	start := time.Now()
+	const timeout = 2 * time.Second
+	for {
+		got := get()
+		if got >= want {
+			return
+		}
+		if elapsed := time.Since(start); elapsed >= timeout {
+			t.Fatalf("timeout after %v waiting for %s: got %d, want >= %d", elapsed, what, got, want)
+		}
+		time.Sleep(10 * time.Millisecond) // poll every 10 ms (condition-based-waiting.md)
 	}
 }
