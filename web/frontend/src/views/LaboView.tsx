@@ -49,25 +49,25 @@ export default function LaboView() {
           <div className="panel-track" style={{ transform: `translateX(-${active * 100}%)` }}>
             <Chapter
               id="configurer" n="01" title="Configurer" active={active === 0}
-              lede="Choisissez le lien à étudier."
+              lede="Quel lien voulez-vous étudier ?"
             >
               <Configurer site={report?.site} link={report?.link_type} />
             </Chapter>
             <Chapter
               id="observer" n="02" title="Observer" active={active === 1}
-              lede="La mesure en cours s'affiche ici."
+              lede="Que se passe-t-il sur le lien pendant la mesure ?"
             >
               <Observer running={running} />
             </Chapter>
             <Chapter
               id="comparer" n="03" title="Comparer" active={active === 2}
-              lede="Deux mesures sont nécessaires pour comparer."
+              lede="Quelle configuration est la plus rapide ?"
             >
               <Comparer />
             </Chapter>
             <Chapter
               id="preuves" n="04" title="Preuves" active={active === 3}
-              lede="Les preuves scellées apparaissent ici."
+              lede="Quelles preuves peut-on vérifier ?"
             >
               <Preuves report={report} />
             </Chapter>
