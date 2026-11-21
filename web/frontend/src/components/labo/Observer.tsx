@@ -9,10 +9,15 @@ import JournalRail from '../cockpit/JournalRail'
 import { CardHead } from '../ui/CardHead'
 
 // Heure réelle du fait (UTC), jamais un compteur ni une gravité fabriquée.
-function clock(ts: number): string {
+// Une date invalide donne un rendu honnête : ni heure ni attribut dateTime,
+// pas de RangeError ni de « Invalid Date » affichée.
+function validDate(ts: number): Date | null {
   const d = new Date(ts)
-  if (!Number.isFinite(d.getTime())) return ''
-  return d.toISOString().slice(11, 19)
+  return Number.isFinite(d.getTime()) ? d : null
+}
+
+function clock(d: Date | null): string {
+  return d ? d.toISOString().slice(11, 19) : ''
 }
 
 /** Bande de repères — une marque par événement réel issu de `events.list()`. */
@@ -36,13 +41,16 @@ export function EventTimeline({ events }: { events: DomainEventRing }) {
         </p>
       ) : (
         <ol className="et-list">
-          {entries.map((e, i) => (
-            <li key={`${e.ts}-${i}`} className="et-event">
-              <span className="et-mark" aria-hidden="true" />
-              <time className="et-ts mono" dateTime={new Date(e.ts).toISOString()}>{clock(e.ts)}</time>
-              <span className="et-kind">{e.kind}</span>
-            </li>
-          ))}
+          {entries.map(e => {
+            const d = validDate(e.ts)
+            return (
+              <li key={`${e.ts}-${e.kind}-${e.label}`} className="et-event">
+                <span className="et-mark" aria-hidden="true" />
+                <time className="et-ts mono" dateTime={d?.toISOString()}>{clock(d)}</time>
+                <span className="et-kind">{e.label || e.kind}</span>
+              </li>
+            )
+          })}
         </ol>
       )}
     </div>

@@ -20,6 +20,7 @@ export default function PipelineRail({ active, onSelect }: PipelineRailProps) {
   // Modèle clavier W3C emprunté aux onglets sans en adopter la sémantique :
   // flèches et Début/Fin déplacent le focus dans le rail ; Entrée/Espace
   // activent (clic natif), puis le focus rejoint le titre du panneau.
+  // Le tabIndex reste sur l'étape active : au Tab suivant, le focus revient délibérément au pas courant.
   function onRailKeyDown(e: KeyboardEvent<HTMLButtonElement>, i: number) {
     let next: number | null = null
     if (e.key === 'ArrowRight') next = (i + 1) % CHAPTERS.length
