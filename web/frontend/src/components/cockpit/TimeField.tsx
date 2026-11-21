@@ -137,10 +137,12 @@ export function timeFieldOption(rings: InstrumentRings, objectiveMs = 220): ECha
       textStyle: { color: LIGHT.text, fontFamily: 'JetBrains Mono', fontSize: CANVAS_FS.tooltip },
     } as EChartsOption['tooltip'],
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
+    // Origine x déterministe : avec containLabel, ECharts décale la zone de
+    // tracé du gutter des étiquettes et la règle DOM ne serait plus alignée.
     grid: [
-      { left: 64, right: 16, top: 6, height: '54%', containLabel: true },
-      { left: 64, right: 16, top: '63%', height: '16%', containLabel: true },
-      { left: 64, right: 16, top: '82%', height: '16%', containLabel: true },
+      { left: 64, right: 16, top: 6, height: '54%', containLabel: false },
+      { left: 64, right: 16, top: '63%', height: '16%', containLabel: false },
+      { left: 64, right: 16, top: '82%', height: '16%', containLabel: false },
     ],
     xAxis: [
       { ...TIME_AXIS, gridIndex: 0, min, max, axisLabel: { show: false } },

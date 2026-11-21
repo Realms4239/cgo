@@ -1,10 +1,12 @@
 // Règle et pied de champ : oracles DOM pour les faits réels et les absences.
 // Aucune valeur fabriquée — un repère vide dit son absence, un champ absent
 // affiche « — » + un mot français, jamais un zéro ni un vert.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import TimeField, { type IfaceHonesty } from './TimeField'
+import TimeField, { timeFieldOption, type IfaceHonesty } from './TimeField'
 import { TypedMetricRing, DomainEventRing, type InstrumentRings } from '../../lib/ringBuffer'
 
 const T0 = Date.UTC(2026, 10, 21, 13, 45, 0)
@@ -48,6 +50,23 @@ function html(node: React.ReactElement): string {
     .replace(/&#x([0-9a-f]+);/gi, (_, c) => String.fromCodePoint(parseInt(c, 16)))
     .replace(/&#(\d+);/g, (_, c) => String.fromCodePoint(Number(c)))
 }
+
+describe('règle — origine x déterministe alignée sur la grille', () => {
+  it('les trois grilles et la piste DOM partent du même retrait gauche/droite', () => {
+    const grids: any[] = (timeFieldOption(filledRings(), 220) as any).grid
+    expect(grids).toHaveLength(3)
+    for (const g of grids) {
+      // containLabel décale la zone de tracé du gutter des étiquettes (~28 px),
+      // alors que la piste DOM commence à left:64 : les repères seraient décalés.
+      expect(g.containLabel, 'origine x de la zone de tracé déterministe').toBe(false)
+      expect(g.left).toBe(64)
+      expect(g.right).toBe(16)
+    }
+    const css = readFileSync(join(process.cwd(), 'src/styles/components.css'), 'utf8')
+    const track = css.match(/\.tf-ruler-track\s*\{[^}]*\}/)?.[0] ?? ''
+    expect(track).toMatch(new RegExp(`margin-inline:\\s*${grids[0].left}px\\s+${grids[0].right}px\\s*;`))
+  })
+})
 
 describe('règle — repères issus des événements réels', () => {
   it('un anneau d’événements vide dit l’absence, sans repère ni zéro fabriqué', () => {
