@@ -365,7 +365,13 @@ WantedBy=multi-user.target
 		bench := fs.String("bench", "dualns", "banc : dualns (défaut, production) | legacy (reproduction du corpus)")
 		legacyBench := fs.Bool("legacy-bench", false, "force le banc legacy (reproduction du corpus) — défaut dualns")
 		channelModel := fs.String("channel-model", envDefault("CGO_CHANNEL_MODEL", "clean"), "canal : clean | bursty (P2/P3 seulement — refus sinon ; défaut CGO_CHANNEL_MODEL)")
+		// Confrontation eBPF vs tc -s : export depuis le sceau noyau déjà scellé
+		// (CGO_CONFRONT_INPUT). Aucun run n'est lancé ; sceau absent = échec fermé.
+		confrontOut := fs.String("confront-out", "", "écrit ebpf_vs_tc_report.json depuis le sceau noyau scellé (CGO_CONFRONT_INPUT) vers ce chemin ; aucun run lancé")
 		_ = fs.Parse(os.Args[2:])
+		if *confrontOut != "" {
+			os.Exit(runConfrontOut(*confrontOut, os.Getenv("CGO_CONFRONT_INPUT")))
+		}
 		benchValue := *bench
 		if *legacyBench {
 			benchValue = "legacy"
@@ -449,6 +455,7 @@ func usage() {
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify
+       cgo run --confront-out <path>   # CGO_CONFRONT_INPUT = sceau noyau scellé ; aucun run est lancé
        cgo audit purge [--keep N] [--before YYYY-MM-DD] [--dry-run] [DIR]   # prune les sessions d'audit antérieures à --before (garde les --keep plus récentes)
        cgo calibrate --audit audit-XXXX --profile P2   # trace baseline → .dist netem
        cgo figures
