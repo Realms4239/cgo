@@ -3,10 +3,16 @@
 // source ; aucune valeur n'est recopiée dans React à chaque trame.
 import { useState } from 'react'
 import { instrument, type DomainEvent, type DomainEventRing } from '../../lib/ringBuffer'
-import { useInterval } from '../../lib/hooks'
+import { live as liveRing } from '../../lib/live'
+import { useCapabilities, useInterval } from '../../lib/hooks'
+import { useBenchStore } from '../../store/bench'
+import { useUIStore } from '../../store/ui'
 import TimeField from '../cockpit/TimeField'
 import JournalRail from '../cockpit/JournalRail'
 import { CardHead } from '../ui/CardHead'
+import Matrix, { type MatrixPlan, type CampaignProgress } from './Matrix'
+import Gates from './Gates'
+import CampaignTimeline from './CampaignTimeline'
 
 // Heure réelle du fait (UTC), jamais un compteur ni une gravité fabriquée.
 // Une date invalide donne un rendu honnête : ni heure ni attribut dateTime,
@@ -58,13 +64,30 @@ export function EventTimeline({ events }: { events: DomainEventRing }) {
 }
 
 export default function Observer({ running = false }: { running?: boolean }) {
+  const caps = useCapabilities()
+  const profiles = useBenchStore(s => s.profiles)
+  const reps = useBenchStore(s => s.reps)
+  const live = useUIStore(s => s.live)
+  // Le plan vient des réglages réels et des capacités annoncées par l'hôte.
+  const plan: MatrixPlan = { profiles, qdiscs: caps?.qdiscs ?? [], ccs: caps?.ccs ?? [], reps }
+  // Une campagne a eu lieu dès qu'un identifiant d'événement réel existe —
+  // l'après-campagne ne doit jamais retomber en « attente ».
+  const progress: CampaignProgress | null = live && (live.event_id > 0 || (live.total_events ?? 0) > 0 || (live.done_events ?? 0) > 0)
+    ? { running: !!live.running, eventId: live.event_id, doneEvents: live.done_events ?? 0, totalEvents: live.total_events ?? 0 }
+    : null
+  const isRunning = running || !!live?.running
   return (
     <div className="observer">
       <CardHead label="Instrument" sub="Latence, débit et état du lien au fil du temps." />
       <EventTimeline events={instrument.events} />
+      <div className="observer-depth">
+        <Matrix plan={plan} progress={progress} />
+        <Gates gates={live?.gates ?? []} />
+      </div>
+      <CampaignTimeline phaseSince={live?.phaseSince ?? liveRing.phaseSince} running={isRunning} />
       <div className="observer-field">
         <TimeField rings={instrument} objectiveMs={220} />
-        <JournalRail events={instrument.events} running={running} />
+        <JournalRail events={instrument.events} running={isRunning} />
       </div>
     </div>
   )

@@ -377,6 +377,55 @@
 .observer-field { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
 .observer-field .tf-plot { height: 320px; }
 @media (min-width: 1600px) { .observer-field { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; } }
+/* CH2 profondeur — matrice (2) · portes (1) · chronologie (12). Une grille,
+   pas de nouvelle carte ; cellules et mots portent l'état, jamais la couleur. */
+.observer-depth { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
+@media (min-width: 1600px) { .observer-depth { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; } }
+.labo-matrix, .labo-gates, .labo-timeline { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3); border: 1px solid var(--hairline); background: var(--surface-card); }
+.labo-matrix-word { flex: 0 0 auto; font: 700 var(--fs-micro)/1.2 var(--font-mono); letter-spacing: var(--tracking-caps);
+  color: var(--text-muted); white-space: nowrap; }
+.labo-matrix-word[data-state="final"] { color: var(--text-body-strong); }
+.labo-matrix-sentence { margin: 0; font-size: var(--fs-fine); color: var(--text-muted); text-wrap: pretty; }
+.labo-matrix-table { width: 100%; border-collapse: collapse; font-size: var(--fs-fine); font-variant-numeric: tabular-nums; }
+.labo-matrix-table th, .labo-matrix-table td { min-width: 0; padding: var(--sp-1) var(--sp-2); text-align: left;
+  border-bottom: 1px solid var(--hairline); overflow-wrap: anywhere; }
+.labo-matrix-table th { font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--tracking-caps);
+  text-transform: uppercase; color: var(--text-muted); }
+.labo-matrix-table td.num, .labo-matrix-table td.state { white-space: nowrap; }
+.labo-cell-glyph { color: var(--text-faint); }
+.labo-absent { margin: 0; font-size: var(--fs-fine); color: var(--state-empty-text); text-wrap: pretty; }
+.absent-mark { display: inline-block; margin-right: var(--sp-1); color: var(--text-faint); }
+.labo-gate-list { list-style: none; margin: 0; padding: 0; display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px var(--sp-3); }
+.labo-gate-row { min-width: 0; display: flex; align-items: baseline; gap: var(--sp-2); padding: 2px 0;
+  font-size: var(--fs-fine); border-bottom: 1px solid var(--hairline); }
+.labo-gate-id { flex: 0 0 auto; color: var(--text-muted); }
+.labo-gate-token { flex: 0 0 auto; font-weight: 700; letter-spacing: var(--tracking-caps); }
+.labo-gate-word { color: var(--text-muted); font-size: var(--fs-micro); overflow-wrap: anywhere; }
+.labo-gate-science { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1);
+  font-size: var(--fs-fine); color: var(--text-body); text-wrap: pretty; }
+.labo-tl-track { position: relative; min-width: 0; height: 28px; overflow: hidden; border-block: 1px solid var(--hairline); }
+.labo-tl-band { position: absolute; inset-block: 0; border-inline: 1px solid var(--hairline-strong);
+  background: rgba(51, 51, 51, 0.03); }
+.labo-tl-cursor { position: absolute; inset-block: 0; width: 1px; background: var(--text-primary); }
+.labo-tl-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-3);
+  font-size: var(--fs-micro); font-variant-numeric: tabular-nums; color: var(--text-body); }
+.labo-tl-legend li { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.labo-tl-swatch { display: inline-block; width: 8px; height: 8px; border: 1px solid var(--text-muted); }
+@media (max-width: 1023px) {
+  .labo-matrix-table thead { display: none; }
+  .labo-matrix-table, .labo-matrix-table tbody, .labo-matrix-table tr, .labo-matrix-table td { display: block; width: 100%; }
+  .labo-matrix-table tr { margin-bottom: var(--sp-1); padding: var(--sp-1); border: 1px solid var(--hairline); }
+  .labo-matrix-table td { border: 0; padding: 1px 0; white-space: normal; }
+  .labo-matrix-table td::before { content: attr(data-label) ' : '; color: var(--text-muted); font-size: var(--fs-micro); }
+}
+@media (forced-colors: active) {
+  .labo-matrix, .labo-gates, .labo-timeline, .labo-matrix-table th, .labo-matrix-table td,
+  .labo-gate-row, .labo-tl-track, .labo-tl-band, .labo-tl-swatch { border-color: CanvasText; }
+  .labo-tl-band { background: Canvas; }
+  .labo-tl-cursor { background: CanvasText; }
+}
 .comparer { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
 .comparer-lede, .preuves-lede { margin: 0; font-size: var(--fs-fine); color: var(--text-muted); text-wrap: pretty; }
 .comparer-duel, .comparer-rank { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
