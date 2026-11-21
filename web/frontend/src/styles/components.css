@@ -174,8 +174,44 @@
 .tf-plot { position: relative; min-width: 0; height: 420px; border: 1px solid var(--hairline); background: var(--surface-soft); }
 .tf-chart { width: 100%; height: 100%; min-width: 0; }
 .tf-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: var(--sp-3); font-size: var(--fs-fine); color: var(--text-muted); text-align: center; text-wrap: pretty; }
-.tf-ruler { display: flex; justify-content: space-between; gap: var(--sp-3); min-height: 32px; padding: 6px 0; border-top: 1px solid var(--hairline-strong); font-size: var(--fs-micro); color: var(--text-body); }
-.tf-footer { font-size: var(--fs-micro); color: var(--text-faint); overflow-wrap: anywhere; }
+.tf-ruler { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 32px; padding: 6px 0; border-top: 1px solid var(--hairline-strong); font-size: var(--fs-micro); color: var(--text-body); }
+.tf-ruler-top { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+.tf-ruler-time, .tf-ruler-goal { font-variant-numeric: tabular-nums; }
+.tf-ruler-legend { display: flex; gap: var(--sp-3); flex-wrap: wrap; color: var(--text-muted); }
+.tf-ruler-legend > span { display: inline-flex; align-items: center; gap: 4px; }
+.tf-legend-title { color: var(--text-body-strong); }
+.tf-glyph { font-family: var(--font-mono); color: var(--text-body-strong); }
+.tf-glyph-band { letter-spacing: -2px; }
+/* Piste alignée sur la grille du canvas (grid left 64 / right 16) : même fate. */
+.tf-ruler-track { position: relative; min-height: 26px; margin-inline: 64px 16px; border-bottom: 1px solid var(--hairline); }
+.tf-ruler-absent, .tf-repere-absent { margin: 0; color: var(--text-faint); text-wrap: pretty; }
+.tf-band { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; min-width: 2px;
+  border: 1px solid var(--hairline-strong); background: var(--surface-soft); overflow: hidden; }
+.tf-band-word { padding-inline: 4px; color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tf-tick { position: absolute; bottom: -1px; width: 1px; height: 16px; background: var(--text-body-strong); }
+.tf-tick::before { content: '▲'; position: absolute; top: -1.1em; left: 50%; transform: translateX(-50%); font-size: 8px; color: var(--text-body-strong); }
+.tf-reperes { display: flex; gap: var(--sp-3); flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+.tf-repere { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
+.tf-repere time { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.tf-repere-kind { color: var(--brand-teal-ink); text-transform: uppercase; }
+.tf-repere-label { color: var(--text-body); overflow-wrap: anywhere; }
+.tf-repere-mark { font-size: 8px; color: var(--text-body-strong); }
+/* Pied : métadonnées de complétude, poids le plus faible. */
+.tf-footer { display: flex; align-items: flex-start; gap: var(--sp-4); flex-wrap: wrap;
+  font-size: var(--fs-micro); color: var(--text-faint); overflow-wrap: anywhere; }
+.tf-footer-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tf-footer-title { color: var(--text-body-strong); font-weight: 700; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.tf-footer-grid { display: flex; gap: var(--sp-2) var(--sp-3); flex-wrap: wrap; }
+.tf-ifact { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
+.tf-ifact-k { color: var(--text-muted); }
+.tf-ifact-v { color: var(--text-body); font-variant-numeric: tabular-nums; }
+.tf-absent { color: var(--text-faint); }
+@media (forced-colors: active) {
+  .tf-band { border-color: CanvasText; background: Canvas; }
+  .tf-tick { background: CanvasText; }
+  .tf-tick::before { color: CanvasText; background: Canvas; }
+  .tf-glyph, .tf-repere-mark, .tf-absent { color: CanvasText; }
+}
 .journal-rail { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); max-height: 100%; }
 .jr-head { display: flex; justify-content: space-between; gap: var(--sp-2); font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--tracking-caps); color: var(--text-body-strong); }
 .jr-live { font-variant-numeric: tabular-nums; color: var(--brand-teal-ink); }
