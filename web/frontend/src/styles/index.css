@@ -135,6 +135,8 @@ main:focus { outline: none; }
 .btn:hover { border-color: var(--hairline-strong); color: var(--text-primary); }
 .btn:active { transform: scale(.96); }
 .btn-primary { background: var(--text-primary); color: var(--canvas-solid); border-color: var(--text-primary); }
+/* .btn:hover (0,2,0) éclipserait sinon le libellé sur le fond sombre ; correction portée globalement pour Synthèse et Labo. */
+.btn-primary:hover:not(:disabled) { color: var(--canvas-solid); }
 .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
 .btn-danger { background: var(--t-danger-solid); color: var(--chart-on-ok); border-color: var(--t-danger-solid); }
 

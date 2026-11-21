@@ -91,7 +91,7 @@
 .proof-slot { border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
 @media (max-width: 1023px) { .answer-band-stacked { display: flex; flex-direction: column; gap: var(--sp-3); } }
 /* Density 'standard' du contrat spatial : à 1280 la colonne de décision doit
-   tenir en une hauteur d'écran (hero 44, 4 faits compacts, Act, C). */
+   tenir en une hauteur d'écran (hero 28, 4 faits compacts, Act, C). */
 @media (min-width: 1024px) and (max-width: 1599px) {
   .answer-band { gap: 4px; padding: 8px 0; }
   .answer-word { font-size: 28px; line-height: 1.1; }
@@ -223,9 +223,9 @@
 .ch-actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .ch-actions .btn { min-height: 44px; }
 /* Cycle d'état complet des actions de panneau, en jetons ratifiés seulement.
-   Aucun mouvement nouveau : le glissement du panneau garde ses 180 ms. */
-.labo-view .btn-primary:hover:not(:disabled) { color: var(--canvas-solid); }
-.labo-view .btn:focus-visible { outline: 1px solid var(--brand-teal-ink); outline-offset: 2px; }
+   Aucun mouvement nouveau : le glissement du panneau garde ses 180 ms.
+   Survol et focus suivent les règles globales (:focus-visible 2px, libellé
+   primaire lisible), vérifiées en e2e — aucun override Labo affaibli. */
 .labo-view .btn:disabled { opacity: var(--state-disabled-opacity); cursor: not-allowed;
   background: var(--state-disabled-bg); color: var(--state-disabled-text); border-color: var(--hairline); }
 .ch-objective { font-size: var(--fs-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }

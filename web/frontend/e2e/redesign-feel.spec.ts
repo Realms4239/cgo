@@ -48,6 +48,59 @@ test('détails finaux : lissage, focus, transitions et titres', async ({ page })
   expect(h2.wrap, 'titres équilibrés').toBe('balance');
 });
 
+test('boutons : focus clavier ≥2px au Labo et libellé primaire lisible au survol', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 768 });
+  await page.goto('/');
+  await page.locator('[data-mode="labo"]').click();
+  await expect(page.locator('.labo-view')).toBeVisible();
+
+  // :focus-visible n'est porté que par le clavier : on tabule jusqu'à un bouton du Labo.
+  let focus: { width: string; color: string; offset: string; visible: boolean } | null = null;
+  for (let i = 0; i < 40; i++) {
+    await page.keyboard.press('Tab');
+    focus = await page.evaluate(() => {
+      const el = document.activeElement;
+      if (!(el instanceof HTMLElement) || !el.matches('.labo-view .btn')) return null;
+      const s = getComputedStyle(el);
+      return { width: s.outlineWidth, color: s.outlineColor, offset: s.outlineOffset, visible: el.matches(':focus-visible') };
+    });
+    if (focus) break;
+  }
+  expect(focus, 'un bouton du Labo reçoit le focus clavier').not.toBeNull();
+  expect(focus!.visible, ':focus-visible actif sur le bouton Labo').toBe(true);
+  expect(parseFloat(focus!.width), 'focus Labo ≥2px').toBeGreaterThanOrEqual(2);
+  expect(focus!.offset, 'décalage 2px').toBe('2px');
+  expect(focus!.color, 'encre teal ratifiée').toBe('rgb(15, 107, 98)');
+
+  const luminance = (rgb: string): number => {
+    const [r, g, b] = (rgb.match(/\d+(?:\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+    const lin = (v: number) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  };
+  const contrast = (fg: string, bg: string): number => {
+    const a = luminance(fg);
+    const b = luminance(bg);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+
+  for (const mode of ['cockpit', 'labo'] as const) {
+    await page.goto('/');
+    await page.locator(`[data-mode="${mode}"]`).click();
+    const primary = mode === 'labo'
+      ? page.locator('.labo-view .btn-primary:visible').first()
+      : page.locator('#v-cockpit .btn-primary:visible').first();
+    await primary.hover();
+    const colors = await primary.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { fg: s.color, bg: s.backgroundColor };
+    });
+    expect(contrast(colors.fg, colors.bg), `libellé primaire lisible au survol (${mode})`).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
 const JARGON = [
   'pas encore mesuré', 'anneau 0', 'Règle temporelle', 'DERNIERS FAITS',
   'Une seule règle de temps', 'en attente de la première sonde',

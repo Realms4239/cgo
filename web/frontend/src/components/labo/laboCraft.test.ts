@@ -25,13 +25,16 @@ describe('Labo — plancher de craft', () => {
 
   it('cycle d’état complet des actions de panneau en jetons ratifiés', () => {
     const s = sheet()
-    expect(s).toMatch(/\.labo-view \.btn:focus-visible/)
+    // Le focus ne porte plus d'override Labo : la règle globale :focus-visible
+    // (2px) est vérifiée par calcul de style dans redesign-feel.spec.ts.
     expect(s).toMatch(/\.labo-view \.btn:disabled/)
     expect(s).toMatch(/--state-disabled-opacity/)
     expect(s).toMatch(/--state-disabled-bg/)
   })
 
-  it('aucune animation ajoutée : seul le glissement du panneau reste', () => {
+  // Plancher de craft, pas preuve d'absence d'animation : un total ≤5 ne
+  // détecte qu'un dépassement grossier, pas une transition ajoutée isolément.
+  it('plancher : pas de @keyframes et ≤5 transitions (majoré, non preuve)', () => {
     const s = sheet()
     expect(s).not.toMatch(/@keyframes/)
     expect((s.match(/transition:/g) ?? []).length).toBeLessThanOrEqual(5)
