@@ -224,8 +224,8 @@
 .tf-ruler-top { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
 .tf-ruler-time, .tf-ruler-goal { font-variant-numeric: tabular-nums; }
 .tf-ruler-legend { display: flex; gap: var(--sp-3); flex-wrap: wrap; color: var(--text-muted); }
-.tf-ruler-legend > span { display: inline-flex; align-items: center; gap: 4px; }
-.tf-legend-title { color: var(--text-body-strong); }
+.tf-ruler-legend > span { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; text-wrap: pretty; }
+.tf-ruler-legend .tf-legend-title { color: var(--text-body-strong); letter-spacing: var(--tracking-caps); text-transform: uppercase; text-wrap: balance; }
 .tf-glyph { font-family: var(--font-mono); color: var(--text-body-strong); }
 .tf-glyph-band { letter-spacing: -2px; }
 /* Piste alignée sur la grille du canvas (grid left 64 / right 16) : même fate. */
@@ -243,15 +243,17 @@
 .tf-repere-label { color: var(--text-body); overflow-wrap: anywhere; }
 .tf-repere-mark { font-size: 8px; color: var(--text-body-strong); }
 /* Pied : métadonnées de complétude, poids le plus faible. */
-.tf-footer { display: flex; align-items: flex-start; gap: var(--sp-4); flex-wrap: wrap;
+.tf-footer { display: flex; align-items: flex-start; gap: var(--sp-3); flex-wrap: wrap;
   font-size: var(--fs-micro); color: var(--text-faint); overflow-wrap: anywhere; }
 .tf-footer-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.tf-footer-title { color: var(--text-body-strong); font-weight: 700; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
-.tf-footer-grid { display: flex; gap: var(--sp-2) var(--sp-3); flex-wrap: wrap; }
-.tf-ifact { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
+.tf-footer-group + .tf-footer-group { border-left: 1px solid var(--hairline-faint); padding-left: var(--sp-3); }
+.tf-footer-title { color: var(--text-body-strong); font-weight: 700; letter-spacing: var(--tracking-caps); text-transform: uppercase; text-wrap: balance; }
+/* display:contents garde label et valeur dans l'ordre de lecture, en deux colonnes. */
+.tf-footer-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: var(--sp-3); row-gap: var(--sp-1); align-items: baseline; }
+.tf-ifact { display: contents; }
 .tf-ifact-k { color: var(--text-muted); }
-.tf-ifact-v { color: var(--text-body); font-variant-numeric: tabular-nums; }
-.tf-absent { color: var(--text-faint); }
+.tf-ifact-v { color: var(--text-body); font-variant-numeric: tabular-nums; text-wrap: pretty; }
+.tf-absent { color: var(--text-faint); text-wrap: pretty; }
 @media (forced-colors: active) {
   .tf-band { border-color: CanvasText; background: Canvas; }
   .tf-tick { background: CanvasText; }
