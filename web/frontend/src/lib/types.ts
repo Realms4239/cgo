@@ -100,6 +100,7 @@ export interface AuditMeasured {
   direction?: string
   flow_count?: number
   jfi_pct?: number
+  jfi_measured?: boolean
   rtt_loaded_down_p95_ms?: number
   throughput_down_mbps?: number
   bloat_delta_down_ms?: number

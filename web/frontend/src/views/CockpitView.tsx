@@ -12,6 +12,7 @@ import { Drawer } from '../components/ui/Drawer'
 
 export default function CockpitView() {
   const [proofOpen, setProofOpen] = useState(false)
+  const [journalOpen, setJournalOpen] = useState(false)
   const report = useAuditStore(s => s.report)
   const stage = useAuditStore(s => s.stage)
   const failure = useAuditStore(s => s.failure)
@@ -40,7 +41,13 @@ export default function CockpitView() {
       {/* T5 — l'instrument lit les anneaux réels écrits par le flux SSE. */}
       <div className="cockpit-field">
         <TimeField rings={instrument} objectiveMs={220} />
-        <JournalRail events={instrument.events} running={running} />
+        <div className="journal-slot" data-open={journalOpen ? 'true' : undefined}>
+          <button type="button" className="journal-disclosure-toggle" aria-expanded={journalOpen}
+            onClick={() => setJournalOpen(o => !o)}>
+            Journal · {instrument.events.size} événement{instrument.events.size > 1 ? 's' : ''}
+          </button>
+          <JournalRail events={instrument.events} running={running} />
+        </div>
       </div>
 
       <Drawer open={proofOpen} onClose={() => setProofOpen(false)} title="Preuve">

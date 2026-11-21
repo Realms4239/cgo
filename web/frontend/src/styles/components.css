@@ -90,6 +90,23 @@
 .act-slot [role="status"] { font: 500 var(--fs-label) var(--font-ui); color: var(--t-threshold); margin: 0; }
 .proof-slot { border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
 @media (max-width: 1023px) { .answer-band-stacked { display: flex; flex-direction: column; gap: var(--sp-3); } }
+/* Density 'standard' du contrat spatial : à 1280 la colonne de décision doit
+   tenir en une hauteur d'écran (hero 44, 4 faits compacts, Act, C). */
+@media (min-width: 1024px) and (max-width: 1599px) {
+  .answer-band { gap: 4px; padding: 8px 0; }
+  .answer-word { font-size: 28px; line-height: 1.1; }
+  .answer-sentence { font-size: var(--fs-fine); }
+  .answer-facts .metric-row { grid-template-columns: 1fr; gap: 0; padding: 0; border-top: 0; }
+  .answer-facts .metric-row-label { display: none; }
+  .answer-facts .metric-row-values { grid-template-columns: 1fr; gap: 0; }
+  .answer-facts .state-slot { min-height: 44px; flex-direction: row; align-items: center;
+    justify-content: flex-start; gap: var(--sp-2); padding: 4px 0; }
+  .answer-facts .state-label { flex: 0 0 116px; font-size: var(--fs-micro); }
+  .answer-facts .state-value { font-size: 18px; flex: none; }
+  .answer-facts .state-word { font-size: var(--fs-micro); margin-left: auto; text-align: right; }
+  .act-slot { padding-top: 6px; }
+  .proof-slot { padding-top: 6px; }
+}
 
 /* ── RemediationCard — deux directions mesurées, une plateforme, un bouton ── */
 .remediation { display: flex; flex-direction: column; gap: var(--sp-3); border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-4); }
@@ -169,7 +186,25 @@
 /* Le champ T5 est monté sous le spine : une colonne jusqu'à 1600, puis le
    journal prend le bord droit comme dans la spec spatiale. */
 .cockpit-field { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
-@media (min-width: 1600px) { .cockpit-field { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; } }
+/* Contrat spatial ratifié §1 : à partir de 1024, la décision est une colonne
+   épinglée à gauche et le champ occupe le reste de la zone de travail. */
+@media (min-width: 1024px) {
+  .spine-view { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: var(--sp-4); height: 100%; min-height: 0; align-items: stretch; }
+  .decision-spine, .cockpit-field, .time-field { min-height: 0; }
+  .tf-plot { height: auto; flex: 1 1 auto; min-height: 180px; }
+  .journal-slot { min-width: 0; }
+  .journal-disclosure-toggle { display: inline-flex; align-items: center; min-height: 44px;
+    font: 600 var(--fs-micro) var(--font-mono); letter-spacing: var(--tracking-caps);
+    text-transform: uppercase; color: var(--brand-teal-ink); }
+  .journal-slot .journal-rail { display: none; }
+  .journal-slot[data-open="true"] .journal-rail { display: flex; }
+}
+@media (min-width: 1600px) {
+  .spine-view { grid-template-columns: 380px minmax(0, 1fr); }
+  .cockpit-field { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; }
+  .journal-disclosure-toggle { display: none; }
+  .journal-slot .journal-rail, .journal-slot[data-open="true"] .journal-rail { display: flex; }
+}
 
 /* T6 — document Labo : en-tête épinglé, rail de lecture, chapters. */
 .labo-view { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
@@ -191,6 +226,14 @@
 .pr-n { color: var(--brand-teal-ink); font-size: var(--fs-micro); }
 .labo-chapters { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 @media (min-width: 1200px) { .labo-chapters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Contrat spatial ratifié §2 : rail de lecture épinglé à gauche, document de
+   quatre chapitres à droite, en séquence (pas de grille 2-colonnes). */
+@media (min-width: 1024px) {
+  .labo-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--sp-4); align-items: start; min-width: 0; }
+  .pipeline-rail { position: sticky; top: 72px; flex-direction: column; flex-wrap: nowrap; }
+  .labo-chapters { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@media (min-width: 1600px) { .labo-body { grid-template-columns: 240px minmax(0, 1fr); } }
 .chapter { min-width: 0; padding: var(--sp-4); border: 1px solid var(--hairline); background: var(--surface-card); }
 .chapter-head { display: flex; gap: var(--sp-3); align-items: baseline; margin-bottom: var(--sp-4); }
 .chapter-n { font-size: var(--fs-title); color: var(--text-faint); }

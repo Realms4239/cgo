@@ -49,7 +49,10 @@ describe('CockpitView — instrument T5 monté', () => {
     const out = html()
     expect(out).toContain('aria-label="Journal des événements"')
     expect(out).toContain('Aucun événement')
-    expect(out).not.toMatch(/0 événement/)
+    // Le compte du rail est réel (anneau vide) et porte son libellé ; ce qui est
+    // interdit, c'est un compteur fabriqué dans le corps du journal.
+    expect(out).toContain('Journal · 0 événement')
+    expect(out).not.toMatch(/0\s* Malus|0\s* pertes/)
     expect(instrument.events.list()).toEqual([])
   })
 

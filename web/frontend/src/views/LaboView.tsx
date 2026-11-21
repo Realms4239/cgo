@@ -35,6 +35,7 @@ export default function LaboView() {
         onArm={() => { void start() }}
         onStop={() => { void stop() }}
       />
+      <div className="labo-body">
       <PipelineRail />
       <div className="labo-chapters">
         <Chapter
@@ -61,6 +62,7 @@ export default function LaboView() {
         >
           <Preuves report={report} />
         </Chapter>
+      </div>
       </div>
     </div>
   )
