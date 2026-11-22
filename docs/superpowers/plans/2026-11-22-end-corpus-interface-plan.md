@@ -81,7 +81,7 @@ In `components.css`, use `.configurer-*` classes with `var(--sp-*)`, `tabular-nu
 
 - [ ] **Step 5: Verify and commit**
 
-Run `npx vitest run Configurer.capabilities.dom.test.tsx` → GREEN; full `npm test` → green; `npm run build` → exit 0 and restore tracked `dist/index.html`; rebuild `go build -o web/frontend/cgo-test-server.exe ./cmd/cgo`; unmocked Edge Playwright `redesign-smoke`, `redesign-layout`, `redesign-a11y`, `redesign-feel` → green; screenshots at 890/1280/1920 read and validated. Commit explicit paths only with message `feat(labo): real capability and configuration controls`.
+Run `npx vitest run Configurer.capabilities.dom.test.tsx` → GREEN; full `npm test` → green; `npm run build` → exit 0; **rebuild `go build -o web/frontend/cgo-test-server.exe ./cmd/cgo` BEFORE restoring tracked `dist/index.html`** (the Go binary embeds `dist` at build time, so restoring first bakes stale asset hashes — this bit two earlier slices); unmocked Edge Playwright `redesign-smoke`, `redesign-layout`, `redesign-a11y`, `redesign-feel` → green; screenshots at 890/1280/1920 read and validated; restore tracked `dist/index.html` with `git checkout --` only AFTER the Go rebuild and Playwright. Commit explicit paths only with message `feat(labo): real capability and configuration controls`.
 
 ---
 
