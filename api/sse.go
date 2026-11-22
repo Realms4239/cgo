@@ -300,10 +300,11 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// nouveau client (sans Last-Event-ID) ou client périmé (ID antérieur à
-	// l'anneau) : les frames delta omettent les champs structurels jamais
-	// reçus — synchroniser avec un frame complet d'abord
-	if (lastEventID == "" || stale) && lastFull != "" {
+	// nouveau client (sans Last-Event-ID), client périmé (ID antérieur à
+	// l'anneau) ou ID hors de l'espace courant (reprise après redémarrage :
+	// les IDs repartent à 1 et le rejeu est vide) : les frames delta omettent
+	// les champs structurels jamais reçus — synchroniser avec un frame complet.
+	if (lastEventID == "" || stale || len(replay) == 0) && lastFull != "" {
 		fmt.Fprintf(w, "data: %s\n\n", lastFull)
 	}
 	fl.Flush()
