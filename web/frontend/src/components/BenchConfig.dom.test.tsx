@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+// Préchauffe le graphe de modules une fois hors du chrono des tests.
+// L'import à froid (React + BenchConfig + ses dépendances) coûte 1,2–4,6 s
+// selon la charge ; dans le chrono 5 s d'un test, il faisait échouer le test.
+await import('./BenchConfig')
+
 const RESEARCH_KEY = 'meteolink-bench-research'
 const renderWithResearch = async (value: boolean) => {
   localStorage.setItem(RESEARCH_KEY, String(value))
