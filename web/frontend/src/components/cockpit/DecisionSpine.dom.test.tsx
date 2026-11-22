@@ -260,4 +260,51 @@ describe('DecisionSpine — mesure noyau eBPF primaire, tc en ligne séparée', 
     }
     expect(host.textContent).not.toContain('226 retransmissions')
   })
+
+  it('fait primary et santé viennent de l’eBPF, jamais du RTT userspace 900', () => {
+    const hostile = {
+      ...ebpfReport,
+      measured: { ...REPORT.measured, small_measured: true, http_small_p95_ms: 900, rtt_loaded_p95_ms: 900 },
+    } as unknown as AuditReport
+    const host = mount(<DecisionSpine report={hostile} />)
+    const delay = [...host.querySelectorAll('.state-slot')]
+      .find(s => s.textContent?.includes('Réponse sous charge'))!
+    expect(delay.textContent).toContain('13,5')
+    expect(delay.textContent).not.toContain('900')
+    expect(host.querySelector('.health-word')?.getAttribute('data-level')).toBe('attention')
+    expect(host.querySelector('.health-word')?.textContent).toContain('À surveiller')
+    expect(host.querySelector('.band-status')?.getAttribute('data-level')).toBe('attention')
+    expect(host.querySelector('.band-number')?.textContent).toContain('13,5')
+  })
+
+  it('absence : data-primary=false, chaque ligne absente, aucune santé verte fabriquée', () => {
+    const report = {
+      ...REPORT,
+      measured: { link_type: 'fiber' },
+      kernel_telemetry: { available: false, source: 'tcpinfo', reason: 'objet eBPF absent' },
+    } as unknown as AuditReport
+    const host = mount(<DecisionSpine report={report} />)
+    expect(host.querySelector('.kernel-evidence')?.getAttribute('data-primary')).toBe('false')
+    for (const id of ['kernel-loss', 'kernel-latency', 'kernel-tc']) {
+      expect(host.querySelector(`[data-testid="${id}"]`)?.getAttribute('data-absent')).toBe('true')
+    }
+    expect(host.querySelector('.health-word')?.getAttribute('data-level')).toBe('absent')
+    expect(host.querySelector('.health-word')?.textContent).not.toContain('Lien prêt')
+  })
+
+  it('une sous-donnée manquante n’est pas un vert global : data-complete=false', () => {
+    const report = {
+      ...ebpfReport,
+      kernel_telemetry: {
+        ...ebpfReport.kernel_telemetry!,
+        qdisc_drop_packets: undefined,
+        flows: ebpfReport.kernel_telemetry!.flows!.map(f => ({ ...f, qdisc_drop_packets: Number.NaN })),
+      },
+    } as unknown as AuditReport
+    const host = mount(<DecisionSpine report={report} />)
+    expect(host.querySelector('.kernel-evidence')?.getAttribute('data-primary')).toBe('true')
+    expect(host.querySelector('.kernel-evidence')?.getAttribute('data-complete')).toBe('false')
+    expect(host.querySelector('[data-testid="kernel-tc"]')?.getAttribute('data-absent')).toBe('true')
+    expect(host.querySelector('[data-testid="kernel-loss"]')?.getAttribute('data-absent')).toBe('false')
+  })
 })

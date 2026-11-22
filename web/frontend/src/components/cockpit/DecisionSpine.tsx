@@ -4,7 +4,8 @@
 // l'Act sont exclusifs : une mesure ne se confond jamais avec un constat.
 import { useState } from 'react'
 import type { AuditStage } from '../../lib/auditFlow'
-import { operatorFacts, operatorKernelEvidence } from '../../lib/dashboard'
+import { kernelHealth, operatorFacts, operatorKernelEvidence } from '../../lib/dashboard'
+import { numFr } from '../../lib/format'
 import { evaluateLoadedHealth } from '../../lib/health'
 import type { AuditReport, AuditVerdictLevel } from '../../lib/types'
 import { InlineDisclosure } from '../ui/InlineDisclosure'
@@ -98,20 +99,25 @@ export default function DecisionSpine({
         ? 'Aucune mesure pour ce lien.'
         : 'Ce rapport ne contient pas de verdict.'
 
-  const health = evaluateLoadedHealth({
+  // §2 — la mesure noyau est primaire quand eBPF est valide : elle pilote
+  // le fait Réponse sous charge et la santé, jamais le RTT userspace seul.
+  const kernel = operatorKernelEvidence(readableReport)
+  const userspaceHealth = evaluateLoadedHealth({
     linkType: readableReport?.link_type ?? '',
     idleP50Ms: readableReport?.measured?.rtt_idle_p50_ms,
     loadedP95Ms: readableReport?.measured?.rtt_loaded_p95_ms,
   })
-  const healthText = health.kind === 'absent' ? null
-    : health.kind === 'unconfigured'
-      ? `Δ ${signed(Math.round(health.bloatMs))} ms — aucun seuil de classe fourni`
-      : `Δ ${signed(Math.round(health.bloatMs))} ms sous charge`
+  const kernelState = kernelHealth(kernel, warnMs, critMs)
+  const healthKind = kernel.primary ? kernelState.kind : userspaceHealth.kind
+  const healthText = kernel.primary
+    ? null // les lignes noyau portent le détail, sans le répéter ici
+    : userspaceHealth.kind === 'absent'
+      ? null
+      : userspaceHealth.kind === 'unconfigured'
+        ? `Δ ${signed(Math.round(userspaceHealth.bloatMs))} ms — aucun seuil de classe fourni`
+        : `Δ ${signed(Math.round(userspaceHealth.bloatMs))} ms sous charge`
 
   const facts = operatorFacts(readableReport, warnMs, critMs)
-  // §2 — la mesure noyau est primaire quand eBPF est valide ; sinon ses lignes
-  // disent leur absence et la vraie raison, sans repli sur le RTT userspace.
-  const kernel = operatorKernelEvidence(readableReport)
   const act = selectActState({ stage, report, failure })
 
   // §1.4 — bandeau compact : un seul chiffre décisionnel. En mesure c'est le
@@ -120,11 +126,14 @@ export default function DecisionSpine({
   const remain = act.kind === 'measuring' && remainingSec != null && remainingSec > 0
     ? Math.ceil(remainingSec)
     : null
-  const delta = health.kind === 'absent' ? null : signed(Math.round(health.bloatMs))
-  const keyValue = remain != null ? `${remain}` : delta
+  const delta = kernel.primary || userspaceHealth.kind === 'absent'
+    ? null : signed(Math.round(userspaceHealth.bloatMs))
+  const keyValue = remain != null ? `${remain}`
+    : kernel.primary ? (kernel.srttMs != null ? numFr(kernel.srttMs, 1) : null)
+      : delta
   const keyUnit = remain != null ? 's' : 'ms'
-  const keyLabel = remain != null ? 'reste' : 'Δ charge'
-  const statusWord = act.kind === 'measuring' ? 'Mesure en cours' : HEALTH_WORD[health.kind]
+  const keyLabel = remain != null ? 'reste' : kernel.primary ? 'SRTT' : 'Δ charge'
+  const statusWord = act.kind === 'measuring' ? 'Mesure en cours' : HEALTH_WORD[healthKind]
 
   const actSentence = act.kind === 'idle'
     ? 'Prêt à mesurer ce lien pendant 60 secondes.'
@@ -149,7 +158,7 @@ export default function DecisionSpine({
                 ? <span className="band-number-value">{keyValue} <small>{keyUnit}</small></span>
                 : <span className="band-number-absent">— non mesuré</span>}
             </span>
-            <span className="band-status" data-level={health.kind}>{statusWord}</span>
+            <span className="band-status" data-level={healthKind}>{statusWord}</span>
           </div>
         </div>
         <div className="band-controls">
@@ -170,12 +179,17 @@ export default function DecisionSpine({
 
       <div className="health-slot">
         <span className="health-label">Santé</span>
-        <span className="health-word" data-level={health.kind}>{HEALTH_WORD[health.kind]}</span>
+        <span className="health-word" data-level={healthKind}>{HEALTH_WORD[healthKind]}</span>
         {healthText ? <span className="health-detail">{healthText}</span> : null}
-        <div className="kernel-evidence" aria-label="Mesure noyau" data-primary={kernel.primary ? 'true' : 'false'}>
-          <span className="kernel-evidence-line mono" data-testid="kernel-loss">{kernel.loss.text}</span>
-          <span className="kernel-evidence-line mono" data-testid="kernel-latency">{kernel.latency.text}</span>
-          <span className="kernel-evidence-line mono" data-testid="kernel-tc">{kernel.tcCrossCheck.text}</span>
+        <div
+          className="kernel-evidence"
+          aria-label="Mesure noyau"
+          data-primary={kernel.primary ? 'true' : 'false'}
+          data-complete={kernel.complete ? 'true' : 'false'}
+        >
+          <span className="kernel-evidence-line mono" data-testid="kernel-loss" data-absent={kernel.loss.absent ? 'true' : 'false'}>{kernel.loss.text}</span>
+          <span className="kernel-evidence-line mono" data-testid="kernel-latency" data-absent={kernel.latency.absent ? 'true' : 'false'}>{kernel.latency.text}</span>
+          <span className="kernel-evidence-line mono" data-testid="kernel-tc" data-absent={kernel.tcCrossCheck.absent ? 'true' : 'false'}>{kernel.tcCrossCheck.text}</span>
         </div>
       </div>
 

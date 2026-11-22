@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertsBand, bothAbsent, delayBand, instabilityBand, operatorFacts, operatorKernelEvidence, operatorSummary, qualityWord, retailBound } from './dashboard'
+import { alertsBand, bothAbsent, delayBand, instabilityBand, kernelHealth, operatorFacts, operatorKernelEvidence, operatorSummary, qualityWord, retailBound } from './dashboard'
 import type { AuditReport, KernelFlow, KernelTelemetry } from './types'
 
 describe('bandes opérateur', () => {
@@ -247,5 +247,68 @@ describe('operatorKernelEvidence — eBPF primaire, tc en cross-check', () => {
     expect(e.loss.text).not.toMatch(/\b0\b/)
     expect(e.latency.text).not.toContain('ms')
     expect(JSON.stringify(e)).not.toContain('cause confirmée')
+  })
+})
+
+// Round 1 — l'eBPF doit PILOTER les faits et la santé existants, pas seulement
+// s'ajouter à côté. Oracle hostile : RTT userspace 900 + eBPF valide.
+describe('operatorFacts/health — eBPF pilote le fait primary', () => {
+  const flow = (retrans_events: number, srtt_us: number, qdisc_drop_packets = 0): KernelFlow => ({
+    local: '10.0.0.1:40000', peer: '10.0.0.2:5201',
+    retrans_payload_bytes: 2048, retrans_events, qdisc_drop_packets, srtt_us,
+  })
+  const hostile = (flows: KernelFlow[]): AuditReport => ({
+    audit_id: 'ebpf-hostile',
+    measured: { small_measured: true, http_small_p95_ms: 900, rtt_idle_p50_ms: 20, rtt_loaded_p95_ms: 900 },
+    cap_sla: { measured: true, ok_pct: 96, target_pct: 90, deadline_ms: 300 },
+    kernel_telemetry: { available: true, source: 'ebpf', object_sha256: 'sha-abc', flows },
+  } as unknown as AuditReport)
+
+  it('le fait « Réponse sous charge » affiche la médiane eBPF, jamais le 900 userspace', () => {
+    const facts = operatorFacts(hostile([flow(1, 12000), flow(225, 15000)]), 40, 100)
+    const delay = facts.find(f => f.key === 'delay')!
+    expect(delay.label).toBe('Réponse sous charge')
+    expect(delay.value).toBe('13,5')
+    expect(delay.unit).toBe('ms')
+    expect(delay.value).not.toContain('900')
+    expect(delay.band?.word).toBe('faible')
+  })
+
+  it('eBPF primary sans SRTT valide ne replie pas sur le RTT userspace', () => {
+    const facts = operatorFacts(hostile([flow(1, 0)]), 40, 100)
+    const delay = facts.find(f => f.key === 'delay')!
+    expect(delay.value).toBe('Pas encore mesuré')
+    expect(delay.value).not.toContain('900')
+    expect(delay.band).toBeNull()
+  })
+
+  it('la santé suit l’évidence eBPF : retransmissions observées ⇒ jamais « ok » userspace', () => {
+    const evidence = operatorKernelEvidence(hostile([flow(1, 12000), flow(225, 15000)]))
+    const h = kernelHealth(evidence, 40, 100)
+    expect(h.kind).toBe('attention')
+    expect(h.kind).not.toBe('ok')
+    expect(h.detail).toContain('226 retransmissions observées')
+  })
+
+  it('une latence eBPF critique devient critical, sans emprunter le vert userspace', () => {
+    const evidence = operatorKernelEvidence(hostile([flow(0, 900000)]))
+    const h = kernelHealth(evidence, 40, 100)
+    expect(h.kind).toBe('critical')
+  })
+
+  it('sans eBPF primary, kernelHealth rend une absence honnête', () => {
+    const evidence = operatorKernelEvidence({
+      audit_id: 'no-kernel', measured: { rtt_idle_p50_ms: 20, rtt_loaded_p95_ms: 900 },
+    } as unknown as AuditReport)
+    expect(kernelHealth(evidence, 40, 100)).toEqual({ kind: 'absent', detail: null })
+  })
+
+  it('une sous-donnée manquante est signalée ligne par ligne, pas seulement au bloc', () => {
+    const e = operatorKernelEvidence(hostile([{ ...flow(1, 12000), qdisc_drop_packets: Number.NaN }]))
+    // srtt et retrans présents ; le compteur tc est illisible et l'agrégat absent.
+    expect(e.primary).toBe(true)
+    expect(e.complete).toBe(false)
+    expect(e.latency.absent).toBe(false)
+    expect(e.tcCrossCheck.absent).toBe(true)
   })
 })

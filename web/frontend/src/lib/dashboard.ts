@@ -86,9 +86,18 @@ export function operatorFacts(
   critMs: number,
 ): Fact[] {
   const s = operatorSummary(report, warnMs, critMs)
+  const kernel = operatorKernelEvidence(report)
   const cost = report?.economics?.primary
   const alertsPct = finite(s.alertsPct) ? s.alertsPct : undefined
-  const delayMs = finite(s.delayMs) ? s.delayMs : undefined
+  // §2 — quand eBPF est primaire, le fait « Réponse sous charge » EST la
+  // médiane SRTT du noyau. Le RTT userspace ne devient jamais le chiffre
+  // primary ; une sous-donnée eBPF manquante reste une absence, pas un repli.
+  const delayMs = kernel.primary
+    ? kernel.srttMs ?? undefined
+    : finite(s.delayMs) ? s.delayMs : undefined
+  const delayEvidenceBand = kernel.primary
+    ? kernel.srttMs != null ? delayBand(kernel.srttMs, warnMs, critMs) : null
+    : s.delay
   const rawAr = cost?.ar_per_hour
   const arPerHour = finite(rawAr) ? rawAr : undefined
   const costFigure = arPerHour != null ? formatCostAR(arPerHour) : null
@@ -105,8 +114,8 @@ export function operatorFacts(
     },
     {
       key: 'delay', label: 'Réponse sous charge',
-      value: delayMs != null ? numFr(delayMs, 0) : 'Pas encore mesuré',
-      unit: delayMs != null ? 'ms' : '', target: deadlineMs, band: s.delay,
+      value: delayMs != null ? numFr(delayMs, kernel.primary ? 1 : 0) : 'Pas encore mesuré',
+      unit: delayMs != null ? 'ms' : '', target: deadlineMs, band: delayEvidenceBand,
     },
     {
       key: 'quality', label: 'Qualité du lien',
@@ -128,10 +137,11 @@ export function operatorFacts(
 // additionnée au compteur eBPF. Sans flux valide, rien n'est fabriqué : le mot
 // d'absence et la vraie raison remplacent le chiffre. tcp_retransmit_skb est une
 // étiquette de regroupement, pas une cause vérifiée (HUATUO) : « observées ».
-export interface KernelLine { text: string }
+export interface KernelLine { text: string; absent: boolean }
 
 export interface KernelEvidence {
   primary: boolean
+  complete: boolean
   reason?: string
   retransEvents: number | null
   srttMs: number | null
@@ -144,7 +154,7 @@ export interface KernelEvidence {
 const KERNEL_ABSENT_WORD = 'non mesuré'
 
 function absentKernelLine(reason?: string): KernelLine {
-  return { text: `— ${KERNEL_ABSENT_WORD}${reason ? ` — ${reason}` : ''}` }
+  return { text: `— ${KERNEL_ABSENT_WORD}${reason ? ` — ${reason}` : ''}`, absent: true }
 }
 
 function medianOf(values: number[]): number | null {
@@ -154,9 +164,9 @@ function medianOf(values: number[]): number | null {
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
-// Un seul calcul, deux présentations : le tableau de bord et la lecture d'audit
-// lisent la même évidence. Aucun repli sur le RTT userspace ici — ce serait un
-// vert fabriqué à partir d'une mesure qui n'est pas la mesure noyau demandée.
+// Une seule évidence noyau, consommée par operatorFacts — lu à la fois par le
+// cockpit et par le tiroir de preuves. Aucun repli sur le RTT userspace ici :
+// ce serait un vert fabriqué à partir d'une mesure qui n'est pas la mesure noyau.
 export function operatorKernelEvidence(report: AuditReport | null | undefined): KernelEvidence {
   const k = report?.kernel_telemetry
   const reason = k?.reason?.trim() || undefined
@@ -166,7 +176,7 @@ export function operatorKernelEvidence(report: AuditReport | null | undefined): 
   if (!primary) {
     const absent = absentKernelLine(reason)
     return {
-      primary: false, reason,
+      primary: false, complete: false, reason,
       retransEvents: null, srttMs: null, tcDrops: null,
       loss: absent, latency: absent, tcCrossCheck: absent,
     }
@@ -185,19 +195,38 @@ export function operatorKernelEvidence(report: AuditReport | null | undefined): 
 
   return {
     primary: true,
+    complete: retransEvents != null && srttUs != null && tcDrops != null,
     retransEvents,
     srttMs: srttUs == null ? null : srttUs / 1000,
     tcDrops,
     loss: retransEvents == null
       ? absentKernelLine('retrans_events non rapportés')
-      : { text: `${fmtCount(retransEvents)} retransmissions observées` },
+      : { text: `${fmtCount(retransEvents)} retransmissions observées`, absent: false },
     latency: srttUs == null
       ? absentKernelLine('SRTT non rapporté')
-      : { text: `${numFr(srttUs / 1000, 1)} ms — SRTT médian eBPF` },
+      : { text: `${numFr(srttUs / 1000, 1)} ms — SRTT médian eBPF`, absent: false },
     tcCrossCheck: tcDrops == null
       ? absentKernelLine('contrôle tc/qdisc non rapporté')
-      : { text: `tc/qdisc — ${fmtCount(tcDrops)} paquets écartés (contrôle croisé)` },
+      : { text: `tc/qdisc — ${fmtCount(tcDrops)} paquets écartés (contrôle croisé)`, absent: false },
   }
+}
+
+export type KernelHealthKind = 'ok' | 'attention' | 'critical' | 'absent'
+
+export interface KernelHealth {
+  kind: KernelHealthKind
+  detail: string | null
+}
+
+// La santé n'est verte que si le noyau la porte. Des retransmissions observées
+// ne sont pas une cause vérifiée (HUATUO), mais elles interdisent « Lien prêt ».
+export function kernelHealth(evidence: KernelEvidence, warnMs: number, critMs: number): KernelHealth {
+  if (!evidence.primary || evidence.srttMs == null) return { kind: 'absent', detail: null }
+  const band = delayBand(evidence.srttMs, warnMs, critMs)
+  let kind: KernelHealthKind =
+    band?.level === 'crit' ? 'critical' : band?.level === 'warn' ? 'attention' : 'ok'
+  if (kind === 'ok' && evidence.retransEvents != null && evidence.retransEvents > 0) kind = 'attention'
+  return { kind, detail: `${evidence.latency.text} · ${evidence.loss.text}` }
 }
 
 // La lettre du moteur devient un mot, au même palier que la note affichée.
