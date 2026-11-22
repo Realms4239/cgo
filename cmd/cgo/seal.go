@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/Realms4239/cgo/audit"
 )
@@ -37,16 +38,66 @@ func requireJSONFields(raw json.RawMessage, keys ...string) error {
 	return nil
 }
 
-// parseTCDrops lit `dropped N` dans un capture texte `tc -s qdisc show`.
-// Exactement une correspondance non ambiguë, sinon échec fermé.
-func parseTCDrops(path string) (uint64, error) {
+// tcQdiscHeaderRx — en-tête `qdisc <kind> ... dev <iface> ...` d'un bloc de
+// `tc -s qdisc show`. Les types et ifaces sont capturés tels quels, sans
+// recherche partielle : on exige une correspondance exacte avec les labels.
+var tcQdiscHeaderRx = regexp.MustCompile(`^qdisc[[:space:]]+([^[:space:]]+)[[:space:]].*\bdev[[:space:]]+([^[:space:]]+)`)
+
+// parseTCDrops lit `dropped N` dans un capture texte `tc -s qdisc show` et
+// vérifie que le capture confirme LUI-MÊME les labels demandés : une ligne
+// `qdisc <kind> ... dev <iface>` doit exister et le compteur doit appartenir à
+// ce bloc. --iface/--qdisc ne sont jamais recollés sur un capture étranger.
+// Échec fermé sur absence, divergence ou ambiguïté.
+func parseTCDrops(path, iface, qdisc string) (uint64, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return 0, fmt.Errorf("capture tc illisible (%s): %w", path, err)
 	}
-	m := tcDroppedRx.FindAllStringSubmatch(string(raw), -1)
+	text := string(raw)
+
+	// Garde conservée : exactement un `dropped` dans tout le capture.
+	all := tcDroppedRx.FindAllStringSubmatch(text, -1)
+	if len(all) != 1 {
+		return 0, fmt.Errorf("capture tc (%s): dropped introuvable ou ambigu (%d correspondances)", path, len(all))
+	}
+
+	// Découpage en blocs : chaque ligne `qdisc ` ouvre un bloc ; les lignes
+	// suivantes lui appartiennent jusqu'au prochain en-tête qdisc.
+	type qdiscBlock struct {
+		kind, dev string
+		body      []string
+	}
+	var blocks []qdiscBlock
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "qdisc ") {
+			kind, dev := "", ""
+			if m := tcQdiscHeaderRx.FindStringSubmatch(line); m != nil {
+				kind, dev = m[1], m[2]
+			}
+			blocks = append(blocks, qdiscBlock{kind: kind, dev: dev})
+			continue
+		}
+		if len(blocks) > 0 {
+			blocks[len(blocks)-1].body = append(blocks[len(blocks)-1].body, line)
+		}
+	}
+
+	// Les labels demandés doivent être confirmés par le capture, pas supposés.
+	var target *qdiscBlock
+	for i := range blocks {
+		if blocks[i].dev == iface && blocks[i].kind == qdisc {
+			target = &blocks[i]
+			break
+		}
+	}
+	if target == nil {
+		return 0, fmt.Errorf("capture tc (%s): labels iface=%q qdisc=%q absents ou divergents — aucune ligne `qdisc %s ... dev %s` confirmée", path, iface, qdisc, qdisc, iface)
+	}
+
+	// Le compteur doit venir du bloc cible, pas d'un autre qdisc du capture.
+	m := tcDroppedRx.FindAllStringSubmatch(strings.Join(target.body, "\n"), -1)
 	if len(m) != 1 {
-		return 0, fmt.Errorf("capture tc (%s): dropped introuvable ou ambigu (%d correspondances)", path, len(m))
+		return 0, fmt.Errorf("capture tc (%s): dropped sur le qdisc %q dev %q introuvable ou ambigu (%d correspondances)", path, qdisc, iface, len(m))
 	}
 	n, err := strconv.ParseUint(m[0][1], 10, 64)
 	if err != nil {
@@ -124,11 +175,11 @@ func buildSeal(auditPath, tcBeforePath, tcAfterPath, iface, qdisc, outPath strin
 		retransEvents += f.RetransEvents
 	}
 
-	before, err := parseTCDrops(tcBeforePath)
+	before, err := parseTCDrops(tcBeforePath, iface, qdisc)
 	if err != nil {
 		return err
 	}
-	after, err := parseTCDrops(tcAfterPath)
+	after, err := parseTCDrops(tcAfterPath, iface, qdisc)
 	if err != nil {
 		return err
 	}

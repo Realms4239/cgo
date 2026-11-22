@@ -115,7 +115,7 @@ func TestBuildSealFailsClosed(t *testing.T) {
 	ok := sealAuditJSON("ebpf", true, "4096", "0", sealFlowsTwo)
 	cases := []struct {
 		name, auditStr, beforeStr, afterStr, wantReason string
-		noAudit                                          bool
+		noAudit                                         bool
 	}{
 		{"audit absent", "", sealTcCapture(1), sealTcCapture(227), "audit", true},
 		{"source tcpinfo", sealAuditJSON("tcpinfo", true, "4096", "0", sealFlowsTwo), sealTcCapture(1), sealTcCapture(227), "ebpf", false},
@@ -197,5 +197,82 @@ func TestKernelTruthSealCmdMissingAuditExits2(t *testing.T) {
 	}
 	if _, statErr := os.Stat(out); !os.IsNotExist(statErr) {
 		t.Fatalf("fichier écrit malgré l'absence d'audit: stat=%v", statErr)
+	}
+}
+
+// Oracle hostile — --iface/--qdisc sont des étiquettes demandées, pas des
+// faits. Le capture doit les confirmer lui-même : un capture d'un autre iface
+// ou d'un autre qdisc, même avec un seul `dropped`, ne doit jamais être
+// recollé sous les labels demandés (fail fermé, aucun fichier publié).
+func TestBuildSealVerifiesTCLabels(t *testing.T) {
+	ok := sealAuditJSON("ebpf", true, "4096", "0", sealFlowsTwo)
+	const (
+		iface = "e-wan"
+		qdisc = "cake"
+	)
+	cases := []struct {
+		name, beforeStr, afterStr, wantReason string
+		wantOK                                bool
+	}{
+		{
+			name:      "labels exacts (positif)",
+			beforeStr: sealTcCapture(1),
+			afterStr:  sealTcCapture(227),
+			wantOK:    true,
+		},
+		{
+			name:       "iface erroné",
+			beforeStr:  "qdisc cake 1: dev e-wan2 root refcnt 2\n Sent 1 pkt (dropped 1, overlimits 0)\n",
+			afterStr:   "qdisc cake 1: dev e-wan2 root refcnt 2\n Sent 1 pkt (dropped 227, overlimits 0)\n",
+			wantReason: "iface",
+		},
+		{
+			name:       "qdisc erroné",
+			beforeStr:  "qdisc fq_codel 1: dev e-wan root refcnt 2\n Sent 1 pkt (dropped 1, overlimits 0)\n",
+			afterStr:   "qdisc fq_codel 1: dev e-wan root refcnt 2\n Sent 1 pkt (dropped 227, overlimits 0)\n",
+			wantReason: "qdisc",
+		},
+		{
+			name:       "ligne dev absente",
+			beforeStr:  "qdisc cake 1: root refcnt 2\n Sent 1 pkt (dropped 1, overlimits 0)\n",
+			afterStr:   "qdisc cake 1: root refcnt 2\n Sent 1 pkt (dropped 227, overlimits 0)\n",
+			wantReason: "dev",
+		},
+		{
+			name: "dropped sur un autre bloc que la cible",
+			beforeStr: "qdisc fq_codel 1: dev e-wan root refcnt 2\n Sent 1 pkt (dropped 1, overlimits 0)\n" +
+				"qdisc cake 2: dev e-wan root refcnt 2\n Sent 1 pkt (overlimits 0)\n",
+			afterStr:   sealTcCapture(227),
+			wantReason: "dropped",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			aPath := sealPutFile(t, dir, "audit.json", ok)
+			bPath := sealPutFile(t, dir, "before.txt", tc.beforeStr)
+			a2Path := sealPutFile(t, dir, "after.txt", tc.afterStr)
+			out := filepath.Join(dir, "seal.json")
+
+			err := buildSeal(aPath, bPath, a2Path, iface, qdisc, out)
+			if tc.wantOK {
+				if err != nil {
+					t.Fatalf("labels exacts refusés à tort: %v", err)
+				}
+				doc := sealReadDoc(t, out)
+				sealNum(t, doc, "tc_drops_before", 1)
+				sealNum(t, doc, "tc_drops_after", 227)
+				return
+			}
+			if err == nil {
+				t.Fatal("capture aux labels divergents acceptée — vérification supprimée ?")
+			}
+			if !strings.Contains(err.Error(), tc.wantReason) {
+				t.Fatalf("raison %q absente de l'erreur: %v", tc.wantReason, err)
+			}
+			if _, statErr := os.Stat(out); !os.IsNotExist(statErr) {
+				t.Fatalf("fichier écrit malgré le refus: stat=%v", statErr)
+			}
+		})
 	}
 }
