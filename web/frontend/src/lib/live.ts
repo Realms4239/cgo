@@ -32,6 +32,7 @@ export const live = {
     max: 600,
   },
   max: 1800, // 180 s, un événement à 10 Hz
+  epoch: '', // génération du hub ; un changement impose une resync structurelle
   ts: 0,
   phase: '', // baseline|charge|recup — from SSE delta, drives CHARGE markArea (not estimated)
   phaseSince: {} as Record<string, number>, // first ts seen per phase — drives Timeline 48 phase bands
@@ -122,6 +123,14 @@ export function clearLive() {
   // live.iface reste : l'observation d'interface continue hors campagne
   live.phase = ''
   live.phaseSince = {}
+}
+
+/** Nouvelle génération de hub : vider l'état avant d'appliquer le snapshot complet. */
+export function resetEpoch(epoch: string) {
+  clearLive()
+  live.epoch = epoch
+  live.ts = 0
+  live.seq++
 }
 
 // instrumentation seam 3 — surgical logs + embed analysis + playwright clip

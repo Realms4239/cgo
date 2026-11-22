@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -40,10 +41,20 @@ func isMilestonePayload(payload string) bool {
 	return false
 }
 
+// epochSeq — générateur monotone : chaque Hub est une génération distincte,
+// même si deux hubs sont créés dans la même nanoseconde (tests, redémarrage).
+var epochSeq atomic.Uint64
+
+// newEpoch — identifiant de génération stable, produit UNE fois par Hub.
+func newEpoch() string {
+	return strconv.FormatUint(epochSeq.Add(1), 36) + "-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+}
+
 // Hub diffuse des instantanés à 20 Hz avec champs structurels compressés en
 // delta, rejeu Last-Event-ID (anneau 4096) et événements backpressure nommés.
 type Hub struct {
 	mu        sync.Mutex
+	epoch     string // génération : change à chaque redémarrage du hub
 	lastID    uint64
 	ring      [ringCap]frame // anneau O(1) : head/count modulo ringCap
 	head      int            // prochaine position d'écriture
@@ -68,7 +79,7 @@ type sub struct {
 }
 
 func NewHub() *Hub {
-	h := &Hub{subs: map[*sub]struct{}{}, last: map[string]any{}, done: make(chan struct{})}
+	h := &Hub{epoch: newEpoch(), subs: map[*sub]struct{}{}, last: map[string]any{}, done: make(chan struct{})}
 	return h
 }
 
@@ -126,16 +137,18 @@ func (h *Hub) Publish(snap any) {
 		out[k] = v
 	}
 	out["ts"] = ts
+	out["epoch"] = h.epoch // chaque frame porte sa génération : le client détecte un redémarrage
 	raw, err := json.Marshal(out)
 	if err != nil {
 		return
 	}
 	// copie complète (structurel inclus) — les nouveaux clients synchronisent leur état depuis elle
-	full := make(map[string]any, len(src)+1)
+	full := make(map[string]any, len(src)+2)
 	for k, v := range src {
 		full[k] = v
 	}
 	full["ts"] = ts
+	full["epoch"] = h.epoch
 	if fullRaw, err := json.Marshal(full); err == nil {
 		h.lastFull = string(fullRaw)
 	}
@@ -197,7 +210,12 @@ func (h *Hub) deliver(payload string) {
 // PublishEvent écrit un jalon garanti dans l'anneau et le diffuse. Le nom du
 // jalon est conservé dans la frame pour le rejeu Last-Event-ID.
 func (h *Hub) PublishEvent(kind string, detail map[string]any) {
-	raw, err := json.Marshal(detail)
+	d := make(map[string]any, len(detail)+1)
+	for k, v := range detail {
+		d[k] = v
+	}
+	d["epoch"] = h.epoch
+	raw, err := json.Marshal(d)
 	if err != nil {
 		raw = []byte("{}")
 	}
@@ -258,6 +276,12 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 	// (le test-puis-insertion en deux temps laissait passer > 64 abonnés en
 	// rafale). L'anneau est copié ici, le rejeu s'écrit hors verrou.
 	var replay []string
+	// Le navigateur renvoie sa génération via ?epoch= (EventSource natif ne
+	// peut pas poser d'en-tête arbitraire ; la ligne id: porte l'ID de rejeu
+	// numérique, éprouvé par sse_ring_test.go). Absente ou différente ⇒ le
+	// client vient d'une autre génération : resynchronisation obligatoire.
+	clientEpoch := r.URL.Query().Get("epoch")
+	epochMismatch := clientEpoch != h.epoch
 	lastEventID := r.Header.Get("Last-Event-ID")
 	stale := false
 	if lastEventID != "" {
@@ -295,17 +319,19 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 		h.mu.Unlock()
 	}()
 
+	// nouveau client (sans Last-Event-ID), client périmé (ID antérieur à
+	// l'anneau), ID hors de l'espace courant (reprise après redémarrage : les
+	// IDs repartent à 1 et le rejeu est vide) ou génération différente : les
+	// frames delta omettent les champs structurels jamais reçus — synchroniser
+	// avec le frame complet, AVANT tout rejeu, pour qu'aucun delta ne soit
+	// appliqué sur une base structurelle périmée.
+	if (epochMismatch || lastEventID == "" || stale || len(replay) == 0) && lastFull != "" {
+		fmt.Fprintf(w, "data: %s\n\n", lastFull)
+	}
 	for _, p := range replay {
 		if _, err := fmt.Fprint(w, p); err != nil {
 			return
 		}
-	}
-	// nouveau client (sans Last-Event-ID), client périmé (ID antérieur à
-	// l'anneau) ou ID hors de l'espace courant (reprise après redémarrage :
-	// les IDs repartent à 1 et le rejeu est vide) : les frames delta omettent
-	// les champs structurels jamais reçus — synchroniser avec un frame complet.
-	if (lastEventID == "" || stale || len(replay) == 0) && lastFull != "" {
-		fmt.Fprintf(w, "data: %s\n\n", lastFull)
 	}
 	fl.Flush()
 

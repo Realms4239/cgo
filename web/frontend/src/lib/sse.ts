@@ -1,5 +1,5 @@
 import type { LiveFrame } from './types'
-import { pushIface, live as liveRing } from './live'
+import { pushIface, live as liveRing, resetEpoch } from './live'
 import { instrument, type InstrumentRings } from './ringBuffer'
 import { useUIStore } from '../store/ui'
 
@@ -23,21 +23,48 @@ const PHASE_FR: Record<string, string> = {
   surveil: 'Surveillance', burst: 'Rafale',
 }
 
+/** EventSource natif ne peut pas poser d'en-tête : la génération voyage en query. */
+function streamURL(): string {
+  return liveRing.epoch ? `/api/stream?epoch=${encodeURIComponent(liveRing.epoch)}` : '/api/stream'
+}
+
+/** Rouvrir le flux pour que les reconnexions suivantes portent la nouvelle génération. */
+function reopenStream() {
+  const old = es
+  es = null
+  old?.close()
+  connectSSE()
+}
+
 export function connectSSE() {
   if (es) return
   // le serveur limite le replay aux 5 dernières frames sans Last-Event-ID ;
   // le navigateur renvoie Last-Event-ID à la reconnexion (retry:2000)
-  es = new EventSource('/api/stream')
+  es = new EventSource(streamURL())
   const store = useUIStore
 
   es.onmessage = (ev) => {
     try {
       if (store.getState().replayRunning) return // pause live during replay
       const data = JSON.parse(ev.data) as Partial<LiveFrame>
+      let structural = false
+      const frameEpoch = data.epoch
+      if (typeof frameEpoch === 'string' && frameEpoch !== liveRing.epoch) {
+        // Redémarrage du hub : le snapshot complet a été émis AVANT les deltas.
+        // Vider l'état, appliquer le snapshot, rouvrir avec la nouvelle génération.
+        resetEpoch(frameEpoch)
+        last = {}
+        lastLoggedPhase = ''
+        lastStoreSync = 0
+        for (const r of [instrument.small, instrument.rtt50, instrument.rtt95,
+                         instrument.goodput, instrument.ifaceRx, instrument.ifaceTx,
+                         instrument.events]) r.clear()
+        structural = true
+        reopenStream()
+      }
       // l'interface se mesure hors campagne : pousser AVANT la porte "measured"
       if (data.ts) pushIface(data)
       // delta: retain last structural + sparse values (SPEC §2.4)
-      let structural = false
       for (const k of ['profile','qdisc','cc','phase','load_status','running',
                        'event_id','repetition','drops','gates'] as const) {
         if (data[k] === undefined && last[k] !== undefined) (data as any)[k] = last[k]

@@ -1,4 +1,5 @@
 export interface LiveFrame {
+  epoch?: string // génération du hub — change au redémarrage (resync structurelle)
   ts: number
   phase: string
   profile: string
