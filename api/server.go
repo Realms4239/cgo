@@ -138,6 +138,10 @@ var schemaParams = []Param{
 	{Key: "link_loss_pct", Label: "Perte", Min: 0, Max: 10, Default: 0, Unit: "%", Step: 0.1, Desc: "perte proposée par défaut"},
 	{Key: "shape_qdisc", Label: "File d'attente", Default: "cake", Enum: []string{"cake", "fq_codel", "pfifo_fast", "none"}, Desc: "discipline appliquée au bord"},
 	{Key: "burst_cc", Label: "Contrôle de congestion du burst", Default: "bbr", Enum: []string{"cubic", "bbr"}, Desc: "CC du burst de test à travers le bord façonné"},
+	{Key: "link_channel", Label: "Canal", Default: "statique", Enum: []string{"statique", "empirique"}, Desc: "canal de lien statique ou distribution empirique .dist vérifiée"},
+	{Key: "link_direction", Label: "Direction", Default: "up", Enum: []string{"up", "down"}, Desc: "sens de charge, miroir de model.Event.Direction"},
+	{Key: "dist_name", Label: "Distribution", Default: "—", Enum: []string{}, Desc: "nom d'une distribution empirique vérifiée (source : GET /api/calibrations)"},
+	{Key: "bbr3_state", Label: "État BBRv3", Default: "BBRv3 non détecté — CUBIC + BBRv1 sur noyau 6.8, détection bbr3 prête", Desc: "état honnête de la détection BBRv3"},
 	{Key: "burst_seconds", Label: "Durée du burst", Min: 2, Max: 10, Default: 4, Unit: "s", Desc: "durée d'un burst de test"},
 	{Key: "price_tier", Label: "Palier tarifaire", Default: "yas-month-4.5gb", Enum: []string{"yas-day-1gb", "yas-month-4.5gb", "airtel-month-4.5gb", "orange-month-5gb", "yas-month-100gb", "yas-ftth-100gb"}, Desc: "forfait de référence du coût du gaspillage (tarifs réels 2026 — docs/data-prices.md)"},
 }
@@ -154,6 +158,37 @@ func paramBounds(key string) (min, max float64, ok bool) {
 
 // SchemaParams expose le registre des paramètres (défauts côté hôte).
 func SchemaParams() []Param { return schemaParams }
+
+// schemaParamsNow — le registre tel que servi : burst_cc n'annonce bbr3 que
+// si le noyau l'expose réellement ; sinon bbr3_state porte la phrase du corpus.
+// Une copie évite de muter le registre partagé entre deux requêtes.
+func schemaParamsNow() []Param {
+	params := make([]Param, len(schemaParams))
+	copy(params, schemaParams)
+	caps := capabilities.CapabilitiesNow()
+	if caps.BBRv3 {
+		for i := range params {
+			switch params[i].Key {
+			case "burst_cc":
+				params[i].Enum = append(append([]string(nil), params[i].Enum...), "bbr3")
+			case "bbr3_state":
+				params[i].Default = "BBRv3 détecté — token noyau actif"
+			}
+		}
+	}
+	return params
+}
+
+// paramByKey — le paramètre courant (capacités incluses), pour la validation
+// et les contrats de schéma.
+func paramByKey(key string) (Param, bool) {
+	for _, p := range schemaParamsNow() {
+		if p.Key == key {
+			return p, true
+		}
+	}
+	return Param{}, false
+}
 
 // ShapeReq — levier complet: file d'attente + conditions du lien.
 type ShapeReq struct {
@@ -535,7 +570,14 @@ func (s *Server) registerHealth(mux *http.ServeMux) {
 	})
 	// le contrat de paramètres — le client rend les champs depuis ce registre
 	mux.HandleFunc("GET /api/schema", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, map[string]any{"params": schemaParams})
+		writeJSON(w, map[string]any{"params": schemaParamsNow()})
+	})
+
+	// GET /api/calibrations — lecture seule : seuls les sidecars dont le hash
+	// scelle le .dist présent sont listés. Vide = réponse honnête, pas d'erreur.
+	mux.HandleFunc("GET /api/calibrations", func(w http.ResponseWriter, _ *http.Request) {
+		calDir := envDefault("CGO_CALIBRATION_DIR", filepath.Join(results.DataRoot(), "calibrations"))
+		writeJSON(w, map[string]any{"calibrations": ListCalibrations(calDir)})
 	})
 	// paliers tarifaires réels — le client rend le choix de forfait honnêtement
 }
@@ -620,7 +662,7 @@ func (s *Server) registerCost(mux *http.ServeMux) {
 			return
 		}
 		validCC := false
-		for _, p := range schemaParams {
+		for _, p := range schemaParamsNow() {
 			if p.Key == "burst_cc" {
 				for _, e := range p.Enum {
 					if e == body.CC {
@@ -630,7 +672,7 @@ func (s *Server) registerCost(mux *http.ServeMux) {
 			}
 		}
 		if !validCC {
-			writeErr(w, r, "cc must be cubic | bbr", http.StatusBadRequest)
+			writeErr(w, r, "cc must be cubic | bbr (bbr3 when detected)", http.StatusBadRequest)
 			return
 		}
 		if body.Seconds == 0 {
