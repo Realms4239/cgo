@@ -56,7 +56,7 @@ var Profiles = map[string]Profile{
 	"L1": {ID: "L1", CapacityMbps: 200, CapacityUpMbps: 30, DelayMs: 26, JitterMs: 15, LossPct: 0.1,
 		Source: "LEO emulation target (not field measurement): starlink.com 2025 report (median ~26 ms, <1% >55 ms, down >200 / up >30 Mbps); IIUM 2025 independent 20-100 ms; ITU LEO trials <60 ms at >=50 Mbit/s"},
 	"V1": {ID: "V1", CapacityMbps: 10, CapacityUpMbps: 2, DelayMs: 600, JitterMs: 30, LossPct: 1,
-		Source: "VSAT/GEO emulation target (not field measurement): IIUM 2025 measured 600-3000 ms; IJSRA 2025 550-720 ms; ITU Kenya VSAT <=750 ms at >=5 Mbit/s"},
+		Source: "VSAT/GEO — IIUM 2025 (GEO 600-3000 ms) + IJSRA 2025 (C-band 580-720, Ku 550-700 ms) + ITU Kenya <=750 ms; emulation target, not field measurement"},
 }
 
 // ProfilesMu garde la carte des profils : un import (POST
