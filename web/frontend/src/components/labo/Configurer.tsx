@@ -20,6 +20,7 @@ export default function Configurer({ site, link, duration }: ConfigurerProps) {
 
   return (
     <div className="configurer">
+      <p className="configurer-context">Ces valeurs viennent du rapport réel ; une déclaration absente garde son mot.</p>
       <MetricRow label="Déclaration">
         <StateSlot label="Site" value={site || null} word="site non déclaré" />
         <StateSlot label="Lien" value={link || null} word="lien non déclaré" />

@@ -357,6 +357,9 @@
    change pas globalement (d'autres titres en dépendent). */
 .chapter-title { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: var(--tracking-caps); text-transform: uppercase; text-wrap: balance; line-height: 1.2; }
 .chapter-lede { margin: var(--sp-1) 0 0; font-size: var(--fs-fine); color: var(--text-muted); text-wrap: pretty; }
+/* La phrase d'issue dit ce que le chapitre montre, jamais un résultat. */
+.chapter-outcome { margin: var(--sp-1) 0 0; font-size: var(--fs-fine); color: var(--text-muted); text-wrap: pretty; }
+.configurer-context { margin: 0 0 var(--sp-2); font-size: var(--fs-fine); color: var(--text-muted); text-wrap: pretty; }
 .chapter-body { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
 /* Repères — une marque par fait réel. Mot + forme portent l'état, jamais la
    couleur seule ; un anneau vide dit « aucun repère » en gris, sans chiffre. */
