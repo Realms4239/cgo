@@ -45,7 +45,7 @@ Add one `outcome` prop to each `Chapter` call:
 - Configurer: `« Vous verrez la déclaration réelle du lien et les profils disponibles. »`
 - Observer: `« Vous verrez la matrice de progression, les portes et la chronologie d'une campagne. »`
 - Comparer: `« Vous verrez les mesures classées, le duel et l'espace de décision. »`
-- Preuves: `« Vous verrez l'état des manifestes, les archives scellées et les preuves vérifiables. »`
+- Preuves: `« Vous verrez l'état des fichiers de preuve, les archives scellées et les preuves vérifiables. »`
 
 These describe what is displayed, never a result. Do not add digits, verdicts or promises of measurement.
 
