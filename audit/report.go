@@ -111,7 +111,7 @@ type KernelTelemetry struct {
 	Reason              string       `json:"reason,omitempty"`
 	ObjectSHA256        string       `json:"object_sha256,omitempty"`
 	RetransPayloadBytes uint64       `json:"retrans_payload_bytes,omitempty"`
-	QdiscDropPackets    uint64       `json:"qdisc_drop_packets,omitempty"`
+	QdiscDropPackets    uint64       `json:"qdisc_drop_packets"`
 	FlowsSeen           int          `json:"flows_seen,omitempty"`
 	FlowsTotal          int          `json:"flows_total,omitempty"`
 	Flows               []KernelFlow `json:"flows,omitempty"`
