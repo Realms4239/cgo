@@ -393,6 +393,12 @@ WantedBy=multi-user.target
 		}
 	case "calibrate":
 		os.Exit(runCalibrate(os.Args[2:]))
+	case "kerneltruth":
+		if len(os.Args) > 2 && os.Args[2] == "seal" {
+			os.Exit(runKernelTruthSealCmd(os.Args[3:]))
+		}
+		fmt.Fprintln(os.Stderr, "kerneltruth: utilisez `cgo kerneltruth seal --audit <p> --tc-before <p> --tc-after <p> --iface <i> --qdisc <q> --out <p>`")
+		os.Exit(2)
 	default:
 		usage()
 		os.Exit(2)
@@ -462,6 +468,7 @@ func usage() {
        cgo audit --link-type 5g --site "Dept X" --duration 300
        cgo run --matrix full|reduced --profiles P1,P2 --reps 3
        cgo verify
+       cgo kerneltruth seal --audit <p> --tc-before <p> --tc-after <p> --iface <i> --qdisc <q> --out <p>   # produit le sceau depuis l'audit ebpf + deux captures tc -s
        cgo run --confront-out <path>   # CGO_CONFRONT_INPUT = sceau noyau scellé ; aucun run est lancé
        cgo audit purge [--keep N] [--before YYYY-MM-DD] [--dry-run] [DIR]   # prune les sessions d'audit antérieures à --before (garde les --keep plus récentes)
        cgo calibrate --audit audit-XXXX --profile P2   # trace baseline → .dist netem
