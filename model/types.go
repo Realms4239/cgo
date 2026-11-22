@@ -25,6 +25,9 @@ type Profile struct {
 	LossBurstR float64 `json:"loss_burst_r,omitempty"` // r : bon → mauvais
 	LossBurstH float64 `json:"loss_burst_h,omitempty"` // h : persistance mauvais
 	LossBurstK float64 `json:"loss_burst_k,omitempty"` // k : mauvais → bon
+	// Source — provenance d'une cible d'émulation (littérature citée), jamais
+	// une mesure de terrain. Optionnel : ignoré par les anciennes lignes CSV.
+	Source string `json:"source,omitempty"`
 }
 
 // CapDown — capacité du sens descendant (référence historique).
@@ -48,6 +51,12 @@ var Profiles = map[string]Profile{
 	// débit élevé, délai bas par rapport au VSAT géostationnaire, mais gigue
 	// marquée (handovers satellites) et perte ponctuelle — la classe LEO.
 	"P4": {ID: "P4", CapacityMbps: 100, DelayMs: 40, JitterMs: 20, LossPct: 0.3},
+	// L1/V1 — cibles d'émulation documentées (spec 2026-11-23 §1), PAS des
+	// mesures de terrain. Ajoutées sans toucher à P1-P4 (corpus gelé + oracles).
+	"L1": {ID: "L1", CapacityMbps: 200, CapacityUpMbps: 30, DelayMs: 26, JitterMs: 15, LossPct: 0.1,
+		Source: "LEO emulation target (not field measurement): starlink.com 2025 report (median ~26 ms, <1% >55 ms, down >200 / up >30 Mbps); IIUM 2025 independent 20-100 ms; ITU LEO trials <60 ms at >=50 Mbit/s"},
+	"V1": {ID: "V1", CapacityMbps: 10, CapacityUpMbps: 2, DelayMs: 600, JitterMs: 30, LossPct: 1,
+		Source: "VSAT/GEO emulation target (not field measurement): IIUM 2025 measured 600-3000 ms; IJSRA 2025 550-720 ms; ITU Kenya VSAT <=750 ms at >=5 Mbit/s"},
 }
 
 // ProfilesMu garde la carte des profils : un import (POST

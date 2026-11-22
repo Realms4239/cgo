@@ -29,3 +29,5 @@ replace github.com/Realms4239/cgo/figures => ../figures
 replace github.com/Realms4239/cgo/audit => ../audit
 
 replace github.com/Realms4239/cgo/capabilities => ../capabilities
+
+replace github.com/Realms4239/cgo/model => ../model

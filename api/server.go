@@ -724,12 +724,13 @@ func (s *Server) registerState(mux *http.ServeMux) {
 			LossR      float64 `json:"loss_burst_r,omitempty"`
 			LossH      float64 `json:"loss_burst_h,omitempty"`
 			LossK      float64 `json:"loss_burst_k,omitempty"`
+			Source     string  `json:"source,omitempty"`
 			FromImport bool    `json:"imported"`
 		}
 		out := make([]prof, 0, len(ids))
 		for _, id := range ids {
 			p := model.Profiles[id]
-			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, CapacityUp: p.CapacityUpMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, LossPct: p.LossPct, LossP: p.LossBurstP, LossR: p.LossBurstR, LossH: p.LossBurstH, LossK: p.LossBurstK, FromImport: !model.BuiltinProfileIDs[id]})
+			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, CapacityUp: p.CapacityUpMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, LossPct: p.LossPct, LossP: p.LossBurstP, LossR: p.LossBurstR, LossH: p.LossBurstH, LossK: p.LossBurstK, Source: p.Source, FromImport: !model.BuiltinProfileIDs[id]})
 		}
 		model.ProfilesMu.RUnlock()
 		writeJSON(w, map[string]any{"profiles": out})
