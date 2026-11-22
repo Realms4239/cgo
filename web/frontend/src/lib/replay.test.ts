@@ -58,3 +58,59 @@ describe('startReplay — absence de mesure, jamais un zéro fabriqué', () => {
     expect(useUIStore.getState().live?.small_p95_ms).toBeNaN()
   })
 })
+
+describe('startReplay — compteurs et identifiants : absence jamais un zéro fabriqué', () => {
+  it('colonnes vides (results.Field) → NaN pour drops, repetition, event_id', () => {
+    env.EventSource = CapturingEventSource as unknown as typeof EventSource
+    startReplay('run-test')
+    CapturingEventSource.instances[0].onmessage?.({
+      data: JSON.stringify({
+        ts: 3000, phase: 'replay', drops: '', repetition: '', event_id: '',
+      }),
+    } as MessageEvent)
+    const frame = useUIStore.getState().live
+    expect(frame?.drops).toBeNaN()
+    expect(frame?.repetition).toBeNaN()
+    expect(frame?.event_id).toBeNaN()
+  })
+
+  it('clés entièrement absentes → NaN, pas un 0 mesuré', () => {
+    env.EventSource = CapturingEventSource as unknown as typeof EventSource
+    startReplay('run-test')
+    CapturingEventSource.instances[0].onmessage?.({
+      data: JSON.stringify({ ts: 3100, phase: 'replay', rtt_p50_ms: '110' }),
+    } as MessageEvent)
+    const frame = useUIStore.getState().live
+    expect(frame?.drops).toBeNaN()
+    expect(frame?.repetition).toBeNaN()
+    expect(frame?.event_id).toBeNaN()
+  })
+
+  it('valeurs malformées → NaN (échec fermé)', () => {
+    env.EventSource = CapturingEventSource as unknown as typeof EventSource
+    startReplay('run-test')
+    CapturingEventSource.instances[0].onmessage?.({
+      data: JSON.stringify({
+        ts: 3200, phase: 'replay', drops: 'abc', repetition: 'n/a', event_id: 'x-9',
+      }),
+    } as MessageEvent)
+    const frame = useUIStore.getState().live
+    expect(frame?.drops).toBeNaN()
+    expect(frame?.repetition).toBeNaN()
+    expect(frame?.event_id).toBeNaN()
+  })
+
+  it('hostile : un vrai "0" archivé reste 0, pas une absence', () => {
+    env.EventSource = CapturingEventSource as unknown as typeof EventSource
+    startReplay('run-test')
+    CapturingEventSource.instances[0].onmessage?.({
+      data: JSON.stringify({
+        ts: 3300, phase: 'replay', drops: '0', repetition: '0', event_id: '0',
+      }),
+    } as MessageEvent)
+    const frame = useUIStore.getState().live
+    expect(frame?.drops).toBe(0)
+    expect(frame?.repetition).toBe(0)
+    expect(frame?.event_id).toBe(0)
+  })
+})

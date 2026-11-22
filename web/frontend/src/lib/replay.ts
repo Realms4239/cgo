@@ -13,6 +13,12 @@ const small = (v: unknown): number => {
   const n = archived(v)
   return n > 0 ? n : NaN
 }
+// Compteurs et identifiants : comme archived() mais pour un entier — absent,
+// blanc ou malformé reste NaN (jamais un 0 mesuré) ; un vrai 0 reste 0.
+const archivedInt = (v: unknown): number => {
+  const n = archived(v)
+  return Number.isInteger(n) ? n : NaN
+}
 
 export function startReplay(runId: string) {
   stopReplay()
@@ -35,10 +41,10 @@ export function startReplay(runId: string) {
       // also update store so banner/gates reflect replay
       useUIStore.getState().setLive({
         ts, phase: 'replay', profile: d.profile, qdisc: d.qdisc, cc: d.cc,
-        repetition: parseInt(d.repetition)||0, event_id: parseInt(d.event_id)||0,
+        repetition: archivedInt(d.repetition), event_id: archivedInt(d.event_id),
         rtt_p50_ms: rtt50, rtt_p95_ms: rtt95,
         small_p95_ms: smallP95, bulk_goodput_mbps: goodput,
-        drops: parseInt(d.drops)||0, gates: null, running: true, load_status: 'replay',
+        drops: archivedInt(d.drops), gates: null, running: true, load_status: 'replay',
       } as any)
     } catch {}
   }
