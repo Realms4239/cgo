@@ -14,8 +14,8 @@ Make these capabilities reachable and actionable from the live Labo, driven only
 
 - Extend the schema registry (`api/server.go` param list) with:
   - `link_channel` enum `["statique","empirique"]`, default `statique`;
-  - `link_direction` enum `["up","down"]`, default `up` — matches the frozen `model.Event.Direction`;
-  - `dist_name` — a dynamic enum populated only by real sidecar-verified calibrations.
+  - `link_direction` enum `["up","down","both"]`, default `up`. `up`/`down` mirror the frozen `model.Event.Direction` (per-event cells, the field that keeps 150 runs of download history from merging with upload). `both` is a campaign-level RRUL selection the engine genuinely executes as one up matrix followed by one down matrix (`cmd/cgo/server.go`, `pkg/campagne.ProdDepsDown()`); every resulting cell still carries the frozen `up`/`down` value — `both` is never written into `model.Event.Direction`. `runreq.ValidDirection` is the single canonical gate and accepts all three values;
+  - `dist_name` — enum intentionally left empty in the static registry: the client reads the real list directly from `GET /api/calibrations`, which returns only sidecar-verified entries. The empty enum is an explicit "no static fabrication" boundary, not a missing dynamic population.
 - Make `burst_cc` dynamic: include `bbr3` only when `capabilities.BBRv3` is true, with the corpus wording rule (native v3 vs CUBIC+BBRv1 on stock 6.8 with detection ready) exposed as a separate honest `bbr3_state` string.
 - New read-only `GET /api/calibrations` listing real files under the calibration directory: `{name, sha256, samples, p50_ms, verified}`. Empty list is honest, not an error.
 

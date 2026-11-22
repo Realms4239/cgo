@@ -22,22 +22,23 @@ export interface ProvenanceStripProps {
   doctor?: DoctorProbe | null
 }
 
-function useProbe<T>(path: string): T | null {
+function useProbe<T>(path: string, injected: boolean): T | null {
   const [data, setData] = useState<T | null>(null)
   useEffect(() => {
+    if (injected) return // valeur déjà fournie (parent ou test) : pas de second appel réseau
     let alive = true
     fetch(path)
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(j => { if (alive) setData(j) })
       .catch(() => {})
     return () => { alive = false }
-  }, [path])
+  }, [path, injected])
   return data
 }
 
 export default function ProvenanceStrip({ integrity, doctor }: ProvenanceStripProps) {
-  const liveIntegrity = useProbe<IntegrityProbe>('/api/integrity')
-  const liveDoctor = useProbe<DoctorProbe>('/api/doctor')
+  const liveIntegrity = useProbe<IntegrityProbe>('/api/integrity', integrity !== undefined)
+  const liveDoctor = useProbe<DoctorProbe>('/api/doctor', doctor !== undefined)
   const probe = integrity === undefined ? liveIntegrity : integrity
   const host = doctor === undefined ? liveDoctor : doctor
 

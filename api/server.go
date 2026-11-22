@@ -139,7 +139,7 @@ var schemaParams = []Param{
 	{Key: "shape_qdisc", Label: "File d'attente", Default: "cake", Enum: []string{"cake", "fq_codel", "pfifo_fast", "none"}, Desc: "discipline appliquée au bord"},
 	{Key: "burst_cc", Label: "Contrôle de congestion du burst", Default: "bbr", Enum: []string{"cubic", "bbr"}, Desc: "CC du burst de test à travers le bord façonné"},
 	{Key: "link_channel", Label: "Canal", Default: "statique", Enum: []string{"statique", "empirique"}, Desc: "canal de lien statique ou distribution empirique .dist vérifiée"},
-	{Key: "link_direction", Label: "Direction", Default: "up", Enum: []string{"up", "down"}, Desc: "sens de charge, miroir de model.Event.Direction"},
+	{Key: "link_direction", Label: "Direction", Default: "up", Enum: []string{"up", "down", "both"}, Desc: "sens de charge : up/down miroir de model.Event.Direction, both campagne RRUL (matrice up puis down, cellules toujours up/down)"},
 	{Key: "dist_name", Label: "Distribution", Default: "—", Enum: []string{}, Desc: "nom d'une distribution empirique vérifiée (source : GET /api/calibrations)"},
 	{Key: "bbr3_state", Label: "État BBRv3", Default: "BBRv3 non détecté — CUBIC + BBRv1 sur noyau 6.8, détection bbr3 prête", Desc: "état honnête de la détection BBRv3"},
 	{Key: "burst_seconds", Label: "Durée du burst", Min: 2, Max: 10, Default: 4, Unit: "s", Desc: "durée d'un burst de test"},

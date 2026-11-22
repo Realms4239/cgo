@@ -3,9 +3,13 @@
 // « PASS » ne vient remplir une ligne vide, et nulle mesure n'est déduite des
 // trames du banc en mode observe.
 import type { ComponentProps } from 'react'
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import ProvenanceStrip from './ProvenanceStrip'
+
+;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 type Props = ComponentProps<typeof ProvenanceStrip>
 
@@ -16,7 +20,47 @@ const mount = (props: Props = {}): HTMLElement => {
 }
 const textOf = (props: Props = {}): string => mount(props).textContent ?? ''
 
+afterEach(() => vi.unstubAllGlobals())
+
 describe('ProvenanceStrip', () => {
+  it('ne sonde aucun /api quand les deux valeurs sont injectées (pas de requête en double)', () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchSpy)
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    try {
+      act(() => {
+        root.render(<ProvenanceStrip
+          integrity={{ integrity: 'verified', hash8: 'a1b2c3d4' }}
+          doctor={{ mode: 'observe' }}
+        />)
+      })
+      expect(fetchSpy).not.toHaveBeenCalled()
+      expect(host.textContent).toContain('a1b2c3d4')
+    } finally {
+      act(() => root.unmount())
+      host.remove()
+    }
+  })
+
+  it('sonde /api/integrity et /api/doctor seulement quand rien n\'est injecté', () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchSpy)
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    try {
+      act(() => { root.render(<ProvenanceStrip />) })
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+      expect(fetchSpy).toHaveBeenCalledWith('/api/integrity')
+      expect(fetchSpy).toHaveBeenCalledWith('/api/doctor')
+    } finally {
+      act(() => root.unmount())
+      host.remove()
+    }
+  })
+
   it('rend three honest lines when every source is empty', () => {
     const host = mount({ integrity: null, doctor: null })
     expect(host.querySelectorAll('.provenance-line')).toHaveLength(3)

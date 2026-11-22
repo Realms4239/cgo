@@ -25,7 +25,7 @@ const withEnum = (key: string, values: string[], extra: Partial<Param> = {}): Pa
 
 const SCHEMA: Param[] = [
   withEnum('link_channel', ['statique', 'empirique'], { default: 'statique' }),
-  withEnum('link_direction', ['up', 'down'], { default: 'up' }),
+  withEnum('link_direction', ['up', 'down', 'both'], { default: 'up' }),
   withEnum('dist_name', [], { default: '—' }),
   { key: 'bbr3_state', label: 'État BBRv3', default: 'BBRv3 non détecté — CUBIC + BBRv1 sur noyau 6.8, détection bbr3 prête', desc: '' },
 ]
@@ -67,12 +67,26 @@ describe('Configurer — capacités et configuration réelles', () => {
     expect(chan.querySelectorAll('button[aria-pressed]')).toHaveLength(2)
   })
 
-  it('(c) Direction traduit up/down, jamais « Les deux » sans valeur au schéma', () => {
+  it('(b2) Canal garde le libellé empirique mais le désactive sans calibration vérifiée', () => {
+    const chan = rendered({ caps: CAPS, params: SCHEMA, calibrations: [] })
+      .querySelector('.configurer-control[data-control="link_channel"]')!
+    expect(chan.textContent).toContain('Statique')
+    expect(chan.textContent).toContain('Empirique .dist')
+    expect(chan.textContent).toContain('aucune calibration vérifiée')
+    const buttons = chan.querySelectorAll<HTMLButtonElement>('button')
+    expect(buttons).toHaveLength(2)
+    expect(buttons[0].disabled).toBe(false)
+    expect(buttons[1].disabled).toBe(true)
+    expect(buttons[1].getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('(c) Direction traduit up/down/both, « Les deux » seulement si le schéma le porte', () => {
     const dir = rendered({ caps: CAPS, params: SCHEMA, calibrations: CALIBS })
       .querySelector('.configurer-control[data-control="link_direction"]')!
     expect(dir.textContent).toContain('Egress WAN')
     expect(dir.textContent).toContain('Ingress IFB')
-    expect(dir.textContent).not.toContain('Les deux')
+    expect(dir.textContent).toContain('Les deux')
+    expect(dir.querySelectorAll('button[aria-pressed]')).toHaveLength(3)
 
     const absent = rendered({ caps: null, params: [withEnum('link_direction', [])], calibrations: [] })
       .querySelector('.configurer-control[data-control="link_direction"]')!

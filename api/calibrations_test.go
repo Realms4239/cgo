@@ -109,3 +109,94 @@ func TestCalibrationsEmpty(t *testing.T) {
 		t.Fatalf("corps = %s, attendu calibrations vide", strings.TrimSpace(string(body)))
 	}
 }
+
+// writeSidecarFixture — sidecar brut, champs explicites : sert à exercer les
+// replis de lecture (dist_sha256, source_p50_rtt_ms) et les refus (samples/p50
+// non positifs) sans bench ni valeur fabriquée.
+func writeSidecarFixture(t *testing.T, dir, name string, dist []byte, side calibrationSidecar) {
+	t.Helper()
+	raw, err := json.Marshal(side)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name+".dist"), dist, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name+".json"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestListCalibrationsFallbacks — table des branches de ListCalibrations
+// exerçables sans banc : replis de noms de champs et refus de valeurs non
+// positives. Un hash qui ne scelle pas les octets reste rejeté (déjà couvert
+// par TestCalibrations) ; aucun test n'invente une mesure.
+func TestListCalibrationsFallbacks(t *testing.T) {
+	dist := []byte("100\n110\n120\n")
+	sum := sha256.Sum256(dist)
+	hash := hex.EncodeToString(sum[:])
+
+	cases := []struct {
+		name    string
+		side    calibrationSidecar
+		wantLen int
+		wantSHA string
+		wantP50 float64
+	}{
+		{
+			name: "repli sha256 sur dist_sha256",
+			side: calibrationSidecar{DistSHA256: hash, Samples: 10, P50Ms: 50},
+			wantLen: 1, wantSHA: hash, wantP50: 50,
+		},
+		{
+			name: "repli p50 sur source_p50_rtt_ms",
+			side: calibrationSidecar{SHA256: hash, Samples: 10, SourceP50: 42},
+			wantLen: 1, wantSHA: hash, wantP50: 42,
+		},
+		{
+			name: "les deux replis à la fois",
+			side: calibrationSidecar{DistSHA256: hash, Samples: 10, SourceP50: 77},
+			wantLen: 1, wantSHA: hash, wantP50: 77,
+		},
+		{
+			name: "samples nul refusé",
+			side: calibrationSidecar{SHA256: hash, Samples: 0, P50Ms: 50},
+			wantLen: 0,
+		},
+		{
+			name: "samples négatif refusé",
+			side: calibrationSidecar{SHA256: hash, Samples: -1, P50Ms: 50},
+			wantLen: 0,
+		},
+		{
+			name: "p50 nul sans source refusé",
+			side: calibrationSidecar{SHA256: hash, Samples: 10},
+			wantLen: 0,
+		},
+		{
+			name: "p50 négatif sans source refusé",
+			side: calibrationSidecar{SHA256: hash, Samples: 10, P50Ms: -1},
+			wantLen: 0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeSidecarFixture(t, dir, "P2", dist, tc.side)
+			got := ListCalibrations(dir)
+			if len(got) != tc.wantLen {
+				t.Fatalf("ListCalibrations = %+v, veut %d entrée(s)", got, tc.wantLen)
+			}
+			if tc.wantLen == 1 {
+				want := Calibration{
+					Name: "P2", SHA256: tc.wantSHA, Samples: tc.side.Samples,
+					P50Ms: tc.wantP50, Verified: true,
+				}
+				if got[0] != want {
+					t.Fatalf("calibration = %+v, veut %+v", got[0], want)
+				}
+			}
+		})
+	}
+}

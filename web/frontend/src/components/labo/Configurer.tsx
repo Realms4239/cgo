@@ -78,7 +78,10 @@ export default function Configurer({ site, link, duration, caps, params, calibra
   const toggle = (id: string) => setSelected(s =>
     s.includes(id) ? s.filter(x => x !== id) : [...s, id])
 
-  const optionControl = (key: string, label: string, labels: Record<string, string>, word: string) => {
+  const optionControl = (
+    key: string, label: string, labels: Record<string, string>, word: string,
+    unavailable: string[] = [],
+  ) => {
     const p = param(key, schema)
     const options = optionsOf(p, labels)
     const value = choices[key] ?? defaultOf(p, options)
@@ -87,13 +90,18 @@ export default function Configurer({ site, link, duration, caps, params, calibra
         <span className="configurer-control-label">{label}</span>
         {options.length ? (
           <div className="configurer-options" role="group" aria-label={label}>
-            {options.map(v => (
-              <button
-                key={v} type="button" className="configurer-option"
-                aria-pressed={value === v}
-                onClick={() => setChoices(c => ({ ...c, [key]: v }))}
-              >{labels[v]}</button>
-            ))}
+            {options.map(v => {
+              const disabled = unavailable.includes(v)
+              return (
+                <button
+                  key={v} type="button" className="configurer-option"
+                  aria-pressed={value === v}
+                  aria-disabled={disabled || undefined}
+                  disabled={disabled}
+                  onClick={() => setChoices(c => ({ ...c, [key]: v }))}
+                >{labels[v]}{disabled ? ' — aucune calibration vérifiée' : null}</button>
+              )
+            })}
           </div>
         ) : (
           <span className="configurer-absent">— {word}</span>
@@ -127,7 +135,7 @@ export default function Configurer({ site, link, duration, caps, params, calibra
         <BenchCapabilities caps={host} />
       </div>
       <div className="configurer-controls">
-        {optionControl('link_channel', 'Canal', CHANNEL_LABELS, 'canal indisponible')}
+        {optionControl('link_channel', 'Canal', CHANNEL_LABELS, 'canal indisponible', verified.length ? [] : ['empirique'])}
         {optionControl('link_direction', 'Direction', DIRECTION_LABELS, 'direction indisponible')}
         <div className="configurer-control" data-control="distribution">
           <span className="configurer-control-label">Distribution</span>

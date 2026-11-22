@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -8,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Realms4239/cgo/capabilities"
+	"github.com/Realms4239/cgo/runreq"
 )
 
 // TestSchemaEndCorpusParams — les contrôles du Labo viennent du registre réel :
@@ -38,7 +41,7 @@ func TestSchemaEndCorpusParams(t *testing.T) {
 		if !ok {
 			t.Fatal("link_direction absent du registre")
 		}
-		if !slices.Equal(direction.Enum, []string{"up", "down"}) {
+		if !slices.Equal(direction.Enum, []string{"up", "down", "both"}) {
 			t.Fatalf("link_direction.enum = %v", direction.Enum)
 		}
 		if direction.Default != "up" {
@@ -108,5 +111,40 @@ func TestBurstAcceptsDetectedBBRv3(t *testing.T) {
 	}
 	if called != "bbr3" {
 		t.Fatalf("burst appelé avec %q, attendu bbr3", called)
+	}
+}
+
+// TestLinkDirectionBothIsExecutable — « Les deux » n'est pas un libellé mort :
+// le schéma n'annonce que des sens que la règle unique (runreq) accepte, et
+// "both" est transmis au moteur, qui enchaîne une matrice up puis une matrice
+// down (cmd/cgo/server.go:246). Les cellules gardent model.Event.Direction
+// up|down figé — "both" n'est jamais écrit dans une cellule d'archive.
+func TestLinkDirectionBothIsExecutable(t *testing.T) {
+	direction, ok := paramByKey("link_direction")
+	if !ok {
+		t.Fatal("link_direction absent du registre")
+	}
+	for _, v := range direction.Enum {
+		if !runreq.ValidDirection(v) {
+			t.Fatalf("le schéma annonce le sens %q que runreq refuse — contrôle fabriqué", v)
+		}
+	}
+	if !slices.Contains(direction.Enum, "both") || !runreq.ValidDirection("both") {
+		t.Fatal("both doit être annoncé et exécutable")
+	}
+
+	withDevNoAuth(t)
+	var got RunOpts
+	srv := httptest.NewServer(New(Deps{StartFn: func(o RunOpts) error { got = o; return nil }}))
+	defer srv.Close()
+	resp := postConfirmed(t, srv.URL+"/api/run/start",
+		bytes.NewBufferString(`{"profiles":["P2"],"qdiscs":["cake"],"ccs":["bbr"],"reps":1,"direction":"both"}`))
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST direction=both: %d, want 200", resp.StatusCode)
+	}
+	if got.Direction != "both" {
+		t.Fatalf("le moteur a reçu direction %q, attendu both", got.Direction)
 	}
 }
