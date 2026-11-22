@@ -14,6 +14,7 @@ import type { ArchiveRow } from '../../lib/archive'
 import type { AuditReport } from '../../lib/types'
 import { useUIStore } from '../../store/ui'
 import SealInspector from './SealInspector'
+import ProvenanceStrip from './ProvenanceStrip'
 
 interface Integrity {
   available?: boolean
@@ -143,6 +144,10 @@ export default function Preuves({ report, archiveRows, integrity }: PreuvesProps
         {report?.audit_id
           ? <p className="mono">Rapport {report.audit_id}</p>
           : <p>Preuve manquante — aucun rapport d'audit.</p>}
+      </InlineDisclosure>
+
+      <InlineDisclosure label="Provenance des preuves">
+        <ProvenanceStrip integrity={data} />
       </InlineDisclosure>
     </div>
   )

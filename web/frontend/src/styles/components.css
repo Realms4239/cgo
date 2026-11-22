@@ -520,4 +520,14 @@
 .archive-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
 .archive-wait { margin: 0; font-size: var(--fs-fine); color: var(--text-muted); text-wrap: pretty; }
 @media (max-width: 640px) { .duel, .archive-counts { grid-template-columns: minmax(0, 1fr); } }
+/* CH4 — provenance : trois lignes d'origine, aucun chiffre ni sceau fabriqué.
+   L'absence porte le mot et le nom de la source manquante, jamais la couleur seule. */
+.provenance-strip { min-width: 0; border-top: 1px solid var(--hairline); padding-top: var(--sp-3); }
+.provenance-lines { min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-2); }
+.provenance-line { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2); border: 1px solid var(--hairline-faint); border-radius: var(--sp-1); }
+.provenance-label { font: 500 var(--fs-micro) var(--font-mono); color: var(--text-muted); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.provenance-value { margin: 0; font-size: var(--fs-fine); color: var(--text-body); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-wrap: pretty; }
+.provenance-absent { color: var(--text-faint); }
+.provenance-source { font-size: var(--fs-micro); color: var(--text-muted); overflow-wrap: anywhere; text-wrap: pretty; }
+@media (forced-colors: active) { .provenance-line { border-color: CanvasText; } }
 
