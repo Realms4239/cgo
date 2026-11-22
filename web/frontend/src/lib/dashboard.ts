@@ -1,7 +1,7 @@
 // Langage opérateur du tableau de bord : les chiffres deviennent des mots,
 // les seuils restent ceux des Réglages. Aucun zéro ne se lit comme mesuré.
 import type { AuditReport } from './types'
-import { formatCostAR, numFr } from './format'
+import { fmtCount, formatCostAR, numFr } from './format'
 
 export type PlainLevel = 'ok' | 'warn' | 'crit'
 export interface Band { word: string; level: PlainLevel }
@@ -121,6 +121,83 @@ export function operatorFacts(
       band: costFigure ? { word: 'estimation contractuelle', level: 'warn' as PlainLevel } : null,
     },
   ]
+}
+
+// §2 — eBPF est la mesure primaire du noyau. Pertes et latence viennent des
+// flux eBPF quand ils sont là ; le tc reste une ligne nommée à part, jamais
+// additionnée au compteur eBPF. Sans flux valide, rien n'est fabriqué : le mot
+// d'absence et la vraie raison remplacent le chiffre. tcp_retransmit_skb est une
+// étiquette de regroupement, pas une cause vérifiée (HUATUO) : « observées ».
+export interface KernelLine { text: string }
+
+export interface KernelEvidence {
+  primary: boolean
+  reason?: string
+  retransEvents: number | null
+  srttMs: number | null
+  tcDrops: number | null
+  loss: KernelLine
+  latency: KernelLine
+  tcCrossCheck: KernelLine
+}
+
+const KERNEL_ABSENT_WORD = 'non mesuré'
+
+function absentKernelLine(reason?: string): KernelLine {
+  return { text: `— ${KERNEL_ABSENT_WORD}${reason ? ` — ${reason}` : ''}` }
+}
+
+function medianOf(values: number[]): number | null {
+  if (values.length === 0) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+// Un seul calcul, deux présentations : le tableau de bord et la lecture d'audit
+// lisent la même évidence. Aucun repli sur le RTT userspace ici — ce serait un
+// vert fabriqué à partir d'une mesure qui n'est pas la mesure noyau demandée.
+export function operatorKernelEvidence(report: AuditReport | null | undefined): KernelEvidence {
+  const k = report?.kernel_telemetry
+  const reason = k?.reason?.trim() || undefined
+  const flows = Array.isArray(k?.flows) ? k?.flows ?? [] : []
+  const primary = k?.available === true && k?.source === 'ebpf' && flows.length > 0
+
+  if (!primary) {
+    const absent = absentKernelLine(reason)
+    return {
+      primary: false, reason,
+      retransEvents: null, srttMs: null, tcDrops: null,
+      loss: absent, latency: absent, tcCrossCheck: absent,
+    }
+  }
+
+  const retransValues = flows.map(f => f.retrans_events).filter(finite)
+  const srttValues = flows.map(f => f.srtt_us).filter(v => finite(v) && v > 0)
+  const tcValues = flows.map(f => f.qdisc_drop_packets).filter(finite)
+  const reportedTcDrops = k?.qdisc_drop_packets
+
+  const retransEvents = retransValues.length ? retransValues.reduce((a, b) => a + b, 0) : null
+  const srttUs = medianOf(srttValues)
+  const tcDrops = tcValues.length
+    ? tcValues.reduce((a, b) => a + b, 0)
+    : finite(reportedTcDrops) ? reportedTcDrops : null
+
+  return {
+    primary: true,
+    retransEvents,
+    srttMs: srttUs == null ? null : srttUs / 1000,
+    tcDrops,
+    loss: retransEvents == null
+      ? absentKernelLine('retrans_events non rapportés')
+      : { text: `${fmtCount(retransEvents)} retransmissions observées` },
+    latency: srttUs == null
+      ? absentKernelLine('SRTT non rapporté')
+      : { text: `${numFr(srttUs / 1000, 1)} ms — SRTT médian eBPF` },
+    tcCrossCheck: tcDrops == null
+      ? absentKernelLine('contrôle tc/qdisc non rapporté')
+      : { text: `tc/qdisc — ${fmtCount(tcDrops)} paquets écartés (contrôle croisé)` },
+  }
 }
 
 // La lettre du moteur devient un mot, au même palier que la note affichée.

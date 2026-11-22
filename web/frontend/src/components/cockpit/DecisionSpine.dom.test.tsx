@@ -218,3 +218,46 @@ describe('DecisionSpine — échelle', () => {
     expect(index).not.toMatch(/\.verdict-word\s*\{/)
   })
 })
+
+// §2 — la mesure noyau est primaire ; le tc reste une ligne nommée, jamais
+// fusionnée. Aucun libellé ne prétend identifier une cause vérifiée.
+describe('DecisionSpine — mesure noyau eBPF primaire, tc en ligne séparée', () => {
+  const ebpfReport = {
+    ...REPORT,
+    kernel_telemetry: {
+      available: true, source: 'ebpf', object_sha256: 'sha-abc', qdisc_drop_packets: 3,
+      flows: [
+        { local: '10.0.0.1:40000', peer: '10.0.0.2:5201', retrans_payload_bytes: 2048, retrans_events: 1, qdisc_drop_packets: 1, srtt_us: 12000 },
+        { local: '10.0.0.1:40002', peer: '10.0.0.2:5201', retrans_payload_bytes: 2048, retrans_events: 225, qdisc_drop_packets: 2, srtt_us: 15000 },
+      ],
+    },
+  } as unknown as AuditReport
+
+  it('rend la somme eBPF, la médiane SRTT et une ligne tc séparée, sans cause confirmée', () => {
+    const host = mount(<DecisionSpine report={ebpfReport} />)
+    const loss = host.querySelector('[data-testid="kernel-loss"]')!.textContent!
+    const latency = host.querySelector('[data-testid="kernel-latency"]')!.textContent!
+    const tc = host.querySelector('[data-testid="kernel-tc"]')!.textContent!
+    expect(loss).toContain('226 retransmissions observées')
+    expect(latency).toContain('13,5 ms')
+    expect(tc).toContain('tc/qdisc')
+    expect(tc).toContain('3 paquets écartés')
+    expect(loss).not.toContain('tc/qdisc')
+    expect(host.textContent).not.toContain('cause confirmée')
+  })
+
+  it('un repli tcpinfo dit son absence et sa vraie raison, sans vert fabriqué', () => {
+    const report = {
+      ...REPORT,
+      kernel_telemetry: { available: false, source: 'tcpinfo', reason: 'objet eBPF absent' },
+    } as unknown as AuditReport
+    const host = mount(<DecisionSpine report={report} />)
+    for (const id of ['kernel-loss', 'kernel-latency', 'kernel-tc']) {
+      const line = host.querySelector(`[data-testid="${id}"]`)!.textContent!
+      expect(line).toContain('—')
+      expect(line).toContain('non mesuré')
+      expect(line).toContain('objet eBPF absent')
+    }
+    expect(host.textContent).not.toContain('226 retransmissions')
+  })
+})

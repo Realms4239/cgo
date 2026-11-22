@@ -4,7 +4,7 @@
 // l'Act sont exclusifs : une mesure ne se confond jamais avec un constat.
 import { useState } from 'react'
 import type { AuditStage } from '../../lib/auditFlow'
-import { operatorFacts } from '../../lib/dashboard'
+import { operatorFacts, operatorKernelEvidence } from '../../lib/dashboard'
 import { evaluateLoadedHealth } from '../../lib/health'
 import type { AuditReport, AuditVerdictLevel } from '../../lib/types'
 import { InlineDisclosure } from '../ui/InlineDisclosure'
@@ -109,6 +109,9 @@ export default function DecisionSpine({
       : `Δ ${signed(Math.round(health.bloatMs))} ms sous charge`
 
   const facts = operatorFacts(readableReport, warnMs, critMs)
+  // §2 — la mesure noyau est primaire quand eBPF est valide ; sinon ses lignes
+  // disent leur absence et la vraie raison, sans repli sur le RTT userspace.
+  const kernel = operatorKernelEvidence(readableReport)
   const act = selectActState({ stage, report, failure })
 
   // §1.4 — bandeau compact : un seul chiffre décisionnel. En mesure c'est le
@@ -169,6 +172,11 @@ export default function DecisionSpine({
         <span className="health-label">Santé</span>
         <span className="health-word" data-level={health.kind}>{HEALTH_WORD[health.kind]}</span>
         {healthText ? <span className="health-detail">{healthText}</span> : null}
+        <div className="kernel-evidence" aria-label="Mesure noyau" data-primary={kernel.primary ? 'true' : 'false'}>
+          <span className="kernel-evidence-line mono" data-testid="kernel-loss">{kernel.loss.text}</span>
+          <span className="kernel-evidence-line mono" data-testid="kernel-latency">{kernel.latency.text}</span>
+          <span className="kernel-evidence-line mono" data-testid="kernel-tc">{kernel.tcCrossCheck.text}</span>
+        </div>
       </div>
 
       <div className="answer-facts" id="answer-facts" data-open={factsOpen ? 'true' : 'false'}>

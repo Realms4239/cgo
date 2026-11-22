@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { alertsBand, bothAbsent, delayBand, instabilityBand, operatorFacts, operatorSummary, qualityWord, retailBound } from './dashboard'
-import type { AuditReport } from './types'
+import { alertsBand, bothAbsent, delayBand, instabilityBand, operatorFacts, operatorKernelEvidence, operatorSummary, qualityWord, retailBound } from './dashboard'
+import type { AuditReport, KernelFlow, KernelTelemetry } from './types'
 
 describe('bandes opérateur', () => {
   it('délai : quatre mots, seuils des Réglages', () => {
@@ -169,5 +169,83 @@ describe('operatorFacts', () => {
     // Un rapport antérieur aux deux objectifs scellés n'en invente pas.
     expect(facts[0].target).toBe('')
     expect(facts[1].target).toBe('')
+  })
+})
+
+// §2 — eBPF est la mesure primaire : pertes et latence viennent du noyau, le
+// tc reste une ligne nommée à part. Faux verts et causes « confirmées » interdits
+// : tcp_retransmit_skb n'est qu'une étiquette de regroupement (HUATUO).
+describe('operatorKernelEvidence — eBPF primaire, tc en cross-check', () => {
+  const flow = (retrans_events: number, srtt_us: number, qdisc_drop_packets = 0): KernelFlow => ({
+    local: '10.0.0.1:40000', peer: '10.0.0.2:5201',
+    retrans_payload_bytes: 2048, retrans_events, qdisc_drop_packets, srtt_us,
+  })
+
+  const ebpfReport = (flows: KernelFlow[], patch: Partial<KernelTelemetry> = {}): AuditReport => ({
+    audit_id: 'ebpf-t2',
+    // RTT userspace volontairement énorme : il ne doit jamais devenir la preuve.
+    measured: { rtt_idle_p50_ms: 20, rtt_loaded_p95_ms: 900 },
+    kernel_telemetry: {
+      available: true, source: 'ebpf', object_sha256: 'sha-abc', qdisc_drop_packets: 3, flows,
+      ...patch,
+    },
+  } as unknown as AuditReport)
+
+  it('dérive la perte de la SOMME des retrans_events eBPF, pas du RTT userspace', () => {
+    const e = operatorKernelEvidence(ebpfReport([flow(1, 1000), flow(225, 9000)]))
+    expect(e.primary).toBe(true)
+    expect(e.retransEvents).toBe(226)
+    expect(e.loss.text).toContain('226 retransmissions observées')
+    expect(e.loss.text).not.toContain('cause confirmée')
+    expect(e.loss.text).not.toContain('900')
+  })
+
+  it('utilise la MÉDIANE des srtt_us pour la latence, pas la moyenne ni le premier', () => {
+    const e = operatorKernelEvidence(ebpfReport([flow(1, 1000), flow(2, 2000), flow(3, 9000)]))
+    expect(e.srttMs).toBe(2)
+    expect(e.latency.text).toContain('2,0 ms')
+    expect(e.latency.text).toContain('médian')
+    expect(e.latency.text).not.toContain('4,0 ms') // moyenne = 4 ms
+  })
+
+  it('garde les paquets écartés tc/qdisc sur une ligne séparée, jamais fusionnés', () => {
+    const e = operatorKernelEvidence(ebpfReport([flow(1, 12000, 1), flow(225, 15000, 2)]))
+    expect(e.tcDrops).toBe(3)
+    expect(e.tcCrossCheck.text).toContain('tc/qdisc')
+    expect(e.tcCrossCheck.text).toContain('3 paquets écartés')
+    expect(e.loss.text).not.toContain('3 paquets écartés')
+    expect(e.loss.text).not.toContain('tc/qdisc')
+  })
+
+  it('tcpinfo, unavailable et flux vides rendent — + mot d’absence + vraie raison', () => {
+    const cases: Array<[AuditReport, string]> = [
+      [ebpfReport([flow(1, 1000)], { source: 'tcpinfo', reason: 'objet eBPF absent' }), 'objet eBPF absent'],
+      [ebpfReport([flow(1, 1000)], { available: false, reason: 'sonde désactivée' }), 'sonde désactivée'],
+      [ebpfReport([], { reason: 'aucun flux eBPF' }), 'aucun flux eBPF'],
+    ]
+    for (const [report, reason] of cases) {
+      const e = operatorKernelEvidence(report)
+      expect(e.primary).toBe(false)
+      expect(e.retransEvents).toBeNull()
+      expect(e.srttMs).toBeNull()
+      expect(e.loss.text).toMatch(/^—/)
+      expect(e.loss.text).toContain('non mesuré')
+      expect(e.loss.text).toContain(reason)
+      expect(e.latency.text).toContain('non mesuré')
+      expect(e.reason).toBe(reason)
+    }
+  })
+
+  it('sans télémétrie ni flux, aucun vert ni zéro fabriqué depuis le RTT userspace', () => {
+    const e = operatorKernelEvidence({
+      audit_id: 'no-kernel',
+      measured: { rtt_idle_p50_ms: 20, rtt_loaded_p95_ms: 30 },
+    } as unknown as AuditReport)
+    expect(e.primary).toBe(false)
+    expect(e.retransEvents).toBeNull()
+    expect(e.loss.text).toContain('—')
+    expect(e.loss.text).not.toMatch(/\b0\b/)
+    expect(e.latency.text).not.toContain('ms')
+    expect(JSON.stringify(e)).not.toContain('cause confirmée')
   })
 })
