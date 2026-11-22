@@ -4,6 +4,8 @@
 import { useRef, useState } from 'react'
 import { useRafLoop } from '../../lib/hooks'
 import type { DomainEvent, DomainEventRing } from '../../lib/ringBuffer'
+import { EmptyState } from '../ui/EmptyState'
+import { StatusPip } from '../ui/StatusPip'
 
 export function journalEntries(events: DomainEventRing, limit = 12): DomainEvent[] {
   return events.list().reverse().slice(0, limit)
@@ -35,10 +37,13 @@ export default function JournalRail({ events, running = false }: JournalRailProp
     <aside className="journal-rail" aria-label="Journal des événements" data-tick={tick}>
       <div className="jr-head mono">
         <span>JOURNAL</span>
-        <span className="jr-live">{running ? 'en direct' : 'aucun fait'}{events.size > 0 ? ` · ${events.size}` : ''}</span>
+        <span className="jr-live">
+          <StatusPip state={running ? 'on' : 'idle'} label={running ? 'en direct' : 'aucun fait'} />
+          {events.size > 0 ? ` · ${events.size}` : ''}
+        </span>
       </div>
       {entries.length === 0 ? (
-        <p className="jr-empty">Aucun événement</p>
+        <EmptyState kind="empty" className="jr-empty" hint="Aucun événement — le journal se remplira aux faits réels de la campagne." />
       ) : (
         <ol className="jr-list">
           {entries.map((e, i) => (

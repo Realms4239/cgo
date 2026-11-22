@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { useInterval } from '../../lib/hooks'
 import { CardHead } from '../ui/CardHead'
+import { EmptyState } from '../ui/EmptyState'
 
 const PHASES = [
   { key: 'baseline', label: 'Repos' },
@@ -71,10 +72,7 @@ export default function CampaignTimeline({
           </ul>
         </>
       ) : (
-        <p className="labo-absent">
-          <span className="absent-mark" aria-hidden="true">—</span>
-          aucune phase enregistrée — la chronologie se remplira aux temps réels de la campagne.
-        </p>
+        <EmptyState kind="idle" hint="aucune phase enregistrée — la chronologie se remplira aux temps réels de la campagne." />
       )}
     </section>
   )

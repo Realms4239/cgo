@@ -11,6 +11,8 @@ import { baseOption, objectiveMarkLine, rawLineSeries, LIGHT, CANVAS_FS } from '
 import { ringTrace } from '../../lib/trace'
 import { instrument, type DomainEvent, type DomainEventRing, type InstrumentRings } from '../../lib/ringBuffer'
 import { live } from '../../lib/live'
+import { EmptyState } from '../ui/EmptyState'
+import { StatusPip } from '../ui/StatusPip'
 
 export interface TimeFieldProps {
   rings: InstrumentRings
@@ -255,7 +257,7 @@ export default function TimeField({
   return (
     <section className="time-field" aria-label="Champ temporel">
       <div className="tf-header mono" role="status">
-        <span className="tf-status">{empty ? 'Aucun signal' : 'En direct'}</span>
+        <StatusPip state={empty ? 'idle' : 'on'} label={empty ? 'Aucun signal' : 'En direct'} />
         <span className="tf-fill">{rings.small.size} / {rings.small.capacity} points</span>
         <span className="tf-source">direct</span>
       </div>
@@ -264,7 +266,7 @@ export default function TimeField({
           ref={boxRef} className="tf-chart" role="img"
           aria-label="Trace primaire, débit utile et interface — axe temporel partagé"
         />
-        {empty && <p className="tf-empty">La trace apparaîtra ici dès la première mesure.</p>}
+        {empty && <div className="tf-empty"><EmptyState kind="idle" hint="La trace apparaîtra ici dès la première mesure." /></div>}
       </div>
 
       <div className="tf-ruler mono" role="group" aria-label="Axe temps partagé">
@@ -311,6 +313,7 @@ export default function TimeField({
       <footer className="tf-footer mono" aria-label="Métadonnées du champ temporel">
         <div className="tf-footer-group">
           <span className="tf-footer-title">Interface</span>
+          {iface.valid ? null : <StatusPip state="offline" label="— interface absente" />}
           <div className="tf-footer-grid">
             {ifaceField('nom', iface.name || ABSENT)}
             {ifaceField('RX', iface.valid && iface.rxLast != null ? `${iface.rxLast} Mbit/s` : ABSENT, 'measure')}

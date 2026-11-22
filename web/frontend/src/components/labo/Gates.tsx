@@ -5,6 +5,7 @@
 import { GATE_LABELS } from '../../lib/gates'
 import { ScienceDetails } from '../ScienceDetails'
 import { CardHead } from '../ui/CardHead'
+import { StatusPip } from '../ui/StatusPip'
 
 export type GateState = 'pass' | 'fail' | 'na'
 
@@ -23,7 +24,9 @@ export default function Gates({ gates }: { gates: (boolean | null)[] }) {
     : '— non évaluées'
   return (
     <section className="labo-gates" data-state={assessed ? 'assessed' : 'absent'}>
-      <CardHead label="Portes qualité" sub={`G0 – G7 · ${assessedLabel} · le mot porte le résultat, jamais le rang`} />
+      <CardHead label="Portes qualité"
+        sub="G0 – G7 · le mot porte le résultat, jamais le rang"
+        right={<StatusPip state={assessed ? 'on' : 'idle'} label={assessedLabel} title={assessedLabel} />} />
       <ol className="labo-gate-list">
         {states.map((st, i) => (
           <li key={i} className="labo-gate-row" data-state={st}>

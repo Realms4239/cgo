@@ -10,6 +10,7 @@ import { useUIStore } from '../../store/ui'
 import TimeField from '../cockpit/TimeField'
 import JournalRail from '../cockpit/JournalRail'
 import { CardHead } from '../ui/CardHead'
+import { EmptyState } from '../ui/EmptyState'
 import Matrix, { type MatrixPlan, type CampaignProgress } from './Matrix'
 import Gates from './Gates'
 import CampaignTimeline from './CampaignTimeline'
@@ -41,10 +42,8 @@ export function EventTimeline({ events }: { events: DomainEventRing }) {
     <div className="event-timeline" data-state={entries.length ? 'events' : 'no-data'}>
       <p className="et-label mono">Repères</p>
       {entries.length === 0 ? (
-        <p className="et-empty" role="status">
-          <span className="et-mark et-mark-empty" aria-hidden="true" />
-          aucun repère — les faits enregistrés pendant la mesure s'afficheront ici avec leur heure.
-        </p>
+        <EmptyState kind="idle" className="et-empty" markClassName="et-mark-empty"
+          hint="aucun repère — les faits enregistrés pendant la mesure s'afficheront ici avec leur heure." />
       ) : (
         <ol className="et-list">
           {entries.map(e => {

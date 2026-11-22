@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { numFr, asArray } from '../../lib/format'
 import { CardHead } from '../ui/CardHead'
+import { EmptyState } from '../ui/EmptyState'
 import { InlineDisclosure } from '../ui/InlineDisclosure'
 import { MetricCard } from '../ui/MetricCard'
 import { ArchiveTable } from '../ArchiveTable'
@@ -107,7 +108,8 @@ export default function Preuves({ report, archiveRows, integrity }: PreuvesProps
           <MetricCard label="Mesures écartées" value={data?.quarantined != null ? numFr(data.quarantined, 0) : '—'} />
         </div>
         {!data?.available ? (
-          <p className="archive-wait" role="status">Preuve manquante — les comptes et l'empreinte du service d'intégrité s'afficheront ici dès que le service répondra.</p>
+          <EmptyState kind="loading" className="archive-wait"
+            hint="Preuve manquante — les comptes et l'empreinte du service d'intégrité s'afficheront ici dès que le service répondra." />
         ) : null}
         <ArchiveTable rows={rows ?? []} onOpen={(id) => openProof('proof', id)} onCopyCitation={cite} />
         {citation ? <p className="mono muted archive-citation" role="status">{citation}</p> : null}

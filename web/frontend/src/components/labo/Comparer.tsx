@@ -3,6 +3,7 @@
 // des mots, jamais une équivalence inventée.
 import { useEffect, useState } from 'react'
 import { CardHead } from '../ui/CardHead'
+import { EmptyState } from '../ui/EmptyState'
 import { EmptyChart } from '../ui/EmptyChart'
 import { InlineDisclosure } from '../ui/InlineDisclosure'
 import { StateSlot } from '../ui/StateSlot'
@@ -224,7 +225,9 @@ export default function Comparer({ rows, a = null, b = null }: ComparerProps) {
             <tbody>
               {ranked.length === 0 ? (
                 <tr className="rank-row rank-empty">
-                  <td colSpan={4}>Aucune mesure — lancez la campagne : chaque configuration apparaîtra ici, du délai le plus court au plus long.</td>
+                  <td colSpan={4}>
+                    <EmptyState kind="empty" hint="Aucune mesure — lancez la campagne : chaque configuration apparaîtra ici, du délai le plus court au plus long." />
+                  </td>
                 </tr>
               ) : ranked.map((r, i) => (
                 <tr key={r.id} className="rank-row">

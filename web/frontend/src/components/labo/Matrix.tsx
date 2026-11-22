@@ -3,6 +3,8 @@
 // compte zéro fabriqué. Après campagne : mots FINALE / terminée, jamais retour
 // à attente. Aucune cellule n'est inventée : sans plan, il n'y a rien à montrer.
 import { CardHead } from '../ui/CardHead'
+import { EmptyState } from '../ui/EmptyState'
+import { StatusPip } from '../ui/StatusPip'
 
 export interface MatrixPlan {
   profiles: string[]
@@ -67,7 +69,7 @@ export default function Matrix({ plan, progress }: { plan: MatrixPlan; progress:
   return (
     <section className="labo-matrix" data-state={phase}>
       <CardHead label="Matrice de progression" sub={`${cells.length || '—'} combinaisons · ordre du serveur`}
-        right={<span className="labo-matrix-word" data-state={phase}>{word}</span>} />
+        right={<StatusPip state={phase === 'final' ? 'ok' : phase === 'live' ? 'on' : 'idle'} label={word} title={word} />} />
       <p className="labo-matrix-sentence">{sentence}</p>
       {cells.length ? <p className="labo-matrix-note">n déduit de l’avancement serveur</p> : null}
       {cells.length ? (
@@ -96,7 +98,7 @@ export default function Matrix({ plan, progress }: { plan: MatrixPlan; progress:
           </tbody>
         </table>
       ) : (
-        <p className="labo-absent"><span className="absent-mark" aria-hidden="true">—</span> plan non disponible.</p>
+        <EmptyState kind="empty" hint="Plan non disponible." />
       )}
     </section>
   )
