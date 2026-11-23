@@ -54,7 +54,8 @@ and root-owned 0700 dirs `out/` and `out-readable/` from the prior capture.
 ## 3. Slice B — trace-to-model system
 
 1. A new tool under `kit/` (Go, no new dependency version) that reads a sealed
-   `flows.csv`, buckets `srtt_us` into profile floor bands: P1 20-99 ms,
+   `flows.csv`, buckets `srtt_us` into profile floor bands: P1 20-99 ms
+   EXCLUDING 40-59 ms (operator ruling 2026-11-23: P4 takes precedence there),
    P2 100-199 ms, P3 >=600 ms, P4 40-59 ms. A band with fewer than 30 samples
    is an explicit absence, never an interpolated or copied sample.
 2. For each present band, emit a per-profile `telemetry.csv` with `basis,
