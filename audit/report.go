@@ -49,6 +49,13 @@ type Report struct {
 	// méthode. Dérivé des faits déjà gelés, jamais d'une moyenne inventée.
 	OperatorVerdict metrics.Verdict `json:"operator_verdict"`
 
+	// ConfiguredVsRealised — tableau configuré vs réalisé (délai, gigue, perte,
+	// débit). Rempli uniquement depuis des valeurs réelles du rapport : sans
+	// profil apparié, la tranche reste vide et omitempty garde le JSON à l'octet
+	// près identique. Un sous-typage NetEm documenté s'affiche tel que mesuré,
+	// jamais rescale vers la cible.
+	ConfiguredVsRealised []ConfiguredRealisedRow `json:"configured_vs_realised,omitempty"`
+
 	// Provenance seals the raw telemetry this report was built from.
 	Provenance Provenance `json:"provenance"`
 
@@ -106,15 +113,24 @@ type RouterOSValidation struct {
 // when it could not say more. Source is ebpf|tcpinfo|unavailable; a reason
 // always accompanies a fallback.
 type KernelTelemetry struct {
-	Available           bool         `json:"available"`
-	Source              string       `json:"source,omitempty"`
-	Reason              string       `json:"reason,omitempty"`
-	ObjectSHA256        string       `json:"object_sha256,omitempty"`
-	RetransPayloadBytes uint64       `json:"retrans_payload_bytes,omitempty"`
-	QdiscDropPackets    uint64       `json:"qdisc_drop_packets"`
-	FlowsSeen           int          `json:"flows_seen,omitempty"`
-	FlowsTotal          int          `json:"flows_total,omitempty"`
-	Flows               []KernelFlow `json:"flows,omitempty"`
+	Available       bool   `json:"available"`
+	Source          string `json:"source,omitempty"`
+	Reason          string `json:"reason,omitempty"`
+	ObjectSHA256    string `json:"object_sha256,omitempty"`
+	ReserveFailures uint64 `json:"reserve_failures,omitempty"`
+	LowerBound      bool   `json:"lower_bound,omitempty"`
+	// ObserverEvents — dénominateur réel d'événements que la sonde a tenté
+	// d'écrire (retransmissions + drops qdisc, compteurs globals hors ring
+	// saturé). ReserveFailures (Task 2) est le numérateur, non dupliqué ici.
+	// ObserverLossDenominator nomme ce dénominateur en toutes lettres.
+	ObserverEvents          uint64       `json:"observer_events,omitempty"`
+	ObserverLossPct         float64      `json:"observer_loss_pct,omitempty"`
+	ObserverLossDenominator string       `json:"observer_loss_denominator,omitempty"`
+	RetransPayloadBytes     uint64       `json:"retrans_payload_bytes,omitempty"`
+	QdiscDropPackets        uint64       `json:"qdisc_drop_packets"`
+	FlowsSeen               int          `json:"flows_seen,omitempty"`
+	FlowsTotal              int          `json:"flows_total,omitempty"`
+	Flows                   []KernelFlow `json:"flows,omitempty"`
 }
 
 // KernelFlow is one sender-side flow as the kernel tier saw it. Present only
@@ -315,6 +331,11 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 		LoadMeasuredDown:   loadMeasuredDown,
 		GradeDown:          res.GradeDown,
 	}
+
+	// Tableau configuré vs réalisé : valeurs réelles du profil apparié et de la
+	// mesure, jamais une cible rescalée. Sans appariement, la tranche vide est
+	// omise du JSON (octets identiques aux rapports antérieurs).
+	rep.ConfiguredVsRealised = configuredVsRealised(res)
 
 	// VoIP R from the loaded conditions: one-way delay is half the RTT, jitter
 	// is the p95-p50 spread the jitter buffer has to absorb.
@@ -653,6 +674,17 @@ func (r *Report) RenderMarkdown() string {
 	}
 	fmt.Fprintf(&b, "| Data consumed by audit | %.2f MB |\n\n", r.Measured.DataUsedMB)
 
+	// Configuré vs réalisé — table rendue seulement quand des valeurs réelles
+	// existent. Le sous-typage NetEm s'affiche tel que mesuré, jamais rescale vers la cible.
+	if len(r.ConfiguredVsRealised) > 0 {
+		b.WriteString("### Configuré vs réalisé\n\n")
+		b.WriteString("| Métrique | Configuré | Réalisé |\n| --- | --- | --- |\n")
+		for _, row := range r.ConfiguredVsRealised {
+			fmt.Fprintf(&b, "| %s | %s | %s |\n", row.Metric, row.Configured, row.Realised)
+		}
+		b.WriteString("\n")
+	}
+
 	if r.Grade != "" {
 		fmt.Fprintf(&b, "**Bufferbloat grade: %s** — %s\n\n", r.Grade, r.Verdict)
 	} else {
@@ -780,6 +812,9 @@ func (r *Report) RenderMarkdown() string {
 			fmt.Fprintf(&b, "### Télémétrie noyau\n\nRepli TCP_INFO — %s.\n\n", k.Reason)
 		default:
 			fmt.Fprintf(&b, "### Télémétrie noyau\n\nTélémétrie noyau non instrumentée%s.\n\n", reasonClause(k.Reason))
+		}
+		if k.LowerBound {
+			fmt.Fprintf(&b, "Note : ring plein — reserve_failures=%d, la chronologie est une borne inférieure (timeline is a lower bound) : des événements peuvent manquer.\n\n", k.ReserveFailures)
 		}
 	}
 

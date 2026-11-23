@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -32,6 +33,7 @@ import (
 	"github.com/Realms4239/cgo/figures"
 	"github.com/Realms4239/cgo/internal/kit"
 	"github.com/Realms4239/cgo/pkg/campagne"
+	"github.com/Realms4239/cgo/probe"
 	"github.com/Realms4239/cgo/remediate"
 	"github.com/Realms4239/cgo/results"
 )
@@ -42,6 +44,15 @@ import (
 // kit.KitVersion directement ; une release -X doit donc reprendre exactement
 // le tag (= KitVersion), sinon CLI (`kit next`) et GUI divergent.
 var version = kit.KitVersion
+
+// writePreflight — preuve en lecture seule de la source résolue et du hash
+// d'objet, avant tout chargement ou run. Le paramètre rend le contrat testable
+// sans objet vendéré : la source porte son hash, pas l'inverse.
+func writePreflight(w io.Writer, info probe.KernelSourceInfo) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(info)
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -102,6 +113,12 @@ func main() {
 		doctor.Print()
 	case "version":
 		fmt.Printf("meteolink (cgo) %s — %s/%s, mode %s\n", version, runtime.GOOS, runtime.GOARCH, doctor.Mode("auto"))
+	case "preflight":
+		if err := writePreflight(os.Stdout, probe.KernelSource()); err != nil {
+			fmt.Fprintln(os.Stderr, "preflight:", err)
+			os.Exit(2)
+		}
+		return
 	case "shape":
 		fs := flag.NewFlagSet("shape", flag.ExitOnError)
 		restore := fs.Bool("restore", false, "supprime tous les qdiscs root posés par meteolink sur l'interface de façonnage")

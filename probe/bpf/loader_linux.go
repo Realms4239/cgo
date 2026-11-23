@@ -9,10 +9,12 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"time"
 	"unsafe"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 )
 
@@ -42,11 +44,12 @@ type flowStat struct {
 }
 
 type globalStat struct {
-	RetransPayload uint64
-	RetransEvents  uint64
-	DropPackets    uint64
-	DropBytes      uint64
-	MapFull        uint64
+	RetransPayload  uint64
+	RetransEvents   uint64
+	DropPackets     uint64
+	DropBytes       uint64
+	MapFull         uint64
+	ReserveFailures uint64
 }
 
 func init() {
@@ -58,8 +61,8 @@ func init() {
 	if sz := unsafe.Sizeof(flowKey{}); sz != 16 {
 		panic(fmt.Sprintf("flow_key = %d octets, want 16", sz))
 	}
-	if sz := unsafe.Sizeof(globalStat{}); sz != 40 {
-		panic(fmt.Sprintf("global_stat = %d octets, want 40", sz))
+	if sz := unsafe.Sizeof(globalStat{}); sz != 48 {
+		panic(fmt.Sprintf("global_stat = %d octets, want 48", sz))
 	}
 }
 
@@ -69,6 +72,7 @@ type Session struct {
 	links    []link.Link
 	flows    *ebpf.Map
 	global   *ebpf.Map
+	events   *ebpf.Map
 	attached []string
 }
 
@@ -90,7 +94,7 @@ func Attach() (*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("chargement du collection eBPF : %w", err)
 	}
-	s := &Session{Coll: coll, flows: coll.Maps["flows"], global: coll.Maps["globals"]}
+	s := &Session{Coll: coll, flows: coll.Maps["flows"], global: coll.Maps["globals"], events: coll.Maps["events"]}
 	cleanup := func(e error) error {
 		s.Close()
 		return e
@@ -150,6 +154,7 @@ func (s *Session) Close() error {
 	s.links = nil
 	s.flows = nil
 	s.global = nil
+	s.events = nil
 	return first
 }
 
@@ -160,9 +165,26 @@ func (s *Session) Attached() []string {
 	return out
 }
 
+// drainEvents vide les événements déjà disponibles sans bloquer la fenêtre.
+// Voie observationnelle : un échec de vidage n'invalide pas les agrégats.
+func (s *Session) drainEvents() {
+	if s.events == nil {
+		return // objet précompilé sans ring : rien à vider
+	}
+	rd, err := ringbuf.NewReader(s.events)
+	if err != nil {
+		return
+	}
+	defer rd.Close()
+	if rd.SetDeadline(time.Now()) == nil {
+		_, _ = DrainEvents(rd, nil)
+	}
+}
+
 // Summary — fige la fenêtre : flux + compteurs globaux, jamais une
 // affirmation non mesurée. Un flux n'est « seen » que s'il a été échantillonné.
 func (s *Session) Summary() (Summary, error) {
+	s.drainEvents()
 	summary := Summary{Available: true, Source: "ebpf", Attach: ""}
 	for i, a := range s.attached {
 		if i > 0 {
@@ -221,6 +243,7 @@ func (s *Session) Summary() (Summary, error) {
 			summary.QdiscDrops += g.DropPackets
 			summary.QdiscDropBytes += g.DropBytes
 			summary.MapFull += g.MapFull
+			summary.ReserveFailures += g.ReserveFailures
 			// Le drop qdisc n'est compté par flux que si la table avalait le
 			// flux ; la voie globale porte ceux-ci quand même.
 		}

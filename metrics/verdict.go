@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -74,10 +75,10 @@ func AssessVerdict(in VerdictInput) Verdict {
 // moteur Go est la seule dérivation ; l'interface n'affiche plus qu'elle ne
 // recalcule pas).
 type LoadedHealth struct {
-	Kind     string   `json:"kind"`       // "absent"|"unconfigured"|"ok"|"attention"|"critical"
-	BloatMs  float64  `json:"bloat_ms"`   // chargé p95 − idle p50, clampé ≥ 0
-	LinkClass string  `json:"link_class"` // "fiber"|"cellular"|"geo"|"leo"|"other"
-	RedMs    *float64 `json:"red_ms"`     // nil si unconfigured (leo/other/inconnu)
+	Kind      string   `json:"kind"`       // "absent"|"unconfigured"|"ok"|"attention"|"critical"
+	BloatMs   float64  `json:"bloat_ms"`   // chargé p95 − idle p50, clampé ≥ 0
+	LinkClass string   `json:"link_class"` // "fiber"|"cellular"|"geo"|"leo"|"other"
+	RedMs     *float64 `json:"red_ms"`     // nil si unconfigured (leo/other/inconnu)
 }
 
 // redBloatMs — seuil rouge par classe de lien ; nil = classe sans seuil.
@@ -123,4 +124,66 @@ func AssessLoadedHealth(linkType string, idleP50Ms, loadedP95Ms *float64) Loaded
 	}
 	r := red
 	return LoadedHealth{Kind: kind, BloatMs: bloat, LinkClass: cls, RedMs: &r}
+}
+
+// État de fidélité — ensemble FERMÉ. Aucune valeur comparable à « green »
+// n'est ajoutée : ce verdict mesure l'intégrité de la mesure, pas un SLA.
+const (
+	FidelityTrust   = "trust"
+	FidelityBounded = "bounded"
+	FidelityDiscard = "discard"
+)
+
+// FidelityMinSamples — seuil en dessous duquel on ne peut pas conclure à la
+// confiance. Déclaré ici, jamais assoupli pour verdir un résultat rouge.
+const FidelityMinSamples = 30
+
+// FidelityVerdict — verdict de fidélité (définition INRIA (gamma, epsilon)).
+// DeviationMs est l'écart absolu maximal mesuré − modèle ; EpsilonMs la borne
+// explicite déclarée. Les deux seuils sont rendus dans le rapport.
+type FidelityVerdict struct {
+	Samples     int     `json:"samples"`
+	DeviationMs float64 `json:"deviation_ms"`
+	EpsilonMs   float64 `json:"epsilon_ms"`
+	State       string  `json:"state"`
+}
+
+// AssessFidelity — samples mesurés et modèle appariés. trust exige au moins
+// 30 samples, une borne epsilon explicite et finie, et un écart <= epsilon ;
+// des samples insuffisants ou une borne absente donnent bounded, jamais trust ;
+// un écart > epsilon ou un sample non fini donnent discard. Le rouge n'est
+// jamais élargi en vert.
+func AssessFidelity(measured, modeled []float64, epsilonMs float64) FidelityVerdict {
+	v := FidelityVerdict{Samples: len(measured), EpsilonMs: epsilonMs, State: FidelityBounded}
+	validEpsilon := epsilonMs > 0 && !math.IsNaN(epsilonMs) && !math.IsInf(epsilonMs, 0)
+	if len(measured) == 0 || len(measured) != len(modeled) || !validEpsilon {
+		return v
+	}
+	dev := 0.0
+	for i := range measured {
+		d := measured[i] - modeled[i]
+		if math.IsNaN(d) || math.IsInf(d, 0) {
+			// Écart non calculable : on ne fabrique pas de nombre, on refuse.
+			v.State = FidelityDiscard
+			return v
+		}
+		if d < 0 {
+			d = -d
+		}
+		if d > dev {
+			dev = d
+		}
+	}
+	v.DeviationMs = dev
+	switch {
+	case dev > epsilonMs:
+		// Un écart au-delà de la borne est rouge, même avec trop peu de
+		// samples : le manque de preuves ne masque jamais une mesure contraire.
+		v.State = FidelityDiscard
+	case len(measured) < FidelityMinSamples:
+		v.State = FidelityBounded
+	default:
+		v.State = FidelityTrust
+	}
+	return v
 }

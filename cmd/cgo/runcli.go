@@ -14,6 +14,7 @@ import (
 	"github.com/Realms4239/cgo/capabilities"
 	"github.com/Realms4239/cgo/model"
 	"github.com/Realms4239/cgo/pkg/campagne"
+	"github.com/Realms4239/cgo/profile"
 	"github.com/Realms4239/cgo/results"
 )
 
@@ -46,6 +47,9 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 		fmt.Fprintln(os.Stderr, "run: --data vide — indiquez le répertoire des runs (défaut : data/runs)")
 		return 2
 	}
+	// Profils importés visibles de la matrice CLI, comme sur le dashboard :
+	// sans Load(), un profil de validation importé resterait inconnu ici.
+	profile.Load()
 	profiles := strings.Split(profilesStr, ",")
 	for i := range profiles {
 		profiles[i] = strings.TrimSpace(profiles[i])
