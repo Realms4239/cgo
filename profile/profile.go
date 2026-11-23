@@ -20,12 +20,13 @@ func file() string {
 	return "data/profiles.json"
 }
 
-// Reserved — le référentiel P1–P4 n'est ni importable ni supprimable :
-// un import "P3" masquerait le VSAT 5/600/30/1 dans la carte live ET dans
-// les campagnes dashboard (Load fusionne le fichier par-dessus), sans
-// qu'aucune erreur ne le dise. Vu en prod : un P3 35/60 fantôme.
+// Reserved — P1–P4 et les cibles citées L1/V1 ne sont ni importables ni
+// supprimables : un import masquerait le builtin (et sa provenance) dans la
+// carte live ET dans les campagnes dashboard (Load fusionne le fichier
+// par-dessus), sans qu'aucune erreur ne le dise. Vu en prod : un P3 35/60
+// fantôme ; L1/V1 portent une source citée qu'un import écraserait.
 func Reserved(id string) bool {
-	return id == "P1" || id == "P2" || id == "P3" || id == "P4"
+	return id == "P1" || id == "P2" || id == "P3" || id == "P4" || id == "L1" || id == "V1"
 }
 
 // Import enregistre un profil dans model.Profiles ET le persiste (source unique).
@@ -34,7 +35,7 @@ func Import(p model.Profile) error {
 		return nil
 	}
 	if Reserved(p.ID) {
-		return fmt.Errorf("profil %s réservé (référentiel P1–P4) — choisissez un autre identifiant, ex. P-site-fibre", p.ID)
+		return fmt.Errorf("profil %s réservé (P1–P4 + cibles citées L1/V1) — choisissez un autre identifiant, ex. P-site-fibre", p.ID)
 	}
 	// Tout sous verrou : deux imports simultanés ne doivent ni perdre une
 	// écriture (lecture-modification-écriture du fichier) ni courir avec un
@@ -79,7 +80,7 @@ func Load() {
 // intouchable ; un identifiant inconnu est une erreur honnête, pas un OK.
 func Delete(id string) error {
 	if Reserved(id) {
-		return fmt.Errorf("profil %s réservé (référentiel P1–P4) — suppression refusée", id)
+		return fmt.Errorf("profil %s réservé (P1–P4 + cibles citées L1/V1) — suppression refusée", id)
 	}
 	model.ProfilesMu.Lock()
 	defer model.ProfilesMu.Unlock()

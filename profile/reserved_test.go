@@ -2,6 +2,7 @@ package profile
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Realms4239/cgo/model"
@@ -50,6 +51,32 @@ func TestReservedRefused(t *testing.T) {
 	}
 	if err := Delete("PX-absent"); err == nil {
 		t.Fatal("delete d'un inconnu accepté")
+	}
+}
+
+// TestReservedCitedL1V1 — cibles citées L1/V1 (spec 2026-11-23 §1) : ni
+// importables ni supprimables. Un import L1 ne doit pas écraser la provenance
+// du builtin ni écrire de fichier (sinon Load masquerait la citerne).
+func TestReservedCitedL1V1(t *testing.T) {
+	chdirTemp(t)
+	for _, id := range []string{"L1", "V1"} {
+		if !Reserved(id) {
+			t.Fatalf("%s devrait être réservé", id)
+		}
+	}
+	before := model.Profiles["L1"]
+	err := Import(model.Profile{ID: "L1", CapacityMbps: 99})
+	if err == nil {
+		t.Fatal("import L1 accepté : la cible citée serait masquée")
+	}
+	if !strings.Contains(err.Error(), "réservé") {
+		t.Fatalf("erreur sans mention « réservé » : %v", err)
+	}
+	if got := model.Profiles["L1"]; got != before {
+		t.Fatalf("L1 écrasé par l'import : %+v", got)
+	}
+	if _, statErr := os.Stat("data/profiles.json"); !os.IsNotExist(statErr) {
+		t.Fatalf("fichier écrit malgré le refus : %v", statErr)
 	}
 }
 
