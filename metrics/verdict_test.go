@@ -198,6 +198,26 @@ func TestAssessFidelityNaNSampleDiscards(t *testing.T) {
 	}
 }
 
+// Oracle hostile d'ordre : un écart énorme avec trop peu de samples est
+// discard, PAS bounded. Le rouge ne doit jamais être masqué par le manque de
+// preuves. Le test de l'ordre inverse (peu de samples, écart dans la borne →
+// bounded) suit immédiatement.
+func TestAssessFidelityDiscardWinsOverInsufficientSamples(t *testing.T) {
+	measured, modeled := fidelitySet(5, 100)
+	got := AssessFidelity(measured, modeled, 5)
+	if got.State != FidelityDiscard {
+		t.Fatalf("state = %q, voulu discard (écart 100 > epsilon 5, 5 samples) : %+v", got.State, got)
+	}
+}
+
+func TestAssessFidelityFewSamplesWithinEpsilonStaysBounded(t *testing.T) {
+	measured, modeled := fidelitySet(5, 1)
+	got := AssessFidelity(measured, modeled, 5)
+	if got.State != FidelityBounded {
+		t.Fatalf("state = %q, voulu bounded (écart 1 <= epsilon 5, 5 samples) : %+v", got.State, got)
+	}
+}
+
 // Des longueurs divergentes ne peuvent pas être comparées : bounded, jamais
 // trust. Une troncature silencieuse fabriquerait une preuve.
 func TestAssessFidelityMismatchedLengthsBounded(t *testing.T) {

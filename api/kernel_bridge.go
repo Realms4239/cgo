@@ -32,6 +32,10 @@ func kernelTelemetryFromSummary(s bpf.Summary) *audit.KernelTelemetry {
 		// ring plein. Le compteur vient de globals, hors du flux d'événements.
 		tel.ReserveFailures = s.ReserveFailures
 		tel.LowerBound = s.ReserveFailures > 0
+		// Dénominateur réel : les compteurs d'événements tentés (globals, hors
+		// ring saturé). ReserveFailures reste le seul numérateur, non dupliqué.
+		tel.ObserverEvents, tel.ObserverLossPct, tel.ObserverLossDenominator =
+			audit.ObserverLoss(s.RetransEvents+s.QdiscDrops, s.ReserveFailures)
 	}
 	return tel
 }

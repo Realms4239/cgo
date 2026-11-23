@@ -35,7 +35,7 @@ func TestModelDelayMsIncludesSerializationAndQueue(t *testing.T) {
 // Oracle hostile : un taux nul, négatif ou NaN ne doit jamais produire un
 // délai (division par zéro silencieuse → +Inf ou NaN transformé en valeur).
 func TestModelDelayMsRefusesNonPositiveRate(t *testing.T) {
-	for _, rate := range []float64{0, -1, math.NaN()} {
+	for _, rate := range []float64{0, -1, math.NaN(), math.Inf(1), math.Inf(-1)} {
 		got, err := ModelDelayMs(100, 1500, rate, 0)
 		if err == nil {
 			t.Fatalf("taux %v : refus attendu, obtenu %.12f", rate, got)

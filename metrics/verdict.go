@@ -176,10 +176,12 @@ func AssessFidelity(measured, modeled []float64, epsilonMs float64) FidelityVerd
 	}
 	v.DeviationMs = dev
 	switch {
+	case dev > epsilonMs:
+		// Un écart au-delà de la borne est rouge, même avec trop peu de
+		// samples : le manque de preuves ne masque jamais une mesure contraire.
+		v.State = FidelityDiscard
 	case len(measured) < FidelityMinSamples:
 		v.State = FidelityBounded
-	case dev > epsilonMs:
-		v.State = FidelityDiscard
 	default:
 		v.State = FidelityTrust
 	}
