@@ -95,3 +95,19 @@ This shows the emulator reproduces a sealed distribution table for every profile
 tested, with the largest scalar error (P2, -53.5 ms) far exceeding replay error
 (+0.72 ms). It does NOT promote bench-derived samples to field measurements: the
 only organic field-derived result in this file remains the P3 replay above.
+
+## Manifest repair, proven on the live bench
+
+The earlier replay manifests omitted `delay_model` because the committed
+`matrixConfig` lacked the field. A RED-first fix (`go -C pkg/campagne test
+-overlay` against HEAD: FAIL; with fix: PASS) was committed as `13808e1`, with
+evidence in `manifest-fix-report.md` (report commit `8468558`). A rebuilt Linux
+binary (guest sha `1d6602f0…`) then ran one P3 dist replay:
+
+- `run-1795458711`: manifest config now contains `"delay_model":"dist"`,
+  `config_sha256 8ff7779e…`, rtt_p50/p95 840.0/840.0 ms, `gate_status valid`.
+- Window evidence: deploy `30ebe218…`, launch `83eafb53…`, artifacts `2e420863…`.
+
+Existing replay manifests were NOT retroactively rewritten. Topology restored
+after the proof. This closes the manifest gap but not the live eBPF object
+rebuild or the operator-visible fidelity pipeline, which remain parked.
