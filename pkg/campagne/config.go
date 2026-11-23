@@ -30,6 +30,10 @@ type matrixConfig struct {
 	// se lisent dans le gel — deux régimes ne se mélangent jamais en secret.
 	ChannelModel string `json:"channel_model"`
 	Bench        string `json:"bench"`
+	// DelayModel — scalar|dist : le moteur applique une table de distribution
+	// calibrée ou un délai fixe. Même obligation que le noyau : une ligne
+	// scellée sous dist ne se distingue pas d'une ligne scalar sans ce gel.
+	DelayModel   string `json:"delay_model,omitempty"`
 	Kernel       string `json:"kernel,omitempty"`
 	// Tier — le palier tarifaire gelé avec le run : chaque ligne du manifeste
 	// se valorise sur cette base, même si le palier global change ensuite.
@@ -84,6 +88,10 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 	}
 	model.ProfilesMu.RUnlock()
 
+	dm := deps.DelayModel
+	if dm == "" {
+		dm = "scalar"
+	}
 	dir := deps.Direction
 	if dir == "" {
 		dir = "up"
@@ -117,6 +125,6 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 		Direction: dir, Target: deps.Target, BulkAddr: deps.BulkAddr,
 		SmallURL: deps.SmallURL, Flows: flows, BaselineSec: baseline,
 		ChargeSec: charge, DeadlineMs: deps.DeadlineMs,
-		ChannelModel: cm, Bench: bench, Kernel: capabilities.KernelRelease(), Tier: tier,
+		ChannelModel: cm, Bench: bench, DelayModel: dm, Kernel: capabilities.KernelRelease(), Tier: tier,
 	})
 }
