@@ -164,7 +164,7 @@ SourceRef         string  `json:"source_ref,omitempty"`
 
 - [ ] **Step 3: Wire the emitter.** In `qdisc/applyNetemArgs`, emit `distribution <name>` only when `DelayDistribution != ""` and append the shape token with the documented type-specific meaning; emit `loss gemodel` from the profile when `LossModel == "gemodel"` instead of the campaign GE only when the campaign did not supply one. In `pkg/campagne.applyPhysics`, call `model.ValidateProfileParams(prof)` before the first topology check or tc mutation. Campaign `channel_model` still overrides when explicitly set.
 
-- [ ] **Step 4: CSV + DTO.** In `api/server.go`, parse optional columns 13-20 in order (distribution, shape, loss_model, loss_p, loss_r, loss_bad, loss_good, basis, source_ref would be 9 - use columns 13-21 with `source_ref` last); add the fields to the `/api/profiles` DTO with `omitempty`. Update only shape-enumerating assertions.
+- [ ] **Step 4: CSV + DTO.** In `api/server.go`, parse the nine optional fields at **0-based CSV indices 13-21** (1-based columns 14-22), in this exact order: `delay_distribution`, `jitter_shape`, `loss_model`, `loss_p`, `loss_r`, `loss_bad`, `loss_good`, `basis`, `source_ref`. Index 12 is already `packet_overhead_bytes`, so there is no overlap; old rows with <=13 columns keep all nine fields zero. Add the fields to the `/api/profiles` DTO with `omitempty`. Update only shape-enumerating assertions.
 
 - [ ] **Step 5: GREEN + commit.** Run model/qdisc/api/campagne suites and `go build ./...`; commit `feat(profile): validated distribution, GE loss and provenance fields`.
 
