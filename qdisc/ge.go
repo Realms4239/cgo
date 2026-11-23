@@ -2,6 +2,7 @@ package qdisc
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -39,10 +40,19 @@ func GEMeanLoss(ge GEModel) float64 {
 	return (piBad*ge.LossBad + (1-piBad)*ge.LossGood) * 100
 }
 
+// corrArg — option variadic : l'absence vaut 0 (défaut historique), pour que
+// les appels existants restent byte-identiques.
+func corrArg(opts []float64) float64 {
+	if len(opts) == 0 {
+		return 0
+	}
+	return opts[0]
+}
+
 // ApplyNetemGE — netem racine avec perte Gilbert-Elliott (forme documentée
 // à 4 arguments). Handle 1: conservé (un shaper peut s'empiler en 1:1).
-func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEModel) error {
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, 0, &ge, ""); err != nil {
+func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEModel, correlation ...float64) error {
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, 0, &ge, "", corrArg(correlation)); err != nil {
 		return fmt.Errorf("netem ge %s: %w", iface, err)
 	}
 	return nil
@@ -52,8 +62,8 @@ func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEMode
 // perte UNIFORME (ge nil, forme historique à l'octet près — le corpus gelé
 // se reproduit par là) ou Gilbert-Elliott (ge fourni, 4 arguments). Une
 // seule des deux formes de perte, jamais les deux.
-func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel) error {
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, ""); err != nil {
+func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, correlation ...float64) error {
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, "", corrArg(correlation)); err != nil {
 		return fmt.Errorf("netem %s: %w", iface, err)
 	}
 	return nil
@@ -62,7 +72,7 @@ func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct floa
 // ApplyNetemDistribution — netem du saut mesuré : la table empirique
 // remplace la gigue déclarée. tc exige delay ET jitter avec
 // « distribution » ; un nom ou une gigue invalide est refusé AVANT tc.
-func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string) error {
+func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, correlation ...float64) error {
 	if dist == "" {
 		return fmt.Errorf("netem dist %s: nom de distribution vide", iface)
 	}
@@ -75,15 +85,41 @@ func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct
 	if jitterMs <= 0 {
 		return fmt.Errorf("netem dist %s: jitter %.6g ≤ 0 (tc exige delay+jitter)", iface, jitterMs)
 	}
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist); err != nil {
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist, corrArg(correlation)); err != nil {
 		return fmt.Errorf("netem dist %s: %w", iface, err)
 	}
 	return nil
 }
 
-func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string) error {
+// validCorrelation — même garde-fou que model.ValidateJitterCorrelation,
+// gardé local : le module qdisc résout model depuis le cache (v0.1.1), donc
+// un nouveau symbole model n'est pas visible ici (les replace ne vivent que
+// dans le go.mod racine). La frontière tc refuse seule, avant tout appel.
+func validCorrelation(c float64) error {
+	if math.IsNaN(c) {
+		return fmt.Errorf("jitter_correlation NaN invalide (plage [0,1] attendue)")
+	}
+	if c < 0 || c > 1 {
+		return fmt.Errorf("jitter_correlation %g hors plage [0,1]", c)
+	}
+	return nil
+}
+
+func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, correlation float64) error {
+	// Échec fermé AVANT le premier appel tc : une corrélation hors plage ne
+	// doit jamais laisser une racine netem à moitié configurée.
+	if err := validCorrelation(correlation); err != nil {
+		return err
+	}
 	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
 		"delay", fmt.Sprintf("%gms", delayMs), fmt.Sprintf("%gms", jitterMs)}
+	if correlation > 0 {
+		// tc-netem : delay TIME [ JITTER [ CORRELATION ]] — le jeton suit
+		// immédiatement la gigue et précède perte/distribution (grammaire).
+		// iproute2 parse_percent fait strtod(v)/100 : netem veut un POURCENTAGE,
+		// pas une fraction — émettre 0.25 en brut donne 0,25 % (levier 100× plus faible).
+		args = append(args, fmt.Sprintf("%g%%", correlation*100))
+	}
 	if ge != nil {
 		// iproute2 tc_util.c parse_percent fait strtod(v)/100 sans condition
 		// (q_netem.c gemodel inclus) : netem veut des POURCENTAGES, pas des

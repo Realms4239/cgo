@@ -293,3 +293,68 @@ func TestProdDepsLegacyDistWired(t *testing.T) {
 		t.Fatalf("CGO_DELAY_MODEL ignoré par le banc legacy : %+v", d)
 	}
 }
+
+func TestApplyPhysicsJitterCorrelation(t *testing.T) {
+	// La corrélation du profil atteint les DEUX sens (w-edge + c-wan) :
+	// l'ordre reset-avant-mutation reste inchangé.
+	prof := model.Profiles["P2"]
+	prof.JitterCorrelation = 0.25
+	f := &qdisc.FakeRunner{}
+	d := &Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}}
+	if err := applyPhysics(d, prof, nil); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, c := range f.Calls {
+		j := strings.Join(c, " ")
+		if !strings.Contains(j, "netem delay 50ms 15ms 25%") {
+			continue
+		}
+		for _, dev := range []string{"dev w-edge", "dev c-wan"} {
+			if strings.Contains(j, dev) {
+				seen[dev] = true
+			}
+		}
+	}
+	if !seen["dev w-edge"] || !seen["dev c-wan"] {
+		t.Fatalf("corrélation absente d'un sens : %v (%v)", seen, f.Calls)
+	}
+	// Hors plage : refus AVANT tout reset/tc, aucune valeur coercée.
+	bad := prof
+	bad.JitterCorrelation = 1.5
+	fb := &qdisc.FakeRunner{}
+	if err := applyPhysics(&Deps{TC: fb, CliIf: "w-edge"}, bad, nil); err == nil {
+		t.Fatal("corrélation 1.5 doit être refusée")
+	}
+	if len(fb.Calls) != 0 {
+		t.Fatalf("tc appelé avant le refus : %v", fb.Calls)
+	}
+}
+
+func TestApplyPhysicsDistJitterCorrelation(t *testing.T) {
+	topoPath := filepath.Join(t.TempDir(), "topology.json")
+	t.Setenv("CGO_TOPOLOGY_JSON", topoPath)
+	writeTopo(t, topoPath, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
+	dir := t.TempDir()
+	writeDistCalibration(t, dir, "P2", 100)
+	prof := model.Profiles["P2"]
+	prof.JitterCorrelation = 0.25
+	f := &qdisc.FakeRunner{}
+	d := Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: "dist", CalibrationDir: dir}
+	if err := applyPhysics(&d, prof, nil); err != nil {
+		t.Fatal(err)
+	}
+	up := ""
+	for _, c := range f.Calls {
+		j := strings.Join(c, " ")
+		if strings.Contains(j, "dev w-edge") && strings.Contains(j, "netem") {
+			up = j
+		}
+	}
+	// tc : delay TIME JITTER CORRELATION [loss …] [distribution …] — la
+	// corrélation suit la gigue et précède la distribution (perte intercalée).
+	iCorr, iDist := strings.Index(up, "25%"), strings.Index(up, "distribution P2")
+	if iCorr < 0 || iDist < 0 || iCorr >= iDist {
+		t.Fatalf("saut mesuré : corrélation avant distribution attendue : %q", up)
+	}
+}

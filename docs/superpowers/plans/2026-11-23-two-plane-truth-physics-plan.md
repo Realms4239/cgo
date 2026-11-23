@@ -42,8 +42,9 @@ orchestration test in `pkg/campagne/dualns_test.go`.
     calls (fail closed before tc);
   - `c = 0` yields the exact existing vector
     `qdisc replace dev <i> root handle 1: netem delay 100ms 15ms`;
-  - `c = 0.25` yields `... delay 100ms 15ms 0.25`;
-  - with `distribution`, the token order is `delay 100ms 15ms 0.25 distribution P2`.
+  - `c = 0.25` yields `... delay 100ms 15ms 25%` (explicit `%` suffix — iproute2
+    `get_percent()` divides by 100 unconditionally; bare `0.25` would be 0.25 %);
+  - with `distribution`, the token order is `delay 100ms 15ms 25% distribution P2`.
   In `model`: a profile with out-of-range `JitterCorrelation` is rejected by a
   shared `ValidateJitterCorrelation` before import; P1-P4 remain unchanged.
   Run `go -C qdisc test -count=1 ./...` and `go -C model test -count=1 ./...` -> RED.

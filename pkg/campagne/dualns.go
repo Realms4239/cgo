@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 
 	"github.com/Realms4239/cgo/model"
-	"github.com/Realms4239/cgo/results"
 	"github.com/Realms4239/cgo/probe"
 	"github.com/Realms4239/cgo/qdisc"
+	"github.com/Realms4239/cgo/results"
 )
 
 // BurstGE — le canal en salves (Gilbert-Elliott) par profil : P2/P3
@@ -45,6 +45,11 @@ func burstGEOrNull(profileID, channelModel string) *qdisc.GEModel {
 // seul sens ferait d'un run « symétrique » un lien asymétrique en secret.
 // Reset d'abord : une cellule périmée peut avoir laissé une racine étrangère.
 func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
+	// Corrélation hors plage refusée AVANT le premier reset/tc : jamais une
+	// cellule à moitié configurée ni une valeur silencieusement coercée.
+	if err := model.ValidateJitterCorrelation(prof.JitterCorrelation); err != nil {
+		return err
+	}
 	// I1 — échec fermé AVANT toute mutation tc : si le banc a bâti l'ingress
 	// et que la campagne croit être en egress (ou l'inverse), la cellule est
 	// refusée ici — applyPhysics est le PREMIER point de mutation du run.
@@ -65,7 +70,7 @@ func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
 	// netem porte la MOITIÉ, sinon le RTT mesuré vaut 2× le profil.
 	for _, ifc := range ifaces {
 		_, _ = d.TC.Run("qdisc", "del", "dev", ifc, "root")
-		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, prof.DelayMs/2, prof.JitterMs, prof.LossPct, ge); err != nil {
+		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, prof.DelayMs/2, prof.JitterMs, prof.LossPct, ge, prof.JitterCorrelation); err != nil {
 			return fmt.Errorf("netem %s: %w", ifc, err)
 		}
 	}
@@ -109,12 +114,12 @@ func applyPhysicsDist(d *Deps, prof model.Profile, ge *qdisc.GEModel, ifaces []s
 	for _, ifc := range ifaces {
 		_, _ = d.TC.Run("qdisc", "del", "dev", ifc, "root")
 		if ifc == measured {
-			if err := qdisc.ApplyNetemDistribution(d.TC, ifc, cal.FloorMs/2, cal.ScaleMs, prof.LossPct, ge, prof.ID); err != nil {
+			if err := qdisc.ApplyNetemDistribution(d.TC, ifc, cal.FloorMs/2, cal.ScaleMs, prof.LossPct, ge, prof.ID, prof.JitterCorrelation); err != nil {
 				return fmt.Errorf("netem dist %s: %w", ifc, err)
 			}
 			continue
 		}
-		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, cal.FloorMs/2, 0, prof.LossPct, ge); err != nil {
+		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, cal.FloorMs/2, 0, prof.LossPct, ge, prof.JitterCorrelation); err != nil {
 			return fmt.Errorf("netem dist %s: %w", ifc, err)
 		}
 	}

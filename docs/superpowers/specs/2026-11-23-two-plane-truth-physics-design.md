@@ -55,8 +55,14 @@ operator practice. The bench currently emits `delay <d> <j>` with no correlation
 
 Add `Profile.JitterCorrelation float64` (`json:"jitter_correlation,omitempty"`,
 range 0..1, default 0). Emit the third delay token only when > 0, in
-`qdisc.applyNetemArgs`, before any `distribution` token (grammar order). Wire it
-from `pkg/campagne.applyPhysics` and from the CSV import as optional column 10.
+`qdisc.applyNetemArgs`, before any `distribution` token (grammar order), and
+**as a percentage with an explicit `%` suffix**: a profile fraction of `0.25`
+must be emitted as `25%`, not `0.25`. iproute2 `q_netem.c` parses delay
+correlation with `get_percent()` -> `parse_percent()`, which divides by 100
+unconditionally; a bare `0.25` would be 0.25 %, making the lever ~100x too weak.
+This is the identical encoding rule already applied to `loss gemodel` in
+`qdisc/ge.go`. Wire it from `pkg/campagne.applyPhysics` and from the CSV import
+as optional column 10.
 Never silently coerce an out-of-range value: refuse before any `tc` mutation.
 
 Byte-identical invariant: with correlation 0, every emitted tc argument vector

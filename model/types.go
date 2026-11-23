@@ -2,7 +2,11 @@
 // L'ordre des colonnes CSV est défini par csvFieldOrder.
 package model
 
-import "sync"
+import (
+	"fmt"
+	"math"
+	"sync"
+)
 
 // Profil — valeurs par défaut, remplacées par les profils importés.
 // CapacityMbps reste LA capacité de référence (historique) ; CapacityUpMbps
@@ -14,7 +18,11 @@ type Profile struct {
 	CapacityUpMbps float64 `json:"capacity_up_mbps,omitempty"`
 	DelayMs        float64 `json:"delay_ms"`
 	JitterMs       float64 `json:"jitter_ms"`
-	LossPct        float64 `json:"loss_pct"`
+	// JitterCorrelation — corrélation de gigue netem (0..1, 0 = défaut
+	// historique, aucun jeton émis). Optionnel : ignoré par les anciennes
+	// lignes CSV et par les profils figés P1-P4.
+	JitterCorrelation float64 `json:"jitter_correlation,omitempty"`
+	LossPct           float64 `json:"loss_pct"`
 	// DÉPRÉCIÉ — perte en rafales par profil (Gilbert-Elliott). Le runtime ne
 	// lit plus ces champs : le canal (clean|bursty) se déclare par campagne
 	// (Deps.ChannelModel, GE dérivé du profil — spec décision 7). Ils restent
@@ -41,6 +49,19 @@ func (p Profile) CapUp() float64 {
 		return p.CapacityUpMbps
 	}
 	return p.CapacityMbps
+}
+
+// ValidateJitterCorrelation — garde-fou partagé de la corrélation de gigue :
+// plage 0..1, NaN refusé. 0 est le défaut historique (aucun jeton tc émis).
+// Appelé AVANT toute mutation tc, jamais une valeur hors plage coercée.
+func ValidateJitterCorrelation(c float64) error {
+	if math.IsNaN(c) {
+		return fmt.Errorf("jitter_correlation NaN invalide (plage [0,1] attendue)")
+	}
+	if c < 0 || c > 1 {
+		return fmt.Errorf("jitter_correlation %g hors plage [0,1]", c)
+	}
+	return nil
 }
 
 var Profiles = map[string]Profile{

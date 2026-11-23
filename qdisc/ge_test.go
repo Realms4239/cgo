@@ -1,6 +1,7 @@
 package qdisc
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -81,5 +82,60 @@ func TestApplyNetemPhysicsBursty(t *testing.T) {
 	}
 	if strings.Contains(joined, "loss 1%") {
 		t.Fatalf("perte uniforme ne doit pas accompagner gemodel : %v", f.Calls[0])
+	}
+}
+
+func TestApplyNetemJitterCorrelationFailClosed(t *testing.T) {
+	// Corrélation hors plage ou NaN : refus AVANT tout appel tc — la
+	// physique d'une cellule ne doit jamais rester à moitié configurée.
+	for _, c := range []float64{-0.01, 1.01, math.NaN()} {
+		f := &FakeRunner{}
+		if err := ApplyNetemPhysics(f, "w-edge", 100, 15, 0, nil, c); err == nil {
+			t.Fatalf("corrélation %v doit être refusée", c)
+		}
+		if len(f.Calls) != 0 {
+			t.Fatalf("corrélation %v : tc appelé avant le refus : %v", c, f.Calls)
+		}
+	}
+}
+
+func TestApplyNetemJitterCorrelationVector(t *testing.T) {
+	// c=0 : vecteur historique à l'octet près — le corpus gelé se reproduit.
+	f0 := &FakeRunner{}
+	if err := ApplyNetemPhysics(f0, "w-edge", 100, 15, 0, nil, 0); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(f0.Calls[0], " "), "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms"; got != want {
+		t.Fatalf("c=0 : got %q, want %q", got, want)
+	}
+	// c=0.25 : troisième jeton juste après la gigue.
+	f25 := &FakeRunner{}
+	if err := ApplyNetemPhysics(f25, "w-edge", 100, 15, 0, nil, 0.25); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(f25.Calls[0], " "), "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms 25%"; got != want {
+		t.Fatalf("c=0.25 : got %q, want %q", got, want)
+	}
+	// Avec distribution : la corrélation précède « distribution » (ordre tc).
+	fd := &FakeRunner{}
+	if err := ApplyNetemDistribution(fd, "w-edge", 100, 15, 0, nil, "P2", 0.25); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(fd.Calls[0], " "), "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms 25% distribution P2"; got != want {
+		t.Fatalf("c=0.25 + dist : got %q, want %q", got, want)
+	}
+}
+
+func TestApplyNetemJitterCorrelationWithGEModelOrder(t *testing.T) {
+	// Ordre tc verrouillé : delay jitter corrélation loss gemodel distribution.
+	f := &FakeRunner{}
+	ge := GEModel{GoodToBad: 0.001, BadToGood: 0.1, LossBad: 0.5, LossGood: 0.0005}
+	if err := ApplyNetemDistribution(f, "c-wan", 600, 30, 0, &ge, "P3", 0.25); err != nil {
+		t.Fatal(err)
+	}
+	got, want := strings.Join(f.Calls[0], " "),
+		"qdisc replace dev c-wan root handle 1: netem delay 600ms 30ms 25% loss gemodel 0.1% 10% 50% 0.05% distribution P3"
+	if got != want {
+		t.Fatalf("ordre des jetons : got %q, want %q", got, want)
 	}
 }
