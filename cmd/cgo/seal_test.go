@@ -310,6 +310,55 @@ func TestParseTCDropsMultiInterfaceAmbiguousTarget(t *testing.T) {
 	}
 }
 
+// Oracle — capture RÉEL de eb-clean.sh : en-têtes `=== <iface> ===`, lignes
+// `qdisc cake ...` SANS token `dev`. L'interface vient de la section, le type
+// vient de la ligne qdisc. Le compteur attendu est celui de la section e-wan.
+func TestParseTCDropsSectionHeaders(t *testing.T) {
+	const capture = "=== w-edge ===\nqdisc cake 123: root refcnt 2\n Sent 1 pkt (dropped 3, overlimits 0)\n" +
+		"=== c-wan ===\nqdisc cake 456: root refcnt 2\n Sent 2 pkt (dropped 7, overlimits 0)\n" +
+		"=== e-wan ===\nqdisc cake 8034: root refcnt 2\n Sent 3 pkt (dropped 1, overlimits 0)\n backlog 0b 0p requeues 0\n"
+	p := sealPutFile(t, t.TempDir(), "sections.txt", capture)
+
+	got, err := parseTCDrops(p, "e-wan", "cake")
+	if err != nil {
+		t.Fatalf("capture en sections valide refusée: %v", err)
+	}
+	if got != 1 {
+		t.Fatalf("dropped=%d, attendu 1 (section e-wan)", got)
+	}
+
+	// Hostile : section absente ou type divergent → échec fermé.
+	for _, tc := range []struct{ iface, qdisc string }{
+		{"w-edge2", "cake"},
+		{"e-wan", "fq_codel"},
+	} {
+		if _, err := parseTCDrops(p, tc.iface, tc.qdisc); err == nil {
+			t.Fatalf("labels %s/%s acceptés à tort", tc.iface, tc.qdisc)
+		}
+	}
+}
+
+// Oracle hostile — deux sections portant le MÊME iface demandé sont ambiguës,
+// même si un seul qdisc du bon type y figure : refus fermé.
+func TestParseTCDropsRejectsDuplicateSection(t *testing.T) {
+	const capture = "=== e-wan ===\nqdisc cake 1: root refcnt 2\n Sent 1 pkt (dropped 1, overlimits 0)\n" +
+		"=== e-wan ===\nqdisc fq_codel 2: root refcnt 2\n Sent 1 pkt (dropped 2, overlimits 0)\n"
+	p := sealPutFile(t, t.TempDir(), "duplicate-section.txt", capture)
+	if _, err := parseTCDrops(p, "e-wan", "cake"); err == nil {
+		t.Fatal("deux sections e-wan acceptées — ambiguïté d'iface non refusée")
+	}
+}
+
+// Oracle hostile — deux `dropped` dans le bloc cible restent ambigus en
+// format sections : la garde par bloc n'est pas relâchée.
+func TestParseTCDropsSectionAmbiguousTarget(t *testing.T) {
+	const capture = "=== e-wan ===\nqdisc cake 8034: root refcnt 2\n Sent 1 pkt (dropped 1, overlimits 0)\n Sent 2 pkt (dropped 2, overlimits 0)\n"
+	p := sealPutFile(t, t.TempDir(), "section-ambiguous.txt", capture)
+	if _, err := parseTCDrops(p, "e-wan", "cake"); err == nil {
+		t.Fatal("deux dropped dans le bloc cible acceptés — garde par bloc supprimée ?")
+	}
+}
+
 // Oracle hostile — --iface/--qdisc sont des étiquettes demandées, pas des
 // faits. Le capture doit les confirmer lui-même : un capture d'un autre iface
 // ou d'un autre qdisc, même avec un seul `dropped`, ne doit jamais être

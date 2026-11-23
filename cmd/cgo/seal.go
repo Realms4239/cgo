@@ -47,10 +47,19 @@ func requireJSONFields(raw json.RawMessage, keys ...string) error {
 // recherche partielle : on exige une correspondance exacte avec les labels.
 var tcQdiscHeaderRx = regexp.MustCompile(`^qdisc[[:space:]]+([^[:space:]]+)[[:space:]].*\bdev[[:space:]]+([^[:space:]]+)`)
 
+// tcSectionRx — en-tête `=== <iface> ===` produit par eb-clean.sh : la ligne
+// `qdisc ...` qui suit n'a pas de token `dev`, l'iface vient de la section.
+var tcSectionRx = regexp.MustCompile(`^===\s+(\S+)\s+===$`)
+
+// tcQdiscKindRx — le type est toujours lu sur la ligne `qdisc <kind> ...`,
+// avec ou sans token `dev` sur cette ligne.
+var tcQdiscKindRx = regexp.MustCompile(`^qdisc[[:space:]]+([^[:space:]]+)[[:space:]]`)
+
 // parseTCDrops lit `dropped N` dans un capture texte `tc -s qdisc show` et
-// vérifie que le capture confirme LUI-MÊME les labels demandés : une ligne
-// `qdisc <kind> ... dev <iface>` doit exister et le compteur doit appartenir à
-// ce bloc. --iface/--qdisc ne sont jamais recollés sur un capture étranger.
+// vérifie que le capture confirme LUI-MÊME les labels demandés : l'iface vient
+// d'un token `dev <iface>` ou d'un en-tête `=== <iface> ===`, le type de la
+// ligne `qdisc <kind> ...`, et le compteur doit appartenir à ce bloc.
+// --iface/--qdisc ne sont jamais recollés sur un capture étranger.
 // Échec fermé sur absence, divergence ou ambiguïté.
 func parseTCDrops(path, iface, qdisc string) (uint64, error) {
 	raw, err := os.ReadFile(path)
@@ -69,17 +78,47 @@ func parseTCDrops(path, iface, qdisc string) (uint64, error) {
 		body      []string
 	}
 	var blocks []qdiscBlock
+	var sections []string
+	currentSection := ""
 	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if m := tcSectionRx.FindStringSubmatch(line); m != nil {
+			sections = append(sections, m[1])
+			currentSection = m[1]
+			continue
+		}
 		if strings.HasPrefix(line, "qdisc ") {
 			kind, dev := "", ""
+			if m := tcQdiscKindRx.FindStringSubmatch(line); m != nil {
+				kind = m[1]
+			}
 			if m := tcQdiscHeaderRx.FindStringSubmatch(line); m != nil {
-				kind, dev = m[1], m[2]
+				dev = m[2]
+			}
+			if dev == "" {
+				dev = currentSection
 			}
 			blocks = append(blocks, qdiscBlock{kind: kind, dev: dev})
 			continue
 		}
 		if len(blocks) > 0 {
 			blocks[len(blocks)-1].body = append(blocks[len(blocks)-1].body, line)
+		}
+	}
+
+	// Format sections : l'iface demandée doit apparaître exactement une fois.
+	if len(sections) > 0 {
+		sectionMatches := 0
+		for _, s := range sections {
+			if s == iface {
+				sectionMatches++
+			}
+		}
+		if sectionMatches == 0 {
+			return 0, fmt.Errorf("capture tc (%s): section `=== %s ===` absente", path, iface)
+		}
+		if sectionMatches > 1 {
+			return 0, fmt.Errorf("capture tc (%s): section `=== %s ===` ambiguë (%d sections)", path, iface, sectionMatches)
 		}
 	}
 
@@ -95,7 +134,7 @@ func parseTCDrops(path, iface, qdisc string) (uint64, error) {
 		}
 	}
 	if matches == 0 {
-		return 0, fmt.Errorf("capture tc (%s): labels iface=%q qdisc=%q absents ou divergents — aucune ligne `qdisc %s ... dev %s` confirmée", path, iface, qdisc, qdisc, iface)
+		return 0, fmt.Errorf("capture tc (%s): labels iface=%q qdisc=%q absents ou divergents — ni section `=== %s ===` ni ligne `qdisc %s ... dev %s` confirmée", path, iface, qdisc, iface, qdisc, iface)
 	}
 	if matches > 1 {
 		return 0, fmt.Errorf("capture tc (%s): labels iface=%q qdisc=%q ambigus (%d blocs) — dropped indéterminé", path, iface, qdisc, matches)
