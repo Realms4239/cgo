@@ -395,3 +395,9 @@ bite-sized weak-agent tasks, builder ≠ verifier; see the plan header.
    decision log, not only its own.
 5. A new governing document is added to `AGENTS.md` in the same commit.
 6. Every number in a plan is labelled: measured, recorded, pending or blocked.
+
+## Two-plane truth and physics (2026-11-23)
+
+| Slice | Spec | Plan | Status | Depends on | Next action / blocker |
+|---|---|---|---|---|---|
+| Two-plane truth + physics | `2026-11-23-two-plane-truth-physics-design.md` | `2026-11-23-two-plane-truth-physics-plan.md` | **Spec + plan written, execution pending** | kernel-truth seal `ff72f5b` (real seal + confrontation already produced) | Task 1 jitter correlation, then Task 2 truth-plane provenance, each via fresh implementer + reviewer. eBPF stays the near-wire-speed temporal plane; tc is the declared accounting surface. Serialization `rate`/overhead is a named human-gated live A/B park. No gate, ledger, frozen-corpus or schema-version edit. |
