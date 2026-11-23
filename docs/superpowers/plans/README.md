@@ -407,3 +407,9 @@ bite-sized weak-agent tasks, builder ≠ verifier; see the plan header.
 | Slice | Spec | Plan | Status | Depends on | Next action / blocker |
 |---|---|---|---|---|---|
 | Measurement physics + observation | `2026-11-23-measurement-physics-observation-design.md` | `2026-11-23-measurement-physics-observation-plan.md` | **All 4 tasks complete + final fix; final review clean** | live validation `f8a4b7f`/`b60457a` (real cells + fresh audit) | HEAD c52d8a9. Observation truth, ring-buffer loss lane, validated profile parameters, delay model + fidelity verdict + observer-loss budget, all RED-first with fresh reviewers. Final review fix F1 (stock-compatible distribution token) applied and re-reviewed clean. Parks: object vendoring/live eBPF path, custom .dist shape generator, operator-visible fidelity pipeline, F2-F5 rulings in the SDD ledger. No gate/ledger/frozen edit, no VERIFY promotion. |
+
+## Organic trace and model system (2026-11-23)
+
+| Slice | Spec | Plan | Status | Depends on | Next action / blocker |
+|---|---|---|---|---|---|
+| Organic trace + model system | `2026-11-23-organic-trace-model-system-design.md` | `2026-11-23-organic-trace-model-system-plan.md` | **Spec approved, plan written, execution pending** | existing tagged observatory on sadc; field replay evidence `766f1a5` | Task 1 fresh 24h R2 capture, Task 2 trace-to-model Go command + sealed calibrations, Task 3 live A/B gate. No gate/ledger/frozen edit, no VERIFY promotion. |
