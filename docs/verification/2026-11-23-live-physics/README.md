@@ -1,50 +1,52 @@
-# Live physics validation - 2026-11-23 (builder pass, PARTIAL / BLOCKED)
+# Live physics validation - 2026-11-23 (builder pass)
 
-Guarded window under `C:/WEBSERVER/APPROVED-2026-11-23-live-physics-validation.md`
-(R2, reversible, 09:45-23:59 UTC). All SSH traffic went through `safe_write.py`;
-no direct SSH, no host service/config change, no frozen corpus, no ledger or gate
-edit, no VERIFY-row promotion.
+Two guarded windows under `C:/WEBSERVER/APPROVED-2026-11-23-live-physics-validation.md`
+and `APPROVED-2026-11-23-netctl-permit.md`. All host contact went through
+`safe_write.py`; no direct SSH, no host service/config change, no frozen corpus,
+no ledger or gate edit, no VERIFY-row promotion.
 
-## What actually ran
+## Result: correlation and serialisation are live-proven; permit restored
 
-- New Linux binary `cgo-physval-20261123` (source `ad6731e`, 16 410 606 bytes,
-  guest sha256 `0a56e018280c4c795b822cbd5cda22003bdc64f282744424dac7297dc724c894`)
-  staged with launcher and two imported validation profiles (`V-CORR`, `V-SERIAL`),
-  evidence `20261123-101959`, sha256 `db1075eb…46ebf`.
-- **Baseline cell P2/cake/bbr/down, run `1795429528`** completed on the real bench:
-  `UP_RC=0`, `CHECK_RC=0`, valid 3816-byte tc-before capture, 1/1 frozen row,
-  log showing `small p95 223.4 ms`, `rtt 122.0 ms`, `G[✓✓✓✓✓✓✓✓] 1/1`.
-  Evidence `20261123-102528`, sha256 `05f3ae4b…bf4`.
-- The new confrontation schema was executed by the new binary with an **archived,
-  real** audit (`audit-1794898684`, NOT this run): `cgo.ebpf-vs-tc/1` carried the
-  additive `truth_planes` object (tc = accounting surface, eBPF = temporal
-  surface, no hierarchy claim); it reported `retrans_events 291`,
-  `tc_drops_delta 0`, `match false`. This is a schema-execution check only — it
-  is NOT a measurement of the baseline cell and is not claimed as such.
-- Every `run` in this campaign does not emit an audit by itself; the ratified
-  recipe calls a separate `audit` command. No fresh per-cell audit was produced,
-  so no fresh per-cell kernel-truth seal is claimed.
+| Cell | Run | Kernel-applied netem (read back with `tc -s`) | Frozen row | Last log values |
+|---|---|---|---|---|
+| baseline P2 | `1795429528` | `delay 50ms 15ms` | 1/1 | small p95 223.4 ms, rtt 122.0 ms, G[✓×8] |
+| V-CORR | `1795431568` | `delay 50ms 15ms 25% loss 0.5%` | 1/1 | small p95 205.5 ms, rtt 122.6 ms, G[✓×8] |
+| V-SERIAL | `1795431920` | `delay 50ms 15ms 25% loss 0.5% rate 40Mbit packetoverhead 38` | 1/1 | small p95 348.1 ms, rtt 119.9 ms, G[✓×8] |
 
-## BLOCKED: the two new physics knobs cannot pass the guest permit wrapper
+Both hops carried the same vector; `UP_RC=0`, `CHECK_RC=0` before each launch.
+The correlation readback (evidence `20261123-105940`, sha256
+`53c222077c6f8cff3148798719b2b7bb6ea3ded1fa8200f3f1f254c172299f6a`) and the
+serialisation readback (`20261123-110603`, sha256
+`2a7127de00baf884b6008310fc9e33a733e7273e9104ed32d0addc85bc790e28`) are the
+kernel-level proof that the new tokens were applied by the new binary.
 
-- `V-CORR` failed at first tc mutation: `netem: netem w-edge: netem w-edge:
-  exit status 2` (evidence `20261123-103344`, sha256
-  `8cd8abc3babdbdf26ceeeba793667a78e3a8729c5e49c6851fd280ad6b978ec4`).
-- A direct tc probe with the exact vector succeeded and read back
-  `qdisc netem 1: root ... delay 50ms 15ms 25% loss 0.5%` (evidence
-  `20261123-103328`, sha256 `20f5f783…2471e`). So the kernel and iproute2 6.1.0
-  accept the percent-encoded token.
-- Root cause: `/usr/local/bin/cgo-netctl` allows only
-  `netem delay <TIME> <TIME> [loss <PCT> | loss gemodel ...] [distribution <NOM>]`.
-  It has no correlation token and no rate token. `V-SERIAL` was therefore not
-  attempted — same blocker. Neither the permit nor any refusal rule was edited.
-- A guard refusal is a finding, not a reason to reword the request. Widening
-  `cgo-netctl` needs a fresh, explicit operator decision and a separately
-  rehearsed R2 change; this builder pass does not do it.
+## The blocker and its resolution
 
-## Disposition
+The first V-CORR attempt failed with `netem w-edge: exit status 2`. A direct tc
+probe with the identical vector succeeded, proving the kernel and iproute2 6.1.0
+accept `25%`. Root cause: `/usr/local/bin/cgo-netctl` allowed only
+`netem delay <TIME> <TIME> [loss …] [distribution …]`. The operator explicitly
+approved a **narrow** permit change; a fail-closed patch added only validated
+delay-CORRELATION and `rate [PACKETOVERHEAD]` tokens to that one branch
+(permit sha `f4217068…`). Both cells then ran. The original permit was restored
+byte-exact, verified sha
+`b28092d2638d96fc9dfa2c1583cdd2374a219c3fc06e922dec019673ed463448` and
+`PERMIT_RESTORED` (evidence `20261123-110912`, sha256
+`e416ca8a8770c13e3da2fd6a7d8f957312492eeb4fb2c2886826f70139f930bb`). Topology
+restored (evidence `20261123-110941`, sha256
+`69b4b976ab5fc6f88fdff9d543c26d711bb41baa9d56912f9eaf939b0d4a5bec`).
 
-Diagnostic qdisc removed and topology restored (`20261123-103434`, sha256
-`50ef0794…23eea1c2d`); all run data and evidence kept. Correlation and
-serialisation remain **locally proven, live-BLOCKED** with the named unblock
-condition above. No number was hand-written and no failure was edited into a pass.
+## What this does and does not prove
+
+- Proves: the shipped code applies percent-encoded correlation and explicit
+  per-byte serialisation on the real dual-namespace bench; each configuration
+  produces a valid frozen row with intact measurement-integrity gates.
+- Does not prove: external validity. Three single cells are not a distribution,
+  the small-object figures are non-stationary (serialisation charge 160.2 ms vs
+  recup 348.1 ms), and `gate_status` is a measurement-integrity verdict, never
+  an SLA. No field trace was captured, so the emulated link is still not shown
+  to match a real link.
+- The new `truth_planes` object was executed by the new binary with an **archived**
+  real audit (`audit-1794898684`), not a fresh per-cell audit; `run` does not emit
+  an audit by itself. No fresh per-cell kernel-truth seal is claimed.
+- No value was hand-written, no failure edited into a pass, no permit left open.
