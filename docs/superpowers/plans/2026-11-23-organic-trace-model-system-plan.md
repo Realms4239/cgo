@@ -45,7 +45,7 @@ cd /home/sadc/labo-cgo/field-trace && sudo -n /home/sadc/labo-cgo/field-trace/cg
 ### Task 2: Trace-to-model tool and sealed calibrations
 
 **Files:**
-- Create `cmd/tracemodel/main.go`, `cmd/tracemodel/bands.go`, `cmd/tracemodel/bands_test.go`
+- Create `cmd/tracemodel/main.go`, `cmd/tracemodel/bands.go`, `cmd/tracemodel/bands_test.go`; Modify `qdisc/dist.go`, `cmd/cgo/calibrate.go`, `qdisc/dist_test.go` (operator-approved scope amendment for F1)
 - Create `docs/verification/2026-11-23-organic-trace/calibrations/` outputs (generated)
 
 **Interfaces:**
@@ -53,7 +53,7 @@ cd /home/sadc/labo-cgo/field-trace && sudo -n /home/sadc/labo-cgo/field-trace/cg
 - Produces: `BucketFlows(rows []FlowRow, floors map[string]float64) map[string][]float64`; `WriteTelemetry(dir, traceID, profile string, samples []float64) (string, error)` returning the telemetry sha256; `ValidateBand(samples []float64, min int) error`.
 
 - [ ] **Step 1: RED oracle.** In `bands_test.go`, assert a row with `srtt_us=839657` goes to P3 and not P1/P2/P4; a row with `srtt_us=150000` goes to P2; 29 samples causes `ValidateBand` to refuse and 30 passes; NaN/negative/zero srtt is skipped, never coerced to zero. Run `go test -count=1 ./cmd/tracemodel/...` -> RED.
-- [ ] **Step 2: Implement the bucketer.** `floors` are exact: `P1=20, P2=100, P3=600, P4=40`; upper bounds are 100, 200, +Inf, 60 ms respectively. `BucketFlows` uses half-open bands `[floor, upper)` and skips invalid values. `ValidateBand` refuses `<30` samples with an error naming the profile and count.
+- [ ] **Step 2: Implement the bucketer.** `floors` are exact: `P1=20 (excluding 40-59), P2=100, P3=600, P4=40 (P4 takes precedence in 40-59)`; upper bounds are 100, 200, +Inf, 60 ms respectively. `BucketFlows` uses half-open bands `[floor, upper)` and skips invalid values. `ValidateBand` refuses `<30` samples with an error naming the profile and count.
 - [ ] **Step 3: Implement telemetry writer.** Emit exactly the format `cgo calibrate` reads:
 ```csv
 phase,offset_ms,rtt_ms,small_ms,bulk_bytes
@@ -76,6 +76,7 @@ if *flowsPath == "" || *outDir == "" || *traceID == "" {
 ```
   A band that fails `ValidateBand` writes no directory and the tool prints an explicit `absent: <profile> has N samples (< 30)` line, then exits 0 for the remaining present bands.
 - [ ] **Step 4: GREEN and build.** `go test -count=1 ./cmd/tracemodel/...`, `go build ./...` exit 0. Commit `cmd/tracemodel/` with `feat(tracemodel): profile bands from sealed srtt samples`.
+- [ ] **Step 4b: Provenance and exclusivity fix (operator-approved).** Add `SourceRef string `json:"source_ref"` to `qdisc.Calibration` (schema stays 1); in `cmd/cgo/calibrate.go` derive the trace id with `strings.TrimSuffix(*auditID, "-"+*profileID)` and thread it into `BuildCalibration`; assert `source_ref` equals the trace id and differs from `source_audit`. In `bands.go`, give P4 precedence in `[40,60)` and exclude that range from P1; add boundary tests at 39/40/59/60 ms.
 - [ ] **Step 5: Produce sealed calibrations.** For each present band, run:
 ```bash
 go run ./cmd/tracemodel --flows docs/verification/2026-11-23-organic-trace/flows.csv --out docs/verification/2026-11-23-organic-trace --trace-id organic-20261123
