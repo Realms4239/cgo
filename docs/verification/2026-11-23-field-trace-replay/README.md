@@ -53,3 +53,20 @@ distribution rather than a literature profile.
 - No field-derived P2 exists (the passive trace has zero 100-199 ms samples), and
   no P1/P4 replay was run. This validates P3 only.
 - `gate_status: valid` is a measurement-integrity verdict, never an SLA pass.
+
+## Extended A/B: three repetitions per arm (same day)
+
+Under `APPROVED-2026-11-23-field-replay-extended.md`, the same two launchers were
+re-run with `--reps 3` (no other change):
+
+| Arm | Run | rtt_p95 by repetition | Mean | Spread | vs trace p95 839.66 ms |
+|---|---|---|---:|---:|---:|
+| P3.dist replay | `run-1795454981` | 840.0 / 840.5 / 841.0 | 840.5 ms | 1.0 ms | +0.84 ms |
+| scalar P3 | `run-1795455597` | 643.0 / 645.5 / 640.6 | 643.0 ms | 4.9 ms | -196.6 ms |
+
+All six rows have `gate_status: valid`. Launch evidence `00176456…` (dist) and
+`c9a3a2cf…` (scalar); topology restored with `39bc077a…`. The between-arm
+separation (~197.5 ms) is roughly 40x the within-arm spread, so the match is not
+a single-cell coincidence. The still-open caveats are unchanged: p99.9 is not
+measured by CSV p95 rows, small_p95 and drops diverge, no fresh eBPF audit, no
+P2 field-derived trace, and the manifest still omits `delay_model`.
