@@ -327,7 +327,7 @@ footer { grid-area: ft; display: flex; align-items: center; min-width: 0; }
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
-  .btn:active, .journal-disclosure-toggle:active { transform: none !important; }
+  .btn:active, .journal-disclosure-toggle:active, .inline-disclosure-trigger:active, .ui-drawer-close:active { transform: none !important; }
   .wordmark-text { letter-spacing: 0.04em !important; }
   .arm-progress { animation: none !important; transform: scaleX(1) !important; }
 }
