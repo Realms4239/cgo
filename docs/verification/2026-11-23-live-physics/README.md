@@ -41,14 +41,17 @@ restored (evidence `20261123-110941`, sha256
 - Proves: the shipped code applies percent-encoded correlation and explicit
   per-byte serialisation on the real dual-namespace bench; each configuration
   produces a valid frozen row with intact measurement-integrity gates.
-- Does not prove: external validity. Three single cells are not a distribution,
-  the small-object figures are non-stationary (serialisation charge 160.2 ms vs
-  recup 348.1 ms), and `gate_status` is a measurement-integrity verdict, never
-  an SLA. No field trace was captured, so the emulated link is still not shown
-  to match a real link.
-- The new `truth_planes` object was executed by the new binary with an **archived**
-  real audit (`audit-1794898684`), not a fresh per-cell audit; `run` does not emit
-  an audit by itself. No fresh per-cell kernel-truth seal is claimed.
+- Does not prove: external validity **of today's cells**. Three single cells are
+  not a distribution, the small-object figures are non-stationary (serialisation
+  charge 160.2 ms vs recup 348.1 ms), and `gate_status` is a measurement-integrity
+  verdict, never an SLA. A real 48 h passive field trace exists
+  (`docs/verification/2026-11-19-field-trace/`, 1,752,062 rows) and yielded a
+  field-derived P3 `.dist` (113 samples >=600 ms, sealed sidecar `basis: measured`),
+  but today's cells used scalar profiles, not `delay_model=dist`, and no
+  `TC_LIB_DIR` replay of that P3 `.dist` has been run. The emulated link is still
+  not shown to match a real link **in these cells**.
+- The first `truth_planes` execution used an archived audit; the fresh audit
+  `audit-1795433639` recorded in the next section supersedes it for kernel truth.
 - No value was hand-written, no failure edited into a pass, no permit left open.
 
 ## Fresh kernel truth (second window, same day)
