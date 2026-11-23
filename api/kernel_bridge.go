@@ -20,11 +20,18 @@ func kernelTelemetryFromSummary(s bpf.Summary) *audit.KernelTelemetry {
 			SRTTus:              f.SRTTus,
 		})
 	}
-	return audit.KernelTelemetryFrom(audit.KernelSample{
+	tel := audit.KernelTelemetryFrom(audit.KernelSample{
 		Source: s.Source, Attach: s.Attach, Reason: s.FallbackReason,
 		ObjectSHA256: s.ObjectSHA256,
 		FlowsSeen:    s.FlowsSeen, FlowsTotal: s.FlowsTotal,
 		RetransPayload: s.RetransPayload, QdiscDrops: s.QdiscDrops,
 		Flows: flows,
 	})
+	if tel != nil {
+		// Perte d'observateur : le noyau n'émet aucun record de perte sur un
+		// ring plein. Le compteur vient de globals, hors du flux d'événements.
+		tel.ReserveFailures = s.ReserveFailures
+		tel.LowerBound = s.ReserveFailures > 0
+	}
+	return tel
 }

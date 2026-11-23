@@ -68,3 +68,21 @@ func TestReportWithoutTelemetryOmitsBoth(t *testing.T) {
 		t.Fatal("absent telemetry still rendered")
 	}
 }
+
+// Oracle positif/hostile — la note de borne inférieure n'apparaît QUE si le
+// compteur de réservation a forcé le drapeau, jamais sur un zéro.
+func TestReportTelemetryLowerBoundNote(t *testing.T) {
+	rep := Report{AuditID: "audit-1", KernelTelemetry: &KernelTelemetry{
+		Available: true, Source: "ebpf", ReserveFailures: 5, LowerBound: true,
+	}}
+	md := rep.RenderMarkdown()
+	if !strings.Contains(md, "timeline is a lower bound") || !strings.Contains(md, "reserve_failures=5") {
+		t.Fatalf("note de borne inférieure absente:\n%s", md)
+	}
+
+	rep.KernelTelemetry = &KernelTelemetry{Available: true, Source: "ebpf", ReserveFailures: 0, LowerBound: false}
+	md = rep.RenderMarkdown()
+	if strings.Contains(md, "lower bound") || strings.Contains(md, "reserve_failures") {
+		t.Fatalf("note affichée sans perte:\n%s", md)
+	}
+}

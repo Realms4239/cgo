@@ -783,6 +783,9 @@ func (r *Report) RenderMarkdown() string {
 		default:
 			fmt.Fprintf(&b, "### Télémétrie noyau\n\nTélémétrie noyau non instrumentée%s.\n\n", reasonClause(k.Reason))
 		}
+		if k.LowerBound {
+			fmt.Fprintf(&b, "Note : ring plein — reserve_failures=%d, la chronologie est une borne inférieure (timeline is a lower bound) : des événements peuvent manquer.\n\n", k.ReserveFailures)
+		}
 	}
 
 	return b.String()

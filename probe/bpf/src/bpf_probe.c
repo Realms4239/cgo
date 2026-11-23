@@ -55,6 +55,7 @@ struct global_stat {
     __u64 drop_packets;
     __u64 drop_bytes;
     __u64 map_full;
+    __u64 reserve_failures; /* hors du ring : preuve de perte d'observateur */
 };
 
 struct {
@@ -70,6 +71,12 @@ struct {
     __type(key, __u32);
     __type(value, struct global_stat);
 } globals SEC(".maps");
+
+struct cgo_event { __u32 kind; __u32 pad; __u64 ts_ns; __u64 payload; };
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 1 << 20);
+} events SEC(".maps");
 
 static __always_inline struct global_stat *globals_get(void)
 {
@@ -143,13 +150,18 @@ int on_retransmit(struct bpf_raw_tracepoint_args *ctx)
 
     __sync_fetch_and_add(&st->retrans_payload, payload_len);
     __sync_fetch_and_add(&st->retrans_events, 1);
+
+    struct cgo_event *e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
+    if (!e) { struct global_stat *g = globals_get(); if (g) __sync_fetch_and_add(&g->reserve_failures, 1); }
+    else { e->kind = 1; e->ts_ns = bpf_ktime_get_ns(); e->payload = payload_len; bpf_ringbuf_submit(e, 0); }
     return 0;
 }
 
-static __always_inline int sample_sock(struct sock *sk)
+static __always_inline int sample_sock(struct sock *sk, struct sk_buff *skb)
 {
     if (!sk || BPF_CORE_READ(sk, __sk_common.skc_family) != AF_INET)
         return 0;
+    __u64 payload_len = skb ? BPF_CORE_READ(skb, len) : 0;
 
     struct flow_key key = {};
     socket_key(sk, &key);
@@ -169,19 +181,23 @@ static __always_inline int sample_sock(struct sock *sk)
     st->snd_ssthresh = BPF_CORE_READ(tp, snd_ssthresh);
     st->state = BPF_CORE_READ(sk, __sk_common.skc_state);
     __sync_fetch_and_add(&st->samples, 1);
+
+    struct cgo_event *e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
+    if (!e) { struct global_stat *g = globals_get(); if (g) __sync_fetch_and_add(&g->reserve_failures, 1); }
+    else { e->kind = 1; e->ts_ns = bpf_ktime_get_ns(); e->payload = payload_len; bpf_ringbuf_submit(e, 0); }
     return 0;
 }
 
 SEC("fentry/tcp_rcv_established")
 int BPF_PROG(on_ack_fentry, struct sock *sk, struct sk_buff *skb)
 {
-    return sample_sock(sk);
+    return sample_sock(sk, skb);
 }
 
 SEC("kprobe/tcp_rcv_established")
 int BPF_KPROBE(on_ack_kprobe, struct sock *sk, struct sk_buff *skb)
 {
-    return sample_sock(sk);
+    return sample_sock(sk, skb);
 }
 
 SEC("raw_tp/kfree_skb")
@@ -207,6 +223,11 @@ int on_kfree_skb(struct bpf_raw_tracepoint_args *ctx)
         __sync_fetch_and_add(&g->drop_packets, 1);
         __sync_fetch_and_add(&g->drop_bytes, total_len);
     }
+
+    __u64 payload_len = total_len;
+    struct cgo_event *e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
+    if (!e) { struct global_stat *g = globals_get(); if (g) __sync_fetch_and_add(&g->reserve_failures, 1); }
+    else { e->kind = 1; e->ts_ns = bpf_ktime_get_ns(); e->payload = payload_len; bpf_ringbuf_submit(e, 0); }
 
     __u16 nh = BPF_CORE_READ(skb, network_header);
     if ((__u32)nh + sizeof(struct iphdr) + sizeof(struct tcphdr) > headlen)

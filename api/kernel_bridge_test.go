@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/Realms4239/cgo/probe/bpf"
@@ -21,5 +23,26 @@ func TestKernelTelemetryFromSummary(t *testing.T) {
 	}
 	if kernelTelemetryFromSummary(bpf.Summary{}) != nil {
 		t.Fatal("résumé vide ne doit pas produire de bloc")
+	}
+}
+
+// Oracle positif/hostile — le compteur hors-ring remonte et force la note de
+// borne inférieure ; zéro reste zéro et disparaît du JSON (octets identiques).
+func TestKernelTelemetryFromSummaryCarriesReserveFailures(t *testing.T) {
+	tel := kernelTelemetryFromSummary(bpf.Summary{Source: "ebpf", ReserveFailures: 3})
+	if tel == nil {
+		t.Fatal("résumé ebpf doit produire un bloc")
+	}
+	if tel.ReserveFailures != 3 || !tel.LowerBound {
+		t.Fatalf("perte non propagée: %+v", tel)
+	}
+
+	zero := kernelTelemetryFromSummary(bpf.Summary{Source: "ebpf"})
+	if zero == nil || zero.ReserveFailures != 0 || zero.LowerBound {
+		t.Fatalf("zéro doit rester zéro sans note: %+v", zero)
+	}
+	b, _ := json.Marshal(zero)
+	if strings.Contains(string(b), "reserve_failures") || strings.Contains(string(b), "lower_bound") {
+		t.Fatalf("champs zéro sérialisés: %s", b)
 	}
 }
