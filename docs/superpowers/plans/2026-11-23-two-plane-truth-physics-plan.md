@@ -102,3 +102,17 @@ silent default.
 - Type consistency: `JitterCorrelation` and `PhysicsPlane` used identically in
   model, qdisc, campagne and confrontation.
 - eBPF is preserved as the near-wire-speed observation plane throughout.
+
+### Task 3 — opt-in serialisation + CLI profile load (operator-authorized)
+
+**Files:** `model/types.go`, `qdisc/ge.go`, `qdisc/ge_test.go`,
+`pkg/campagne/dualns.go`, `pkg/campagne/dualns_test.go`,
+`api/server.go` (CSV columns 11-12), `cmd/cgo/runcli.go`, plus focused tests.
+
+- [ ] **Step 1:** RED oracles: serial rate 0 emits no `rate` token (byte-identical);
+  rate 40 + overhead 38 emits `rate 40mbit 38` after loss and before distribution;
+  invalid rate/overhead refuses before tc; campagne refuses `serial_rate <= cap`.
+- [ ] **Step 2:** Implement the two optional profile fields, the additive tc
+  emitter and the campagne guard; add `profile.Load()` to runcli. GREEN.
+- [ ] **Step 3:** Full suites (qdisc/model/api/pkg-campagne/cmd-cgo), `go build`;
+  gates once; commit explicit paths. Then build the Linux binary for the live window.

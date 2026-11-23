@@ -106,3 +106,23 @@ parameter. Recorded as a park with named unblock condition, not silently shipped
   dependency, no live bench in these two tasks.
 - Each task: spec -> plan -> fresh implementer -> fresh reviewer -> gates ->
   explicit-path commit. Sequential, one worker, no parallel subagents.
+
+## 4b. Gap 3 unblocked (operator chat 2026-11-23: "authorize all steps")
+
+Implement serialization as an **explicit opt-in**, never a default:
+`Profile.SerialRateMbps float64` and `Profile.PacketOverheadBytes int`
+(`omitempty`, CSV columns 11-12 optional). `applyNetemArgs` emits
+`rate <R>mbit [PACKETOVERHEAD]` only when `SerialRateMbps > 0`; validate rate
+and overhead before any tc mutation. `pkg/campagne.applyPhysics` refuses a
+serialisation rate that is not safely ABOVE the profile capacity
+(`serial_rate <= prof.CapDown()`), so the propagation hop can never steal the
+bottleneck from the AQM under study. `cmd/cgo/runcli.go` calls `profile.Load()`
+so an imported validation profile is visible to the CLI matrix (the dashboard
+already merges persisted profiles the same way). Builtin P1-P4/L1/V1 unchanged.
+
+Live validation uses **imported** profiles with distinct IDs, not new builtin
+profiles. Three cells, same qdisc/CC/direction/reps/flows/deadline: baseline,
+correlation-only, correlation+serialisation. Each cell records `tc -s` before
+and after, the eBPF audit and the confrontation report with `truth_planes`.
+Evidence is sha256-sidecared. No value is hand-written; any guard refusal,
+ambiguous value or second writer stops the window as BLOCKED.

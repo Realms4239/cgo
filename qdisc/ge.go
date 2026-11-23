@@ -40,19 +40,28 @@ func GEMeanLoss(ge GEModel) float64 {
 	return (piBad*ge.LossBad + (1-piBad)*ge.LossGood) * 100
 }
 
-// corrArg — option variadic : l'absence vaut 0 (défaut historique), pour que
-// les appels existants restent byte-identiques.
-func corrArg(opts []float64) float64 {
-	if len(opts) == 0 {
-		return 0
+// netemOpts — options additionnelles en queue des ApplyNetem* : [0]
+// corrélation, [1] serial_rate_mbps, [2] packet_overhead_bytes. L'absence
+// vaut 0 pour chaque option : un appel historique (0 ou 1 argument) reste
+// byte-identique, la sérialisation n'étant JAMAIS un défaut.
+func netemOpts(opts []float64) (correlation, serialRateMbps float64, overheadBytes int) {
+	if len(opts) > 0 {
+		correlation = opts[0]
 	}
-	return opts[0]
+	if len(opts) > 1 {
+		serialRateMbps = opts[1]
+	}
+	if len(opts) > 2 {
+		overheadBytes = int(opts[2])
+	}
+	return
 }
 
 // ApplyNetemGE — netem racine avec perte Gilbert-Elliott (forme documentée
 // à 4 arguments). Handle 1: conservé (un shaper peut s'empiler en 1:1).
-func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEModel, correlation ...float64) error {
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, 0, &ge, "", corrArg(correlation)); err != nil {
+func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEModel, opts ...float64) error {
+	c, rate, overhead := netemOpts(opts)
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, 0, &ge, "", c, rate, overhead); err != nil {
 		return fmt.Errorf("netem ge %s: %w", iface, err)
 	}
 	return nil
@@ -62,8 +71,9 @@ func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEMode
 // perte UNIFORME (ge nil, forme historique à l'octet près — le corpus gelé
 // se reproduit par là) ou Gilbert-Elliott (ge fourni, 4 arguments). Une
 // seule des deux formes de perte, jamais les deux.
-func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, correlation ...float64) error {
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, "", corrArg(correlation)); err != nil {
+func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, opts ...float64) error {
+	c, rate, overhead := netemOpts(opts)
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, "", c, rate, overhead); err != nil {
 		return fmt.Errorf("netem %s: %w", iface, err)
 	}
 	return nil
@@ -72,7 +82,7 @@ func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct floa
 // ApplyNetemDistribution — netem du saut mesuré : la table empirique
 // remplace la gigue déclarée. tc exige delay ET jitter avec
 // « distribution » ; un nom ou une gigue invalide est refusé AVANT tc.
-func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, correlation ...float64) error {
+func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, opts ...float64) error {
 	if dist == "" {
 		return fmt.Errorf("netem dist %s: nom de distribution vide", iface)
 	}
@@ -85,7 +95,8 @@ func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct
 	if jitterMs <= 0 {
 		return fmt.Errorf("netem dist %s: jitter %.6g ≤ 0 (tc exige delay+jitter)", iface, jitterMs)
 	}
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist, corrArg(correlation)); err != nil {
+	c, rate, overhead := netemOpts(opts)
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist, c, rate, overhead); err != nil {
 		return fmt.Errorf("netem dist %s: %w", iface, err)
 	}
 	return nil
@@ -105,10 +116,31 @@ func validCorrelation(c float64) error {
 	return nil
 }
 
-func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, correlation float64) error {
-	// Échec fermé AVANT le premier appel tc : une corrélation hors plage ne
-	// doit jamais laisser une racine netem à moitié configurée.
+// validSerial — même garde-fou que model.ValidateSerial, gardé local : le
+// module qdisc résout model depuis le cache (v0.1.1), donc le nouveau
+// symbole model n'est pas visible ici. La frontière tc refuse seule, avant
+// tout appel.
+func validSerial(rateMbps float64, overheadBytes int) error {
+	if math.IsNaN(rateMbps) || rateMbps < 0 {
+		return fmt.Errorf("serial_rate_mbps %g invalide (>= 0 attendu, NaN refusé)", rateMbps)
+	}
+	if overheadBytes < 0 {
+		return fmt.Errorf("packet_overhead_bytes %d invalide (>= 0 attendu)", overheadBytes)
+	}
+	if rateMbps == 0 && overheadBytes > 0 {
+		return fmt.Errorf("packet_overhead_bytes %d sans serial_rate_mbps (taux requis)", overheadBytes)
+	}
+	return nil
+}
+
+func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, correlation, serialRateMbps float64, overheadBytes int) error {
+	// Échec fermé AVANT le premier appel tc : une corrélation hors plage ou
+	// une sérialisation invalide ne doit jamais laisser une racine netem à
+	// moitié configurée.
 	if err := validCorrelation(correlation); err != nil {
+		return err
+	}
+	if err := validSerial(serialRateMbps, overheadBytes); err != nil {
 		return err
 	}
 	args := []string{"qdisc", "replace", "dev", iface, "root", "handle", "1:", "netem",
@@ -131,6 +163,16 @@ func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64
 			fmt.Sprintf("%g%%", ge.LossGood*100))
 	} else if lossPct > 0 {
 		args = append(args, "loss", fmt.Sprintf("%g%%", lossPct))
+	}
+	if serialRateMbps > 0 {
+		// tc-netem : rate RATE [PACKETOVERHEAD [CELLSIZE [CELLOVERHEAD]]].
+		// Jeton opt-in émis APRÈS la perte et AVANT distribution (grammaire) :
+		// un taux à 0 laisse le vecteur historique à l'octet près.
+		if overheadBytes > 0 {
+			args = append(args, "rate", mbps(serialRateMbps), fmt.Sprintf("%d", overheadBytes))
+		} else {
+			args = append(args, "rate", mbps(serialRateMbps))
+		}
 	}
 	if dist != "" {
 		args = append(args, "distribution", dist)

@@ -714,24 +714,26 @@ func (s *Server) registerState(mux *http.ServeMux) {
 		}
 		sort.Strings(ids)
 		type prof struct {
-			ID                string  `json:"id"`
-			Capacity          float64 `json:"capacity_mbps"`
-			CapacityUp        float64 `json:"capacity_up_mbps,omitempty"`
-			DelayMs           float64 `json:"delay_ms"`
-			JitterMs          float64 `json:"jitter_ms"`
-			JitterCorrelation float64 `json:"jitter_correlation,omitempty"`
-			LossPct           float64 `json:"loss_pct"`
-			LossP             float64 `json:"loss_burst_p,omitempty"`
-			LossR             float64 `json:"loss_burst_r,omitempty"`
-			LossH             float64 `json:"loss_burst_h,omitempty"`
-			LossK             float64 `json:"loss_burst_k,omitempty"`
-			Source            string  `json:"source,omitempty"`
-			FromImport        bool    `json:"imported"`
+			ID                  string  `json:"id"`
+			Capacity            float64 `json:"capacity_mbps"`
+			CapacityUp          float64 `json:"capacity_up_mbps,omitempty"`
+			DelayMs             float64 `json:"delay_ms"`
+			JitterMs            float64 `json:"jitter_ms"`
+			JitterCorrelation   float64 `json:"jitter_correlation,omitempty"`
+			SerialRateMbps      float64 `json:"serial_rate_mbps,omitempty"`
+			PacketOverheadBytes int     `json:"packet_overhead_bytes,omitempty"`
+			LossPct             float64 `json:"loss_pct"`
+			LossP               float64 `json:"loss_burst_p,omitempty"`
+			LossR               float64 `json:"loss_burst_r,omitempty"`
+			LossH               float64 `json:"loss_burst_h,omitempty"`
+			LossK               float64 `json:"loss_burst_k,omitempty"`
+			Source              string  `json:"source,omitempty"`
+			FromImport          bool    `json:"imported"`
 		}
 		out := make([]prof, 0, len(ids))
 		for _, id := range ids {
 			p := model.Profiles[id]
-			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, CapacityUp: p.CapacityUpMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, JitterCorrelation: p.JitterCorrelation, LossPct: p.LossPct, LossP: p.LossBurstP, LossR: p.LossBurstR, LossH: p.LossBurstH, LossK: p.LossBurstK, Source: p.Source, FromImport: !model.BuiltinProfileIDs[id]})
+			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, CapacityUp: p.CapacityUpMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, JitterCorrelation: p.JitterCorrelation, SerialRateMbps: p.SerialRateMbps, PacketOverheadBytes: p.PacketOverheadBytes, LossPct: p.LossPct, LossP: p.LossBurstP, LossR: p.LossBurstR, LossH: p.LossBurstH, LossK: p.LossBurstK, Source: p.Source, FromImport: !model.BuiltinProfileIDs[id]})
 		}
 		model.ProfilesMu.RUnlock()
 		writeJSON(w, map[string]any{"profiles": out})
@@ -1293,9 +1295,10 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 				return
 			}
 			num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
-			// Ligne CSV: id,capacity,delay,jitter,loss[,capacity_up,loss_burst_p,r,h,k[,jitter_correlation]]
-			// — positions 5..10 optionnelles (asymétrie, rafales, corrélation) ;
-			// absentes = symétrique + perte uniforme + corrélation nulle (historique inchangé)
+			// Ligne CSV: id,capacity,delay,jitter,loss[,capacity_up,loss_burst_p,r,h,k[,jitter_correlation[,serial_rate_mbps,packet_overhead_bytes]]]
+			// — positions 5..12 optionnelles (asymétrie, rafales, corrélation,
+			// sérialisation) ; absentes = symétrique + perte uniforme +
+			// corrélation nulle + sérialisation nulle (historique inchangé)
 			p = model.Profile{ID: strings.TrimSpace(row[0])}
 			if len(row) > 1 {
 				p.CapacityMbps = num(row[1])
@@ -1327,6 +1330,12 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 			if len(row) > 10 {
 				p.JitterCorrelation = num(row[10])
 			}
+			if len(row) > 11 {
+				p.SerialRateMbps = num(row[11])
+			}
+			if len(row) > 12 {
+				p.PacketOverheadBytes = int(num(row[12]))
+			}
 		} else if err := json.Unmarshal(body, &p); err != nil {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
@@ -1338,6 +1347,12 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 		// Corrélation hors plage (ou NaN) refusée AVANT toute persistance :
 		// jamais une valeur silencieusement coercée dans un profil importé.
 		if err := model.ValidateJitterCorrelation(p.JitterCorrelation); err != nil {
+			writeErr(w, r, err.Error(), http.StatusBadRequest)
+			return
+		}
+		// Sérialisation invalide (overhead sans taux, taux négatif…) refusée
+		// AVANT toute persistance : jamais une valeur coercée dans un profil.
+		if err := model.ValidateSerial(p.SerialRateMbps, p.PacketOverheadBytes); err != nil {
 			writeErr(w, r, err.Error(), http.StatusBadRequest)
 			return
 		}

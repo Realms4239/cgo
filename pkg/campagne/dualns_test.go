@@ -2,6 +2,8 @@ package campagne
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -356,5 +358,66 @@ func TestApplyPhysicsDistJitterCorrelation(t *testing.T) {
 	iCorr, iDist := strings.Index(up, "25%"), strings.Index(up, "distribution P2")
 	if iCorr < 0 || iDist < 0 || iCorr >= iDist {
 		t.Fatalf("saut mesuré : corrélation avant distribution attendue : %q", up)
+	}
+}
+
+// serialProfile — profil de validation construit par JSON : les champs
+// optionnels encore absents sont ignorés par l'import, l'oracle RED reste
+// comportemental (aucun symbole non encore écrit référencé).
+func serialProfile(t *testing.T, rate float64, overhead int) model.Profile {
+	t.Helper()
+	raw := fmt.Sprintf(`{"id":"PS","capacity_mbps":20,"delay_ms":100,"jitter_ms":15,"loss_pct":0.5,"serial_rate_mbps":%g,"packet_overhead_bytes":%d}`, rate, overhead)
+	var p model.Profile
+	if err := json.Unmarshal([]byte(raw), &p); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestApplyPhysicsSerialCapGuard(t *testing.T) {
+	// Sérialisation ≤ capacité : le saut de propagation deviendrait le
+	// goulot et volerait la file à l'AQM étudiée. Refus AVANT tout
+	// reset/tc, sur les deux chemins (scalar et dist).
+	topoPath := filepath.Join(t.TempDir(), "topology.json")
+	t.Setenv("CGO_TOPOLOGY_JSON", topoPath)
+	writeTopo(t, topoPath, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
+	dir := t.TempDir()
+	writeDistCalibration(t, dir, "PS", 100)
+
+	for _, dm := range []string{"scalar", "dist"} {
+		for _, rate := range []float64{20, 10} { // == et < CapDown()=20
+			prof := serialProfile(t, rate, 0)
+			f := &qdisc.FakeRunner{}
+			d := Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns", DelayModel: dm, CalibrationDir: dir}
+			if err := applyPhysics(&d, prof, nil); err == nil {
+				t.Fatalf("%s : serial_rate %g ≤ cap doit être refusé", dm, rate)
+			}
+			if len(f.Calls) != 0 {
+				t.Fatalf("%s : tc appelé avant le refus : %v", dm, f.Calls)
+			}
+		}
+	}
+
+	// Au-dessus de la capacité : jeton émis sur les DEUX sens (scalar).
+	prof := serialProfile(t, 40, 38)
+	f := &qdisc.FakeRunner{}
+	d := Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}}
+	if err := applyPhysics(&d, prof, nil); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, c := range f.Calls {
+		j := strings.Join(c, " ")
+		if !strings.Contains(j, "netem") || !strings.Contains(j, "rate 40mbit 38") {
+			continue
+		}
+		for _, dev := range []string{"dev w-edge", "dev c-wan"} {
+			if strings.Contains(j, dev) {
+				seen[dev] = true
+			}
+		}
+	}
+	if !seen["dev w-edge"] || !seen["dev c-wan"] {
+		t.Fatalf("rate absent d'un sens : %v (%v)", seen, f.Calls)
 	}
 }

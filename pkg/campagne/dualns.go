@@ -50,6 +50,15 @@ func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
 	if err := model.ValidateJitterCorrelation(prof.JitterCorrelation); err != nil {
 		return err
 	}
+	if err := model.ValidateSerial(prof.SerialRateMbps, prof.PacketOverheadBytes); err != nil {
+		return err
+	}
+	// Sérialisation opt-in : un taux ≤ capacité rendrait le saut de
+	// propagation plus lent que le façonnage et volerait le goulot à l'AQM
+	// sous étude. Refus AVANT tout reset/tc, scalar comme dist.
+	if prof.SerialRateMbps > 0 && prof.SerialRateMbps <= prof.CapDown() {
+		return fmt.Errorf("serial_rate_mbps %g ≤ capacité %g : le saut de propagation ne peut pas voler le goulot à l'AQM", prof.SerialRateMbps, prof.CapDown())
+	}
 	// I1 — échec fermé AVANT toute mutation tc : si le banc a bâti l'ingress
 	// et que la campagne croit être en egress (ou l'inverse), la cellule est
 	// refusée ici — applyPhysics est le PREMIER point de mutation du run.
@@ -70,7 +79,8 @@ func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
 	// netem porte la MOITIÉ, sinon le RTT mesuré vaut 2× le profil.
 	for _, ifc := range ifaces {
 		_, _ = d.TC.Run("qdisc", "del", "dev", ifc, "root")
-		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, prof.DelayMs/2, prof.JitterMs, prof.LossPct, ge, prof.JitterCorrelation); err != nil {
+		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, prof.DelayMs/2, prof.JitterMs, prof.LossPct, ge,
+			prof.JitterCorrelation, prof.SerialRateMbps, float64(prof.PacketOverheadBytes)); err != nil {
 			return fmt.Errorf("netem %s: %w", ifc, err)
 		}
 	}
@@ -114,12 +124,14 @@ func applyPhysicsDist(d *Deps, prof model.Profile, ge *qdisc.GEModel, ifaces []s
 	for _, ifc := range ifaces {
 		_, _ = d.TC.Run("qdisc", "del", "dev", ifc, "root")
 		if ifc == measured {
-			if err := qdisc.ApplyNetemDistribution(d.TC, ifc, cal.FloorMs/2, cal.ScaleMs, prof.LossPct, ge, prof.ID, prof.JitterCorrelation); err != nil {
+			if err := qdisc.ApplyNetemDistribution(d.TC, ifc, cal.FloorMs/2, cal.ScaleMs, prof.LossPct, ge, prof.ID,
+				prof.JitterCorrelation, prof.SerialRateMbps, float64(prof.PacketOverheadBytes)); err != nil {
 				return fmt.Errorf("netem dist %s: %w", ifc, err)
 			}
 			continue
 		}
-		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, cal.FloorMs/2, 0, prof.LossPct, ge, prof.JitterCorrelation); err != nil {
+		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, cal.FloorMs/2, 0, prof.LossPct, ge,
+			prof.JitterCorrelation, prof.SerialRateMbps, float64(prof.PacketOverheadBytes)); err != nil {
 			return fmt.Errorf("netem dist %s: %w", ifc, err)
 		}
 	}

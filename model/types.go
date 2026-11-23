@@ -22,7 +22,14 @@ type Profile struct {
 	// historique, aucun jeton émis). Optionnel : ignoré par les anciennes
 	// lignes CSV et par les profils figés P1-P4.
 	JitterCorrelation float64 `json:"jitter_correlation,omitempty"`
-	LossPct           float64 `json:"loss_pct"`
+	// SerialRateMbps — sérialisation netem opt-in (« rate Rmbit »). 0 = aucun
+	// jeton (défaut historique) ; quand > 0, doit rester au-dessus de
+	// CapDown() pour ne pas voler le goulot à l'AQM sous étude.
+	SerialRateMbps float64 `json:"serial_rate_mbps,omitempty"`
+	// PacketOverheadBytes — surcoût d'en-tête par paquet, jeton optionnel
+	// après « rate Rmbit » ; exige SerialRateMbps > 0.
+	PacketOverheadBytes int     `json:"packet_overhead_bytes,omitempty"`
+	LossPct             float64 `json:"loss_pct"`
 	// DÉPRÉCIÉ — perte en rafales par profil (Gilbert-Elliott). Le runtime ne
 	// lit plus ces champs : le canal (clean|bursty) se déclare par campagne
 	// (Deps.ChannelModel, GE dérivé du profil — spec décision 7). Ils restent
@@ -60,6 +67,23 @@ func ValidateJitterCorrelation(c float64) error {
 	}
 	if c < 0 || c > 1 {
 		return fmt.Errorf("jitter_correlation %g hors plage [0,1]", c)
+	}
+	return nil
+}
+
+// ValidateSerial — garde-fou partagé de la sérialisation opt-in : taux ≥ 0
+// (NaN refusé), overhead ≥ 0, overhead interdit sans taux (jeton orphelin).
+// 0/0 = défaut historique, aucun jeton tc émis. Appelé AVANT toute mutation
+// tc, jamais une valeur silencieusement coercée.
+func ValidateSerial(rateMbps float64, overheadBytes int) error {
+	if math.IsNaN(rateMbps) || rateMbps < 0 {
+		return fmt.Errorf("serial_rate_mbps %g invalide (>= 0 attendu, NaN refusé)", rateMbps)
+	}
+	if overheadBytes < 0 {
+		return fmt.Errorf("packet_overhead_bytes %d invalide (>= 0 attendu)", overheadBytes)
+	}
+	if rateMbps == 0 && overheadBytes > 0 {
+		return fmt.Errorf("packet_overhead_bytes %d sans serial_rate_mbps (taux requis)", overheadBytes)
 	}
 	return nil
 }

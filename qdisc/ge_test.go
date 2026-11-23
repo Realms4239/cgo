@@ -139,3 +139,103 @@ func TestApplyNetemJitterCorrelationWithGEModelOrder(t *testing.T) {
 		t.Fatalf("ordre des jetons : got %q, want %q", got, want)
 	}
 }
+
+// TestApplyNetemSerialZeroByteIdentical — taux 0 (défaut) : AUCUN jeton
+// « rate », vecteurs historiques à l'octet près, y compris corrélation,
+// perte (uniforme et gemodel) et distribution. Le corpus gelé se reproduit.
+func TestApplyNetemSerialZeroByteIdentical(t *testing.T) {
+	ge := GEModel{GoodToBad: 0.001, BadToGood: 0.1, LossBad: 0.5, LossGood: 0.0005}
+	cases := []struct {
+		name string
+		run  func(*FakeRunner) error
+		want string
+	}{
+		{"nu", func(f *FakeRunner) error {
+			return ApplyNetemPhysics(f, "w-edge", 100, 15, 0, nil, 0, 0, 0)
+		}, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms"},
+		{"corrélation", func(f *FakeRunner) error {
+			return ApplyNetemPhysics(f, "w-edge", 100, 15, 0, nil, 0.25, 0, 0)
+		}, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms 25%"},
+		{"perte uniforme", func(f *FakeRunner) error {
+			return ApplyNetemPhysics(f, "w-edge", 100, 15, 0.5, nil, 0, 0, 0)
+		}, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms loss 0.5%"},
+		{"gemodel + distribution", func(f *FakeRunner) error {
+			return ApplyNetemDistribution(f, "c-wan", 600, 30, 0, &ge, "P3", 0.25, 0, 0)
+		}, "qdisc replace dev c-wan root handle 1: netem delay 600ms 30ms 25% loss gemodel 0.1% 10% 50% 0.05% distribution P3"},
+	}
+	for _, tc := range cases {
+		f := &FakeRunner{}
+		if err := tc.run(f); err != nil {
+			t.Fatalf("%s : %v", tc.name, err)
+		}
+		if got := strings.Join(f.Calls[0], " "); got != tc.want {
+			t.Fatalf("%s : got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// TestApplyNetemSerialRateVector — opt-in : « rate Rmbit [overhead] » après
+// la perte et AVANT la distribution (ordre documenté tc-netem).
+func TestApplyNetemSerialRateVector(t *testing.T) {
+	ge := GEModel{GoodToBad: 0.001, BadToGood: 0.1, LossBad: 0.5, LossGood: 0.0005}
+	f := &FakeRunner{}
+	if err := ApplyNetemDistribution(f, "c-wan", 600, 30, 0, &ge, "P3", 0.25, 40, 38); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(f.Calls[0], " "),
+		"qdisc replace dev c-wan root handle 1: netem delay 600ms 30ms 25% loss gemodel 0.1% 10% 50% 0.05% rate 40mbit 38 distribution P3"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	// Sans distribution ni perte : rate suit la corrélation.
+	f2 := &FakeRunner{}
+	if err := ApplyNetemPhysics(f2, "w-edge", 100, 15, 0, nil, 0, 40, 38); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(f2.Calls[0], " "),
+		"qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms rate 40mbit 38"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	// Taux sans overhead : aucun jeton d'octets orphelin.
+	f3 := &FakeRunner{}
+	if err := ApplyNetemPhysics(f3, "w-edge", 100, 15, 0, nil, 0, 40, 0); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(f3.Calls[0], " "),
+		"qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms rate 40mbit"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// TestApplyNetemSerialFailClosed — taux négatif/NaN, overhead négatif ou
+// overhead sans taux : refus AVANT tout appel tc (jamais de racine netem à
+// moitié configurée, jamais de valeur coercée).
+func TestApplyNetemSerialFailClosed(t *testing.T) {
+	cases := []struct {
+		name     string
+		rate     float64
+		overhead int
+	}{
+		{"taux négatif", -0.1, 0},
+		{"overhead négatif", 40, -1},
+		{"taux négatif + overhead", -1, 38},
+		{"taux NaN", math.NaN(), 0},
+		{"overhead sans taux", 0, 38},
+	}
+	for _, tc := range cases {
+		f := &FakeRunner{}
+		if err := ApplyNetemPhysics(f, "w-edge", 100, 15, 0, nil, 0, tc.rate, float64(tc.overhead)); err == nil {
+			t.Fatalf("%s doit être refusé", tc.name)
+		}
+		if len(f.Calls) != 0 {
+			t.Fatalf("%s : tc appelé avant le refus : %v", tc.name, f.Calls)
+		}
+		// Même garde sur la voie distribution.
+		fd := &FakeRunner{}
+		if err := ApplyNetemDistribution(fd, "w-edge", 100, 15, 0, nil, "P2", 0, tc.rate, float64(tc.overhead)); err == nil {
+			t.Fatalf("%s (dist) doit être refusé", tc.name)
+		}
+		if len(fd.Calls) != 0 {
+			t.Fatalf("%s (dist) : tc appelé avant le refus : %v", tc.name, fd.Calls)
+		}
+	}
+}
