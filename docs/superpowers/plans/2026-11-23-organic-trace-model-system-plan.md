@@ -13,7 +13,7 @@
 - Spec: `docs/superpowers/specs/2026-11-23-organic-trace-model-system-design.md`.
 - P1-P4, L1, V1, frozen corpus, book, thesis, C:\END, gates, permits, ledgers, protected config: never edited.
 - No `git add -A`; explicit paths only; no merge; no new dependency VERSION; no runtime clang.
-- Capture is 14400 integer SECONDS = 4 h (`--duration`; CLI clamps at 172800), bounded so stop/retrieval fit the same-day token window. Output dir must be NEW (`out2`); existing `out/` and `out-readable/` are never modified.
+- Capture is 10800 integer SECONDS = 3 h (`--duration`; CLI clamps at 172800), bounded so stop/retrieval fit the same-day token window. Output dir must be NEW (`out2`); existing `out/` and `out-readable/` are never modified.
 - Every host pass needs a same-day task-scoped token, named window, exact rollback line, classify-only rehearsal and second channel. A guard refusal is a finding, not a reason to reword the request.
 - Bands with fewer than 30 samples are explicit absence, never synthesised. `basis=measured`, `source_ref` = new trace id, source telemetry sha256 in every sidecar.
 - `gate_status` stays measurement-integrity, never an SLA. No fabricated value, no widened threshold, no VERIFY-row promotion.
@@ -36,7 +36,7 @@
 - [ ] **Step 2: Author the token** with Rung R2, Window `2026-11-23 19:30-23:59 UTC`, scope limited to the four command files, `sudo_grant: none` (guest root attach via exact staged `sudo -n` verb), rollback `kill <exact PID>; rm -rf /home/sadc/labo-cgo/field-trace/out2`, rehearsal hash from Step 3, second channel, expiry.
 - [ ] **Step 3: Write and rehearse command files.** `write-organic-start.txt` contains exactly:
 ```bash
-cd /home/sadc/labo-cgo/field-trace && sudo -n /home/sadc/labo-cgo/field-trace/cgo-observe-x --duration 14400 --interval 5 --exclude-ports 3333,4444,14444,4555 --out ./out2
+cd /home/sadc/labo-cgo/field-trace && sudo -n /home/sadc/labo-cgo/field-trace/cgo-observe-x --duration 10800 --interval 5 --exclude-ports 3333,4444,14444,4555 --out ./out2
 ```
   `write-organic-stop.txt` kills the exact PID recorded at launch. Classify every line with `safe_write.py --check`; require ALLOW and zero REFUSE; record the sha256 of classify output in the token.
 - [ ] **Step 4: Launch, record PID, and stop after the named window.** Use `safe_write.py --run --file ...`; keep the evidence file and sha256 sidecar. On any refusal or ambiguous PID, STOP and report BLOCKED; do not kill by pattern.

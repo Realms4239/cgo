@@ -38,9 +38,9 @@ and root-owned 0700 dirs `out/` and `out-readable/` from the prior capture.
    `/home/sadc/labo-cgo/field-trace/out2`. The existing `out/` and
    `out-readable/` are NEVER modified, read for deletion, or reused.
 3. Start the existing tagged binary as root via `sudo -n` inside the exact
-   staged verb: `--duration 14400 --interval 5
+   staged verb: `--duration 10800 --interval 5
    --exclude-ports 3333,4444,14444,4555 --out <out2>` (duration is integer
-   SECONDS; the CLI hard-clamps at 172800, so 14400 = 4 h). Capture PID to a file.
+   SECONDS; the CLI hard-clamps at 172800, so 10800 = 3 h). Capture PID to a file.
    Passive raw-tracepoint attach only; no `tc`, netns, service or config change.
 4. Stop by exact PID after the named window. Rollback is kill + removal of
    `out2` only. Any guard refusal stops as BLOCKED with exact stderr.
