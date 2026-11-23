@@ -14,6 +14,12 @@ const (
 	confrontReportSchema = "cgo.ebpf-vs-tc/1"
 )
 
+// Rôles fixes des deux plans : surfaces complémentaires, sans classement.
+const (
+	confrontRoleTC   = "accounting surface (kernel counters: drops, overlimits, backlog, delay)"
+	confrontRoleEBPF = "temporal surface (per-packet retrans, srtt, bytes at near-wire speed)"
+)
+
 type kernelTruthSeal struct {
 	Schema                 string  `json:"schema"`
 	AuditID                string  `json:"audit_id"`
@@ -31,13 +37,21 @@ type kernelTruthSeal struct {
 }
 
 type confrontReport struct {
-	Schema        string          `json:"schema"`
-	AuditID       string          `json:"audit_id"`
-	Source        string          `json:"source"`
-	KernelTruth   confrontKernel  `json:"kernel_truth"`
-	TCs           confrontTC      `json:"tc_s"`
-	Confrontation confrontVerdict `json:"confrontation"`
-	Note          string          `json:"note,omitempty"`
+	Schema        string              `json:"schema"`
+	AuditID       string              `json:"audit_id"`
+	Source        string              `json:"source"`
+	KernelTruth   confrontKernel      `json:"kernel_truth"`
+	TCs           confrontTC          `json:"tc_s"`
+	Confrontation confrontVerdict     `json:"confrontation"`
+	TruthPlanes   confrontTruthPlanes `json:"truth_planes"`
+	Note          string              `json:"note,omitempty"`
+}
+
+// confrontTruthPlanes — les deux surfaces de vérité, sans hiérarchie : compteurs
+// noyau côté tc/qdisc, per-packet near-wire-speed côté eBPF.
+type confrontTruthPlanes struct {
+	TCQdisc string `json:"tc_qdisc"`
+	EBPF    string `json:"ebpf"`
 }
 
 type confrontKernel struct {
@@ -155,6 +169,10 @@ func writeConfrontationReport(inPath, outPath string) error {
 			EBPFRetransEvents: s.RetransEvents,
 			TCDropsDelta:      delta,
 			Match:             s.RetransEvents == delta,
+		},
+		TruthPlanes: confrontTruthPlanes{
+			TCQdisc: confrontRoleTC,
+			EBPF:    confrontRoleEBPF,
 		},
 		Note: s.Note,
 	}

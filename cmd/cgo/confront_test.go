@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -134,6 +135,41 @@ func TestLoadSealRejectsNeitherNumericNorAbsence(t *testing.T) {
 		p := putSeal(t, dir, body)
 		if _, err := loadSeal(p); err == nil {
 			t.Fatal("sceau sans compteur ni absence accepté")
+		}
+	}
+}
+
+// Oracle — le rapport nomme les deux plans de vérité sans hiérarchie : tc est
+// la surface comptable, eBPF la surface temporelle. Champ additif, aucun
+// compteur ni version de schéma n'est modifié.
+func TestConfrontReportNamesTruthPlanesWithoutHierarchy(t *testing.T) {
+	dir := t.TempDir()
+	in := putSeal(t, dir, fixtureSeal)
+	out := filepath.Join(dir, "ebpf_vs_tc_report.json")
+	if code := runConfrontOut(out, in); code != 0 {
+		t.Fatalf("code=%d, attendu 0", code)
+	}
+	doc := readReport(t, out)
+	if doc["schema"] != "cgo.ebpf-vs-tc/1" {
+		t.Fatalf("schema altéré: %#v", doc["schema"])
+	}
+	tp := obj(t, doc, "truth_planes")
+	tcRole, ok := tp["tc_qdisc"].(string)
+	if !ok || !strings.Contains(strings.ToLower(tcRole), "accounting") {
+		t.Fatalf("tc/qdisc n'est pas nommé surface comptable: %#v", tp["tc_qdisc"])
+	}
+	ebpfRole, ok := tp["ebpf"].(string)
+	if !ok || !strings.Contains(strings.ToLower(ebpfRole), "temporal") {
+		t.Fatalf("eBPF n'est pas nommé surface temporelle: %#v", tp["ebpf"])
+	}
+	blob, err := json.Marshal(tp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lower := strings.ToLower(string(blob))
+	for _, w := range []string{"primary", "hierarchy", "secondary", "demot", "subordinat"} {
+		if strings.Contains(lower, w) {
+			t.Fatalf("claim hiérarchique interdit %q dans truth_planes: %s", w, blob)
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package qdisc
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,5 +122,153 @@ func TestWriteLoadCalibrationSealsDist(t *testing.T) {
 func TestLoadCalibrationMissingFailsClosed(t *testing.T) {
 	if _, err := LoadCalibration(t.TempDir(), "P2"); err == nil {
 		t.Fatal("calibration absente acceptée")
+	}
+}
+
+// Oracle — vocabulaire fermé : seuls les trois plans déclarés sont valides.
+// Le libellé legacy est un affichage, jamais une valeur stockable.
+func TestValidatePhysicsPlaneClosedVocabulary(t *testing.T) {
+	for _, p := range []string{PhysicsPlaneEBPFObservation, PhysicsPlaneRTTBaseline, PhysicsPlaneLiterature} {
+		if err := ValidatePhysicsPlane(p); err != nil {
+			t.Fatalf("plan %q refusé à tort: %v", p, err)
+		}
+	}
+	for _, p := range []string{"", "bogus", "ebpf_observation_forced", PhysicsPlaneLegacy} {
+		if err := ValidatePhysicsPlane(p); err == nil {
+			t.Fatalf("plan %q accepté à tort", p)
+		}
+	}
+}
+
+// Oracle — le constructeur déclare honnêtement sa provenance RTT, jamais eBPF.
+func TestBuildCalibrationDeclaresRTTBaselinePlane(t *testing.T) {
+	rtts := make([]float64, 64)
+	for i := range rtts {
+		rtts[i] = 100 + float64(i%8)
+	}
+	cal, err := BuildCalibration(model.Profile{ID: "P2", DelayMs: 100}, "audit-t", rtts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cal.PhysicsPlane != PhysicsPlaneRTTBaseline {
+		t.Fatalf("plan = %q, want %q", cal.PhysicsPlane, PhysicsPlaneRTTBaseline)
+	}
+	if cal.PhysicsPlane == PhysicsPlaneEBPFObservation {
+		t.Fatal("le constructeur RTT ne peut pas revendiquer eBPF")
+	}
+}
+
+// Oracle — un sidecar archivé sans physics_plane lit le libellé legacy
+// explicite, sans jamais être promu en observation eBPF.
+func TestLoadCalibrationLegacyPlaneLabel(t *testing.T) {
+	dir := t.TempDir()
+	rtts := make([]float64, 64)
+	for i := range rtts {
+		rtts[i] = 100 + float64(i%8)
+	}
+	cal, err := BuildCalibration(model.Profile{ID: "P2", DelayMs: 100}, "audit-t", rtts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteCalibration(dir, cal); err != nil {
+		t.Fatal(err)
+	}
+	// Sidecar antérieur au champ : seule la clé disparaît, les octets .dist
+	// scellés restent intacts.
+	sidecar := filepath.Join(dir, "P2.json")
+	raw, err := os.ReadFile(sidecar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	delete(doc, "physics_plane")
+	raw, err = json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sidecar, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadCalibration(dir, "P2")
+	if err != nil {
+		t.Fatalf("sidecar legacy refusé: %v", err)
+	}
+	if got.PhysicsPlane != PhysicsPlaneLegacy {
+		t.Fatalf("plan legacy = %q, want %q", got.PhysicsPlane, PhysicsPlaneLegacy)
+	}
+	if got.PhysicsPlane == PhysicsPlaneEBPFObservation {
+		t.Fatal("sidecar legacy promu en eBPF")
+	}
+}
+
+// Oracle hostile — un plan inconnu (ou le libellé legacy) est refusé avant
+// toute écriture de sidecar : aucun artefact partiel n'est publié.
+func TestWriteCalibrationRejectsUnknownPlane(t *testing.T) {
+	for _, plane := range []string{"bogus", PhysicsPlaneLegacy} {
+		t.Run(plane, func(t *testing.T) {
+			dir := t.TempDir()
+			rtts := make([]float64, 64)
+			for i := range rtts {
+				rtts[i] = 100 + float64(i%8)
+			}
+			cal, err := BuildCalibration(model.Profile{ID: "P2", DelayMs: 100}, "audit-t", rtts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cal.PhysicsPlane = plane
+			if err := WriteCalibration(dir, cal); err == nil {
+				t.Fatalf("plan %q accepté à l'écriture", plane)
+			}
+			if _, err := os.Stat(filepath.Join(dir, "P2.json")); !os.IsNotExist(err) {
+				t.Fatalf("sidecar écrit malgré le plan %q: %v", plane, err)
+			}
+			if _, err := os.Stat(filepath.Join(dir, "P2.dist")); !os.IsNotExist(err) {
+				t.Fatalf(".dist écrit malgré le plan %q: %v", plane, err)
+			}
+		})
+	}
+}
+
+// Oracle hostile — un plan stocké inconnu (ou le libellé legacy) fait échouer
+// la lecture fermée, avant le lancement de toute campagne.
+func TestLoadCalibrationRejectsUnknownStoredPlane(t *testing.T) {
+	for _, plane := range []string{"bogus", PhysicsPlaneLegacy} {
+		t.Run(plane, func(t *testing.T) {
+			dir := t.TempDir()
+			rtts := make([]float64, 64)
+			for i := range rtts {
+				rtts[i] = 100 + float64(i%8)
+			}
+			cal, err := BuildCalibration(model.Profile{ID: "P2", DelayMs: 100}, "audit-t", rtts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := WriteCalibration(dir, cal); err != nil {
+				t.Fatal(err)
+			}
+			sidecar := filepath.Join(dir, "P2.json")
+			raw, err := os.ReadFile(sidecar)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var doc map[string]any
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				t.Fatal(err)
+			}
+			doc["physics_plane"] = plane
+			raw, err = json.Marshal(doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(sidecar, raw, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := LoadCalibration(dir, "P2"); err == nil {
+				t.Fatalf("plan stocké %q accepté", plane)
+			}
+		})
 	}
 }

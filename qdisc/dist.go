@@ -27,6 +27,27 @@ const (
 	distMinSamples = 30
 )
 
+// Plans de vérité d'une calibration : vocabulaire fermé. Le libellé legacy est
+// réservé à l'affichage d'un sidecar archivé sans champ physics_plane : il est
+// refusé comme valeur stockée et jamais promu en observation eBPF.
+const (
+	PhysicsPlaneEBPFObservation = "ebpf_observation"
+	PhysicsPlaneRTTBaseline     = "rtt_baseline"
+	PhysicsPlaneLiterature      = "literature"
+	PhysicsPlaneLegacy          = "rtt_baseline (legacy)"
+)
+
+// ValidatePhysicsPlane refuse tout plan hors vocabulaire fermé, avant
+// l'écriture d'un sidecar comme avant le chargement d'une campagne.
+func ValidatePhysicsPlane(plane string) error {
+	switch plane {
+	case PhysicsPlaneEBPFObservation, PhysicsPlaneRTTBaseline, PhysicsPlaneLiterature:
+		return nil
+	default:
+		return fmt.Errorf("plan de vérité %q inconnu (attendu %s, %s ou %s)", plane, PhysicsPlaneEBPFObservation, PhysicsPlaneRTTBaseline, PhysicsPlaneLiterature)
+	}
+}
+
 // Calibration — distribution empirique d'un profil et sa provenance. La
 // table n'est pas dupliquée dans le JSON : le .dist la porte, le sidecar
 // la scelle par DistSHA256.
@@ -34,6 +55,7 @@ type Calibration struct {
 	Schema                int    `json:"schema"`
 	Profile               string `json:"profile"`
 	Basis                 string `json:"basis"`
+	PhysicsPlane          string `json:"physics_plane,omitempty"`
 	HopModel              string `json:"hop_model"`
 	SourceAudit           string `json:"source_audit"`
 	SourceReportSHA256    string `json:"source_report_sha256,omitempty"`
@@ -123,10 +145,13 @@ func BuildCalibration(prof model.Profile, auditID string, rtts []float64) (Calib
 		table[i] = int16(v)
 	}
 
+	// La table dérive d'un baseline RTT : c'est ce plan que la calibration
+	// revendique, jamais une observation eBPF qu'elle ne peut pas prouver.
 	cal := Calibration{
 		Schema:          1,
 		Profile:         prof.ID,
 		Basis:           "measured",
+		PhysicsPlane:    PhysicsPlaneRTTBaseline,
 		HopModel:        "rtt_floor_split",
 		SourceAudit:     auditID,
 		ProfileDelayMs:  prof.DelayMs,
@@ -199,6 +224,9 @@ func (c Calibration) Render() []byte {
 func WriteCalibration(dir string, cal Calibration) error {
 	if err := safeCalibrationName(cal.Profile); err != nil {
 		return err
+	}
+	if err := ValidatePhysicsPlane(cal.PhysicsPlane); err != nil {
+		return fmt.Errorf("calibration %s: %w", cal.Profile, err)
 	}
 	if cal.Schema != 1 {
 		return fmt.Errorf("calibration %s: schema %d, attendu 1", cal.Profile, cal.Schema)
@@ -281,6 +309,13 @@ func LoadCalibration(dir, profile string) (Calibration, error) {
 	}
 	if cal.HopModel != "rtt_floor_split" {
 		return Calibration{}, fmt.Errorf("calibration %s: hop_model %q, attendu rtt_floor_split", profile, cal.HopModel)
+	}
+	if cal.PhysicsPlane == "" {
+		// Sidecar archivé antérieur au champ : étiquette d'affichage explicite,
+		// jamais promue en plan eBPF plus fort que la preuve disponible.
+		cal.PhysicsPlane = PhysicsPlaneLegacy
+	} else if err := ValidatePhysicsPlane(cal.PhysicsPlane); err != nil {
+		return Calibration{}, fmt.Errorf("calibration %s: %w", profile, err)
 	}
 	if cal.FloorMs <= 0 || cal.ScaleMs <= 0 || cal.TableSize != distEntries {
 		return Calibration{}, fmt.Errorf("calibration %s: plancher/échelle/table invalide", profile)
