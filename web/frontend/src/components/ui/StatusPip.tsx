@@ -3,7 +3,7 @@ export type PipState = 'ok' | 'warn' | 'err' | 'idle' | 'on' | 'live' | 'offline
 const PIP_MAP: Record<string, string> = {
   ok: 'ok', success: 'ok',
   warn: 'warn', stale: 'warn',
-  err: 'err', error: 'err', offline: 'err',
+  err: 'err', error: 'err', offline: 'offline',
   on: 'on', live: 'on', loading: 'on',
   idle: 'idle', empty: 'idle',
 };
