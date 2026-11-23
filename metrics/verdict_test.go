@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -119,5 +120,109 @@ func TestVerdictSentencesCarryTheirNumbers(t *testing.T) {
 	crit := AssessVerdict(VerdictInput{LoadAttempted: true, LoadEstablished: true, Grade: "F"})
 	if !strings.Contains(crit.Sentence, "note F") {
 		t.Fatalf("phrase saturation %q doit nommer la note", crit.Sentence)
+	}
+}
+
+// fidelitySet — n paires mesuré/modèle dont l'écart absolu vaut deviation.
+func fidelitySet(n int, deviation float64) ([]float64, []float64) {
+	measured := make([]float64, n)
+	modeled := make([]float64, n)
+	for i := range measured {
+		modeled[i] = 100
+		measured[i] = 100 + deviation
+	}
+	return measured, modeled
+}
+
+// TestAssessFidelityTrust — trust exige au moins 30 samples ET un écart
+// explicite <= epsilon. Le dépassement d'epsilon est discard, jamais un vert
+// élargi.
+func TestAssessFidelityTrust(t *testing.T) {
+	measured, modeled := fidelitySet(30, 2)
+	got := AssessFidelity(measured, modeled, 5)
+	if got.State != FidelityTrust {
+		t.Fatalf("state = %q, voulu trust (%+v)", got.State, got)
+	}
+	if got.Samples != 30 || math.Abs(got.DeviationMs-2) > 1e-9 || got.EpsilonMs != 5 {
+		t.Fatalf("verdict = %+v, voulu samples=30 deviation=2 epsilon=5", got)
+	}
+}
+
+func TestAssessFidelityDiscardOverEpsilon(t *testing.T) {
+	measured, modeled := fidelitySet(30, 6)
+	got := AssessFidelity(measured, modeled, 5)
+	if got.State != FidelityDiscard {
+		t.Fatalf("state = %q, voulu discard (%+v)", got.State, got)
+	}
+	if math.Abs(got.DeviationMs-6) > 1e-9 {
+		t.Fatalf("deviation = %v, voulu 6", got.DeviationMs)
+	}
+}
+
+// Oracle hostile : moins de 30 samples donne bounded, JAMAIS trust — même si
+// l'écart est nul. C'est le piège « silence verdirait un manque de preuve ».
+func TestAssessFidelityBoundedInsufficientSamples(t *testing.T) {
+	measured, modeled := fidelitySet(29, 0)
+	got := AssessFidelity(measured, modeled, 5)
+	if got.State != FidelityBounded {
+		t.Fatalf("state = %q, voulu bounded jamais trust (%+v)", got.State, got)
+	}
+	if got.Samples != 29 {
+		t.Fatalf("samples = %d, voulu 29", got.Samples)
+	}
+}
+
+// Aucune entrée ne doit produire trust sans borne de validité explicite :
+// epsilon nul, négatif, NaN ou infini restent bounded.
+func TestAssessFidelityNoTrustWithoutExplicitBound(t *testing.T) {
+	measured, modeled := fidelitySet(30, 0)
+	for _, eps := range []float64{0, -1, math.NaN(), math.Inf(1)} {
+		got := AssessFidelity(measured, modeled, eps)
+		if got.State == FidelityTrust {
+			t.Fatalf("epsilon %v a produit trust sans borne explicite (%+v)", eps, got)
+		}
+		if got.State != FidelityBounded {
+			t.Fatalf("epsilon %v : state = %q, voulu bounded", eps, got.State)
+		}
+	}
+}
+
+// Oracle hostile : un sample NaN ne doit pas se cacher dans une comparaison
+// (NaN > dev est faux) et laisser verdir le verdict.
+func TestAssessFidelityNaNSampleDiscards(t *testing.T) {
+	measured, modeled := fidelitySet(30, 0)
+	measured[7] = math.NaN()
+	got := AssessFidelity(measured, modeled, 5)
+	if got.State != FidelityDiscard {
+		t.Fatalf("state = %q, voulu discard pour sample NaN (%+v)", got.State, got)
+	}
+}
+
+// Des longueurs divergentes ne peuvent pas être comparées : bounded, jamais
+// trust. Une troncature silencieuse fabriquerait une preuve.
+func TestAssessFidelityMismatchedLengthsBounded(t *testing.T) {
+	measured, modeled := fidelitySet(30, 0)
+	got := AssessFidelity(measured, modeled[:29], 5)
+	if got.State == FidelityTrust || got.State != FidelityBounded {
+		t.Fatalf("state = %q, voulu bounded (%+v)", got.State, got)
+	}
+}
+
+// TestAssessFidelityStateClosedSet — le state appartient toujours à l'ensemble
+// fermé trust|bounded|discard, aucune valeur comparables à « green » n'ajoutée.
+func TestAssessFidelityStateClosedSet(t *testing.T) {
+	trustM, trustMo := fidelitySet(30, 0)
+	boundedM, boundedMo := fidelitySet(29, 0)
+	discardM, discardMo := fidelitySet(30, 99)
+	for _, v := range []FidelityVerdict{
+		AssessFidelity(trustM, trustMo, 5),
+		AssessFidelity(boundedM, boundedMo, 5),
+		AssessFidelity(discardM, discardMo, 5),
+	} {
+		switch v.State {
+		case FidelityTrust, FidelityBounded, FidelityDiscard:
+		default:
+			t.Fatalf("state hors ensemble fermé : %q", v.State)
+		}
 	}
 }
