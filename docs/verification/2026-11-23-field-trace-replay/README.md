@@ -70,3 +70,28 @@ separation (~197.5 ms) is roughly 40x the within-arm spread, so the match is not
 a single-cell coincidence. The still-open caveats are unchanged: p99.9 is not
 measured by CSV p95 rows, small_p95 and drops diverge, no fresh eBPF audit, no
 P2 field-derived trace, and the manifest still omits `delay_model`.
+
+## Remaining profiles: bench-derived `.dist` A/B (NOT organic field trace)
+
+Under `APPROVED-2026-11-23-more-profiles-replay.md`, the sealed P1/P2/P4
+calibrations from `../2026-11-19-multiprofile-trace/calibrations/` were staged
+(hash-verified on the guest) and replayed as one multi-profile campaign, with a
+scalar control campaign of the same profiles. **Provenance:** those sidecars say
+`basis: measured`, but the samples came from the eBPF observatory watching
+bench-generated shaped traffic, not a passive field capture. This validates the
+`.dist` mechanism, not P1/P2/P4 field validity.
+
+| Profile | Calibration source p95 | Replay rtt_p95 | Scalar control rtt_p95 | Replay error | Scalar error |
+|---|---:|---:|---:|---:|---:|
+| P1 | 23.028 ms | 23.4 ms | 22.8 ms | +0.37 ms | -0.23 ms |
+| P2 | 175.282 ms | 176.0 ms | 121.8 ms | +0.72 ms | -53.5 ms |
+| P4 | 43.025 ms | 43.5 ms | 68.2 ms | +0.48 ms | +25.2 ms |
+
+Six rows, all `gate_status: valid`. Dist run `run-1795456726` (rows P1/P2/P4),
+scalar control `run-1795457310`. Evidence: deploy `89dda4b1…`, dist launch
+`ce21a036…`, scalar launch `30a2fc29…`, topology restore `b75bbf76…`.
+
+This shows the emulator reproduces a sealed distribution table for every profile
+tested, with the largest scalar error (P2, -53.5 ms) far exceeding replay error
+(+0.72 ms). It does NOT promote bench-derived samples to field measurements: the
+only organic field-derived result in this file remains the P3 replay above.
