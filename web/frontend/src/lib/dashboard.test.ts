@@ -321,4 +321,13 @@ describe('operatorFacts/health — eBPF pilote le fait primary', () => {
     expect(h.kind).toBe('attention')
     expect(h.kind).not.toBe('ok')
   })
+
+  it('charge partielle mais SRTT critique ⇒ critical, jamais un rouge atténué', () => {
+    const evidence = operatorKernelEvidence(hostile([flow(Number.NaN, 900000)]))
+    expect(evidence.complete).toBe(false)
+    expect(evidence.srttMs).toBe(900)
+    const h = kernelHealth(evidence, 40, 100)
+    expect(h.kind).toBe('critical')
+    expect(h.kind).not.toBe('attention')
+  })
 })

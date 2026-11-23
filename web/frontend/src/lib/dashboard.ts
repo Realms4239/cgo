@@ -227,7 +227,7 @@ export function kernelHealth(evidence: KernelEvidence, warnMs: number, critMs: n
     band?.level === 'crit' ? 'critical' : band?.level === 'warn' ? 'attention' : 'ok'
   // Une charge partielle ne porte pas le vert : le SRTT réel reste affiché,
   // mais « Lien prêt » exige le trio complet retrans/SRTT/tc.
-  if (!evidence.complete) kind = 'attention'
+  if (!evidence.complete && kind === 'ok') kind = 'attention'
   if (kind === 'ok' && evidence.retransEvents != null && evidence.retransEvents > 0) kind = 'attention'
   return { kind, detail: `${evidence.latency.text} · ${evidence.loss.text}` }
 }
