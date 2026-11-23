@@ -61,7 +61,7 @@ func netemOpts(opts []float64) (correlation, serialRateMbps float64, overheadByt
 // à 4 arguments). Handle 1: conservé (un shaper peut s'empiler en 1:1).
 func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEModel, opts ...float64) error {
 	c, rate, overhead := netemOpts(opts)
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, 0, &ge, "", c, rate, overhead); err != nil {
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, 0, &ge, "", 0, c, rate, overhead); err != nil {
 		return fmt.Errorf("netem ge %s: %w", iface, err)
 	}
 	return nil
@@ -73,8 +73,22 @@ func ApplyNetemGE(r TCRunner, iface string, delayMs, jitterMs float64, ge GEMode
 // seule des deux formes de perte, jamais les deux.
 func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, opts ...float64) error {
 	c, rate, overhead := netemOpts(opts)
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, "", c, rate, overhead); err != nil {
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, "", 0, c, rate, overhead); err != nil {
 		return fmt.Errorf("netem %s: %w", iface, err)
+	}
+	return nil
+}
+
+// ApplyNetemProfile — netem du saut de propagation avec distribution et
+// perte déclarées par le profil (spec 2026-11-23 §2). Paramètres nus : le
+// module qdisc résout model depuis le cache, les nouveaux champs du profil
+// ne sont pas visibles ici. dist="" et ge=nil reproduisent le vecteur
+// historique à l'octet près ; ge fourni (campagne OU profil gemodel) prime
+// sur la perte uniforme, sans jamais l'accompagner.
+func ApplyNetemProfile(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, shape float64, opts ...float64) error {
+	c, rate, overhead := netemOpts(opts)
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist, shape, c, rate, overhead); err != nil {
+		return fmt.Errorf("netem profile %s: %w", iface, err)
 	}
 	return nil
 }
@@ -96,7 +110,7 @@ func ApplyNetemDistribution(r TCRunner, iface string, delayMs, jitterMs, lossPct
 		return fmt.Errorf("netem dist %s: jitter %.6g ≤ 0 (tc exige delay+jitter)", iface, jitterMs)
 	}
 	c, rate, overhead := netemOpts(opts)
-	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist, c, rate, overhead); err != nil {
+	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist, 0, c, rate, overhead); err != nil {
 		return fmt.Errorf("netem dist %s: %w", iface, err)
 	}
 	return nil
@@ -133,7 +147,7 @@ func validSerial(rateMbps float64, overheadBytes int) error {
 	return nil
 }
 
-func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, correlation, serialRateMbps float64, overheadBytes int) error {
+func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, shape float64, correlation, serialRateMbps float64, overheadBytes int) error {
 	// Échec fermé AVANT le premier appel tc : une corrélation hors plage ou
 	// une sérialisation invalide ne doit jamais laisser une racine netem à
 	// moitié configurée.
@@ -176,6 +190,18 @@ func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64
 	}
 	if dist != "" {
 		args = append(args, "distribution", dist)
+		if shape > 0 {
+			// La forme n'est émise que si le profil la déclare : son unité
+			// est déterminée par le type, jamais devinée depuis la valeur.
+			// shortcut: jeton de forme propre au modèle CGO (tc-netem n'a
+			// pas d'argument de forme dédié), upgrade si iproute2 en ajoute un.
+			switch dist {
+			case "normal":
+				args = append(args, fmt.Sprintf("%gms", shape))
+			case "pareto", "paretonormal":
+				args = append(args, fmt.Sprintf("%g", shape))
+			}
+		}
 	}
 	_, err := r.Run(args...)
 	return err

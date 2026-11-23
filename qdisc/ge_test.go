@@ -239,3 +239,77 @@ func TestApplyNetemSerialFailClosed(t *testing.T) {
 		}
 	}
 }
+
+// TestApplyNetemProfileAbsentByteIdentical — champs de distribution/perte
+// absents : le vecteur historique est reproduit à l'octet près, y compris
+// la perte uniforme et la sérialisation. Le gel du corpus en dépend.
+func TestApplyNetemProfileAbsentByteIdentical(t *testing.T) {
+	cases := []struct {
+		name string
+		run  func(*FakeRunner) error
+		want string
+	}{
+		{"nu", func(f *FakeRunner) error {
+			return ApplyNetemProfile(f, "w-edge", 100, 15, 0, nil, "", 0)
+		}, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms"},
+		{"uniforme", func(f *FakeRunner) error {
+			return ApplyNetemProfile(f, "w-edge", 100, 15, 0.5, nil, "", 0)
+		}, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms loss 0.5%"},
+		{"gemodel", func(f *FakeRunner) error {
+			return ApplyNetemProfile(f, "w-edge", 100, 15, 0, &GEModel{GoodToBad: 0.01, BadToGood: 0.19, LossBad: 0.81, LossGood: 0.01}, "", 0)
+		}, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms loss gemodel 1% 19% 81% 1%"},
+	}
+	for _, tc := range cases {
+		f := &FakeRunner{}
+		if err := tc.run(f); err != nil {
+			t.Fatalf("%s : %v", tc.name, err)
+		}
+		if got := strings.Join(f.Calls[0], " "); got != tc.want {
+			t.Fatalf("%s : got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// TestApplyNetemProfileDistributionShape — la distribution n'est émise
+// que si le profil la déclare ; la forme suit le type : millisecondes pour
+// normal/paretonormal, indice sans unité pour pareto, absente pour uniform.
+func TestApplyNetemProfileDistributionShape(t *testing.T) {
+	cases := []struct {
+		name  string
+		dist  string
+		shape float64
+		want  string
+	}{
+		{"normal", "normal", 8, "distribution normal 8ms"},
+		{"pareto", "pareto", 1.5, "distribution pareto 1.5"},
+		{"paretonormal", "paretonormal", 2, "distribution paretonormal 2"},
+		{"uniform", "uniform", 0, "distribution uniform"},
+	}
+	for _, tc := range cases {
+		f := &FakeRunner{}
+		if err := ApplyNetemProfile(f, "w-edge", 100, 15, 0, nil, tc.dist, tc.shape); err != nil {
+			t.Fatalf("%s : %v", tc.name, err)
+		}
+		got := strings.Join(f.Calls[0], " ")
+		if !strings.HasSuffix(got, " "+tc.want) {
+			t.Fatalf("%s : got %q, veut suffixe %q", tc.name, got, tc.want)
+		}
+		if strings.Count(got, "distribution") != 1 {
+			t.Fatalf("%s : un seul jeton distribution attendu : %q", tc.name, got)
+		}
+	}
+}
+
+// TestApplyNetemProfileGEModelOrder — ordre tc verrouillé avec perte
+// gemodel et distribution déclarée : corrélation, perte, distribution.
+func TestApplyNetemProfileGEModelOrder(t *testing.T) {
+	f := &FakeRunner{}
+	ge := &GEModel{GoodToBad: 0.01, BadToGood: 0.19, LossBad: 0.81, LossGood: 0.01}
+	if err := ApplyNetemProfile(f, "w-edge", 100, 15, 0, ge, "normal", 8, 0.25); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(f.Calls[0], " "),
+		"qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms 25% loss gemodel 1% 19% 81% 1% distribution normal 8ms"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}

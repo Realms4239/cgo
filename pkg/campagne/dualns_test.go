@@ -374,6 +374,117 @@ func serialProfile(t *testing.T, rate float64, overhead int) model.Profile {
 	return p
 }
 
+// physicsProfile — profil de physique observationnelle construit par JSON :
+// aucun champ non encore écrit n'est référencé directement, l'oracle reste
+// comportemental (identique à serialProfile pour la sérialisation).
+func physicsProfile(t *testing.T, raw string) model.Profile {
+	t.Helper()
+	var p model.Profile
+	if err := json.Unmarshal([]byte(raw), &p); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// TestApplyPhysicsValidatesProfileParamsBeforeTC — refus AVANT la première
+// vérification de topologie et tout reset/tc : provenance absente, fraction
+// GE hors plage, distribution inconnue. Aucun appel tc ne doit fuir.
+func TestApplyPhysicsValidatesProfileParamsBeforeTC(t *testing.T) {
+	topoPath := filepath.Join(t.TempDir(), "topology.json")
+	t.Setenv("CGO_TOPOLOGY_JSON", topoPath)
+	writeTopo(t, topoPath, `{"shape_mode":"egress","rtt_mode":"per_hop_half","delay_ms":100,"rate_mbps":20,"ifb_active":false}`)
+	cases := []struct {
+		name string
+		prof model.Profile
+	}{
+		{"measured sans provenance", physicsProfile(t, `{"id":"PB","capacity_mbps":20,"delay_ms":100,"jitter_ms":15,"loss_pct":0.5,"basis":"measured"}`)},
+		{"fraction GE hors plage", physicsProfile(t, `{"id":"PB","capacity_mbps":20,"delay_ms":100,"jitter_ms":15,"loss_pct":0.5,"loss_model":"gemodel","loss_p":-0.1,"loss_r":0.19,"loss_bad":0.81,"loss_good":0.01}`)},
+		{"distribution inconnue", physicsProfile(t, `{"id":"PB","capacity_mbps":20,"delay_ms":100,"jitter_ms":15,"loss_pct":0.5,"delay_distribution":"exponential"}`)},
+		{"uniform avec shape", physicsProfile(t, `{"id":"PB","capacity_mbps":20,"delay_ms":100,"jitter_ms":15,"loss_pct":0.5,"delay_distribution":"uniform","jitter_shape":5}`)},
+	}
+	for _, tc := range cases {
+		f := &qdisc.FakeRunner{}
+		d := &Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}, Bench: "dualns"}
+		if err := applyPhysics(d, tc.prof, nil); err == nil {
+			t.Fatalf("%s : erreur attendue", tc.name)
+		}
+		if len(f.Calls) != 0 {
+			t.Fatalf("%s : tc appelé avant le refus : %v", tc.name, f.Calls)
+		}
+	}
+}
+
+// TestApplyPhysicsProfileGEModel — loss_model=gemodel fournit la perte quand
+// la campagne n'en a pas (clean). Un GE de campagne (bursty) reste un
+// override explicite et n'est jamais remplacé par le profil.
+func TestApplyPhysicsProfileGEModel(t *testing.T) {
+	prof := physicsProfile(t, `{"id":"PG","capacity_mbps":20,"delay_ms":100,"jitter_ms":15,"loss_pct":0.5,"loss_model":"gemodel","loss_p":0.01,"loss_r":0.19,"loss_bad":0.81,"loss_good":0.01}`)
+	f := &qdisc.FakeRunner{}
+	if err := applyPhysics(&Deps{TC: f, CliIf: "w-edge"}, prof, nil); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, c := range f.Calls {
+		j := strings.Join(c, " ")
+		if strings.Contains(j, "netem") && strings.Contains(j, "loss gemodel 1% 19% 81% 1%") {
+			found = true
+		}
+		if strings.Contains(j, "netem") && strings.Contains(j, "loss 0.5%") {
+			t.Fatalf("perte uniforme ne doit pas accompagner le gemodel du profil : %s", j)
+		}
+	}
+	if !found {
+		t.Fatalf("gemodel du profil absent des vecteurs : %v", f.Calls)
+	}
+	// Override de campagne : son GE (0.2/10/50/0.1) prime, le profil est ignoré.
+	campaignGE := &qdisc.GEModel{GoodToBad: 0.002, BadToGood: 0.1, LossBad: 0.5, LossGood: 0.001}
+	f2 := &qdisc.FakeRunner{}
+	if err := applyPhysics(&Deps{TC: f2, CliIf: "w-edge"}, prof, campaignGE); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range f2.Calls {
+		j := strings.Join(c, " ")
+		if strings.Contains(j, "netem") && strings.Contains(j, "loss gemodel 1% 19% 81% 1%") {
+			t.Fatalf("le GE du profil a remplacé l'override de campagne : %s", j)
+		}
+	}
+}
+
+// TestApplyPhysicsProfileDistribution — la distribution déclarée atteint
+// les deux sens ; absente, aucun jeton distribution (vecteur historique).
+func TestApplyPhysicsProfileDistribution(t *testing.T) {
+	prof := physicsProfile(t, `{"id":"PD","capacity_mbps":20,"delay_ms":100,"jitter_ms":15,"loss_pct":0.5,"delay_distribution":"normal","jitter_shape":8}`)
+	f := &qdisc.FakeRunner{}
+	d := &Deps{TC: f, CliIf: "w-edge", PhysicsIfaces: []string{"c-wan"}}
+	if err := applyPhysics(d, prof, nil); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, c := range f.Calls {
+		j := strings.Join(c, " ")
+		if !strings.Contains(j, "netem") || !strings.Contains(j, "distribution normal 8ms") {
+			continue
+		}
+		for _, dev := range []string{"dev w-edge", "dev c-wan"} {
+			if strings.Contains(j, dev) {
+				seen[dev] = true
+			}
+		}
+	}
+	if !seen["dev w-edge"] || !seen["dev c-wan"] {
+		t.Fatalf("distribution absente d'un sens : %v (%v)", seen, f.Calls)
+	}
+	f2 := &qdisc.FakeRunner{}
+	if err := applyPhysics(&Deps{TC: f2, CliIf: "w-edge"}, model.Profiles["P2"], nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range f2.Calls {
+		if j := strings.Join(c, " "); strings.Contains(j, "netem") && strings.Contains(j, "distribution") {
+			t.Fatalf("profil historique sans distribution : %s", j)
+		}
+	}
+}
+
 func TestApplyPhysicsSerialCapGuard(t *testing.T) {
 	// Sérialisation ≤ capacité : le saut de propagation deviendrait le
 	// goulot et volerait la file à l'AQM étudiée. Refus AVANT tout

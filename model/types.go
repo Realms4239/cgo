@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 )
 
@@ -43,6 +44,18 @@ type Profile struct {
 	// Source — provenance d'une cible d'émulation (littérature citée), jamais
 	// une mesure de terrain. Optionnel : ignoré par les anciennes lignes CSV.
 	Source string `json:"source,omitempty"`
+	// Physique observationnelle (spec 2026-11-23 §2). Tous optionnels et
+	// omitempty : absents/zéro, ils reproduisent les vecteurs tc et le JSON
+	// historiques à l'octet près (P1-P4, L1, V1 inchangés).
+	DelayDistribution string  `json:"delay_distribution,omitempty"`
+	JitterShape       float64 `json:"jitter_shape,omitempty"` // ms (normal), indice sans unité (pareto/paretonormal)
+	LossModel         string  `json:"loss_model,omitempty"`   // ""|uniform|gemodel
+	LossP             float64 `json:"loss_p,omitempty"`       // p : bon → mauvais
+	LossR             float64 `json:"loss_r,omitempty"`       // r : mauvais → bon
+	LossBad           float64 `json:"loss_bad,omitempty"`     // 1-h : perte en état mauvais
+	LossGood          float64 `json:"loss_good,omitempty"`    // 1-k : perte en état bon
+	Basis             string  `json:"basis,omitempty"`        // ""|measured|standard|declared
+	SourceRef         string  `json:"source_ref,omitempty"`   // citation ou id de trace, requis si measured
 }
 
 // CapDown — capacité du sens descendant (référence historique).
@@ -84,6 +97,58 @@ func ValidateSerial(rateMbps float64, overheadBytes int) error {
 	}
 	if rateMbps == 0 && overheadBytes > 0 {
 		return fmt.Errorf("packet_overhead_bytes %d sans serial_rate_mbps (taux requis)", overheadBytes)
+	}
+	return nil
+}
+
+// ValidateProfileParams — garde-fou partagé de la physique observationnelle :
+// vocabulaire fermé, plages 0..1 des fractions GE, forme requise là où le
+// type l'exige, provenance obligatoire pour basis=measured. Appelé AVANT
+// toute mutation tc ; NaN/Inf échouent fermés, jamais coercés.
+func ValidateProfileParams(p Profile) error {
+	switch p.DelayDistribution {
+	case "", "uniform", "normal", "pareto", "paretonormal":
+	default:
+		return fmt.Errorf("delay_distribution %q invalide (uniform|normal|pareto|paretonormal)", p.DelayDistribution)
+	}
+	if math.IsNaN(p.JitterShape) || math.IsInf(p.JitterShape, 0) {
+		return fmt.Errorf("jitter_shape %v invalide (NaN/Inf refusés)", p.JitterShape)
+	}
+	switch p.DelayDistribution {
+	case "uniform":
+		if p.JitterShape != 0 {
+			return fmt.Errorf("jitter_shape %v interdit avec distribution uniform", p.JitterShape)
+		}
+	case "normal", "pareto", "paretonormal":
+		if p.JitterShape <= 0 {
+			return fmt.Errorf("jitter_shape %v invalide pour %s (> 0 requis)", p.JitterShape, p.DelayDistribution)
+		}
+	}
+	switch p.LossModel {
+	case "", "uniform":
+	case "gemodel":
+		for _, f := range []struct {
+			name string
+			v    float64
+		}{
+			{"loss_p", p.LossP}, {"loss_r", p.LossR},
+			{"loss_bad", p.LossBad}, {"loss_good", p.LossGood},
+		} {
+			if math.IsNaN(f.v) || math.IsInf(f.v, 0) || f.v < 0 || f.v > 1 {
+				return fmt.Errorf("%s %v invalide (plage [0,1] attendue, NaN/Inf refusés)", f.name, f.v)
+			}
+		}
+	default:
+		return fmt.Errorf("loss_model %q invalide (uniform|gemodel)", p.LossModel)
+	}
+	switch p.Basis {
+	case "", "standard", "declared":
+	case "measured":
+		if strings.TrimSpace(p.SourceRef) == "" {
+			return fmt.Errorf("basis=measured sans source_ref : aucune revendication de mesure sans provenance")
+		}
+	default:
+		return fmt.Errorf("basis %q invalide (measured|standard|declared)", p.Basis)
 	}
 	return nil
 }

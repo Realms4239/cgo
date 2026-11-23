@@ -45,6 +45,12 @@ func burstGEOrNull(profileID, channelModel string) *qdisc.GEModel {
 // seul sens ferait d'un run « symétrique » un lien asymétrique en secret.
 // Reset d'abord : une cellule périmée peut avoir laissé une racine étrangère.
 func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
+	// Champs de physique observationnelle : vocabulaire, plages GE et
+	// provenance validés AVANT la première vérification de topologie et
+	// avant tout reset/tc — jamais une cellule à moitié configurée.
+	if err := model.ValidateProfileParams(prof); err != nil {
+		return err
+	}
 	// Corrélation hors plage refusée AVANT le premier reset/tc : jamais une
 	// cellule à moitié configurée ni une valeur silencieusement coercée.
 	if err := model.ValidateJitterCorrelation(prof.JitterCorrelation); err != nil {
@@ -67,11 +73,18 @@ func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
 			return err
 		}
 	}
+	// Le canal de campagne (bursty) reste un OVERRIDE explicite : il fournit
+	// déjà son GE. Sinon seulement, un profil loss_model=gemodel porte sa
+	// propre perte — jamais un remplacement silencieux du canal déclaré.
+	lossGE := ge
+	if lossGE == nil && prof.LossModel == "gemodel" {
+		lossGE = &qdisc.GEModel{GoodToBad: prof.LossP, BadToGood: prof.LossR, LossBad: prof.LossBad, LossGood: prof.LossGood}
+	}
 	ifaces := append([]string{d.CliIf}, d.PhysicsIfaces...)
 	switch d.DelayModel {
 	case "", "scalar":
 	case "dist":
-		return applyPhysicsDist(d, prof, ge, ifaces)
+		return applyPhysicsDist(d, prof, lossGE, ifaces)
 	default:
 		return fmt.Errorf("delay_model %q invalide (scalar|dist)", d.DelayModel)
 	}
@@ -79,7 +92,8 @@ func applyPhysics(d *Deps, prof model.Profile, ge *qdisc.GEModel) error {
 	// netem porte la MOITIÉ, sinon le RTT mesuré vaut 2× le profil.
 	for _, ifc := range ifaces {
 		_, _ = d.TC.Run("qdisc", "del", "dev", ifc, "root")
-		if err := qdisc.ApplyNetemPhysics(d.TC, ifc, prof.DelayMs/2, prof.JitterMs, prof.LossPct, ge,
+		if err := qdisc.ApplyNetemProfile(d.TC, ifc, prof.DelayMs/2, prof.JitterMs, prof.LossPct, lossGE,
+			prof.DelayDistribution, prof.JitterShape,
 			prof.JitterCorrelation, prof.SerialRateMbps, float64(prof.PacketOverheadBytes)); err != nil {
 			return fmt.Errorf("netem %s: %w", ifc, err)
 		}

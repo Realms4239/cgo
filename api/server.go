@@ -728,12 +728,27 @@ func (s *Server) registerState(mux *http.ServeMux) {
 			LossH               float64 `json:"loss_burst_h,omitempty"`
 			LossK               float64 `json:"loss_burst_k,omitempty"`
 			Source              string  `json:"source,omitempty"`
-			FromImport          bool    `json:"imported"`
+			// Physique observationnelle (spec 2026-11-23 §2) : omitempty,
+			// absents = JSON historique inchangé.
+			DelayDistribution string  `json:"delay_distribution,omitempty"`
+			JitterShape       float64 `json:"jitter_shape,omitempty"`
+			LossModel         string  `json:"loss_model,omitempty"`
+			LossModelP        float64 `json:"loss_p,omitempty"`
+			LossModelR        float64 `json:"loss_r,omitempty"`
+			LossModelBad      float64 `json:"loss_bad,omitempty"`
+			LossModelGood     float64 `json:"loss_good,omitempty"`
+			Basis             string  `json:"basis,omitempty"`
+			SourceRef         string  `json:"source_ref,omitempty"`
+			FromImport        bool    `json:"imported"`
 		}
 		out := make([]prof, 0, len(ids))
 		for _, id := range ids {
 			p := model.Profiles[id]
-			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, CapacityUp: p.CapacityUpMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, JitterCorrelation: p.JitterCorrelation, SerialRateMbps: p.SerialRateMbps, PacketOverheadBytes: p.PacketOverheadBytes, LossPct: p.LossPct, LossP: p.LossBurstP, LossR: p.LossBurstR, LossH: p.LossBurstH, LossK: p.LossBurstK, Source: p.Source, FromImport: !model.BuiltinProfileIDs[id]})
+			out = append(out, prof{ID: id, Capacity: p.CapacityMbps, CapacityUp: p.CapacityUpMbps, DelayMs: p.DelayMs, JitterMs: p.JitterMs, JitterCorrelation: p.JitterCorrelation, SerialRateMbps: p.SerialRateMbps, PacketOverheadBytes: p.PacketOverheadBytes, LossPct: p.LossPct, LossP: p.LossBurstP, LossR: p.LossBurstR, LossH: p.LossBurstH, LossK: p.LossBurstK, Source: p.Source,
+				DelayDistribution: p.DelayDistribution, JitterShape: p.JitterShape, LossModel: p.LossModel,
+				LossModelP: p.LossP, LossModelR: p.LossR, LossModelBad: p.LossBad, LossModelGood: p.LossGood,
+				Basis: p.Basis, SourceRef: p.SourceRef,
+				FromImport: !model.BuiltinProfileIDs[id]})
 		}
 		model.ProfilesMu.RUnlock()
 		writeJSON(w, map[string]any{"profiles": out})
@@ -1295,10 +1310,11 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 				return
 			}
 			num := func(s string) float64 { v, _ := strconv.ParseFloat(strings.TrimSpace(s), 64); return v }
-			// Ligne CSV: id,capacity,delay,jitter,loss[,capacity_up,loss_burst_p,r,h,k[,jitter_correlation[,serial_rate_mbps,packet_overhead_bytes]]]
+			// Ligne CSV: id,capacity,delay,jitter,loss[,capacity_up,loss_burst_p,r,h,k[,jitter_correlation[,serial_rate_mbps,packet_overhead_bytes[,delay_distribution,jitter_shape,loss_model,loss_p,loss_r,loss_bad,loss_good,basis,source_ref]]]]]
 			// — positions 5..12 optionnelles (asymétrie, rafales, corrélation,
-			// sérialisation) ; absentes = symétrique + perte uniforme +
-			// corrélation nulle + sérialisation nulle (historique inchangé)
+			// sérialisation), 13..21 (physique observationnelle, spec
+			// 2026-11-23 §2) ; absentes = historique inchangé, tous les
+			// nouveaux champs à zéro.
 			p = model.Profile{ID: strings.TrimSpace(row[0])}
 			if len(row) > 1 {
 				p.CapacityMbps = num(row[1])
@@ -1336,6 +1352,35 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 			if len(row) > 12 {
 				p.PacketOverheadBytes = int(num(row[12]))
 			}
+			// Colonnes 13..21 au sens "après les 13 champs historiques" :
+			// indices 13..21 (0-based), ordre figé, optionnelles.
+			if len(row) > 13 {
+				p.DelayDistribution = strings.TrimSpace(row[13])
+			}
+			if len(row) > 14 {
+				p.JitterShape = num(row[14])
+			}
+			if len(row) > 15 {
+				p.LossModel = strings.TrimSpace(row[15])
+			}
+			if len(row) > 16 {
+				p.LossP = num(row[16])
+			}
+			if len(row) > 17 {
+				p.LossR = num(row[17])
+			}
+			if len(row) > 18 {
+				p.LossBad = num(row[18])
+			}
+			if len(row) > 19 {
+				p.LossGood = num(row[19])
+			}
+			if len(row) > 20 {
+				p.Basis = strings.TrimSpace(row[20])
+			}
+			if len(row) > 21 {
+				p.SourceRef = strings.TrimSpace(row[21])
+			}
 		} else if err := json.Unmarshal(body, &p); err != nil {
 			writeErr(w, r, "bad json", http.StatusBadRequest)
 			return
@@ -1353,6 +1398,12 @@ func (s *Server) registerProfiles(mux *http.ServeMux) {
 		// Sérialisation invalide (overhead sans taux, taux négatif…) refusée
 		// AVANT toute persistance : jamais une valeur coercée dans un profil.
 		if err := model.ValidateSerial(p.SerialRateMbps, p.PacketOverheadBytes); err != nil {
+			writeErr(w, r, err.Error(), http.StatusBadRequest)
+			return
+		}
+		// Physique observationnelle : vocabulaire, fractions GE et
+		// provenance refusés AVANT toute persistance, jamais coercés.
+		if err := model.ValidateProfileParams(p); err != nil {
 			writeErr(w, r, err.Error(), http.StatusBadRequest)
 			return
 		}
