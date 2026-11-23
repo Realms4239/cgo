@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -18,6 +20,10 @@ import (
 	"github.com/Realms4239/cgo/results"
 )
 
+// runCLI — campagne en ligne de commande : la même matrice que le dashboard,
+// imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
+// (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
+// peut campagner par SSH.
 // resolvedTarget — un --target absent ne doit pas écraser la cible détectée
 // du banc : la valeur par défaut 1.1.1.1 (avant 2026-11-16) cassait le ping
 // en dualns (10.30.0.2) et en legacy (10.200.0.1) sans autre signal qu'un
@@ -29,10 +35,6 @@ func resolvedTarget(flagTarget, detected string) string {
 	return flagTarget
 }
 
-// runCLI — campagne en ligne de commande : la même matrice que le dashboard,
-// imprimée en une ligne de progression par frame, arrêt gracieux CTRL-C
-// (gel propre), résumé final depuis le CSV gelé. L'opérateur sans navigateur
-// peut campagner par SSH.
 func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flows int, target, direction, dataDir, runID, bench, channelModel string) int {
 	// Un --run-id hostile ne touche JAMAIS le disque : même garde que le
 	// banc (un élément de chemin simple). Sans ça, le verrou fichier serait
@@ -77,16 +79,27 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 	// Garde anti-double-launch (camp-final : deux `run` concurrents se sont
 	// battus sur les mêmes qdiscs + aqm_eval.csv, 36 lignes pour 18 events).
 	// Verrou fichier O_EXCL dans le dataDir : le second meurt avec un message.
+	// Truandé 2026-11-12 : sur un hôte neuf, dataDir n'existe pas encore —
+	// OpenFile échoue en ENOENT et se faisait passer pour « déjà en cours ».
+	// MkdirAll d'abord, puis distinguer EEXIST (vrai double launch) des autres.
 	var lockPath string
 	if dataDir != "" {
+		if err := os.MkdirAll(dataDir, 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "run: répertoire de données %q illisible : %v\n", dataDir, err)
+			return 2
+		}
 		lockPath = dataDir + "/." + runID + ".lock"
 	} else {
 		lockPath = ".cgo-run-" + runID + ".lock"
 	}
 	lockF, lockErr := os.OpenFile(lockPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if lockErr != nil {
-		fmt.Fprintf(os.Stderr, "run: %s déjà en cours (verrou %s) — ps count == 1 avant chaque launch\n", runID, lockPath)
-		return 3
+		if errors.Is(lockErr, fs.ErrExist) {
+			fmt.Fprintf(os.Stderr, "run: %s déjà en cours (verrou %s) — ps count == 1 avant chaque launch\n", runID, lockPath)
+			return 3
+		}
+		fmt.Fprintf(os.Stderr, "run: impossible de poser le verrou %s : %v\n", lockPath, lockErr)
+		return 2
 	}
 	defer func() {
 		lockF.Close()
@@ -115,25 +128,10 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 		fmt.Fprintln(os.Stderr, "run: --bench doit être legacy|dualns")
 		return 2
 	}
-	var deps campagne.Deps
-	if bench == "dualns" {
-		deps = campagne.ProdDepsDualNS(direction)
-	} else {
-		deps = campagne.ProdDeps()
-		if direction == "down" {
-			deps = campagne.ProdDepsDown()
-		}
-	}
-	deps.Bench = bench
-	deps.ChannelModel = channelModel
-	deps.Direction = direction
-	deps.Target = resolvedTarget(target, deps.Target)
-	deps.DeadlineMs = float64(deadlineMs)
 	if flows < 1 || flows > 8 {
 		fmt.Fprintln(os.Stderr, "run: --flows doit être 1–8")
 		return 2
 	}
-	deps.Flows = flows
 
 	// Preflight banc (camp220 : matrice lancée sur banc mort = campagne à
 	// zéros). Réutilise le script durci : check → up si besoin → re-check ;
@@ -142,65 +140,100 @@ func runCLI(profilesStr string, qdiscsStr, ccsStr string, reps, deadlineMs, flow
 		return code
 	}
 
-	// progression : chaque instantané rafraîchit la ligne courante
-	deps.OnSnap = func(s campagne.Snapshot) {
-		gates := ""
-		for _, g := range s.Gates {
-			switch {
-			case g == nil:
-				gates += "·"
-			case *g:
-				gates += "✓"
-			default:
-				gates += "✗"
+	// Une jambe de la matrice : tout ce qui dépend du sens vit ici — la
+	// matrice « both » enchaîne up puis down dans le même run (même dataDir,
+	// même runID : le CSV unique porte les deux sens, les cellules G5 se
+	// distinguent par la direction). Seule la direction change entre jambes.
+	runLeg := func(direction string) int {
+		var deps campagne.Deps
+		if bench == "dualns" {
+			deps = campagne.ProdDepsDualNS(direction)
+		} else {
+			deps = campagne.ProdDeps()
+			if direction == "down" {
+				deps = campagne.ProdDepsDown()
 			}
 		}
-		lastLine(fmt.Sprintf("[%s %s/%s rep%d] %s — small p95 %.1fms — rtt %.1fms — G[%s] %d/%d",
-			s.Profile, s.Qdisc, s.CC, s.Repetition, s.Phase,
-			s.Smallp95Ms, s.RTTp95Ms, gates, s.EventID, s.TotalEvents))
-	}
+		deps.Bench = bench
+		deps.ChannelModel = channelModel
+		deps.Direction = direction
+		deps.Target = resolvedTarget(target, deps.Target)
+		deps.DeadlineMs = float64(deadlineMs)
+		deps.Flows = flows
 
-	if qdiscs == nil {
-		qs := make([]string, len(model.AllQdiscs))
-		for i, q := range model.AllQdiscs {
-			qs[i] = string(q)
-		}
-		qdiscs = qs
-	}
-	if ccs == nil {
-		ccs = capabilities.DefaultCCs()
-	}
-
-	var m *campagne.Matrix
-	var err error
-	if runID != "" {
-		m, err = campagne.StartMatrixFilteredWithID(ctx, runID, profiles, qdiscs, ccs, reps, deps, dataDir)
-	} else {
-		m, err = campagne.StartMatrixFiltered(ctx, profiles, qdiscs, ccs, reps, deps, dataDir)
-	}
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "run:", err)
-		return 2
-	}
-
-	// attente active : CTRL-C → Stop gracieux, la matrice draine et gèle
-	for m.IsRunning() {
-		select {
-		case <-ctx.Done():
-			fmt.Println("\narrêt demandé — gel en cours…")
-			m.Stop()
-			for i := 0; i < 30 && m.IsRunning(); i++ {
-				time.Sleep(200 * time.Millisecond)
+		// progression : chaque instantané rafraîchit la ligne courante
+		deps.OnSnap = func(s campagne.Snapshot) {
+			gates := ""
+			for _, g := range s.Gates {
+				switch {
+				case g == nil:
+					gates += "·"
+				case *g:
+					gates += "✓"
+				default:
+					gates += "✗"
+				}
 			}
-			fmt.Println("gel terminé.")
-			printSummary(dataDir, runID)
-			return 0
-		case <-time.After(300 * time.Millisecond):
+			lastLine(fmt.Sprintf("[%s %s/%s rep%d] %s — small p95 %.1fms — rtt %.1fms — G[%s] %d/%d",
+				s.Profile, s.Qdisc, s.CC, s.Repetition, s.Phase,
+				s.Smallp95Ms, s.RTTp95Ms, gates, s.EventID, s.TotalEvents))
 		}
+
+		if qdiscs == nil {
+			qs := make([]string, len(model.AllQdiscs))
+			for i, q := range model.AllQdiscs {
+				qs[i] = string(q)
+			}
+			qdiscs = qs
+		}
+		if ccs == nil {
+			ccs = capabilities.DefaultCCs()
+		}
+
+		var m *campagne.Matrix
+		var err error
+		if runID != "" {
+			m, err = campagne.StartMatrixFilteredWithID(ctx, runID, profiles, qdiscs, ccs, reps, deps, dataDir)
+		} else {
+			m, err = campagne.StartMatrixFiltered(ctx, profiles, qdiscs, ccs, reps, deps, dataDir)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "run:", err)
+			return 2
+		}
+
+		// attente active : CTRL-C → Stop gracieux, la matrice draine et gèle
+		for m.IsRunning() {
+			select {
+			case <-ctx.Done():
+				fmt.Println("\narrêt demandé — gel en cours…")
+				m.Stop()
+				for i := 0; i < 30 && m.IsRunning(); i++ {
+					time.Sleep(200 * time.Millisecond)
+				}
+				fmt.Println("gel terminé.")
+				printSummary(dataDir, runID)
+				return 0
+			case <-time.After(300 * time.Millisecond):
+			}
+		}
+		fmt.Println()
+		printSummary(dataDir, runID)
+		return 0
 	}
-	fmt.Println()
-	printSummary(dataDir, runID)
-	return 0
+
+	if direction == "both" {
+		// RRUL : l'up gelée d'abord, la matrice down enchaîne dans le même
+		// run (comme le serveur, cmd/cgo/server.go) — les deux sens dans le
+		// même run pour la comparaison directe. Une jambe qui échoue arrête
+		// la chaîne ; l'interruption opérateur (ctx annulé) ne lance pas la
+		// jambe down dans un contexte mort.
+		if code := runLeg("up"); code != 0 || ctx.Err() != nil {
+			return code
+		}
+		return runLeg("down")
+	}
+	return runLeg(direction)
 }
 
 // printSummary — médianes gelées de la matrice + verdict + hash. Filtrée au
