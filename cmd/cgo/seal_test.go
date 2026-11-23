@@ -109,6 +109,75 @@ func TestBuildSealCopiesRealInputs(t *testing.T) {
 	}
 }
 
+// Oracle absence — l'audit réel 6.8-cake est sérialisé SANS qdisc_drop_packets
+// (ancien omitempty). L'absence doit être représentée explicitement : drapeau
+// vrai + note nommée, et surtout AUCUN compteur numérique fabriqué à zéro.
+func TestBuildSealHonestAbsence(t *testing.T) {
+	const auditNoQdisc = `{"audit_id":"audit-20261122-abcdef12","kernel_telemetry":{"available":true,"source":"ebpf","object_sha256":"object-sha-abc123","retrans_payload_bytes":4096,"flows":[{"retrans_events":1},{"retrans_events":225}]}}`
+	dir := t.TempDir()
+	aPath := sealPutFile(t, dir, "audit.json", auditNoQdisc)
+	bPath := sealPutFile(t, dir, "before.txt", sealTcCapture(1))
+	a2Path := sealPutFile(t, dir, "after.txt", sealTcCapture(227))
+	out := filepath.Join(dir, "seal.json")
+
+	if err := buildSeal(aPath, bPath, a2Path, "e-wan", "cake", out); err != nil {
+		t.Fatalf("buildSeal devrait accepter l'absence explicite: %v", err)
+	}
+	doc := sealReadDoc(t, out)
+	if doc["qdisc_drop_packets_absent"] != true {
+		t.Fatalf("drapeau d'absence explicite manquant: %#v", doc["qdisc_drop_packets_absent"])
+	}
+	if v, ok := doc["qdisc_drop_packets"]; ok {
+		t.Fatalf("compteur fabriqué malgré l'absence: qdisc_drop_packets=%#v", v)
+	}
+	note, _ := doc["note"].(string)
+	if !strings.Contains(note, "blind spot") || !strings.Contains(note, "not a measured zero") {
+		t.Fatalf("note d'absence nommée manquante: %q", note)
+	}
+
+	// Round-trip : le consommateur accepte ce sceau et prononce match=true
+	// sans jamais réintroduire de compteur numérique.
+	if _, err := loadSeal(out); err != nil {
+		t.Fatalf("sceau d'absence refusé par loadSeal: %v", err)
+	}
+	report := filepath.Join(dir, "report.json")
+	if err := writeConfrontationReport(out, report); err != nil {
+		t.Fatalf("writeConfrontationReport (absence): %v", err)
+	}
+	rdoc := sealReadDoc(t, report)
+	k, _ := rdoc["kernel_truth"].(map[string]any)
+	if k["qdisc_drop_packets_absent"] != true {
+		t.Fatalf("drapeau d'absence non recopié dans kernel_truth: %#v", k)
+	}
+	if _, ok := k["qdisc_drop_packets"]; ok {
+		t.Fatalf("compteur fabriqué dans le rapport: %#v", k["qdisc_drop_packets"])
+	}
+	if knote, _ := k["note"].(string); knote != note {
+		t.Fatalf("note non recopiée verbatim: %q", knote)
+	}
+	verdict, _ := rdoc["confrontation"].(map[string]any)
+	if verdict["match"] != true {
+		t.Fatalf("match attendu vrai (226 retrans == 226 delta tc): %#v", verdict)
+	}
+}
+
+// Oracle hostile dédié — null est une absence déguisée, jamais une absence
+// explicite : le producteur doit refuser fermé et ne rien publier.
+func TestBuildSealRejectsNullQdiscDropPackets(t *testing.T) {
+	dir := t.TempDir()
+	aPath := sealPutFile(t, dir, "audit.json", sealAuditJSON("ebpf", true, "4096", "null", sealFlowsTwo))
+	bPath := sealPutFile(t, dir, "before.txt", sealTcCapture(1))
+	a2Path := sealPutFile(t, dir, "after.txt", sealTcCapture(227))
+	out := filepath.Join(dir, "seal.json")
+	err := buildSeal(aPath, bPath, a2Path, "e-wan", "cake", out)
+	if err == nil || !strings.Contains(err.Error(), "qdisc_drop_packets") {
+		t.Fatalf("qdisc_drop_packets=null doit être refusé: %v", err)
+	}
+	if _, statErr := os.Stat(out); !os.IsNotExist(statErr) {
+		t.Fatalf("fichier écrit malgré null: stat=%v", statErr)
+	}
+}
+
 // Oracle 2 — chaque validation a un oracle hostile : supprimer la garde fait
 // échouer ce test. Échec fermé (erreur + aucun fichier écrit) dans tous les cas.
 func TestBuildSealFailsClosed(t *testing.T) {

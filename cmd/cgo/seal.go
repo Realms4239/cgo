@@ -17,6 +17,10 @@ import (
 // qu'aucun lecteur ne le prenne pour une absence de congestion.
 const sealZeroDropNote = "qdisc_drop_packets=0 : angle mort nommé du filtre de raisons du noyau (kernel reason-filter blind spot) — ne pas lire comme une absence de perte (not zero loss)"
 
+// sealAbsentDropNote — l'audit 6.8-cake est sérialisé sans le champ
+// qdisc_drop_packets : l'absence est un fait, pas une mesure à zéro.
+const sealAbsentDropNote = "qdisc_drop_packets absent : angle mort nommé du filtre de raisons du noyau 6.8-cake (kernel reason-filter blind spot) — absence explicite, PAS une mesure à zéro (not a measured zero)"
+
 // tcDroppedRx — une seule forme : `dropped <N>`. Un capture ambigu (0 ou
 // plusieurs occurrences) est refusé fermé : on ne devine jamais le compteur.
 var tcDroppedRx = regexp.MustCompile(`\bdropped[[:space:]]+([0-9]+)\b`)
@@ -127,8 +131,28 @@ func buildSeal(auditPath, tcBeforePath, tcAfterPath, iface, qdisc, outPath strin
 		return fmt.Errorf("audit (%s): %w", auditPath, err)
 	}
 	telRaw := top["kernel_telemetry"]
-	if err := requireJSONFields(telRaw, "source", "available", "retrans_payload_bytes", "qdisc_drop_packets", "flows"); err != nil {
+	if err := requireJSONFields(telRaw, "source", "available", "retrans_payload_bytes", "flows"); err != nil {
 		return fmt.Errorf("kernel_telemetry (%s): %w", auditPath, err)
+	}
+
+	// qdisc_drop_packets peut être ABSENT (ancienne sérialisation omitempty des
+	// audits scellés). On lit le brut : jamais de coercition absent→0, jamais
+	// de null accepté comme mesure (null est une absence déguisée).
+	var tel map[string]json.RawMessage
+	if err := json.Unmarshal(telRaw, &tel); err != nil {
+		return fmt.Errorf("kernel_telemetry illisible (%s): %w", auditPath, err)
+	}
+	dropRaw, dropPresent := tel["qdisc_drop_packets"]
+	if dropPresent && string(dropRaw) == "null" {
+		return fmt.Errorf("kernel_telemetry (%s): qdisc_drop_packets est null (absence déguisée, jamais une mesure à zéro)", auditPath)
+	}
+	var qdiscDrops *uint64
+	if dropPresent {
+		var n uint64
+		if err := json.Unmarshal(dropRaw, &n); err != nil {
+			return fmt.Errorf("kernel_telemetry (%s): qdisc_drop_packets invalide: %w", auditPath, err)
+		}
+		qdiscDrops = &n
 	}
 
 	// Garde de présence par flux : un retrans_events null sommé en silence
@@ -188,20 +212,23 @@ func buildSeal(auditPath, tcBeforePath, tcAfterPath, iface, qdisc, outPath strin
 	}
 
 	seal := kernelTruthSeal{
-		Schema:              confrontSealSchema,
-		AuditID:             rep.AuditID,
-		Source:              "ebpf",
-		ObjectSHA256:        kt.ObjectSHA256,
-		RetransPayloadBytes: kt.RetransPayloadBytes,
-		RetransEvents:       retransEvents,
-		QdiscDropPackets:    kt.QdiscDropPackets,
-		TCInterface:         iface,
-		TCQdisc:             qdisc,
-		TCDropsBefore:       before,
-		TCDropsAfter:        after,
+		Schema:                 confrontSealSchema,
+		AuditID:                rep.AuditID,
+		Source:                 "ebpf",
+		ObjectSHA256:           kt.ObjectSHA256,
+		RetransPayloadBytes:    kt.RetransPayloadBytes,
+		RetransEvents:          retransEvents,
+		QdiscDropPackets:       qdiscDrops,
+		QdiscDropPacketsAbsent: !dropPresent,
+		TCInterface:            iface,
+		TCQdisc:                qdisc,
+		TCDropsBefore:          before,
+		TCDropsAfter:           after,
 	}
-	if seal.QdiscDropPackets == 0 {
+	if qdiscDrops != nil && *qdiscDrops == 0 {
 		seal.Note = sealZeroDropNote
+	} else if !dropPresent {
+		seal.Note = sealAbsentDropNote
 	}
 	b, err := json.MarshalIndent(seal, "", "  ")
 	if err != nil {

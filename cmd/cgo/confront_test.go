@@ -111,6 +111,69 @@ func TestConfrontOutWritesSealedTruth(t *testing.T) {
 	}
 }
 
+// Oracle absence — le consommateur accepte un sceau dont le compteur est
+// explicitement absent (drapeau vrai, aucun champ numérique).
+func TestLoadSealAcceptsExplicitAbsence(t *testing.T) {
+	dir := t.TempDir()
+	absent := `{"schema":"cgo.kernel-truth-seal/1","audit_id":"audit-absent","source":"ebpf","retrans_events":226,"qdisc_drop_packets_absent":true,"tc_drops_before":1,"tc_drops_after":227,"note":"absence explicite"}`
+	p := putSeal(t, dir, absent)
+	if _, err := loadSeal(p); err != nil {
+		t.Fatalf("sceau d'absence explicite refusé: %v", err)
+	}
+}
+
+// Oracle hostile — ni compteur numérique ni drapeau d'absence vrai : refus
+// fermé. Un drapeau false ne compte PAS comme une absence explicite.
+func TestLoadSealRejectsNeitherNumericNorAbsence(t *testing.T) {
+	cases := []string{
+		`{"schema":"cgo.kernel-truth-seal/1","audit_id":"x","source":"ebpf","retrans_events":226,"tc_drops_before":1,"tc_drops_after":227}`,
+		`{"schema":"cgo.kernel-truth-seal/1","audit_id":"x","source":"ebpf","retrans_events":226,"qdisc_drop_packets_absent":false,"tc_drops_before":1,"tc_drops_after":227}`,
+	}
+	for _, body := range cases {
+		dir := t.TempDir()
+		p := putSeal(t, dir, body)
+		if _, err := loadSeal(p); err == nil {
+			t.Fatal("sceau sans compteur ni absence accepté")
+		}
+	}
+}
+
+// Oracle absence — le rapport recopie drapeau + note verbatim, n'invente aucun
+// compteur, et prononce match=true depuis retrans_events vs delta tc.
+func TestConfrontOutHonestAbsence(t *testing.T) {
+	const absentSeal = `{
+  "schema": "cgo.kernel-truth-seal/1",
+  "audit_id": "audit-fixture-absent",
+  "source": "ebpf",
+  "retrans_events": 226,
+  "qdisc_drop_packets_absent": true,
+  "tc_drops_before": 1,
+  "tc_drops_after": 227,
+  "note": "TEST FIXTURE — explicit absence, not a measured zero"
+}`
+	dir := t.TempDir()
+	in := putSeal(t, dir, absentSeal)
+	out := filepath.Join(dir, "ebpf_vs_tc_report.json")
+	if code := runConfrontOut(out, in); code != 0 {
+		t.Fatalf("code=%d, attendu 0", code)
+	}
+	doc := readReport(t, out)
+	k := obj(t, doc, "kernel_truth")
+	if k["qdisc_drop_packets_absent"] != true {
+		t.Fatalf("drapeau d'absence non recopié: %#v", k)
+	}
+	if _, ok := k["qdisc_drop_packets"]; ok {
+		t.Fatalf("compteur fabriqué dans le rapport: %#v", k["qdisc_drop_packets"])
+	}
+	if k["note"] != "TEST FIXTURE — explicit absence, not a measured zero" {
+		t.Fatalf("note non recopiée verbatim: %#v", k["note"])
+	}
+	c := obj(t, doc, "confrontation")
+	if num(t, c, "ebpf_retrans_events") != 226 || num(t, c, "tc_drops_delta") != 226 || c["match"] != true {
+		t.Fatalf("match attendu vrai depuis retrans vs delta tc: %#v", c)
+	}
+}
+
 // Oracle hostile — sceau absent : échec fermé (code 2), aucun fichier écrit.
 func TestConfrontOutFailsClosedWhenSealAbsent(t *testing.T) {
 	dir := t.TempDir()

@@ -15,18 +15,19 @@ const (
 )
 
 type kernelTruthSeal struct {
-	Schema              string `json:"schema"`
-	AuditID             string `json:"audit_id"`
-	Source              string `json:"source"`
-	ObjectSHA256        string `json:"object_sha256,omitempty"`
-	RetransPayloadBytes uint64 `json:"retrans_payload_bytes,omitempty"`
-	RetransEvents       uint64 `json:"retrans_events"`
-	QdiscDropPackets    uint64 `json:"qdisc_drop_packets"`
-	TCInterface         string `json:"tc_interface,omitempty"`
-	TCQdisc             string `json:"tc_qdisc,omitempty"`
-	TCDropsBefore       uint64 `json:"tc_drops_before"`
-	TCDropsAfter        uint64 `json:"tc_drops_after"`
-	Note                string `json:"note,omitempty"`
+	Schema                 string  `json:"schema"`
+	AuditID                string  `json:"audit_id"`
+	Source                 string  `json:"source"`
+	ObjectSHA256           string  `json:"object_sha256,omitempty"`
+	RetransPayloadBytes    uint64  `json:"retrans_payload_bytes,omitempty"`
+	RetransEvents          uint64  `json:"retrans_events"`
+	QdiscDropPackets       *uint64 `json:"qdisc_drop_packets,omitempty"`
+	QdiscDropPacketsAbsent bool    `json:"qdisc_drop_packets_absent,omitempty"`
+	TCInterface            string  `json:"tc_interface,omitempty"`
+	TCQdisc                string  `json:"tc_qdisc,omitempty"`
+	TCDropsBefore          uint64  `json:"tc_drops_before"`
+	TCDropsAfter           uint64  `json:"tc_drops_after"`
+	Note                   string  `json:"note,omitempty"`
 }
 
 type confrontReport struct {
@@ -40,10 +41,12 @@ type confrontReport struct {
 }
 
 type confrontKernel struct {
-	ObjectSHA256        string `json:"object_sha256,omitempty"`
-	RetransPayloadBytes uint64 `json:"retrans_payload_bytes,omitempty"`
-	RetransEvents       uint64 `json:"retrans_events"`
-	QdiscDropPackets    uint64 `json:"qdisc_drop_packets"`
+	ObjectSHA256           string  `json:"object_sha256,omitempty"`
+	RetransPayloadBytes    uint64  `json:"retrans_payload_bytes,omitempty"`
+	RetransEvents          uint64  `json:"retrans_events"`
+	QdiscDropPackets       *uint64 `json:"qdisc_drop_packets,omitempty"`
+	QdiscDropPacketsAbsent bool    `json:"qdisc_drop_packets_absent,omitempty"`
+	Note                   string  `json:"note,omitempty"`
 }
 
 type confrontTC struct {
@@ -72,7 +75,7 @@ func loadSeal(path string) (kernelTruthSeal, error) {
 	if err := json.Unmarshal(raw, &keys); err != nil {
 		return s, fmt.Errorf("sceau noyau illisible (%s): %w", path, err)
 	}
-	for _, k := range []string{"schema", "audit_id", "source", "retrans_events", "qdisc_drop_packets", "tc_drops_before", "tc_drops_after"} {
+	for _, k := range []string{"schema", "audit_id", "source", "retrans_events", "tc_drops_before", "tc_drops_after"} {
 		v, ok := keys[k]
 		if !ok {
 			return s, fmt.Errorf("sceau noyau incomplet (%s): %s absent", path, k)
@@ -82,6 +85,26 @@ func loadSeal(path string) (kernelTruthSeal, error) {
 		if string(v) == "null" {
 			return s, fmt.Errorf("sceau noyau incomplet (%s): %s est null", path, k)
 		}
+	}
+
+	// qdisc_drop_packets : compteur numérique non-null OU absence explicite
+	// (drapeau true). Jamais ni l'un ni l'autre, jamais null.
+	dropRaw, hasDrop := keys["qdisc_drop_packets"]
+	if hasDrop && string(dropRaw) == "null" {
+		return s, fmt.Errorf("sceau noyau incomplet (%s): qdisc_drop_packets est null", path)
+	}
+	absentRaw, hasAbsent := keys["qdisc_drop_packets_absent"]
+	var absentFlag bool
+	if hasAbsent {
+		if string(absentRaw) == "null" {
+			return s, fmt.Errorf("sceau noyau incomplet (%s): qdisc_drop_packets_absent est null", path)
+		}
+		if err := json.Unmarshal(absentRaw, &absentFlag); err != nil {
+			return s, fmt.Errorf("sceau noyau: qdisc_drop_packets_absent invalide (%s): %w", path, err)
+		}
+	}
+	if !hasDrop && !absentFlag {
+		return s, fmt.Errorf("sceau noyau incomplet (%s): qdisc_drop_packets absent sans qdisc_drop_packets_absent:true", path)
 	}
 	if err := json.Unmarshal(raw, &s); err != nil {
 		return s, fmt.Errorf("sceau noyau invalide (%s): %w", path, err)
@@ -114,10 +137,12 @@ func writeConfrontationReport(inPath, outPath string) error {
 		AuditID: s.AuditID,
 		Source:  s.Source,
 		KernelTruth: confrontKernel{
-			ObjectSHA256:        s.ObjectSHA256,
-			RetransPayloadBytes: s.RetransPayloadBytes,
-			RetransEvents:       s.RetransEvents,
-			QdiscDropPackets:    s.QdiscDropPackets,
+			ObjectSHA256:           s.ObjectSHA256,
+			RetransPayloadBytes:    s.RetransPayloadBytes,
+			RetransEvents:          s.RetransEvents,
+			QdiscDropPackets:       s.QdiscDropPackets,
+			QdiscDropPacketsAbsent: s.QdiscDropPacketsAbsent,
+			Note:                   s.Note,
 		},
 		TCs: confrontTC{
 			Interface:   s.TCInterface,
