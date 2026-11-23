@@ -39,6 +39,10 @@ func BucketFlows(rows []FlowRow, floors map[string]float64) map[string][]float64
 			if !ok {
 				upper = math.Inf(1)
 			}
+			// Ruling 2026-11-23 : P4 a priorité sur [40,60), P1 l'exclut.
+			if p == "P1" && ms >= 40 && ms < 60 {
+				continue
+			}
 			if ms >= floor && ms < upper {
 				buckets[p] = append(buckets[p], ms)
 			}

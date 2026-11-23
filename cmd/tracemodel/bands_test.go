@@ -3,9 +3,11 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -122,5 +124,41 @@ func TestWriteTelemetryFormat(t *testing.T) {
 func TestWriteTelemetryRefusesPathEscape(t *testing.T) {
 	if _, err := WriteTelemetry(t.TempDir(), "../hors-zone", "P3", []float64{839.657}); err == nil {
 		t.Fatal("identifiant traversant accepté : écriture hors zone d'audits")
+	}
+}
+
+// Oracle des bornes half-open et de la précédence P4 dans [40,60) (ruling 2026-11-23).
+func TestBucketFlowsBoundariesAndP4Precedence(t *testing.T) {
+	cases := []struct {
+		ms   float64
+		want []string
+	}{
+		{20, []string{"P1"}},
+		{39, []string{"P1"}},
+		{40, []string{"P4"}},
+		{45, []string{"P4"}},
+		{59, []string{"P4"}},
+		{60, []string{"P1"}},
+		{99, []string{"P1"}},
+		{100, []string{"P2"}},
+		{200, nil},
+		{399, nil}, // trou [200,600)
+		{600, []string{"P3"}},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%gms", tc.ms), func(t *testing.T) {
+			got := BucketFlows([]FlowRow{{SRTTus: tc.ms * 1000}}, testFloors())
+			var present []string
+			for _, p := range []string{"P1", "P2", "P3", "P4"} {
+				if len(got[p]) == 0 {
+					continue
+				}
+				present = append(present, p)
+				assertSamples(t, got[p], tc.ms)
+			}
+			if !slices.Equal(present, tc.want) {
+				t.Fatalf("%g ms: bandes %v, attendu %v", tc.ms, present, tc.want)
+			}
+		})
 	}
 }

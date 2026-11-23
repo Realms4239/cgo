@@ -58,6 +58,7 @@ type Calibration struct {
 	PhysicsPlane          string `json:"physics_plane,omitempty"`
 	HopModel              string `json:"hop_model"`
 	SourceAudit           string `json:"source_audit"`
+	SourceRef             string `json:"source_ref"`
 	SourceReportSHA256    string `json:"source_report_sha256,omitempty"`
 	SourceTelemetrySHA256 string `json:"source_telemetry_sha256"`
 	SourceSite            string `json:"source_site,omitempty"`
@@ -92,7 +93,13 @@ type Calibration struct {
 // RTT (convention du corpus) : le résidu est RTT - plancher, et la table ne
 // contient que ce résidu. Une trace dont la médiane ne dépasse pas le
 // plancher ne décrit pas ce profil : refus, jamais de table dégénérée.
-func BuildCalibration(prof model.Profile, auditID string, rtts []float64) (Calibration, error) {
+func BuildCalibration(prof model.Profile, auditID string, rtts []float64, sourceRef ...string) (Calibration, error) {
+	// L'id de trace est fourni par le CLI ; un appelant legacy sans trace garde
+	// l'id d'audit comme provenance, jamais un champ vide.
+	ref := auditID
+	if len(sourceRef) > 0 && strings.TrimSpace(sourceRef[0]) != "" {
+		ref = sourceRef[0]
+	}
 	if strings.TrimSpace(prof.ID) == "" {
 		return Calibration{}, errors.New("calibration: profil sans identifiant")
 	}
@@ -154,6 +161,7 @@ func BuildCalibration(prof model.Profile, auditID string, rtts []float64) (Calib
 		PhysicsPlane:    PhysicsPlaneRTTBaseline,
 		HopModel:        "rtt_floor_split",
 		SourceAudit:     auditID,
+		SourceRef:       ref,
 		ProfileDelayMs:  prof.DelayMs,
 		FloorMs:         prof.DelayMs,
 		HopDelayMs:      prof.DelayMs / 2,

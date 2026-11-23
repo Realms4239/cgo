@@ -272,3 +272,37 @@ func TestLoadCalibrationRejectsUnknownStoredPlane(t *testing.T) {
 		})
 	}
 }
+
+// Oracle F1 : source_ref porte l'id de trace, distinct de l'id d'audit, et
+// reste sérialisé dans le sidecar scellé avec schema=1.
+func TestBuildCalibrationSourceRefProvenance(t *testing.T) {
+	rtts := make([]float64, 64)
+	for i := range rtts {
+		rtts[i] = 100 + float64(i%8)
+	}
+	cal, err := BuildCalibration(model.Profile{ID: "P2", DelayMs: 100}, "organic-20261123-P2", rtts, "organic-20261123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cal.Schema != 1 || cal.SourceAudit != "organic-20261123-P2" || cal.SourceRef != "organic-20261123" {
+		t.Fatalf("provenance : schema=%d source_audit=%q source_ref=%q", cal.Schema, cal.SourceAudit, cal.SourceRef)
+	}
+
+	dir := t.TempDir()
+	cal.SourceTelemetrySHA256 = "deadbeef"
+	cal.Created = "2026-11-23T00:00:00Z"
+	if err := WriteCalibration(dir, cal); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "P2.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc["source_ref"] != "organic-20261123" || doc["source_audit"] != "organic-20261123-P2" || doc["schema"] != float64(1) {
+		t.Fatalf("sidecar JSON : %s", raw)
+	}
+}

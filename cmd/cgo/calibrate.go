@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Realms4239/cgo/audit"
@@ -53,7 +54,10 @@ func runCalibrate(args []string) int {
 			rtts = append(rtts, r.RTTms)
 		}
 	}
-	cal, err := qdisc.BuildCalibration(prof, *auditID, rtts)
+	// L'audit d'une bande porte "<trace-id>-<profil>" ; le sceau doit porter
+	// l'id de trace seul, distinct de l'id d'audit, sans nouveau drapeau.
+	sourceRef := strings.TrimSuffix(*auditID, "-"+*profileID)
+	cal, err := qdisc.BuildCalibration(prof, *auditID, rtts, sourceRef)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "calibrate:", err)
 		return 1

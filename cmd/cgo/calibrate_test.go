@@ -49,3 +49,41 @@ func TestRunCalibrateWritesSealedArtifacts(t *testing.T) {
 		t.Fatalf("ligne load comptée dans la queue : p99.9 %.1f", cal.SourceP999RTTms)
 	}
 }
+
+// Oracle F1 : la dérive de l'id de trace depuis --audit doit produire un
+// source_ref distinct de source_audit, sans nouveau drapeau.
+func TestRunCalibrateSourceRefIsTraceID(t *testing.T) {
+	dir := t.TempDir()
+	const auditID = "organic-20261123-P2"
+	res := &audit.Result{AuditID: auditID}
+	for i := 0; i < 48; i++ {
+		res.Telemetry = append(res.Telemetry, audit.TelemetryRow{Phase: "baseline", OffsetMs: int64(i) * 5000, RTTms: 150})
+	}
+	if _, err := audit.WriteTelemetry(dir, res); err != nil {
+		t.Fatal(err)
+	}
+	report := `{"site":"TEST","link_type":"5g"}`
+	if err := os.WriteFile(filepath.Join(dir, "audits", auditID, "audit_report.json"), []byte(report), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "calibrations")
+	if code := runCalibrate([]string{"--audit", auditID, "--profile", "P2", "--data", dir, "--out", out}); code != 0 {
+		t.Fatalf("runCalibrate code %d", code)
+	}
+	cal, err := qdisc.LoadCalibration(out, "P2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cal.SourceRef != "organic-20261123" {
+		t.Fatalf("source_ref = %q, attendu l'id de trace", cal.SourceRef)
+	}
+	if cal.SourceAudit != auditID {
+		t.Fatalf("source_audit = %q, attendu %q", cal.SourceAudit, auditID)
+	}
+	if cal.SourceRef == cal.SourceAudit {
+		t.Fatal("source_ref et source_audit sont identiques")
+	}
+	if cal.Basis != "measured" {
+		t.Fatalf("basis = %q, attendu measured", cal.Basis)
+	}
+}
