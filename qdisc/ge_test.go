@@ -270,20 +270,21 @@ func TestApplyNetemProfileAbsentByteIdentical(t *testing.T) {
 	}
 }
 
-// TestApplyNetemProfileDistributionShape — la distribution n'est émise
-// que si le profil la déclare ; la forme suit le type : millisecondes pour
-// normal/paretonormal, indice sans unité pour pareto, absente pour uniform.
-func TestApplyNetemProfileDistributionShape(t *testing.T) {
+// TestApplyNetemProfileDistributionStockCompatible — oracle hostile :
+// tc-netem(8) « distribution {uniform|normal|pareto|paretonormal} » prend
+// EXACTEMENT un argument. La forme validée du profil reste métadonnée ; un
+// jeton numérique de plus casserait tc sur un hôte iproute2 standard.
+func TestApplyNetemProfileDistributionStockCompatible(t *testing.T) {
 	cases := []struct {
 		name  string
 		dist  string
 		shape float64
 		want  string
 	}{
-		{"normal", "normal", 8, "distribution normal 8ms"},
-		{"pareto", "pareto", 1.5, "distribution pareto 1.5"},
-		{"paretonormal", "paretonormal", 2, "distribution paretonormal 2"},
-		{"uniform", "uniform", 0, "distribution uniform"},
+		{"normal", "normal", 8, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms distribution normal"},
+		{"pareto", "pareto", 1.5, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms distribution pareto"},
+		{"paretonormal", "paretonormal", 2, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms distribution paretonormal"},
+		{"uniform", "uniform", 0, "qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms distribution uniform"},
 	}
 	for _, tc := range cases {
 		f := &FakeRunner{}
@@ -291,8 +292,8 @@ func TestApplyNetemProfileDistributionShape(t *testing.T) {
 			t.Fatalf("%s : %v", tc.name, err)
 		}
 		got := strings.Join(f.Calls[0], " ")
-		if !strings.HasSuffix(got, " "+tc.want) {
-			t.Fatalf("%s : got %q, veut suffixe %q", tc.name, got, tc.want)
+		if got != tc.want {
+			t.Fatalf("%s : got %q, want %q (aucun jeton de forme)", tc.name, got, tc.want)
 		}
 		if strings.Count(got, "distribution") != 1 {
 			t.Fatalf("%s : un seul jeton distribution attendu : %q", tc.name, got)
@@ -309,7 +310,7 @@ func TestApplyNetemProfileGEModelOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, want := strings.Join(f.Calls[0], " "),
-		"qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms 25% loss gemodel 1% 19% 81% 1% distribution normal 8ms"; got != want {
+		"qdisc replace dev w-edge root handle 1: netem delay 100ms 15ms 25% loss gemodel 1% 19% 81% 1% distribution normal"; got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }

@@ -462,7 +462,10 @@ func TestApplyPhysicsProfileDistribution(t *testing.T) {
 	seen := map[string]bool{}
 	for _, c := range f.Calls {
 		j := strings.Join(c, " ")
-		if !strings.Contains(j, "netem") || !strings.Contains(j, "distribution normal 8ms") {
+		// Hostile : un jeton de forme surnuméraire casserait tc-netem(8)
+		// (distribution ne prend qu'un argument). Le vecteur doit finir
+		// exactement par « distribution normal ».
+		if !strings.Contains(j, "netem") || !strings.HasSuffix(j, "distribution normal") {
 			continue
 		}
 		for _, dev := range []string{"dev w-edge", "dev c-wan"} {

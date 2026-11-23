@@ -84,7 +84,8 @@ func ApplyNetemPhysics(r TCRunner, iface string, delayMs, jitterMs, lossPct floa
 // module qdisc résout model depuis le cache, les nouveaux champs du profil
 // ne sont pas visibles ici. dist="" et ge=nil reproduisent le vecteur
 // historique à l'octet près ; ge fourni (campagne OU profil gemodel) prime
-// sur la perte uniforme, sans jamais l'accompagner.
+// sur la perte uniforme, sans jamais l'accompagner. shape (JitterShape) est
+// une métadonnée de profil validée : NON émise dans l'argv tc.
 func ApplyNetemProfile(r TCRunner, iface string, delayMs, jitterMs, lossPct float64, ge *GEModel, dist string, shape float64, opts ...float64) error {
 	c, rate, overhead := netemOpts(opts)
 	if err := applyNetemArgs(r, iface, delayMs, jitterMs, lossPct, ge, dist, shape, c, rate, overhead); err != nil {
@@ -189,19 +190,13 @@ func applyNetemArgs(r TCRunner, iface string, delayMs, jitterMs, lossPct float64
 		}
 	}
 	if dist != "" {
+		// tc-netem(8) : distribution {uniform|normal|pareto|paretonormal}
+		// prend EXACTEMENT un argument — la table nommée est fixe. La forme
+		// CGO validée (JitterShape) est métadonnée de profil, jamais émise
+		// dans l'argv : un jeton surnuméraire casserait tc sur iproute2 stock.
+		// shortcut: la forme reste métadonnée jusqu'à un générateur .dist
+		// sur mesure ; émettre alors une table dédiée, pas un argument de plus.
 		args = append(args, "distribution", dist)
-		if shape > 0 {
-			// La forme n'est émise que si le profil la déclare : son unité
-			// est déterminée par le type, jamais devinée depuis la valeur.
-			// shortcut: jeton de forme propre au modèle CGO (tc-netem n'a
-			// pas d'argument de forme dédié), upgrade si iproute2 en ajoute un.
-			switch dist {
-			case "normal":
-				args = append(args, fmt.Sprintf("%gms", shape))
-			case "pareto", "paretonormal":
-				args = append(args, fmt.Sprintf("%g", shape))
-			}
-		}
 	}
 	_, err := r.Run(args...)
 	return err
