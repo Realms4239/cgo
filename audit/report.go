@@ -110,6 +110,8 @@ type KernelTelemetry struct {
 	Source              string       `json:"source,omitempty"`
 	Reason              string       `json:"reason,omitempty"`
 	ObjectSHA256        string       `json:"object_sha256,omitempty"`
+	ReserveFailures     uint64       `json:"reserve_failures,omitempty"`
+	LowerBound          bool         `json:"lower_bound,omitempty"`
 	RetransPayloadBytes uint64       `json:"retrans_payload_bytes,omitempty"`
 	QdiscDropPackets    uint64       `json:"qdisc_drop_packets"`
 	FlowsSeen           int          `json:"flows_seen,omitempty"`

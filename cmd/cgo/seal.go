@@ -224,6 +224,9 @@ func buildSeal(auditPath, tcBeforePath, tcAfterPath, iface, qdisc, outPath strin
 	if kt.Source != "ebpf" {
 		return fmt.Errorf("kerneltruth seal: source %q dans l'audit — seul ebpf est une vérité noyau scellée", kt.Source)
 	}
+	if kt.ObjectSHA256 == "" {
+		return fmt.Errorf("kerneltruth seal: object_sha256 absent pour source ebpf (%s)", auditPath)
+	}
 	if !kt.Available {
 		return fmt.Errorf("kerneltruth seal: available=false — pas de vérité noyau scellée")
 	}

@@ -225,6 +225,37 @@ func TestBuildSealFailsClosed(t *testing.T) {
 	}
 }
 
+// Oracle d'observation — un audit tcpinfo est refusé (aucune affirmation ebpf
+// ne peut être scellée), et un audit ebpf sans hash d'objet est refusé avec la
+// raison explicite : jamais un hash de placement ne doit traverser le sceau.
+func TestBuildSealObservationTruth(t *testing.T) {
+	dir := t.TempDir()
+	before := sealPutFile(t, dir, "before.txt", sealTcCapture(1))
+	after := sealPutFile(t, dir, "after.txt", sealTcCapture(227))
+	out := filepath.Join(dir, "seal.json")
+
+	// tcpinfo : refus existant, aucun sceau publié.
+	tcpPath := sealPutFile(t, dir, "tcpinfo.json", sealAuditJSON("tcpinfo", true, "4096", "0", sealFlowsTwo))
+	err := buildSeal(tcpPath, before, after, "e-wan", "cake", out)
+	if err == nil || !strings.Contains(err.Error(), "ebpf") {
+		t.Fatalf("source tcpinfo doit être refusée: %v", err)
+	}
+	if _, statErr := os.Stat(out); !os.IsNotExist(statErr) {
+		t.Fatalf("sceau écrit depuis une source tcpinfo: stat=%v", statErr)
+	}
+
+	// ebpf sans object_sha256 : refus nommé, aucun fichier publié.
+	const noHash = `{"audit_id":"audit-20261122-abcdef12","kernel_telemetry":{"available":true,"source":"ebpf","retrans_payload_bytes":4096,"qdisc_drop_packets":0,"flows":[{"retrans_events":1},{"retrans_events":225}]}}`
+	noHashPath := sealPutFile(t, dir, "nohash.json", noHash)
+	err = buildSeal(noHashPath, before, after, "e-wan", "cake", out)
+	if err == nil || !strings.Contains(err.Error(), "object_sha256 absent pour source ebpf") {
+		t.Fatalf("ebpf sans hash doit être refusé avec la raison explicite: %v", err)
+	}
+	if _, statErr := os.Stat(out); !os.IsNotExist(statErr) {
+		t.Fatalf("sceau écrit sans hash d'objet: stat=%v", statErr)
+	}
+}
+
 // Oracle hostile — aucun chemin n'a de défaut : un chemin vide est refusé,
 // pas remplacé par une entrée implicite.
 func TestBuildSealRejectsEmptyPaths(t *testing.T) {
