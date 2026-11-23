@@ -6,13 +6,13 @@
 
 **Architecture:** four sequential tasks. Task 1 makes `probe.KernelSourceInfo` and `audit.KernelTelemetry` carry an explicit observation block and adds a read-only `preflight` verb; the seal refuses a non-eBPF source. Task 2 adds a ring-buffer event lane behind an injectable reader interface with a reserve-failure counter OUTSIDE the saturated stream. Task 3 adds optional profile fields with byte-identical defaults. Task 4 adds the delay model and fidelity verdict in the pure `metrics` module. No new dependency.
 
-**Tech Stack:** Go modules `probe`, `probe/bpf`, `audit`, `api`, `model`, `qdisc`, `pkg/campagne`, `cmd/cgo`, `metrics`; cilium/ebpf ringbuf (dependency already present); C BPF object source; Vitest/Playwright only if UI copy changes (not in this plan).
+**Tech Stack:** Go modules `probe`, `probe/bpf`, `audit`, `api`, `model`, `qdisc`, `pkg/campagne`, `cmd/cgo`, `metrics`; cilium/ebpf v0.19.0 pinned in the repo root; operator ruling 2026-11-23 allows the same pinned version to be required by probe/go.mod in Task 2; C BPF object source; Vitest/Playwright only if UI copy changes (not in this plan).
 
 ## Global Constraints
 
 - Spec: `docs/superpowers/specs/2026-11-23-measurement-physics-observation-design.md`.
 - P1-P4, L1, V1, frozen corpus, book, thesis, C:\END, gates, permits, ledgers, protected config: never edited.
-- No `git add -A`; explicit paths only; no merge. No new dependency, no runtime clang.
+- No `git add -A`; explicit paths only; no merge. No new dependency VERSION; operator ruling 2026-11-23 permits the already-pinned `github.com/cilium/ebpf v0.19.0` require in `probe/go.mod` for Task 2. No runtime clang.
 - Absent or zero new fields => byte-identical tc vectors and existing JSON, never a placeholder hash or a fabricated zero.
 - Ring-buffer loss is exported OUTSIDE the ring; `reserve_failures > 0` forces the explicit "timeline is a lower bound" note.
 - `source != ebpf` => no eBPF claim anywhere; the seal refuses.
