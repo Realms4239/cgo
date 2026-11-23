@@ -307,4 +307,21 @@ describe('DecisionSpine — mesure noyau eBPF primaire, tc en ligne séparée', 
     expect(host.querySelector('[data-testid="kernel-tc"]')?.getAttribute('data-absent')).toBe('true')
     expect(host.querySelector('[data-testid="kernel-loss"]')?.getAttribute('data-absent')).toBe('false')
   })
+
+  it('SRTT valide mais retrans illisible : « À surveiller », jamais le vert « Lien prêt »', () => {
+    const report = {
+      ...ebpfReport,
+      kernel_telemetry: {
+        ...ebpfReport.kernel_telemetry!,
+        flows: [{ ...ebpfReport.kernel_telemetry!.flows![0], retrans_events: Number.NaN }],
+      },
+    } as unknown as AuditReport
+    const host = mount(<DecisionSpine report={report} />)
+    const health = host.querySelector('.health-word')!
+    expect(health.getAttribute('data-level')).toBe('attention')
+    expect(health.textContent).toContain('À surveiller')
+    expect(health.textContent).not.toContain('Lien prêt')
+    expect(health.getAttribute('data-level')).not.toBe('ok')
+    expect(host.querySelector('.band-status')?.getAttribute('data-level')).toBe('attention')
+  })
 })

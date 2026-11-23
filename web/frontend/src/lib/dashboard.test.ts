@@ -311,4 +311,14 @@ describe('operatorFacts/health — eBPF pilote le fait primary', () => {
     expect(e.latency.absent).toBe(false)
     expect(e.tcCrossCheck.absent).toBe(true)
   })
+
+  it('SRTT valide mais retrans illisible ⇒ attention, jamais le faux vert « ok »', () => {
+    const evidence = operatorKernelEvidence(hostile([flow(Number.NaN, 12000)]))
+    expect(evidence.complete).toBe(false)
+    expect(evidence.srttMs).not.toBeNull()
+    expect(evidence.srttMs).toBe(12)
+    const h = kernelHealth(evidence, 40, 100)
+    expect(h.kind).toBe('attention')
+    expect(h.kind).not.toBe('ok')
+  })
 })
