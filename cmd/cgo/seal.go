@@ -59,11 +59,8 @@ func parseTCDrops(path, iface, qdisc string) (uint64, error) {
 	}
 	text := string(raw)
 
-	// Garde conservée : exactement un `dropped` dans tout le capture.
-	all := tcDroppedRx.FindAllStringSubmatch(text, -1)
-	if len(all) != 1 {
-		return 0, fmt.Errorf("capture tc (%s): dropped introuvable ou ambigu (%d correspondances)", path, len(all))
-	}
+	// Un capture `tc -s qdisc show` peut contenir plusieurs qdisc : l'ambiguïté
+	// se juge par bloc cible (ci-dessous), pas sur tout le fichier.
 
 	// Découpage en blocs : chaque ligne `qdisc ` ouvre un bloc ; les lignes
 	// suivantes lui appartiennent jusqu'au prochain en-tête qdisc.
@@ -86,16 +83,22 @@ func parseTCDrops(path, iface, qdisc string) (uint64, error) {
 		}
 	}
 
-	// Les labels demandés doivent être confirmés par le capture, pas supposés.
+	// Les labels demandés doivent être confirmés par le capture, pas supposés :
+	// un seul bloc doit porter exactement ces labels, sinon le compteur visé
+	// est ambigu (pareil à deux blocs portant les mêmes étiquettes).
 	var target *qdiscBlock
+	matches := 0
 	for i := range blocks {
 		if blocks[i].dev == iface && blocks[i].kind == qdisc {
 			target = &blocks[i]
-			break
+			matches++
 		}
 	}
-	if target == nil {
+	if matches == 0 {
 		return 0, fmt.Errorf("capture tc (%s): labels iface=%q qdisc=%q absents ou divergents — aucune ligne `qdisc %s ... dev %s` confirmée", path, iface, qdisc, qdisc, iface)
+	}
+	if matches > 1 {
+		return 0, fmt.Errorf("capture tc (%s): labels iface=%q qdisc=%q ambigus (%d blocs) — dropped indéterminé", path, iface, qdisc, matches)
 	}
 
 	// Le compteur doit venir du bloc cible, pas d'un autre qdisc du capture.

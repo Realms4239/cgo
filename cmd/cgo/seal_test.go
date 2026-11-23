@@ -269,6 +269,47 @@ func TestKernelTruthSealCmdMissingAuditExits2(t *testing.T) {
 	}
 }
 
+// Oracle — un capture `tc -s qdisc show` réel contient PLUSIEURS qdisc (ici 4),
+// chacun avec une ligne `dropped`. L'ambiguïté se juge dans le bloc cible, pas
+// sur tout le fichier : la garde globale dupliquée refusait ce capture à tort.
+func TestParseTCDropsMultiInterfaceCapture(t *testing.T) {
+	const multi = "qdisc cake 1: dev w-edge root refcnt 2\n Sent 100 bytes 2 pkt (dropped 3, overlimits 0 requeues 0)\n backlog 0b 0p requeues 0\n" +
+		"qdisc cake 1: dev c-wan root refcnt 2\n Sent 200 bytes 4 pkt (dropped 7, overlimits 0 requeues 0)\n backlog 0b 0p requeues 0\n" +
+		"qdisc cake 1: dev e-wan root refcnt 2\n Sent 300 bytes 6 pkt (dropped 226, overlimits 0 requeues 0)\n backlog 0b 0p requeues 0\n" +
+		"qdisc fq_codel 2: dev e-srv root refcnt 2\n Sent 400 bytes 8 pkt (dropped 11, overlimits 0 requeues 0)\n backlog 0b 0p requeues 0\n"
+	p := sealPutFile(t, t.TempDir(), "multi.txt", multi)
+
+	got, err := parseTCDrops(p, "e-wan", "cake")
+	if err != nil {
+		t.Fatalf("capture multi-interface valide refusée: %v", err)
+	}
+	if got != 226 {
+		t.Fatalf("dropped=%d, attendu 226 (bloc cake dev e-wan)", got)
+	}
+
+	// Hostile : mauvais iface ou mauvais qdisc → échec fermé, même si une
+	// valeur `dropped` existe ailleurs dans le capture.
+	for _, tc := range []struct{ iface, qdisc string }{
+		{"w-edge2", "cake"},
+		{"e-wan", "fq_codel"},
+	} {
+		if _, err := parseTCDrops(p, tc.iface, tc.qdisc); err == nil {
+			t.Fatalf("labels %s/%s acceptés à tort", tc.iface, tc.qdisc)
+		}
+	}
+}
+
+// Oracle hostile — même avec plusieurs blocs, deux `dropped` DANS le bloc
+// cible restent ambigus : le contrôle par bloc n'est pas relâché.
+func TestParseTCDropsMultiInterfaceAmbiguousTarget(t *testing.T) {
+	const multi = "qdisc cake 1: dev e-wan root refcnt 2\n Sent 1 pkt (dropped 1, overlimits 0)\n Sent 2 pkt (dropped 2, overlimits 0)\n" +
+		"qdisc cake 1: dev c-wan root refcnt 2\n Sent 3 pkt (dropped 3, overlimits 0)\n"
+	p := sealPutFile(t, t.TempDir(), "multi-ambiguous.txt", multi)
+	if _, err := parseTCDrops(p, "e-wan", "cake"); err == nil {
+		t.Fatal("deux dropped dans le bloc cible acceptés — garde par bloc supprimée ?")
+	}
+}
+
 // Oracle hostile — --iface/--qdisc sont des étiquettes demandées, pas des
 // faits. Le capture doit les confirmer lui-même : un capture d'un autre iface
 // ou d'un autre qdisc, même avec un seul `dropped`, ne doit jamais être
