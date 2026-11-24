@@ -413,3 +413,9 @@ bite-sized weak-agent tasks, builder ≠ verifier; see the plan header.
 | Slice | Spec | Plan | Status | Depends on | Next action / blocker |
 |---|---|---|---|---|---|
 | Organic trace + model system | `2026-11-23-organic-trace-model-system-design.md` | `2026-11-23-organic-trace-model-system-plan.md` | **Spec approved, plan written, execution pending** | existing tagged observatory on sadc; field replay evidence `766f1a5` | Task 1 fresh 24h R2 capture, Task 2 trace-to-model Go command + sealed calibrations, Task 3 live A/B gate. No gate/ledger/frozen edit, no VERIFY promotion. |
+
+## Rigorous emulation fidelity (2026-11-24)
+
+| Slice | Spec | Plan | Status | Depends on | Next action / blocker |
+|---|---|---|---|---|---|
+| Rigorous fidelity | `2026-11-24-rigorous-emulation-fidelity-design.md` | `2026-11-24-rigorous-emulation-fidelity-plan.md` | **Spec approved, plan written, execution pending** | last30days deep research (3 passes) + prior field/replay evidence | Four SDD slices: histogram tails, ingress/up validation, EMD+(gamma,epsilon)+multi-qdisc, trace-driven correction + final meteo report. No gate/ledger/frozen edit, no VERIFY promotion. |
