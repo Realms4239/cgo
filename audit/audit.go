@@ -54,6 +54,11 @@ type Result struct {
 	DataUsedMB     float64 `json:"data_used_mb"`
 	Notes          string  `json:"notes"`
 
+	// EmulatedRTTSamples — jeu de paquets émulé (ms) produit par le banc ou un
+	// rejeu. Additif et optionnel : vide, aucun EMD n'est calculé — jamais un
+	// zéro ni un verdict fabriqué pour combler l'absence.
+	EmulatedRTTSamples []float64 `json:"emulated_rtt_samples_ms,omitempty"`
+
 	// Direction — sens de la charge réellement exercé, gelé avec la ligne :
 	// "up", "down" ou "both". Les champs headline (débit, note bufferbloat,
 	// drain, JFI) portent le sens mesuré : la fenêtre up pour up/both, la
@@ -141,6 +146,10 @@ type Result struct {
 	// 16 KiB). C'est la matière première que le double sceau SHA-256 scelle :
 	// l'absence de sonde y est une absence de ligne, jamais un 0 ms.
 	Telemetry []TelemetryRow `json:"telemetry,omitempty"`
+
+	// KernelSample — la fenêtre noyau (eBPF) si attachée. json:"-" : la
+	// télémétrie noyau voyage dans le rapport, pas dans le Result.
+	KernelSample *KernelSample `json:"-"`
 }
 
 type Deps struct {
@@ -149,6 +158,11 @@ type Deps struct {
 	BulkLoad func(ctx context.Context, addr, direction string, flows int) LoadOutcome
 	// OnProgress — état vivant (~1 Hz + début de phase) ; nil = no-op.
 	OnProgress func(Progress)
+	// KernelAttach — sur un hôte qui embarque l'objet eBPF et autorise le
+	// chargement, attache les tracepoints pour la fenêtre de mesure et rend
+	// une fonction qui ferme la session et fige le résumé. Nil : aucune
+	// télémétrie noyau n'est réclamée — le chemin tcpinfo est inchangé.
+	KernelAttach func() func() KernelSample
 }
 
 // Progress — ce que l'audit observe en direct. Échantillons = les ≤32
@@ -268,6 +282,12 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 	}
 	// Les bornes sont la règle du moteur : aucun appelant (CLI, HTTP) ne
 	// peut lancer une mesure de 27 h ou un régime hors bornes.
+	// eBPF (fenêtre de mesure) : jamais bloquant — un hôte qui refuse
+	// l'attache continue en tcpinfo, et le rapport le dit.
+	var kernelDetach func() KernelSample
+	if d.KernelAttach != nil {
+		kernelDetach = d.KernelAttach()
+	}
 	p.Flows = ClampFlows(p.Flows)
 	switch p.Direction {
 	case "", "up":
@@ -709,6 +729,10 @@ func Run(ctx context.Context, p Params, d Deps) (*Result, error) {
 		BaselineSeconds:    float64(idleSecs),
 		RecoverySeconds:    float64(recSecs),
 		Telemetry:          telemetry,
+	}
+	if kernelDetach != nil {
+		s := kernelDetach()
+		res.KernelSample = &s
 	}
 	res.ProfileMatch, res.MatchDelta = MatchProfile(res)
 	return res, nil

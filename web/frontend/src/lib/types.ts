@@ -217,6 +217,20 @@ export interface KernelTelemetry {
   source?: string
   reason?: string
   object_sha256?: string
+  reserve_failures?: number
+  lower_bound?: boolean
+  observer_events?: number
+  observer_loss_pct?: number
+  observer_loss_denominator?: string
+  map_full?: number
+  // Queues (tails) — absentes sous le plancher de 1000 échantillons.
+  latency_samples?: number
+  latency_p50_us?: number
+  latency_p95_us?: number
+  latency_p999_us?: number
+  tail_bin_bounds?: string
+  // srtt_us bruts par flux (≤512), basis nommé dans reason.
+  latency_samples_srtt?: number[]
   retrans_payload_bytes?: number
   qdisc_drop_packets?: number
   flows_seen?: number

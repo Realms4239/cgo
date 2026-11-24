@@ -11,6 +11,7 @@ import (
 // audit (cycle). Le chargeur appellera cette fonction quand l'objet existera.
 func kernelTelemetryFromSummary(s bpf.Summary) *audit.KernelTelemetry {
 	flows := make([]audit.KernelFlow, 0, len(s.Flows))
+	rawSRTT := make([]uint32, 0, len(s.Flows))
 	for _, f := range s.Flows {
 		flows = append(flows, audit.KernelFlow{
 			Local: f.Local, Peer: f.Peer,
@@ -19,20 +20,36 @@ func kernelTelemetryFromSummary(s bpf.Summary) *audit.KernelTelemetry {
 			QdiscDropPackets:    f.DropPackets,
 			SRTTus:              f.SRTTus,
 		})
+		rawSRTT = append(rawSRTT, f.SRTTus)
 	}
-	tel := audit.KernelTelemetryFrom(audit.KernelSample{
+	// Les champs de queue sont réduits ici, côté sonde, puis portés par le
+	// KernelSample : KernelTelemetryFrom applique le plancher et le basis.
+	sample := audit.KernelSample{
 		Source: s.Source, Attach: s.Attach, Reason: s.FallbackReason,
 		ObjectSHA256: s.ObjectSHA256,
 		FlowsSeen:    s.FlowsSeen, FlowsTotal: s.FlowsTotal,
-		RetransPayload: s.RetransPayload, QdiscDrops: s.QdiscDrops,
-		Flows: flows,
-	})
+		RetransPayload:  s.RetransPayload,
+		QdiscDrops:      s.QdiscDrops,
+		ReserveFailures: s.ReserveFailures,
+		MapFull:         s.MapFull,
+		LatencySamples:  s.LatencySamples,
+		RawSRTTus:       rawSRTT,
+		Flows:           flows,
+	}
+	if s.LatencySamples >= 1000 {
+		sample.LatencyP50us, _ = bpf.Percentile(s.LatencyHistogram, 0.50, s.LatencySamples)
+		sample.LatencyP95us, _ = bpf.Percentile(s.LatencyHistogram, 0.95, s.LatencySamples)
+		sample.LatencyP999us, _ = bpf.Percentile(s.LatencyHistogram, 0.999, s.LatencySamples)
+		if sample.LatencyP999us > 0 {
+			sample.TailBinBounds = "bucket i = [2^i, 2^(i+1)) us"
+		}
+	}
+	tel := audit.KernelTelemetryFrom(sample)
 	if tel != nil {
-		// Perte d'observateur : le noyau n'émet aucun record de perte sur un
-		// ring plein. Le compteur vient de globals, hors du flux d'événements.
-		tel.ReserveFailures = s.ReserveFailures
+		// Perte d'observateur : le compteur vient de globals, hors du flux
+		// d'événements. ReserveFailures et MapFull sont déjà portés par le
+		// KernelSample ; ici on ne fait que nommer la borne inférieure.
 		tel.LowerBound = s.ReserveFailures > 0
-		tel.MapFull = s.MapFull
 		// Table pleine = perte d'observateur au même titre que le ring plein :
 		// dans les deux cas les queues ne sont qu'une borne inférieure.
 		if s.MapFull > 0 {
@@ -42,17 +59,6 @@ func kernelTelemetryFromSummary(s bpf.Summary) *audit.KernelTelemetry {
 		// ring saturé). ReserveFailures reste le seul numérateur, non dupliqué.
 		tel.ObserverEvents, tel.ObserverLossPct, tel.ObserverLossDenominator =
 			audit.ObserverLoss(s.RetransEvents+s.QdiscDrops, s.ReserveFailures)
-		// Queues — sous le plancher de 1000, le compteur est porté mais aucun
-		// percentile n'est affirmé : l'absence reste un mot, pas un zéro.
-		tel.LatencySamples = s.LatencySamples
-		if s.LatencySamples >= 1000 {
-			tel.LatencyP50us, _ = bpf.Percentile(s.LatencyHistogram, 0.50, s.LatencySamples)
-			tel.LatencyP95us, _ = bpf.Percentile(s.LatencyHistogram, 0.95, s.LatencySamples)
-			tel.LatencyP999us, _ = bpf.Percentile(s.LatencyHistogram, 0.999, s.LatencySamples)
-			if tel.LatencyP999us > 0 {
-				tel.TailBinBounds = "bucket i = [2^i, 2^(i+1)) us"
-			}
-		}
 	}
 	return tel
 }

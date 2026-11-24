@@ -29,13 +29,26 @@ func attachKernelProbe(d *audit.Deps) {
 				return audit.KernelSample{Source: "tcpinfo", Reason: "eBPF résumé indisponible : " + err.Error()}
 			}
 			s := audit.KernelSample{
-				Source:         "ebpf",
-				Attach:         sum.Attach,
-				ObjectSHA256:   sum.ObjectSHA256,
-				RetransPayload: sum.RetransPayload,
-				QdiscDrops:     sum.QdiscDrops,
-				FlowsSeen:      sum.FlowsSeen,
-				FlowsTotal:     sum.FlowsTotal,
+				Source:          "ebpf",
+				Attach:          sum.Attach,
+				ObjectSHA256:    sum.ObjectSHA256,
+				RetransPayload:  sum.RetransPayload,
+				QdiscDrops:      sum.QdiscDrops,
+				FlowsSeen:       sum.FlowsSeen,
+				FlowsTotal:      sum.FlowsTotal,
+				ReserveFailures: sum.ReserveFailures,
+				MapFull:         sum.MapFull,
+				LatencySamples:  sum.LatencySamples,
+			}
+			// Sans carte d'histogramme, LatencySamples vaut 0 : aucun
+			// percentile n'est affirmé, jamais un zéro fabriqué.
+			if sum.LatencySamples >= 1000 {
+				s.LatencyP50us, _ = bpf.Percentile(sum.LatencyHistogram, 0.50, sum.LatencySamples)
+				s.LatencyP95us, _ = bpf.Percentile(sum.LatencyHistogram, 0.95, sum.LatencySamples)
+				s.LatencyP999us, _ = bpf.Percentile(sum.LatencyHistogram, 0.999, sum.LatencySamples)
+				if s.LatencyP999us > 0 {
+					s.TailBinBounds = "bucket i = [2^i, 2^(i+1)) us"
+				}
 			}
 			for _, f := range sum.Flows {
 				s.Flows = append(s.Flows, audit.KernelFlow{
@@ -46,6 +59,7 @@ func attachKernelProbe(d *audit.Deps) {
 					QdiscDropPackets:    f.DropPackets,
 					SRTTus:              f.SRTTus,
 				})
+				s.RawSRTTus = append(s.RawSRTTus, f.SRTTus)
 			}
 			return s
 		}

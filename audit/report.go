@@ -96,6 +96,11 @@ type Report struct {
 	// KernelTelemetry is the eBPF or TCP_INFO tier for this audit. Absent
 	// means the build did not attempt it — never a silent zero.
 	KernelTelemetry *KernelTelemetry `json:"kernel_telemetry,omitempty"`
+
+	// Fidelity — nombre de fidélité calculé sur les deux jeux de paquets quand
+	// ils existent. Additif : absent sans les deux jeux, jamais un verdict écrit
+	// par défaut. Le plafond est déclaré tel que fixé dans metrics.
+	Fidelity *Fidelity `json:"fidelity,omitempty"`
 }
 
 // RouterOSValidation records what a CHR run proved about this report's
@@ -137,7 +142,10 @@ type KernelTelemetry struct {
 	LatencyP95us   float64 `json:"latency_p95_us,omitempty"`
 	LatencyP999us  float64 `json:"latency_p999_us,omitempty"`
 	// TailBinBounds — déclaration explicite des bornes : bucket i = [2^i, 2^(i+1)) us.
-	TailBinBounds       string       `json:"tail_bin_bounds,omitempty"`
+	TailBinBounds string `json:"tail_bin_bounds,omitempty"`
+	// LatencySamplesSRTT — srtt_us bruts par flux (bornés à 512), jamais une
+	// série reconstruite. Leur basis est nommé dans Reason.
+	LatencySamplesSRTT  []uint32     `json:"latency_samples_srtt,omitempty"`
 	RetransPayloadBytes uint64       `json:"retrans_payload_bytes,omitempty"`
 	QdiscDropPackets    uint64       `json:"qdisc_drop_packets"`
 	FlowsSeen           int          `json:"flows_seen,omitempty"`
@@ -154,6 +162,18 @@ type KernelFlow struct {
 	RetransEvents       uint64 `json:"retrans_events"`
 	QdiscDropPackets    uint64 `json:"qdisc_drop_packets"`
 	SRTTus              uint32 `json:"srtt_us"`
+}
+
+// Fidelity — distance de Wasserstein entre le délai vivant (srtt_us du noyau,
+// converti en ms) et le délai émulé, normalisée par la moyenne vivante.
+// C'est un nombre, pas un verdict : le plafond est déclaré, jamais élargi,
+// et le lecteur décide. metrics est déjà dépendance de audit.
+type Fidelity struct {
+	EMD             float64 `json:"emd"`
+	LiveSamples     int     `json:"live_samples"`
+	EmulatedSamples int     `json:"emulated_samples"`
+	EMDCeiling      float64 `json:"emd_ceiling"`
+	Basis           string  `json:"basis"`
 }
 
 // Phases records the audit schedule actually executed. A 60 s audit is
@@ -301,6 +321,31 @@ func BuildReport(res *Result, link remediate.Link, qdisc string, asymmetric, cpu
 			LoadSeconds:     res.LoadSeconds,
 			RecoverySeconds: res.RecoverySeconds,
 		},
+	}
+	// Télémétrie noyau : la fenêtre eBPF est portée par Result ; sans elle le
+	// bloc reste absent, jamais zéroté. KernelTelemetryFrom applique le plancher
+	// de 1000 échantillons avant d'affirmer un percentile.
+	if res.KernelSample != nil {
+		rep.KernelTelemetry = KernelTelemetryFrom(*res.KernelSample)
+	}
+	// Fidélité : EMD uniquement si les deux jeux de paquets existent. metrics
+	// est déjà une dépendance de audit (VoIPR, CAPSLA) : aucun nouveau module,
+	// aucun seuil inventé, aucun verdict trust/bounded fabriqué ici.
+	if len(res.EmulatedRTTSamples) > 0 && rep.KernelTelemetry != nil && len(rep.KernelTelemetry.LatencySamplesSRTT) > 0 {
+		live := make([]float64, 0, len(rep.KernelTelemetry.LatencySamplesSRTT))
+		for _, us := range rep.KernelTelemetry.LatencySamplesSRTT {
+			live = append(live, float64(us)/1000.0) // srtt_us -> ms, même unité que le banc
+		}
+		emd, err := metrics.DistributionEMD(live, res.EmulatedRTTSamples)
+		if err == nil {
+			rep.Fidelity = &Fidelity{
+				EMD:             emd,
+				LiveSamples:     len(live),
+				EmulatedSamples: len(res.EmulatedRTTSamples),
+				EMDCeiling:      metrics.FidelityEMDMax,
+				Basis:           "EMD Wasserstein(live=srtt_us/1000 ms, emulated=samples_rtt_ms) / moyenne live ; plafond déclaré metrics.FidelityEMDMax ; aucun verdict",
+			}
+		}
 	}
 	// -ros-lan ne prend que l'interface NOMMÉE : link.RouterOSLan() rend le
 	// "bridge" supposé, et l'installer dans la commande écrirait un réglage que
@@ -849,6 +894,9 @@ func (r *Report) RenderMarkdown() string {
 			}
 			fmt.Fprintf(&b, "Note : %s, la chronologie est une borne inférieure (timeline is a lower bound) : des événements peuvent manquer. Les queues sont aussi une borne inférieure (tails are a lower bound) : des échantillons de latence peuvent manquer.\n\n", strings.Join(causes, ", "))
 		}
+	}
+	if f := r.Fidelity; f != nil {
+		fmt.Fprintf(&b, "### Fidélité des délais\n\nEMD = %.4f (%d échantillons live, %d émulés ; plafond déclaré %.2f). %s\n\n", f.EMD, f.LiveSamples, f.EmulatedSamples, f.EMDCeiling, f.Basis)
 	}
 
 	return b.String()
