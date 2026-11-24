@@ -124,6 +124,61 @@ func TestBoundaryCrossOwnerIs403BeforeHandler(t *testing.T) {
 	assertNoLeak(t, rec.Body.Bytes(), secret, "/api/run/start")
 }
 
+// TestBoundaryCrossOwnerRefusedOnEveryMutatingRoute — conformance complète de
+// §4 : CHAQUE route de mutation refuse un opérateur AUTHENTIFIÉ mais non-admin,
+// d'un propriétaire différent, AVANT le handler, au travers du vrai
+// ServeHTTP/mux (pas d'appel direct à une garde). Les deux seams sont posés
+// par le test seulement : en production ils sont nil et les appelants
+// authentifiés restent admin exactement comme avant.
+func TestBoundaryCrossOwnerRefusedOnEveryMutatingRoute(t *testing.T) {
+	secret := "cross-owner-secret-do-not-leak"
+	t.Setenv("CGO_API_TOKEN", secret)
+	SetDevNoAuth(false)
+
+	var handlerCalls int
+	s := NewServer(Deps{
+		StartFn: func(RunOpts) error { handlerCalls++; return nil },
+		StopFn:  func() { handlerCalls++ },
+		SkipFn:  func() { handlerCalls++ },
+		ShapeFn: func(ShapeReq) error { handlerCalls++; return nil },
+		BurstFn: func(string, int) error { handlerCalls++; return nil },
+		WatchFn: func(bool) error { handlerCalls++; return nil },
+	})
+	s.principalFn = func(*http.Request) Principal {
+		return Principal{OperatorID: "operator-aaaaaaaaaaaa", Role: "operator"}
+	}
+	s.ownerFn = func(*http.Request) string { return "owner-bbbbbbbbbbbbbb" }
+	srv := httptest.NewServer(s)
+	defer srv.Close()
+
+	for _, path := range mutatingRoutes {
+		req, err := http.NewRequest(http.MethodPost, srv.URL+path, strings.NewReader("{}"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+secret)
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := srv.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.StatusCode != http.StatusForbidden {
+			t.Fatalf("POST %s avec opérateur cross-owner : %d, want 403", path, resp.StatusCode)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		assertNoLeak(t, body, secret, path)
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil || payload["error"] == "" {
+			t.Fatalf("corps 403 non structuré sur %s : %s", path, body)
+		}
+	}
+	if handlerCalls != 0 {
+		t.Fatalf("%d handlers appelés malgré le refus 403 cross-owner", handlerCalls)
+	}
+}
+
 // TestBoundaryMutateRateLimit11thIs429BeforeHandler — oracle des limites
 // déclarées : 10 mutations/minute, rafale 5. La 11e mutation rapide est 429
 // avec Retry-After, et le handler n'est appelé que pendant la rafale.

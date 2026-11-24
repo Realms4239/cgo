@@ -410,6 +410,11 @@ type Server struct {
 	next    func() any
 	mux     *http.ServeMux
 	limited http.Handler
+
+	// Seams de test : nil en production. Aucun comportement d'authentification
+	// ou d'autorisation n'est ajouté pour un appelant réel quand ils sont nil.
+	principalFn func(*http.Request) Principal
+	ownerFn     func(*http.Request) string
 }
 
 // Limites de bord déclarées (spec 2026-11-24 §4) : passées une fois à
@@ -489,6 +494,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !authenticated(r) {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			writeErr(w, r, "authentification requise", http.StatusUnauthorized)
+			return
+		}
+	}
+	// Garde de propriété de bord sur les mutations : les deux seams sont nil
+	// en production, donc aucun comportement n'est ajouté pour un appelant réel.
+	if s.ownerFn != nil && !isReadMethod(r.Method) {
+		if !authorizeMutation(s.principal(r), s.ownerFn(r)) {
+			writeErr(w, r, "accès refusé à cette ressource", http.StatusForbidden)
 			return
 		}
 	}

@@ -156,6 +156,16 @@ func authorizeMutation(p Principal, ownerID string) bool {
 	return ownerID != "" && ownerID == p.OperatorID
 }
 
+// principal — identité lue par les gardes de propriété. Le seam est nil en
+// production : principalFrom reste la seule source, donc aucun appelant réel
+// ne change de rôle ni de droits.
+func (s *Server) principal(r *http.Request) Principal {
+	if s.principalFn != nil {
+		return s.principalFn(r)
+	}
+	return principalFrom(r)
+}
+
 // requireOwner — garde de lecture : le propriétaire (ou l'admin) passe, un
 // autre opérateur reçoit 403. Les requireAuth existants restent en place.
 func (s *Server) requireOwner(next http.HandlerFunc, ownerOf func(*http.Request) string) http.HandlerFunc {
@@ -170,7 +180,7 @@ func (s *Server) requireOwnerMutate(next http.HandlerFunc, ownerOf func(*http.Re
 
 func (s *Server) ownerGuard(next http.HandlerFunc, ownerOf func(*http.Request) string, allow func(Principal, string) bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !allow(principalFrom(r), ownerOf(r)) {
+		if !allow(s.principal(r), ownerOf(r)) {
 			writeErr(w, r, "accès refusé à cette ressource", http.StatusForbidden)
 			return
 		}
