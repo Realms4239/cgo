@@ -231,10 +231,26 @@ func (w *Writer) Freeze(configJSON []byte) error {
 	if err != nil {
 		return err
 	}
-	doc, _ := json.MarshalIndent(map[string]any{
+	// Contrat de topologie : empreinte ADDITIVE des octets déclarés. Sans
+	// CGO_TOPOLOGY_CONTRACT, le champ est omis (jamais de hash factice) ;
+	// un chemin configuré mais illisible fait échouer le gel.
+	topoSha := ""
+	if topoPath := os.Getenv("CGO_TOPOLOGY_CONTRACT"); topoPath != "" {
+		b, err := os.ReadFile(topoPath)
+		if err != nil {
+			return fmt.Errorf("freeze: contrat de topologie illisible (%s): %w", topoPath, err)
+		}
+		sum := sha256.Sum256(b)
+		topoSha = hex.EncodeToString(sum[:])
+	}
+	manifest := map[string]any{
 		"config_sha256": cfgHash,
 		"config":        string(configJSON),
 		"files":         files,
-	}, "", " ")
+	}
+	if topoSha != "" {
+		manifest["topology_contract_sha256"] = topoSha
+	}
+	doc, _ := json.MarshalIndent(manifest, "", " ")
 	return kit.WriteFileAtomic(filepath.Join(w.Dir, "manifest.json"), doc, 0o644)
 }
