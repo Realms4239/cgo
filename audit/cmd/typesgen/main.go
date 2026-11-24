@@ -46,6 +46,9 @@ var tsName = map[string]string{
 	"EconomicsScenario":  "AuditEconomicsScenario",
 	"EconomicsNumbers":   "AuditEconomicsNumbers",
 	"RetransRatio":       "AuditRetransRatio",
+	// ConfiguredRealisedRow et Fidelity portent déjà leur nom TS dans le contrat.
+	"ConfiguredRealisedRow": "ConfiguredRealisedRow",
+	"Fidelity":              "Fidelity",
 }
 
 // unionLiterals — les unions de littéraux string : les valeurs sont celles que

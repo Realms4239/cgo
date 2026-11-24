@@ -8,6 +8,22 @@ import (
 	"testing"
 )
 
+// TestTypesGenMapsReportTypes — le contrat Go contient désormais ces deux
+// structs ; sans entrée dans tsName, render() échoue et types.gen.ts n'existe
+// pas. Ce test échoue donc avant la correction, indépendamment du fichier
+// généré (que TestTypesGenIsCurrent saute s'il est absent).
+func TestTypesGenMapsReportTypes(t *testing.T) {
+	gen, err := render()
+	if err != nil {
+		t.Fatalf("génération : %v", err)
+	}
+	for _, name := range []string{"ConfiguredRealisedRow", "Fidelity"} {
+		if !bytes.Contains(gen, []byte("export interface "+name+" {")) {
+			t.Fatalf("%s absent du contrat généré", name)
+		}
+	}
+}
+
 // TestTypesGenIsCurrent — types.gen.ts doit être la sortie du générateur, octets
 // normalisés. Un miroir écrit à la main ou un Go qui change sans régénérer la
 // TSUITE casse ici, pas dans la console de l'opérateur.
