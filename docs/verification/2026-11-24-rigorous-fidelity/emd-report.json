@@ -1,0 +1,10 @@
+{
+  "field_samples": 113,
+  "bench_samples": 41,
+  "emd": 0.2807238299989249,
+  "emd_ceiling": 0.1,
+  "state": "discard",
+  "note": "measured EMD 0.280724 exceeds declared ceiling 0.100000 (metrics.FidelityEMDMax): distributions differ beyond the declared bound",
+  "field_sha256": "1fc185d9ebbaea5f33d8c7c6cf20de968d74c4ab0653739b94518d2700bd33de",
+  "bench_sha256": "421a1f885433ef15e6369cd471490d604a0abb171def4f8f99e7c79a1621018b"
+}

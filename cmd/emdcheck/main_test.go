@@ -63,6 +63,20 @@ func pairFixtures(t *testing.T, values []float64) (string, string) {
 	return writeTemp(t, "field.csv", f.String()), writeTemp(t, "bench.csv", b.String())
 }
 
+// pairFixturesShifted garde le même jeu mais retarde le banc de shiftMs :
+// l'EMD doit dépasser le plafond déclaré et le verdict doit refuser.
+func pairFixturesShifted(t *testing.T, values []float64, shiftMs float64) (string, string) {
+	t.Helper()
+	var f, b strings.Builder
+	f.WriteString(fieldHeader)
+	b.WriteString(benchHeader)
+	for i, v := range values {
+		fmt.Fprintf(&f, "baseline,%d,%.3f,,\n", i*100, v)
+		fmt.Fprintf(&b, "F,1763000000,local,peer,43001,443,0,0,0,0,%d,10,20,open,1\n", int64(math.Round((v+shiftMs)*1000)))
+	}
+	return writeTemp(t, "field.csv", f.String()), writeTemp(t, "bench.csv", b.String())
+}
+
 func assertSHA(t *testing.T, path, got string) {
 	t.Helper()
 	data, err := os.ReadFile(path)
@@ -159,6 +173,44 @@ func TestBuildReportIdenticalEMDZero(t *testing.T) {
 	assertSHA(t, bp, rep.BenchSHA256)
 }
 
+// Oracle hostile : jeux identiques mais décalés au-delà du plafond déclaré.
+func TestBuildReportCeilingBreachDiscards(t *testing.T) {
+	v := values(40, 600)
+	fp, bp := pairFixturesShifted(t, v, 100)
+	rep, err := buildReport(fp, bp, 600000)
+	if err != nil {
+		t.Fatalf("buildReport: %v", err)
+	}
+	field, _ := readField(fp)
+	bench, _ := readBench(bp, 600000)
+	want, err := metrics.DistributionEMD(field, bench)
+	if err != nil {
+		t.Fatalf("DistributionEMD oracle: %v", err)
+	}
+	if rep.EMD != want {
+		t.Fatalf("EMD rendu = %v, oracle = %v", rep.EMD, want)
+	}
+	if rep.EMD <= metrics.FidelityEMDMax {
+		t.Fatalf("EMD décalé = %v, doit dépasser le plafond %v", rep.EMD, metrics.FidelityEMDMax)
+	}
+	if rep.State != metrics.FidelityDiscard {
+		t.Fatalf("state = %q, want %q (EMD au-dessus du plafond)", rep.State, metrics.FidelityDiscard)
+	}
+	if !strings.Contains(rep.Note, fmt.Sprintf("%.6f", rep.EMD)) ||
+		!strings.Contains(rep.Note, fmt.Sprintf("%.6f", metrics.FidelityEMDMax)) {
+		t.Fatalf("note ne nomme pas l'EMD mesuré et le plafond : %q", rep.Note)
+	}
+	// Preuve contraire : même avec trop peu d'échantillons, le dépassement refuse.
+	shortF, shortB := pairFixturesShifted(t, values(12, 600), 100)
+	short, err := buildReport(shortF, shortB, 600000)
+	if err != nil {
+		t.Fatalf("buildReport (12 samples): %v", err)
+	}
+	if short.State != metrics.FidelityDiscard {
+		t.Fatalf("state (12 samples, EMD > plafond) = %q, want %q", short.State, metrics.FidelityDiscard)
+	}
+}
+
 func TestBuildReportBoundedBelowFloor(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -169,15 +221,14 @@ func TestBuildReportBoundedBelowFloor(t *testing.T) {
 		{"banc court", 40, 12},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			fp, bp := pairFixtures(t, values(tc.fieldSize, 600))
-			if tc.fieldSize == 40 {
-				_, bp = pairFixtures(t, values(tc.benchSize, 900))
-			} else {
-				bp = writeTemp(t, "bench.csv", benchBody(tc.benchSize, 900000))
-			}
+			fp, _ := pairFixtures(t, values(tc.fieldSize, 600))
+			_, bp := pairFixtures(t, values(tc.benchSize, 600.5))
 			rep, err := buildReport(fp, bp, 600000)
 			if err != nil {
 				t.Fatalf("buildReport: %v", err)
+			}
+			if rep.EMD > metrics.FidelityEMDMax {
+				t.Fatalf("fixture au-dessus du plafond (%v) : le cas bounded est invalide", rep.EMD)
 			}
 			if rep.State != metrics.FidelityBounded {
 				t.Fatalf("state = %q, want %q", rep.State, metrics.FidelityBounded)

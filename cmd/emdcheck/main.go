@@ -29,8 +29,8 @@ type options struct {
 }
 
 // Report — le nombre mesuré, son plafond déclaré et la provenance des deux
-// fichiers. Le state porte sur la suffisance des échantillons et le refus de
-// la bibliothèque, jamais sur une lecture verte du plafond.
+// fichiers. Le state applique le plafond déclaré, l'effectif minimal et le refus
+// de la bibliothèque ; il ne verdit jamais un dépassement.
 type Report struct {
 	FieldSamples int     `json:"field_samples"`
 	BenchSamples int     `json:"bench_samples"`
@@ -185,14 +185,19 @@ func buildReport(fieldPath, benchPath string, minUs int64) (Report, error) {
 	case emdErr != nil:
 		rep.State = metrics.FidelityDiscard
 		rep.Note = fmt.Sprintf("EMD refused by metrics.DistributionEMD: %v; no value trusted", emdErr)
+	case emd > rep.EMDCeiling:
+		// Preuve contraire : un dépassement n'est jamais masqué par un
+		// effectif insuffisant (même sémantique que DelayAccuracy).
+		rep.State = metrics.FidelityDiscard
+		rep.Note = fmt.Sprintf("measured EMD %.6f exceeds declared ceiling %.6f (metrics.FidelityEMDMax): distributions differ beyond the declared bound", emd, rep.EMDCeiling)
 	case len(field) < metrics.FidelityMinSamples || len(bench) < metrics.FidelityMinSamples:
 		rep.State = metrics.FidelityBounded
-		rep.Note = fmt.Sprintf("below FidelityMinSamples=%d (field=%d, bench=%d): EMD computed but not trusted",
-			metrics.FidelityMinSamples, len(field), len(bench))
+		rep.Note = fmt.Sprintf("below FidelityMinSamples=%d (field=%d, bench=%d): EMD %.6f within ceiling %.6f but not trusted",
+			metrics.FidelityMinSamples, len(field), len(bench), emd, rep.EMDCeiling)
 	default:
 		rep.State = metrics.FidelityTrust
-		rep.Note = fmt.Sprintf("field=%d, bench=%d >= FidelityMinSamples=%d; EMD by metrics.DistributionEMD; emd_ceiling declared, no verdict from it",
-			len(field), len(bench), metrics.FidelityMinSamples)
+		rep.Note = fmt.Sprintf("field=%d, bench=%d >= FidelityMinSamples=%d; EMD %.6f within declared ceiling %.6f (metrics.DistributionEMD)",
+			len(field), len(bench), metrics.FidelityMinSamples, emd, rep.EMDCeiling)
 	}
 	return rep, nil
 }

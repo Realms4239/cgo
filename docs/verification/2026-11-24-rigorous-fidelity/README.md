@@ -364,3 +364,27 @@ VERIFY row or protected config was edited.
 file is in this slice's staged paths and the broken link predates it, so the
 commit was retried with `--no-verify`. The three other hook checks passed
 (provenance 159 headers, exit contract, hygiene 1209 tracked files).
+
+## 12. EMD checker over the sealed samples (fix round 1, 2026-11-24)
+
+`cmd/emdcheck` reads the committed CSVs and computes 1-D Wasserstein distance
+with `metrics.DistributionEMD` — no new dependency, no threshold change. The
+durable report is `emd-report.json` beside this README (exit 0).
+
+| Input | Path / column | Rows | SHA-256 |
+|---|---|---|---|
+| field | `2026-11-19-field-trace-p3/audits/field-trace-p3-20261119/telemetry.csv` · `rtt_ms` | 113 | `1fc185d9ebbaea5f33d8c7c6cf20de968d74c4ab0653739b94518d2700bd33de` |
+| bench | `2026-11-19-multiprofile-trace/evidence/flows-p3p4-extract.csv` · `srtt_us`/1000, `F` rows ≥ 600000 µs | 41 | `421a1f885433ef15e6369cd471490d604a0abb171def4f8f99e7c79a1621018b` |
+
+Measured **EMD = 0.2807238299989249** against the declared ceiling
+`metrics.FidelityEMDMax = 0.10`. The verdict is **`discard`**, not `trust`: a
+ceiling that never affects the verdict reads as a pass. Only the mapping of the
+computed number and counts to `trust|bounded|discard` was added; the thresholds
+(0.10 and `FidelityMinSamples = 30`) are unchanged. Both sets clear the sample
+floor, but contrary evidence beats it — an EMD above the ceiling discards even
+below 30 samples; below the floor with EMD within the ceiling stays `bounded`.
+
+RED-first hostile oracle: identical sets shifted by 100 ms give EMD above the
+ceiling and `state=discard`; unshifted identical sets still give EMD exactly 0.
+After the fix, `go test -count=1 ./cmd/emdcheck/...` exit 0 and `go build ./...`
+exit 0. No gate, ledger, frozen corpus or protected config was edited.
