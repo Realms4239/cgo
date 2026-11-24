@@ -412,10 +412,10 @@ bite-sized weak-agent tasks, builder ≠ verifier; see the plan header.
 
 | Slice | Spec | Plan | Status | Depends on | Next action / blocker |
 |---|---|---|---|---|---|
-| Organic trace + model system | `2026-11-23-organic-trace-model-system-design.md` | `2026-11-23-organic-trace-model-system-plan.md` | **Four slices executed; final report committed** | existing tagged observatory on sadc; field replay evidence `766f1a5` | Task 1 fresh 24h R2 capture, Task 2 trace-to-model Go command + sealed calibrations, Task 3 live A/B gate. No gate/ledger/frozen edit, no VERIFY promotion. |
+| Organic trace + model system | `2026-11-23-organic-trace-model-system-design.md` | `2026-11-23-organic-trace-model-system-plan.md` | **Four slices executed + EMD discard result; object rebuild human-gated** | existing tagged observatory on sadc; field replay evidence `766f1a5` | Task 1 fresh 24h R2 capture, Task 2 trace-to-model Go command + sealed calibrations, Task 3 live A/B gate. No gate/ledger/frozen edit, no VERIFY promotion. |
 
 ## Rigorous emulation fidelity (2026-11-24)
 
 | Slice | Spec | Plan | Status | Depends on | Next action / blocker |
 |---|---|---|---|---|---|
-| Rigorous fidelity | `2026-11-24-rigorous-emulation-fidelity-design.md` | `2026-11-24-rigorous-emulation-fidelity-plan.md` | **Four slices executed; final report committed** | last30days deep research (3 passes) + prior field/replay evidence | HEAD bc9033f. Histogram library abc2e61, ingress evidence doc 633da71, fidelity gates a7dcd11, multi-qdisc sweep af2612b6..., final report docs/verification/2026-11-24-rigorous-fidelity/README.md. Explicit unclaimed gaps: p99.9 (not wired to CLI), live EMD/(gamma,epsilon), valid up-direction, new-trace calibration. No gate/ledger/frozen edit, no VERIFY promotion. |
+| Rigorous fidelity | `2026-11-24-rigorous-emulation-fidelity-design.md` | `2026-11-24-rigorous-emulation-fidelity-plan.md` | **Four slices executed + EMD discard result; object rebuild human-gated** | last30days deep research (3 passes) + prior field/replay evidence | HEAD 81ff262. Wiring b0d3307, EMD checker bebf037/81ff262: real EMD 0.2807 vs 0.10 ceiling -> discard. Histogram library abc2e61, ingress evidence doc 633da71, fidelity gates a7dcd11, multi-qdisc sweep af2612b6..., final report docs/verification/2026-11-24-rigorous-fidelity/README.md. Explicit unclaimed gaps: p99.9 (not wired to CLI), live EMD/(gamma,epsilon), valid up-direction, new-trace calibration. No gate/ledger/frozen edit, no VERIFY promotion. |
