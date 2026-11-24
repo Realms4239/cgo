@@ -75,3 +75,15 @@ ledger, or fabricating a value.
 
 Topology restored to egress after the E2E cell (evidence `2f298e3f…`); all run
 data kept.
+
+## Phase 4 fixes applied (root cause, not symptom)
+
+- **links gate FIXED** (`5c39c48`): `typesgen` failed on unmapped new Go types `ConfiguredRealisedRow` and `Fidelity`, so the referenced generated file never existed. Added the two mappings, a RED-first generator test, and generated `web/frontend/src/lib/types.gen.ts` (exact generator output). All six gates now pass (6 passed, 0 failed, 0 not run), links PASS with zero missing paths. Gate, ledger and historicalAbsent were NOT edited.
+- **frontend typecheck FIXED locally**: npm install failed online (exit 127) and offline (ENOTCACHED, missing minipass), but an existing on-disk copy of the declared `@tailwindcss/vite` package was restored into untracked `node_modules`; `npm run typecheck` now exits 0. No source or dependency declaration changed.
+- **up direction: 3 attempts, all invalid on G4** - architectural stop per systematic-debugging Phase 4.5:
+  - P2/cake/cubic/up/4 flows, run 1795510344: goodput 5.2 Mbps, floor 10 Mbps.
+  - P2/cake/cubic/up/8 flows, run 1795521988: goodput 9.0 Mbps, floor 10 Mbps.
+  - V1/cake/cubic/up/4 flows, run 1795522476: goodput 0.1 Mbps, floor 1 Mbps (CapUp 2 x 0.5).
+  All had plausible RTT p95 (119-643 ms) and all showed `G[✓✓✓✓✗✓✓✓]`: G4 alone fails. The bench's up-direction goodput is ACK-clock-limited and does not reach 50% of the declared up capacity in any configuration tried. Lowering G4 would be gate tampering; this needs an operator ruling on whether the 50% floor is the right model for this bench.
+
+Topology restored to egress (evidence 49796fc8...), all run data kept.
