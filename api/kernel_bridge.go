@@ -32,10 +32,27 @@ func kernelTelemetryFromSummary(s bpf.Summary) *audit.KernelTelemetry {
 		// ring plein. Le compteur vient de globals, hors du flux d'événements.
 		tel.ReserveFailures = s.ReserveFailures
 		tel.LowerBound = s.ReserveFailures > 0
+		tel.MapFull = s.MapFull
+		// Table pleine = perte d'observateur au même titre que le ring plein :
+		// dans les deux cas les queues ne sont qu'une borne inférieure.
+		if s.MapFull > 0 {
+			tel.LowerBound = true
+		}
 		// Dénominateur réel : les compteurs d'événements tentés (globals, hors
 		// ring saturé). ReserveFailures reste le seul numérateur, non dupliqué.
 		tel.ObserverEvents, tel.ObserverLossPct, tel.ObserverLossDenominator =
 			audit.ObserverLoss(s.RetransEvents+s.QdiscDrops, s.ReserveFailures)
+		// Queues — sous le plancher de 1000, le compteur est porté mais aucun
+		// percentile n'est affirmé : l'absence reste un mot, pas un zéro.
+		tel.LatencySamples = s.LatencySamples
+		if s.LatencySamples >= 1000 {
+			tel.LatencyP50us, _ = bpf.Percentile(s.LatencyHistogram, 0.50, s.LatencySamples)
+			tel.LatencyP95us, _ = bpf.Percentile(s.LatencyHistogram, 0.95, s.LatencySamples)
+			tel.LatencyP999us, _ = bpf.Percentile(s.LatencyHistogram, 0.999, s.LatencySamples)
+			if tel.LatencyP999us > 0 {
+				tel.TailBinBounds = "bucket i = [2^i, 2^(i+1)) us"
+			}
+		}
 	}
 	return tel
 }

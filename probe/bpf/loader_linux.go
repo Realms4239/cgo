@@ -72,6 +72,7 @@ type Session struct {
 	links    []link.Link
 	flows    *ebpf.Map
 	global   *ebpf.Map
+	hist     *ebpf.Map
 	events   *ebpf.Map
 	attached []string
 }
@@ -94,7 +95,7 @@ func Attach() (*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("chargement du collection eBPF : %w", err)
 	}
-	s := &Session{Coll: coll, flows: coll.Maps["flows"], global: coll.Maps["globals"], events: coll.Maps["events"]}
+	s := &Session{Coll: coll, flows: coll.Maps["flows"], global: coll.Maps["globals"], hist: coll.Maps["latency_hist"], events: coll.Maps["events"]}
 	cleanup := func(e error) error {
 		s.Close()
 		return e
@@ -154,6 +155,7 @@ func (s *Session) Close() error {
 	s.links = nil
 	s.flows = nil
 	s.global = nil
+	s.hist = nil
 	s.events = nil
 	return first
 }
@@ -246,6 +248,25 @@ func (s *Session) Summary() (Summary, error) {
 			summary.ReserveFailures += g.ReserveFailures
 			// Le drop qdisc n'est compté par flux que si la table avalait le
 			// flux ; la voie globale porte ceux-ci quand même.
+		}
+	}
+	// histogramme latency_hist : PERCPU_ARRAY de 64 buckets, sommé par CPU.
+	// Un objet précompilé sans cette map laisse s.hist nil : l'absence reste
+	// un compteur à zéro, jamais un histogramme fabriqué. Échec de lecture d'un
+	// bucket : ce bucket est omis, les autres restent mesurés.
+	if s.hist != nil {
+		cpuVals := make([]uint64, numCPU)
+		for i := range summary.LatencyHistogram {
+			key := uint32(i)
+			if err := s.hist.Lookup(&key, &cpuVals); err != nil {
+				continue
+			}
+			var bucket uint64
+			for _, v := range cpuVals {
+				bucket += v
+			}
+			summary.LatencyHistogram[i] = bucket
+			summary.LatencySamples += bucket
 		}
 	}
 	summary.QdiscAvailable = true

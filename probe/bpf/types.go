@@ -34,7 +34,11 @@ type Summary struct {
 	QdiscAvailable  bool   `json:"qdisc_available"`
 	MapFull         uint64 `json:"map_full,omitempty"`
 	ReserveFailures uint64 `json:"reserve_failures,omitempty"`
-	Flows           []Flow `json:"flows,omitempty"`
+	// LatencyHistogram / LatencySamples — agrégat noyau (bucket i = [2^i, 2^(i+1)) us).
+	// Le compteur distingue un histogramme vide d'un histogramme mesuré.
+	LatencyHistogram Log2Histogram `json:"latency_histogram,omitempty"`
+	LatencySamples   uint64        `json:"latency_samples,omitempty"`
+	Flows            []Flow        `json:"flows,omitempty"`
 }
 
 // Globals — diagnostics hôte, jamais une affirmation par flux. Retrans

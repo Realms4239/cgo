@@ -123,14 +123,26 @@ type KernelTelemetry struct {
 	// d'écrire (retransmissions + drops qdisc, compteurs globals hors ring
 	// saturé). ReserveFailures (Task 2) est le numérateur, non dupliqué ici.
 	// ObserverLossDenominator nomme ce dénominateur en toutes lettres.
-	ObserverEvents          uint64       `json:"observer_events,omitempty"`
-	ObserverLossPct         float64      `json:"observer_loss_pct,omitempty"`
-	ObserverLossDenominator string       `json:"observer_loss_denominator,omitempty"`
-	RetransPayloadBytes     uint64       `json:"retrans_payload_bytes,omitempty"`
-	QdiscDropPackets        uint64       `json:"qdisc_drop_packets"`
-	FlowsSeen               int          `json:"flows_seen,omitempty"`
-	FlowsTotal              int          `json:"flows_total,omitempty"`
-	Flows                   []KernelFlow `json:"flows,omitempty"`
+	ObserverEvents          uint64  `json:"observer_events,omitempty"`
+	ObserverLossPct         float64 `json:"observer_loss_pct,omitempty"`
+	ObserverLossDenominator string  `json:"observer_loss_denominator,omitempty"`
+	// MapFull — entrées de table refusées : perte d'observateur aux côtés de
+	// ReserveFailures, jamais un doublon de ce dernier.
+	MapFull uint64 `json:"map_full,omitempty"`
+	// Champs de queue (tails) — lus depuis l'histogramme log2 du noyau. Un
+	// percentile n'existe que si LatencySamples atteint le plancher de 1000 ;
+	// sinon l'absence est nommée, jamais extrapolée ni zérotée.
+	LatencySamples uint64  `json:"latency_samples,omitempty"`
+	LatencyP50us   float64 `json:"latency_p50_us,omitempty"`
+	LatencyP95us   float64 `json:"latency_p95_us,omitempty"`
+	LatencyP999us  float64 `json:"latency_p999_us,omitempty"`
+	// TailBinBounds — déclaration explicite des bornes : bucket i = [2^i, 2^(i+1)) us.
+	TailBinBounds       string       `json:"tail_bin_bounds,omitempty"`
+	RetransPayloadBytes uint64       `json:"retrans_payload_bytes,omitempty"`
+	QdiscDropPackets    uint64       `json:"qdisc_drop_packets"`
+	FlowsSeen           int          `json:"flows_seen,omitempty"`
+	FlowsTotal          int          `json:"flows_total,omitempty"`
+	Flows               []KernelFlow `json:"flows,omitempty"`
 }
 
 // KernelFlow is one sender-side flow as the kernel tier saw it. Present only
@@ -813,8 +825,29 @@ func (r *Report) RenderMarkdown() string {
 		default:
 			fmt.Fprintf(&b, "### Télémétrie noyau\n\nTélémétrie noyau non instrumentée%s.\n\n", reasonClause(k.Reason))
 		}
+		// Queues — jamais un percentile sans le compteur qui le soutient.
+		if k.LatencySamples > 0 {
+			b.WriteString("### Queues (tails)\n\n")
+			if k.LatencyP999us > 0 {
+				fmt.Fprintf(&b, "%d échantillons de latence · bornes : %s\n\n", k.LatencySamples, k.TailBinBounds)
+				b.WriteString("| Percentile | Bord bas du bucket (us) |\n|---|---|\n")
+				fmt.Fprintf(&b, "| p50 | %.0f |\n| p95 | %.0f |\n| p99.9 | %.0f |\n\n", k.LatencyP50us, k.LatencyP95us, k.LatencyP999us)
+			} else {
+				fmt.Fprintf(&b, "p50/p95/p99.9 non affirmés : %d échantillons, sous le plancher de 1000 — aucun percentile extrapolé.\n\n", k.LatencySamples)
+			}
+		}
 		if k.LowerBound {
-			fmt.Fprintf(&b, "Note : ring plein — reserve_failures=%d, la chronologie est une borne inférieure (timeline is a lower bound) : des événements peuvent manquer.\n\n", k.ReserveFailures)
+			causes := make([]string, 0, 2)
+			if k.ReserveFailures > 0 {
+				causes = append(causes, fmt.Sprintf("ring plein — reserve_failures=%d", k.ReserveFailures))
+			}
+			if k.MapFull > 0 {
+				causes = append(causes, fmt.Sprintf("table des flux pleine — map_full=%d", k.MapFull))
+			}
+			if len(causes) == 0 {
+				causes = append(causes, "perte d'observateur déclarée")
+			}
+			fmt.Fprintf(&b, "Note : %s, la chronologie est une borne inférieure (timeline is a lower bound) : des événements peuvent manquer. Les queues sont aussi une borne inférieure (tails are a lower bound) : des échantillons de latence peuvent manquer.\n\n", strings.Join(causes, ", "))
 		}
 	}
 

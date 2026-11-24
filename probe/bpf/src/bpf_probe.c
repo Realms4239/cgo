@@ -72,6 +72,15 @@ struct {
     __type(value, struct global_stat);
 } globals SEC(".maps");
 
+/* Histogramme log2 des RTT en noyau : agrégation à empreinte bornée (64 buckets
+   de compteurs), lue par la voie snapshot. La ring reste la voie diagnostique. */
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 64);
+    __type(key, __u32);
+    __type(value, __u64);
+} latency_hist SEC(".maps");
+
 struct cgo_event { __u32 kind; __u32 pad; __u64 ts_ns; __u64 payload; };
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
@@ -177,6 +186,17 @@ static __always_inline int sample_sock(struct sock *sk, struct sk_buff *skb)
 
     struct tcp_sock *tp = (struct tcp_sock *)sk;
     st->srtt_us = BPF_CORE_READ(tp, srtt_us) >> 3;
+    /* Échantillon RTT mesuré (srtt déjà en us) : bucket log2 borné à 64.
+       Un seul point d'instrumentation sert fentry et kprobe. */
+    {
+        __u64 rtt_ns = (__u64)st->srtt_us * 1000ULL;
+        __u32 b = bpf_log2l(rtt_ns / 1000);
+        if (b < 64) {
+            __u64 *cnt = bpf_map_lookup_elem(&latency_hist, &b);
+            if (cnt)
+                __sync_fetch_and_add(cnt, 1);
+        }
+    }
     st->snd_cwnd = BPF_CORE_READ(tp, snd_cwnd);
     st->snd_ssthresh = BPF_CORE_READ(tp, snd_ssthresh);
     st->state = BPF_CORE_READ(sk, __sk_common.skc_state);
