@@ -38,10 +38,12 @@ func TestDestructiveRoutesRequireConfirm(t *testing.T) {
 	defer SetDevNoAuth(false)
 	t.Setenv("CGO_API_TOKEN", "confirm-secret")
 
-	h := New(Deps{})
 	for _, path := range []string{
 		"/api/shape", "/api/burst", "/api/run/start", "/api/profile/delete", "/api/cost/tier",
 	} {
+		// Un handler neuf par route : la limite de mutation déclarée n'est
+		// pas le sujet de ce test de confirmation.
+		h := New(Deps{})
 		call := func(confirm bool) string {
 			req := httptest.NewRequest(http.MethodPost, "http://example.com"+path, strings.NewReader("{"))
 			req.RemoteAddr = "10.9.8.7:1234"

@@ -295,19 +295,28 @@ func TestRunRows(t *testing.T) {
 // et les répétitions hors bornes sont refusés, pas avalés en silence dans un run vide.
 func TestValidationPrevention(t *testing.T) {
 	withDevNoAuth(t)
-	h := New(Deps{ShapeFn: func(ShapeReq) error { return nil }})
-	srv := httptest.NewServer(h)
-	defer srv.Close()
+	// Serveur neuf par cas : six mutations dépasseraient la rafale déclarée ;
+	// la limite de débit n'est pas le sujet de ce test de validation des bornes.
+	post := func(path, body string) *http.Response {
+		srv := httptest.NewServer(New(Deps{ShapeFn: func(ShapeReq) error { return nil }}))
+		t.Cleanup(srv.Close)
+		return postConfirmed(t, srv.URL+path, bytes.NewBufferString(body))
+	}
+	newSrv := func() *httptest.Server {
+		srv := httptest.NewServer(New(Deps{ShapeFn: func(ShapeReq) error { return nil }}))
+		t.Cleanup(srv.Close)
+		return srv
+	}
 
 	// capacité de façonnage hors bornes
-	resp := postConfirmed(t, srv.URL+"/api/shape", bytes.NewBufferString(`{"qdisc":"cake","capacity_mbps":5000}`))
+	resp := post("/api/shape", `{"qdisc":"cake","capacity_mbps":5000}`)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("capacity 5000: %d want 400", resp.StatusCode)
 	}
 
 	// id de profil inconnu → 400 avec l'id fautif
-	resp2 := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1; drop","GHOST"],"reps":1}`))
+	resp2 := post("/api/run/start", `{"profiles":["P1; drop","GHOST"],"reps":1}`)
 	defer resp2.Body.Close()
 	b2, _ := io.ReadAll(resp2.Body)
 	if resp2.StatusCode != http.StatusBadRequest || !strings.Contains(string(b2), "GHOST") {
@@ -315,33 +324,34 @@ func TestValidationPrevention(t *testing.T) {
 	}
 
 	// répétitions hors bornes → 400
-	resp3 := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1"],"reps":99}`))
+	resp3 := post("/api/run/start", `{"profiles":["P1"],"reps":99}`)
 	defer resp3.Body.Close()
 	if resp3.StatusCode != http.StatusBadRequest {
 		t.Fatalf("reps 99: %d want 400", resp3.StatusCode)
 	}
 
 	// deadline hors de la fenêtre 200–5000 → 400 (les bornes Q10 sont côté serveur)
-	resp5 := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"deadline_ms":99999}`))
+	resp5 := post("/api/run/start", `{"profiles":["P1"],"reps":1,"deadline_ms":99999}`)
 	defer resp5.Body.Close()
 	if resp5.StatusCode != http.StatusBadRequest {
 		t.Fatalf("deadline 99999: %d want 400", resp5.StatusCode)
 	}
 
 	// cible de plus de 64 caractères → 400
-	resp6 := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(`{"profiles":["P1"],"reps":1,"target":"`+strings.Repeat("a", 65)+`"}`))
+	resp6 := post("/api/run/start", `{"profiles":["P1"],"reps":1,"target":"`+strings.Repeat("a", 65)+`"}`)
 	defer resp6.Body.Close()
 	if resp6.StatusCode != http.StatusBadRequest {
 		t.Fatalf("target 65 chars: %d want 400", resp6.StatusCode)
 	}
 
 	// la durée d'audit est bornée à la fenêtre 10–600
-	resp4, err := http.Post(srv.URL+"/api/audit/start", "application/json", bytes.NewBufferString(`{"site":"x","link_type":"5g","duration":999999}`))
+	srvAudit := newSrv()
+	resp4, err := http.Post(srvAudit.URL+"/api/audit/start", "application/json", bytes.NewBufferString(`{"site":"x","link_type":"5g","duration":999999}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp4.Body.Close()
-	st, err := http.Get(srv.URL + "/api/audit/status")
+	st, err := http.Get(srvAudit.URL + "/api/audit/status")
 	if err != nil {
 		t.Fatal(err)
 	}

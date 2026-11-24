@@ -19,8 +19,10 @@ func TestObserveModeReturns501(t *testing.T) {
 		"/api/audit/start", "/api/audit/stop", "/api/audit/toprofile",
 		"/api/profile/import", "/api/profile/delete",
 	}
-	h := New(Deps{Mode: "observe"})
 	for _, p := range paths {
+		// Chaque cas est un scénario indépendant : un handler neuf garde la
+		// limite déclarée (5 mutations/rafale) hors du sujet de ce test.
+		h := New(Deps{Mode: "observe"})
 		req := httptest.NewRequest("POST", p, strings.NewReader("{}"))
 		req.RemoteAddr = "127.0.0.1:1234"
 		req.Header.Set("X-Confirm-Action", "true")

@@ -68,11 +68,11 @@ func TestRunStartRejectsHostileRunID(t *testing.T) {
 	withDevNoAuth(t)
 	dir := chdirTemp(t)
 	_ = dir
-	h := New(Deps{})
-	srv := httptest.NewServer(h)
-	defer srv.Close()
-
 	for _, hostile := range []string{"..", "../freeze", `..\freeze`, "a/b", `a\b`, ".", "a.b"} {
+		// Serveur neuf par identifiant hostile : chaque cas reste sous la
+		// rafale de mutations déclarée, sans contourner le boundary.
+		srv := httptest.NewServer(New(Deps{}))
+		t.Cleanup(srv.Close)
 		body, _ := json.Marshal(map[string]any{
 			"profiles": []string{"P2"}, "reps": 1, "channel_model": "clean",
 			"deadline_ms": 1000, "target": "127.0.0.1", "run_id": hostile,

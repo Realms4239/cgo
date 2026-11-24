@@ -17,11 +17,12 @@ import (
 // pleine quand les deux sont absents.
 func TestRunStartSubmatrixFilters(t *testing.T) {
 	withDevNoAuth(t)
-	h := New(Deps{StartFn: func(o RunOpts) error { return nil }})
-	srv := httptest.NewServer(h)
-	defer srv.Close()
 
 	post := func(body string) int {
+		// Serveur neuf par cas : sept mutations dépasseraient la rafale
+		// déclarée ; la limite n'est pas le sujet de ce test de filtres.
+		srv := httptest.NewServer(New(Deps{StartFn: func(o RunOpts) error { return nil }}))
+		defer srv.Close()
 		resp := postConfirmed(t, srv.URL+"/api/run/start", bytes.NewBufferString(body))
 		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()

@@ -45,11 +45,6 @@ func ssrfDeps() Deps {
 // avec erreur nommée, AVANT toute mesure (la session n'est pas armée).
 func TestAuditStartSSRFPrivateRefused(t *testing.T) {
 	withDevNoAuth(t)
-	h := New(ssrfDeps())
-	srv := httptest.NewServer(h)
-	defer srv.Close()
-	waitAuditIdle(t, srv)
-
 	cases := []struct{ name, body, want string }{
 		{"rfc1918 small_url", `{"site":"ssrf-rfc1918","link_type":"fiber","duration":10,"small_url":"http://10.30.0.2:8081/small"}`, "plage réservée"},
 		{"link-local small_url", `{"site":"ssrf-ll","link_type":"fiber","duration":10,"small_url":"http://169.254.169.254/latest/meta-data"}`, "plage réservée"},
@@ -60,6 +55,11 @@ func TestAuditStartSSRFPrivateRefused(t *testing.T) {
 		{"link-local bulk_addr", `{"site":"ssrf-bulk-ll","link_type":"fiber","duration":10,"bulk_addr":"169.254.0.1:5201"}`, "plage réservée"},
 	}
 	for _, tc := range cases {
+		// Serveur neuf par charge hostile : sept mutations dépasseraient la
+		// rafale déclarée ; le boundary n'est pas le sujet de ce test SSRF.
+		srv := httptest.NewServer(New(ssrfDeps()))
+		t.Cleanup(srv.Close)
+		waitAuditIdle(t, srv)
 		code, body := startAudit(t, srv, tc.body)
 		if code != http.StatusForbidden {
 			t.Fatalf("%s : code %d, want 403 (body %q)", tc.name, code, body)
@@ -68,7 +68,6 @@ func TestAuditStartSSRFPrivateRefused(t *testing.T) {
 			t.Fatalf("%s : erreur %q sans la plage nommée %q", tc.name, body, tc.want)
 		}
 	}
-	waitAuditIdle(t, srv)
 }
 
 // TestAuditStartSSRFOptInFlips — l'opt-in banc CGO_ALLOW_PRIVATE_TARGETS=1
