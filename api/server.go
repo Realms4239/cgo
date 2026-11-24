@@ -21,7 +21,6 @@ import (
 
 	"github.com/Realms4239/cgo/audit"
 	"github.com/Realms4239/cgo/capabilities"
-	"github.com/Realms4239/cgo/exporter"
 	"github.com/Realms4239/cgo/figures"
 	"github.com/Realms4239/cgo/metrics"
 	"github.com/Realms4239/cgo/model"
@@ -555,7 +554,7 @@ func (s *Server) registerHealth(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "version": s.deps.Version, "mode": s.deps.Mode, "telemetry": probe.KernelSource()})
 	})
-	mux.Handle("GET /metrics", exporter.Handler(s.metricsSamples))
+	mux.Handle("GET /metrics", s.metricsHandler())
 	// capacités du banc : le client rend les files et contrôles que cet hôte
 	// expose réellement, sans recopier de liste.
 	mux.HandleFunc("GET /api/capabilities", func(w http.ResponseWriter, _ *http.Request) {
