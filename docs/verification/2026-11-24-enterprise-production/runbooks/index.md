@@ -84,7 +84,7 @@ Gaps are listed, never silently omitted. Counts are from the table above.
   `APPROVED-2026-11-15-bench-vm-lane-a-DRAFT.md`,
   `APPROVED-2026-11-23-organic-capture.md`,
   `APPROVED-2026-11-23-organic-ab.md`.
-- **Read-only R0 (3):** the two `field-trace-read*` tokens and the export read;
+- **Read-only R0 (2):** the field trace read and export read tokens;
   rollback is `N/A` by mutation scope, not a blank cell.
 - **Suffix-only references (not expanded into token ids):** `-exhaustive-continuation`
   and `-late` in `2026-11-16-exhaustive/CONSOLIDATION.md`. The full
