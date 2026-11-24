@@ -419,3 +419,9 @@ bite-sized weak-agent tasks, builder ≠ verifier; see the plan header.
 | Slice | Spec | Plan | Status | Depends on | Next action / blocker |
 |---|---|---|---|---|---|
 | Rigorous fidelity | `2026-11-24-rigorous-emulation-fidelity-design.md` | `2026-11-24-rigorous-emulation-fidelity-plan.md` | **Four slices executed + EMD discard result; object rebuild human-gated** | last30days deep research (3 passes) + prior field/replay evidence | HEAD 81ff262. Wiring b0d3307, EMD checker bebf037/81ff262: real EMD 0.2807 vs 0.10 ceiling -> discard. Histogram library abc2e61, ingress evidence doc 633da71, fidelity gates a7dcd11, multi-qdisc sweep af2612b6..., final report docs/verification/2026-11-24-rigorous-fidelity/README.md. Explicit unclaimed gaps: p99.9 (not wired to CLI), live EMD/(gamma,epsilon), valid up-direction, new-trace calibration. No gate/ledger/frozen edit, no VERIFY promotion. |
+
+## Enterprise production modernisation (2026-11-24)
+
+| Slice | Spec | Plan | Status | Depends on | Next action / blocker |
+|---|---|---|---|---|---|
+| Enterprise modernisation | `2026-11-24-enterprise-production-modernisation-design.md` | `2026-11-24-enterprise-production-modernisation-plan.md` | **Spec + plan committed, SDD execution pending** | last30days deep research + network-engineer batch modules 14-15 | Four SDD tasks: topology contract/f drift, observability + SLO, API boundary policy, production runbook proof. No gate/ledger/corpus edit, no new runtime dependency. |
