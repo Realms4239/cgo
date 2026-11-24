@@ -54,3 +54,24 @@ the up floor is 10 Mbps and the observed 5.2 Mbps fails G4. The down floor is
 
 Topology was restored to egress after the E2E cell; all run data and evidence
 were kept. No service, sudoers, guard or permit file was changed by this pass.
+
+## Phase 4 - fix attempt and disposition
+
+Root-cause fix for H4 was attempted: `npm install --no-audit --no-fund` from the
+committed lockfile. It failed with exit 127 and npm's network/proxy diagnostic
+(`D:\npm-cache-cgo\_logs\2026-11-24T10_42_22_868Z-debug-0.log`), so
+`npm run typecheck` still exits 2 on the missing `@tailwindcss/vite` types.
+This is an environmental dependency-availability failure, not a source defect;
+no source or dependency declaration was changed. Targeted `tsc --noEmit` on
+`types.ts` had already exited 0.
+
+Final verdict of the debugging pass: the application stack is healthy (build,
+five gates, real audit, real bench cell, fail-closed seal). The remaining
+failures are: one protected-ledger link (`links` gate), one network-blocked
+devDependency install, one deliberately strict up-direction G4 floor, one
+human-gated eBPF object rebuild, and one real physics mismatch (EMD 0.2807
+above the 0.10 ceiling). None was patched by weakening a gate, editing a
+ledger, or fabricating a value.
+
+Topology restored to egress after the E2E cell (evidence `2f298e3f…`); all run
+data kept.
