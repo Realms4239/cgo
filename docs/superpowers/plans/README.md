@@ -425,3 +425,9 @@ bite-sized weak-agent tasks, builder ≠ verifier; see the plan header.
 | Slice | Spec | Plan | Status | Depends on | Next action / blocker |
 |---|---|---|---|---|---|
 | Enterprise modernisation | `2026-11-24-enterprise-production-modernisation-design.md` | `2026-11-24-enterprise-production-modernisation-plan.md` | **Spec + plan committed, SDD execution pending** | last30days deep research + network-engineer batch modules 14-15 | Four SDD tasks: topology contract/f drift, observability + SLO, API boundary policy, production runbook proof. No gate/ledger/corpus edit, no new runtime dependency. |
+
+## Cockpit UI refinement (2026-11-25)
+
+| Slice | Spec | Plan | Status | Depends on | Next action / blocker |
+|---|---|---|---|---|---|
+| Cockpit UI refinement | `2026-11-25-cockpit-ui-refinement-design.md` | `2026-11-25-cockpit-ui-refinement-plan.md` | **Spec + plan committed, execution pending** | Operator chose cockpit first, identity preserved, all cockpit components, with tests | Four SDD tasks: shared tokens/hierarchy oracle, decision column, instrument field, full proof. Live bench is a separate scope. |
