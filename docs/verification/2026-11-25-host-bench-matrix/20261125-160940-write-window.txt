@@ -1,0 +1,36 @@
+# sadcnwp write window, 20261125-160940 UTC
+# host sadc@41.207.49.27:9922
+# file commands/write-cgo-host-bench-matrix-20261125.txt
+# token APPROVED-2026-11-25-cgo-host-bench-matrix.md
+
+# token: Operator approval relayed in chat on 2026-11-25: "window is this entire evening till night and I approve all", then the explicit scope choice "Full matrix campaign" in answer to the exact-scope question. This token scopes only the one write file named below. It expires 23:59 UTC 2026-11-25.
+# token: Rung: R2
+# token: Class: reversible
+# token: Scope: execute exactly the two guest commands in `commands/write-cgo-host-bench-matrix-20261125.txt` through `safe_write.py` — bring up the already-deployed `run-dualns.sh` topology inside the existing `labo-cgo` guest over hostfwd 127.0.0.1:10022, then run the committed full 24-cell dualns matrix (`P1,P2,P3,P4 × cake × cubic,bbr × down × reps=3`) into `/home/bench/bench-data` inside that guest. No host service, config, tc/netns on the host, bridge, VM configuration, field trace, frozen corpus or book/data write. No other host path is named. The ftp2 compromise and the remote PC are untouched.
+# token: Commands (exact file reviewed before the socket opens):
+# token: C:\WEBSERVER\commands\write-cgo-host-bench-matrix-20261125.txt
+# token: ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'CGO_BIN=/home/bench/cgo sudo -n bash /home/bench/kit/run-dualns.sh up --ingress off --bin /home/bench/cgo'
+# token: ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'sudo -n env CGO_ALLOW_PRIVATE_TARGETS=1 ip netns exec ns_client /home/bench/cgo run --bench dualns --profiles P1,P2,P3,P4 --reps 3 --qdiscs cake --cc cubic,bbr --direction down --target 10.30.0.2 --deadline 220 --flows 4 --data /home/bench/bench-data'
+# token: sudo_grant: none at host level. Guest sudo is the pre-existing bench-user NOPASSWD grant deployed 2026-11-15. No guard change, no new permit, no wildcard.
+# token: Rollback: stop the campaign by its exact guest PID, then `sudo -n bash /home/bench/kit/run-dualns.sh down` inside the same guest to remove the four namespaces; leave all sealed run data in place. This follows the labo-cgo teardown recipe in labo-cgo-bench-create.sh. Nothing else is restored because nothing else is changed: no host service, tc/netns on the host, bridge, VM configuration or field trace is touched.
+# token: Rehearsal: same day 2026-11-25 UTC, before the socket opens:
+# token: - `python -X utf8 safe_write.py --selftest` → exit 0, "selftest ok: 954 cases, 542 allowed and 412 refused".
+# token: - `python -X utf8 safe_write.py --check commands/write-cgo-host-bench-matrix-20261125.txt` → ALLOW of both exact lines, nothing sent anywhere.
+# token: - Near-variant `commands/write-cgo-host-bench-matrix-near-20261125.txt` (a `rm -rf` of the bench data path) → REFUSE 1 of 1 by the always-deny list, "nothing was sent anywhere", exit 1.
+# token: - Same-day rehearsal string: CGO-HOST-BENCH-MATRIX rehearsal 2026-11-25.
+# token: Quiet window: "2026-11-25 CGO-HOST-BENCH-MATRIX R2", from this approval to 23:59Z. One pass only. A refusal is a finding and stops the pass. A concurrent, separately scoped R2 window (PHASE1-VECTOR-WINDOW2, scratch dir + disposable --network none container, ends 19:50Z) is acknowledged; this scope names no path or service it uses.
+# token: Second channel: this chat session stays open across the change. Operator name: operator (chat approval 2026-11-25; operator ruling 2026-11-22 authorizing task-scoped agent-authored tokens). Ticket: CGO-HOST-BENCH-MATRIX.
+# token: Three-state exits: 0 every command ran and returned data, 1 a command ran and returned an error, 2 a command did not run. Never emit 0 for a skipped or mocked check. A failed gate is reported, never widened or re-run to green without a named verified false positive.
+# token: Approved by: operator (chat approval 2026-11-25 "I approve all" and scope answer "Full matrix campaign"; operator ruling 2026-11-22).
+
+$ ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'CGO_BIN=/home/bench/cgo sudo -n bash /home/bench/kit/run-dualns.sh up --ingress off --bin /home/bench/cgo'
+(no stdout)
+stderr:
+transport: No module named 'paramiko'
+exit=255
+
+$ ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'sudo -n env CGO_ALLOW_PRIVATE_TARGETS=1 ip netns exec ns_client /home/bench/cgo run --bench dualns --profiles P1,P2,P3,P4 --reps 3 --qdiscs cake --cc cubic,bbr --direction down --target 10.30.0.2 --deadline 220 --flows 4 --data /home/bench/bench-data'
+(no stdout)
+stderr:
+transport: No module named 'paramiko'
+exit=255

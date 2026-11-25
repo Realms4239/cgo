@@ -1,0 +1,229 @@
+# sadcnwp write window, 20261125-161148 UTC
+# host sadc@41.207.49.27:9922
+# file commands/write-cgo-bench-guest-status-20261125.txt
+# token APPROVED-2026-11-25-cgo-host-bench-matrix.md
+
+# token: Operator approval relayed in chat on 2026-11-25: "window is this entire evening till night and I approve all", then the explicit scope choice "Full matrix campaign" in answer to the exact-scope question. This token scopes only the one write file named below. It expires 23:59 UTC 2026-11-25.
+# token: Rung: R2
+# token: Class: reversible
+# token: Scope: execute exactly the two guest commands in `commands/write-cgo-host-bench-matrix-20261125.txt` through `safe_write.py` — bring up the already-deployed `run-dualns.sh` topology inside the existing `labo-cgo` guest over hostfwd 127.0.0.1:10022, then run the committed full 24-cell dualns matrix (`P1,P2,P3,P4 × cake × cubic,bbr × down × reps=3`) into `/home/bench/bench-data` inside that guest. No host service, config, tc/netns on the host, bridge, VM configuration, field trace, frozen corpus or book/data write. No other host path is named. The ftp2 compromise and the remote PC are untouched.
+# token: Commands (exact file reviewed before the socket opens):
+# token: C:\WEBSERVER\commands\write-cgo-host-bench-matrix-20261125.txt
+# token: ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'CGO_BIN=/home/bench/cgo sudo -n bash /home/bench/kit/run-dualns.sh up --ingress off --bin /home/bench/cgo'
+# token: ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'sudo -n env CGO_ALLOW_PRIVATE_TARGETS=1 ip netns exec ns_client /home/bench/cgo run --bench dualns --profiles P1,P2,P3,P4 --reps 3 --qdiscs cake --cc cubic,bbr --direction down --target 10.30.0.2 --deadline 220 --flows 4 --data /home/bench/bench-data'
+# token: Read-only guest diagnosis under the same window, exact file:
+# token: C:\WEBSERVER\commands\write-cgo-bench-guest-status-20261125.txt
+# token: ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'ps -eo pid,etimes,args'
+# token: ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'ls -la /home/bench/bench-data'
+# token: sudo_grant: none at host level. Guest sudo is the pre-existing bench-user NOPASSWD grant deployed 2026-11-15. No guard change, no new permit, no wildcard.
+# token: Rollback: stop the campaign by its exact guest PID, then `sudo -n bash /home/bench/kit/run-dualns.sh down` inside the same guest to remove the four namespaces; leave all sealed run data in place. This follows the labo-cgo teardown recipe in labo-cgo-bench-create.sh. Nothing else is restored because nothing else is changed: no host service, tc/netns on the host, bridge, VM configuration or field trace is touched.
+# token: Rehearsal: same day 2026-11-25 UTC, before the socket opens:
+# token: - `python -X utf8 safe_write.py --selftest` → exit 0, "selftest ok: 954 cases, 542 allowed and 412 refused".
+# token: - `python -X utf8 safe_write.py --check commands/write-cgo-host-bench-matrix-20261125.txt` → ALLOW of both exact lines, nothing sent anywhere.
+# token: - Near-variant `commands/write-cgo-host-bench-matrix-near-20261125.txt` (a `rm -rf` of the bench data path) → REFUSE 1 of 1 by the always-deny list, "nothing was sent anywhere", exit 1.
+# token: - Same-day rehearsal string: CGO-HOST-BENCH-MATRIX rehearsal 2026-11-25.
+# token: Quiet window: "2026-11-25 CGO-HOST-BENCH-MATRIX R2", from this approval to 23:59Z. One pass only. A refusal is a finding and stops the pass. A concurrent, separately scoped R2 window (PHASE1-VECTOR-WINDOW2, scratch dir + disposable --network none container, ends 19:50Z) is acknowledged; this scope names no path or service it uses.
+# token: Second channel: this chat session stays open across the change. Operator name: operator (chat approval 2026-11-25; operator ruling 2026-11-22 authorizing task-scoped agent-authored tokens). Ticket: CGO-HOST-BENCH-MATRIX.
+# token: Three-state exits: 0 every command ran and returned data, 1 a command ran and returned an error, 2 a command did not run. Never emit 0 for a skipped or mocked check. A failed gate is reported, never widened or re-run to green without a named verified false positive.
+# token: Approved by: operator (chat approval 2026-11-25 "I approve all" and scope answer "Full matrix campaign"; operator ruling 2026-11-22).
+
+$ ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'ps -eo pid,etimes,args'
+    PID ELAPSED COMMAND
+      1  503989 /sbin/init
+      2  503989 [kthreadd]
+      3  503989 [pool_workqueue_release]
+      4  503989 [kworker/R-rcu_g]
+      5  503989 [kworker/R-rcu_p]
+      6  503989 [kworker/R-slub_]
+      7  503989 [kworker/R-netns]
+     10  503989 [kworker/0:0H-kblockd]
+     12  503989 [kworker/R-mm_pe]
+     13  503989 [rcu_tasks_kthread]
+     14  503989 [rcu_tasks_rude_kthread]
+     15  503989 [rcu_tasks_trace_kthread]
+     16  503989 [ksoftirqd/0]
+     17  503989 [rcu_preempt]
+     18  503989 [migration/0]
+     19  503989 [idle_inject/0]
+     20  503989 [cpuhp/0]
+     21  503989 [cpuhp/1]
+     22  503989 [idle_inject/1]
+     23  503989 [migration/1]
+     24  503989 [ksoftirqd/1]
+     26  503989 [kworker/1:0H-events_highpri]
+     27  503989 [cpuhp/2]
+     28  503989 [idle_inject/2]
+     29  503989 [migration/2]
+     30  503989 [ksoftirqd/2]
+     32  503989 [kworker/2:0H-events_highpri]
+     33  503989 [cpuhp/3]
+     34  503989 [idle_inject/3]
+     35  503989 [migration/3]
+     36  503989 [ksoftirqd/3]
+     38  503989 [kworker/3:0H-kblockd]
+     39  503989 [kdevtmpfs]
+     40  503989 [kworker/R-inet_]
+     41  503989 [kauditd]
+     42  503989 [khungtaskd]
+     43  503989 [oom_reaper]
+     45  503989 [kworker/R-write]
+     47  503989 [kcompactd0]
+     48  503989 [ksmd]
+     50  503989 [khugepaged]
+     51  503989 [kworker/R-kinte]
+     52  503989 [kworker/R-kbloc]
+     53  503989 [kworker/R-blkcg]
+     54  503989 [irq/9-acpi]
+     56  503988 [kworker/R-tpm_d]
+     57  503988 [kworker/R-ata_s]
+     58  503988 [kworker/R-md]
+     59  503988 [kworker/R-md_bi]
+     60  503988 [kworker/R-edac-]
+     61  503988 [kworker/R-devfr]
+     62  503988 [watchdogd]
+     64  503988 [kworker/R-quota]
+     65  503988 [kworker/2:1H-kblockd]
+     66  503988 [kswapd0]
+     67  503988 [ecryptfs-kthread]
+     68  503988 [kworker/R-kthro]
+     69  503988 [kworker/R-acpi_]
+     70  503988 [scsi_eh_0]
+     71  503988 [kworker/R-scsi_]
+     72  503988 [scsi_eh_1]
+     73  503988 [kworker/R-scsi_]
+     77  503988 [kworker/R-mld]
+     78  503988 [kworker/1:1H-kblockd]
+     79  503988 [kworker/R-ipv6_]
+     86  503988 [kworker/R-kstrp]
+     88  503988 [kworker/u9:0]
+     89  503988 [kworker/3:1H]
+     94  503988 [kworker/R-crypt]
+    105  503988 [kworker/R-charg]
+    215  503986 [kworker/R-raid5]
+    256  503985 [jbd2/vda1-8]
+    257  503985 [kworker/R-ext4-]
+    330  503984 /usr/lib/systemd/systemd-journald
+    349  503984 [kworker/R-kmpat]
+    350  503984 [kworker/R-kmpat]
+    375  503984 /sbin/multipathd -d -s
+    392  503984 /usr/lib/systemd/systemd-udevd
+    400  503984 [psimon]
+    470  503984 [jbd2/vda16-8]
+    471  503984 [kworker/R-ext4-]
+    557  503983 /usr/lib/systemd/systemd-resolved
+    566  503983 /usr/lib/systemd/systemd-timesyncd
+    643  503982 [kworker/0:2H]
+    651  503981 /usr/lib/systemd/systemd-networkd
+    746  503978 /usr/sbin/cron -f -P
+    747  503978 @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+    751  503978 /usr/lib/polkit-1/polkitd --no-debug
+    758  503978 /usr/lib/systemd/systemd-logind
+    762  503978 /usr/libexec/udisks2/udisksd
+    800  503977 /sbin/agetty -o -p -- \u --keep-baud 115200,57600,38400,9600 - vt220
+    813  503977 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+    816  503977 /usr/sbin/rsyslogd -n -iNONE
+    822  503977 /usr/sbin/ModemManager
+    823  503977 /sbin/agetty -o -p -- \u --noclear - linux
+    932  503963 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+   4028  501845 /usr/libexec/fwupd/fwupd
+   4406  485404 [kworker/R-tls-s]
+  75283  263871 [psimon]
+  75285  263871 /usr/lib/systemd/systemd --user
+  75286  263871 (sd-pam)
+ 235326  101130 [kworker/1:0-events]
+ 240241   18095 [kworker/0:1-events]
+ 240477    4895 [kworker/2:3-cgroup_release]
+ 240519    2504 [kworker/2:1-inet_frag_wq]
+ 240527    1895 [kworker/0:0-cgroup_free]
+ 240528    1834 [kworker/u8:3-events_unbound]
+ 240540    1325 [kworker/1:2-events]
+ 240541    1320 [kworker/u8:0-events_power_efficient]
+ 240543    1295 [kworker/3:0-events]
+ 240555     704 [kworker/3:3-cgroup_free]
+ 240556     699 [kworker/u8:2-events_freezable_power_]
+ 240570      95 [kworker/3:1]
+ 240571      95 [kworker/3:2-cgroup_release]
+ 240572      90 [kworker/u8:1-flush-253:0]
+ 240694      50 [kworker/0:2]
+ 240700      50 [kworker/2:0-rcu_gp]
+ 240943      45 /home/bench/cgo testbedsrv -http 10.30.0.2:8081 -bulk 10.30.0.2:5201
+ 241016       0 sshd: bench [priv]
+ 241067       0 sshd: bench@notty
+ 241068       0 ps -eo pid,etimes,args
+exit=0
+
+$ ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'ls -la /home/bench/bench-data'
+total 296
+drwxr-xr-x 67 root  root   4096 Nov 24 15:17 .
+drwxr-x--- 13 bench bench 12288 Nov 24 15:14 ..
+-rw-r--r--  1 root  root      0 Nov 16 21:29 ..lock
+-rw-r--r--  1 root  root      0 Nov 16 22:11 .run-1794853778.lock.stale-20261116
+-rw-r--r--  1 root  root   5960 Nov 19 22:52 audit_report.json
+-rw-r--r--  1 root  root   2819 Nov 19 22:52 audit_report.md
+drwxr-xr-x 13 root  root   4096 Nov 19 22:52 audits
+drwxr-xr-x  2 root  root   4096 Nov 17 03:59 diag-both-fg
+-rw-r--r--  1 root  root   4143 Nov 19 22:52 link_audit.csv
+drwxr-xr-x  2 root  root   4096 Nov 15 23:41 run-1794775260
+drwxr-xr-x  2 root  root   4096 Nov 15 23:41 run-1794775290
+drwxr-xr-x  2 root  root   4096 Nov 15 23:57 run-1794776061
+drwxr-xr-x  2 root  root   4096 Nov 16 00:02 run-1794776358
+drwxr-xr-x  2 root  root   4096 Nov 16 00:07 run-1794776677
+drwxr-xr-x  2 root  root   4096 Nov 16 06:32 run-1794798866
+drwxr-xr-x  2 root  root   4096 Nov 16 21:17 run-1794852860
+drwxr-xr-x  2 root  root   4096 Nov 16 21:24 run-1794853298
+drwxr-xr-x  2 root  root   4096 Nov 16 22:52 run-1794853778
+drwxr-xr-x  2 root  root   4096 Nov 16 23:25 run-1794860405
+drwxr-xr-x  2 root  root   4096 Nov 16 23:39 run-1794861247
+drwxr-xr-x  2 root  root   4096 Nov 17 03:26 run-1794862046
+drwxr-xr-x  2 root  root   4096 Nov 17 03:50 run-1794875529
+drwxr-xr-x  2 root  root   4096 Nov 17 04:03 run-1794876850
+drwxr-xr-x  2 root  root   4096 Nov 17 04:01 run-1794877014
+drwxr-xr-x  2 root  root   4096 Nov 17 04:01 run-1794877230
+drwxr-xr-x  2 root  root   4096 Nov 17 04:21 run-1794877413
+drwxr-xr-x  2 root  root   4096 Nov 17 04:44 run-1794878770
+drwxr-xr-x  2 root  root   4096 Nov 17 05:05 run-1794880033
+drwxr-xr-x  2 root  root   4096 Nov 17 05:26 run-1794881292
+drwxr-xr-x  2 root  root   4096 Nov 17 05:48 run-1794882626
+drwxr-xr-x  2 root  root   4096 Nov 17 06:09 run-1794883891
+drwxr-xr-x  2 root  root   4096 Nov 17 06:31 run-1794885178
+drwxr-xr-x  2 root  root   4096 Nov 17 06:43 run-1794886441
+drwxr-xr-x  2 root  root   4096 Nov 17 09:10 run-1794895306
+drwxr-xr-x  2 root  root   4096 Nov 17 09:23 run-1794896065
+drwxr-xr-x  2 root  root   4096 Nov 17 09:55 run-1794896712
+drwxr-xr-x  2 root  root   4096 Nov 17 11:08 run-1794900710
+drwxr-xr-x  2 root  root   4096 Nov 19 14:25 run-1795087328
+drwxr-xr-x  2 root  root   4096 Nov 22 17:48 run-1795345725
+drwxr-xr-x  2 root  root   4096 Nov 22 18:12 run-1795359261
+drwxr-xr-x  2 root  root   4096 Nov 22 18:50 run-1795360439
+drwxr-xr-x  2 root  root   4096 Nov 22 19:14 run-1795362990
+drwxr-xr-x  2 root  root   4096 Nov 22 20:17 run-1795366728
+drwxr-xr-x  2 root  root   4096 Nov 22 21:20 run-1795370548
+drwxr-xr-x  2 root  root   4096 Nov 22 22:23 run-1795374294
+drwxr-xr-x  2 root  root   4096 Nov 22 23:25 run-1795378024
+drwxr-xr-x  2 root  root   4096 Nov 23 00:14 run-1795380949
+drwxr-xr-x  2 root  root   4096 Nov 23 00:36 run-1795382268
+drwxr-xr-x  2 root  root   4096 Nov 23 13:24 run-1795429270
+drwxr-xr-x  2 root  root   4096 Nov 23 13:28 run-1795429528
+drwxr-xr-x  2 root  root   4096 Nov 23 13:31 run-1795429865
+drwxr-xr-x  2 root  root   4096 Nov 23 14:02 run-1795431568
+drwxr-xr-x  2 root  root   4096 Nov 23 14:08 run-1795431920
+drwxr-xr-x  2 root  root   4096 Nov 23 20:16 run-1795454014
+drwxr-xr-x  2 root  root   4096 Nov 23 20:22 run-1795454385
+drwxr-xr-x  2 root  root   4096 Nov 23 20:38 run-1795454981
+drwxr-xr-x  2 root  root   4096 Nov 23 20:49 run-1795455597
+drwxr-xr-x  2 root  root   4096 Nov 23 21:07 run-1795456726
+drwxr-xr-x  2 root  root   4096 Nov 23 21:17 run-1795457310
+drwxr-xr-x  2 root  root   4096 Nov 23 21:35 run-1795458711
+drwxr-xr-x  2 root  root   4096 Nov 24 09:40 run-1795500982
+drwxr-xr-x  2 root  root   4096 Nov 24 10:10 run-1795502736
+drwxr-xr-x  2 root  root   4096 Nov 24 11:10 run-1795507817
+drwxr-xr-x  2 root  root   4096 Nov 24 11:13 run-1795507837
+drwxr-xr-x  2 root  root   4096 Nov 24 11:21 run-1795508506
+drwxr-xr-x  2 root  root   4096 Nov 24 11:35 run-1795509122
+drwxr-xr-x  2 root  root   4096 Nov 24 11:45 run-1795509754
+drwxr-xr-x  2 root  root   4096 Nov 24 11:55 run-1795510344
+drwxr-xr-x  2 root  root   4096 Nov 24 12:21 run-1795511547
+drwxr-xr-x  2 root  root   4096 Nov 24 13:39 run-1795516553
+drwxr-xr-x  2 root  root   4096 Nov 24 15:09 run-1795521988
+drwxr-xr-x  2 root  root   4096 Nov 24 15:17 run-1795522476
+exit=0

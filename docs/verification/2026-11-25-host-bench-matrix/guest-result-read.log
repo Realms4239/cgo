@@ -1,0 +1,174 @@
+ALLOW  ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'ls -la /home/bench/bench-data/run-20261125-matrix-1'
+ALLOW  ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'cat /home/bench/bench-data/run-20261125-matrix-1/aqm_eval.csv'
+ALLOW  ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'cat /home/bench/bench-data/run-20261125-matrix-1/quarantine.json'
+ALLOW  ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'ps -eo pid,etimes,args'
+$ ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'ls -la /home/bench/bench-data/run-20261125-matrix-1'
+total 20
+drwxr-xr-x  2 root root 4096 Nov 25 20:28 .
+drwxr-xr-x 68 root root 4096 Nov 25 20:28 ..
+-rw-r--r--  1 root root 3080 Nov 25 20:28 aqm_eval.csv
+-rw-r--r--  1 root root 1110 Nov 25 20:28 manifest.json
+-rw-r--r--  1 root root 1851 Nov 25 20:28 valuation.json
+exit=0
+
+$ ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'cat /home/bench/bench-data/run-20261125-matrix-1/aqm_eval.csv'
+run_id,event_id,profile,qdisc,cc,direction,repetition,rtt_p50_ms,rtt_p95_ms,qdi_ms,voip_r,jfi_pct,small_p95_ms,deadline_ok_pct,bulk_goodput_mbps,drops,retransmissions,wasted_bytes,cost_ar_per_h,cpu_pct,rtt_base_p50_ms,rtt_base_p95_ms,gate_status
+run-20261125-matrix-1,1,P1,cake,cubic,down,1,20.1,22.9,2.8,92.9,100.0,31.1,100.0,73.0,0,0,0,0.00,9.9,20.4,22.7,valid
+run-20261125-matrix-1,2,P1,cake,cubic,down,2,20.1,22.8,2.8,92.9,100.0,30.9,100.0,72.5,0,0,0,0.00,9.0,20.3,23.7,valid
+run-20261125-matrix-1,3,P1,cake,cubic,down,3,20.2,23.0,2.8,92.9,100.0,31.1,100.0,72.8,0,0,0,0.00,9.2,20.3,23.4,valid
+run-20261125-matrix-1,4,P1,cake,bbr,down,1,20.3,22.9,2.6,92.9,100.0,31.6,100.0,75.2,0,0,0,0.00,5.0,20.2,23.0,valid
+run-20261125-matrix-1,5,P1,cake,bbr,down,2,20.3,22.8,2.5,92.9,100.0,31.6,100.0,75.2,0,0,0,0.00,5.6,20.4,23.0,valid
+run-20261125-matrix-1,6,P1,cake,bbr,down,3,20.1,22.9,2.8,92.9,100.0,32.1,100.0,75.2,0,0,0,0.00,4.5,20.3,22.8,valid
+run-20261125-matrix-1,7,P2,cake,cubic,down,1,101.0,120.0,19.0,91.3,59.4,205.4,96.4,4.4,0,0,0,0.00,3.9,99.1,120.3,valid
+run-20261125-matrix-1,8,P2,cake,cubic,down,2,101.0,120.0,19.0,91.3,55.2,260.1,92.7,2.8,0,0,0,0.00,6.3,99.2,124.0,valid
+run-20261125-matrix-1,9,P2,cake,cubic,down,3,101.0,120.0,19.0,91.3,73.6,211.0,95.5,5.0,0,0,0,0.00,8.8,99.1,119.0,valid
+run-20261125-matrix-1,10,P2,cake,bbr,down,1,99.8,122.0,22.2,91.2,100.0,287.6,84.0,17.8,0,0,0,0.00,4.5,102.0,119.1,valid
+run-20261125-matrix-1,11,P2,cake,bbr,down,2,100.0,121.0,21.0,91.2,47.0,209.2,95.5,15.6,0,0,0,0.00,7.7,101.0,118.3,valid
+run-20261125-matrix-1,12,P2,cake,bbr,down,3,101.0,121.0,20.0,91.2,77.1,277.2,88.9,17.3,0,0,0,0.00,3.6,100.0,119.5,valid
+run-20261125-matrix-1,13,P3,cake,cubic,down,1,602.0,641.0,39.0,71.1,97.5,1273.2,0.0,0.2,0,0,0,0.00,6.3,606.0,640.9,valid
+run-20261125-matrix-1,14,P3,cake,cubic,down,2,601.0,644.0,43.0,71.1,95.2,1603.7,0.0,0.1,0,0,0,0.00,6.3,601.0,638.4,valid
+run-20261125-matrix-1,15,P3,cake,cubic,down,3,603.0,642.5,39.5,71.1,96.9,1359.6,0.0,0.2,0,0,0,0.00,6.3,602.0,639.0,valid
+run-20261125-matrix-1,16,P3,cake,bbr,down,1,597.0,637.1,40.0,71.4,97.4,1456.6,0.0,0.5,0,0,0,0.00,6.3,605.0,646.2,valid
+run-20261125-matrix-1,17,P3,cake,bbr,down,2,600.0,641.5,41.5,71.2,89.3,2068.7,0.0,0.6,0,0,0,0.00,5.0,606.0,644.1,valid
+run-20261125-matrix-1,18,P3,cake,bbr,down,3,599.0,641.8,42.8,71.2,84.2,1567.1,0.0,0.6,0,0,0,0.00,5.1,593.0,650.1,valid
+run-20261125-matrix-1,19,P4,cake,cubic,down,1,40.9,66.6,25.7,92.0,98.1,96.5,100.0,19.9,0,0,0,0.00,3.9,44.3,65.8,valid
+run-20261125-matrix-1,20,P4,cake,cubic,down,2,39.8,69.1,29.3,91.9,97.8,121.1,98.4,20.9,0,0,0,0.00,4.4,43.6,69.8,valid
+run-20261125-matrix-1,21,P4,cake,cubic,down,3,40.8,67.5,26.7,91.9,96.2,96.4,99.2,17.7,0,0,0,0.00,8.9,40.0,64.9,valid
+run-20261125-matrix-1,22,P4,cake,bbr,down,1,42.0,67.6,25.6,91.9,96.3,137.5,97.6,25.7,0,0,0,0.00,4.6,40.9,69.3,valid
+run-20261125-matrix-1,23,P4,cake,bbr,down,2,42.1,69.2,27.1,91.9,97.9,106.8,98.4,25.4,0,0,0,0.00,5.2,37.2,67.4,valid
+run-20261125-matrix-1,24,P4,cake,bbr,down,3,40.1,66.4,26.3,92.0,62.5,114.1,99.2,12.7,0,0,0,0.00,5.0,41.8,66.8,valid
+exit=0
+
+$ ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'cat /home/bench/bench-data/run-20261125-matrix-1/quarantine.json'
+(no stdout)
+stderr: cat: /home/bench/bench-data/run-20261125-matrix-1/quarantine.json: No such file or directory
+exit=1
+
+$ ssh -i /home/sadc/labo-cgo/bench-key-600 -o UserKnownHostsFile=/home/sadc/labo-cgo/bench-known-hosts -p 10022 bench@127.0.0.1 'ps -eo pid,etimes,args'
+    PID ELAPSED COMMAND
+      1  508718 /sbin/init
+      2  508718 [kthreadd]
+      3  508718 [pool_workqueue_release]
+      4  508718 [kworker/R-rcu_g]
+      5  508718 [kworker/R-rcu_p]
+      6  508718 [kworker/R-slub_]
+      7  508718 [kworker/R-netns]
+     10  508718 [kworker/0:0H-kblockd]
+     12  508718 [kworker/R-mm_pe]
+     13  508718 [rcu_tasks_kthread]
+     14  508718 [rcu_tasks_rude_kthread]
+     15  508718 [rcu_tasks_trace_kthread]
+     16  508718 [ksoftirqd/0]
+     17  508718 [rcu_preempt]
+     18  508718 [migration/0]
+     19  508718 [idle_inject/0]
+     20  508718 [cpuhp/0]
+     21  508718 [cpuhp/1]
+     22  508718 [idle_inject/1]
+     23  508718 [migration/1]
+     24  508718 [ksoftirqd/1]
+     26  508718 [kworker/1:0H-events_highpri]
+     27  508718 [cpuhp/2]
+     28  508718 [idle_inject/2]
+     29  508718 [migration/2]
+     30  508718 [ksoftirqd/2]
+     32  508718 [kworker/2:0H-events_highpri]
+     33  508718 [cpuhp/3]
+     34  508718 [idle_inject/3]
+     35  508718 [migration/3]
+     36  508718 [ksoftirqd/3]
+     38  508718 [kworker/3:0H-kblockd]
+     39  508718 [kdevtmpfs]
+     40  508718 [kworker/R-inet_]
+     41  508717 [kauditd]
+     42  508717 [khungtaskd]
+     43  508717 [oom_reaper]
+     45  508717 [kworker/R-write]
+     47  508717 [kcompactd0]
+     48  508717 [ksmd]
+     50  508717 [khugepaged]
+     51  508717 [kworker/R-kinte]
+     52  508717 [kworker/R-kbloc]
+     53  508717 [kworker/R-blkcg]
+     54  508717 [irq/9-acpi]
+     56  508717 [kworker/R-tpm_d]
+     57  508717 [kworker/R-ata_s]
+     58  508717 [kworker/R-md]
+     59  508717 [kworker/R-md_bi]
+     60  508717 [kworker/R-edac-]
+     61  508717 [kworker/R-devfr]
+     62  508717 [watchdogd]
+     64  508717 [kworker/R-quota]
+     65  508717 [kworker/2:1H-kblockd]
+     66  508717 [kswapd0]
+     67  508717 [ecryptfs-kthread]
+     68  508717 [kworker/R-kthro]
+     69  508717 [kworker/R-acpi_]
+     70  508717 [scsi_eh_0]
+     71  508717 [kworker/R-scsi_]
+     72  508717 [scsi_eh_1]
+     73  508717 [kworker/R-scsi_]
+     77  508717 [kworker/R-mld]
+     78  508717 [kworker/1:1H-kblockd]
+     79  508717 [kworker/R-ipv6_]
+     86  508717 [kworker/R-kstrp]
+     88  508717 [kworker/u9:0]
+     89  508717 [kworker/3:1H]
+     94  508717 [kworker/R-crypt]
+    105  508716 [kworker/R-charg]
+    215  508715 [kworker/R-raid5]
+    256  508714 [jbd2/vda1-8]
+    257  508714 [kworker/R-ext4-]
+    330  508713 /usr/lib/systemd/systemd-journald
+    349  508713 [kworker/R-kmpat]
+    350  508713 [kworker/R-kmpat]
+    375  508713 /sbin/multipathd -d -s
+    392  508713 /usr/lib/systemd/systemd-udevd
+    400  508713 [psimon]
+    470  508712 [jbd2/vda16-8]
+    471  508712 [kworker/R-ext4-]
+    557  508712 /usr/lib/systemd/systemd-resolved
+    566  508712 /usr/lib/systemd/systemd-timesyncd
+    643  508711 [kworker/0:2H]
+    651  508710 /usr/lib/systemd/systemd-networkd
+    746  508707 /usr/sbin/cron -f -P
+    747  508707 @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+    751  508707 /usr/lib/polkit-1/polkitd --no-debug
+    758  508707 /usr/lib/systemd/systemd-logind
+    762  508707 /usr/libexec/udisks2/udisksd
+    800  508706 /sbin/agetty -o -p -- \u --keep-baud 115200,57600,38400,9600 - vt220
+    813  508706 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+    816  508706 /usr/sbin/rsyslogd -n -iNONE
+    822  508706 /usr/sbin/ModemManager
+    823  508706 /sbin/agetty -o -p -- \u --noclear - linux
+    932  508692 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+   4028  506574 /usr/libexec/fwupd/fwupd
+   4406  490133 [kworker/R-tls-s]
+  75283  268600 [psimon]
+  75285  268600 /usr/lib/systemd/systemd --user
+  75286  268600 (sd-pam)
+ 235326  105859 [kworker/1:0-cgroup_free]
+ 240477    9624 [kworker/2:3-cgroup_free]
+ 240540    6054 [kworker/1:2-events]
+ 240943    4774 /home/bench/cgo testbedsrv -http 10.30.0.2:8081 -bulk 10.30.0.2:5201
+ 246622    3634 [kworker/0:3-events]
+ 248827    3228 [kworker/u8:0-events_unbound]
+ 252640    2435 [kworker/3:3-events]
+ 254299    1833 [kworker/0:1-cgroup_free]
+ 254784    1630 [kworker/u8:1-events_unbound]
+ 255788    1235 [kworker/3:2-events]
+ 256889    1034 [kworker/u8:2-events_unbound]
+ 259099     634 [kworker/2:1-cgroup_free]
+ 261190     255 [kworker/u8:3-events_power_efficient]
+ 261724     153 [kworker/0:0-cgroup_free]
+ 261733      24 [kworker/1:1]
+ 261734      24 [kworker/1:3-cgroup_release]
+ 261841       1 [kworker/2:0]
+ 261948       0 sshd: bench [priv]
+ 261999       0 sshd: bench@notty
+ 262000       0 ps -eo pid,etimes,args
+exit=0
+
+evidence: C:\WEBSERVER\evidence\20261125-173036-write-window.txt
+sha256:   593bbb5214f3bf4c967f075b45e5a94aab44b6302a2540759d6a267de7620823
+FAILED: tuple contract not met (len or exit code); run FAILED
