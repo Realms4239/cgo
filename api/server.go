@@ -485,9 +485,10 @@ func NewServer(d Deps) *Server {
 }
 
 // ServeHTTP — le serveur EST son handler. Ordre : authentification de bord sur
-// /api/* (401 avant le mux), puis limite de débit par principal en enveloppe
-// du mux (429 + Retry-After), puis le mux et ses gardes de propriété (403).
-// La logique des handlers n'est pas modifiée : seule l'enveloppe du mux change.
+// /api/* (401 avant le mux), puis garde de propriété (403), puis limite de débit
+// par principal sur /api/* seulement (429 + Retry-After). Les autres chemins
+// vont directement au mux. La logique des handlers n'est pas modifiée : seul le
+// ciblage du limiteur change.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 	if strings.HasPrefix(p, "/api/") && p != "/api/health" && p != "/api/login" && p != "/api/logout" {
@@ -505,7 +506,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s.limited.ServeHTTP(w, r)
+	if strings.HasPrefix(p, "/api/") {
+		s.limited.ServeHTTP(w, r)
+		return
+	}
+	// Les chemins non-API (SPA, statiques, /metrics) vont droit au mux :
+	// ils ne consomment pas le seau de lecture du limiteur.
+	s.mux.ServeHTTP(w, r)
 }
 
 // registerAuth — connexion navigateur : login pose un cookie de session
