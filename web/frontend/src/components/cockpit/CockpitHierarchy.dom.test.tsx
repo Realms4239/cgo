@@ -56,4 +56,10 @@ describe('cockpit — hiérarchie et rythme partagés', () => {
     expect(components).toContain('.answer-sentence { font: var(--cockpit-font-value);')
     expect(components).toContain('.health-label { font: var(--cockpit-font-label);')
   })
+  it('la colonne de décision utilise le rythme partagé et un seul filet', () => {
+    const components = css('components.css')
+    expect(components).toContain('.decision-spine { display: flex; flex-direction: column; gap: var(--cockpit-rhythm); }')
+    expect(components).toContain('.answer-facts .state-slot { min-height: 72px; border-top: 1px solid var(--hairline-faint); padding-top: var(--cockpit-rhythm); }')
+    expect(components).toContain('.act-slot { display: flex; flex-direction: column; gap: var(--cockpit-rhythm); border-top: 1px solid var(--hairline); padding-top: var(--sp-3); }')
+  })
 })

@@ -79,15 +79,15 @@
 /* ── DecisionSpine — une réponse, un état d'action, une entrée de preuve ──
    Le mot porte le jugement ; la couleur ne fait que l'accompagner. Les règles
    vivent ici, pas dans index.css, feuille du shell. */
-.spine-view { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
-.decision-spine { display: flex; flex-direction: column; gap: var(--sp-4); }
+.spine-view { display: flex; flex-direction: column; gap: var(--cockpit-rhythm); min-width: 0; }
+.decision-spine { display: flex; flex-direction: column; gap: var(--cockpit-rhythm); }
 .answer-band-stacked { display: contents; }
 /* Le bandeau compact vit dans .answer-band ; ces trois enveloppes restent
    transparentes à la disposition jusqu'à 1023 px, où elles deviennent le
    bandeau. Une seule source de vérité, aucun second mot de verdict. */
 .band-lead { display: contents; }
 .band-signals, .band-controls { display: none; }
-.answer-band { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4) 0; border-bottom: 1px solid var(--hairline-faint); }
+.answer-band { display: flex; flex-direction: column; gap: var(--cockpit-rhythm); padding: var(--sp-4) 0; border-bottom: 1px solid var(--hairline-faint); }
 .answer-word { font: var(--cockpit-font-hero); display: flex; align-items: center; gap: var(--sp-3); color: var(--text-primary); margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
 .answer-word[data-state="absent"] { color: var(--text-faint); }
 /* Le point suit le centre optique du mot, pas le centre géométrique de la boîte. */
@@ -106,12 +106,12 @@
 .kernel-evidence { display: flex; flex-wrap: wrap; flex-basis: 100%; gap: 0 var(--sp-3); min-width: 0; }
 .kernel-evidence-line { font: 400 var(--fs-micro)/1.3 var(--font-mono); color: var(--text-muted); font-variant-numeric: tabular-nums; text-wrap: pretty; }
 .answer-facts { min-width: 0; }
-.answer-facts .state-slot { min-height: 72px; border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
-.act-slot { display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--hairline); padding-top: var(--sp-3); }
+.answer-facts .state-slot { min-height: 72px; border-top: 1px solid var(--hairline-faint); padding-top: var(--cockpit-rhythm); }
+.act-slot { display: flex; flex-direction: column; gap: var(--cockpit-rhythm); border-top: 1px solid var(--hairline); padding-top: var(--sp-3); }
 .act-sentence { font: 400 var(--fs-body)/1.5 var(--font-ui); color: var(--text-body); max-width: 68ch; margin: 0; text-wrap: pretty; }
 .act-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .act-slot [role="status"] { font: 500 var(--fs-label) var(--font-ui); color: var(--t-threshold); margin: 0; }
-.proof-slot { border-top: 1px solid var(--hairline-faint); padding-top: var(--sp-2); }
+.proof-slot { border-top: 1px solid var(--hairline-faint); padding-top: var(--cockpit-rhythm); }
 /* ── Bandeau compact §1.4 — sous 1024 px la pile entière ne tient pas : le
    verdict se replie en une barre épinglée sous la coque. Un mot (32 px), un
    chiffre, un mot d'état, PREUVE ; les quatre faits derrière « 4 faits ▾ ». */
