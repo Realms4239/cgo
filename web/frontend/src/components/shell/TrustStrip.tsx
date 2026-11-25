@@ -18,7 +18,7 @@ interface Slot {
 }
 
 // Miroir de VERSION à la racine ; à resynchroniser lors d'un bump.
-const VERSION = '2.0.0-rc.1'
+const VERSION = '2.0.0'
 
 const word = (value: string | null | undefined): string =>
   value == null || value === '' ? 'ABSENT' : value
