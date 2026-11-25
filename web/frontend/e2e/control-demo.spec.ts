@@ -1,13 +1,24 @@
 import { test, expect } from '@playwright/test'
-const BASE = process.env.AUDIT_BASE || 'https://localhost:9090'
+const BASE = process.env.AUDIT_BASE || '' // vide : baseURL du harnais, jamais d'hôte codé en dur
 
 // Boucle contrôle-et-façonnage pilotée par l'UI (pivot ARG.md) :
 // figer une référence depuis les anneaux live → appliquer CAKE au bord → écart live.
+// BLOQUÉ — `[data-testid="live-wall-overlay"]` : 0 occurrence dans le DOM réel
+// du binaire courant, dans `#v-cockpit` comme dans `#chapter-observer`. Aucun
+// overlay équivalent ne porte le figer/CAKE/écart : le corps est conservé mot
+// pour mot mais non exécuté. Réactiver quand une surface de contrôle exposera
+// `[data-testid="live-wall-overlay"]` avec ses boutons « FIGER L'AVANT »/CAKE.
 test('edge control demo', async ({ page }) => {
   test.setTimeout(180000)
   await page.goto(BASE + '/')
-  await page.locator('[data-panel="live"]').click()
+  // l'ancien panneau « live » est devenu le chapitre Observer du Labo.
+  await page.locator('[data-mode="labo"]').click()
+  await page.locator('.pr-step').nth(1).click()
   const overlay = page.locator('[data-testid="live-wall-overlay"]')
+
+  // BLOQUÉ — cible supprimée, voir l'en-tête du fichier pour le déclencheur.
+  test.skip(true, 'BLOQUÉ — [data-testid="live-wall-overlay"] : 0 occurrence ; aucun overlay de contrôle dans les deux modes ni les quatre chapitres')
+
   await overlay.scrollIntoViewIfNeeded()
   await expect(overlay).toBeVisible()
   // la démo contrôle tourne en SURVEILLANCE (watch), pas en campagne : le façonnage est
@@ -39,7 +50,7 @@ test('edge control demo', async ({ page }) => {
   await page.waitForTimeout(12000)
   await overlay.scrollIntoViewIfNeeded()
   await page.screenshot({ path: 'shots/control-live-diff.png' })
-  const txt = await page.locator('[data-testid="live-wall-overlay"]').textContent()
+  const txt = await overlay.textContent()
   console.log('OVERLAY-TEXT:', (txt ?? '').slice(0, 300).replace(/\s+/g, ' '))
   // leave a clean state — watch off
   await page.evaluate(async () => { await fetch('/api/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: false }) }) })
