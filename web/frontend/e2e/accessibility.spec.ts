@@ -65,7 +65,8 @@ test('absent evidence cannot render green proof language', async ({ page }) => {
 
   await page.locator('.proof-close').click()
   await expect(drawer).toHaveCount(0)
-  await page.locator('#chapter-preuves .archive-table').getByRole('button', { name: 'CITER' }).click()
+  // Le td archive-actions intercepte le pointeur : activation clavier, comme pour « Ouvrir ».
+  await page.locator('#chapter-preuves .archive-table').getByRole('button', { name: 'CITER' }).press('Enter')
   await expect(page.locator('#chapter-preuves .archive-citation'))
     .toHaveText('citation impossible — empreinte source absente')
 })

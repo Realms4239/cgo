@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-const BASE = process.env.AUDIT_BASE || 'https://localhost:9090'
+const BASE = process.env.AUDIT_BASE || '' // vide : baseURL du harnais, jamais d'hôte codé en dur
 
 // Multi-profondeur : chaque action d'interface est instrumentée — requête API
 // observée, erreur console capturée, état vérifié APRÈS l'action. La preuve
@@ -169,7 +169,10 @@ test('10. mobile 390 — bento 1 col, pas de déborde horizontal', async ({ page
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(BASE + '/')
   await page.waitForTimeout(800)
-  await page.locator('[data-panel="live"]').click()
+  await page.locator('[data-mode="labo"]').click()
+  await expect(page.locator('.labo-view')).toBeVisible()
+  await page.locator('.pr-step').nth(1).click() // Observer : la vue live du banc
+  await expect(page.locator('#chapter-observer')).toHaveAttribute('data-active', 'true')
   await page.waitForTimeout(600)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(overflow).toBeLessThanOrEqual(2)

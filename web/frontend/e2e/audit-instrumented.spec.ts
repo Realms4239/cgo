@@ -1,12 +1,10 @@
-// audit-instrumented.spec.ts — audit passif : console, réseau, 4xx/5xx, sur les 4 vues.
+// audit-instrumented.spec.ts — audit passif : console, réseau, 4xx/5xx, sur les deux destinations.
 // Ne modifie rien, n'échoue que sur de vraies erreurs frontend (pas les 501 attendues en mode observe).
 import { test, expect } from '@playwright/test';
 
-const VIEWS = [
-  { nav: 'Campagne', id: '#v-campagne' },
-  { nav: 'Tableau live', id: '#v-live' },
-  { nav: 'Résultats', id: '#v-resultats' },
-  { nav: 'Provenance & archives', id: '#v-integrite' },
+const DESTINATIONS = [
+  { mode: 'cockpit', view: '#v-cockpit' },
+  { mode: 'labo', view: '.labo-view' },
 ] as const;
 
 test('audit: les 4 vues sans erreur console ni requête échouée', async ({ page }) => {
@@ -35,15 +33,17 @@ test('audit: les 4 vues sans erreur console ni requête échouée', async ({ pag
   });
 
   await page.goto('/');
-  await expect(page.locator('header')).toContainText('connecté', { timeout: 8000 });
+  // Le chrome dit l'état de liaison par un mot : EN LIGNE ou HORS LIGNE, jamais « connecté ».
+  await expect(page.locator('[data-slot="connection"] .trust-word'))
+    .toHaveText(/EN LIGNE|HORS LIGNE/, { timeout: 8000 });
 
-  for (const v of VIEWS) {
-    await page.getByLabel('Navigation').getByRole('button', { name: v.nav }).click();
-    await expect(page.locator(v.id)).toBeVisible();
+  for (const d of DESTINATIONS) {
+    await page.locator(`[data-mode="${d.mode}"]`).click();
+    await expect(page.locator(d.view)).toBeVisible();
     await page.waitForTimeout(1200); // laisser SSE + requêtes se dérouler
   }
 
-  // Retour au dashboard réel : filtrer le bruit de test environment
+  // Retour aux destinations réelles : filtrer le bruit de test environment
   const realErrors = consoleErrors.filter((e) =>
     !e.includes('favicon') && !e.includes('ERR_CONNECTION_REFUSED'));
   if (realErrors.length) console.log('CONSOLE ERRORS:\n' + realErrors.join('\n---\n'));
