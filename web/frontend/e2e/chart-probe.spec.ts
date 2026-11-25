@@ -1,35 +1,42 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator } from '@playwright/test'
 
-// Sonde santé graphes — chaque surface se rend, zéro erreur console,
+// Sonde santé graphes — chaque surface vivante se rend, zéro erreur console,
 // les coutures d'instrumentation rapportent le flux. Journal après-debug (plan §5).
+// Les trois canvases du mur supprimé sont devenus un champ temporel partagé
+// par destination : Synthèse et Labo/Observer chacun leur canvas ECharts.
 
 const errors: string[] = []
 
-test('wall — 3 ECharts canvases render non-blank + seams + no console errors', async ({ page }) => {
+async function nonBlank(canvas: Locator): Promise<boolean> {
+  return canvas.evaluate((c: HTMLCanvasElement) => {
+    try {
+      const ctx = c.getContext('2d')
+      if (!ctx || c.width === 0 || c.height === 0) return false
+      const d = ctx.getImageData(0, 0, c.width, c.height).data
+      for (let p = 3; p < d.length; p += 40) if (d[p] !== 0) return true
+      return false
+    } catch { return false }
+  })
+}
+
+test('surfaces — each live ECharts canvas renders non-blank + seams + no console errors', async ({ page }) => {
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
   page.on('pageerror', e => errors.push(String(e)))
   await page.goto('/')
-  await page.locator('[data-panel="live"]').click()
-  await page.waitForTimeout(2500)
 
-  // 3 graphes grammaire (hero + rtt + goodput) rendent chacun un canvas avec pixels visibles
-  const canvases = page.locator('#wall canvas')
-  const n = await canvases.count()
-  expect(n, 'wall canvas count').toBeGreaterThanOrEqual(3)
-  let nonBlank = 0
-  for (let i = 0; i < n; i++) {
-    const ok = await canvases.nth(i).evaluate((c: HTMLCanvasElement) => {
-      try {
-        const ctx = c.getContext('2d')
-        if (!ctx || c.width === 0 || c.height === 0) return false
-        const d = ctx.getImageData(0, 0, Math.min(c.width, 400), Math.min(c.height, 200)).data
-        for (let p = 3; p < d.length; p += 40) if (d[p] !== 0) return true
-        return false
-      } catch { return false }
-    })
-    if (ok) nonBlank++
-  }
-  expect(nonBlank, 'non-blank chart canvases').toBeGreaterThanOrEqual(3)
+  // Synthèse : son champ temporel est monté au premier rendu.
+  const synth = page.locator('#v-cockpit .time-field canvas')
+  await expect(synth).toHaveCount(1)
+  await page.waitForTimeout(2500)
+  expect(await nonBlank(synth), 'synthèse canvas non-blank').toBe(true)
+
+  // Labo/Observer : le même instrument est monté à la visite du chapitre.
+  await page.locator('[data-mode="labo"]').click()
+  await page.locator('.pr-step').nth(1).click()
+  const observe = page.locator('#chapter-observer .time-field canvas')
+  await expect(observe).toHaveCount(1)
+  // le chapitre vient d'être monté : ECharts amorce la grille puis se redimensionne
+  await expect.poll(() => nonBlank(observe), { timeout: 8000 }).toBe(true)
 
   // les coutures d'instrumentation exposent le chemin live
   const seam = await page.evaluate(() => ({
@@ -43,10 +50,16 @@ test('wall — 3 ECharts canvases render non-blank + seams + no console errors',
   expect(errors, 'console/page errors').toEqual([])
 })
 
-test('resultats — scatter canvas renders non-blank with real groups', async ({ page }) => {
+// BLOQUÉ — cibles supprimées par la refonte deux destinations :
+// `[data-testid="rank-verdict"]` : 0 occurrence dans le DOM réel ;
+// `.panel-stack` : 0 occurrence ; aucun canvas de dispersion dans
+// `#chapter-comparer` (qui rend `.rank-table`, sans ECharts).
+// Assertion conservée mot pour mot, non exécutée. Voir task-1-report.md.
+test.skip('resultats — scatter canvas renders non-blank with real groups', async ({ page }) => {
   page.on('pageerror', e => errors.push(String(e)))
   await page.goto('/')
-  await page.locator('[data-panel="resultats"]').click()
+  await page.locator('[data-mode="labo"]').click()
+  await page.locator('.pr-step').nth(2).click()
   await expect(page.locator('[data-testid="rank-verdict"]')).toBeVisible()
   const canvas = page.locator('.panel-stack canvas').last()
   await expect(canvas).toHaveCount(1)
@@ -62,14 +75,16 @@ test('resultats — scatter canvas renders non-blank with real groups', async ({
   expect(ok, 'scatter non-blank').toBe(true)
 })
 
-test('campagne — timeline 48 brush present when running phase data exists', async ({ page }) => {
+test('campagne — timeline bands present when running phase data exists', async ({ page }) => {
   await page.goto('/')
-  await page.locator('[data-panel="campagne"]').click()
-  // timeline conditionnée aux données (honnête) : rend soit des bandes SVG soit reste cachée — jamais un bloc vide 48px
-  const tl = page.locator('[data-testid="timeline"]')
-  const count = await tl.count()
-  if (count > 0) {
-    const hasSvg = await tl.locator('svg').count()
-    expect(hasSvg).toBeGreaterThan(0)
+  await page.locator('[data-mode="labo"]').click()
+  await page.locator('.pr-step').nth(1).click()
+  // Timeline conditionnée aux données (honnête) : bandes réelles ou état « absent »,
+  // jamais un bloc vide. L'ancien `[data-testid="timeline"]` est remplacé par
+  // `.labo-timeline` (CampaignTimeline), seul chronomètre monté dans le Labo.
+  const tl = page.locator('#chapter-observer .labo-timeline')
+  await expect(tl).toBeVisible()
+  if (await tl.getAttribute('data-state') !== 'absent') {
+    expect(await tl.locator('.labo-tl-band').count()).toBeGreaterThan(0)
   }
 })
