@@ -1,0 +1,29 @@
+# sadcnwp write window, 20261124-192349 UTC
+# host sadc@41.207.49.27:9922
+# file commands/write-cgo-host-api-test.txt
+# token APPROVED-2026-11-24-cgo-host-api-test.md
+
+# token: Operator approval relayed in chat on 2026-11-24 ("iauthorize") after the root-module run showed that `api` is a separate go.mod and was not exercised. This token scopes only the one write command file named below. It expires 23:59 UTC 2026-11-24.
+# token: Rung: R2
+# token: Class: reversible
+# token: sudo_grant: none. Key auth at ~/.ssh/sadcnwp. No card, no secret in argv, no .env path, no public bind. No service, timer, firewall, sshd, container, config, gate, permit, ledger or OS change. No guard-tool edit; the command stays inside the already-named /home/sadc/labo-cgo/** scope. No live bench cell, no corpus write, no ftp2 contact, no remote PC contact. A refusal is a finding and stops the pass.
+# token: Scope: run `go test -count=1 ./...` inside the already-uploaded `/home/sadc/labo-cgo/cgo-gate-test/src/api` module in the background, writing only api-gate.log and api-gate.exit inside the dedicated directory. No new upload, no extraction, no other module, no write elsewhere.
+# token: Commands (exact file reviewed before the socket opens):
+# token: C:\WEBSERVER\commands\write-cgo-host-api-test.txt
+# token: cd /home/sadc/labo-cgo/cgo-gate-test/src/api && nohup sh -c 'GOTOOLCHAIN=local /home/sadc/labo-cgo/cgo-gate-test/go/bin/go test -count=1 ./... > /home/sadc/labo-cgo/cgo-gate-test/api-gate.log 2>&1; echo $? > /home/sadc/labo-cgo/cgo-gate-test/api-gate.exit' < /dev/null > /dev/null 2>&1 &
+# token: Rollback: written and ready but NOT executed. The only change is two new result files under /home/sadc/labo-cgo/cgo-gate-test/. To roll back, the operator removes exactly that directory: rm -r /home/sadc/labo-cgo/cgo-gate-test . No backup, service or config restore is needed.
+# token: Rehearsal: before the socket opened, same day 2026-11-24 (UTC).
+# token: safe_write.py --selftest exited 0 (951 cases, 541 allowed and 410 refused), recorded earlier the same day.
+# token: Classify-only write-cgo-host-api-test.txt: ALLOW 1 of 1, exit 0, @sha256:e0ba73151dcb23484bd5fb118b901b9255967cb2bd1d0271b10a831dc4ade1d1
+# token: Near-variant rehearsal-cgo-host-api-near-variants.txt (rm of the exit marker and a launch from an unscoped path): REFUSE 2 of 2, exit 1, @sha256:b52dd3317fe628b6d63dfa18e169c49d85b5b85450d2675d5e2bd2669f1d9b34
+# token: Same-day rehearsal string: CGO-HOST-API-TEST rehearsal 2026-11-24.
+# token: Quiet window: one named window, "2026-11-24 CGO-HOST-API-TEST R2", 19:05Z to 23:59Z. One pass only. If the transport drops again, read the result files rather than retrying the launch.
+# token: Second channel: this chat session stays open. Operator name: operator (chat approval 2026-11-24, operator ruling 2026-11-22). Ticket: CGO-HOST-API-TEST.
+# token: Three-state exits: 0 every command ran and returned data, 1 a command ran and returned an error, 2 a command did not run. A guard refusal is a finding, never a reason to widen a permit. Never emit 0 for a skipped or mocked check.
+# token: Approved by: operator (chat approval 2026-11-24, operator ruling 2026-11-22 authorizing task-scoped agent-authored tokens).
+
+$ cd /home/sadc/labo-cgo/cgo-gate-test/src/api && nohup sh -c 'GOTOOLCHAIN=local /home/sadc/labo-cgo/cgo-gate-test/go/bin/go test -count=1 ./... > /home/sadc/labo-cgo/cgo-gate-test/api-gate.log 2>&1; echo $? > /home/sadc/labo-cgo/cgo-gate-test/api-gate.exit' < /dev/null > /dev/null 2>&1 &
+(no stdout)
+stderr:
+transport:
+exit=255

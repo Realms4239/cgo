@@ -1,0 +1,13 @@
+# sadcnwp read window, 20261124-193744 UTC
+# host sadc@41.207.49.27:9922
+
+$ cat /home/sadc/labo-cgo/cgo-gate-test/audit-work.exit
+0
+exit=0
+
+$ cat /home/sadc/labo-cgo/cgo-gate-test/audit-work.log
+ok  	github.com/Realms4239/cgo/audit	39.154s
+?   	github.com/Realms4239/cgo/audit/cmd/cgo-audit	[no test files]
+ok  	github.com/Realms4239/cgo/audit/cmd/typesgen	0.008s
+ok  	github.com/Realms4239/cgo/audit/profile	0.086s
+exit=0

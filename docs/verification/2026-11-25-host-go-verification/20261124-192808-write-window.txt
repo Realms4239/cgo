@@ -1,0 +1,34 @@
+# sadcnwp write window, 20261124-192808 UTC
+# host sadc@41.207.49.27:9922
+# file commands/write-cgo-modules-test.txt
+# token APPROVED-2026-11-24-cgo-modules-test.md
+
+# token: Operator approval relayed in chat on 2026-11-24 ("authorized and approved, proceed") to continue host-side testing after the api module passed. This token scopes only the one write command file named below. It expires 23:59 UTC 2026-11-24.
+# token: Rung: R2
+# token: Class: reversible
+# token: sudo_grant: none. Key auth at ~/.ssh/sadcnwp. No card, no secret in argv, no .env path, no public bind. No service, timer, firewall, sshd, container, config, gate, permit, ledger or OS change. No guard-tool edit; both commands stay inside the already-named /home/sadc/labo-cgo/** scope. No chmod, no live bench cell, no corpus write, no ftp2 contact, no remote PC contact. A refusal is a finding and stops the pass.
+# token: Scope: transfer one small reviewed shell script into the existing dedicated directory and launch it in the background. The script runs `go test -count=1 ./...` in each of the 15 remaining nested modules (attest, audit, capabilities, doctor, exporter, figures, iface, metrics, model, probe, profile, qdisc, remediate, results, runreq) and writes only modules-gate.log and modules-gate.exit inside that directory. No other module, no new upload, no write elsewhere, no rollback execution.
+# token: Commands (exact file reviewed before the socket opens):
+# token: C:\WEBSERVER\commands\write-cgo-modules-test.txt
+# token: sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-modules.sh /home/sadc/labo-cgo/cgo-gate-test/run-cgo-modules.sh
+# token: cd /home/sadc/labo-cgo/cgo-gate-test && nohup sh ./run-cgo-modules.sh < /dev/null > /dev/null 2>&1 &
+# token: Rollback: written and ready but NOT executed. The only host change is three new files under /home/sadc/labo-cgo/cgo-gate-test/. To roll back, the operator removes exactly that directory: rm -r /home/sadc/labo-cgo/cgo-gate-test . No backup, service or config restore is needed.
+# token: Rehearsal: before the socket opened, same day 2026-11-24 (UTC).
+# token: safe_write.py --selftest exited 0 (951 cases, 541 allowed and 410 refused), recorded earlier the same day.
+# token: Classify-only write-cgo-modules-test.txt: ALLOW 2 of 2, exit 0, @sha256:1ed2671d4d4d4feb7e7ee17f0fd7b1e6902a5770c292326de9f4b7705353514e
+# token: Near-variant rehearsal-cgo-modules-near.txt (rm of the exit marker and sftp-put to an unscoped path): REFUSE 2 of 2, exit 1, @sha256:04739b7c9eac21327f110ed87e0e7227a2867df0d7a71bf8225ed4da44f60f1c
+# token: Same-day rehearsal string: CGO-MODULES-TEST rehearsal 2026-11-24.
+# token: Quiet window: one named window, "2026-11-24 CGO-MODULES-TEST R2", 19:30Z to 23:59Z. One pass only; if the transport drops, read the result files rather than retrying the launch.
+# token: Second channel: this chat session stays open. Operator name: operator (chat approval 2026-11-24, operator ruling 2026-11-22). Ticket: CGO-MODULES-TEST.
+# token: Three-state exits: 0 every command ran and returned data, 1 a command ran and returned an error, 2 a command did not run. A guard refusal is a finding, never a reason to widen a permit. Never emit 0 for a skipped or mocked check.
+# token: Approved by: operator (chat approval 2026-11-24, operator ruling 2026-11-22 authorizing task-scoped agent-authored tokens).
+
+$ sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-modules.sh /home/sadc/labo-cgo/cgo-gate-test/run-cgo-modules.sh
+transferred C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-modules.sh -> /home/sadc/labo-cgo/cgo-gate-test/run-cgo-modules.sh
+exit=0
+
+$ cd /home/sadc/labo-cgo/cgo-gate-test && nohup sh ./run-cgo-modules.sh < /dev/null > /dev/null 2>&1 &
+(no stdout)
+stderr:
+transport:
+exit=255

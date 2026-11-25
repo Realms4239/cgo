@@ -1,0 +1,59 @@
+# sadcnwp write window, 20261124-185813 UTC
+# host sadc@41.207.49.27:9922
+# file commands/write-cgo-host-gate.txt
+# token APPROVED-2026-11-24-cgo-host-gate-r2.md
+
+# token: Operator approval relayed in chat on 2026-11-24: choice "1" after the R0 host fact check, authorizing the specific R2 toolchain-and-source upload for a host-side test, with a dedicated directory, an exact file list, a written rollback and a same-day rehearsal. The operator also named the quiet window as the current time until midnight UTC. This token scopes only the one write command file named below. It expires 23:59 UTC 2026-11-24.
+# token: Rung: R2
+# token: Class: reversible
+# token: sudo_grant: none. Authentication uses the key at ~/.ssh/sadcnwp with BatchMode key auth. No card, no secret printed or passed in argv, no .env path in any command, no public bind. No service, timer, firewall, sshd, container, config, gate, permit, ledger or OS change. No guard-tool edit: every command stays inside the already-named /home/sadc/labo-cgo/** scope. No live bench cell, no corpus write, no ftp2 contact, no remote PC 100.114.101.13 contact. A guard refusal is a finding and stops the pass.
+# token: Scope: one additive directory /home/sadc/labo-cgo/cgo-gate-test/ containing a Go 1.26.5 linux-amd64 toolchain and a git-archive snapshot of the CGO repo HEAD, plus one background `go test -count=1 ./...` that writes only gate.log and gate.exit inside that directory. Nothing outside that directory is read or written by this pass. No rollback runs in this window.
+# token: Commands (exact file reviewed before the socket opens):
+# token: C:\WEBSERVER\commands\write-cgo-host-gate.txt
+# token: mkdir -p /home/sadc/labo-cgo/cgo-gate-test
+# token: sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/go1.26.5.linux-amd64.tar.gz /home/sadc/labo-cgo/cgo-gate-test/go.tar.gz
+# token: sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/cgo-head.tar.gz /home/sadc/labo-cgo/cgo-gate-test/cgo-head.tar.gz
+# token: tar -xzf /home/sadc/labo-cgo/cgo-gate-test/go.tar.gz -C /home/sadc/labo-cgo/cgo-gate-test
+# token: mkdir -p /home/sadc/labo-cgo/cgo-gate-test/src
+# token: tar -xzf /home/sadc/labo-cgo/cgo-gate-test/cgo-head.tar.gz -C /home/sadc/labo-cgo/cgo-gate-test/src
+# token: cd /home/sadc/labo-cgo/cgo-gate-test/src && nohup sh -c 'GOTOOLCHAIN=local /home/sadc/labo-cgo/cgo-gate-test/go/bin/go test -count=1 ./... > /home/sadc/labo-cgo/cgo-gate-test/gate.log 2>&1; echo $? > /home/sadc/labo-cgo/cgo-gate-test/gate.exit' > /dev/null 2>&1 &
+# token: Rollback: written and ready but NOT executed in this window. The only host change is new files under /home/sadc/labo-cgo/cgo-gate-test/. To roll back, the operator removes exactly that directory in their own session: rm -r /home/sadc/labo-cgo/cgo-gate-test . Nothing else is touched by the rollback; no backup, service or config restore is needed.
+# token: Rehearsal: before the socket opened, same day 2026-11-24 (UTC).
+# token: safe_write.py --selftest exited 0 (951 cases, 541 allowed and 410 refused).
+# token: Classify-only write-cgo-host-gate.txt: ALLOW 7 of 7, exit 0, @sha256:70d75f4a48ef0f61619c0aa462daa1616ece9302a0a5b683358a03741bed0e9a
+# token: Near-variant rehearsal-cgo-host-gate-write-near-variants.txt (rm -r of the dedicated dir and sftp-put to an unscoped path): REFUSE 2 of 2, exit 1, @sha256:c98a43024331d7e7fb43e553455bbe8abc11a9096f66fa6acb209372f14843aa
+# token: Same-day rehearsal string: CGO-HOST-GATE-R2 rehearsal 2026-11-24.
+# token: Quiet window: one named window, "2026-11-24 CGO-HOST-GATE-R2", 18:53Z to 23:59Z. No other stack change runs while it is open. One pass only; if the transport fails or a command is refused, stop with a dated blocker rather than widening a permit.
+# token: Second channel: this chat session stays open across the window. Operator name: operator (chat approval 2026-11-24, operator ruling 2026-11-22 agent-authored scoped tokens). Ticket: CGO-HOST-GATE-R2.
+# token: Three-state exits: 0 every command ran and returned data, 1 a command ran and returned an error, 2 a command did not run. A guard refusal is a finding and stops the pass, never a reason to widen a permit. Never emit 0 for a skipped or mocked check.
+# token: Approved by: operator (chat approval 2026-11-24, operator ruling 2026-11-22 authorizing task-scoped agent-authored tokens).
+
+$ mkdir -p /home/sadc/labo-cgo/cgo-gate-test
+(no stdout)
+exit=0
+
+$ sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/go1.26.5.linux-amd64.tar.gz /home/sadc/labo-cgo/cgo-gate-test/go.tar.gz
+transferred C:/Users/ASUS/AppData/Local/Temp/opencode/go1.26.5.linux-amd64.tar.gz -> /home/sadc/labo-cgo/cgo-gate-test/go.tar.gz
+exit=0
+
+$ sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/cgo-head.tar.gz /home/sadc/labo-cgo/cgo-gate-test/cgo-head.tar.gz
+transferred C:/Users/ASUS/AppData/Local/Temp/opencode/cgo-head.tar.gz -> /home/sadc/labo-cgo/cgo-gate-test/cgo-head.tar.gz
+exit=0
+
+$ tar -xzf /home/sadc/labo-cgo/cgo-gate-test/go.tar.gz -C /home/sadc/labo-cgo/cgo-gate-test
+(no stdout)
+exit=0
+
+$ mkdir -p /home/sadc/labo-cgo/cgo-gate-test/src
+(no stdout)
+exit=0
+
+$ tar -xzf /home/sadc/labo-cgo/cgo-gate-test/cgo-head.tar.gz -C /home/sadc/labo-cgo/cgo-gate-test/src
+(no stdout)
+exit=0
+
+$ cd /home/sadc/labo-cgo/cgo-gate-test/src && nohup sh -c 'GOTOOLCHAIN=local /home/sadc/labo-cgo/cgo-gate-test/go/bin/go test -count=1 ./... > /home/sadc/labo-cgo/cgo-gate-test/gate.log 2>&1; echo $? > /home/sadc/labo-cgo/cgo-gate-test/gate.exit' > /dev/null 2>&1 &
+(no stdout)
+stderr:
+transport:
+exit=255

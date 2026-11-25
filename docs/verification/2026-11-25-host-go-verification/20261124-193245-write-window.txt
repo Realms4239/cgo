@@ -1,0 +1,34 @@
+# sadcnwp write window, 20261124-193245 UTC
+# host sadc@41.207.49.27:9922
+# file commands/write-cgo-env-test.txt
+# token APPROVED-2026-11-24-cgo-env-test.md
+
+# token: Operator approval relayed in chat on 2026-11-24 ("proceed more, I approve and authorize") after the local source showed the two host failures were environment flags: CGO_ENABLED=0 rejects bpf_probe.c, and the Linux SSRF guard refuses loopback without CGO_ALLOW_PRIVATE_TARGETS=1. This token scopes only the one write command file named below. It expires 23:59 UTC 2026-11-24.
+# token: Rung: R2
+# token: Class: reversible
+# token: sudo_grant: none. Key auth at ~/.ssh/sadcnwp. No card, no secret in argv, no .env path, no public bind. No service, timer, firewall, sshd, container, config, gate, permit, ledger or OS change. No guard-tool edit; both commands stay inside the already-named /home/sadc/labo-cgo/** scope. No chmod, no live bench cell, no corpus write, no ftp2 contact, no remote PC contact. The two environment variables are test-only process settings inside the dedicated directory, not service or shell profile changes. A refusal is a finding and stops the pass.
+# token: Scope: transfer one small reviewed shell script into the existing dedicated directory and launch it in the background. The script runs `go test -count=1 ./...` in the root, audit and probe modules with CGO_ENABLED=1 and CGO_ALLOW_PRIVATE_TARGETS=1, writing only env-gate.log and env-gate.exit inside that directory. No other module, no new upload, no write elsewhere, no rollback execution.
+# token: Commands (exact file reviewed before the socket opens):
+# token: C:\WEBSERVER\commands\write-cgo-env-test.txt
+# token: sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-env.sh /home/sadc/labo-cgo/cgo-gate-test/run-cgo-env.sh
+# token: cd /home/sadc/labo-cgo/cgo-gate-test && nohup sh ./run-cgo-env.sh < /dev/null > /dev/null 2>&1 &
+# token: Rollback: written and ready but NOT executed. The only host change is three new files under /home/sadc/labo-cgo/cgo-gate-test/. To roll back, the operator removes exactly that directory: rm -r /home/sadc/labo-cgo/cgo-gate-test . No backup, service or config restore is needed.
+# token: Rehearsal: before the socket opened, same day 2026-11-24 (UTC).
+# token: safe_write.py --selftest exited 0 (951 cases, 541 allowed and 410 refused), recorded earlier the same day.
+# token: Classify-only write-cgo-env-test.txt: ALLOW 2 of 2, exit 0, @sha256:a6ad34fd87a08c2c6d9f21f40a96bb53810a76301e8c672075c86bd0291a9166
+# token: Near-variant rehearsal-cgo-env-near.txt (rm of the exit marker and sftp-put to an unscoped path): REFUSE 2 of 2, exit 1, @sha256:5b800e6f3bd9b94470a9b1ec68b64f96d4440159a1ad06bd7568db7eb2c6931d
+# token: Same-day rehearsal string: CGO-ENV-TEST rehearsal 2026-11-24.
+# token: Quiet window: one named window, "2026-11-24 CGO-ENV-TEST R2", 19:40Z to 23:59Z. One pass only; if the transport drops, read the result files rather than retrying the launch.
+# token: Second channel: this chat session stays open. Operator name: operator (chat approval 2026-11-24, operator ruling 2026-11-22). Ticket: CGO-ENV-TEST.
+# token: Three-state exits: 0 every command ran and returned data, 1 a command ran and returned an error, 2 a command did not run. A guard refusal is a finding, never a reason to widen a permit. Never emit 0 for a skipped or mocked check.
+# token: Approved by: operator (chat approval 2026-11-24, operator ruling 2026-11-22 authorizing task-scoped agent-authored tokens).
+
+$ sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-env.sh /home/sadc/labo-cgo/cgo-gate-test/run-cgo-env.sh
+transferred C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-env.sh -> /home/sadc/labo-cgo/cgo-gate-test/run-cgo-env.sh
+exit=0
+
+$ cd /home/sadc/labo-cgo/cgo-gate-test && nohup sh ./run-cgo-env.sh < /dev/null > /dev/null 2>&1 &
+(no stdout)
+stderr:
+transport:
+exit=255

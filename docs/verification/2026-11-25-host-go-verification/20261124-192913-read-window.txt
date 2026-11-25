@@ -1,0 +1,61 @@
+# sadcnwp read window, 20261124-192913 UTC
+# host sadc@41.207.49.27:9922
+
+$ cat /home/sadc/labo-cgo/cgo-gate-test/modules-gate.log
+=== attest ===
+ok  	github.com/Realms4239/cgo/attest	0.006s
+?   	github.com/Realms4239/cgo/attest/cmd/cgo-attest	[no test files]
+=== audit ===
+go: downloading github.com/Realms4239/cgo/model v0.1.1
+go: downloading github.com/Realms4239/cgo/probe v0.1.0
+# github.com/Realms4239/cgo/audit
+package github.com/Realms4239/cgo/audit
+	imports github.com/Realms4239/cgo/probe
+	imports github.com/Realms4239/cgo/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c
+FAIL	github.com/Realms4239/cgo/audit [setup failed]
+# github.com/Realms4239/cgo/audit/cmd/cgo-audit
+package github.com/Realms4239/cgo/audit
+	imports github.com/Realms4239/cgo/probe
+	imports github.com/Realms4239/cgo/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c
+FAIL	github.com/Realms4239/cgo/audit/cmd/cgo-audit [setup failed]
+# github.com/Realms4239/cgo/audit/cmd/typesgen
+package github.com/Realms4239/cgo/audit
+	imports github.com/Realms4239/cgo/probe
+	imports github.com/Realms4239/cgo/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c
+FAIL	github.com/Realms4239/cgo/audit/cmd/typesgen [setup failed]
+ok  	github.com/Realms4239/cgo/audit/profile	0.083s
+FAIL
+=== capabilities ===
+ok  	github.com/Realms4239/cgo/capabilities	0.006s
+=== doctor ===
+ok  	github.com/Realms4239/cgo/doctor	0.011s
+=== exporter ===
+ok  	github.com/Realms4239/cgo/exporter	0.007s
+=== figures ===
+go: downloading github.com/Realms4239/cgo/results v0.1.0
+go: downloading github.com/Realms4239/cgo/metrics v0.1.0
+ok  	github.com/Realms4239/cgo/figures	0.009s
+=== iface ===
+ok  	github.com/Realms4239/cgo/iface	0.019s
+=== metrics ===
+ok  	github.com/Realms4239/cgo/metrics	0.015s
+=== model ===
+ok  	github.com/Realms4239/cgo/model	0.006s
+=== probe ===
+--- FAIL: TestBulkStatsMultiFlowLocal (0.00s)
+    bulkstats_test.go:41: 3 flux attendus, 0 rendus
+FAIL
+FAIL	github.com/Realms4239/cgo/probe	6.722s
+ok  	github.com/Realms4239/cgo/probe/bpf	0.006s
+FAIL
+=== profile ===
+ok  	github.com/Realms4239/cgo/profile	0.077s
+=== qdisc ===
+ok  	github.com/Realms4239/cgo/qdisc	0.020s
+=== remediate ===
+ok  	github.com/Realms4239/cgo/remediate	0.007s
+=== results ===
+ok  	github.com/Realms4239/cgo/results	0.127s
+=== runreq ===
+ok  	github.com/Realms4239/cgo/runreq	0.005s
+exit=0

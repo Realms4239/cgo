@@ -1,0 +1,81 @@
+# sadcnwp read window, 20261124-190200 UTC
+# host sadc@41.207.49.27:9922
+
+$ cat /home/sadc/labo-cgo/cgo-gate-test/gate.log
+go: downloading github.com/charmbracelet/bubbletea v1.3.10
+go: downloading github.com/charmbracelet/lipgloss v1.1.0
+go: downloading github.com/muesli/cancelreader v0.2.2
+go: downloading github.com/charmbracelet/x/ansi v0.10.1
+go: downloading github.com/charmbracelet/x/term v0.2.1
+go: downloading github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6
+go: downloading golang.org/x/sys v0.36.0
+go: downloading github.com/mattn/go-runewidth v0.0.24
+go: downloading github.com/lucasb-eyer/go-colorful v1.2.0
+go: downloading github.com/rivo/uniseg v0.4.7
+go: downloading github.com/muesli/termenv v0.16.0
+go: downloading github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd
+go: downloading github.com/aymanbagabas/go-osc52/v2 v2.0.1
+go: downloading github.com/mattn/go-isatty v0.0.20
+go: downloading github.com/clipperhouse/uax29/v2 v2.2.0
+go: downloading github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc
+go: downloading github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
+ok  	github.com/Realms4239/cgo	0.008s
+calibrate P2 — 48 échantillons baseline · plancher 100.0 ms · échelle 1.750 ms · p50 104.0 / p95 107.0 / p99.9 107.0 ms → /tmp/TestRunCalibrateWritesSealedArtifacts823735539/001/calibrations/P2.dist
+calibrate P2 — 48 échantillons baseline · plancher 100.0 ms · échelle 12.500 ms · p50 150.0 / p95 150.0 / p99.9 150.0 ms → /tmp/TestRunCalibrateSourceRefIsTraceID269108096/001/calibrations/P2.dist
+confront → /tmp/TestConfrontOutWritesSealedTruth2062909872/001/ebpf_vs_tc_report.json (sceau /tmp/TestConfrontOutWritesSealedTruth2062909872/001/sealed-input.json)
+confront → /tmp/TestConfrontReportNamesTruthPlanesWithoutHierarchy1864712986/001/ebpf_vs_tc_report.json (sceau /tmp/TestConfrontReportNamesTruthPlanesWithoutHierarchy1864712986/001/sealed-input.json)
+confront → /tmp/TestConfrontOutHonestAbsence39865014/001/ebpf_vs_tc_report.json (sceau /tmp/TestConfrontOutHonestAbsence39865014/001/sealed-input.json)
+confront: sceau noyau absent ou illisible (/tmp/TestConfrontOutFailsClosedWhenSealAbsent2934451593/001/pas-de-sceau.json): open /tmp/TestConfrontOutFailsClosedWhenSealAbsent2934451593/001/pas-de-sceau.json: no such file or directory
+confront: sceau noyau: source "tcpinfo" — seul ebpf est une vérité noyau scellée
+confront: sceau noyau incomplet (/tmp/TestConfrontOutRejectsMissingCounters2690846658/001/sealed-input.json): retrans_events absent
+confront: sceau noyau incomplet (/tmp/TestConfrontOutRejectsNullRequiredCounterretrans_events2790804961/001/sealed-input.json): retrans_events est null
+confront: sceau noyau incomplet (/tmp/TestConfrontOutRejectsNullRequiredCounterqdisc_drop_packets790012752/001/sealed-input.json): qdisc_drop_packets est null
+confront: sceau noyau incomplet (/tmp/TestConfrontOutRejectsNullRequiredCountertc_drops_before3968787696/001/sealed-input.json): tc_drops_before est null
+confront: sceau noyau incomplet (/tmp/TestConfrontOutRejectsNullRequiredCountertc_drops_after2203624006/001/sealed-input.json): tc_drops_after est null
+[keysetup] entrée non interactive — relancer dans un terminal
+[testbed] : aucune VM verrouillée — chemin linéaire : 1 verrouiller (scan) → 2 utilisateur (Sauver) → 3 poser la clé → 4 Démarrer/Réessayer (ensure) → 5 banc de mesure → 6 DÉPLOYER → 7 dashboard. « Suite » avance seul ; ce message dit l'étape manquante.
+[testbed] sous-commande inconnue : bogus (up|check|down)
+purge — supprimée : /tmp/TestPurgeBeforeRemovesOlderThanCutoffAndKeepsLastN490498663/001/data/audits/audit-1792090706 (2026-10-15)
+purge — supprimée : /tmp/TestPurgeBeforeRemovesOlderThanCutoffAndKeepsLastN490498663/001/data/audits/audit-1788634706 (2026-09-05)
+purge — supprimée : /tmp/TestPurgeBeforeRemovesOlderThanCutoffAndKeepsLastN490498663/001/data/audits/audit-1785178706 (2026-07-27)
+purge — 3 session(s) supprimée(s), 2 conservée(s) (fenêtre --keep 2)
+purge — supprimée : /tmp/TestPurgeKeepsSessionsNewerThanCutoff97465018/001/data/audits/audit-1792090706 (2026-10-15)
+purge — supprimée : /tmp/TestPurgeKeepsSessionsNewerThanCutoff97465018/001/data/audits/audit-1788634706 (2026-09-05)
+purge — supprimée : /tmp/TestPurgeKeepsSessionsNewerThanCutoff97465018/001/data/audits/audit-1785178706 (2026-07-27)
+purge — 3 session(s) supprimée(s), 2 conservée(s) (fenêtre --keep 0)
+purge (à sec) — 3 session(s) seraient supprimée(s), 2 conservée(s) (fenêtre --keep 2), 4 écartée(s) :
+  à supprimer : /tmp/TestPurgeDryRunDeletesNothing599005728/001/data/audits/audit-1792090706 (2026-10-15)
+  à supprimer : /tmp/TestPurgeDryRunDeletesNothing599005728/001/data/audits/audit-1788634706 (2026-09-05)
+  à supprimer : /tmp/TestPurgeDryRunDeletesNothing599005728/001/data/audits/audit-1785178706 (2026-07-27)
+purge (à sec) — rien n'a été supprimé
+purge — rien à faire (5 session(s) scellée(s) sous /tmp/TestPurgeWithoutBeforeDeletesNothing1061356352/001/data/audits ; fenêtre --keep 1 ; aucune suppression sans --before ; 4 écartée(s))
+purge : --before "14-11-2026" illisible (attendu YYYY-MM-DD)
+purge : --keep doit être ≥ 0
+purge (à sec) — 4 session(s) seraient supprimée(s), 1 conservée(s) (fenêtre --keep 1), 4 écartée(s) :
+  à supprimer : /tmp/TestPurgeAcceptsAuditsRootDirectly1691370142/001/data/audits/audit-1794682706 (2026-11-14)
+  à supprimer : /tmp/TestPurgeAcceptsAuditsRootDirectly1691370142/001/data/audits/audit-1792090706 (2026-10-15)
+  à supprimer : /tmp/TestPurgeAcceptsAuditsRootDirectly1691370142/001/data/audits/audit-1788634706 (2026-09-05)
+  à supprimer : /tmp/TestPurgeAcceptsAuditsRootDirectly1691370142/001/data/audits/audit-1785178706 (2026-07-27)
+purge (à sec) — rien n'a été supprimé
+purge — rien à faire (5 session(s) scellée(s) ; fenêtre --keep 50 ; rien d'antérieur à 2026-11-24 hors fenêtre ; 4 écartée(s))
+confront → /tmp/TestQdiscDropFaithfulCopyNonZero1369580834/001/report-match.json (sceau /tmp/TestQdiscDropFaithfulCopyNonZero1369580834/001/seal-match.json)
+confront → /tmp/TestConfrontMatchIndependentOfQdiscDrop2996859456/001/report-mismatch.json (sceau /tmp/TestConfrontMatchIndependentOfQdiscDrop2996859456/001/seal-mismatch.json)
+kerneltruth seal: audit illisible (/tmp/TestKernelTruthSealCmdMissingAuditExits22180997075/001/absent.json): open /tmp/TestKernelTruthSealCmdMissingAuditExits22180997075/001/absent.json: no such file or directory
+2026/11/24 21:58:26 CGO_IFACE=c-cli ignoré — /proc/net/dev absent sur windows
+2026/11/24 21:58:26 CGO_IFACE_SOURCE="production" inconnu — source non déclarée
+--- FAIL: TestTestbedDownloadProtocol (0.00s)
+    testbed_download_test.go:53: download: cible privée refusée (plage réservée ou non publique) : 127.0.0.1 — hors portée sans CGO_ALLOW_PRIVATE_TARGETS=1
+FAIL
+FAIL	github.com/Realms4239/cgo/cmd/cgo	7.517s
+ok  	github.com/Realms4239/cgo/cmd/cgo-chr	1.225s
+ok  	github.com/Realms4239/cgo/cmd/cgo-observe	0.006s
+ok  	github.com/Realms4239/cgo/cmd/emdcheck	0.026s
+ok  	github.com/Realms4239/cgo/cmd/gates	0.008s
+ok  	github.com/Realms4239/cgo/cmd/topocheck	0.068s
+ok  	github.com/Realms4239/cgo/cmd/tracemodel	0.011s
+ok  	github.com/Realms4239/cgo/internal/kit	0.180s
+ok  	github.com/Realms4239/cgo/internal/vm	0.024s
+ok  	github.com/Realms4239/cgo/pkg/campagne	12.234s
+ok  	github.com/Realms4239/cgo/web/frontend	0.005s
+FAIL
+exit=0

@@ -1,0 +1,39 @@
+# sadcnwp read window, 20261124-193354 UTC
+# host sadc@41.207.49.27:9922
+
+$ cat /home/sadc/labo-cgo/cgo-gate-test/env-gate.log
+=== . ===
+ok  	github.com/Realms4239/cgo	0.008s
+ok  	github.com/Realms4239/cgo/cmd/cgo	8.617s
+ok  	github.com/Realms4239/cgo/cmd/cgo-chr	1.226s
+ok  	github.com/Realms4239/cgo/cmd/cgo-observe	0.007s
+ok  	github.com/Realms4239/cgo/cmd/emdcheck	0.031s
+ok  	github.com/Realms4239/cgo/cmd/gates	0.008s
+ok  	github.com/Realms4239/cgo/cmd/topocheck	0.051s
+ok  	github.com/Realms4239/cgo/cmd/tracemodel	0.032s
+ok  	github.com/Realms4239/cgo/internal/kit	0.190s
+ok  	github.com/Realms4239/cgo/internal/vm	0.039s
+ok  	github.com/Realms4239/cgo/pkg/campagne	12.294s
+ok  	github.com/Realms4239/cgo/web/frontend	0.018s
+=== audit ===
+# github.com/Realms4239/cgo/audit
+package github.com/Realms4239/cgo/audit
+	imports github.com/Realms4239/cgo/probe
+	imports github.com/Realms4239/cgo/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c
+FAIL	github.com/Realms4239/cgo/audit [setup failed]
+# github.com/Realms4239/cgo/audit/cmd/cgo-audit
+package github.com/Realms4239/cgo/audit
+	imports github.com/Realms4239/cgo/probe
+	imports github.com/Realms4239/cgo/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c
+FAIL	github.com/Realms4239/cgo/audit/cmd/cgo-audit [setup failed]
+# github.com/Realms4239/cgo/audit/cmd/typesgen
+package github.com/Realms4239/cgo/audit
+	imports github.com/Realms4239/cgo/probe
+	imports github.com/Realms4239/cgo/probe/bpf: C source files not allowed when not using cgo or SWIG: bpf_probe.c
+FAIL	github.com/Realms4239/cgo/audit/cmd/typesgen [setup failed]
+ok  	github.com/Realms4239/cgo/audit/profile	0.088s
+FAIL
+=== probe ===
+ok  	github.com/Realms4239/cgo/probe	8.725s
+ok  	github.com/Realms4239/cgo/probe/bpf	0.006s
+exit=0

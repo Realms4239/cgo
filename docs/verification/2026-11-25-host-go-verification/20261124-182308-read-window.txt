@@ -1,0 +1,249 @@
+# sadcnwp read window, 20261124-182308 UTC
+# host sadc@41.207.49.27:9922
+
+$ uname -a
+Linux sadcnwp-server 6.8.0-142-generic #142-Ubuntu SMP PREEMPT_DYNAMIC Wed Sep  2 14:24:27 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+exit=0
+
+$ df -h /home
+Filesystem                           Size  Used Avail Use% Mounted on
+/dev/mapper/ubuntu--vg-ubuntu--home  590G  439G  121G  79% /home
+exit=0
+
+$ find /usr/local -maxdepth 2 -name 'go' -o -name 'go1*'
+(no stdout)
+exit=0
+
+$ ls -ld /home/sadc/labo-cgo
+drwxrwxr-x 9 sadc sadc 12288 Nov 24 11:09 /home/sadc/labo-cgo
+exit=0
+
+$ ls -la /home/sadc/labo-cgo
+total 43347020
+drwxrwxr-x  9 sadc sadc       12288 Nov 24 11:09 .
+drwxr-xr-x 45 sadc sadc        4096 Nov 23 23:03 ..
+-rw-rw-r--  1 sadc sadc          74 Nov 14 19:16 99-sadc-kvm.rules
+drwxrwxr-x  2 sadc sadc        4096 Nov 14 17:53 .acl-rehearsal
+-rw-r-----  1 sadc sadc       66278 Nov 19 23:12 bench-console.log
+-rw-rw-r--  1 sadc sadc         452 Nov 16 21:09 bench-key
+-rw-------  1 sadc sadc         452 Nov 16 21:10 bench-key-600
+-rw-rw-r--  1 sadc sadc         909 Nov 16 21:09 bench-known-hosts
+-rw-------  1 sadc sadc           7 Nov 19 23:11 bench-qemu.pid
+-rwxr-xr-x  1 sadc sadc       19561 Nov 15 23:39 cgo-bench-dualns.sh
+-rw-rw-r--  1 sadc sadc       20007 Nov 16 21:28 cgo-bench-dualns.stage
+-rw-rw-r--  1 sadc sadc    16351362 Nov 22 13:48 cgo-confront-20261122
+-rw-rw-r--  1 sadc sadc    19004038 Nov 17 00:51 cgo-fixed-linux
+-rw-rw-r--  1 sadc sadc    16394329 Nov 23 11:06 cgo-kerneltruth-linux-amd64
+-rw-r--r--  1 sadc sadc    16331116 Nov 15 23:22 cgo-linux-amd64
+-rw-r--r--  1 sadc sadc    19064804 Nov 16 06:09 cgo-linux-amd64-ebpf
+-rw-rw-r--  1 sadc sadc    16479099 Nov 23 21:31 cgo-manifest-linux-amd64
+-rwxr-xr-x  1 sadc sadc       18840 Nov 15 23:52 cgo-netctl
+-rw-rw-r--  1 sadc sadc    16410606 Nov 23 13:16 cgo-physval-linux-amd64
+drwxrwxr-x 23 sadc sadc        4096 Nov 19 21:01 chr
+drwxrwxr-x  2 sadc sadc        4096 Nov 14 19:46 cidata
+-rw-rw-r--  1 sadc sadc          73 Nov 14 19:46 cloud-meta-data
+-rw-rw-r--  1 sadc sadc      374784 Nov 14 19:46 cloud-seed.iso
+-rw-rw-r--  1 sadc sadc         314 Nov 14 19:46 cloud-user-data
+-rw-r-----  1 sadc sadc     5037032 Nov 15 22:45 console.log
+-rw-rw-r--  1 sadc sadc        1343 Nov 23 00:39 consolidate-guest.py
+-rw-rw-r--  1 sadc sadc        1667 Nov 16 23:28 eb-clean.stage
+-rw-rw-r--  1 sadc sadc        1304 Nov 16 23:21 eb-ktruth.stage
+-rw-rw-r--  1 sadc sadc        1042 Nov 22 14:08 eb-layer1.stage
+-rw-rw-r--  1 sadc sadc        1883 Nov 22 14:08 eb-matrix.stage
+-rw-rw-r--  1 sadc sadc        1905 Nov 23 13:16 eb-physval.stage
+-rw-rw-r--  1 sadc sadc        1020 Nov 17 00:54 eb-realrem.stage
+-rw-rw-r--  1 sadc sadc        1905 Nov 23 20:19 fieldcontrol.stage
+-rw-rw-r--  1 sadc sadc        1963 Nov 23 20:13 fieldreplay.stage
+drwxrwxr-x  7 sadc sadc        4096 Nov 24 09:03 field-trace
+-rw-rw-r--  1 sadc sadc         448 Nov 24 02:15 field-trace.sudoers
+-rw-rw-r--  1 sadc sadc        1001 Nov 17 05:09 flowcompare.py
+-rw-rw-r--  1 sadc sadc        2157 Nov 23 14:28 fresh-ktruth2.stage
+-rw-rw-r--  1 sadc sadc        2110 Nov 23 14:30 fresh-ktruth3.stage
+-rw-rw-r--  1 sadc sadc        2075 Nov 23 14:23 fresh-ktruth.stage
+-rw-rw-r--  1 sadc sadc        1928 Nov 24 11:09 ingressphys.stage
+-r--r--r--  1 sadc sadc    76466818 Feb 10  2026 initrd
+-rw-rw-r--  1 sadc sadc         893 Nov 14 19:56 ISO-SHA256SUMS
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 19:59 iso-slice01
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 19:59 iso-slice02
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 19:59 iso-slice03
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:00 iso-slice04
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:00 iso-slice05
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:00 iso-slice06
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:01 iso-slice07
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:01 iso-slice08
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:02 iso-slice09
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:02 iso-slice10
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:02 iso-slice11
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:03 iso-slice12
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:03 iso-slice13
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:03 iso-slice14
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:04 iso-slice15
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:04 iso-slice16
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:05 iso-slice17
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:05 iso-slice18
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:05 iso-slice19
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:06 iso-slice20
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:06 iso-slice22
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:07 iso-slice23
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:07 iso-slice24
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:08 iso-slice25
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:08 iso-slice26
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:08 iso-slice27
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:09 iso-slice28
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:09 iso-slice29
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:09 iso-slice30
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:10 iso-slice31
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:10 iso-slice32
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 20:11 iso-slice33
+-rw-rw-r--  1 sadc sadc   105469696 Nov 14 20:11 iso-slice34
+-rw-r--r--  1 sadc sadc  1496645632 Nov 24 21:22 labo-cgo-bench.qcow2
+-rw-r--r--  1 sadc sadc  1132462080 Nov 19 23:09 labo-cgo-bench.qcow2.pre-expand-20261119
+-rw-rw-r--  1 sadc sadc      374784 Nov 14 18:44 labo-cgo-seed.iso
+-rw-rw-r--  1 sadc sadc        1965 Nov 23 21:31 manifestreplay.stage
+-rw-rw-r--  1 sadc sadc          73 Nov 14 18:44 meta-data
+-rw-rw-r--  1 sadc sadc        2427 Nov 23 13:59 netctl-patch.py
+-rw-rw-r--  1 sadc sadc   155000000 Nov 14 18:06 noble-chunk0.img
+-rw-rw-r--  1 sadc sadc   155000000 Nov 14 18:07 noble-chunk1.img
+-rw-rw-r--  1 sadc sadc    40000000 Nov 14 18:08 noble-chunk2a.img
+-rw-rw-r--  1 sadc sadc    40000000 Nov 14 18:08 noble-chunk2b.img
+-rw-rw-r--  1 sadc sadc    40000000 Nov 14 18:08 noble-chunk2c.img
+-rw-rw-r--  1 sadc sadc    35000000 Nov 14 18:08 noble-chunk2d.img
+-rw-rw-r--  1 sadc sadc   155000000 Nov 14 18:07 noble-chunk2.img
+-rw-rw-r--  1 sadc sadc    40000000 Nov 14 18:09 noble-chunk3a.img
+-rw-rw-r--  1 sadc sadc    40000000 Nov 14 18:09 noble-chunk3b.img
+-rw-rw-r--  1 sadc sadc    40000000 Nov 14 18:09 noble-chunk3c.img
+-rw-rw-r--  1 sadc sadc    35000000 Nov 14 18:09 noble-chunk3d.img
+-rw-rw-r--  1 sadc sadc   155000000 Nov 14 18:07 noble-chunk3.img
+-rw-rw-r--  1 sadc sadc     1284200 Nov 14 18:07 noble-chunk4.img
+-rw-r--r--  1 sadc sadc      197088 Nov 14 18:44 noble.qcow2
+-rw-rw-r--  1 sadc sadc   621284200 Nov 14 19:35 noble-server-cloudimg-amd64.img
+-rw-rw-r--  1 sadc sadc   621284352 Nov 14 18:03 noble-server-cloudimg-amd64.new.img
+-rw-rw-r--  1 sadc sadc   621284200 Nov 14 18:09 noble-server-cloudimg-amd64.rebuilt.img
+-rw-rw-r--  1 sadc sadc   621284352 Nov 14 19:43 noble-server.img
+-rw-r--r--  1 sadc sadc      197088 Nov 14 19:43 noble-server.qcow2
+-rw-rw-r--  1 sadc sadc          73 Nov 15 22:52 nocloud-meta-data
+drwxrwxr-x  2 sadc sadc        4096 Nov 15 22:55 nocloud-seed
+-rw-rw-r--  1 sadc sadc      378880 Nov 15 22:55 nocloud-seed.iso
+-rw-rw-r--  1 sadc sadc         598 Nov 15 22:52 nocloud-user-data
+-rw-rw-r--  1 sadc sadc        6131 Nov 23 20:57 P1.dist
+-rw-rw-r--  1 sadc sadc         807 Nov 23 20:57 P1.json
+-rw-rw-r--  1 sadc sadc        6134 Nov 23 20:57 P2.dist
+-rw-rw-r--  1 sadc sadc         818 Nov 23 20:57 P2.json
+-rw-rw-r--  1 sadc sadc        6144 Nov 23 20:13 P3.dist
+-rw-rw-r--  1 sadc sadc         830 Nov 23 20:13 P3.json
+-rw-rw-r--  1 sadc sadc        6144 Nov 23 20:57 P4.dist
+-rw-rw-r--  1 sadc sadc         808 Nov 23 20:57 P4.json
+-rw-rw-r--  1 sadc sadc         689 Nov 23 13:16 physval-profiles.json
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:02 probe-0.bin
+-rw-rw-r--  1 sadc sadc    66060288 Nov 14 18:02 probe-1.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:03 probe-540m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:03 probe-580m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:03 probe-620m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:05 probe-62125m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:05 probe-62127m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:05 probe-621283.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:05 probe-6212841.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:05 probe-6212842.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:05 probe-621284.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:05 probe-62128m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:04 probe-6212m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 18:04 probe-621m.bin
+-rw-rw-r--  1 sadc sadc    20971520 Nov 14 18:10 probe-a.bin
+-rw-rw-r--  1 sadc sadc    20971520 Nov 14 18:10 probe-b.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:56 probe-iso-1.1g.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:57 probe-iso-1.3g.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:57 probe-iso-1.5g.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:57 probe-iso-1.8g.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:56 probe-iso-1g.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:58 probe-iso-2.5g.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:58 probe-iso-2.8g.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:57 probe-iso-2g.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:56 probe-iso-800m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:56 probe-iso-900m.bin
+-rw-rw-r--  1 sadc sadc           1 Nov 14 19:58 probe-iso-end.bin
+-rw-rw-r--  1 sadc sadc           2 Nov 14 18:03 probe-tail2.bin
+-rw-rw-r--  1 sadc sadc        9374 Nov 14 18:03 probe-tail.bin
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:32 rel-chunk0.img
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:33 rel-chunk1.img
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:33 rel-chunk2.img
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:33 rel-chunk3.img
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:33 rel-chunk4.img
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:33 rel-chunk5.img
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:34 rel-chunk6.img
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:34 rel-chunk7.img
+-rw-rw-r--  1 sadc sadc    62914560 Nov 14 18:34 rel-chunk8.img
+-rw-rw-r--  1 sadc sadc    55053160 Nov 14 18:34 rel-chunk9.img
+-rw-rw-r--  1 sadc sadc        7843 Nov 14 19:23 release-20261017-SHA256SUMS
+-rw-rw-r--  1 sadc sadc       21275 Nov 14 18:35 release.manifest
+-rw-rw-r--  1 sadc sadc   621284200 Nov 14 18:34 release-rebuilt.img
+drwxrwxr-x  2 sadc sadc        4096 Nov 14 20:50 repo-cidata
+-rw-rw-r--  1 sadc sadc          73 Nov 14 20:50 repo-meta-data
+-rw-rw-r--  1 sadc sadc      374784 Nov 14 20:50 repo-seed.iso
+-rw-rw-r--  1 sadc sadc         812 Nov 14 20:50 repo-user-data
+-rwxr-xr-x  1 sadc sadc        6911 Nov 15 23:58 run-dualns.sh
+-rw-rw-r--  1 sadc sadc        7158 Nov 16 21:28 run-dualns.stage
+drwxrwxr-x  2 sadc sadc        4096 Nov 14 18:44 seed
+-rw-rw-r--  1 sadc sadc        7381 Nov 14 17:57 SHA256SUMS
+-rw-rw-r--  1 sadc sadc        7381 Nov 14 18:00 SHA256SUMS.new
+-rw-r--r--  1 sadc sadc 29139861504 Nov 15 22:46 target.qcow2
+-rw-rw-r--  1 sadc sadc  3405469696 Nov 14 20:30 ubuntu-24.04.4-live-server-amd64.iso
+-rw-rw-r--  1 sadc sadc           0 Nov 14 19:32 ubuntu-release-chunk1.img
+-rw-rw-r--  1 sadc sadc   136534784 Nov 14 19:32 ubuntu-release-chunk2.img
+-rw-rw-r--  1 sadc sadc           0 Nov 14 19:29 ubuntu-release.img
+-rw-rw-r--  1 sadc sadc   100000000 Nov 14 19:29 ubuntu-release-new.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:32 ubuntu-release-slice01.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:32 ubuntu-release-slice02.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:33 ubuntu-release-slice03.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:33 ubuntu-release-slice04.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:33 ubuntu-release-slice05.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:33 ubuntu-release-slice06.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:33 ubuntu-release-slice07.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:34 ubuntu-release-slice08.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:34 ubuntu-release-slice09.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:34 ubuntu-release-slice10.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:34 ubuntu-release-slice11.img
+-rw-rw-r--  1 sadc sadc    50000000 Nov 14 19:35 ubuntu-release-slice12.img
+-rw-rw-r--  1 sadc sadc    21284200 Nov 14 19:35 ubuntu-release-slice13.img
+-rw-rw-r--  1 sadc sadc        7843 Nov 14 18:31 ubuntu-releases-SHA256SUMS
+-rw-rw-r--  1 sadc sadc         812 Nov 14 18:44 user-data
+-rw-rw-r--  1 sadc sadc         499 Nov 16 22:17 v2-launch.stage
+-r--r--r--  1 sadc sadc    15030664 Feb 10  2026 vmlinuz
+exit=0
+
+$ docker ps
+CONTAINER ID   IMAGE                                                   COMMAND                  CREATED        STATUS                  PORTS                                                                                                                                             NAMES
+6c26addfa269   meteo-mail/roundcube:local                              "/usr/local/bin/entr…"   10 hours ago   Up 10 hours             127.0.0.1:28080->80/tcp                                                                                                                           meteo_staging-roundcube-1
+2b4a535bf3ae   mongo:7.0.45                                            "docker-entrypoint.s…"   22 hours ago   Up 22 hours (healthy)   27017/tcp                                                                                                                                         graylog-lab-mongodb-1
+9ec28bc80f29   docker.elastic.co/elasticsearch/elasticsearch:8.19.25   "/bin/tini -- /usr/l…"   22 hours ago   Up 22 hours (healthy)   9300/tcp, 127.0.0.1:9201->9200/tcp                                                                                                                graylog-lab-elasticsearch-1
+ac4616eb2488   timberio/vector:0.49.0-alpine                           "/usr/local/bin/vect…"   24 hours ago   Up 24 hours             127.0.0.1:18092->1514/tcp                                                                                                                         disanalyzer-ingress
+cd3e4ef7367f   python:3.11-slim                                        "python3 /lab/receiv…"   25 hours ago   Up 25 hours                                                                                                                                                               graylog-lab-signing-relay-1
+9a77e9c415d0   graylog/graylog:7.0.14                                  "tini -- /docker-ent…"   31 hours ago   Up 31 hours (healthy)   127.0.0.1:18091->9000/tcp                                                                                                                         graylog-lab-graylog-1
+b9df53c1432a   e638797febd0                                            "/bin/alertmanager -…"   43 hours ago   Up 43 hours             127.0.0.1:9093->9093/tcp                                                                                                                          meteo_staging-alertmanager-1
+2f1c484edd99   python:3.12-slim                                        "python3 /app/mail_h…"   45 hours ago   Up 45 hours                                                                                                                                                               meteo_staging-mail_health-1
+7ecce7960992   nginx:alpine                                            "/bin/sh -c 'envsubs…"   2 days ago     Up 2 days               80/tcp, 127.0.0.1:28443->443/tcp                                                                                                                  meteo_staging-staging-edge-proxy-1
+0b5529b1dddd   meteo-postfixadmin:3.3.13                               "/usr/local/bin/entr…"   2 days ago     Up 2 days               127.0.0.1:8081->80/tcp                                                                                                                            meteo_staging-postfixadmin-1
+bb40ce66e28d   meteo-mail/postfix:bookworm-slim                        "/usr/local/bin/entr…"   2 days ago     Up 2 days (healthy)     192.168.10.137:25->25/tcp                                                                                                                         meteo_staging-postfix-1
+dd6cf0ae9871   meteo-mail/unbound:bookworm-slim                        "unbound -d -c /etc/…"   2 days ago     Up 2 days (healthy)     53/tcp, 53/udp                                                                                                                                    meteo_staging-unbound-1
+e6a266523d4c   meteo-mail/rspamd:bookworm-slim                         "/usr/local/bin/entr…"   2 days ago     Up 2 days                                                                                                                                                                 meteo_staging-rspamd-1
+5843a3e55e8d   meteo-mail/dovecot:bookworm-slim                        "/usr/local/bin/entr…"   2 days ago     Up 2 days                                                                                                                                                                 meteo_staging-dovecot-1
+5f2c3696d936   mariadb:11                                              "docker-entrypoint.s…"   2 days ago     Up 2 days               3306/tcp                                                                                                                                          meteo_staging-mariadb-1
+e4e118e2921b   redis:7-alpine                                          "docker-entrypoint.s…"   2 days ago     Up 2 days               6379/tcp                                                                                                                                          meteo_staging-redis-1
+0e20ffffc9ee   e04987641b57                                            "/bin/prometheus --c…"   2 days ago     Up 2 days               127.0.0.1:9090->9090/tcp                                                                                                                          meteo_staging-prometheus-1
+50a5e858f7a7   1b4e4438faca                                            "/bin/node_exporter …"   2 days ago     Up 2 days               9100/tcp                                                                                                                                          meteo_staging-node_exporter-1
+807afb81c305   0717bc22495e                                            "/bin/postfix_export…"   2 days ago     Up 2 days               9154/tcp                                                                                                                                          meteo_staging-postfix_exporter-1
+8b3fd8188a9f   python:3.11-slim                                        "python3 /receiver/r…"   2 days ago     Up 2 days               127.0.0.1:18095->8088/tcp                                                                                                                         graylog-lab-receiver-1
+2f4be6f1a6bc   python:3.12-slim                                        "python /app/webhook…"   3 days ago     Up 3 days                                                                                                                                                                 meteo_staging-webhook-sink-1
+6f0ae9b79a7c   opensearchproject/opensearch:2.19.6                     "./opensearch-docker…"   3 days ago     Up 3 days (healthy)     9200/tcp, 9300/tcp, 9600/tcp, 9650/tcp                                                                                                            graylog-lab-opensearch-1
+3eda3458067b   2894082f6cf7                                            "/run.sh"                4 days ago     Up 4 days               127.0.0.1:30002->3000/tcp                                                                                                                         meteo_staging-grafana-1
+ba23d3abbdfc   b43c257ccfc9                                            "/usr/bin/loki -conf…"   4 days ago     Up 4 days               3100/tcp                                                                                                                                          meteo_staging-loki-1
+ccf0ad1684e7   8e4b6bef9641                                            "/usr/bin/dumb-init …"   4 days ago     Up 4 days (healthy)     127.0.0.1:30001->3001/tcp                                                                                                                         meteo_staging-kuma-1
+0f27a5eea104   6cfa64ec432b                                            "/usr/bin/promtail -…"   4 days ago     Up 4 days                                                                                                                                                                 meteo_staging-promtail-1
+3e8f7483259d   7054e3f34308                                            "/init"                  4 days ago     Up 4 days (healthy)     3310/tcp, 7357/tcp                                                                                                                                meteo_staging-clamav-1
+098c82f75c20   graylog-lab-heartbeat:latest                            "python3 heartbeat_l…"   5 days ago     Up 5 days                                                                                                                                                                 graylog-lab-heartbeat-1
+f6c4725ba5e1   linuxserver/wireguard                                   "/init"                  8 days ago     Up 8 days               0.0.0.0:51820->51820/udp, [::]:51820->51820/udp                                                                                                   wg-exit-rehearsal
+daf5d0e0b29c   meteo-native-bff:sasl-46103c5                           "/bff"                   2 weeks ago    Up 2 weeks (healthy)    127.0.0.1:18443->18443/tcp                                                                                                                        meteo-mail-bff
+c016840cd460   0632783c6418                                            "/tini -- /bin/sh -c…"   2 weeks ago    Up 2 weeks (healthy)    127.0.0.1:25->25/tcp, 127.0.0.1:587->587/tcp                                                                                                      meteo-mail-postfix
+a5092aa7a548   43c14def08a5                                            "/usr/bin/tini -- /d…"   2 weeks ago    Up 2 weeks              8080/tcp, 9090/tcp, 31110/tcp, 31143/tcp, 31587/tcp, 31995/tcp, 127.0.0.1:31024->31024/tcp, 127.0.0.1:993->31993/tcp, 127.0.0.1:4190->34190/tcp   meteo-mail-dovecot
+6cc7dcd2e2ad   c4124d1afa87                                            "docker-entrypoint.s…"   2 weeks ago    Up 2 weeks (healthy)    127.0.0.1:3306->3306/tcp                                                                                                                          meteo-mail-mariadb
+67bb6911a65a   roundcube/roundcubemail:latest                          "/docker-entrypoint.…"   2 weeks ago    Up 5 days               127.0.0.1:18080->80/tcp                                                                                                                           meteo-mail-roundcube
+exit=0

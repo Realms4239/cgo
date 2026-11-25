@@ -1,0 +1,27 @@
+# sadcnwp read window, 20261124-192441 UTC
+# host sadc@41.207.49.27:9922
+
+$ ls -la /home/sadc/labo-cgo/cgo-gate-test
+total 76444
+drwxrwxr-x  4 sadc sadc     4096 Nov 24 22:24 .
+drwxrwxr-x 10 sadc sadc    12288 Nov 24 21:57 ..
+-rw-rw-r--  1 sadc sadc        2 Nov 24 22:24 api-gate.exit
+-rw-rw-r--  1 sadc sadc      215 Nov 24 22:24 api-gate.log
+-rw-rw-r--  1 sadc sadc 11352421 Nov 24 21:57 cgo-head.tar.gz
+-rw-rw-r--  1 sadc sadc        2 Nov 24 21:58 gate.exit
+-rw-rw-r--  1 sadc sadc     7375 Nov 24 21:58 gate.log
+drwxr-xr-x 10 sadc sadc     4096 Jul  2 00:24 go
+-rw-rw-r--  1 sadc sadc 66879095 Nov 24 21:57 go.tar.gz
+drwxrwxr-x 32 sadc sadc     4096 Nov 24 21:57 src
+exit=0
+
+$ cat /home/sadc/labo-cgo/cgo-gate-test/api-gate.exit
+0
+exit=0
+
+$ tail -50 /home/sadc/labo-cgo/cgo-gate-test/api-gate.log
+go: downloading github.com/Realms4239/cgo/runreq v0.1.0
+go: downloading github.com/Realms4239/cgo/remediate v0.1.0
+go: downloading github.com/Realms4239/cgo/profile v0.1.1
+ok  	github.com/Realms4239/cgo/api	41.039s
+exit=0

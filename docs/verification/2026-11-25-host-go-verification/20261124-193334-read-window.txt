@@ -1,0 +1,31 @@
+# sadcnwp read window, 20261124-193334 UTC
+# host sadc@41.207.49.27:9922
+
+$ cat /home/sadc/labo-cgo/cgo-gate-test/env-gate.exit
+1
+exit=0
+
+$ grep FAIL /home/sadc/labo-cgo/cgo-gate-test/env-gate.log
+FAIL	github.com/Realms4239/cgo/audit [setup failed]
+FAIL	github.com/Realms4239/cgo/audit/cmd/cgo-audit [setup failed]
+FAIL	github.com/Realms4239/cgo/audit/cmd/typesgen [setup failed]
+FAIL
+exit=0
+
+$ grep ok /home/sadc/labo-cgo/cgo-gate-test/env-gate.log
+ok  	github.com/Realms4239/cgo	0.008s
+ok  	github.com/Realms4239/cgo/cmd/cgo	8.617s
+ok  	github.com/Realms4239/cgo/cmd/cgo-chr	1.226s
+ok  	github.com/Realms4239/cgo/cmd/cgo-observe	0.007s
+ok  	github.com/Realms4239/cgo/cmd/emdcheck	0.031s
+ok  	github.com/Realms4239/cgo/cmd/gates	0.008s
+ok  	github.com/Realms4239/cgo/cmd/topocheck	0.051s
+ok  	github.com/Realms4239/cgo/cmd/tracemodel	0.032s
+ok  	github.com/Realms4239/cgo/internal/kit	0.190s
+ok  	github.com/Realms4239/cgo/internal/vm	0.039s
+ok  	github.com/Realms4239/cgo/pkg/campagne	12.294s
+ok  	github.com/Realms4239/cgo/web/frontend	0.018s
+ok  	github.com/Realms4239/cgo/audit/profile	0.088s
+ok  	github.com/Realms4239/cgo/probe	8.725s
+ok  	github.com/Realms4239/cgo/probe/bpf	0.006s
+exit=0

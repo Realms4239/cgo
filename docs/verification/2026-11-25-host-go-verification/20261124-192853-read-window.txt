@@ -1,0 +1,52 @@
+# sadcnwp read window, 20261124-192853 UTC
+# host sadc@41.207.49.27:9922
+
+$ ls -la /home/sadc/labo-cgo/cgo-gate-test
+total 76456
+drwxrwxr-x  4 sadc sadc     4096 Nov 24 22:28 .
+drwxrwxr-x 10 sadc sadc    12288 Nov 24 21:57 ..
+-rw-rw-r--  1 sadc sadc        2 Nov 24 22:24 api-gate.exit
+-rw-rw-r--  1 sadc sadc      215 Nov 24 22:24 api-gate.log
+-rw-rw-r--  1 sadc sadc 11352421 Nov 24 21:57 cgo-head.tar.gz
+-rw-rw-r--  1 sadc sadc        2 Nov 24 21:58 gate.exit
+-rw-rw-r--  1 sadc sadc     7375 Nov 24 21:58 gate.log
+drwxr-xr-x 10 sadc sadc     4096 Jul  2 00:24 go
+-rw-rw-r--  1 sadc sadc 66879095 Nov 24 21:57 go.tar.gz
+-rw-rw-r--  1 sadc sadc        2 Nov 24 22:28 modules-gate.exit
+-rw-rw-r--  1 sadc sadc     2276 Nov 24 22:28 modules-gate.log
+-rw-rw-r--  1 sadc sadc      479 Nov 24 22:27 run-cgo-modules.sh
+drwxrwxr-x 32 sadc sadc     4096 Nov 24 21:57 src
+exit=0
+
+$ cat /home/sadc/labo-cgo/cgo-gate-test/modules-gate.exit
+1
+exit=0
+
+$ grep FAIL /home/sadc/labo-cgo/cgo-gate-test/modules-gate.log
+FAIL	github.com/Realms4239/cgo/audit [setup failed]
+FAIL	github.com/Realms4239/cgo/audit/cmd/cgo-audit [setup failed]
+FAIL	github.com/Realms4239/cgo/audit/cmd/typesgen [setup failed]
+FAIL
+--- FAIL: TestBulkStatsMultiFlowLocal (0.00s)
+FAIL
+FAIL	github.com/Realms4239/cgo/probe	6.722s
+FAIL
+exit=0
+
+$ grep ok /home/sadc/labo-cgo/cgo-gate-test/modules-gate.log
+ok  	github.com/Realms4239/cgo/attest	0.006s
+ok  	github.com/Realms4239/cgo/audit/profile	0.083s
+ok  	github.com/Realms4239/cgo/capabilities	0.006s
+ok  	github.com/Realms4239/cgo/doctor	0.011s
+ok  	github.com/Realms4239/cgo/exporter	0.007s
+ok  	github.com/Realms4239/cgo/figures	0.009s
+ok  	github.com/Realms4239/cgo/iface	0.019s
+ok  	github.com/Realms4239/cgo/metrics	0.015s
+ok  	github.com/Realms4239/cgo/model	0.006s
+ok  	github.com/Realms4239/cgo/probe/bpf	0.006s
+ok  	github.com/Realms4239/cgo/profile	0.077s
+ok  	github.com/Realms4239/cgo/qdisc	0.020s
+ok  	github.com/Realms4239/cgo/remediate	0.007s
+ok  	github.com/Realms4239/cgo/results	0.127s
+ok  	github.com/Realms4239/cgo/runreq	0.005s
+exit=0

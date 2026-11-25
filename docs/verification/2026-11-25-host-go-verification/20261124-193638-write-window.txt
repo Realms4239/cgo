@@ -1,0 +1,39 @@
+# sadcnwp write window, 20261124-193638 UTC
+# host sadc@41.207.49.27:9922
+# file commands/write-cgo-audit-work.txt
+# token APPROVED-2026-11-24-cgo-audit-work.md
+
+# token: Operator approval relayed in chat on 2026-11-24 ("proceed more and more, I approve and authorize") after the published probe v0.1.0 dependency made audit fail at setup. This token scopes only the one write command file named below. It expires 23:59 UTC 2026-11-24.
+# token: Rung: R2
+# token: Class: reversible
+# token: sudo_grant: none. Key auth at ~/.ssh/sadcnwp. No card, no secret in argv, no .env path, no public bind. No service, timer, firewall, sshd, container, config, gate, permit, ledger or OS change. No guard-tool edit; all commands stay inside the already-named /home/sadc/labo-cgo/** scope. No chmod, no live bench cell, no corpus write, no ftp2 contact, no remote PC contact. The go.work is a host-only test artifact under the dedicated directory; no repository file, go.mod or dependency version is changed. A refusal is a finding and stops the pass.
+# token: Scope: transfer a host-only go.work and one small reviewed shell script into the existing dedicated directory, then launch the script in the background. The script runs `go test -count=1 ./...` in the audit module with GOWORK pointing at the local multi-module workspace and the same test-only flags, writing only audit-work.log and audit-work.exit inside that directory. No other module, no repository change, no write elsewhere, no rollback execution.
+# token: Commands (exact file reviewed before the socket opens):
+# token: C:\WEBSERVER\commands\write-cgo-audit-work.txt
+# token: sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/cgo-gate.go.work /home/sadc/labo-cgo/cgo-gate-test/src/go.work
+# token: sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-audit-work.sh /home/sadc/labo-cgo/cgo-gate-test/run-cgo-audit-work.sh
+# token: cd /home/sadc/labo-cgo/cgo-gate-test && nohup sh ./run-cgo-audit-work.sh < /dev/null > /dev/null 2>&1 &
+# token: Rollback: written and ready but NOT executed. The only host change is four new files under /home/sadc/labo-cgo/cgo-gate-test/. To roll back, the operator removes exactly that directory: rm -r /home/sadc/labo-cgo/cgo-gate-test . No backup, service or config restore is needed; no repository file was touched.
+# token: Rehearsal: before the socket opened, same day 2026-11-24 (UTC).
+# token: safe_write.py --selftest exited 0 (951 cases, 541 allowed and 410 refused), recorded earlier the same day.
+# token: Classify-only write-cgo-audit-work.txt: ALLOW 3 of 3, exit 0, @sha256:06b9750802fcb917fd0bb38f6809a8eaa2d2f83a684e1458467bbc349cedf138
+# token: Near-variant rehearsal-cgo-audit-near.txt (rm of the exit marker and sftp-put of go.work to an unscoped path): REFUSE 2 of 2, exit 1, @sha256:80279a13a061357c468afff6839cf21ffe7b47a343e1017031ed924556392353
+# token: Same-day rehearsal string: CGO-AUDIT-WORK rehearsal 2026-11-24.
+# token: Quiet window: one named window, "2026-11-24 CGO-AUDIT-WORK R2", 19:50Z to 23:59Z. One pass only; if the transport drops, read the result files rather than retrying the launch.
+# token: Second channel: this chat session stays open. Operator name: operator (chat approval 2026-11-24, operator ruling 2026-11-22). Ticket: CGO-AUDIT-WORK.
+# token: Three-state exits: 0 every command ran and returned data, 1 a command ran and returned an error, 2 a command did not run. A guard refusal is a finding, never a reason to widen a permit. Never emit 0 for a skipped or mocked check.
+# token: Approved by: operator (chat approval 2026-11-24, operator ruling 2026-11-22 authorizing task-scoped agent-authored tokens).
+
+$ sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/cgo-gate.go.work /home/sadc/labo-cgo/cgo-gate-test/src/go.work
+transferred C:/Users/ASUS/AppData/Local/Temp/opencode/cgo-gate.go.work -> /home/sadc/labo-cgo/cgo-gate-test/src/go.work
+exit=0
+
+$ sftp-put C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-audit-work.sh /home/sadc/labo-cgo/cgo-gate-test/run-cgo-audit-work.sh
+transferred C:/Users/ASUS/AppData/Local/Temp/opencode/run-cgo-audit-work.sh -> /home/sadc/labo-cgo/cgo-gate-test/run-cgo-audit-work.sh
+exit=0
+
+$ cd /home/sadc/labo-cgo/cgo-gate-test && nohup sh ./run-cgo-audit-work.sh < /dev/null > /dev/null 2>&1 &
+(no stdout)
+stderr:
+transport:
+exit=255
