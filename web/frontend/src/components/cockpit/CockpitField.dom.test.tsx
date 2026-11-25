@@ -4,14 +4,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import TimeField from './TimeField'
 import JournalRail from './JournalRail'
-import { TypedMetricRing, DomainEventRing, type InstrumentRings } from '../../lib/ringBuffer'
-
-function emptyRings(): InstrumentRings {
-  const mk = () => new TypedMetricRing(1)
-  return { small: mk(), rtt50: mk(), rtt95: mk(), goodput: mk(), ifaceRx: mk(), ifaceTx: mk() }
-}
+import { DomainEventRing } from '../../lib/ringBuffer'
 
 describe('cockpit field — placement et absence honnête', () => {
   it('le champ et le journal partagent le rythme déclaré', () => {
