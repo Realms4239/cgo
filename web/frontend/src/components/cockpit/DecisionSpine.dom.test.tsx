@@ -206,10 +206,14 @@ describe('DecisionSpine — Act, quatre états exclusifs', () => {
 
 describe('DecisionSpine — échelle', () => {
   const sheet = readFileSync(join(process.cwd(), 'src/styles/components.css'), 'utf8')
+  const tokens = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8')
   const index = readFileSync(join(process.cwd(), 'src/styles/index.css'), 'utf8')
 
   it('le mot du verdict occupe l’étage hero, les faits l’étage metric', () => {
-    expect(sheet).toMatch(/\.answer-word\s*\{[^}]*var\(--fs-hero\)/)
+    // Le hero est passé dans l'alias partagé : on vérifie l'alias ET sa cible,
+    // pas seulement une sous-chaîne, pour garder une oracle au moins aussi forte.
+    expect(sheet).toMatch(/\.answer-word\s*\{[^}]*font:\s*var\(--cockpit-font-hero\)/)
+    expect(tokens).toMatch(/--cockpit-font-hero:\s*600 var\(--fs-hero\)\/1\.15 var\(--font-ui\)/)
     expect(index).toMatch(/\.state-slot-num[^}]*\{[^}]*var\(--fs-metric\)/)
   })
 
