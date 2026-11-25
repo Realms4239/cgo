@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,21 @@ func waitAuditIdle(t *testing.T, srv *httptest.Server) {
 		resp, err := http.Get(srv.URL + "/api/audit/status")
 		if err != nil {
 			t.Fatal(err)
+		}
+		// La limite de débit du boundary répond 429 quand on interroge trop
+		// vite : ce n'est PAS un audit inactif. Attendre le rétro-limiteur
+		// avant de relire, sinon le test repart pendant que l'audit écrit.
+		if resp.StatusCode == http.StatusTooManyRequests {
+			delay := time.Second
+			if n, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && n > 0 {
+				delay = time.Duration(n) * time.Second
+			}
+			resp.Body.Close()
+			time.Sleep(delay)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("statut d'audit : %d", resp.StatusCode)
 		}
 		var st struct {
 			Running bool `json:"running"`
