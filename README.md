@@ -301,7 +301,7 @@ Nous recevons beaucoup de questions. Vérifiez d'abord :
 
 - `cgo doctor` — `tc` présent, `CAP_NET_ADMIN`, `BBR`, `ping` — tout vert avant une campagne.
 - `cgo shape --restore` — nettoie les `qdisc` périmés après un crash.
-- `GET /api/health` → `{"mode":"full","version":"1.2.3"}` — `observe` sur `Windows` est normal, la campagne renvoie `501`.
+- `GET /api/health` → `{"mode":"full","version":"2.0.0"}` — `observe` sur `Windows` est normal, la campagne renvoie `501`.
 - `go vet ./...` a besoin de `web/frontend/dist` — `bun run build` d'abord, sinon `embed.go` échoue.
 - `ECharts` : ne jamais réintroduire `visualMap piecewise` ni `LinearGradient` area — cela plante `LineView` (`coord`) et fige les voisins. `ChartSurface` `init` dans `useEffect`, `dispose` au cleanup.
 
