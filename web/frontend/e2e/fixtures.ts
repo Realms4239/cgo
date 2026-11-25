@@ -1,3 +1,5 @@
+import type { APIResponse } from '@playwright/test'
+
 // Données de test déterministes : aucune preuve réelle, aucune source de prod.
 export const VALID_REPORT = JSON.stringify({
   audit_id: 'archive-valid',
@@ -52,3 +54,24 @@ export const ARCHIVE_179_ROWS = JSON.stringify({
 })
 
 export const ARCHIVE_ONE_ROW = JSON.stringify({ audits: [row(1)] })
+
+// Limiteur déclaré par principal (60 lectures/min rafale 20, 10 mutations/min
+// rafale 5) : un 429 est transitoire, jamais une réussite, et il porte un
+// Retry-After entier en secondes. On l'honore avec un plafond court pour qu'un
+// test ne puisse pas attendre indéfiniment ; budget épuisé, on renvoie le
+// dernier statut réel et l'assertion échoue sur ce statut, sans le masquer.
+const MAX_RETRIES_429 = 4
+const MAX_WAIT_429_MS = 8_000
+
+export async function retryOn429(send: () => Promise<APIResponse>): Promise<APIResponse> {
+  let res = await send()
+  for (let attempt = 0; attempt < MAX_RETRIES_429 && res.status() === 429; attempt++) {
+    const seconds = Number(res.headers()['retry-after'])
+    const waitMs = Number.isFinite(seconds) && seconds > 0
+      ? Math.min(seconds * 1000, MAX_WAIT_429_MS)
+      : 1_000
+    await new Promise((resolve) => setTimeout(resolve, waitMs))
+    res = await send()
+  }
+  return res
+}

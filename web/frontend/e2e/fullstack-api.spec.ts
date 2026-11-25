@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { retryOn429 } from './fixtures';
 
 // Binaire Go réel servi par playwright.config.ts — aucun page.route, aucun stub.
 // Les preuves viennent du serveur : auth activée, mode observation sur cet hôte.
@@ -29,7 +30,7 @@ async function browserReadStatus(page: Page): Promise<number> {
 }
 
 test('GET /api/health — contrat ok / version / mode réels', async ({ request }) => {
-  const res = await request.get('/api/health');
+  const res = await retryOn429(() => request.get('/api/health'));
   expect(res.status()).toBe(200);
   expect(res.headers()['content-type']).toContain('application/json');
 
@@ -53,13 +54,13 @@ test('auth — lecture sans credential 401, avec Bearer 200', async ({ playwrigh
     await anon.dispose();
   }
 
-  const allowed = await request.get('/api/state');
+  const allowed = await retryOn429(() => request.get('/api/state'));
   expect(allowed.status()).toBe(200);
 });
 
 test('auth — /api/login pose un cookie HttpOnly et le navigateur connecté lit', async ({ playwright, browser, baseURL }) => {
   const anon = await anonymousApi(playwright, baseURL);
-  const login = await anon.post('/api/login', { data: { token: TOKEN } });
+  const login = await retryOn429(() => anon.post('/api/login', { data: { token: TOKEN } }));
   expect(login.status()).toBe(200);
   expect((await login.json()).ok).toBe(true);
 
@@ -70,7 +71,7 @@ test('auth — /api/login pose un cookie HttpOnly et le navigateur connecté lit
   expect(setCookie).toContain('SameSite=Strict');
 
   // Le cookie seul (aucun Bearer) suffit à lire.
-  const cookieRead = await anon.get('/api/state');
+  const cookieRead = await retryOn429(() => anon.get('/api/state'));
   expect(cookieRead.status()).toBe(200);
   await anon.dispose();
 
@@ -133,7 +134,7 @@ test('lectures — JSON valide et absence honnête, aucune donnée fabriquée', 
   ];
 
   for (const [path, check] of checks) {
-    const res = await request.get(path);
+    const res = await retryOn429(() => request.get(path));
     expect(res.status(), path).toBe(200);
     expect(res.headers()['content-type'], path).toContain('application/json');
     check(await res.json());
@@ -142,41 +143,41 @@ test('lectures — JSON valide et absence honnête, aucune donnée fabriquée', 
 
 test('absence honnête — figures et replay ne fabriquent ni image ni flux', async ({ request }) => {
   // Aucune figure générée localement : 404, pas une image ou un JSON inventé.
-  const figures = await request.get('/api/figures/');
+  const figures = await retryOn429(() => request.get('/api/figures/'));
   expect(figures.status()).toBe(404);
   expect(figures.headers()['content-type'] ?? '').not.toContain('image/');
 
   // Sans identifiant de run autorisé, le replay refuse au lieu d'émettre des trames.
-  const replay = await request.get('/api/replay/stream');
+  const replay = await retryOn429(() => request.get('/api/replay/stream'));
   expect(replay.status()).toBe(400);
   expect(await replay.text()).toContain('run invalide');
   expect(replay.headers()['content-type'] ?? '').not.toContain('text/event-stream');
 });
 
 test('observe — mutations 501 sans effet de bord', async ({ request }) => {
-  const health = await (await request.get('/api/health')).json();
+  const health = await (await retryOn429(() => request.get('/api/health'))).json();
   // Hôte Windows local : le mode auto résout observation, d'où les 501.
   expect(health.mode).toBe('observe');
 
-  const stateBefore = await (await request.get('/api/state')).json();
-  const shapeBefore = await (await request.get('/api/shape')).json();
-  const eventsBefore = await (await request.get('/api/events')).json();
+  const stateBefore = await (await retryOn429(() => request.get('/api/state'))).json();
+  const shapeBefore = await (await retryOn429(() => request.get('/api/shape'))).json();
+  const eventsBefore = await (await retryOn429(() => request.get('/api/events'))).json();
   expect(stateBefore.running).toBe(false);
   expect(shapeBefore.applied).toBe(false);
   expect(eventsBefore.events).toHaveLength(0);
 
   for (const path of MUTATIONS) {
-    const res = await request.post(path, {
+    const res = await retryOn429(() => request.post(path, {
       data: { site: 'x', link_type: 'fiber', profiles: ['P1'], reps: 1, qdisc: 'cake', capacity_mbps: 20, on: true },
       headers: { 'X-Confirm-Action': 'true' },
-    });
+    }));
     expect(res.status(), path).toBe(501);
     expect((await res.json()).error, path).toContain('mode observation');
   }
 
-  const stateAfter = await (await request.get('/api/state')).json();
-  const shapeAfter = await (await request.get('/api/shape')).json();
-  const eventsAfter = await (await request.get('/api/events')).json();
+  const stateAfter = await (await retryOn429(() => request.get('/api/state'))).json();
+  const shapeAfter = await (await retryOn429(() => request.get('/api/shape'))).json();
+  const eventsAfter = await (await retryOn429(() => request.get('/api/events'))).json();
   expect(stateAfter).toEqual(stateBefore);
   expect(shapeAfter).toEqual(shapeBefore);
   expect(eventsAfter).toEqual(eventsBefore);

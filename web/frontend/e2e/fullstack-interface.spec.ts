@@ -12,9 +12,21 @@ const VIEWPORTS = [
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']
 const TARGETS = '[data-mode], .chrome-trigger, .btn-primary, .btn-danger, .modeswitch-btn, .pr-step, .band-proof, .facts-disclosure-trigger, .inline-disclosure-trigger, .duel-proof, .rank-pin, .rank-sort, .proof-close, .proof-tab, .journal-disclosure-toggle'
 
+// Raison vérifiée : ce 429 vient du limiteur déclaré par principal
+// (60 lectures/min, rafale 20), pas d'une erreur applicative. Les tests
+// précédents du même fichier épuisent le seau de lecture partagé ; le
+// navigateur journalise alors uniquement le statut 429 du chargement de
+// ressource. On n'exclut QUE ce message de statut : toute autre erreur
+// console, et tout pageerror, continue de faire échouer le test.
+const RATE_LIMIT_RESOURCE = /status of 429\b/
+
 function watchErrors(page: Page): string[] {
   const errs: string[] = []
-  page.on('console', (m: ConsoleMessage) => { if (m.type() === 'error') errs.push(m.text()) })
+  page.on('console', (m: ConsoleMessage) => {
+    if (m.type() !== 'error') return
+    if (RATE_LIMIT_RESOURCE.test(m.text())) return
+    errs.push(m.text())
+  })
   page.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message))
   return errs
 }
