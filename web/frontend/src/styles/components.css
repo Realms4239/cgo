@@ -231,7 +231,7 @@
 
 /* T5 — instrument à axe partagé. Tokens incumbents seuls ; la palette claire
    ratifiée entre à la slice 9. Aucune transition globale, aucun chiffre fabriqué. */
-.time-field { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.time-field { min-width: 0; display: flex; flex-direction: column; gap: var(--cockpit-rhythm); }
 .tf-header { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; min-height: 36px; font-size: var(--fs-micro); color: var(--text-muted); }
 .tf-fill, .tf-source { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .tf-plot { position: relative; min-width: 0; height: 420px; border: 1px solid var(--hairline); background: var(--surface-soft); }
@@ -277,7 +277,7 @@
   .tf-tick::before { color: CanvasText; background: Canvas; }
   .tf-glyph, .tf-repere-mark, .tf-absent { color: CanvasText; }
 }
-.journal-rail { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); max-height: 100%; }
+.journal-rail { min-width: 0; display: flex; flex-direction: column; gap: var(--cockpit-rhythm); max-height: 100%; }
 .jr-head { display: flex; justify-content: space-between; gap: var(--sp-2); font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--tracking-caps); color: var(--text-body-strong); }
 .jr-live { font-variant-numeric: tabular-nums; color: var(--brand-teal-ink); }
 .jr-empty { margin: 0; font-size: var(--fs-fine); color: var(--text-muted); text-wrap: pretty; }
@@ -289,7 +289,7 @@
 @media (max-width: 1599px) { .journal-rail { max-height: 220px; } }
 /* Le champ T5 est monté sous le spine : une colonne jusqu'à 1600, puis le
    journal prend le bord droit comme dans la spec spatiale. */
-.cockpit-field { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
+.cockpit-field { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--cockpit-rhythm); }
 /* Contrat spatial ratifié §1 : à partir de 1024, la décision est une colonne
    épinglée à gauche et le champ occupe le reste de la zone de travail. */
 @media (min-width: 1024px) {
