@@ -1,0 +1,1307 @@
+# sadcnwp read window, 20261126-063025 UTC
+# host sadc@41.207.49.27:9922
+
+$ date -u
+Thu Nov 26 06:30:23 AM UTC 2026
+exit=0
+
+$ ls -la /home/sadc/labo-cgo/field-trace/out3
+total 10896
+drwx------ 2 sadc sadc     4096 Nov 26 09:20 .
+drwxrwxr-x 8 sadc sadc     4096 Nov 26 06:09 ..
+-rw------- 1 sadc sadc 11140704 Nov 26 09:20 flows.csv
+-rw------- 1 root root      457 Nov 26 09:20 manifest.json
+exit=0
+
+$ ps -eo pid,etimes,args
+    PID ELAPSED COMMAND
+      1 4739618 /usr/lib/systemd/systemd --system --deserialize=133 maybe-ubiquity
+      2 4739618 [kthreadd]
+      3 4739618 [pool_workqueue_release]
+      4 4739618 [kworker/R-rcu_g]
+      5 4739618 [kworker/R-rcu_p]
+      6 4739618 [kworker/R-slub_]
+      7 4739618 [kworker/R-netns]
+      9 4739618 [kworker/0:0H-events_highpri]
+     12 4739618 [kworker/R-mm_pe]
+     13 4739618 [rcu_tasks_kthread]
+     14 4739618 [rcu_tasks_rude_kthread]
+     15 4739618 [rcu_tasks_trace_kthread]
+     16 4739618 [ksoftirqd/0]
+     17 4739618 [rcu_preempt]
+     18 4739618 [migration/0]
+     19 4739618 [idle_inject/0]
+     20 4739618 [cpuhp/0]
+     21 4739618 [cpuhp/1]
+     22 4739618 [idle_inject/1]
+     23 4739618 [migration/1]
+     24 4739618 [ksoftirqd/1]
+     26 4739618 [kworker/1:0H-events_highpri]
+     27 4739618 [cpuhp/2]
+     28 4739618 [idle_inject/2]
+     29 4739618 [migration/2]
+     30 4739618 [ksoftirqd/2]
+     32 4739618 [kworker/2:0H-events_highpri]
+     33 4739618 [cpuhp/3]
+     34 4739618 [idle_inject/3]
+     35 4739618 [migration/3]
+     36 4739618 [ksoftirqd/3]
+     38 4739618 [kworker/3:0H-events_highpri]
+     39 4739618 [cpuhp/4]
+     40 4739618 [idle_inject/4]
+     41 4739618 [migration/4]
+     42 4739618 [ksoftirqd/4]
+     44 4739618 [kworker/4:0H-events_highpri]
+     45 4739618 [cpuhp/5]
+     46 4739618 [idle_inject/5]
+     47 4739618 [migration/5]
+     48 4739618 [ksoftirqd/5]
+     50 4739618 [kworker/5:0H-events_highpri]
+     51 4739618 [cpuhp/6]
+     52 4739618 [idle_inject/6]
+     53 4739618 [migration/6]
+     54 4739618 [ksoftirqd/6]
+     56 4739618 [kworker/6:0H-events_highpri]
+     57 4739618 [cpuhp/7]
+     58 4739618 [idle_inject/7]
+     59 4739618 [migration/7]
+     60 4739618 [ksoftirqd/7]
+     62 4739618 [kworker/7:0H-kblockd]
+     63 4739618 [cpuhp/8]
+     64 4739618 [idle_inject/8]
+     65 4739618 [migration/8]
+     66 4739618 [ksoftirqd/8]
+     68 4739618 [kworker/8:0H-events_highpri]
+     69 4739618 [cpuhp/9]
+     70 4739618 [idle_inject/9]
+     71 4739618 [migration/9]
+     72 4739618 [ksoftirqd/9]
+     74 4739618 [kworker/9:0H-events_highpri]
+     75 4739618 [cpuhp/10]
+     76 4739618 [idle_inject/10]
+     77 4739618 [migration/10]
+     78 4739618 [ksoftirqd/10]
+     80 4739618 [kworker/10:0H-events_highpri]
+     81 4739618 [cpuhp/11]
+     82 4739618 [idle_inject/11]
+     83 4739618 [migration/11]
+     84 4739618 [ksoftirqd/11]
+     86 4739618 [kworker/11:0H-events_highpri]
+     87 4739618 [cpuhp/12]
+     88 4739618 [idle_inject/12]
+     89 4739618 [migration/12]
+     90 4739618 [ksoftirqd/12]
+     92 4739618 [kworker/12:0H-events_highpri]
+     93 4739618 [cpuhp/13]
+     94 4739618 [idle_inject/13]
+     95 4739618 [migration/13]
+     96 4739618 [ksoftirqd/13]
+     98 4739618 [kworker/13:0H-events_highpri]
+     99 4739618 [cpuhp/14]
+    100 4739618 [idle_inject/14]
+    101 4739618 [migration/14]
+    102 4739618 [ksoftirqd/14]
+    104 4739618 [kworker/14:0H-events_highpri]
+    105 4739618 [cpuhp/15]
+    106 4739618 [idle_inject/15]
+    107 4739618 [migration/15]
+    108 4739618 [ksoftirqd/15]
+    110 4739618 [kworker/15:0H-events_highpri]
+    111 4739618 [cpuhp/16]
+    112 4739618 [idle_inject/16]
+    113 4739618 [migration/16]
+    114 4739618 [ksoftirqd/16]
+    116 4739618 [kworker/16:0H-events_highpri]
+    117 4739618 [cpuhp/17]
+    118 4739618 [idle_inject/17]
+    119 4739618 [migration/17]
+    120 4739618 [ksoftirqd/17]
+    122 4739618 [kworker/17:0H-events_highpri]
+    123 4739618 [cpuhp/18]
+    124 4739618 [idle_inject/18]
+    125 4739618 [migration/18]
+    126 4739618 [ksoftirqd/18]
+    128 4739618 [kworker/18:0H-events_highpri]
+    129 4739618 [cpuhp/19]
+    130 4739618 [idle_inject/19]
+    131 4739618 [migration/19]
+    132 4739618 [ksoftirqd/19]
+    134 4739618 [kworker/19:0H-events_highpri]
+    135 4739618 [cpuhp/20]
+    136 4739618 [idle_inject/20]
+    137 4739618 [migration/20]
+    138 4739618 [ksoftirqd/20]
+    140 4739618 [kworker/20:0H-events_highpri]
+    141 4739618 [cpuhp/21]
+    142 4739618 [idle_inject/21]
+    143 4739618 [migration/21]
+    144 4739618 [ksoftirqd/21]
+    146 4739618 [kworker/21:0H-kblockd]
+    147 4739618 [cpuhp/22]
+    148 4739618 [idle_inject/22]
+    149 4739618 [migration/22]
+    150 4739618 [ksoftirqd/22]
+    152 4739618 [kworker/22:0H-events_highpri]
+    153 4739618 [cpuhp/23]
+    154 4739618 [idle_inject/23]
+    155 4739618 [migration/23]
+    156 4739618 [ksoftirqd/23]
+    158 4739618 [kworker/23:0H-events_highpri]
+    159 4739618 [cpuhp/24]
+    160 4739618 [idle_inject/24]
+    161 4739618 [migration/24]
+    162 4739618 [ksoftirqd/24]
+    164 4739618 [kworker/24:0H-events_highpri]
+    165 4739618 [cpuhp/25]
+    166 4739618 [idle_inject/25]
+    167 4739618 [migration/25]
+    168 4739618 [ksoftirqd/25]
+    170 4739618 [kworker/25:0H-events_highpri]
+    171 4739618 [cpuhp/26]
+    172 4739618 [idle_inject/26]
+    173 4739618 [migration/26]
+    174 4739618 [ksoftirqd/26]
+    176 4739618 [kworker/26:0H-events_highpri]
+    177 4739618 [cpuhp/27]
+    178 4739618 [idle_inject/27]
+    179 4739618 [migration/27]
+    180 4739618 [ksoftirqd/27]
+    182 4739618 [kworker/27:0H-events_highpri]
+    183 4739618 [cpuhp/28]
+    184 4739618 [idle_inject/28]
+    185 4739618 [migration/28]
+    186 4739618 [ksoftirqd/28]
+    188 4739618 [kworker/28:0H-events_highpri]
+    189 4739618 [cpuhp/29]
+    190 4739618 [idle_inject/29]
+    191 4739618 [migration/29]
+    192 4739618 [ksoftirqd/29]
+    194 4739618 [kworker/29:0H-events_highpri]
+    195 4739618 [cpuhp/30]
+    196 4739618 [idle_inject/30]
+    197 4739618 [migration/30]
+    198 4739618 [ksoftirqd/30]
+    200 4739618 [kworker/30:0H-events_highpri]
+    201 4739618 [cpuhp/31]
+    202 4739618 [idle_inject/31]
+    203 4739618 [migration/31]
+    204 4739618 [ksoftirqd/31]
+    206 4739618 [kworker/31:0H-events_highpri]
+    207 4739618 [cpuhp/32]
+    208 4739618 [idle_inject/32]
+    209 4739618 [migration/32]
+    210 4739618 [ksoftirqd/32]
+    213 4739618 [cpuhp/33]
+    214 4739618 [idle_inject/33]
+    215 4739618 [migration/33]
+    216 4739618 [ksoftirqd/33]
+    218 4739618 [kworker/33:0H-events_highpri]
+    219 4739618 [cpuhp/34]
+    220 4739618 [idle_inject/34]
+    221 4739618 [migration/34]
+    222 4739618 [ksoftirqd/34]
+    224 4739618 [kworker/34:0H-events_highpri]
+    225 4739618 [cpuhp/35]
+    226 4739618 [idle_inject/35]
+    227 4739618 [migration/35]
+    228 4739618 [ksoftirqd/35]
+    230 4739618 [kworker/35:0H-events_highpri]
+    231 4739618 [cpuhp/36]
+    232 4739618 [idle_inject/36]
+    233 4739618 [migration/36]
+    234 4739618 [ksoftirqd/36]
+    236 4739618 [kworker/36:0H-events_highpri]
+    237 4739618 [cpuhp/37]
+    238 4739618 [idle_inject/37]
+    239 4739618 [migration/37]
+    240 4739618 [ksoftirqd/37]
+    242 4739618 [kworker/37:0H-events_highpri]
+    243 4739618 [cpuhp/38]
+    244 4739618 [idle_inject/38]
+    245 4739618 [migration/38]
+    246 4739618 [ksoftirqd/38]
+    248 4739618 [kworker/38:0H-events_highpri]
+    249 4739618 [cpuhp/39]
+    250 4739618 [idle_inject/39]
+    251 4739618 [migration/39]
+    252 4739618 [ksoftirqd/39]
+    254 4739618 [kworker/39:0H-events_highpri]
+    255 4739618 [cpuhp/40]
+    256 4739618 [idle_inject/40]
+    257 4739618 [migration/40]
+    258 4739618 [ksoftirqd/40]
+    260 4739618 [kworker/40:0H-events_highpri]
+    261 4739618 [cpuhp/41]
+    262 4739618 [idle_inject/41]
+    263 4739618 [migration/41]
+    264 4739618 [ksoftirqd/41]
+    266 4739618 [kworker/41:0H-events_highpri]
+    267 4739618 [cpuhp/42]
+    268 4739618 [idle_inject/42]
+    269 4739618 [migration/42]
+    270 4739618 [ksoftirqd/42]
+    272 4739618 [kworker/42:0H-events_highpri]
+    273 4739618 [cpuhp/43]
+    274 4739618 [idle_inject/43]
+    275 4739618 [migration/43]
+    276 4739618 [ksoftirqd/43]
+    278 4739618 [kworker/43:0H-events_highpri]
+    279 4739618 [cpuhp/44]
+    280 4739618 [idle_inject/44]
+    281 4739618 [migration/44]
+    282 4739618 [ksoftirqd/44]
+    284 4739618 [kworker/44:0H-events_highpri]
+    285 4739618 [cpuhp/45]
+    286 4739618 [idle_inject/45]
+    287 4739618 [migration/45]
+    288 4739618 [ksoftirqd/45]
+    290 4739618 [kworker/45:0H-events_highpri]
+    291 4739618 [cpuhp/46]
+    292 4739618 [idle_inject/46]
+    293 4739618 [migration/46]
+    294 4739618 [ksoftirqd/46]
+    296 4739618 [kworker/46:0H-events_highpri]
+    297 4739618 [cpuhp/47]
+    298 4739618 [idle_inject/47]
+    299 4739618 [migration/47]
+    300 4739618 [ksoftirqd/47]
+    302 4739618 [kworker/47:0H-events_highpri]
+    303 4739618 [cpuhp/48]
+    304 4739618 [idle_inject/48]
+    305 4739618 [migration/48]
+    306 4739618 [ksoftirqd/48]
+    308 4739618 [kworker/48:0H-events_highpri]
+    309 4739618 [cpuhp/49]
+    310 4739618 [idle_inject/49]
+    311 4739618 [migration/49]
+    312 4739618 [ksoftirqd/49]
+    314 4739618 [kworker/49:0H-events_highpri]
+    315 4739618 [cpuhp/50]
+    316 4739618 [idle_inject/50]
+    317 4739618 [migration/50]
+    318 4739618 [ksoftirqd/50]
+    320 4739618 [kworker/50:0H-events_highpri]
+    321 4739618 [cpuhp/51]
+    322 4739618 [idle_inject/51]
+    323 4739618 [migration/51]
+    324 4739618 [ksoftirqd/51]
+    326 4739618 [kworker/51:0H-events_highpri]
+    327 4739618 [cpuhp/52]
+    328 4739618 [idle_inject/52]
+    329 4739618 [migration/52]
+    330 4739618 [ksoftirqd/52]
+    332 4739618 [kworker/52:0H-events_highpri]
+    333 4739618 [cpuhp/53]
+    334 4739618 [idle_inject/53]
+    335 4739618 [migration/53]
+    336 4739618 [ksoftirqd/53]
+    338 4739618 [kworker/53:0H-events_highpri]
+    339 4739618 [cpuhp/54]
+    340 4739618 [idle_inject/54]
+    341 4739618 [migration/54]
+    342 4739618 [ksoftirqd/54]
+    344 4739618 [kworker/54:0H-events_highpri]
+    345 4739618 [cpuhp/55]
+    346 4739618 [idle_inject/55]
+    347 4739618 [migration/55]
+    348 4739618 [ksoftirqd/55]
+    350 4739618 [kworker/55:0H-events_highpri]
+    351 4739618 [cpuhp/56]
+    352 4739618 [idle_inject/56]
+    353 4739618 [migration/56]
+    354 4739618 [ksoftirqd/56]
+    356 4739618 [kworker/56:0H-events_highpri]
+    357 4739618 [cpuhp/57]
+    358 4739618 [idle_inject/57]
+    359 4739618 [migration/57]
+    360 4739618 [ksoftirqd/57]
+    362 4739618 [kworker/57:0H-kblockd]
+    363 4739618 [cpuhp/58]
+    364 4739618 [idle_inject/58]
+    365 4739618 [migration/58]
+    366 4739618 [ksoftirqd/58]
+    368 4739618 [kworker/58:0H-events_highpri]
+    369 4739618 [cpuhp/59]
+    370 4739618 [idle_inject/59]
+    371 4739618 [migration/59]
+    372 4739618 [ksoftirqd/59]
+    374 4739618 [kworker/59:0H-events_highpri]
+    375 4739618 [cpuhp/60]
+    376 4739618 [idle_inject/60]
+    377 4739618 [migration/60]
+    378 4739618 [ksoftirqd/60]
+    380 4739618 [kworker/60:0H-events_highpri]
+    381 4739618 [cpuhp/61]
+    382 4739618 [idle_inject/61]
+    383 4739618 [migration/61]
+    384 4739618 [ksoftirqd/61]
+    386 4739618 [kworker/61:0H-events_highpri]
+    387 4739618 [cpuhp/62]
+    388 4739618 [idle_inject/62]
+    389 4739618 [migration/62]
+    390 4739618 [ksoftirqd/62]
+    392 4739618 [kworker/62:0H-events_highpri]
+    393 4739618 [cpuhp/63]
+    394 4739618 [idle_inject/63]
+    395 4739618 [migration/63]
+    396 4739618 [ksoftirqd/63]
+    398 4739618 [kworker/63:0H-events_highpri]
+    399 4739618 [cpuhp/64]
+    400 4739618 [idle_inject/64]
+    401 4739618 [migration/64]
+    402 4739618 [ksoftirqd/64]
+    404 4739618 [kworker/64:0H-events_highpri]
+    405 4739618 [cpuhp/65]
+    406 4739618 [idle_inject/65]
+    407 4739618 [migration/65]
+    408 4739618 [ksoftirqd/65]
+    410 4739618 [kworker/65:0H-events_highpri]
+    411 4739618 [cpuhp/66]
+    412 4739618 [idle_inject/66]
+    413 4739618 [migration/66]
+    414 4739618 [ksoftirqd/66]
+    416 4739618 [kworker/66:0H-events_highpri]
+    417 4739618 [cpuhp/67]
+    418 4739618 [idle_inject/67]
+    419 4739618 [migration/67]
+    420 4739618 [ksoftirqd/67]
+    422 4739618 [kworker/67:0H-events_highpri]
+    423 4739618 [cpuhp/68]
+    424 4739618 [idle_inject/68]
+    425 4739618 [migration/68]
+    426 4739618 [ksoftirqd/68]
+    428 4739618 [kworker/68:0H-events_highpri]
+    429 4739618 [cpuhp/69]
+    430 4739618 [idle_inject/69]
+    431 4739618 [migration/69]
+    432 4739618 [ksoftirqd/69]
+    434 4739618 [kworker/69:0H-events_highpri]
+    435 4739618 [cpuhp/70]
+    436 4739618 [idle_inject/70]
+    437 4739618 [migration/70]
+    438 4739618 [ksoftirqd/70]
+    440 4739618 [kworker/70:0H-events_highpri]
+    441 4739618 [cpuhp/71]
+    442 4739618 [idle_inject/71]
+    443 4739618 [migration/71]
+    444 4739618 [ksoftirqd/71]
+    446 4739618 [kworker/71:0H-events_highpri]
+    447 4739618 [cpuhp/72]
+    448 4739618 [idle_inject/72]
+    449 4739618 [migration/72]
+    450 4739618 [ksoftirqd/72]
+    452 4739618 [kworker/72:0H-kblockd]
+    453 4739618 [cpuhp/73]
+    454 4739618 [idle_inject/73]
+    455 4739618 [migration/73]
+    456 4739618 [ksoftirqd/73]
+    458 4739618 [kworker/73:0H-events_highpri]
+    459 4739618 [cpuhp/74]
+    460 4739618 [idle_inject/74]
+    461 4739618 [migration/74]
+    462 4739618 [ksoftirqd/74]
+    464 4739618 [kworker/74:0H-kblockd]
+    465 4739618 [cpuhp/75]
+    466 4739618 [idle_inject/75]
+    467 4739618 [migration/75]
+    468 4739618 [ksoftirqd/75]
+    470 4739618 [kworker/75:0H-events_highpri]
+    471 4739618 [cpuhp/76]
+    472 4739618 [idle_inject/76]
+    473 4739618 [migration/76]
+    474 4739618 [ksoftirqd/76]
+    476 4739618 [kworker/76:0H-events_highpri]
+    477 4739618 [cpuhp/77]
+    478 4739618 [idle_inject/77]
+    479 4739618 [migration/77]
+    480 4739618 [ksoftirqd/77]
+    482 4739618 [kworker/77:0H-events_highpri]
+    483 4739618 [cpuhp/78]
+    484 4739618 [idle_inject/78]
+    485 4739618 [migration/78]
+    486 4739618 [ksoftirqd/78]
+    488 4739618 [kworker/78:0H-events_highpri]
+    489 4739618 [cpuhp/79]
+    490 4739618 [idle_inject/79]
+    491 4739618 [migration/79]
+    492 4739618 [ksoftirqd/79]
+    494 4739618 [kworker/79:0H-events_highpri]
+    497 4739618 [kdevtmpfs]
+    498 4739618 [kworker/R-inet_]
+    499 4739618 [kauditd]
+    501 4739618 [khungtaskd]
+    504 4739618 [oom_reaper]
+    505 4739618 [kworker/R-write]
+    506 4739618 [kcompactd0]
+    507 4739618 [kcompactd1]
+    508 4739618 [ksmd]
+    509 4739618 [khugepaged]
+    510 4739618 [kworker/R-kinte]
+    511 4739618 [kworker/R-kbloc]
+    512 4739618 [kworker/R-blkcg]
+    513 4739618 [irq/9-acpi]
+    515 4739618 [kworker/R-tpm_d]
+    516 4739618 [kworker/R-ata_s]
+    517 4739618 [kworker/R-md]
+    518 4739618 [kworker/R-md_bi]
+    519 4739618 [kworker/R-edac-]
+    520 4739618 [kworker/R-devfr]
+    521 4739618 [watchdogd]
+    522 4739618 [kworker/R-quota]
+    523 4739618 [kworker/0:1H-events_highpri]
+    526 4739618 [kswapd0]
+    527 4739618 [kswapd1]
+    528 4739618 [ecryptfs-kthread]
+    529 4739618 [kworker/R-kthro]
+    531 4739618 [kworker/R-acpi_]
+    535 4739617 [kworker/R-mld]
+    536 4739617 [kworker/22:1H-events_highpri]
+    537 4739617 [kworker/R-ipv6_]
+    547 4739617 [kworker/R-kstrp]
+    603 4739617 [kworker/u163:0-krxrpcd]
+    604 4739617 [kworker/u164:0]
+    605 4739617 [kworker/u165:0]
+    610 4739617 [kworker/R-crypt]
+    624 4739617 [kworker/R-charg]
+    649 4739617 [kworker/72:1H]
+    653 4739617 [kworker/76:1H-kblockd]
+    654 4739617 [kworker/1:1H-kblockd]
+    684 4739617 [kworker/71:1H-kblockd]
+    685 4739617 [kworker/74:1H]
+    686 4739617 [kworker/40:1H-kblockd]
+    687 4739617 [kworker/38:1H-kblockd]
+    688 4739617 [kworker/44:1H-kblockd]
+    732 4739617 [kworker/60:1H-kblockd]
+    733 4739617 [kworker/64:1H-kblockd]
+    734 4739617 [kworker/66:1H-kblockd]
+    735 4739617 [kworker/34:1H-kblockd]
+    736 4739617 [kworker/42:1H-kblockd]
+    737 4739617 [kworker/58:1H-kblockd]
+    738 4739617 [kworker/4:1H-kblockd]
+    739 4739617 [kworker/28:1H-kblockd]
+    740 4739617 [kworker/26:1H-kblockd]
+    741 4739617 [kworker/54:1H-kblockd]
+    742 4739617 [kworker/32:1H-kblockd]
+    743 4739617 [kworker/70:1H-kblockd]
+    744 4739617 [kworker/24:1H-kblockd]
+    745 4739617 [kworker/30:1H-kblockd]
+    746 4739617 [kworker/18:1H-kblockd]
+    747 4739617 [kworker/46:1H-kblockd]
+    748 4739617 [kworker/12:1H-kblockd]
+    749 4739617 [kworker/68:1H-kblockd]
+    750 4739617 [kworker/2:1H-kblockd]
+    751 4739617 [kworker/14:1H-kblockd]
+    752 4739617 [kworker/78:1H-kblockd]
+    753 4739617 [kworker/6:1H-kblockd]
+    754 4739617 [kworker/8:1H-kblockd]
+    755 4739617 [kworker/62:1H-kblockd]
+    756 4739617 [kworker/56:1H-kblockd]
+    757 4739617 [kworker/50:1H-kblockd]
+    758 4739617 [kworker/10:1H-kblockd]
+    759 4739617 [kworker/16:1H-kblockd]
+    760 4739617 [kworker/36:1H-kblockd]
+    761 4739617 [kworker/48:1H-kblockd]
+    762 4739617 [kworker/52:1H-kblockd]
+    768 4739617 [kworker/20:1H-kblockd]
+    775 4739617 [kworker/3:1H-kblockd]
+    777 4739617 [kworker/49:1H-kblockd]
+    779 4739617 [kworker/5:1H-kblockd]
+    782 4739617 [kworker/15:1H-kblockd]
+    785 4739617 [kworker/47:1H-kblockd]
+    788 4739617 [kworker/67:1H-kblockd]
+    791 4739617 [kworker/65:1H-kblockd]
+    792 4739617 [kworker/69:1H-kblockd]
+    794 4739617 [scsi_eh_0]
+    796 4739617 [kworker/R-scsi_]
+    804 4739617 [kworker/13:1H-kblockd]
+    807 4739617 [kworker/39:1H-kblockd]
+    817 4739617 [kworker/61:1H-kblockd]
+    819 4739617 [kworker/17:1H-kblockd]
+    820 4739617 [kworker/27:1H-kblockd]
+    821 4739617 [kworker/23:1H-kblockd]
+    834 4739617 [kworker/59:1H-kblockd]
+    835 4739617 [kworker/31:1H-kblockd]
+    837 4739617 [kworker/33:1H-kblockd]
+    839 4739617 [kworker/41:1H-kblockd]
+    844 4739617 [kworker/37:1H-kblockd]
+    848 4739617 [kworker/45:1H-kblockd]
+    849 4739617 [kworker/35:1H-kblockd]
+    870 4739617 [scsi_eh_1]
+    883 4739617 [kworker/R-scsi_]
+    888 4739617 [scsi_eh_2]
+    897 4739617 [kworker/63:1H-kblockd]
+    898 4739617 [kworker/R-scsi_]
+    901 4739617 [scsi_eh_3]
+    902 4739617 [kworker/51:1H-kblockd]
+    903 4739617 [kworker/R-scsi_]
+    908 4739617 [kworker/R-bnxt_]
+    914 4739617 [scsi_eh_4]
+    917 4739617 [kworker/R-scsi_]
+    920 4739617 [scsi_eh_5]
+    921 4739617 [kworker/R-scsi_]
+    923 4739617 [scsi_eh_6]
+    924 4739617 [kworker/R-scsi_]
+    925 4739617 [kworker/9:1H-kblockd]
+    926 4739617 [kworker/11:1H-kblockd]
+    933 4739617 [scsi_eh_7]
+    934 4739617 [kworker/R-scsi_]
+    935 4739617 [scsi_eh_8]
+    936 4739617 [kworker/R-scsi_]
+    937 4739617 [scsi_eh_9]
+    938 4739617 [kworker/R-scsi_]
+    939 4739617 [scsi_eh_10]
+    940 4739617 [kworker/R-scsi_]
+    941 4739617 [scsi_eh_11]
+    942 4739617 [kworker/R-scsi_]
+    943 4739617 [scsi_eh_12]
+    944 4739617 [kworker/R-scsi_]
+    945 4739617 [scsi_eh_13]
+    946 4739617 [kworker/R-scsi_]
+    947 4739617 [scsi_eh_14]
+    948 4739617 [kworker/R-scsi_]
+    975 4739616 [kworker/R-poll_]
+   1015 4739616 [kworker/53:1H-kblockd]
+   1040 4739616 [kworker/R-kdmfl]
+   1041 4739616 [kworker/R-kdmfl]
+   1042 4739616 [kworker/R-kdmfl]
+   1044 4739616 [kworker/R-kdmfl]
+   1097 4739615 [kworker/R-raid5]
+   1102 4739615 [kworker/57:1H]
+   1146 4739615 [kworker/21:1H]
+   1150 4739615 [jbd2/dm-0-8]
+   1151 4739615 [kworker/R-ext4-]
+   1176 4739615 [kworker/25:1H-kblockd]
+   1177 4739615 [kworker/19:1H-kblockd]
+   1178 4739615 [kworker/75:1H-kblockd]
+   1179 4739615 [kworker/77:1H-kblockd]
+   1181 4739615 [kworker/79:1H-kblockd]
+   1182 4739615 [kworker/29:1H-kblockd]
+   1183 4739615 [kworker/43:1H-kblockd]
+   1184 4739615 [kworker/55:1H-kblockd]
+   1185 4739615 [kworker/73:1H-kblockd]
+   1187 4739615 [kworker/7:1H]
+   1285 4739613 [kworker/R-kmpat]
+   1286 4739613 [kworker/R-kmpat]
+   1607 4739613 [kworker/R-ipmi-]
+   1738 4739613 [kworker/R-nfit]
+   1856 4739612 [jbd2/sda2-8]
+   1858 4739612 [kworker/R-ext4-]
+   1866 4739612 [jbd2/dm-1-8]
+   1867 4739612 [kworker/R-ext4-]
+   1894 4739612 [kworker/R-xfsal]
+   1895 4739612 [kworker/R-xfs_m]
+   1896 4739612 [kworker/R-xfs-b]
+   1897 4739612 [kworker/R-xfs-c]
+   1898 4739612 [kworker/R-xfs-r]
+   1899 4739612 [kworker/R-xfs-b]
+   1900 4739612 [kworker/R-xfs-i]
+   1901 4739612 [kworker/R-xfs-l]
+   1902 4739612 [kworker/R-xfs-c]
+   1903 4739612 [xfsaild/dm-3]
+   2225 4739611 [kworker/R-cfg80]
+   2245 4739490 @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   2276 4739490 /usr/lib/systemd/systemd-logind
+   2287 4739490 /usr/sbin/NetworkManager --no-daemon
+   2290 4739490 /usr/sbin/wpa_supplicant -u -s -O DIR=/run/wpa_supplicant GROUP=netdev
+   2645 4739487 /usr/local/bin/node_exporter
+   2654 4739487 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+   2923 4739486 /bin/sh /usr/local/Eaton/IntelligentPowerProtector/bin/mc2_wd.sh
+   3312 4739486 /usr/sbin/gdm3
+   3327 4739486 /usr/local/Eaton/IntelligentPowerProtector/Eaton-IPP -service
+   3829 4739483 -bash
+   4433 4739481 /usr/sbin/openvpn --status /run/openvpn-server/status-server.log --status-version 2 --suppress-timestamps --config server.conf
+   4573 4739437 gdm-session-worker [pam/gdm-password]
+   4596 4739429 /usr/lib/systemd/systemd --user --deserialize=138
+   4601 4739429 (sd-pam)
+   4612 4739428 /usr/bin/pipewire
+   4613 4739428 /usr/bin/pipewire -c filter-chain.conf
+   4616 4739428 /snap/snapd-desktop-integration/391/usr/bin/user-session-helper /snap/snapd-desktop-integration/391/usr/bin/snapd-desktop-integration
+   4618 4739428 /usr/bin/wireplumber
+   4620 4739428 /usr/bin/pipewire-pulse
+   4622 4739428 /usr/bin/gnome-keyring-daemon --foreground --components=pkcs11,secrets --control-directory=/run/user/1001/keyring
+   4630 4739428 /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+   4659 4739428 /usr/libexec/gdm-wayland-session env GNOME_SHELL_SESSION_MODE=ubuntu /usr/bin/gnome-session --session=ubuntu
+   4669 4739428 /usr/libexec/gnome-session-binary --session=ubuntu
+   4746 4739428 /usr/libexec/xdg-document-portal
+   4750 4739428 /usr/libexec/xdg-permission-store
+   4760 4739428 fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1001/doc
+   4776 4739428 /usr/libexec/gcr-ssh-agent --base-dir /run/user/1001/gcr
+   4777 4739428 /usr/libexec/gnome-session-ctl --monitor
+   4791 4739428 /usr/libexec/gvfsd
+   4799 4739428 /usr/libexec/gvfsd-fuse /run/user/1001/gvfs -f
+   4802 4739428 /usr/libexec/gnome-session-binary --systemd-service --session=ubuntu
+   4832 4739428 /usr/libexec/at-spi-bus-launcher --launch-immediately
+   4833 4739428 /usr/bin/gnome-shell
+   4848 4739427 /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/run/user/1001/at-spi/bus
+   4968 4739427 /usr/libexec/at-spi2-registryd --use-gnome-session
+   5002 4739426 /usr/libexec/gnome-shell-calendar-server
+   5009 4739426 /usr/libexec/evolution-source-registry
+   5011 4739426 /usr/libexec/dconf-service
+   5025 4739426 /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.Shell.Notifications
+   5047 4739426 /usr/bin/ibus-daemon --panel disable
+   5048 4739426 /usr/libexec/gsd-a11y-settings
+   5049 4739426 /usr/libexec/gsd-color
+   5053 4739426 /usr/libexec/gsd-datetime
+   5055 4739426 /usr/libexec/gsd-housekeeping
+   5058 4739426 /usr/libexec/gsd-keyboard
+   5061 4739426 /usr/libexec/gsd-media-keys
+   5065 4739426 /usr/libexec/gsd-power
+   5068 4739426 /usr/libexec/gsd-print-notifications
+   5070 4739426 /usr/libexec/gsd-rfkill
+   5072 4739426 /usr/libexec/gsd-screensaver-proxy
+   5076 4739426 /usr/libexec/gsd-sharing
+   5078 4739426 /usr/libexec/gsd-smartcard
+   5080 4739426 /usr/libexec/gsd-sound
+   5084 4739426 /usr/libexec/gsd-wacom
+   5096 4739426 /usr/libexec/gvfs-udisks2-volume-monitor
+   5175 4739426 /usr/libexec/gsd-disk-utility-notify
+   5185 4739426 /usr/libexec/evolution-data-server/evolution-alarm-notify
+   5186 4739426 /usr/libexec/ibus-memconf
+   5188 4739426 /usr/libexec/ibus-extension-gtk3
+   5190 4739426 /usr/local/Eaton/IntelligentPowerProtector/mc2 -systray
+   5200 4739426 /usr/libexec/ibus-portal
+   5233 4739426 /usr/libexec/goa-daemon
+   5277 4739426 /usr/libexec/goa-identity-service
+   5280 4739426 /usr/libexec/gsd-printer
+   5285 4739426 /usr/libexec/gvfs-goa-volume-monitor
+   5299 4739426 /usr/libexec/evolution-calendar-factory
+   5309 4739426 /usr/libexec/gvfs-afc-volume-monitor
+   5323 4739426 /usr/libexec/gvfs-gphoto2-volume-monitor
+   5340 4739426 /usr/libexec/gvfs-mtp-volume-monitor
+   5349 4739426 /usr/bin/Xwayland :0 -rootless -noreset -accessx -core -auth /run/user/1001/.mutter-Xwaylandauth.XDDBW3 -listenfd 4 -listenfd 5 -displayfd 6 -initfd 7 -byteswappedclients
+   5354 4739426 /usr/libexec/evolution-addressbook-factory
+   5384 4739425 /usr/libexec/ibus-engine-simple
+   5413 4739425 /usr/libexec/gvfsd-trash --spawner :1.20 /org/gtk/gvfs/exec_spaw/0
+   5434 4739425 /usr/libexec/gsd-xsettings
+   5445 4739425 /usr/libexec/xdg-desktop-portal
+   5464 4739424 /usr/bin/gjs -m /usr/share/gnome-shell/org.gnome.ScreenSaver
+   5529 4739424 /usr/libexec/ibus-x11
+   5570 4739423 /usr/libexec/tracker-miner-fs-3
+   5579 4739423 /usr/libexec/mutter-x11-frames
+   5586 4739423 /usr/libexec/xdg-desktop-portal-gnome
+   5679 4739423 /usr/libexec/gvfsd-metadata
+   5709 4739423 /usr/libexec/xdg-desktop-portal-gtk
+   5720 4739422 /snap/snapd-desktop-integration/391/usr/bin/snapd-desktop-integration
+   5892 4739366 /usr/bin/update-notifier
+  93605  749176 /usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641
+ 109791  115033 [kworker/35:2-events]
+ 145364 2501877 PM2 v7.0.1: God Daemon (/home/soff/.pm2)
+ 177493  112480 [kworker/36:0-rcu_gp]
+ 195015  111910 [psimon]
+ 199729  357691 nginx: master process /usr/sbin/nginx -g daemon on; master_process on;
+ 276132  581714 /usr/bin/python3 /usr/bin/update-manager --no-update --no-focus-on-map
+ 428396  239927 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 9a77e9c415d0f3fd439bb03131cd310e5d83f10c0a152906dea8f7a8e642fa19 -address /run/containerd/containerd.sock
+ 428420  239927 tini -- /docker-entrypoint.sh server
+ 428610  239926 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18091 -container-ip 172.19.0.5 -container-port 9000 -use-listen-fd
+ 428627  239926 /opt/java/openjdk/bin/java -Dlog4j2.formatMsgNoLookups=true -Djdk.tls.acknowledgeCloseNotify=true -XX:+UnlockExperimentalVMOptions -XX:-OmitStackTraceInFastThrow -XX:+UseG1GC -server -Xms768m -Xmx768m -jar -Dlog4j.configurationFile=/usr/share/graylog/config/log4j2.xml -Dgraylog2.installation_source=docker /usr/share/graylog/graylog.jar server -f /usr/share/graylog/config/graylog.conf
+ 489180 1172427 /usr/lib/systemd/systemd --user
+ 489216 1172427 (sd-pam)
+ 490127 1172426 /usr/bin/pipewire
+ 490134 1172426 /usr/bin/pipewire -c filter-chain.conf
+ 490142 1172426 /snap/snapd-desktop-integration/391/usr/bin/user-session-helper /snap/snapd-desktop-integration/391/usr/bin/snapd-desktop-integration
+ 490148 1172426 /usr/bin/wireplumber
+ 490156 1172426 /usr/bin/pipewire-pulse
+ 490219 1172426 /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+ 490583 1172426 /usr/libexec/xdg-document-portal
+ 490631 1172426 /usr/libexec/xdg-permission-store
+ 490667 1172426 fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1000/doc
+ 491900 1172425 python3 -X utf8 /home/sadc/disanalyzer-lab/deploy/receiver/receiver.py
+ 499080 4736787 [kworker/R-tls-s]
+ 508614  571162 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 098c82f75c20e79214b2c9f75baf224cefee12e69de773ca37008c924ebdaca6 -address /run/containerd/containerd.sock
+ 508637  571162 python3 heartbeat_loop.py
+ 572821   97590 /usr/libexec/fwupd/fwupd
+ 593847   97225 /usr/sbin/ntpd -p /run/ntpd.pid -c /etc/ntpsec/ntp.conf -g -N -u ntpsec:ntpsec
+ 673005 4731184 python -u start_forecasting.py
+ 706130   93399 [kworker/23:0-rcu_gp]
+ 708051  441155 /usr/sbin/nscd
+ 874426 1720566 node /home/soff/SMS/dist/main.js
+ 881481 1720548 node /home/soff/subdomain-server/server.js
+ 914120  555510 /usr/bin/qemu-system-x86_64 -accel kvm -cpu host -smp 4 -m 8192 -drive file=/home/sadc/labo-cgo/labo-cgo-bench.qcow2,if=virtio -drive file=/home/sadc/labo-cgo/nocloud-seed.iso,media=cdrom,readonly=on -netdev user,id=n0,hostfwd=tcp:127.0.0.1:10022-:22 -device virtio-net-pci,netdev=n0 -display none -serial file:/home/sadc/labo-cgo/bench-console.log -pidfile /home/sadc/labo-cgo/bench-qemu.pid -daemonize
+ 914128  555510 [kvm-pit/914120]
+ 983264   89631 [kworker/32:2-mm_percpu_wq]
+ 992791  219327 /usr/bin/containerd-shim-runc-v2 -namespace moby -id cd3e4ef7367f70207d1542b6d781c20b974b814010ba4ce6c7868e903cb26337 -address /run/containerd/containerd.sock
+ 992814  219327 python3 /lab/receiver/bridge_relay.py --addr 0.0.0.0 --port 8089 --target http://receiver:8088/ --log /var/lab/relay.jsonl
+1058101 1372313 /usr/bin/containerd-shim-runc-v2 -namespace moby -id c016840cd460a6c25ebdc165ea85594a0d54559c19044aa2d1c67f19e1c154b3 -address /run/containerd/containerd.sock
+1058179 1372313 /tini -- /bin/sh -c /scripts/run.sh
+1058680 1372312 /bin/sh -c /scripts/run.sh
+1058681 1372312 /usr/bin/python3 /usr/bin/supervisord -c /etc/supervisord.conf
+1058737 1372312 /usr/bin/containerd-shim-runc-v2 -namespace moby -id a5092aa7a5482ebb66f5557169c8e7c8c7086dc9a776578f8def98fdf97106d9 -address /run/containerd/containerd.sock
+1058848 1372312 /usr/bin/tini -- /dovecot/sbin/dovecot -F
+1058867  217325 /usr/bin/containerd-shim-runc-v2 -namespace moby -id ac4616eb248872baf6bb0f1aa4b4edaee2fd9c7c187ca8a1cc95174fcf812f93 -address /run/containerd/containerd.sock
+1058890  217325 /usr/local/bin/vector
+1059083  217325 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18092 -container-ip 172.19.0.4 -container-port 1514 -use-listen-fd
+1059130 1372312 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 31024 -container-ip [redacted host] -container-port 31024 -use-listen-fd
+1059235 1372312 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 4190 -container-ip [redacted host] -container-port 34190 -use-listen-fd
+1059294 1372312 /dovecot/sbin/dovecot -F
+1059399 1372312 dovecot/anvil
+1059403 1372312 dovecot/submission-login
+1059404 1372312 dovecot/managesieve-login
+1059406 1372312 dovecot/stats
+1059407 1372312 dovecot/log
+1059410 1372312 dovecot/config
+1059538 1372312 dovecot/auth
+1064218  436291 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 6f0ae9b79a7c7d3b21190ace9cd8aaa21dc27269411753034be588a0d5b10a0c -address /run/containerd/containerd.sock
+1064241  436291 /usr/share/opensearch/jdk/bin/java -Xshare:auto -Dopensearch.networkaddress.cache.ttl=60 -Dopensearch.networkaddress.cache.negative.ttl=10 -XX:+AlwaysPreTouch -Xss1m -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Djna.nosys=true -XX:-OmitStackTraceInFastThrow -XX:+ShowCodeDetailsInExceptionMessages -Dio.netty.noUnsafe=true -Dio.netty.noKeySetOptimization=true -Dio.netty.recycler.maxCapacityPerThread=0 -Dio.netty.allocator.numDirectArenas=0 -Dlog4j.shutdownHookEnabled=false -Dlog4j2.disable.jmx=true -Djava.security.manager=allow -Djava.locale.providers=SPI,COMPAT -Xms1g -Xmx1g -XX:+UseG1GC -XX:G1ReservePercent=25 -XX:InitiatingHeapOccupancyPercent=30 -Djava.io.tmpdir=/tmp/opensearch-7087226818224333246 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=data -XX:ErrorFile=logs/hs_err_pid%p.log -Xlog:gc*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m -Djava.security.manager=allow --add-modules=jdk.incubator.vector -Djava.util.concurrent.ForkJoinPool.common.threadFactory=org.opensearch.secure_sm.SecuredForkJoinWorkerThreadFactory -Dclk.tck=100 -Djdk.attach.allowAttachSelf=true -Djava.security.policy=/usr/share/opensearch/config/opensearch-performance-analyzer/opensearch_security.policy --add-opens=jdk.attach/sun.tools.attach=ALL-UNNAMED -Dopensearch.cgroups.hierarchy.override=/ -Xms1g -Xmx1g -XX:MaxDirectMemorySize=536870912 -Dopensearch.path.home=/usr/share/opensearch -Dopensearch.path.conf=/usr/share/opensearch/config -Dopensearch.distribution.type=tar -Dopensearch.bundled_jdk=true -cp /usr/share/opensearch/lib/* org.opensearch.bootstrap.OpenSearch -Ediscovery.seed_hosts=opensearch -Eplugins.security.disabled=true -Enode.name=os1 -Ebootstrap.memory_lock=true -Epath.repo=/snapshots -Ecluster.name=lab -Ecluster.initial_master_nodes=os1
+1069307 1372304 /usr/sbin/cron -f
+1069314 1372304 /bin/sh /scripts/opendkim.sh
+1069318 1372304 /bin/sh /usr/lib/postfix/sbin/postfix-script start-fg
+1069322 1372304 /bin/sh /scripts/rspamd.sh
+1069327 1372304 sleep infinity
+1069330 1372304 rsyslogd -n -f /tmp/rsyslog.conf
+1069340 1372304 sleep infinity
+1071197 1372302 /usr/lib/postfix/sbin/master -s
+1071214 1372302 qmgr -l -t unix -u
+1073571 1372300 tlsmgr -l -t unix -u
+1106419 1293390 dovecot/imap-login
+1114779 1395341 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 6cc7dcd2e2adf5589ca99751f8fe568d86f0f44ea25865d4b089b576dbbb38cd -address /run/containerd/containerd.sock
+1114902 1395341 mariadbd
+1115342 1395341 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 3306 -container-ip [redacted host] -container-port 3306 -use-listen-fd
+1166209   87406 [kworker/19:2-events]
+1247856   86161 [kworker/24:2-events]
+1255594   85930 [kworker/39:1-events]
+1296272  209040 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 9ec28bc80f291987f34df7d26be2472966045deafa1dc1faf810b7b8cd468a34 -address /run/containerd/containerd.sock
+1296295  209040 /bin/tini -- /usr/local/bin/docker-entrypoint.sh eswrapper
+1296490  209040 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 9201 -container-ip 172.19.0.6 -container-port 9200 -use-listen-fd
+1296503  209040 /usr/share/elasticsearch/jdk/bin/java -Xms4m -Xmx64m -XX:+UseSerialGC -Dcli.name=server -Dcli.script=/usr/share/elasticsearch/bin/elasticsearch -Dcli.libs=lib/tools/server-cli -Des.path.home=/usr/share/elasticsearch -Des.path.conf=/usr/share/elasticsearch/config -Des.distribution.type=docker -Des.java.type=bundled JDK -cp /usr/share/elasticsearch/lib/*:/usr/share/elasticsearch/lib/cli-launcher/* org.elasticsearch.launcher.CliToolLauncher
+1296851  209036 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 2b4a535bf3aea1755539f4269246bb712788d6612d81334c65fe51c29e7894a7 -address /run/containerd/containerd.sock
+1296874  209036 mongod --wiredTigerCacheSizeGB 0.25 --bind_ip_all
+1299697  208979 /usr/share/elasticsearch/jdk/bin/java -Des.networkaddress.cache.ttl=60 -Des.networkaddress.cache.negative.ttl=10 -XX:+AlwaysPreTouch -Xss1m -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Djna.nosys=true -XX:-OmitStackTraceInFastThrow -Dio.netty.noUnsafe=true -Dio.netty.noKeySetOptimization=true -Dio.netty.recycler.maxCapacityPerThread=0 -Dlog4j.shutdownHookEnabled=false -Dlog4j2.disable.jmx=true -Dlog4j2.formatMsgNoLookups=true -Djava.locale.providers=CLDR -Dorg.apache.lucene.vectorization.upperJavaFeatureVersion=27 -Des.path.home=/usr/share/elasticsearch -Des.distribution.type=docker -Des.java.type=bundled JDK --enable-native-access=org.elasticsearch.nativeaccess,org.apache.lucene.core --enable-native-access=ALL-UNNAMED --illegal-native-access=deny -Des.cgroups.hierarchy.override=/ -XX:ReplayDataFile=logs/replay_pid%p.log -XX:+EnableDynamicAgentLoading -Djdk.attach.allowAttachSelf=true --patch-module=java.base=/usr/share/elasticsearch/lib/entitlement-bridge/elasticsearch-entitlement-bridge-8.19.25.jar --add-exports=java.base/org.elasticsearch.entitlement.bridge=org.elasticsearch.entitlement,java.logging,java.net.http,java.naming,jdk.net,jdk.zipfs,jdk.management.agent -XX:+UseG1GC -Djava.io.tmpdir=/tmp/elasticsearch-13186328246249457037 --add-modules=jdk.incubator.vector -Dorg.apache.lucene.store.MMapDirectory.sharedArenaMaxPermits=1 -XX:+HeapDumpOnOutOfMemoryError -XX:+ExitOnOutOfMemoryError -XX:ErrorFile=hs_err_pid%p.log -Xlog:gc*,gc+age=trace,safepoint:file=gc.log:utctime,level,pid,tags:filecount=32,filesize=64m -Xms512m -Xmx512m -XX:MaxDirectMemorySize=268435456 -XX:G1HeapRegionSize=4m -XX:G1IHOP=30 -XX:G1ReservePercent=15 --module-path /usr/share/elasticsearch/lib --add-modules=jdk.net --add-modules=jdk.management.agent --add-modules=ALL-MODULE-PATH -m org.elasticsearch.server/org.elasticsearch.bootstrap.Elasticsearch
+1300171  208968 /usr/share/elasticsearch/modules/x-pack-ml/platform/linux-x86_64/bin/controller
+1319054   83472 [kworker/37:1-events]
+1346483  845071 /bin/sh /usr/lib/update-notifier/update-notifier-crash
+1346490  845071 /usr/bin/python3 /usr/share/apport/apport-gtk
+1430975  432551 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 2f4be6f1a6bc9cc609693495ea375fadbacdd4c7f62675eac2a9cc21ca9235b3 -address /run/containerd/containerd.sock
+1431005  432551 python /app/webhook-sink.py
+1447968   79234 node /home/soff/STAGE-API/dist/main.js
+1538176   75971 [kworker/5:2-events]
+1737762  194509 /usr/libexec/rtkit-daemon
+1820345   65100 [kworker/R-krxrp]
+1820353   65100 [kworker/u163:1-krxrpcd]
+1832894 1371620 /usr/bin/containerd-shim-runc-v2 -namespace moby -id daf5d0e0b29cb6064a1ced4e7dd7f9c996411ad6698a5896ea8f2d608b5e90b0 -address /run/containerd/containerd.sock
+1832972 1371620 /bff
+1875248   63103 [kworker/6:1-events]
+1962845  320552 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 0e20ffffc9ee2a8780c6382c647c915172c475b019bc7d4fedd594cfa754bc59 -address /run/containerd/containerd.sock
+1962868  320552 /bin/prometheus --config.file=/etc/prometheus/prometheus.yml
+1963079  320552 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 9090 -container-ip 172.28.14.2 -container-port 9090 -use-listen-fd
+1963132  320552 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 50a5e858f7a7222cf7a16b1470803a8adeb69745b693454445189be53b18b134 -address /run/containerd/containerd.sock
+1963160  320552 /bin/node_exporter --path.rootfs=/host --collector.textfile.directory=/metrics
+1963201  320551 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 5843a3e55e8d2ff14f5775f75662dfcb70c9a636224c63fb0f18aaf0407eff2d -address /run/containerd/containerd.sock
+1963226  320551 /usr/sbin/dovecot -F
+1963310  320551 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 807afb81c3053a616212c2330425cb873b0809399dc2adad8aced048423db9c7 -address /run/containerd/containerd.sock
+1963370  320551 /bin/postfix_exporter --postfix.showq_path=/var/spool/postfix/public/showq
+1964115  320550 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 5f2c3696d9367097917bf079c5fbfc625a9ca25733146049549a031241508e10 -address /run/containerd/containerd.sock
+1964181  320550 mariadbd
+1964757  320549 tail -n 0 -F /var/log/mail/dovecot.log
+1964841  320549 dovecot/imap-login
+1964842  320549 dovecot/anvil
+1964843  320549 dovecot/log
+1964845  320549 dovecot/imap-login
+1964850  320549 dovecot/config
+1964859  320549 dovecot/stats
+1964889  320549 dovecot/auth
+1965062   59570 [kworker/16:1-mm_percpu_wq]
+1965571  320548 /usr/bin/containerd-shim-runc-v2 -namespace moby -id e4e118e2921b49abf6c295555d8637134647429e077cff496fa4c0fda7bbaf27 -address /run/containerd/containerd.sock
+1965640  320548 redis-server *:6379
+1969661   59458 [kworker/33:2-events]
+1971735  320326 /usr/bin/containerd-shim-runc-v2 -namespace moby -id e6a266523d4cae696236e85747b6d74ee1486c28fd3c32d74ae3054128d08230 -address /run/containerd/containerd.sock
+1971803  320326 rspamd: main process; 0.1 msg/sec, 0.1 msg/sec spam, 0.0 msg/sec ham; 0.18s avg processing time
+1974279  320322 rspamd: hs_helper process
+1974280  320322 rspamd: rspamd_proxy process (172.28.12.12:11332)
+1974281  320322 rspamd: controller process (172.28.15.10:11334)
+1974282  320322 rspamd: normal process (localhost:11333)
+1974283  320322 rspamd: normal process (localhost:11333)
+1974284  320322 rspamd: normal process (localhost:11333)
+1974285  320322 rspamd: normal process (localhost:11333)
+1982841  320029 /usr/bin/containerd-shim-runc-v2 -namespace moby -id dd6cf0ae9871bf0fe6a02c782934606c5be6e857716be3e550e53d816ea1c5e4 -address /run/containerd/containerd.sock
+1982866  320029 unbound -d -c /etc/unbound/unbound.conf
+1983197  320023 /usr/bin/containerd-shim-runc-v2 -namespace moby -id bb40ce66e28d7b7fcbf36d515f1481b34f96f6dc770b1f1bfbdbe22b8247a1ad -address /run/containerd/containerd.sock
+1983221  320023 /usr/lib/postfix/sbin/master -i
+1983420  320022 /usr/bin/docker-proxy -proto tcp -host-ip 192.168.10.137 -host-port 25 -container-ip 172.28.14.7 -container-port 25 -use-listen-fd
+1984748  320019 qmgr -l -t unix -u
+1984749  320019 postlogd -l -n postlog -t unix-dgram -u
+1984972  320011 postscreen -l -n smtp -t inet -u
+1985048  320004 tlsmgr -l -t unix -u
+1985049  320004 anvil -l -t unix -u
+2019078  318989 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 0b5529b1dddd2a9d125038d0d02c272738dcea0fd7b2b963a851d11696e17e72 -address /run/containerd/containerd.sock
+2019102  318989 apache2 -DFOREGROUND
+2019316  318989 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 8081 -container-ip 172.28.10.5 -container-port 80 -use-listen-fd
+2019362  318989 apache2 -DFOREGROUND
+2019363  318989 apache2 -DFOREGROUND
+2019364  318989 apache2 -DFOREGROUND
+2019365  318989 apache2 -DFOREGROUND
+2019366  318989 apache2 -DFOREGROUND
+2097198   54527 [kworker/22:2-events]
+2097235   54527 [kworker/11:2-events]
+2120238   53611 [kworker/28:0-events]
+2125160  315354 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 30001 -container-ip 172.28.10.6 -container-port 3001 -use-listen-fd
+2139991  823349 /usr/bin/containerd-shim-runc-v2 -namespace moby -id f6c4725ba5e1491231a0c8632f56d3774a3a44e43b72f519086fd9b11dc49766 -address /run/containerd/containerd.sock
+2140014  823349 /package/admin/s6/command/s6-svscan -d4 -- /run/service
+2140184  823349 /usr/bin/docker-proxy -proto udp -host-ip 0.0.0.0 -host-port 51820 -container-ip 172.31.0.2 -container-port 51820 -use-listen-fd
+2140201  823349 /usr/bin/docker-proxy -proto udp -host-ip :: -host-port 51820 -container-ip 172.31.0.2 -container-port 51820 -use-listen-fd
+2140233  823349 s6-supervise s6-linux-init-shutdownd
+2140234  823349 /package/admin/s6-linux-init/command/s6-linux-init-shutdownd -d3 -c /run/s6/basedir -g 3000 -C -B
+2140252  823349 s6-supervise svc-cron
+2140253  823349 s6-supervise svc-coredns
+2140254  823349 s6-supervise s6rc-fdholder
+2140255  823349 s6-supervise s6rc-oneshot-runner
+2140263  823349 /package/admin/s6/command/s6-ipcserverd -1 -- /package/admin/s6/command/s6-ipcserver-access -v0 -E -l0 -i data/rules -- /package/admin/s6/command/s6-sudod -t 30000 -- /package/admin/s6-rc/command/s6-rc-oneshot-run -l ../.. --
+2140535  823349 busybox crond -f -S -l 5
+2140536  823349 /usr/bin/coredns -dns.port=53
+2140813  823348 [kworker/R-wg-cr]
+2183844  517850 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 3e8f7483259dad70b2975009a94c5037998ff5a76ae64bfae4eed659f25384ed -address /run/containerd/containerd.sock
+2183867  517850 /sbin/tini /bin/sh /init
+2183907  517850 tail -f /dev/null
+2183918  517850 freshclam --checks=1 --daemon --foreground --stdout --user=clamav
+2183919  517850 clamd --foreground
+2196927   50815 [kworker/8:1-rcu_par_gp]
+2247275  516430 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 0f27a5eea104a8eb5c39f2cd5549268118a1414b29d5e654e9ec80e293ed2417 -address /run/containerd/containerd.sock
+2247370  516430 /usr/bin/promtail -config.file=/etc/promtail/config.yml
+2280243  515850 /usr/bin/containerd-shim-runc-v2 -namespace moby -id ba23d3abbdfc4835361e29cf9ff9749480b9bb2e4c268d4b2dd6e08d156d1cf6 -address /run/containerd/containerd.sock
+2280266  515850 /usr/bin/loki -config.file=/etc/loki/local-config.yaml
+2280488  515849 /usr/bin/containerd-shim-runc-v2 -namespace moby -id ccf0ad1684e7590b79e79b02c0d1ef72ba4a66ad4b267f3f5deaa9ee1ae53e15 -address /run/containerd/containerd.sock
+2280513  515849 /usr/bin/dumb-init -- node server/server.js
+2280580  515849 uptime-kuma
+2289613  515542 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 3eda3458067bab6e13afbdee5df13948979a1d054c4a947207ddd08efe91684c -address /run/containerd/containerd.sock
+2289638  515542 grafana server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini --packaging=docker cfg:default.log.mode=console cfg:default.paths.data=/var/lib/grafana cfg:default.paths.logs=/var/log/grafana cfg:default.paths.plugins=/var/lib/grafana/plugins cfg:default.paths.provisioning=/etc/grafana/provisioning
+2289828  515542 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 30002 -container-ip 172.28.14.10 -container-port 3000 -use-listen-fd
+2316629  308307 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 7ecce796099218fbf0b8e8ba64e3ec91b9ba1702b71a9718c8f8a7cbd3f89bf1 -address /run/containerd/containerd.sock
+2316652  308307 nginx: master process nginx -g daemon off;
+2316875  308307 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 28443 -container-ip 172.28.10.3 -container-port 443 -use-listen-fd
+2316915  308307 nginx: worker process
+2323929  514764 /bin/sh -c /usr/lib/ubuntu-release-upgrader/check-new-release-gtk
+2323930  514764 /usr/bin/python3 /usr/lib/ubuntu-release-upgrader/check-new-release-gtk
+2325557   45847 [kworker/7:0-events]
+2325639  308136 apache2 -DFOREGROUND
+2325667  308135 apache2 -DFOREGROUND
+2325696  308134 apache2 -DFOREGROUND
+2325697  308134 apache2 -DFOREGROUND
+2325698  308134 apache2 -DFOREGROUND
+2378210   43915 [kworker/35:0-rcu_par_gp]
+2490569   39503 [kworker/26:2-events]
+2490905   39499 [kworker/17:2-events]
+2546387   37386 nginx: worker process
+2546388   37386 nginx: worker process
+2546389   37386 nginx: worker process
+2546390   37386 nginx: worker process
+2546391   37386 nginx: worker process
+2546392   37386 nginx: worker process
+2546393   37386 nginx: worker process
+2546394   37386 nginx: worker process
+2546395   37386 nginx: worker process
+2546396   37386 nginx: worker process
+2546397   37386 nginx: worker process
+2546398   37386 nginx: worker process
+2546399   37386 nginx: worker process
+2546400   37386 nginx: worker process
+2546401   37386 nginx: worker process
+2546402   37386 nginx: worker process
+2546403   37386 nginx: worker process
+2546404   37386 nginx: worker process
+2546405   37386 nginx: worker process
+2546406   37386 nginx: worker process
+2546407   37386 nginx: worker process
+2546408   37386 nginx: worker process
+2546409   37386 nginx: worker process
+2546410   37386 nginx: worker process
+2546411   37386 nginx: worker process
+2546412   37386 nginx: worker process
+2546413   37386 nginx: worker process
+2546414   37386 nginx: worker process
+2546415   37386 nginx: worker process
+2546416   37386 nginx: worker process
+2546417   37386 nginx: worker process
+2546418   37386 nginx: worker process
+2546419   37386 nginx: worker process
+2546420   37386 nginx: worker process
+2546421   37386 nginx: worker process
+2546422   37386 nginx: worker process
+2546423   37386 nginx: worker process
+2546424   37386 nginx: worker process
+2546425   37386 nginx: worker process
+2546426   37386 nginx: worker process
+2546427   37386 nginx: worker process
+2546428   37386 nginx: worker process
+2546429   37386 nginx: worker process
+2546430   37386 nginx: worker process
+2546431   37386 nginx: worker process
+2546432   37386 nginx: worker process
+2546433   37386 nginx: worker process
+2546434   37386 nginx: worker process
+2546435   37386 nginx: worker process
+2546436   37386 nginx: worker process
+2546437   37386 nginx: worker process
+2546438   37386 nginx: worker process
+2546439   37386 nginx: worker process
+2546440   37386 nginx: worker process
+2546441   37386 nginx: worker process
+2546442   37386 nginx: worker process
+2546443   37386 nginx: worker process
+2546444   37386 nginx: worker process
+2546445   37386 nginx: worker process
+2546446   37386 nginx: worker process
+2546447   37386 nginx: worker process
+2546448   37386 nginx: worker process
+2546449   37386 nginx: worker process
+2546450   37386 nginx: worker process
+2546451   37386 nginx: worker process
+2546452   37386 nginx: worker process
+2546453   37386 nginx: worker process
+2546454   37386 nginx: worker process
+2546455   37386 nginx: worker process
+2546456   37386 nginx: worker process
+2546457   37386 nginx: worker process
+2546458   37386 nginx: worker process
+2546459   37386 nginx: worker process
+2546460   37386 nginx: worker process
+2546461   37386 nginx: worker process
+2546462   37386 nginx: worker process
+2546463   37386 nginx: worker process
+2546464   37386 nginx: worker process
+2546465   37386 nginx: worker process
+2546466   37386 nginx: worker process
+2598954  173984 [mongosh mongodb] <defunct>
+2599366  173963 [mongosh mongodb] <defunct>
+2600417  173942 [mongosh mongodb] <defunct>
+2600812  173921 [mongosh mongodb] <defunct>
+2601170  173900 [mongosh mongodb] <defunct>
+2601553  173879 [mongosh mongodb] <defunct>
+2601999  173858 [mongosh mongodb] <defunct>
+2602485  173837 [mongosh mongodb] <defunct>
+2602909  173817 [mongosh mongodb] <defunct>
+2603293  173795 [mongosh mongodb] <defunct>
+2603986  173774 [mongosh mongodb] <defunct>
+2605311  173754 [mongosh mongodb] <defunct>
+2606179  173733 [mongosh mongodb] <defunct>
+2607478  173712 [mongosh mongodb] <defunct>
+2608485  173692 [mongosh mongodb] <defunct>
+2609545  173671 [mongosh mongodb] <defunct>
+2610632  173650 [mongosh mongodb] <defunct>
+2611586  173629 [mongosh mongodb] <defunct>
+2612274  173608 [mongosh mongodb] <defunct>
+2614438   34822 [kworker/30:1-rcu_gp]
+2618309  173491 [kworker/29:2-events]
+2632596   34224 /usr/sbin/cupsd -l
+2632601   34224 /usr/sbin/cups-browsed
+2650394   33422 [kworker/10:0-events]
+2662305   33038 [kworker/13:2-events]
+2662306   33038 [kworker/21:0-events]
+2673936 2326122 lxcfs /var/snap/lxd/common/var/lib/lxcfs -p /var/snap/lxd/common/lxcfs.pid
+2674151 2326117 [kworker/R-dio/d]
+2674184 2326116 [spl_system_task]
+2674185 2326116 [spl_delay_taskq]
+2674186 2326116 [spl_dynamic_tas]
+2674187 2326116 [spl_kmem_cache]
+2674194 2326114 [zvol]
+2674195 2326114 [arc_prune]
+2674196 2326114 [arc_evict]
+2674197 2326114 [arc_reap]
+2674198 2326114 [dbu_evict]
+2674199 2326114 [dbuf_evict]
+2674200 2326114 [z_vdev_file]
+2674207 2326111 [l2arc_feed]
+2677444 2326007 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+2705860   31452 [kworker/29:1-rcu_par_gp]
+2719940  171356 [mongosh mongodb] <defunct>
+2720360  171335 [mongosh mongodb] <defunct>
+2720988  171314 [mongosh mongodb] <defunct>
+2806278  290469 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 2f1c484edd990c34c430ad20942b14a9b0a478ec12a0b8deded3d02a909c6ab1 -address /run/containerd/containerd.sock
+2806302  290469 python3 /app/mail_health.py --interval 60
+2806363   29399 [kworker/25:2-events]
+2854518   27769 [kworker/18:2-events]
+2874173  166139 [kworker/38:0-mm_percpu_wq]
+2875881  166102 [kworker/21:1-rcu_gp]
+2920062   25252 [kworker/20:1-mm_percpu_wq]
+2926075  164633 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 6c26addfa269429dace7872cbfcf24c76742d3fe292041b02b2a39f978ca65cf -address /run/containerd/containerd.sock
+2926098  164633 apache2 -DFOREGROUND
+2926139  164633 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 28080 -container-ip 172.28.10.4 -container-port 80 -use-listen-fd
+2927852  164621 apache2 -DFOREGROUND
+2927853  164621 apache2 -DFOREGROUND
+2927854  164621 apache2 -DFOREGROUND
+2927855  164621 apache2 -DFOREGROUND
+2927856  164621 apache2 -DFOREGROUND
+2928094  164617 apache2 -DFOREGROUND
+2928445  164603 apache2 -DFOREGROUND
+2929096  164572 apache2 -DFOREGROUND
+2954420   23952 [kworker/37:2-rcu_par_gp]
+2971393  163017 [mongosh mongodb] <defunct>
+2972603  162996 [mongosh mongodb] <defunct>
+2973001  162975 [mongosh mongodb] <defunct>
+2973373  162954 [mongosh mongodb] <defunct>
+2973821  162933 [mongosh mongodb] <defunct>
+2974484  162913 [mongosh mongodb] <defunct>
+2978147  286054 /usr/bin/containerd-shim-runc-v2 -namespace moby -id b9df53c1432af1230f0451d98d34005b2e120a4d8290d8e45b0830df3207aa40 -address /run/containerd/containerd.sock
+2978170  286054 /bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml --storage.path=/alertmanager
+2978364  286053 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 9093 -container-ip 172.28.14.5 -container-port 9093 -use-listen-fd
+3020754   21419 [kworker/10:1-rcu_par_gp]
+3049999 4674687 /usr/local/Eaton/IntelligentPowerProtector/Eaton-IPP -service
+3059289   19884 [kworker/8:0-mm_percpu_wq]
+3089079   18786 [kworker/22:1-rcu_par_gp]
+3105598   17959 [kworker/2:1-rcu_gp]
+3110202   17862 [kworker/24:0]
+3110365   17859 [kworker/14:2-mm_percpu_wq]
+3207898   14107 [kworker/15:2-events]
+3217816   13877 [kworker/0:0-rcu_gp]
+3234561  386905 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 8b3fd8188a9fa335dac30a6f93f501a93dd7e2f32dfa5dbb8eb7df39e0662eaa -address /run/containerd/containerd.sock
+3234586  386905 python3 /receiver/receiver.py
+3234775  386904 /usr/bin/docker-proxy -proto tcp -host-ip 127.0.0.1 -host-port 18095 -container-ip 172.19.0.2 -container-port 8088 -use-listen-fd
+3257755 1046769 /usr/libexec/accounts-daemon
+3257774 1046769 avahi-daemon: running [sadcnwp-server.local]
+3257777 1046769 /usr/libexec/colord
+3257786 1046769 avahi-daemon: chroot helper
+3257797 1046769 /usr/bin/anydesk --service
+3257817 1046769 /usr/bin/containerd
+3257837 1046769 /usr/libexec/gnome-remote-desktop-daemon --system
+3257865 1046769 /usr/sbin/kerneloops --test
+3257871 1046769 /usr/bin/authelia --config /etc/authelia/configuration.yml
+3257944 1046769 /usr/sbin/munged
+3257953 1046769 /usr/sbin/kerneloops
+3257971 1046769 /sbin/multipathd -d -s
+3258103 1046769 /usr/lib/polkit-1/polkitd --no-debug
+3258106 1046769 /usr/libexec/power-profiles-daemon
+3258145 1046769 /usr/libexec/switcheroo-control
+3258171 1046769 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups
+3258206 1046769 /usr/sbin/vsftpd /etc/vsftpd.conf
+3258225 1046769 /usr/sbin/spice-vdagentd
+3258348 1046768 /usr/lib/systemd/systemd-journald
+3258351 1046768 /usr/lib/systemd/systemd-oomd
+3258359 1046768 /usr/libexec/udisks2/udisksd
+3258369 1046768 /usr/libexec/upowerd
+3258424 1046768 /opt/teamviewer/tv_bin/teamviewerd -d
+3258528 1046768 /usr/sbin/ModemManager
+3258537 1046768 /usr/lib/systemd/systemd-resolved
+3258542 1046768 /usr/lib/systemd/systemd-udevd
+3258550 1046768 /usr/sbin/rsyslogd -n -iNONE
+3258670 1046768 /usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql/16/main -c config_file=/etc/postgresql/16/main/postgresql.conf
+3258671 1046768 /usr/lib/postgresql/14/bin/postgres -D /var/lib/postgresql/14/main -c config_file=/etc/postgresql/14/main/postgresql.conf
+3258688 1046768 [psimon]
+3258692 1046768 /usr/lib/systemd/systemd-networkd
+3258701 1046768 postgres: 16/main: checkpointer 
+3258702 1046768 postgres: 16/main: background writer 
+3258714 1046768 postgres: 14/main: checkpointer 
+3258716 1046768 postgres: 14/main: background writer 
+3258717 1046768 postgres: 14/main: walwriter 
+3258718 1046768 postgres: 14/main: autovacuum launcher 
+3258721 1046768 postgres: 14/main: stats collector 
+3258723 1046768 postgres: 14/main: logical replication launcher 
+3258726 1046768 /usr/bin/python3 /usr/bin/fail2ban-server -xf start
+3258751 1046768 postgres: 16/main: walwriter 
+3258753 1046768 postgres: 16/main: autovacuum launcher 
+3258755 1046768 postgres: 16/main: logical replication launcher 
+3283265   12830 [kworker/2:2-events]
+3297975   12637 [kworker/4:1-events]
+3297986   12637 [kworker/31:1-events]
+3351251   11695 [kworker/26:0-rcu_par_gp]
+3374768   11387 [kworker/34:2-rcu_gp]
+3380647  147434 [kworker/9:1-events]
+3385596   11091 [kworker/38:2-rcu_par_gp]
+3387579 1046473 /usr/sbin/cron -f -P
+3396038   10581 [kworker/u160:0-poll_megasas0_status]
+3407808   10159 [kworker/36:2-events]
+3416093    9963 [kworker/27:1-rcu_gp]
+3416937    9943 [kworker/23:2-events]
+3419587    9873 [kworker/28:1-rcu_par_gp]
+3469080    7844 [kworker/33:1-rcu_par_gp]
+3469104    7842 [kworker/15:0]
+3472804 1101027 /usr/bin/nautilus --gapplication-service
+3473997 1101025 /usr/libexec/gvfsd-recent --spawner :1.20 /org/gtk/gvfs/exec_spaw/1
+3484170    7424 [kworker/1:2-events]
+3486961    7356 [kworker/12:2-events]
+3588298    6217 [kworker/u161:1-flush-252:0]
+3589807    6208 [kworker/31:2]
+3589835    6207 [kworker/11:0]
+3589855    6207 [kworker/27:0-events]
+3590249    6206 [kworker/39:0]
+3653487    5601 [kworker/18:1-rcu_par_gp]
+3653567    5600 [kworker/9:2]
+3653821    5599 [kworker/20:2-rcu_par_gp]
+3661760 3792917 /usr/lib/systemd/systemd --user --deserialize=25
+3661766 3792917 (sd-pam)
+3661777 3792916 /usr/bin/pipewire
+3661778 3792916 /usr/bin/pipewire -c filter-chain.conf
+3661781 3792916 /snap/snapd-desktop-integration/391/usr/bin/user-session-helper /snap/snapd-desktop-integration/391/usr/bin/snapd-desktop-integration
+3661784 3792916 /usr/bin/wireplumber
+3661788 3792916 /usr/bin/pipewire-pulse
+3661809 3792916 /usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+3661855 3792916 /usr/libexec/xdg-document-portal
+3661859 3792916 /usr/libexec/xdg-permission-store
+3661866 3792916 fusermount3 -o rw,nosuid,nodev,fsname=portal,auto_unmount,subtype=portal -- /run/user/1006/doc
+3664099 3792301 PM2 v7.0.1: God Daemon (/root/.pm2)
+3678091    5371 [kworker/30:2-events]
+3688413    5046 dnsblog -z -t unix -u
+3698724    4806 [kworker/34:1-events]
+3712259    4212 [kworker/54:2-rcu_par_gp]
+3715536    4042 pickup -l -t unix -u
+3719424    3859 [kworker/u161:3-flush-252:0]
+3725407    3728 [kworker/58:0-rcu_par_gp]
+3726579  605883 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 67bb6911a65ad9fb2ac8103dafd86f2aa1f4d52f1b31f59e2bee635be5919810 -address /run/containerd/containerd.sock
+3726602  605883 apache2 -DFOREGROUND
+3726974  605878 apache2 -DFOREGROUND
+3726975  605878 apache2 -DFOREGROUND
+3726976  605878 apache2 -DFOREGROUND
+3726977  605878 apache2 -DFOREGROUND
+3726978  605878 apache2 -DFOREGROUND
+3757166    3365 [kworker/u162:5-flush-252:0]
+3775622    3250 [kworker/62:1-events]
+3787080    3155 [kworker/3:0-events]
+3787092    3155 [kworker/1:0]
+3787306    3153 [kworker/17:1-rcu_par_gp]
+3787322    3153 [kworker/13:1]
+3787518    3152 [kworker/7:1]
+3801532    3028 [kworker/u162:2-flush-252:0]
+3819481    2869 [kworker/74:1-events]
+3828653    2786 [kworker/u160:2-ext4-rsv-conversion]
+3838291    2701 [kworker/u162:3-flush-252:0]
+3845692 1100536 /usr/bin/python3 /usr/lib/ubuntu-release-upgrader/check-new-release-gtk
+3851118    2585 [kworker/55:2-rcu_par_gp]
+3862071    2506 [kworker/73:2-rcu_par_gp]
+3865064    2483 [kworker/49:2-events]
+3870443    2445 postgres: 16/main: station station 192.168.10.137(53522) idle
+3870444    2445 postgres: 16/main: stage-station stage-station 127.0.0.1(53426) idle
+3896372    2255 [kworker/62:0-rcu_gp]
+3896453    2253 smtpd -n submission -t inet -u -o stress= -s 2
+3899916    2228 [kworker/61:0-rcu_par_gp]
+3905772    2177 [kworker/41:2-rcu_par_gp]
+3910342    2136 [kworker/77:1-rcu_gp]
+3911236    2128 [kworker/75:1-mm_percpu_wq]
+3916729    2080 [kworker/46:1-rcu_par_gp]
+3920772    2045 [kworker/u162:1-flush-252:0]
+3926331    1998 [kworker/12:0-rcu_par_gp]
+3927635    1986 pickup -l -t unix -u
+3945331    1556 [kworker/40:0-rcu_gp]
+3945681    1540 [kworker/79:0-inet_frag_wq]
+3946464    1500 [kworker/69:1-rcu_par_gp]
+3946609    1491 [kworker/57:1-rcu_par_gp]
+3946689    1485 [kworker/66:2-rcu_par_gp]
+3947910    1420 [kworker/76:1-events]
+3948103    1412 [kworker/56:0-rcu_par_gp]
+3949607    1331 [kworker/70:2-events]
+3950078    1312 [kworker/53:0-mm_percpu_wq]
+3951009    1291 [kworker/0:2-events_freezable]
+3952811    1253 [kworker/64:2-events]
+3953840    1228 [kworker/41:0-rcu_par_gp]
+3955621    1194 [kworker/67:1-events]
+3956560    1174 [kworker/48:0-rcu_gp]
+3957415    1156 [kworker/45:0-events]
+3957687    1152 [kworker/44:2-mm_percpu_wq]
+3957698    1152 [kworker/32:0-rcu_par_gp]
+3957909    1150 [kworker/16:2]
+3958015    1148 [kworker/25:1]
+3958724    1136 [kworker/u161:5-flush-252:0]
+3959110    1130 [kworker/65:1-rcu_par_gp]
+3959121    1130 [kworker/72:0-rcu_par_gp]
+3959176    1129 smtpd -n 172.28.11.11:587 -t inet -u -o stress= -o syslog_name=postfix/submission -o smtpd_tls_security_level=encrypt -o smtpd_sasl_auth_enable=yes -o smtpd_tls_auth_only=yes -o smtpd_reject_unlisted_recipient=yes -o smtpd_client_restrictions=permit_sasl_authenticated,reject -o smtpd_sender_restrictions=reject_authenticated_sender_login_mismatch,reject_non_fqdn_sender -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject -o milter_macro_daemon_name=ORIGINATING
+3959984    1112 [kworker/74:2-rcu_par_gp]
+3960141    1106 [kworker/71:0-events]
+3960755    1092 [kworker/68:2-rcu_par_gp]
+3963412    1025 [kworker/63:1-rcu_par_gp]
+3964472     999 [kworker/42:1-rcu_par_gp]
+3964872     991 [kworker/78:2-rcu_par_gp]
+3965897     965 [kworker/59:1-rcu_gp]
+3965996     961 [kworker/51:0-rcu_gp]
+3967125     926 [kworker/47:0-rcu_gp]
+3967231     923 [kworker/55:0-rcu_par_gp]
+3968189     872 [kworker/50:2-mm_percpu_wq]
+3968442     860 [kworker/67:0-rcu_par_gp]
+3968731     844 [kworker/69:2-rcu_par_gp]
+3968949     835 [kworker/66:0-rcu_par_gp]
+3969073     829 dovecot/lmtp
+3969125     827 [kworker/45:2-rcu_par_gp]
+3969156     825 [kworker/44:1-rcu_par_gp]
+3969302     817 [kworker/75:2-rcu_par_gp]
+3969655     802 [kworker/77:2-rcu_par_gp]
+3969682     801 [kworker/49:1-rcu_par_gp]
+3970304     771 [kworker/46:0-rcu_par_gp]
+3971311     720 [kworker/43:1-rcu_gp]
+3971755     699 [kworker/61:2-rcu_par_gp]
+3972297     683 /usr/sbin/CRON -f -P
+3972300     683 /bin/sh -c /home/wrf/SERVEUR_WEB/Process_GEFS-HEAVYRAIN_Run_00Z.sh >> /home/wrf/SERVEUR_WEB/LOGS/cron_hrain_gefs-00Z.log 2>&1
+3972303     683 /bin/sh /home/wrf/SERVEUR_WEB/Process_GEFS-HEAVYRAIN_Run_00Z.sh
+3972305     683 /bin/sh /home/wrf/SERVEUR_WEB/download_GEFS_RR5080100mm_00Z.sh
+3974529     662 [kworker/u161:0-flush-252:0]
+3974677     661 [kworker/60:2-mm_percpu_wq]
+3974745     661 [kworker/52:0-rcu_par_gp]
+3975648     653 [kworker/70:0-rcu_par_gp]
+3977706     636 [kworker/59:2-events]
+3978132     633 [kworker/51:1-rcu_par_gp]
+3981776     607 [kworker/63:3-rcu_gp]
+3982445     603 [kworker/64:1-rcu_par_gp]
+3983324     597 [kworker/47:1-rcu_par_gp]
+3989657     557 [kworker/40:2-rcu_par_gp]
+3991752     545 [kworker/6:2-rcu_par_gp]
+3992312     543 [kworker/3:1]
+3992692     541 [kworker/19:0-rcu_par_gp]
+3992718     541 [kworker/5:0]
+3992719     541 [kworker/4:0]
+3992849     540 [kworker/14:1-rcu_par_gp]
+3992880     540 [kworker/50:0-rcu_gp]
+3993619     537 [kworker/48:1-rcu_par_gp]
+3999623     505 [kworker/54:0-events]
+4000436     501 [kworker/73:1-mm_percpu_wq]
+4001214     497 [kworker/66:1-mm_percpu_wq]
+4001974     492 [kworker/75:0]
+4005353     475 [kworker/57:2-events]
+4006981     467 [kworker/79:1-rcu_par_gp]
+4007862     462 [kworker/65:0-rcu_par_gp]
+4009027 1526168 /snap/snapd/current/usr/lib/snapd/snapd
+4009106     456 [kworker/49:0-rcu_par_gp]
+4009268     456 [kworker/71:1-rcu_par_gp]
+4011784     443 /usr/sbin/CRON -f -P
+4011786     443 /bin/sh -c /home/wrf/SERVEUR_WEB/Process_GEFS-HEAVYRAIN_Run_18Z.sh >> /home/wrf/SERVEUR_WEB/LOGS/cron_hrain_gefs-18Z.log 2>&1
+4011790     443 /bin/sh /home/wrf/SERVEUR_WEB/Process_GEFS-HEAVYRAIN_Run_18Z.sh
+4011791     443 /usr/bin/sh /home/wrf/SERVEUR_WEB/download_GEFS_RR5080100mm_18Z.sh
+4011805     443 [kworker/76:0-rcu_par_gp]
+4013112     436 [kworker/72:2-rcu_gp]
+4016867  123883 [kworker/32:2H]
+4017775     414 [kworker/68:0-events]
+4018789     409 [kworker/43:0-events]
+4020374     402 [kworker/58:1-rcu_par_gp]
+4022783     388 [kworker/56:2-mm_percpu_wq]
+4023167     370 [kworker/u161:2-flush-252:0]
+4023906     337 [kworker/78:0-events]
+4023947     336 [kworker/52:2-rcu_par_gp]
+4024007     333 [kworker/42:2-mm_percpu_wq]
+4024130     328 [kworker/53:1-rcu_par_gp]
+4024234     325 [kworker/60:0-rcu_par_gp]
+4024834     301 [kworker/62:2]
+4024932     298 [kworker/63:0-rcu_par_gp]
+4025041     295 [kworker/59:0]
+4025466     277 [kworker/47:2-events]
+4025558     273 [kworker/64:0-rcu_gp]
+4025819     263 [kworker/51:2-mm_percpu_wq]
+4026239     246 [kworker/55:1-events]
+4026354     240 [kworker/40:1-mm_percpu_wq]
+4026673     227 [kworker/41:1-mm_percpu_wq]
+4027260     202 [kworker/69:0-events]
+4027709     184 [kworker/48:2-events]
+4028010     172 [kworker/54:1-rcu_par_gp]
+4028139     166 [kworker/50:1]
+4028211     164 [kworker/67:2-rcu_par_gp]
+4028377     154 [kworker/44:0]
+4028688     143 [kworker/77:0-mm_percpu_wq]
+4028767     140 [kworker/57:0-cgroup_free]
+4028815     136 [kworker/45:1]
+4028819     135 [kworker/65:2-events]
+4029108     124 [kworker/73:0-rcu_par_gp]
+4029301     114 [kworker/76:2-rcu_par_gp]
+4029313     113 [kworker/79:2-mm_percpu_wq]
+4029384     109 [kworker/72:1-events]
+4029630     101 [kworker/71:2-rcu_par_gp]
+4030100      82 [kworker/74:0-rcu_par_gp]
+4030110      82 [kworker/58:2-rcu_gp]
+4030146      81 [kworker/68:1-rcu_par_gp]
+4030171      80 [kworker/46:2-events]
+4030416      71 [kworker/u162:0]
+4031785      29 [kworker/61:1-events]
+4032476      14 [kworker/52:1-cgroup_free]
+4032829      10 [kworker/70:1-rcu_par_gp]
+4032872       9 [kworker/78:1]
+4032877       8 /usr/libexec/tracker-extract-3 --socket-fd 3
+4033042       5 python run_forecast.py --accumulation 6h --date 20261123 --time 1800 --delete_forecasts Y
+4033043       5 python forecast_date.py 20261123 18
+4033423       0 sleep 5
+4033425       0 sshd: sadc [priv]
+4033427       0 /home/wrf/uems/util/grads/bin/curl https://nomads.ncep.noaa.gov/cgi-bin/filter_gefs_atmos_0p25s.pl?dir=%2Fgefs.20261126%2F00%2Fatmos%2Fpgrb2sp25&file=gep26.t00z.pgrb2s.0p25.f018&var_APCP=on&lev_surface=on&subregion=&toplat=-8&leftlon=35&rightlon=55&bottomlat=-30 -o GEFS_0p25-p26-20261126_00Z_F018.grib2
+4033429       0 /home/wrf/uems/util/grads/bin/curl https://nomads.ncep.noaa.gov/cgi-bin/filter_gefs_atmos_0p25s.pl?dir=%2Fgefs.20261125%2F18%2Fatmos%2Fpgrb2sp25&file=gep16.t18z.pgrb2s.0p25.f102&var_APCP=on&lev_surface=on&subregion=&toplat=-8&leftlon=35&rightlon=55&bottomlat=-30 -o GEFS_0p25-p16-20261125_18Z_F102.grib2
+4033488       0 sshd: sadc@notty
+4033507       0 ps -eo pid,etimes,args
+exit=0
