@@ -131,12 +131,17 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 			dues[p.ID] = due
 		}
 	}
+	// Sans aucune échéance valide, ne pas revendiquer de basis dans le gel.
+	basis := ""
+	if len(dues) > 0 {
+		basis = "profile-relative"
+	}
 	return json.Marshal(matrixConfig{
 		Profiles: resolved, Qdiscs: qdiscs, CCs: ccs, Reps: reps,
 		Direction: dir, Target: deps.Target, BulkAddr: deps.BulkAddr,
 		SmallURL: deps.SmallURL, Flows: flows, BaselineSec: baseline,
 		ChargeSec: charge, DeadlineMs: deps.DeadlineMs,
-		DeadlineBasis: "profile-relative", DeadlineDueMs: dues,
+		DeadlineBasis: basis, DeadlineDueMs: dues,
 		ChannelModel: cm, Bench: bench, DelayModel: dm, Kernel: capabilities.KernelRelease(), Tier: tier,
 	})
 }

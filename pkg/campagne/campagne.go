@@ -340,8 +340,11 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	// Échéance profile-relative calculée UNE fois pour la cellule : la même base
 	// en live et au gel, jamais le seuil fixe 220 ms.
 	deadlineDue, deadlineOK := effectiveDeadline(prof, d.Direction, d.DeadlineMs)
-	ev.DeadlineDueMs = deadlineDue
-	ev.DeadlineBasis = "profile-relative"
+	if deadlineOK {
+		// Sans échéance valide, ne revendiquer ni basis ni due dans la provenance.
+		ev.DeadlineDueMs = deadlineDue
+		ev.DeadlineBasis = "profile-relative"
+	}
 	setDeadline := func(target *model.Event, completions []float64) {
 		if !deadlineOK || len(completions) == 0 {
 			// absence : ni 0 mesuré ni nombre fabriqué, le booléen porte le sens.
@@ -349,7 +352,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 			target.DeadlineMeasured = false
 			return
 		}
-		target.DeadlineOKPct = round1(metrics.DeadlineOKPct(completions, deadlineDue))
+		target.DeadlineOKPct = deadlinePct(completions, deadlineDue)
 		target.DeadlineMeasured = true
 	}
 
@@ -773,13 +776,17 @@ func costARPerH(tierName string, wastedBytes uint64) float64 {
 	return metrics.CostARPerH(wastedBytes)
 }
 
-// round1 — dernier garde-fou : int(NaN) vaut min-int64 et fabriquerait un
-// grand nombre fini. L'absence est portée par DeadlineMeasured, pas par ce 0.
-func round1(v float64) float64 {
-	if math.IsNaN(v) {
+func round1(v float64) float64 { return float64(int(v*10+0.5)) / 10 }
+
+// deadlinePct — clamp LOCAL au seul pourcentage de deadline : int(NaN) vaut
+// min-int64 et fabriquerait un grand nombre fini. round1 reste inchangé pour
+// ses autres appelants, tous alimentés par des résumés finis.
+func deadlinePct(completions []float64, dueMs float64) float64 {
+	pct := metrics.DeadlineOKPct(completions, dueMs)
+	if math.IsNaN(pct) {
 		return 0
 	}
-	return float64(int(v*10+0.5)) / 10
+	return round1(pct)
 }
 
 func loadFor(phase string) string {

@@ -9,12 +9,12 @@ import (
 	"github.com/Realms4239/cgo/model"
 )
 
-// round1 ne doit jamais fabriquer un grand nombre fini depuis NaN (int(NaN)
-// vaut min-int64) : cette valeur finirait en CSV et en JSON comme un vrai %.
-func TestRound1NaNNeverFabricatesFiniteValue(t *testing.T) {
-	got := round1(math.NaN())
-	if math.IsNaN(got) || math.IsInf(got, 0) || got < 0 || got > 100 {
-		t.Fatalf("round1(NaN) = %v, attendu une valeur finie bornée (absence marquée ailleurs)", got)
+// Le clamp NaN reste local au pourcentage de deadline : int(NaN) vaut
+// min-int64 et fabriquerait un grand nombre fini en CSV et en JSON.
+func TestDeadlinePctNaNNeverFabricatesFiniteValue(t *testing.T) {
+	got := deadlinePct(nil, 220)
+	if math.IsNaN(got) || math.IsInf(got, 0) || got != 0 {
+		t.Fatalf("deadlinePct(nil, 220) = %v, attendu 0 (absence marquée par le booléen)", got)
 	}
 }
 

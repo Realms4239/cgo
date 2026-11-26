@@ -99,7 +99,10 @@ func TestWriterDeadlineAbsenceIsEmptyCell(t *testing.T) {
 	absent := eventForCampagne(2, model.GatePass)
 	absent.DeadlineMeasured = false
 	absent.DeadlineOKPct = 0
-	for _, ev := range []model.Event{measured, absent} {
+	zero := eventForCampagne(3, model.GatePass)
+	zero.DeadlineMeasured = true
+	zero.DeadlineOKPct = 0
+	for _, ev := range []model.Event{measured, absent, zero} {
 		if err := w.Append(ev); err != nil {
 			t.Fatal(err)
 		}
@@ -123,6 +126,10 @@ func TestWriterDeadlineAbsenceIsEmptyCell(t *testing.T) {
 	if len(cells) != 23 || cells[13] != "" {
 		t.Fatalf("cellule absente : %d colonnes, deadline=%q (attendu vide)", len(cells), cells[13])
 	}
+	cells = splitCSV(lines[3])
+	if len(cells) != 23 || cells[13] != "0.0" {
+		t.Fatalf("0 %% mesuré : %d colonnes, deadline=%q (attendu 0.0)", len(cells), cells[13])
+	}
 }
 
 // TestMatrixConfigSealsDeadlineBasisAndDue — le manifeste scellé porte le basis
@@ -145,5 +152,53 @@ func TestMatrixConfigSealsDeadlineBasisAndDue(t *testing.T) {
 		if got := cfg.DeadlineDueMs[id]; math.Abs(got-want) > 1e-9 {
 			t.Fatalf("profil %s : due gelé = %v, voulu %v", id, got, want)
 		}
+	}
+}
+
+// withInvalidRateProfile — profil sans capacité injecté le temps du test :
+// buildMatrixConfig résout les IDs depuis le registre global.
+func withInvalidRateProfile(t *testing.T) string {
+	t.Helper()
+	const id = "BAD-RATE"
+	model.ProfilesMu.Lock()
+	model.Profiles[id] = model.Profile{ID: id, CapacityMbps: 0, DelayMs: 10}
+	model.ProfilesMu.Unlock()
+	t.Cleanup(func() {
+		model.ProfilesMu.Lock()
+		delete(model.Profiles, id)
+		model.ProfilesMu.Unlock()
+	})
+	return id
+}
+
+// TestMatrixConfigInvalidRateFailsClosed — un taux invalide n'écrit aucune
+// échéance dans le manifeste ; si aucun profil n'a d'échéance, aucun basis
+// n'est revendiqué non plus.
+func TestMatrixConfigInvalidRateFailsClosed(t *testing.T) {
+	id := withInvalidRateProfile(t)
+	build := func(profiles ...string) matrixConfig {
+		raw, err := buildMatrixConfig(profiles, []string{"cake"}, []string{"bbr"}, 1, Deps{DeadlineMs: 50})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var cfg matrixConfig
+		if err := json.Unmarshal(raw, &cfg); err != nil {
+			t.Fatal(err)
+		}
+		return cfg
+	}
+	only := build(id)
+	if _, ok := only.DeadlineDueMs[id]; ok {
+		t.Fatalf("échéance fabriquée pour un taux invalide : %v", only.DeadlineDueMs[id])
+	}
+	if only.DeadlineBasis != "" {
+		t.Fatalf("basis revendiqué sans aucune échéance : %q", only.DeadlineBasis)
+	}
+	mixed := build("P2", id)
+	if _, ok := mixed.DeadlineDueMs[id]; ok {
+		t.Fatalf("échéance fabriquée pour un taux invalide en présence d'un profil valide")
+	}
+	if _, ok := mixed.DeadlineDueMs["P2"]; !ok || mixed.DeadlineBasis != "profile-relative" {
+		t.Fatalf("profil valide perdu : dues=%v basis=%q", mixed.DeadlineDueMs, mixed.DeadlineBasis)
 	}
 }
