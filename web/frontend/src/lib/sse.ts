@@ -126,17 +126,20 @@ export function ingestFrame(data: Partial<LiveFrame>, r: InstrumentRings = instr
   const ts = data.ts
   if (!ts) return false
   const has = (v: unknown) => v !== undefined && v !== null
+  // Le serveur supprime deadline_ok_pct quand deadline_measured=false (api/sse.go).
+  // Défense en profondeur : une clé qui fuit ne doit pas devenir une mesure.
+  const deadlinePct = data.deadline_measured === false ? undefined : data.deadline_ok_pct
   // frontière de vérité: les frames idle ne mesurent rien — jamais de 0 fabriqué.
   // En course, les frames tout-zéro sont des trous de pompe, pas des mesures — ignorer.
   // Les frames surveillance (surveil) et burst sont des mesures avec
   // running=false — elles doivent atteindre les anneaux, sinon le mur meurt.
   const measured = has(data.rtt_p50_ms) || has(data.rtt_p95_ms) || has(data.small_p95_ms)
-    || has(data.bulk_goodput_mbps) || has(data.drops) || has(data.deadline_ok_pct)
+    || has(data.bulk_goodput_mbps) || has(data.drops) || has(deadlinePct)
     || has(data.wasted_bytes) || has(data.cost_ar_per_h)
   if (!measured) return false
   if (!(data.running || data.phase === 'surveil' || data.phase === 'burst')) return false
   const values = [data.rtt_p50_ms, data.rtt_p95_ms, data.small_p95_ms,
-                  data.bulk_goodput_mbps, data.drops, data.deadline_ok_pct,
+                  data.bulk_goodput_mbps, data.drops, deadlinePct,
                   data.wasted_bytes, data.cost_ar_per_h].filter(has)
   if (values.length > 0 && values.every(v => v === 0)) return false
 

@@ -4,7 +4,7 @@
 // NaN, never 0. These tests must be RED before the epoch logic exists.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { live, clearLive, pushFrame } from './live'
-import { connectSSE, disconnectSSE, ingestFrame } from './sse'
+import { connectSSE, disconnectSSE, ingestFrame, __CGO_SSE } from './sse'
 import { instrument } from './ringBuffer'
 import { useUIStore } from '../store/ui'
 
@@ -94,5 +94,61 @@ describe('SSE epoch reset (client)', () => {
     expect(instrument.rtt50.size).toBe(2)
     expect(instrument.rtt50.series()[0]).toBeNaN()
     expect(instrument.rtt50.series()[1]).toBeNaN()
+  })
+})
+
+describe('SSE → anneaux — trame réelle et absence', () => {
+  beforeEach(() => {
+    // clearLive() laisse l'anneau interface vivant hors campagne : on le vide
+    // ici pour que chaque cas parte d'un état connu.
+    live.iface.rx.length = 0
+    live.iface.tx.length = 0
+    live.iface.name = ''
+    live.iface.ts = 0
+  })
+
+  it('une trame SSE mesurée alimente les anneaux instrument et interface', () => {
+    connectSSE()
+    const es = FakeES.last!
+    es.onmessage!({ data: JSON.stringify({
+      ts: 1000, running: true, phase: 'charge',
+      rtt_p50_ms: 42, rtt_p95_ms: 60, small_p95_ms: 30, bulk_goodput_mbps: 90,
+      deadline_measured: true, deadline_ok_pct: 96.7,
+      iface_sample_ts: 1000, iface_name: 'eth0', iface_source: '/proc/net/dev',
+      iface_valid: true, iface_rx_mbps: 120, iface_tx_mbps: 45,
+    }) })
+
+    expect(Array.from(instrument.rtt50.series())).toEqual([42])
+    expect(Array.from(instrument.small.series())).toEqual([30])
+    expect(Array.from(instrument.goodput.series())).toEqual([90])
+    expect(Array.from(instrument.ifaceRx.series())).toEqual([120])
+    expect(Array.from(instrument.ifaceTx.series())).toEqual([45])
+    expect(live.iface.rx).toEqual([[1000, 120]])
+    expect(live.iface.tx).toEqual([[1000, 45]])
+    expect(__CGO_SSE.ringLen).toBe(1)
+  })
+
+  it('une trame idle ne fabrique aucune mesure', () => {
+    connectSSE()
+    FakeES.last!.onmessage!({ data: JSON.stringify({
+      ts: 2000, running: false, phase: 'idle',
+      deadline_measured: false, deadline_ok_pct: 0,
+    }) })
+    for (const r of [instrument.small, instrument.rtt50, instrument.rtt95,
+                     instrument.goodput, instrument.ifaceRx, instrument.ifaceTx]) {
+      expect(r.size).toBe(0)
+    }
+    expect(instrument.events.list()).toEqual([])
+  })
+
+  it('un deadline absent divulgué par erreur ne devient pas une mesure', () => {
+    connectSSE()
+    FakeES.last!.onmessage!({ data: JSON.stringify({
+      ts: 3000, running: true, phase: 'charge',
+      deadline_measured: false, deadline_ok_pct: 42,
+    }) })
+    expect(instrument.small.size).toBe(0)
+    expect(instrument.events.list()).toEqual([])
+    expect(__CGO_SSE.ringLen).toBe(0)
   })
 })

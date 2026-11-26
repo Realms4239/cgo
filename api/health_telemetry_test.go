@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http/httptest"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -28,5 +30,12 @@ func TestHealthExposesTelemetrySource(t *testing.T) {
 	}
 	if body.Telemetry.Reason == "" {
 		t.Fatal("fallback without a reason")
+	}
+	// Sur Windows il n'y a ni eBPF ni échantillonneur interface : /api/health
+	// doit le dire, pas revendiquer une sonde noyau absente.
+	if runtime.GOOS == "windows" {
+		if body.Telemetry.Source != "tcpinfo" || !strings.Contains(body.Telemetry.Reason, "non-Linux") {
+			t.Fatalf("télémétrie Windows mal étiquetée : %+v", body.Telemetry)
+		}
 	}
 }

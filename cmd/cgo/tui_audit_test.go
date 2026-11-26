@@ -358,3 +358,29 @@ func TestScriptForRefusesMissingPlatform(t *testing.T) {
 		t.Fatalf("plateforme %q inventée", p)
 	}
 }
+
+// TestReplayLineSealStates — la validation est scellée : absence de sceau,
+// vérifications vides ou en écart ne deviennent jamais une validation.
+func TestReplayLineSealStates(t *testing.T) {
+	cases := []struct {
+		name string
+		v    *validationView
+		want string
+	}{
+		{"aucune preuve", nil, "Rejeu RouterOS : aucune preuve"},
+		{"aucune vérification", &validationView{}, "Rejeu RouterOS : non validée — aucune vérification"},
+		{"écart", &validationView{Checks: []checkView{{Name: "queue type", Pass: false}}},
+			"Rejeu RouterOS : non validée — écarts dans le rapport"},
+		{"rejeu réussi", &validationView{Checks: []checkView{{Name: "queue type", Pass: true}}},
+			"Rejeu RouterOS : validée par rejeu"},
+	}
+	for _, tc := range cases {
+		got := replayLine(auditView{Validation: tc.v})
+		if got != tc.want {
+			t.Fatalf("%s : %q, voulu %q", tc.name, got, tc.want)
+		}
+		if strings.Contains(got, "appliquée") {
+			t.Fatalf("%s : la carte prétend que la configuration a été appliquée", tc.name)
+		}
+	}
+}

@@ -59,6 +59,30 @@ describe('ingestFrame — NaN, jamais zéro', () => {
     ingestFrame({ ts: 1000, running: true, phase: 'charge', bulk_goodput_mbps: 99999 } as any, r)
     expect(r.goodput.series()[0]).toBeNaN()
   })
+
+  it('deadline_measured=false : un pourcentage divulgué n’est pas une mesure', () => {
+    const r = rings()
+    const pushed = ingestFrame({
+      ts: 1000, running: true, phase: 'charge',
+      deadline_measured: false, deadline_ok_pct: 42,
+    } as any, r)
+    // Le serveur supprime la clé ; si elle fuit quand même, la porte de vérité
+    // ne doit pas transformer une absence en mesure (anneau + événement de phase).
+    expect(pushed).toBe(false)
+    expect(r.small.size).toBe(0)
+    expect(r.rtt50.size).toBe(0)
+    expect(r.goodput.size).toBe(0)
+  })
+
+  it('deadline_measured=false n’efface pas une mesure réellement présente', () => {
+    const r = rings()
+    const pushed = ingestFrame({
+      ts: 1000, running: true, phase: 'charge',
+      deadline_measured: false, deadline_ok_pct: 42, small_p95_ms: 28,
+    } as any, r)
+    expect(pushed).toBe(true)
+    expect(r.small.series()[0]).toBe(28)
+  })
 })
 
 describe('shouldSyncStore — 4 Hz', () => {
