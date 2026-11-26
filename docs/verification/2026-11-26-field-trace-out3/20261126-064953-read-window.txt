@@ -1,0 +1,6 @@
+# sadcnwp read window, 20261126-064953 UTC
+# host sadc@41.207.49.27:9922
+
+$ sha256sum /home/sadc/labo-cgo/field-trace/out3-readable/flows.csv
+48cafc1235b197693858c075f0ae014d33e9dcce2eb3462a8e8ccd71b5082283  /home/sadc/labo-cgo/field-trace/out3-readable/flows.csv
+exit=0
