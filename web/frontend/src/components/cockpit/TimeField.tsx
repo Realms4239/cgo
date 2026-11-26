@@ -37,6 +37,13 @@ export interface IfaceHonesty {
 }
 
 const ABSENT = '—'
+/** Graduation d'axe courte : un gutter de 64 px ne porte ni suite de zéros ni
+ *  notation scientifique. Ce n'est pas une mesure, seulement une borne d'axe. */
+export function axisTickLabel(v: number): string {
+  if (!Number.isFinite(v)) return ''
+  if (Math.abs(v) >= 100) return String(Math.round(v))
+  return String(Number(v.toFixed(2)))
+}
 const PHASE_FR: Record<string, string> = {
   baseline: 'Repos', charge: 'Charge', recup: 'Récupération',
   surveil: 'Surveillance', burst: 'Rafale',
@@ -50,12 +57,19 @@ const TIME_AXIS = {
 }
 
 function yAxis(name: string, max: number, gridIndex: number) {
+  // Plancher à 1 : un axe vide ne doit pas produire des graduations
+  // fractionnaires minuscules qui se collent à l'unité en haut de l'axe.
+  const top = Number.isFinite(max) && max > 0 ? Math.max(max, 1) : 1
   return {
     type: 'value' as const, gridIndex, name,
-    min: 0, max,
+    min: 0, max: top,
+    nameLocation: 'end' as const, nameGap: 14,
     nameTextStyle: { color: LIGHT.textMuted, fontFamily: 'JetBrains Mono', fontSize: CANVAS_FS.axis },
     axisLine: { show: false }, axisTick: { show: false },
-    axisLabel: { show: true, color: LIGHT.textMuted, fontFamily: 'JetBrains Mono', fontSize: CANVAS_FS.axis },
+    axisLabel: {
+      show: true, color: LIGHT.textMuted, fontFamily: 'JetBrains Mono', fontSize: CANVAS_FS.axis,
+      hideOverlap: true, margin: 10, formatter: axisTickLabel,
+    },
     splitLine: { lineStyle: { color: LIGHT.grid, type: 'dashed' as const } },
   }
 }
@@ -121,6 +135,7 @@ function ifaceField(label: string, value: string, kind: 'measure' | 'meta' = 'me
 export function timeFieldOption(rings: InstrumentRings, objectiveMs = 220): EChartsOption {
   const goal = Number.isFinite(objectiveMs) && objectiveMs > 0 ? objectiveMs : 220
   const { min, max } = bounds(rings)
+  const span = max - min
   const axisMax = (ring: InstrumentRings['goodput']) => {
     let m = 1
     for (const v of ring.series()) if (Number.isFinite(v) && v > m) m = v
@@ -153,7 +168,9 @@ export function timeFieldOption(rings: InstrumentRings, objectiveMs = 220): ECha
         ...TIME_AXIS, gridIndex: 2, min, max,
         axisLine: { lineStyle: { color: LIGHT.neutral } },
         axisLabel: {
-          show: true, color: LIGHT.textMuted, fontFamily: 'JetBrains Mono', fontSize: CANVAS_FS.axis,
+          // Sans étendue réelle, l'axe temps n'a rien à étiqueter : un
+          // timestamp 0 n'est pas une mesure et ne doit pas s'afficher.
+          show: span > 0, color: LIGHT.textMuted, fontFamily: 'JetBrains Mono', fontSize: CANVAS_FS.axis,
           hideOverlap: true,
           formatter: (v: number) => {
             const d = new Date(v)
