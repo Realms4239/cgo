@@ -6,7 +6,10 @@ Operator approval: 2026-11-26 "I approve the passive capture", "I aprove the tas
 
 - Binary: already-tagged `/home/sadc/labo-cgo/field-trace/cgo-observe-x`, `--duration 10800 --interval 5`, output `/home/sadc/labo-cgo/field-trace/out3`.
 - Launched under PID `3373373` (sudo wrapper `3373364`); clean finish with `manifest.json` written and no process left.
-- `flows.csv`: **109,489 lines**, 11,140,704 bytes, owner `sadc`, mode 600 at stop. `manifest.json`: 457 bytes, owner `root`, mode 600 - not readable through the sadc read window, so its contents are NOT claimed here.
+- `flows.csv`: **109,489 lines** (header + 109,488 data rows in the manifest), 11,140,704 bytes, owner `sadc`, mode 600 at stop. `manifest.json`: 457 bytes, owner `root`, retrieved through a separate approved R2 pass (`APPROVED-2026-11-26-cgo-field-retrieve.md`) into a sadc-readable copy whose ownership was restored immediately after the read.
+- Manifest contents (read-window evidence `20261126-064926`, sha `57aede62…`): `kind: cgo-observe/manifest`, `duration_s: 10800`, `interval_s: 5`, `exclude_ports: ""`, `excluded_rows: 0`, `rows: 109488`, `started_unix: 1795674017`, `object_sha256: 8612f5785a46390cfead383f5e5d2bcde1e33777dda10331221169cae603d17f`, `flows_csv_sha256: 48cafc1235b197693858c075f0ae014d33e9dcce2eb3462a8e8ccd71b5082283`.
+- Independent `sha256sum` of the retrieved `flows.csv` (evidence `20261126-064953`, sha `d327ec25…`) returned exactly `48cafc12…`, matching the manifest byte-for-byte.
+- Retrieval write evidence: `20261126-064731` sha `0c7c3011…` (copy), `20261126-064848` sha `0e33c75e…` (brief sadc ownership), `20261126-065024` sha `254d55fc…` (final root ownership restore). Guard restored byte-exact from `safe_write.py.pre-cgo-field-retrieve-20261126` sha `c4282af7…`; selftest back to 954 cases.
 - Stop/liveness evidence: `20261126-032239` sha `5c614c5c…`; final state `20261126-063025` sha `cf3d86b6…`.
 
 ## Banding (honest, bounded reads)
