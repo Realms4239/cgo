@@ -3,9 +3,11 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -353,24 +355,121 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 // ---- aides ----
 
 func toMap(v any) (map[string]any, error) {
-	// json.Marshal refuse NaN/Inf et ferait tomber TOUTE la frame SSE. Une
-	// valeur non finie est retirée : l'absence est portée par deadline_measured.
-	if src, ok := v.(map[string]any); ok {
-		clean := make(map[string]any, len(src))
-		for k, val := range src {
-			if f, ok := val.(float64); ok && (math.IsNaN(f) || math.IsInf(f, 0)) {
-				continue
-			}
-			clean[k] = val
-		}
-		v = clean
-	}
 	b, err := json.Marshal(v)
-	if err != nil {
+	if err == nil {
+		var m map[string]any
+		if err := json.Unmarshal(b, &m); err != nil {
+			return nil, err
+		}
+		return scrubJSONMap(m), nil
+	}
+	// json.Marshal refuse NaN/Inf et ferait tomber TOUTE la frame. Rebâtir une
+	// carte sûre par réflexion couvre les structs et les maps imbriquées —
+	// un simple contrôle sur map[string]any laissait passer les structs.
+	var bad *json.UnsupportedValueError
+	if !errors.As(err, &bad) {
+		return nil, err // pas un non-fini : on ne masque pas l'erreur d'encodage
+	}
+	m, ok := safeMapOf(v)
+	if !ok {
 		return nil, err
 	}
-	var m map[string]any
-	return m, json.Unmarshal(b, &m)
+	return scrubJSONMap(m), nil
+}
+
+// scrubJSONMap — retire récursivement les non-finis et le pourcentage déclaré
+// absent : un 0 avec deadline_measured=false n'est pas une mesure publiée.
+func scrubJSONMap(m map[string]any) map[string]any {
+	if measured, ok := m["deadline_measured"].(bool); ok && !measured {
+		delete(m, "deadline_ok_pct")
+	}
+	for k, val := range m {
+		switch x := val.(type) {
+		case float64:
+			if math.IsNaN(x) || math.IsInf(x, 0) {
+				delete(m, k)
+			}
+		case map[string]any:
+			m[k] = scrubJSONMap(x)
+		case []any:
+			for i, e := range x {
+				if inner, ok := e.(map[string]any); ok {
+					x[i] = scrubJSONMap(inner)
+				} else if f, ok := e.(float64); ok && (math.IsNaN(f) || math.IsInf(f, 0)) {
+					x[i] = nil
+				}
+			}
+		}
+	}
+	return m
+}
+
+// safeMapOf — conversion par réflexion en carte JSON-sûre quand l'encodeur a
+// refusé un non-fini. Les tags json sont respectés (omitempty inclus) ; les
+// champs anonymes sont aplatis comme encoding/json le ferait.
+func safeMapOf(v any) (map[string]any, bool) {
+	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Pointer || rv.Kind() == reflect.Interface {
+		if rv.IsNil() {
+			return nil, false
+		}
+		rv = rv.Elem()
+	}
+	out := make(map[string]any)
+	switch rv.Kind() {
+	case reflect.Map:
+		for _, k := range rv.MapKeys() {
+			if k.Kind() != reflect.String {
+				return nil, false
+			}
+			out[k.String()] = rv.MapIndex(k).Interface()
+		}
+	case reflect.Struct:
+		rt := rv.Type()
+		for i := 0; i < rv.NumField(); i++ {
+			sf := rt.Field(i)
+			if sf.PkgPath != "" { // champ non exporté : json.Marshal l'ignore aussi
+				continue
+			}
+			name, skip, omitEmpty := jsonFieldName(sf)
+			if skip {
+				continue
+			}
+			val := rv.Field(i)
+			if omitEmpty && val.IsZero() {
+				continue
+			}
+			if sf.Anonymous && val.Kind() == reflect.Struct {
+				if inner, ok := safeMapOf(val.Interface()); ok {
+					for k, nested := range inner {
+						out[k] = nested
+					}
+				}
+				continue
+			}
+			out[name] = val.Interface()
+		}
+	default:
+		return nil, false
+	}
+	return out, true
+}
+
+func jsonFieldName(f reflect.StructField) (name string, skip, omitEmpty bool) {
+	parts := strings.Split(f.Tag.Get("json"), ",")
+	name = parts[0]
+	if name == "" {
+		name = f.Name
+	}
+	if name == "-" {
+		return "", true, false
+	}
+	for _, opt := range parts[1:] {
+		if opt == "omitempty" {
+			omitEmpty = true
+		}
+	}
+	return name, false, omitEmpty
 }
 
 func contains(ks []string, k string) bool {
