@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { Window } from 'happy-dom'
 import { describe, expect, it } from 'vitest'
 import TimeField, { axisTickLabel, timeFieldOption, type IfaceHonesty } from './TimeField'
 import DecisionSpine from './DecisionSpine'
@@ -51,6 +52,58 @@ function html(node: React.ReactElement): string {
 
 const css = () => readFileSync(join(process.cwd(), 'src/styles/components.css'), 'utf8')
 
+/** Feuilles réelles dans l'ordre d'import de main.tsx : index.css importe
+ *  components.css puis ajoute .btn — la cascade doit être la vraie, sinon une
+ *  règle moins spécifique peut perdre sans que le source grep ne le voie. */
+function layout(width: number) {
+  const win = new Window({ url: 'http://localhost', width, height: 900 })
+  const doc = win.document
+  for (const name of ['tokens.css', 'components.css', 'index.css']) {
+    const style = doc.createElement('style')
+    style.textContent = readFileSync(join(process.cwd(), 'src/styles', name), 'utf8')
+    doc.head.appendChild(style)
+  }
+  const make = (className: string, tag = 'div') => {
+    const el = doc.createElement(tag)
+    el.className = className
+    doc.body.appendChild(el)
+    return el
+  }
+  const legend = make('tf-ruler-legend')
+  const ruler = make('tf-ruler')
+  const footer = make('tf-footer')
+  const proof = make('band-proof btn', 'button')
+  const controls = make('band-controls')
+  const trigger = make('facts-disclosure-trigger', 'button')
+  const track = make('tf-ruler-track')
+  const cs = (el: ReturnType<typeof make>) => win.getComputedStyle(el)
+  return {
+    legend: cs(legend), ruler: cs(ruler), footer: cs(footer), proof: cs(proof),
+    controls: cs(controls), trigger: cs(trigger), track: cs(track),
+    overflow: legend.scrollWidth > legend.clientWidth,
+  }
+}
+
+/** Règles hors de tout @media, accolades équilibrées : prouve la portée globale
+ *  sans confondre un @media sans rapport rencontré plus haut dans la feuille. */
+function topLevelRules(sheet: string): string {
+  let out = ''
+  let i = 0
+  while (i < sheet.length) {
+    const at = sheet.indexOf('@media', i)
+    if (at < 0) return out + sheet.slice(i)
+    out += sheet.slice(i, at)
+    let depth = 0
+    let j = sheet.indexOf('{', at)
+    for (; j < sheet.length; j++) {
+      if (sheet[j] === '{') depth++
+      else if (sheet[j] === '}' && --depth === 0) { j++; break }
+    }
+    i = j
+  }
+  return out
+}
+
 /** Bloc d'une requête média, borné en profondeur pour ne pas avaler la suite. */
 function mediaBlock(sheet: string, query: string): string {
   const head = sheet.indexOf(`@media ${query} {`)
@@ -81,15 +134,23 @@ describe('axe — étiquettes courtes et non chevauchantes', () => {
     const opt: any = timeFieldOption(emptyRings(), 220)
     const axes: any[] = opt.yAxis
     expect(axes).toHaveLength(3)
-    for (const ax of axes) {
-      expect(ax.nameLocation, 'unité au bout de l’axe').toBe('end')
-      expect(ax.nameGap, 'unité dégagée des graduations').toBeGreaterThanOrEqual(12)
+    axes.forEach((ax, i) => {
+      if (i === 0) {
+        expect(ax.nameLocation, 'unité au bout de l’axe primaire').toBe('end')
+        expect(ax.nameGap, 'unité dégagée des graduations').toBeGreaterThanOrEqual(12)
+      } else {
+        expect(ax.nameLocation, 'unité des axes secondaires à mi-hauteur').toBe('middle')
+        expect(ax.nameRotate, 'unité secondaire tournée, hors des graduations').toBe(90)
+        expect(ax.nameGap, 'unité secondaire séparée des graduations').toBeGreaterThanOrEqual(36)
+        expect(ax.nameGap - ax.axisLabel.margin, 'séparation réelle des deux étiquettes')
+          .toBeGreaterThanOrEqual(20)
+      }
       expect(ax.axisLabel.hideOverlap, 'graduations qui se chevauchent masquées').toBe(true)
       expect(ax.axisLabel.margin, 'graduations dégagées de l’axe').toBeGreaterThanOrEqual(8)
       expect(ax.axisLabel.formatter).toBe(axisTickLabel)
       expect(Number.isFinite(ax.max)).toBe(true)
       expect(ax.max, 'aucune échelle dégénérée').toBeGreaterThanOrEqual(1)
-    }
+    })
     expect(axes.map((a: any) => a.name)).toEqual(['ms', 'Mbit/s', 'Mbit/s'])
   })
 
@@ -124,11 +185,42 @@ describe('densité — aucun chevauchement à 890 / 1280 / 1920', () => {
     expect(sheet.match(/\.tf-plot\s*\{[^}]*\}/)?.[0] ?? '').toMatch(/height:\s*420px/)
   })
 
+  it('layout réel à 890 / 1280 / 1920 : aucun débordement, phrase d’absence séparée du pied', () => {
+    for (const width of [890, 1280, 1920]) {
+      const l = layout(width)
+      expect(l.legend.display, `${width} : légende en flex`).toBe('flex')
+      expect(l.legend.flexWrap, `${width} : légende repliable`).toBe('wrap')
+      expect(l.legend.flexBasis, `${width} : légende sur sa propre ligne`).toBe('100%')
+      expect(Number.parseFloat(l.track.marginLeft) + Number.parseFloat(l.track.marginRight),
+        `${width} : piste dans le viewport`).toBeLessThan(width)
+      expect(l.overflow, `${width} : pas de débordement horizontal`).toBe(false)
+      // La phrase « aucun repère » ne doit pas coller l'en-tête INTERFACE.
+      expect(Number.parseFloat(l.ruler.paddingBottom), `${width} : souffle sous la règle`)
+        .toBeGreaterThanOrEqual(8)
+      expect(Number.parseFloat(l.footer.paddingTop), `${width} : souffle avant le pied`)
+        .toBeGreaterThanOrEqual(8)
+    }
+  })
+
+  it('cascade réelle : PREUVE masqué en tête à 1280/1920, « Preuves » du bas conservé', () => {
+    for (const width of [1280, 1920]) {
+      const l = layout(width)
+      expect(l.proof.display, `${width} : PREUVE en tête masqué`).toBe('none')
+      expect(l.controls.display, `${width} : revealer visible`).toBe('flex')
+      expect(l.trigger.display, `${width} : bouton 4 faits visible`).toBe('inline-flex')
+    }
+    expect(layout(890).proof.display, 'PREUVE reste accessible sous 1024').toBe('inline-flex')
+    expect(html(createElement(DecisionSpine, { report: null })), 'discloseur du bas conservé')
+      .toContain('Preuves')
+  })
+
   it('1280 : le champ prend la hauteur restante et le revealer remplace la colonne dense', () => {
     const wide = mediaBlock(sheet, '(min-width: 1024px)')
     expect(wide, 'revealer visible dès 1024').toMatch(/\.band-controls\s*\{[^}]*display:\s*flex/)
-    expect(wide, 'PREUVE non dupliqué en tête').toMatch(/\.band-proof\s*\{[^}]*display:\s*none/)
-    expect(sheet, 'faits secondaires derrière le discloseur à toute largeur')
+    expect(wide, 'PREUVE non dupliqué en tête : sélecteur aussi spécifique que .btn')
+      .toMatch(/\.band-proof\.btn\s*\{[^}]*display:\s*none/)
+    const topLevel = topLevelRules(sheet)
+    expect(topLevel, 'faits derrière le discloseur par une règle globale, pas seulement sous 1023px')
       .toMatch(/\.answer-facts\[data-open="false"\]\s*\{\s*display:\s*none;\s*\}/)
     const mid = mediaBlock(sheet, '(min-width: 1024px) and (max-width: 1599px)')
     expect(mid, 'le champ occupe la première rangée').toMatch(/\.cockpit-field\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\)\s+auto/)

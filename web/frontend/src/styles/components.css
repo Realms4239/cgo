@@ -240,7 +240,7 @@
 .tf-plot { position: relative; min-width: 0; height: 420px; border: 1px solid var(--hairline); background: var(--surface-soft); }
 .tf-chart { width: 100%; height: 100%; min-width: 0; }
 .tf-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: var(--sp-3); font-size: var(--fs-fine); color: var(--text-muted); text-align: center; text-wrap: pretty; }
-.tf-ruler { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 32px; padding: 6px 0; border-top: 1px solid var(--hairline-strong); font-size: var(--fs-micro); color: var(--text-body); }
+.tf-ruler { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 32px; padding: 6px 0 var(--sp-3); border-top: 1px solid var(--hairline-strong); font-size: var(--fs-micro); color: var(--text-body); }
 .tf-ruler-top { display: flex; align-items: baseline; gap: var(--sp-3); row-gap: var(--sp-1); flex-wrap: wrap; }
 .tf-ruler-time, .tf-ruler-goal { font-variant-numeric: tabular-nums; }
 /* La légende occupe sa propre ligne : elle ne se serre plus contre
@@ -265,7 +265,7 @@
 .tf-repere-label { color: var(--text-body); overflow-wrap: anywhere; }
 .tf-repere-mark { font-size: 8px; color: var(--text-body-strong); }
 /* Pied : métadonnées de complétude, poids le plus faible. */
-.tf-footer { display: flex; align-items: flex-start; gap: var(--sp-3); flex-wrap: wrap;
+.tf-footer { display: flex; align-items: flex-start; gap: var(--sp-3); flex-wrap: wrap; padding-top: var(--sp-2);
   font-size: var(--fs-micro); color: var(--text-faint); overflow-wrap: anywhere; }
 .tf-footer-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tf-footer-group + .tf-footer-group { border-left: 1px solid var(--hairline-faint); padding-left: var(--sp-3); }
@@ -303,7 +303,8 @@
   .tf-plot { height: auto; flex: 1 1 auto; min-height: 240px; }
   /* Le revealer des faits remplace la pile dense ; PREUVE reste en bas. */
   .band-controls { display: flex; justify-content: flex-end; }
-  .band-proof { display: none; }
+  /* .btn est défini plus tard dans index.css : il faut la même spécificité. */
+  .band-proof.btn { display: none; }
   .journal-slot { min-width: 0; }
   .journal-disclosure-toggle { display: inline-flex; align-items: center; min-height: 44px;
     transition-property: transform, color; transition-duration: var(--dur-fast); transition-timing-function: var(--ease);

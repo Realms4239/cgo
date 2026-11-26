@@ -60,10 +60,15 @@ function yAxis(name: string, max: number, gridIndex: number) {
   // Plancher à 1 : un axe vide ne doit pas produire des graduations
   // fractionnaires minuscules qui se collent à l'unité en haut de l'axe.
   const top = Number.isFinite(max) && max > 0 ? Math.max(max, 1) : 1
+  // Les axes secondaires sont courts : leur unité tournée à mi-hauteur, à
+  // 40 px du trait, ne chevauche plus les graduations 0,8 / 0,4 / Mbit/s.
+  const secondary = gridIndex > 0
   return {
     type: 'value' as const, gridIndex, name,
     min: 0, max: top,
-    nameLocation: 'end' as const, nameGap: 14,
+    nameLocation: secondary ? ('middle' as const) : ('end' as const),
+    nameRotate: secondary ? 90 : undefined,
+    nameGap: secondary ? 40 : 14,
     nameTextStyle: { color: LIGHT.textMuted, fontFamily: 'JetBrains Mono', fontSize: CANVAS_FS.axis },
     axisLine: { show: false }, axisTick: { show: false },
     axisLabel: {
