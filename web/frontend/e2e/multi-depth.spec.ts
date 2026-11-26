@@ -70,7 +70,7 @@ test('3. live — watch on/off traverse l\'API et alimente les anneaux', async (
   })
   // hôte en mode observation (Windows) : pas de moteur watch/façonnage, 501
   // honnête — même skip que dans control-demo.spec.ts ; la voie 200 reste intacte.
-  test.skip(resp.status === 501, 'hôte en mode observation — watch exige le banc Linux (501), comportement correct')
+  test.skip(resp.status === 501 && /observation|Linux/i.test(String(resp.body.error ?? '')), 'hôte en mode observation — watch exige le banc Linux (501), comportement correct')
   // 409 = campagne active sur l'hôte : l'endpoint répond correctement, état VM variable
   if (resp.status !== 409) {
     expect(resp.status).toBe(200)
@@ -104,7 +104,7 @@ test('4. façonnage — cake appliqué puis retiré, shapeState suit', async ({ 
   })
   // hôte en mode observation (Windows) : 501 honnête, le façonnage exige le banc
   // Linux — même skip que control-demo.spec.ts ; la voie 200 reste intacte.
-  test.skip(on.status === 501, 'hôte en mode observation — façonnage exige le banc Linux (501), comportement correct')
+  test.skip(on.status === 501 && /observation|Linux/i.test(String(on.body.error ?? '')), 'hôte en mode observation — façonnage exige le banc Linux (501), comportement correct')
   // 409 campagne active : le façonnage est interdit pendant une campagne, l'API a raison
   if (on.status !== 409) {
     expect(on.status).toBe(200)
@@ -169,7 +169,7 @@ test('6. burst — refusé pendant campagne, honnête 409', async ({ page }) => 
   })
   // hôte en mode observation (Windows) : 501 honnête, le burst exige le banc
   // Linux — la borne [200, 409] reste intacte sur un hôte capable.
-  test.skip(r.status === 501, 'hôte en mode observation — burst exige le banc Linux (501), comportement correct')
+  test.skip(r.status === 501 && /observation|Linux/i.test(String(r.body.error ?? '')), 'hôte en mode observation — burst exige le banc Linux (501), comportement correct')
   // hors campagne : 200 attendu (aucune campagne active au moment du test)
   // pendant campagne : 409 — les deux sont honnêtes, on vérifie juste la cohérence
   expect([200, 409]).toContain(r.status)
@@ -204,12 +204,13 @@ test('8. intégrité — hash8 visible dans Provenance = dernier gel', async ({ 
 
 test('9. journal opérateur — les actions passées sont tracées', async ({ page }) => {
   await page.goto(BASE + '/')
+  // signal de capacité lu sur /api/health (jamais l'assertion elle-même) :
+  // en mode "observe" (Windows) le journal reste vide par conception.
+  // Réactiver sur le banc Linux où /api/health annonce `mode: "full"`.
+  const health = await page.evaluate(async () => (await fetch('/api/health').then(r => r.json())))
+  test.skip(health.mode === 'observe', 'hôte en mode observation (/api/health mode: "observe") — aucune action watch/façonnage tracée, journal vide par conception')
   const events = await page.evaluate(async () => (await fetch('/api/events').then(r => r.json())))
   const msgs = (events.events || []).map((e: any) => e.msg).join(' ')
-  // les tests 3-4 (watch, shape) ont tracé leurs actions sur un hôte capable.
-  // En mode observation (Windows), ces endpoints répondent 501 et le journal
-  // reste vide par conception — même skip honnête que les tests 3, 4 et 6.
-  test.skip(msgs.length === 0, 'hôte en mode observation — aucune action watch/façonnage tracée (501), journal vide par conception')
   expect(msgs.length).toBeGreaterThan(0)
 })
 
