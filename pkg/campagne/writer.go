@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -159,6 +160,16 @@ func joinRow(cols []string) string {
 	return out
 }
 
+// deadlineCSVCell — une absence est une cellule VIDE : jamais 0.0, jamais NaN.
+// Les événements historiques sans drapeau gardent leur format %.1f si une
+// valeur non nulle est déjà présente.
+func deadlineCSVCell(ev model.Event) string {
+	if math.IsNaN(ev.DeadlineOKPct) || math.IsInf(ev.DeadlineOKPct, 0) || (!ev.DeadlineMeasured && ev.DeadlineOKPct == 0) {
+		return ""
+	}
+	return fmt.Sprintf("%.1f", ev.DeadlineOKPct)
+}
+
 // Append écrit une ligne ; les cellules identiques (profil/qdisc/cc/sens/rep,
 // position indépendante) sont rejetées (G5).
 func (w *Writer) Append(ev model.Event) error {
@@ -174,9 +185,9 @@ func (w *Writer) Append(ev model.Event) error {
 			FailedGates: ev.FailedGates,
 		})
 	}
-	row := fmt.Sprintf("%s,%d,%s,%s,%s,%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%d,%d,%.2f,%.1f,%.1f,%.1f,%s",
+	row := fmt.Sprintf("%s,%d,%s,%s,%s,%s,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%s,%.1f,%d,%d,%d,%.2f,%.1f,%.1f,%.1f,%s",
 		ev.RunID, ev.EventID, ev.Profile, ev.Qdisc, ev.CC, ev.Direction, ev.Repetition,
-		ev.RTTp50Ms, ev.RTTp95Ms, ev.QDIPctMs, ev.VoIPR, ev.JFI, ev.Smallp95Ms, ev.DeadlineOKPct,
+		ev.RTTp50Ms, ev.RTTp95Ms, ev.QDIPctMs, ev.VoIPR, ev.JFI, ev.Smallp95Ms, deadlineCSVCell(ev),
 		ev.BulkGoodputMbps, ev.Drops, ev.Retransmissions, ev.WastedBytes,
 		ev.CostARPerH, ev.CPUPct, ev.RTTBaseP50Ms, ev.RTTBaseP95Ms, ev.GateStatus)
 	_, err := fmt.Fprintln(w.fh, row)

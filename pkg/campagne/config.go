@@ -25,7 +25,12 @@ type matrixConfig struct {
 	Flows       int             `json:"flows"`
 	BaselineSec int             `json:"baseline_sec"`
 	ChargeSec   int             `json:"charge_sec"`
-	DeadlineMs  float64         `json:"deadline_ms,omitempty"`
+	// DeadlineMs — marge de service de l'opérateur, PAS une échéance absolue.
+	DeadlineMs float64 `json:"deadline_ms,omitempty"`
+	// DeadlineBasis / DeadlineDueMs — provenance scellée : base et échéance
+	// effective par profil ; un taux invalide n'écrit aucune valeur.
+	DeadlineBasis string             `json:"deadline_basis,omitempty"`
+	DeadlineDueMs map[string]float64 `json:"deadline_due_ms,omitempty"`
 	// Provenance du run : le canal (clean|bursty) et le banc (legacy|dualns)
 	// se lisent dans le gel — deux régimes ne se mélangent jamais en secret.
 	ChannelModel string `json:"channel_model"`
@@ -33,8 +38,8 @@ type matrixConfig struct {
 	// DelayModel — scalar|dist : le moteur applique une table de distribution
 	// calibrée ou un délai fixe. Même obligation que le noyau : une ligne
 	// scellée sous dist ne se distingue pas d'une ligne scalar sans ce gel.
-	DelayModel   string `json:"delay_model,omitempty"`
-	Kernel       string `json:"kernel,omitempty"`
+	DelayModel string `json:"delay_model,omitempty"`
+	Kernel     string `json:"kernel,omitempty"`
 	// Tier — le palier tarifaire gelé avec le run : chaque ligne du manifeste
 	// se valorise sur cette base, même si le palier global change ensuite.
 	Tier string `json:"tier"`
@@ -120,11 +125,18 @@ func buildMatrixConfig(profiles, qdiscs, ccs []string, reps int, deps Deps) ([]b
 	if tier == "" {
 		tier = metrics.ActiveTierName()
 	}
+	dues := make(map[string]float64, len(resolved))
+	for _, p := range resolved {
+		if due, ok := effectiveDeadline(p, dir, deps.DeadlineMs); ok {
+			dues[p.ID] = due
+		}
+	}
 	return json.Marshal(matrixConfig{
 		Profiles: resolved, Qdiscs: qdiscs, CCs: ccs, Reps: reps,
 		Direction: dir, Target: deps.Target, BulkAddr: deps.BulkAddr,
 		SmallURL: deps.SmallURL, Flows: flows, BaselineSec: baseline,
 		ChargeSec: charge, DeadlineMs: deps.DeadlineMs,
+		DeadlineBasis: "profile-relative", DeadlineDueMs: dues,
 		ChannelModel: cm, Bench: bench, DelayModel: dm, Kernel: capabilities.KernelRelease(), Tier: tier,
 	})
 }

@@ -59,6 +59,7 @@ func StartWatch(base context.Context, d Deps) (stop func()) {
 				sm := metrics.Summarize(small)
 				live.Smallp95Ms = round1(sm.P95)
 				live.DeadlineOKPct = round1(metrics.DeadlineOKPct(small, d.DeadlineMs))
+				live.DeadlineMeasured = true // mesure présente — la garde d'absence reste à la source campagne
 				// sentinelle deadline — journal + pas de spam (1 alerte / 5 min)
 				if d.DeadlineMs > 0 && sm.P95 > d.DeadlineMs {
 					overDeadline++

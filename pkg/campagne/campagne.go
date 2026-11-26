@@ -17,6 +17,25 @@ import (
 	"github.com/Realms4239/cgo/qdisc"
 )
 
+// deadlineObjectBytes — taille du petit objet de référence pour l'échéance
+// profile-relative (16 KiB), identique à la sonde small du banc.
+const deadlineObjectBytes = 16384
+
+// effectiveDeadline — échéance relative au profil : délai du profil plus
+// sérialisation de l'objet à sa capacité plus la marge de service opérateur.
+// Un taux invalide échoue fermé : aucune valeur fabriquée n'est publiée.
+func effectiveDeadline(prof model.Profile, direction string, allowanceMs float64) (float64, bool) {
+	rate := prof.CapUp()
+	if direction == "down" {
+		rate = prof.CapDown()
+	}
+	due, err := metrics.EffectiveDeadlineMs(prof.DelayMs, deadlineObjectBytes, rate, allowanceMs)
+	if err != nil {
+		return 0, false
+	}
+	return due, true
+}
+
 type Deps struct {
 	TC       qdiscRunner // netem hop (main ns)
 	TCShaper qdiscRunner // shaping+aqm hop; nil ⇒ TC
@@ -120,6 +139,7 @@ func (d *Deps) Snapshot(phase, load string, ev model.Event,
 		RTTp50Ms: ev.RTTp50Ms, RTTp95Ms: ev.RTTp95Ms, Smallp95Ms: ev.Smallp95Ms,
 		GoodputMbps: ev.BulkGoodputMbps, Drops: ev.Drops,
 		WastedBytes: ev.WastedBytes, CostARPerH: ev.CostARPerH, DeadlineOKPct: ev.DeadlineOKPct,
+		DeadlineMeasured: ev.DeadlineMeasured, DeadlineDueMs: ev.DeadlineDueMs,
 		ProfileCapMbps: prof.CapUp(), ProfileDelayMs: prof.DelayMs,
 		ProfileJitterMs: prof.JitterMs, ProfileLossPct: prof.LossPct,
 		Gates: gates, Running: true,
@@ -199,6 +219,8 @@ type Snapshot struct {
 	WastedBytes       uint64  `json:"wasted_bytes"`
 	CostARPerH        float64 `json:"cost_ar_per_h"`
 	DeadlineOKPct     float64 `json:"deadline_ok_pct"`
+	DeadlineMeasured  bool    `json:"deadline_measured"`
+	DeadlineDueMs     float64 `json:"deadline_due_ms,omitempty"`
 	ProfileCapMbps    float64 `json:"profile_capacity_mbps"`
 	ProfileDelayMs    float64 `json:"profile_delay_ms"`
 	ProfileJitterMs   float64 `json:"profile_jitter_ms"`
@@ -315,6 +337,22 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	defaults(&d)
 	ensureQdiscModules()
 
+	// Échéance profile-relative calculée UNE fois pour la cellule : la même base
+	// en live et au gel, jamais le seuil fixe 220 ms.
+	deadlineDue, deadlineOK := effectiveDeadline(prof, d.Direction, d.DeadlineMs)
+	ev.DeadlineDueMs = deadlineDue
+	ev.DeadlineBasis = "profile-relative"
+	setDeadline := func(target *model.Event, completions []float64) {
+		if !deadlineOK || len(completions) == 0 {
+			// absence : ni 0 mesuré ni nombre fabriqué, le booléen porte le sens.
+			target.DeadlineOKPct = 0
+			target.DeadlineMeasured = false
+			return
+		}
+		target.DeadlineOKPct = round1(metrics.DeadlineOKPct(completions, deadlineDue))
+		target.DeadlineMeasured = true
+	}
+
 	// Canal en salves : P2/P3 seulement, et l'erreur part AVANT toute
 	// mutation qdisc — un repli silencieux en uniforme changerait l'identité
 	// de la cellule mesurée (bursty annoncé, uniforme exécuté).
@@ -420,7 +458,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 		if len(small) > 0 {
 			sm := metrics.Summarize(small)
 			live.Smallp95Ms = round1(sm.P95)
-			live.DeadlineOKPct = round1(metrics.DeadlineOKPct(small, d.DeadlineMs))
+			setDeadline(&live, small)
 		}
 		if d.StatsFn != nil {
 			sts := d.StatsFn()
@@ -646,7 +684,7 @@ func RunEvent(ctx context.Context, ev model.Event, prof model.Profile, d Deps) (
 	ev.VoIPR = round1(metrics.VoIPR(sumC.Median/2, sumC.P95-sumC.Median, prof.LossPct))
 	sm := metrics.Summarize(chgSmall)
 	ev.Smallp95Ms = round1(sm.P95)
-	ev.DeadlineOKPct = round1(metrics.DeadlineOKPct(chgSmall, d.DeadlineMs))
+	setDeadline(&ev, chgSmall)
 	ev.BulkGoodputMbps = round1(goodput)
 	if math.IsNaN(cpuAvg) || cpuAvg <= 0 {
 		ev.CPUPct = 0 // non mesuré : la colonne reste 0, G7 est nil
@@ -735,7 +773,14 @@ func costARPerH(tierName string, wastedBytes uint64) float64 {
 	return metrics.CostARPerH(wastedBytes)
 }
 
-func round1(v float64) float64 { return float64(int(v*10+0.5)) / 10 }
+// round1 — dernier garde-fou : int(NaN) vaut min-int64 et fabriquerait un
+// grand nombre fini. L'absence est portée par DeadlineMeasured, pas par ce 0.
+func round1(v float64) float64 {
+	if math.IsNaN(v) {
+		return 0
+	}
+	return float64(int(v*10+0.5)) / 10
+}
 
 func loadFor(phase string) string {
 	if phase == model.PhaseCharge {

@@ -258,15 +258,22 @@ type Event struct {
 	Direction  string `json:"direction"`
 	Repetition int    `json:"repetition"`
 
-	RTTp50Ms        float64 `csv:"rtt_p50_ms"        json:"rtt_p50_ms"`
-	RTTp95Ms        float64 `csv:"rtt_p95_ms"        json:"rtt_p95_ms"`
-	RTTBaseP50Ms    float64 `csv:"rtt_base_p50_ms"   json:"rtt_base_p50_ms"`
-	RTTBaseP95Ms    float64 `csv:"rtt_base_p95_ms"   json:"rtt_base_p95_ms"`
-	QDIPctMs        float64 `csv:"qdi_ms"            json:"qdi_ms"`
-	VoIPR           float64 `csv:"voip_r"            json:"voip_r"`
-	JFI             float64 `csv:"jfi_pct"           json:"jfi_pct"`
-	Smallp95Ms      float64 `csv:"small_p95_ms"      json:"small_p95_ms"`
-	DeadlineOKPct   float64 `csv:"deadline_ok_pct"   json:"deadline_ok_pct"`
+	RTTp50Ms      float64 `csv:"rtt_p50_ms"        json:"rtt_p50_ms"`
+	RTTp95Ms      float64 `csv:"rtt_p95_ms"        json:"rtt_p95_ms"`
+	RTTBaseP50Ms  float64 `csv:"rtt_base_p50_ms"   json:"rtt_base_p50_ms"`
+	RTTBaseP95Ms  float64 `csv:"rtt_base_p95_ms"   json:"rtt_base_p95_ms"`
+	QDIPctMs      float64 `csv:"qdi_ms"            json:"qdi_ms"`
+	VoIPR         float64 `csv:"voip_r"            json:"voip_r"`
+	JFI           float64 `csv:"jfi_pct"           json:"jfi_pct"`
+	Smallp95Ms    float64 `csv:"small_p95_ms"      json:"small_p95_ms"`
+	DeadlineOKPct float64 `csv:"deadline_ok_pct"   json:"deadline_ok_pct"`
+	// DeadlineMeasured — faux quand aucune complétion small n'a été observée :
+	// le lecteur ne doit jamais lire 0 comme un pourcentage mesuré. JSON seul.
+	DeadlineMeasured bool `json:"deadline_measured"`
+	// DeadlineDueMs / DeadlineBasis — provenance de l'échéance effective
+	// (base profile-relative), jamais une colonne du CSV gelé à 23 champs.
+	DeadlineDueMs   float64 `json:"deadline_due_ms,omitempty"`
+	DeadlineBasis   string  `json:"deadline_basis,omitempty"`
 	BulkGoodputMbps float64 `csv:"bulk_goodput_mbps" json:"bulk_goodput_mbps"`
 	Drops           uint64  `csv:"drops"             json:"drops"`
 	Retransmissions uint64  `csv:"retransmissions"   json:"retransmissions"`
