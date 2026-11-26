@@ -4,6 +4,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -352,6 +353,18 @@ func (h *Hub) SSE(w http.ResponseWriter, r *http.Request) {
 // ---- aides ----
 
 func toMap(v any) (map[string]any, error) {
+	// json.Marshal refuse NaN/Inf et ferait tomber TOUTE la frame SSE. Une
+	// valeur non finie est retirée : l'absence est portée par deadline_measured.
+	if src, ok := v.(map[string]any); ok {
+		clean := make(map[string]any, len(src))
+		for k, val := range src {
+			if f, ok := val.(float64); ok && (math.IsNaN(f) || math.IsInf(f, 0)) {
+				continue
+			}
+			clean[k] = val
+		}
+		v = clean
+	}
 	b, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
