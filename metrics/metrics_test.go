@@ -1,6 +1,9 @@
 package metrics
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestPercentile(t *testing.T) {
 	s := []float64{10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
@@ -16,6 +19,16 @@ func TestDeadlineOKPct(t *testing.T) {
 	got := DeadlineOKPct([]float64{10, 20, 30, 200}, 100)
 	if got != 75 {
 		t.Fatalf("deadline pct = %v, want 75", got)
+	}
+}
+
+// Aucune mesure ne doit se lire comme un 0 % mesuré : une absence est NaN,
+// pour distinguer « aucune complétion observée » de « aucune dans les temps ».
+func TestDeadlineOKPctEmptyIsNaN(t *testing.T) {
+	for _, in := range [][]float64{nil, {}} {
+		if got := DeadlineOKPct(in, 220); !math.IsNaN(got) {
+			t.Fatalf("DeadlineOKPct(%v, 220) = %v, voulu NaN", in, got)
+		}
 	}
 }
 

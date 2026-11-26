@@ -17,6 +17,13 @@ func ModelDelayMs(propagationMs, packetBytes, rateMbps, queueMs float64) (float6
 	return propagationMs + packetBytes*8/(rateMbps*1e6)*1000 + queueMs, nil
 }
 
+// EffectiveDeadlineMs — échéance relative au profil : délai modèle plus marge.
+// Délègue à ModelDelayMs pour hériter de son refus des taux invalides ; c'est
+// une valeur calculée, jamais une mesure ni le seuil fixe de 220 ms.
+func EffectiveDeadlineMs(profileDelayMs, packetBytes, rateMbps, allowanceMs float64) (float64, error) {
+	return ModelDelayMs(profileDelayMs, packetBytes, rateMbps, allowanceMs)
+}
+
 // AbsentValue — la cellule rendue quand une valeur manque dans le rapport.
 // Jamais un zéro : zéro se lirait comme une mesure réelle.
 const AbsentValue = "—"

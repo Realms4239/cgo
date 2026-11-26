@@ -46,7 +46,8 @@ func Summarize(v []float64) Summary {
 // DeadlineOKPct — share of completions strictly under dueMs.
 func DeadlineOKPct(completionsMs []float64, dueMs float64) float64 {
 	if len(completionsMs) == 0 {
-		return 0
+		// Absence de mesures : pas de pourcentage observé, pas même zéro.
+		return math.NaN()
 	}
 	ok := 0
 	for _, v := range completionsMs {

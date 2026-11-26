@@ -46,6 +46,36 @@ func TestModelDelayMsRefusesNonPositiveRate(t *testing.T) {
 	}
 }
 
+// TestEffectiveDeadlineMsFromProfile — l'échéance effective est calculée depuis
+// le profil (propagation + sérialisation + marge), jamais mesurée : 40 + 3 + 10.
+func TestEffectiveDeadlineMsFromProfile(t *testing.T) {
+	got, err := EffectiveDeadlineMs(40, 1500, 4, 10)
+	if err != nil {
+		t.Fatalf("EffectiveDeadlineMs: %v", err)
+	}
+	want, err := ModelDelayMs(40, 1500, 4, 10)
+	if err != nil {
+		t.Fatalf("ModelDelayMs: %v", err)
+	}
+	if math.Abs(got-want) > 1e-9 || math.Abs(got-53) > 1e-9 {
+		t.Fatalf("EffectiveDeadlineMs = %.12f, voulu %.12f (53 ms)", got, want)
+	}
+}
+
+// TestEffectiveDeadlineMsRefusesInvalidRate — hérite du refus fermé de
+// ModelDelayMs : un taux absent, nul, négatif ou non fini ne produit pas d'échéance.
+func TestEffectiveDeadlineMsRefusesInvalidRate(t *testing.T) {
+	for _, rate := range []float64{0, -1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		got, err := EffectiveDeadlineMs(100, 1500, rate, 5)
+		if err == nil {
+			t.Fatalf("taux %v : refus attendu, obtenu %.12f", rate, got)
+		}
+		if got != 0 {
+			t.Fatalf("taux %v : valeur %v, voulu 0", rate, got)
+		}
+	}
+}
+
 // TestConfiguredVsRealisedAbsentIsDashWithNote — une absence n'est jamais un
 // zéro : le tiret porte une note explicite, aucun nombre n'est fabriqué.
 func TestConfiguredVsRealisedAbsentIsDashWithNote(t *testing.T) {
