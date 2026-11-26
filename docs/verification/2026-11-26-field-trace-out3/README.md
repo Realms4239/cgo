@@ -27,8 +27,17 @@ The windows are disjoint (head vs tail of 109,489 rows), giving **2,218 P4 sampl
 
 Many rows carry a literal `%!(EXTRA uint32=1)` prefix before the `kind` field (visible in `20261126-063056`, sha `e6138558…`). The SRTT column remains numeric on those rows, so banding used column 11 only. This is a formatting defect in the tracer, not a reason to discard the samples, but it must be fixed before a sealed calibration consumes the file.
 
+## Real calibration (executed 2026-11-26)
+
+- The tracer defect was fixed in `cmd/cgo-observe/main_linux_ebpf.go` (F row had 13 conversions for a 15-column header): commit `cb923d5`, with a red DOM-independent Go test (`cmd/cgo-observe/observe_test.go`) proving the field-count mismatch before the fix.
+- Bounded full-column extracts were normalized honestly: strip the `%!(EXTRA uint32=1)` prefix and append an empty `samples` cell (absence, never an invented value). Evidence `20261126-070953` sha `984cbd96…` (head 2,000 rows) and `20261126-071209` sha `2240a6b3…` (tail 2,000 rows). The tail window yielded **39 P4 samples**, clearing the 30-sample floor.
+- `go run ./cmd/tracemodel --flows flows-normalized.csv --out . --trace-id field-trace-out3-20261126` -> `present: P4 has 39 samples · telemetry sha256 58ecd4c8cbbefb3a85d6eb7d0be5daaf281ca8416d87a8f183c8d30c4256a589`; P1/P2/P3 absent below the floor.
+- `go run ./cmd/cgo calibrate --audit field-trace-out3-20261126-P4 --profile P4 --data . --out ./calibrations` -> exit 0, `calibrate P4 — 39 échantillons baseline · plancher 40.0 ms · échelle 2.396 ms · p50/p95/p99.9 49.6 ms`.
+- `calibrations/P4.dist` is 1,024 lines, sha256 `619c7a881af8526221633306c1f9a4b1f49290dfc4e1e67892f1dfdf87054ed8`, matching the sealed `P4.json` `dist_sha256`. `basis: measured`, `source_ref: field-trace-out3-20261126`, `source_telemetry_sha256: 58ecd4c8…`, `samples: 39`, `below_floor_pct: 0`, `clipped_pct: 0`.
+- This is a **real field-trace calibration**, not the emulated 2026-11-13 `.dist`. No bench run applied it; no gate, corpus or VERIFY row was promoted.
+
 ## Disposition
 
-- **Unblocked for P4 only**: a real field band with >=30 samples now exists. Next step is a separately approved retrieval of the bounded sample + manifest, a tracer formatting fix, then `cgo tracemodel` and `cgo calibrate --profile P4` with a sealed sidecar.
+- **Unblocked for P4 only**: a real field band with >=30 samples now exists and has been calibrated into a sealed `P4.dist`. Applying it in a bench cell needs a separate human-approved live run.
 - **Still BLOCKED**: P1, P2, P3 have no calibratable band. Named condition: a longer authorized capture whose traffic reaches those RTT bands with >=30 samples, or a new operator ruling on the floor. Lowering the floor or inventing samples is forbidden.
 - No frozen corpus, gate, ledger, `.dist`, host service, field-trace execution at the sample floor, or VERIFY-row promotion occurred in this pass.
