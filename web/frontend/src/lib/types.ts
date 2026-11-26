@@ -39,6 +39,9 @@ export interface LiveFrame {
   // client quand > 0, sinon computeJFI côté mur.
   jfi_pct?: number
   deadline_ok_pct?: number
+  // faux (ou absent sur une trame ancienne) : aucune complétion n'a été
+  // mesurée — le pourcentage ne doit jamais être lu comme un zéro.
+  deadline_measured?: boolean
   gates: (boolean | null)[]
   running: boolean
 }

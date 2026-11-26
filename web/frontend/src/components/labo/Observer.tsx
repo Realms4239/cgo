@@ -11,6 +11,7 @@ import TimeField from '../cockpit/TimeField'
 import JournalRail from '../cockpit/JournalRail'
 import { CardHead } from '../ui/CardHead'
 import { EmptyState } from '../ui/EmptyState'
+import LiveDeadline from '../LiveDeadline'
 import Matrix, { type MatrixPlan, type CampaignProgress } from './Matrix'
 import Gates from './Gates'
 import CampaignTimeline from './CampaignTimeline'
@@ -86,6 +87,7 @@ export default function Observer({ running = false }: { running?: boolean }) {
   return (
     <div className="observer">
       <CardHead label="Instrument" sub="Latence, débit et état du lien au fil du temps." />
+      <LiveDeadline frame={live} />
       <EventTimeline events={instrument.events} />
       <div className="observer-depth">
         <Matrix plan={plan} progress={progress} />
