@@ -14,6 +14,8 @@ import type { Capabilities } from '../../lib/capabilities'
 
 // Projection honnête de GET /api/calibrations : le serveur ne renvoie déjà que
 // des sidecars vérifiés, le filtre client garde la porte fermée au repos.
+// Un serveur lancé avec CGO_CALIBRATION_DIR pointant le dossier scellé
+// (docs/verification/.../calibrations) expose P4 — sans copie dans data/.
 export interface Calibration {
   name: string
   sha256: string
@@ -85,24 +87,34 @@ export default function Configurer({ site, link, duration, caps, params, calibra
     const p = param(key, schema)
     const options = optionsOf(p, labels)
     const value = choices[key] ?? defaultOf(p, options)
+    // Le mot d'absence sort du bouton : le libellé reste entier, la rangée
+    // reste courte. Le contrôle dit toujours pourquoi l'option est fermée.
+    const disabledLabels = options.filter(v => unavailable.includes(v)).map(v => labels[v])
     return (
       <div className="configurer-control" data-control={key}>
         <span className="configurer-control-label">{label}</span>
         {options.length ? (
-          <div className="configurer-options" role="group" aria-label={label}>
-            {options.map(v => {
-              const disabled = unavailable.includes(v)
-              return (
-                <button
-                  key={v} type="button" className="configurer-option"
-                  aria-pressed={value === v}
-                  aria-disabled={disabled || undefined}
-                  disabled={disabled}
-                  onClick={() => setChoices(c => ({ ...c, [key]: v }))}
-                >{labels[v]}{disabled ? ' — aucune calibration vérifiée' : null}</button>
-              )
-            })}
-          </div>
+          <>
+            <div className="configurer-options" role="group" aria-label={label}>
+              {options.map(v => {
+                const disabled = unavailable.includes(v)
+                return (
+                  <button
+                    key={v} type="button" className="configurer-option"
+                    aria-pressed={value === v}
+                    aria-disabled={disabled || undefined}
+                    disabled={disabled}
+                    onClick={() => setChoices(c => ({ ...c, [key]: v }))}
+                  >{labels[v]}</button>
+                )
+              })}
+            </div>
+            {disabledLabels.length ? (
+              <span className="configurer-option-note">
+                {`${disabledLabels.join(', ')} — aucune calibration vérifiée`}
+              </span>
+            ) : null}
+          </>
         ) : (
           <span className="configurer-absent">— {word}</span>
         )}
@@ -149,8 +161,11 @@ export default function Configurer({ site, link, duration, caps, params, calibra
                 {distOptions.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
               {picked ? (
-                <span className="configurer-calib-detail">
-                  {picked.name} — {picked.samples} échantillons · p50 {picked.p50_ms} ms
+                <span
+                  className="configurer-calib-detail"
+                  title={picked.sha256 ? `Empreinte sha256 du .dist scellé (audit source) : ${picked.sha256}` : undefined}
+                >
+                  {`${picked.name} — ${picked.samples} échantillons · p50 ${picked.p50_ms} ms${picked.sha256 ? ` · source ${picked.sha256.slice(0, 8)}…` : ''}`}
                 </span>
               ) : null}
             </>

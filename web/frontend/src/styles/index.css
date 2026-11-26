@@ -1003,3 +1003,34 @@ div[role="status"][aria-label^="Event"] { max-width: calc(100vw - 24px); flex-wr
     border-color: CanvasText;
   }
 }
+
+/* Labo — rythme calme des quatre panneaux. Surcharges après components.css
+   (qui garde la source des états) : plus de souffle, libellés entiers, cibles
+   tactiques inchangées à 44 px, aucune information retirée du DOM. */
+.configurer-controls { gap: var(--sp-4); }
+.configurer-control { gap: var(--sp-3); padding: var(--sp-3); }
+.configurer-options { gap: var(--sp-2); row-gap: var(--sp-2); }
+.configurer-option {
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  text-align: left;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.configurer-option-note {
+  display: block;
+  font-size: var(--fs-fine);
+  color: var(--text-faint);
+  text-wrap: pretty;
+}
+.configurer > .inline-disclosure { margin-top: var(--sp-3); }
+.configurer > .inline-disclosure > .inline-disclosure-trigger {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 var(--sp-3);
+}
+.observer-depth, .observer-field { gap: var(--sp-4); }
+.comparer-duel, .comparer-rank { gap: var(--sp-3); }
+.preuves-disclosures { gap: var(--sp-3); }
