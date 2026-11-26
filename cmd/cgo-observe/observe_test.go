@@ -1,6 +1,20 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+// TestFlowRowFormatMatchesHeader — une ligne F doit porter exactement les
+// 15 colonnes de l'en-tête scellé ; un convertissement manquant laisse un
+// `%!(EXTRA ...)` dans flows.csv et décale srtt_us.
+func TestFlowRowFormatMatchesHeader(t *testing.T) {
+	headerFields := strings.Count(flowsHeaderLine, ",") + 1
+	rowFields := strings.Count(flowRowFormat, "%") + 1
+	if rowFields != headerFields {
+		t.Fatalf("ligne F = %d champs, en-tête = %d", rowFields, headerFields)
+	}
+}
 
 func TestClampDuration(t *testing.T) {
 	if got := clampDuration(0); got != 60 {

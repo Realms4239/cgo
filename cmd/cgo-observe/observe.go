@@ -13,6 +13,13 @@ import (
 // prolonger le marquage.
 const maxDurationSec = 172800
 
+// formats du scellage : l'en-tête et la ligne F doivent rester synchronisés.
+// Un convertissement en moins laisse `%!(EXTRA ...)` dans flows.csv et décale
+// srtt_us d'une colonne, ce qui rendrait une bande calibrée fausse.
+const flowsHeaderLine = "kind,window_unix,local_label,peer_label,local_port,peer_port,retrans_payload_bytes,retrans_events,qdisc_drop_packets,qdisc_drop_bytes,srtt_us,snd_cwnd,snd_ssthresh,state,samples"
+
+const flowRowFormat = "F,%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d"
+
 // clampDuration borne la demande à maxDurationSec ; <=0 → défaut 60 s.
 func clampDuration(sec int) int {
 	if sec <= 0 {

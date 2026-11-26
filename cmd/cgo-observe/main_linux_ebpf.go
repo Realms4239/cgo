@@ -61,7 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("csv: %v", err)
 	}
-	fmt.Fprintln(f, "kind,window_unix,local_label,peer_label,local_port,peer_port,retrans_payload_bytes,retrans_events,qdisc_drop_packets,qdisc_drop_bytes,srtt_us,snd_cwnd,snd_ssthresh,state,samples")
+	fmt.Fprintln(f, flowsHeaderLine)
 
 	sess, err := bpf.Attach()
 	if err != nil {
@@ -94,7 +94,7 @@ func main() {
 					excluded++
 					continue
 				}
-				fmt.Fprintf(f, "F,%d,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+				fmt.Fprintf(f, flowRowFormat+"\n",
 					window, pseudonym(fl.Local, salt), pseudonym(fl.Peer, salt),
 					fl.LocalPort, fl.PeerPort,
 					fl.RetransPayload, fl.RetransEvents, fl.DropPackets, fl.DropBytes,
